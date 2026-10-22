@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+import structlog
 from pydantic import ValidationError
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
@@ -1962,6 +1963,87 @@ class TestTaskStateStoreAccessor:
         assert result == {"rows": 123}
         backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
 
+    def test_set_with_custom_backend_returning_none_stores_value_inline(self, mock_supervisor_comms):
+        """A backend that returns None keeps the value inline, with no marker around it."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_task_state_store_to_ref.return_value = None
+
+        with (
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
+            conf_vars({("state_store", "default_retention_days"): "0"}),
+        ):
+            TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("progress", {"count": 5})
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskStateStore(ti_id=self.TI_ID, key="progress", value={"count": 5}, expires_at=None)
+        )
+
+    def test_get_with_custom_backend_returns_unmarked_value_without_deserializing(
+        self, mock_supervisor_comms
+    ):
+        """A value stored inline (or written through the REST API) is returned as-is."""
+        mock_supervisor_comms.send.return_value = TaskStateStoreResult(value={"count": 5})
+
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with (
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
+            patch("airflow.sdk.execution_time.context.log", spec=structlog.stdlib.BoundLogger) as mock_log,
+        ):
+            result = TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("progress")
+
+        assert result == {"count": 5}
+        backend.deserialize_task_state_store_from_ref.assert_not_called()
+        mock_log.warning.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            pytest.param({"__airflow_state_ref__": "/tmp/x", "other": 1}, id="marker-with-other-keys"),
+            pytest.param({"__airflow_state_ref__": 1}, id="non-string-marker-value"),
+        ],
+    )
+    def test_get_with_custom_backend_returns_marker_lookalike_without_deserializing(
+        self, mock_supervisor_comms, stored
+    ):
+        """Only an exact ``{marker: str}`` wrapper is treated as a backend reference."""
+        mock_supervisor_comms.send.return_value = TaskStateStoreResult(value=stored)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            result = TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+
+        assert result == stored
+        backend.deserialize_task_state_store_from_ref.assert_not_called()
+
+    def test_get_with_custom_backend_resolves_empty_string_ref(self, mock_supervisor_comms):
+        """An empty reference is still a reference: set() wraps it, so get() must resolve it."""
+        mock_supervisor_comms.send.return_value = TaskStateStoreResult(value=_wrap_external_ref(""))
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_task_state_store_from_ref.return_value = "resolved"
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            result = TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+
+        assert result == "resolved"
+        backend.deserialize_task_state_store_from_ref.assert_called_once_with("")
+
+    def test_set_rejects_value_with_reserved_marker_key(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="__airflow_state_ref__"):
+            TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+                "job_id", {"__airflow_state_ref__": "/tmp/x"}
+            )
+
+        mock_supervisor_comms.send.assert_not_called()
+
     @pytest.mark.asyncio
     async def test_aget_returns_value(self, mock_supervisor_comms):
         """aget awaits asend and returns the stored value, without touching sync send."""
@@ -2271,6 +2353,48 @@ class TestAssetStateStoreAccessor:
         backend.deserialize_asset_state_store_from_ref.assert_called_once_with(
             "s3://bucket/assets/orders/watermark"
         )
+
+    def test_set_with_custom_backend_returning_none_stores_value_inline(self, mock_supervisor_comms):
+        """A backend that returns None keeps the value inline, with no marker around it."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_asset_state_store_to_ref.return_value = None
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
+        )
+
+    def test_get_with_custom_backend_returns_unmarked_value_without_deserializing(
+        self, mock_supervisor_comms
+    ):
+        """A value stored inline (or written through the REST API) is returned as-is."""
+        mock_supervisor_comms.send.return_value = AssetStateStoreResult(value={"note": "set via UI"})
+
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with (
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
+            patch("airflow.sdk.execution_time.context.log", spec=structlog.stdlib.BoundLogger) as mock_log,
+        ):
+            result = AssetStateStoreAccessor(name=self.ASSET_NAME).get("note")
+
+        assert result == {"note": "set via UI"}
+        backend.deserialize_asset_state_store_from_ref.assert_not_called()
+        mock_log.warning.assert_not_called()
+
+    def test_set_rejects_value_with_reserved_marker_key(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="__airflow_state_ref__"):
+            AssetStateStoreAccessor(name=self.ASSET_NAME).set(
+                "watermark", {"__airflow_state_ref__": "/tmp/x"}
+            )
+
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
         """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
