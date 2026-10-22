@@ -20,6 +20,7 @@ package airflow
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // Node is what an edge connects: a task or a whole task group. A [TaskRef] and a [TaskGroupRef]
@@ -49,13 +50,13 @@ type Node interface {
 	// After makes the receiver a downstream of every node, as Python's << does.
 	After(nodes ...Node) Node
 	// node seals the interface. Only a type that package airflow declares is a Node, so
-	// endpoints can read what one stands for.
+	// appendEndpoints can read what one stands for.
 	node()
 }
 
-// nodeEndpoint is one task or one task group that a Node stands for, with the label that [Label]
-// carries into the edge verb the Node is passed to. Exactly one of task and group is set, except
-// for the endpoint of a nil *TaskRef, which has neither.
+// nodeEndpoint is one task or one task group that a Node stands for, with the label that
+// [LabelRef.On] carries into the edge verb the Node is passed to. Exactly one of task and group is
+// set.
 type nodeEndpoint struct {
 	task  *TaskRef
 	group *TaskGroupRef
@@ -95,47 +96,71 @@ func (e nodeEndpoint) describe() string {
 	return fmt.Sprintf("task %q", e.task.taskID)
 }
 
-// nodeSet is the argument set that Before and After return as one Node, and the Node that
-// [Label] returns. A label belongs to the edge of the verb the Node is passed to, so a nodeSet
-// carries its labels no further once it is the receiver of the next verb.
+// nodeSet is the Node that Before and After return, and it holds the nodes that were passed to
+// the verb. It carries no labels, because a label belongs to the edges of the verb call that it
+// was passed to.
 type nodeSet []nodeEndpoint
 
 func (nodeSet) node() {}
-
-// unlabelled returns the set with its labels dropped. A label belongs to the one verb it was
-// passed to, so the Node a verb returns, which stands for the nodes it pointed at, carries none.
-func (s nodeSet) unlabelled() nodeSet {
-	plain := make(nodeSet, len(s))
-	for i, endpoint := range s {
-		plain[i] = nodeEndpoint{task: endpoint.task, group: endpoint.group}
-	}
-	return plain
-}
 
 func (s nodeSet) Before(nodes ...Node) Node { return declareEdges(s, nodes, dirBefore) }
 
 func (s nodeSet) After(nodes ...Node) Node { return declareEdges(s, nodes, dirAfter) }
 
+// labelledSet is the Node that [LabelRef.On] returns. Every endpoint in a labelledSet carries the
+// label of the LabelRef. labelledSet is a separate type so that an edge verb can use a type
+// assertion to recognize the Node that On returns, without looking at each endpoint. An empty
+// labelledSet carries no label.
+type labelledSet []nodeEndpoint
+
+func (labelledSet) node() {}
+
+func (s labelledSet) Before(nodes ...Node) Node { return declareEdges(s, nodes, dirBefore) }
+
+func (s labelledSet) After(nodes ...Node) Node { return declareEdges(s, nodes, dirAfter) }
+
 func (*TaskRef) node() {}
 
-// endpoints returns the tasks and task groups that node stands for. The Node method is
-// unexported, so the types of this package are the only Nodes, and a struct that embeds one is all
-// that reaches the default case. where names the Node in a panic, such as
-// "airflow.Node.Before: nodes[0]".
-func endpoints(where string, node Node) []nodeEndpoint {
+// position names a Node in a panic message, such as airflow.Node.Before: nodes[1]. String builds
+// the name only when a panic needs it, so a call that does not panic builds no string.
+type position struct {
+	where string // the function, such as airflow.Node.Before
+	param string // the parameter, such as nodes, or the receiver
+	index int    // the index into a variadic parameter, or -1 for a parameter that holds one Node
+}
+
+func (p position) String() string {
+	if p.index < 0 {
+		return p.where + ": " + p.param
+	}
+	return fmt.Sprintf("%s: %s[%d]", p.where, p.param, p.index)
+}
+
+// appendEndpoints appends to set the tasks and task groups that node stands for, with the labels
+// that node carries. It returns the extended set. The Node method is unexported, so the types of
+// this package are the only Nodes. Only a struct that embeds one of those types reaches the
+// default case. at names node in a panic message.
+func appendEndpoints(set []nodeEndpoint, node Node, at position) []nodeEndpoint {
 	switch node := node.(type) {
+	case nil:
+		panic(at.String() + " is a nil airflow.Node")
 	case *TaskRef:
-		return []nodeEndpoint{{task: node}}
+		if node == nil {
+			panic(at.String() + " is a nil *airflow.TaskRef")
+		}
+		return append(set, nodeEndpoint{task: node})
 	case *TaskGroupRef:
 		if node == nil {
-			panic(where + " is a nil *airflow.TaskGroupRef")
+			panic(at.String() + " is a nil *airflow.TaskGroupRef")
 		}
-		return []nodeEndpoint{{group: node}}
+		return append(set, nodeEndpoint{group: node})
 	case nodeSet:
-		return node
+		return append(set, node...)
+	case labelledSet:
+		return append(set, node...)
 	default:
 		panic(fmt.Sprintf(
-			"%s has type %T, which is not a node that package airflow defines", where, node,
+			"%s has type %T, which is not a node that package airflow defines", at.String(), node,
 		))
 	}
 }
@@ -150,7 +175,7 @@ func endpoints(where string, node Node) []nodeEndpoint {
 //
 // Before returns the nodes it was given as one Node, not the receiver, so a chain fans out from
 // them: loaded.Before(notified, cleaned).Before(done) is loaded >> [notify, cleanup] >> done.
-// Wrap a node in [Label] to label the edge that reaches it.
+// To label the edge that reaches a node, pass Label(text).On(node) in place of the node.
 //
 // Declaring an edge that the Dag already has changes nothing, other than to apply a [Label].
 //
@@ -178,20 +203,59 @@ func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, dir
 // cleanup << extract << start.
 func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirAfter) }
 
-// Label puts text on the edge that an edge verb declares to node, as Python's
-// loaded >> Label("when empty") >> notify_empty does:
+// LabelRef is an edge label made by [Label]. [LabelRef.On] returns a Node. To label edges, pass
+// that Node to Before or After.
+type LabelRef struct {
+	text string
+}
+
+// Label returns a label with the given text. The Python code
+// loaded >> Label("when empty") >> notify_empty becomes:
 //
-//	loaded.Before(Label(emptyNotice, "when empty"))
+//	loaded.Before(Label("when empty").On(emptyNotice))
 //
-// The label wraps the endpoint rather than the call, so each edge of a fan-out can carry a label
-// of its own:
+// The text comes before the node passed to On, so it sits between the two tasks in the code. The
+// Airflow UI draws the label between the same two tasks in the graph.
 //
-//	checked.Before(Label(processed, "rows found"), Label(emptyNotice, "no rows"))
+// Label panics if text is empty or holds only white space.
+func Label(text string) *LabelRef {
+	if strings.TrimSpace(text) == "" {
+		panic("airflow.Label: got a blank label; pass the text to put on the edge")
+	}
+	return &LabelRef{text: text}
+}
+
+// On returns node, and each node in more, as one Node. Pass that Node to an edge verb, and the verb
+// puts the label on each edge between its receiver and one of those nodes. With After, those edges
+// point at the receiver:
 //
-// A label is the Node's only in the verb it is passed to. The Node that Label returns stands for
-// node itself, and the Node a verb returns carries no label on either side of the next verb. So a
-// label on the receiver of a verb has no edge to land on and is dropped, the way Python's
-// Label("x") >> b alone sets no label.
+//	cleaned.After(Label("always").On(loaded))  // loaded >> Label("always") >> cleanup
+//
+// Each Node passed to Before or After can carry its own label, so the edges that one call declares
+// can have different labels:
+//
+//	checked.Before(Label("rows found").On(processed), Label("no rows").On(emptyNotice))
+//
+// When On is given more than one node, the edge to or from each of those nodes gets the same
+// label. Python's loaded >> Label("forks") >> [notify_empty, notify_suspicious] becomes:
+//
+//	loaded.Before(Label("forks").On(emptyNotice, suspiciousNotice))
+//
+// A label is the Node's only in the verb it is passed to. The Node that On returns stands for the
+// nodes themselves. The Node that a verb returns carries no label into the next verb, either as
+// its receiver or as an argument. When labels nest, the outer label is used:
+// loaded.Before(Label("outer").On(Label("inner").On(cleaned))) labels the edge "outer".
+//
+// Before and After panic when a label on a task or task group would get no edge:
+//   - Their receiver carries a label, so pass the Node that On returns only as an argument.
+//     Python's Label("x") >> b drops such a label without an error instead.
+//   - They are given a label, but their receiver, such as the Node that loaded.Before() returns,
+//     stands for no task or task group. So they declare no edge. A chain that passes an empty
+//     slice of nodes to one verb reaches this case when the next verb in the chain is given a
+//     label.
+//
+// When On is given only empty sets, the Node it returns holds no task or task group, so its
+// label is on nothing. Before and After then drop the label without an error.
 //
 // A label declared on an edge that already carries one replaces it, as Python's DAG.set_edge_info
 // does.
@@ -199,27 +263,36 @@ func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirA
 // An [Inputs] edge is labelled by declaring it again, which is idempotent:
 //
 //	transformed := dag.Task(transform, Inputs(extracted))
-//	extracted.Before(Label(transformed, "rows"))
+//	extracted.Before(Label("rows").On(transformed))
 //
-// A label on an edge to or from a task group stays on that edge, as [TaskGroupRef.Before]
-// describes. A label on an edge between two tasks stays on that edge too, even when the tasks are
-// in different task groups. In that case Python can replace the receiver of the verb with a group
+// A label on an edge to or from a task group labels that group edge. On an edge from a task that
+// no group holds to a group with tasks, it also labels the edges to the first tasks of the group,
+// as [TaskGroupRef.Before] describes. If one of those task edges was also declared on its own, or
+// was added by an earlier group edge, that task edge keeps the label it already has, or stays
+// unlabelled. A label on an edge between two tasks stays on that edge, even when the tasks are in
+// different task groups. In that case Python can replace the receiver of the verb with a group
 // that holds it, which makes the edge connect other tasks.
 //
-// Label panics if node is nil or text is empty.
-func Label(node Node, text string) Node {
-	if node == nil {
-		panic("airflow.Label: got a nil airflow.Node")
+// On panics if:
+//   - l is nil or points to a zero LabelRef
+//   - node or a node in more is nil, is a nil *TaskRef or *TaskGroupRef, or is a struct that
+//     embeds a Node
+func (l *LabelRef) On(node Node, more ...Node) Node {
+	const where = "airflow.LabelRef.On"
+	if l == nil || l.text == "" {
+		panic(where + ": airflow.Label did not return the *airflow.LabelRef")
 	}
-	if text == "" {
-		panic("airflow.Label: got an empty label; pass the text to put on the edge")
+	labelled := make([]nodeEndpoint, 0, 1+len(more))
+	labelled = appendEndpoints(labelled, node, position{where, "node", -1})
+	for i, next := range more {
+		labelled = appendEndpoints(labelled, next, position{where, "more", i})
 	}
-	labelling := endpoints("airflow.Label: node", node)
-	labelled := make(nodeSet, len(labelling))
-	for i, endpoint := range labelling {
-		labelled[i] = nodeEndpoint{task: endpoint.task, group: endpoint.group, label: text}
+	// When a Node given to this On came from another On, the label of l replaces the label of that
+	// Node.
+	for i := range labelled {
+		labelled[i].label = l.text
 	}
-	return labelled
+	return labelledSet(labelled)
 }
 
 // edgeKey identifies an edge of a Dag. Tasks and task groups share one namespace of IDs, so a
@@ -234,6 +307,9 @@ const (
 	dirBefore edgeDir = iota
 	dirAfter
 )
+
+// verbNames holds the name that panic messages use for each edge verb.
+var verbNames = [...]string{dirBefore: "airflow.Node.Before", dirAfter: "airflow.Node.After"}
 
 func (dir edgeDir) String() string {
 	if dir == dirAfter {
@@ -266,21 +342,19 @@ func (e pendingEdge) betweenTasks() bool {
 // declareEdges records an edge from every endpoint of receiver to every node it was given, or
 // the other way round for After, and returns those nodes as one Node.
 func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
-	where := "airflow.Node." + dir.String()
-	args := make(nodeSet, 0, len(nodes))
+	where := verbNames[dir]
+	args := make([]nodeEndpoint, 0, len(nodes))
 	for i, node := range nodes {
-		if node == nil {
-			panic(fmt.Sprintf("%s: nodes[%d] is a nil airflow.Node", where, i))
-		}
-		args = append(args, endpoints(fmt.Sprintf("%s: nodes[%d]", where, i), node)...)
+		args = appendEndpoints(args, node, position{where, "nodes", i})
 	}
-	ends := endpoints(where+": the receiver", receiver)
+	ends := appendEndpoints(nil, receiver, position{where, "the receiver", -1})
 	all := slices.Concat(ends, args)
 	if len(all) == 0 {
 		return nodeSet(nil)
 	}
 
 	dag := edgeDag(where, all)
+	checkReceiverUnlabelled(where, dag, dir, receiver)
 
 	dag.mu.Lock()
 	defer dag.mu.Unlock()
@@ -303,9 +377,17 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 		dag.checkGroupLocked(where, endpoint.group)
 	}
 	// A verb with no node to point at, which a spread of an empty slice reaches, declares no
-	// edge. So does one on the empty set that such a verb returned.
+	// edge. So does a verb called on the empty set that such a verb returned. A label given to this
+	// second verb would have no edge to go on.
 	if len(ends) == 0 || len(args) == 0 {
-		return args.unlabelled()
+		if labelled := describeLabelled(args); labelled != "" {
+			panic(fmt.Sprintf(
+				"%s: Dag %q: the receiver stands for no task or task group, so there is no edge "+
+					"for %s",
+				where, dag.dagID, labelled,
+			))
+		}
+		return nodeSet(args)
 	}
 
 	// Check and merge every pair the call declares before it records any of them.
@@ -344,7 +426,37 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 			dag.addGroupEdgeLocked(edge.upstream, edge.downstream, edge.label)
 		}
 	}
-	return args.unlabelled()
+	// The Node that a verb returns carries no label into the next verb. args belongs to this call, so
+	// this loop clears the labels of args in place.
+	for i := range args {
+		args[i].label = ""
+	}
+	return nodeSet(args)
+}
+
+// checkReceiverUnlabelled panics if the receiver of an edge verb carries a label. Only the Node
+// that [LabelRef.On] returns carries labels. A label goes on the edges between the receiver and
+// the nodes that the verb is given, so a label on the receiver has no edge to go on.
+func checkReceiverUnlabelled(where string, dag *DagRef, dir edgeDir, receiver Node) {
+	if labelled, ok := receiver.(labelledSet); ok && len(labelled) > 0 {
+		panic(fmt.Sprintf(
+			"%s: Dag %q: cannot call %s on %s; "+
+				"pass airflow.Label(...).On(...) to Before or After as an argument instead",
+			where, dag.dagID, dir, describeLabelled(labelled),
+		))
+	}
+}
+
+// describeLabelled names each endpoint in set that carries a label, as in task "load" labelled
+// "always". It returns "" when no endpoint carries one. The result goes into a panic message.
+func describeLabelled(set []nodeEndpoint) string {
+	var labelled []string
+	for _, end := range set {
+		if end.label != "" {
+			labelled = append(labelled, fmt.Sprintf("%s labelled %q", end.describe(), end.label))
+		}
+	}
+	return strings.Join(labelled, ", ")
 }
 
 // checkGroupEdgeEnds panics if one end of an edge is a task group that holds the other end. The
@@ -379,8 +491,6 @@ func edgeDag(where string, ends []nodeEndpoint) *DagRef {
 	var dag *DagRef
 	for _, end := range ends {
 		switch {
-		case end.task == nil && end.group == nil:
-			panic(fmt.Sprintf("%s: got a nil *airflow.TaskRef", where))
 		case end.group != nil && end.group.dag == nil:
 			panic(fmt.Sprintf(
 				"%s: got a *airflow.TaskGroupRef that DagRef.TaskGroup or "+
