@@ -3527,7 +3527,8 @@ def test_taskinstance_info_af3():
         "rendered_map_index": None,
         "state": "up_for_retry",
         "try_number": 1,
-        "dag_version_id": str(runtime_ti.dag_version_id),
+        # Runtime task instances of Airflow 3.0 have no Dag version
+        "dag_version_id": str(v) if (v := getattr(runtime_ti, "dag_version_id", None)) else None,
         "dag_bundle_version": "bundle_version",
         "dag_bundle_name": "bundle_name",
     }
