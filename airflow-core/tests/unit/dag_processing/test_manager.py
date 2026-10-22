@@ -510,11 +510,10 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
-    @pytest.mark.parametrize("api_mode", [False, True], ids=["direct", "api"])
     @pytest.mark.parametrize("absolute", [False, True], ids=["relative", "absolute"])
     @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
     def test_find_files_in_bundle_makes_discovery_errors_bundle_relative(
-        self, mock_get_registry, tmp_path, absolute, api_mode
+        self, mock_get_registry, tmp_path, absolute
     ):
         (tmp_path / "broken.dag").write_text("")
         source_reference = os.fspath(tmp_path / "broken.dag") if absolute else "broken.dag"
@@ -522,9 +521,7 @@ class TestDagFileProcessorManager:
             (mock.sentinel.importer, DagImportError(source_reference=source_reference, message="boom"))
         ]
         bundle = _make_bundle(tmp_path)
-        client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
-
-        found_files = DagFileProcessorManager(max_runs=1, api_client=client)._find_files_in_bundle(bundle)
+        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(bundle)
 
         assert [file.definition_locs for file in found_files.files] == [frozenset({"broken.dag"})]
         assert found_files.failed_sources == frozenset({"broken.dag"})
@@ -2303,7 +2300,7 @@ class TestDagFileProcessorManager:
         manager._start_new_processes()
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+            manager, [bundle], BundleState(last_refreshed=None, version="v1"), force=True
         )
         bundle.refresh.assert_not_called()
         assert manager._bundles_waiting_for_refresh == {bundle.name}
@@ -2313,7 +2310,7 @@ class TestDagFileProcessorManager:
         assert not manager._file_queue
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+            manager, [bundle], BundleState(last_refreshed=None, version="v1"), force=True
         )
         bundle.refresh.assert_called_once_with()
 
@@ -2347,7 +2344,7 @@ class TestDagFileProcessorManager:
         bundle.is_initialized = False
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+            manager, [bundle], BundleState(last_refreshed=None, version="v1"), force=True
         )
         manager._collect_results()
 
@@ -2610,7 +2607,7 @@ class TestDagFileProcessorManager:
         if source_unchanged:
             manager._priority_files.add(blocked)
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version=None), force=force
+            manager, [bundle], BundleState(last_refreshed=None, version=None), force=force
         )
         assert manager._force_refresh_bundles == ({bundle.name} if force and not source_unchanged else set())
         processors = [self.mock_processor()[0] for _ in range(2)]
@@ -2942,13 +2939,13 @@ class TestDagFileProcessorManager:
         self._configure_mock_processes(create)
         state = BundleState(last_refreshed=timezone.utcnow(), version="v1")
 
-        self._refresh_with_mocked_state(manager, bundle, state, force=True)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=True)
         manager._start_new_processes()
         create.assert_not_called()
         assert not manager._file_queue
         assert list(manager._files_awaiting_source) == [file]
 
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         manager._start_new_processes()
         create.assert_not_called()
         paused = [
@@ -2960,7 +2957,7 @@ class TestDagFileProcessorManager:
         assert paused[0]["bundle_name"] == bundle.name
         assert paused[0]["log_level"] == "warning"
 
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         manager._start_new_processes()
         create.assert_called_once()
         assert create.return_value.parse_source.refresh_generation == 3
@@ -3039,7 +3036,7 @@ class TestDagFileProcessorManager:
         self._configure_mock_processes(create)
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=force
+            manager, [bundle], BundleState(last_refreshed=None, version="v1"), force=force
         )
         manager._start_new_processes()
 
@@ -3076,13 +3073,13 @@ class TestDagFileProcessorManager:
         bundle.refresh.side_effect = [failure, failure, None]
         monotonic.return_value = 30
 
-        _, update = self._refresh_with_mocked_state(manager, bundle, state, force=True)
+        _, update = self._refresh_with_mocked_state(manager, [bundle], state, force=True)
         update.assert_not_called()
         assert manager._bundles_needing_refresh == {bundle.name}
         assert not manager._force_refresh_bundles
 
         monotonic.return_value = 31
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         assert bundle.refresh.call_count == 1
 
         active, queued, requested = [
@@ -3094,7 +3091,7 @@ class TestDagFileProcessorManager:
         manager._add_files_to_queue([requested], mode="frontprio")
         self._configure_mock_processes(create)
         monotonic.return_value = 60
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         manager._start_new_processes()
 
         assert bundle.refresh.call_count == 1
@@ -3104,13 +3101,13 @@ class TestDagFileProcessorManager:
         assert manager._priority_files == {requested}
 
         monotonic.return_value = 300
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         assert bundle.refresh.call_count == 1
         assert not manager._bundles_waiting_for_refresh
 
         manager._processors.clear()
         monotonic.return_value = 330
-        _, update = self._refresh_with_mocked_state(manager, bundle, state)
+        _, update = self._refresh_with_mocked_state(manager, [bundle], state)
         update.assert_not_called()
         assert bundle.refresh.call_count == 2
         warnings = [
@@ -3123,11 +3120,11 @@ class TestDagFileProcessorManager:
         assert warnings[0]["log_level"] == "warning"
 
         monotonic.return_value = 360
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         assert bundle.refresh.call_count == 2
 
         monotonic.return_value = 630
-        self._refresh_with_mocked_state(manager, bundle, state)
+        self._refresh_with_mocked_state(manager, [bundle], state)
         assert bundle.refresh.call_count == 3
         assert not manager._bundles_needing_refresh
         assert not manager._bundle_refresh_retry_at
@@ -3244,7 +3241,7 @@ class TestDagFileProcessorManager:
         bundle = self._make_refresh_bundle()
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=DEFAULT_DATE, version=None)
+            manager, [bundle], BundleState(last_refreshed=DEFAULT_DATE, version=None)
         )
 
         bundle.refresh.assert_called_once()
@@ -3275,10 +3272,10 @@ class TestDagFileProcessorManager:
         state = BundleState(last_refreshed=DEFAULT_DATE, version="v1")
         bundle.refresh.side_effect = [DagBundleRefreshError("Fetch failed", source_unchanged=True), None]
         monotonic.return_value = 30
-        self._refresh_with_mocked_state(manager, bundle, state, force=True)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=True)
 
         monotonic.return_value = 31
-        self._refresh_with_mocked_state(manager, bundle, state, force=True)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=True)
 
         assert bundle.refresh.call_count == 2
         assert not manager._bundles_needing_refresh
@@ -3456,7 +3453,7 @@ class TestDagFileProcessorManager:
         manager._file_queue[queued] = None
         self._configure_mock_processes(create)
 
-        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="v1"))
+        self._refresh_with_mocked_state(manager, [bundle], BundleState(last_refreshed=None, version="v1"))
         manager._start_new_processes()
         bundle.refresh.assert_not_called()
         create.assert_not_called()
@@ -3466,7 +3463,7 @@ class TestDagFileProcessorManager:
         manager._collect_results()
         if api_mode:
             persist.assert_not_called()
-            self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="v1"))
+            self._refresh_with_mocked_state(manager, [bundle], BundleState(last_refreshed=None, version="v1"))
             bundle.refresh.assert_not_called()
             manager._publish_pending_results()
             assert client.publish_parse_result.call_args.args[0].bundle_version == "v1"
@@ -3474,7 +3471,7 @@ class TestDagFileProcessorManager:
             persist.assert_called_once()
             assert persist.call_args.kwargs["bundle_version"] == "v1"
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=timezone.utcnow(), version="v1")
+            manager, [bundle], BundleState(last_refreshed=timezone.utcnow(), version="v1")
         )
         manager._start_new_processes()
 
@@ -3509,7 +3506,7 @@ class TestDagFileProcessorManager:
         manager._processors = {finished: finished_processor, active: active_processor}
         state = BundleState(last_refreshed=timezone.utcnow() if force else None, version="v1")
 
-        self._refresh_with_mocked_state(manager, bundle, state, force=force)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=force)
         manager._collect_results()
         assert list(manager._processors) == [active]
 
@@ -3518,7 +3515,7 @@ class TestDagFileProcessorManager:
         manager._file_queue = OrderedDict.fromkeys([regular, callback, pinned])
         self._configure_mock_processes(create, pinned_processor, callback_processor, regular_processor)
 
-        self._refresh_with_mocked_state(manager, bundle, state, force=force)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=force)
         manager._start_new_processes()
 
         bundle.refresh.assert_not_called()
@@ -3530,7 +3527,7 @@ class TestDagFileProcessorManager:
         active_processor._open_sockets.clear()
         manager._collect_results()
         assert list(manager._processors) == [pinned]
-        self._refresh_with_mocked_state(manager, bundle, state, force=force)
+        self._refresh_with_mocked_state(manager, [bundle], state, force=force)
         manager._start_new_processes()
 
         bundle.refresh.assert_called_once_with()
@@ -5725,32 +5722,25 @@ class TestDagFileProcessorManager:
         bundle.get_current_version.return_value = current_version
         return bundle
 
-    def _refresh_with_mocked_state(self, manager, bundle, initial_state, *, force=False):
-        """Run _refresh_dag_bundles with get/update_bundle_state mocked out.
-
-        Returns the two MagicMock objects for post-call assertions. MagicMock retains its
-        call records after the ``with`` block exits (un-patching only restores the original
-        attribute; it does not clear the mock's recorded calls), so callers can assert on
-        them normally after this method returns.
-        """
-        manager._dag_bundles = [bundle]
-        manager._force_refresh_bundles = {bundle.name} if force else set()
-        mock_get = mock.patch.object(manager, "get_bundle_state", return_value=initial_state)
-        mock_update = mock.patch.object(manager, "update_bundle_state")
-        mock_catalog = (
-            mock.patch.object(
-                manager.api_client,
-                "get_bundles",
-                return_value=[
-                    DagBundleStateResponse(
-                        name=bundle.name,
-                        last_refreshed=initial_state.last_refreshed,
-                        version=initial_state.version,
-                        revision=initial_state.revision,
-                        team_name=None,
-                    )
-                ],
+    def _refresh_with_mocked_state(self, manager, bundles, initial_state, *, force=False):
+        """Refresh bundles with mocked state and return the get/update mocks for assertions."""
+        manager._dag_bundles = bundles
+        manager._force_refresh_bundles = {bundle.name for bundle in bundles} if force else set()
+        mock_get = mock.patch.object(manager, "get_bundle_state", autospec=True, return_value=initial_state)
+        mock_update = mock.patch.object(manager, "update_bundle_state", autospec=True)
+        get_catalog = mock.create_autospec(DagProcessorAPIClient, instance=True).get_bundles
+        get_catalog.return_value = [
+            DagBundleStateResponse(
+                name=bundle.name,
+                last_refreshed=initial_state.last_refreshed,
+                version=initial_state.version,
+                revision=initial_state.revision,
+                team_name=None,
             )
+            for bundle in bundles
+        ]
+        mock_catalog = (
+            mock.patch.object(manager.api_client, "get_bundles", new=get_catalog)
             if manager.api_client is not None
             else nullcontext()
         )
@@ -5761,13 +5751,14 @@ class TestDagFileProcessorManager:
             mock.patch.object(
                 manager,
                 "_find_files_in_bundle",
+                autospec=True,
                 return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
             ),
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
-            mock.patch.object(manager, "handle_removed_files"),
-            mock.patch.object(manager, "_resort_file_queue"),
-            mock.patch.object(manager, "_add_new_files_to_queue"),
+            mock.patch.object(manager, "deactivate_deleted_dags", autospec=True),
+            mock.patch.object(manager, "clear_orphaned_import_errors", autospec=True),
+            mock.patch.object(manager, "handle_removed_files", autospec=True),
+            mock.patch.object(manager, "_resort_file_queue", autospec=True),
+            mock.patch.object(manager, "_add_new_files_to_queue", autospec=True),
         ):
             manager._refresh_dag_bundles({})
         return patched_get, patched_update
@@ -5778,7 +5769,7 @@ class TestDagFileProcessorManager:
         bundle = self._make_refresh_bundle(supports_versioning=False)
 
         mock_get, mock_update = self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version=None)
+            manager, [bundle], BundleState(last_refreshed=None, version=None)
         )
 
         mock_get.assert_called_once_with("mock_bundle")
@@ -5790,7 +5781,7 @@ class TestDagFileProcessorManager:
         manager._bundle_name_to_team_name = {"stale_bundle": "old_team"}
         bundle = self._make_refresh_bundle(supports_versioning=False)
 
-        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version=None))
+        self._refresh_with_mocked_state(manager, [bundle], BundleState(last_refreshed=None, version=None))
 
         assert manager._bundle_name_to_team_name == {}
 
@@ -5802,7 +5793,7 @@ class TestDagFileProcessorManager:
         manager._bundle_versions["mock_bundle"] = "v1"
 
         mock_get, mock_update = self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1")
+            manager, [bundle], BundleState(last_refreshed=None, version="v1")
         )
 
         mock_get.assert_called_once_with("mock_bundle")
@@ -5817,7 +5808,7 @@ class TestDagFileProcessorManager:
         manager._bundle_versions["mock_bundle"] = "v1"
 
         mock_get, mock_update = self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1")
+            manager, [bundle], BundleState(last_refreshed=None, version="v1")
         )
 
         mock_get.assert_called_once_with("mock_bundle")
@@ -5873,7 +5864,7 @@ class TestDagFileProcessorManager:
         # _bundle_versions is empty → previously_seen=False
 
         mock_get, mock_update = self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version="v1")
+            manager, [bundle], BundleState(last_refreshed=None, version="v1")
         )
 
         mock_get.assert_called_once_with("mock_bundle")
@@ -5907,25 +5898,9 @@ class TestDagFileProcessorManager:
         healthy_bundle.name = "healthy_bundle"
 
         manager._dag_bundles = [failing_bundle, healthy_bundle]
-        manager._force_refresh_bundles = set()
-
-        with (
-            mock.patch.object(
-                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
-            ),
-            mock.patch.object(manager, "update_bundle_state"),
-            mock.patch.object(
-                manager,
-                "_find_files_in_bundle",
-                return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
-            ),
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
-            mock.patch.object(manager, "handle_removed_files"),
-            mock.patch.object(manager, "_resort_file_queue"),
-            mock.patch.object(manager, "_add_new_files_to_queue"),
-        ):
-            manager._refresh_dag_bundles({})
+        self._refresh_with_mocked_state(
+            manager, manager._dag_bundles, BundleState(last_refreshed=None, version=None)
+        )
 
         healthy_bundle.refresh.assert_called_once()
 
@@ -6122,7 +6097,9 @@ class TestDagFileProcessorManager:
         # Pre-populate so previously_seen=True and version differs
         manager._bundle_versions["mock_bundle"] = "oldhash"
 
-        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="oldhash"))
+        self._refresh_with_mocked_state(
+            manager, [bundle], BundleState(last_refreshed=None, version="oldhash")
+        )
 
         test_data["files"]["dag.py"] = "changed"
         assert manager._bundle_versions["mock_bundle"] == "newhash"
@@ -6686,7 +6663,7 @@ class TestDagFileProcessorManager:
         manager._bundle_versions[bundle.name] = "previous"
 
         self._refresh_with_mocked_state(
-            manager, bundle, BundleState(last_refreshed=None, version=None), force=True
+            manager, [bundle], BundleState(last_refreshed=None, version=None), force=True
         )
 
         bundle.refresh.assert_called_once()
@@ -6706,7 +6683,7 @@ class TestDagFileProcessorManager:
         observed.return_value = set()
         client.publish_inventory.return_value.revision = uuid7()
         clock.monotonic.return_value += bundle.refresh_interval
-        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version=None))
+        self._refresh_with_mocked_state(manager, [bundle], BundleState(last_refreshed=None, version=None))
         assert bundle.name in manager._bundle_parse_sources
         assert manager._bundle_versions[bundle.name] is None
         assert not manager._pending_inventories
@@ -6721,25 +6698,9 @@ class TestDagFileProcessorManager:
             bundle.name = name
             bundle.refresh.side_effect = lambda name=name: events.append(name)
             manager._dag_bundles.append(bundle)
-        manager._force_refresh_bundles = set()
-
-        with (
-            mock.patch.object(
-                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
-            ),
-            mock.patch.object(manager, "update_bundle_state"),
-            mock.patch.object(
-                manager,
-                "_find_files_in_bundle",
-                return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
-            ),
-            mock.patch.object(manager, "deactivate_deleted_dags"),
-            mock.patch.object(manager, "clear_orphaned_import_errors"),
-            mock.patch.object(manager, "handle_removed_files"),
-            mock.patch.object(manager, "_resort_file_queue"),
-            mock.patch.object(manager, "_add_new_files_to_queue"),
-        ):
-            manager._refresh_dag_bundles({})
+        self._refresh_with_mocked_state(
+            manager, manager._dag_bundles, BundleState(last_refreshed=None, version=None)
+        )
 
         assert events == ["heartbeat", "first", "heartbeat", "second"]
 

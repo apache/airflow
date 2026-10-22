@@ -852,16 +852,27 @@ class DagFileProcessorManager(LoggingMixin):
         """
         if self.api_client is None:
             return self._claim_priority_files()
+        bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        unavailable = self._bundles_needing_refresh | {
+            bundle.name for bundle in bundles.values() if not bundle.is_initialized
+        }
+        active_attempts = {process.id for process in self._processors.values()}
+        active_attempts.update(pending.body.attempt_id for pending in self._pending_publications.values())
         available = (
             self._parallelism
-            - len(self._priority_claims)
+            - sum(
+                claim.attempt_id in active_attempts or claim.work.bundle_name not in unavailable
+                for claim in self._priority_claims.values()
+            )
             - sum(kind == "priority" for kind, _ in self._pending_work_acks)
         )
         if available <= 0:
             return []
-        bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        # Retain failed-bundle claims for recovery without letting them consume healthy bundles' capacity.
+        # Excluding those bundles from new claims also bounds the suspended backlog.
+        eligible_bundles = [name for name in bundles if name not in unavailable]
         try:
-            work = self.api_client.claim_work("priority", list(bundles), available)
+            work = self.api_client.claim_work("priority", eligible_bundles, available)
         except httpx2.HTTPError:
             self.log.warning("Unable to claim priority parses; retrying on a later loop")
             return []
@@ -1097,11 +1108,20 @@ class DagFileProcessorManager(LoggingMixin):
                         raise DagProcessorRegistrationRetired(
                             "The Dag processor registration has ended; restart required"
                         ) from error
-                self.log.exception(
-                    "Error preparing bundle %s version %s for callback, skipping",
-                    request.bundle_name,
-                    request.bundle_version,
-                )
+                if id(request) in self._callback_claims:
+                    self.log.warning(
+                        "Unable to prepare callback bundle; retrying",
+                        bundle_name=request.bundle_name,
+                        bundle_version=request.bundle_version,
+                        target=self._get_callback_target(request),
+                        error=str(error),
+                    )
+                else:
+                    self.log.exception(
+                        "Error preparing bundle %s version %s for callback, skipping",
+                        request.bundle_name,
+                        request.bundle_version,
+                    )
                 return None
         return bundle
 
@@ -1149,12 +1169,14 @@ class DagFileProcessorManager(LoggingMixin):
         retry = self._deferred_callback_retries.setdefault(id(request), DeferredCallback(now + timeout))
         if now >= retry.expires_at:
             self.log.error(
-                "Dropping %s for %s in bundle %s: its bundle version %s could not be prepared within %s seconds",
-                type(request).__name__,
-                request.filepath,
-                request.bundle_name,
-                request.bundle_version,
-                timeout,
+                "Dropping callback after bundle preparation timed out",
+                callback_type=type(request).__name__,
+                filepath=request.filepath,
+                bundle_name=request.bundle_name,
+                bundle_version=request.bundle_version,
+                target=self._get_callback_target(request),
+                timeout=timeout,
+                timeout_setting="[dag_processor] job_heartbeat_timeout",
             )
             self._pending_work_acks.append(("callbacks", self._callback_claims.pop(id(request))))
             self._remove_deferred_callback(request)
@@ -1164,17 +1186,19 @@ class DagFileProcessorManager(LoggingMixin):
             now + min(2 ** (retry.attempts - 1), _MAX_CALLBACK_RETRY_DELAY), retry.expires_at
         )
 
-    def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
+    @staticmethod
+    def _get_callback_target(request: CallbackRequest) -> str:
         if isinstance(request, DagCallbackRequest):
-            target = f"dag_id={request.dag_id} run_id={request.run_id}"
-        else:
-            ti = request.ti
-            target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
+            return f"dag_id={request.dag_id} run_id={request.run_id}"
+        ti = request.ti
+        return f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
+
+    def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
         self.log.warning(
             "Dropping %s for %s (%s): Lang-SDK runtimes do not run callbacks",
             type(request).__name__,
             request.filepath,
-            target,
+            self._get_callback_target(request),
         )
 
     @provide_session
@@ -2557,8 +2581,9 @@ class DagFileProcessorManager(LoggingMixin):
             priority_claims = self._get_priority_claims(file)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors or file in self._pending_publications:
-                if priority_claims:
-                    self._priority_files.discard(file)
+                if priority_claims or file in self._callback_to_execute:
+                    if self.api_client is not None:
+                        self._priority_files.discard(file)
                     requested_later[file] = None
                 elif self.api_client is None and file in self._priority_files:
                     self._files_awaiting_source[file] = None
