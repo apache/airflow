@@ -23,6 +23,9 @@ It checks:
     - task's `retries` and `retry_delay` on every event
     - taskInstance's `state`: up_for_retry on the FAIL of the first try, success on the COMPLETE of the retry
     - each try has its own `runId` (the `runId` check of OpenLineageTestOperator is enabled by default)
+    - every task event's identity: taskInstance's `id`, `dag_version_id` (Airflow 3.1+) and bundle, the absence
+      of fields that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
+      and the parent run, plus each task in the Dag's job facet
 """
 
 from __future__ import annotations

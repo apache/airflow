@@ -150,20 +150,23 @@
                 "airflow": {
                     "taskGroups": {
                         "section_1": {
-                            "group_type": "task_group",
+                            "is_mapped": false,
+                            "is_loop": false,
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_1"
                         },
                         "section_1.section_2": {
-                            "group_type": "task_group",
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_2"
                         },
                         "section_1.section_2.section_3": {
-                            "group_type": "task_group",
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1.section_2",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",

@@ -7,7 +7,8 @@
                 "airflow": {
                     "taskGroups": {
                         "accumulate": {
-                            "group_type": "loop",
+                            "is_mapped": false,
+                            "is_loop": true,
                             "parse_time_mapped_count": null,
                             "gate_task_id": "accumulate.__loop_gate",
                             "has_until": false,
@@ -15,7 +16,8 @@
                             "terminal_task_id": "accumulate.report"
                         },
                         "process_batch": {
-                            "group_type": "loop",
+                            "is_mapped": false,
+                            "is_loop": true,
                             "parse_time_mapped_count": null,
                             "gate_task_id": "process_batch.__loop_gate",
                             "has_until": false,
@@ -23,7 +25,8 @@
                             "terminal_task_id": "process_batch.process"
                         },
                         "poll": {
-                            "group_type": "loop",
+                            "is_mapped": false,
+                            "is_loop": true,
                             "parse_time_mapped_count": null,
                             "gate_task_id": "poll.ready",
                             "has_until": true,
@@ -31,7 +34,8 @@
                             "terminal_task_id": "poll.check"
                         },
                         "process_batch.fetch": {
-                            "group_type": "mapped",
+                            "is_mapped": true,
+                            "is_loop": false,
                             "parse_time_mapped_count": 2,
                             "parent_group": "process_batch",
                             "max_iterations": null,
@@ -47,28 +51,62 @@
                             "is_mapped": false,
                             "parse_time_mapped_count": null,
                             "trigger_rule": "all_success",
-                            "retries": 0
+                            "retries": 0,
+                            "depends_on_past": false
                         },
                         "accumulate.increment": {
                             "task_group": "accumulate",
                             "loop_group": "accumulate",
                             "is_mapped": false,
                             "parse_time_mapped_count": null,
-                            "retries": 2
+                            "retries": 2,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
                         },
                         "process_batch.process": {
                             "task_group": "process_batch",
                             "loop_group": "process_batch",
                             "is_mapped": true,
                             "parse_time_mapped_count": null,
-                            "retries": 3
+                            "retries": 3,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
                         },
                         "process_batch.fetch.download": {
                             "task_group": "process_batch.fetch",
                             "loop_group": "process_batch",
                             "is_mapped": true,
                             "parse_time_mapped_count": 2,
+                            "retries": 0,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "accumulate.report": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
                             "retries": 0
+                        },
+                        "process_batch.choose_items": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "poll.check": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "accumulate.__loop_gate": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "process_batch.__loop_gate": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "poll.ready": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
                         }
                     }
                 }
@@ -90,10 +128,34 @@
                         "max_tries": 0,
                         "loop": null,
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
-                        "loop": null
+                        "loop": null,
+                        "task_id": "plain_task",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -117,10 +179,34 @@
                         "max_tries": 0,
                         "loop": null,
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
-                        "loop": null
+                        "loop": null,
+                        "task_id": "plain_task",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -150,7 +236,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -167,7 +257,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -197,7 +306,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -214,7 +327,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -244,7 +376,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -261,7 +397,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -291,7 +446,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -308,7 +467,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -338,7 +516,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -355,7 +537,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -385,7 +586,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -402,7 +607,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -432,7 +656,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -449,7 +677,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -479,7 +726,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -496,7 +747,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -526,7 +796,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -543,7 +817,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -573,7 +866,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -590,7 +887,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -620,7 +936,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -637,7 +957,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -667,7 +1006,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -684,7 +1027,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -714,7 +1076,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -731,7 +1097,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -761,7 +1146,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -778,7 +1167,26 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -808,7 +1216,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -825,7 +1237,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -855,7 +1284,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -872,7 +1305,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -902,7 +1352,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -919,7 +1373,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -951,7 +1422,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -968,7 +1443,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1000,7 +1492,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1017,7 +1513,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1049,7 +1562,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1066,7 +1583,24 @@
                             "has_until": false,
                             "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
-                        }
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1096,7 +1630,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1113,7 +1651,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1143,7 +1700,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1160,7 +1721,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1190,7 +1770,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1207,7 +1791,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1237,7 +1840,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1254,7 +1861,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1285,7 +1911,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1302,7 +1931,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1333,7 +1981,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1350,7 +2001,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1381,7 +2051,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1398,7 +2071,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1429,7 +2121,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1446,7 +2141,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1477,7 +2191,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1494,7 +2211,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1525,7 +2261,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1542,7 +2281,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1573,7 +2331,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1590,7 +2351,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1621,7 +2401,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1638,7 +2421,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1669,7 +2471,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1686,7 +2491,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1717,7 +2541,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1734,7 +2561,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1765,7 +2611,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1782,7 +2631,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1813,7 +2681,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1830,7 +2701,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1861,7 +2751,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1878,7 +2771,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1909,7 +2821,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1926,7 +2841,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -1957,7 +2891,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -1974,7 +2911,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2005,7 +2961,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2022,7 +2981,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2052,7 +3030,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2069,7 +3051,24 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2099,7 +3098,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2116,7 +3119,24 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2148,7 +3168,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2165,7 +3189,24 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2197,7 +3238,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2214,7 +3259,24 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2244,7 +3306,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2261,7 +3327,26 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2291,7 +3376,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2308,7 +3397,26 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2338,7 +3446,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2355,7 +3467,26 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2385,7 +3516,11 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2402,7 +3537,26 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2432,7 +3586,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2449,7 +3607,24 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2479,7 +3654,11 @@
                             "decision": null
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2496,7 +3675,24 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2529,7 +3725,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2546,7 +3746,24 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2579,7 +3796,11 @@
                             }
                         },
                         "expanded_ti_count": null,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2596,7 +3817,24 @@
                             "has_until": true,
                             "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
-                        }
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2627,7 +3865,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2644,7 +3885,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2675,7 +3935,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2692,7 +3955,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2723,7 +4005,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2740,7 +4025,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2771,7 +4075,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2788,7 +4095,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2819,7 +4145,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2836,7 +4165,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2867,7 +4215,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2884,7 +4235,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2915,7 +4285,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2932,7 +4305,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }
@@ -2963,7 +4355,10 @@
                             "resumes_from_index": null
                         },
                         "expanded_ti_count": 2,
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
                     },
                     "task": {
                         "task_group": {
@@ -2980,7 +4375,26 @@
                             "has_until": false,
                             "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
-                        }
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
                     }
                 }
             }

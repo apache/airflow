@@ -26,7 +26,7 @@ It checks:
     - if CustomOperator without Extractor will emit OL events
     - task groups serialization without dependencies
     - nested task groups: task's `task_group` by its own `group_id` and its `full_group_id`, and the job facet's
-      `group_type` of each group and `is_mapped` and `loop_group` of a mapped task and a nested one
+      `is_mapped` and `is_loop` of each group and `is_mapped` and `loop_group` of a mapped task and a nested one
     - additional task configuration attrs (owner, max_active_tis_per_dag etc.)
 """
 

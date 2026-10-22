@@ -23,15 +23,18 @@ The tasks sit:
     - directly in a loop that is itself in a task group, so the loop's own id differs from its full id
     - in a task group inside that loop, in a task group nested in that one, and as a mapped task in it
 
-It checks, for every task event:
+It checks:
     - task's `task_group`: the task's own group, by `group_id` (its own id) and `full_group_id`, and never
       with loop fields, even when the group is the loop
     - task's `loop`: the loop around the task by its full id, with its definition, the same for every task
       in the loop however deep it sits, and absent outside the loop
     - taskInstance's `loop.index` and `loop.trajectory`, and `map_index` and `expanded_ti_count` of the
       mapped tasks, the mapped task group's included
-and, in the Dag's job facet, each group's `group_type`, `parent_group` and `parse_time_mapped_count`, and each
-task's `task_group`, `loop_group`, `is_mapped` and `parse_time_mapped_count`.
+    - the Dag's job facet: each group's `is_mapped`, `is_loop`, `parent_group` and `parse_time_mapped_count`,
+      and each task's `task_group`, `loop_group`, `is_mapped` and `parse_time_mapped_count`
+    - every task event's identity: taskInstance's `id`, `dag_version_id` and bundle, the absence of fields
+      that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
+      and the parent run
 """
 
 from __future__ import annotations

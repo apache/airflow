@@ -15,38 +15,31 @@
                 "additionalProperties": true
               },
               "taskGroups": {
-                "description": "Information about all task groups within the DAG, keyed by group id.",
+                "description": "Information about all task groups within the DAG.",
                 "type": "object",
                 "additionalProperties": {
                   "type": "object",
                   "properties": {
-                    "parent_group": {
-                      "description": "Full id of the group the task group sits in, a key of taskGroups. Null for a top-level group.",
-                      "type": ["string", "null"]
+                    "is_mapped": {
+                      "type": "boolean"
                     },
-                    "group_type": {
-                      "description": "loop for a task loop (Airflow 3.4+), mapped for a mapped task group, whose tasks are all mapped, and task_group for a plain one.",
-                      "type": "string",
-                      "enum": ["task_group", "mapped", "loop"]
+                    "is_loop": {
+                      "type": "boolean"
                     },
                     "parse_time_mapped_count": {
-                      "description": "Number of instances a mapped task group expands to, when it's known before the Dag runs, i.e. it's expanded over literal values. Null when it depends on upstream results, and for a group that isn't mapped.",
-                      "type": ["integer", "null"]
+                      "description": "Number of mapped instances, when known before the Dag runs.",
+                      "type": "integer"
                     },
                     "max_iterations": {
-                      "description": "Maximum number of iterations of the loop (Airflow 3.4+). Present for a loop group only.",
                       "type": "integer"
                     },
                     "has_until": {
-                      "description": "Whether the loop has an until condition that can stop it before max_iterations (Airflow 3.4+). Present for a loop group only.",
                       "type": "boolean"
                     },
                     "gate_task_id": {
-                      "description": "Id of the loop's gate, the task that ends each iteration and decides whether the loop goes on (Airflow 3.4+). Present for a loop group only.",
                       "type": "string"
                     },
                     "terminal_task_id": {
-                      "description": "Id of the last task of the loop body, whose result the gate and the next iteration read (Airflow 3.4+). Present for a loop group only.",
                       "type": "string"
                     }
                   },
@@ -54,42 +47,30 @@
                 }
               },
               "tasks": {
-                "description": "Details of all individual tasks within the DAG, keyed by task id.",
+                "description": "Details of all individual tasks within the DAG.",
                 "type": "object",
                 "additionalProperties": {
                   "type": "object",
                   "properties": {
-                    "task_group": {
-                      "description": "Full id of the task's own task group, a key of taskGroups.",
-                      "type": ["string", "null"]
-                    },
                     "loop_group": {
-                      "description": "Full id of the loop the task runs in (Airflow 3.4+), a key of taskGroups. It is task_group when the task sits directly in the loop, and an enclosing group of it when the task is in a task group inside the loop. Null outside a loop.",
-                      "type": ["string", "null"]
+                      "description": "Group id of the loop the task runs in (Airflow 3.4+).",
+                      "type": "string"
                     },
                     "is_mapped": {
-                      "description": "Whether the task expands into mapped instances, by itself or because it's in a mapped task group. A mapped task whose expansion is empty doesn't run.",
                       "type": "boolean"
                     },
                     "parse_time_mapped_count": {
-                      "description": "Number of mapped instances, when it's known before the Dag runs, i.e. the task or its mapped task group is expanded over literal values. Null when it depends on upstream results, and for a task that isn't mapped. Inside a loop, it's the number per iteration.",
-                      "type": ["integer", "null"]
+                      "description": "Number of mapped instances, when known before the Dag runs.",
+                      "type": "integer"
                     },
                     "trigger_rule": {
-                      "description": "When the task runs, depending on its upstream tasks' states, e.g. all_success: a task whose trigger rule can't be met any more is skipped or set to upstream_failed without running, and sends no events.",
                       "type": "string"
                     },
                     "depends_on_past": {
-                      "description": "Whether the task waits for its previous Dag run's instance to succeed (or be skipped) before it runs.",
                       "type": "boolean"
                     },
                     "retries": {
-                      "description": "Number of retries after a failed try.",
                       "type": "integer"
-                    },
-                    "emits_ol_events": {
-                      "description": "Whether the task sends OpenLineage events at all. A task that doesn't, e.g. because Airflow skips running an empty operator or the emission policy turns them off, sends none even when it runs.",
-                      "type": "boolean"
                     }
                   },
                   "additionalProperties": true

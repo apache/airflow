@@ -86,6 +86,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_instance_map_index,
     get_task_instance_position,
     get_task_instance_run_id,
+    get_task_loop_info,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
@@ -173,7 +174,8 @@ def test_get_airflow_job_facet():
             taskGroups={
                 "section_1": {
                     "parent_group": None,
-                    "group_type": "task_group",
+                    "is_mapped": False,
+                    "is_loop": False,
                     "parse_time_mapped_count": None,
                     "ui_color": "CornflowerBlue",
                     "ui_fgcolor": "#000",
@@ -1617,7 +1619,8 @@ def test_get_tasks_details():
             "task_group": None,
             "loop_group": None,
             "is_mapped": True,
-            "parse_time_mapped_count": None,
+            # Airflow 2 operators count a literal expansion, Task SDK ones only once serialized
+            "parse_time_mapped_count": None if AIRFLOW_V_3_0_PLUS else 2,
             "trigger_rule": "all_success",
             "depends_on_past": False,
             "retries": 0,
@@ -2087,7 +2090,8 @@ def test_get_task_groups_details():
     expected = {
         "tg1": {
             "parent_group": None,
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -2097,7 +2101,8 @@ def test_get_task_groups_details():
         },
         "tg2": {
             "parent_group": None,
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -2107,7 +2112,8 @@ def test_get_task_groups_details():
         },
         "tg3": {
             "parent_group": None,
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -2145,6 +2151,53 @@ def test_get_task_groups_details_has_loop_attributes_only_for_a_loop():
         "gate_task_id": "body.__loop_gate",
     }
     assert not loop_attributes & set(result["plain"])
+
+
+@patch(f"{_UTILS}._emits_ol_events", return_value=True)
+def test_get_tasks_details_leaves_out_what_a_task_does_not_have(mock_emits):
+    # A task of an Airflow version, or an operator, without the attributes that describe how it runs
+    task = SimpleNamespace(
+        task_id="task",
+        task_group=None,
+        ui_color="#fff",
+        ui_fgcolor="#000",
+        label="task",
+        is_setup=False,
+        is_teardown=False,
+        downstream_task_ids=set(),
+    )
+
+    details = _get_tasks_details(SimpleNamespace(tasks=[task]), edge_map={})["task"]
+
+    fields = (
+        "loop_group",
+        "is_mapped",
+        "parse_time_mapped_count",
+        "trigger_rule",
+        "depends_on_past",
+        "retries",
+    )
+    assert {k: details[k] for k in fields} == {
+        "loop_group": None,
+        "is_mapped": None,
+        "parse_time_mapped_count": None,
+        "trigger_rule": None,
+        "depends_on_past": None,
+        "retries": None,
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+@patch(f"{_UTILS}._find_enclosing_loop", return_value=(True, SimpleNamespace(group_id="body")))
+def test_task_loop_info_leaves_out_what_the_loop_group_does_not_have(mock_find_enclosing_loop):
+    # A loop group of another Airflow version, which may not define all of these
+    assert get_task_loop_info(SimpleNamespace()) == {
+        "group_id": "body",
+        "max_iterations": None,
+        "has_until": None,
+        "gate_task_id": None,
+        "terminal_task_id": None,
+    }
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
@@ -2214,19 +2267,29 @@ def test_job_facet_tells_which_tasks_expand_and_when_they_run():
     tasks = _get_tasks_details(scheduler_dag, edge_map=edge_map)
     groups = _get_task_groups_details(scheduler_dag, edge_map=edge_map)
 
-    fields = ("is_mapped", "parse_time_mapped_count", "trigger_rule", "depends_on_past", "retries")
+    fields = (
+        "is_mapped",
+        "parse_time_mapped_count",
+        "trigger_rule",
+        "depends_on_past",
+        "retries",
+        "loop_group",
+    )
     assert {task_id: tuple(tasks[task_id][f] for f in fields) for task_id in tasks} == {
-        "literal": (True, 3, "all_success", False, 0),
-        "produce": (False, None, "all_success", False, 0),
+        "literal": (True, 3, "all_success", False, 0, None),
+        "produce": (False, None, "all_success", False, 0, None),
         # Expanded over an upstream result, so its size is only known when the Dag runs
-        "consume": (True, None, "all_done", True, 2),
-        "fan_out.member": (True, 2, "all_success", False, 0),
-        "body.work": (False, None, "all_success", False, 0),
-        "body.__loop_gate": (False, None, "all_success", False, 0),
+        "consume": (True, None, "all_done", True, 2, None),
+        "fan_out.member": (True, 2, "all_success", False, 0, None),
+        "body.work": (False, None, "all_success", False, 0, "body"),
+        "body.__loop_gate": (False, None, "all_success", False, 0, "body"),
     }
-    assert {group_id: (g["group_type"], g["parse_time_mapped_count"]) for group_id, g in groups.items()} == {
-        "fan_out": ("mapped", 2),
-        "body": ("loop", None),
+    assert {
+        group_id: (g["is_mapped"], g["is_loop"], g["parse_time_mapped_count"])
+        for group_id, g in groups.items()
+    } == {
+        "fan_out": (True, False, 2),
+        "body": (False, True, None),
     }
 
 
@@ -2252,7 +2315,10 @@ def test_job_facet_tells_mapped_task_groups_apart(dag_kind):
 
     groups = _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag))
 
-    assert (groups["fan_out"]["group_type"], groups["plain"]["group_type"]) == ("mapped", "task_group")
+    assert {group_id: (g["is_mapped"], g["is_loop"]) for group_id, g in groups.items()} == {
+        "fan_out": (True, False),
+        "plain": (False, False),
+    }
 
 
 def test_get_task_groups_details_nested():
@@ -2266,7 +2332,8 @@ def test_get_task_groups_details_nested():
     expected = {
         "tg1": {
             "parent_group": None,
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -2276,7 +2343,8 @@ def test_get_task_groups_details_nested():
         },
         "tg1.tg2": {
             "parent_group": "tg1",
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -2286,7 +2354,8 @@ def test_get_task_groups_details_nested():
         },
         "tg1.tg2.tg3": {
             "parent_group": "tg1.tg2",
-            "group_type": "task_group",
+            "is_mapped": False,
+            "is_loop": False,
             "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",

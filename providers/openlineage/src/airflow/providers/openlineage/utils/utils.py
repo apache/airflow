@@ -1123,14 +1123,7 @@ class DagRunInfo(InfoJsonEncodable):
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
-    """
-    Encode a task instance as ``run.facets.airflow.taskInstance``, which tells which execution sent an event.
-
-    Adds to the included fields, each left out when it doesn't apply: ``id``, ``map_index``,
-    ``rendered_map_index``, ``expanded_ti_count``, ``region_id``, ``region_index`` and ``loop``.
-    ``AirflowRunFacet.json`` describes each one for consumers. A runtime task instance and a stored one, as
-    the scheduler fails it, give the fields that identify the execution alike.
-    """
+    """Defines encoding TaskInstance object to JSON."""
 
     includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
@@ -1158,6 +1151,8 @@ class TaskInstanceInfo(InfoJsonEncodable):
             return getattr(bundle, key, None)
         if not isinstance(ti, TaskInstance):
             return None
+        # Only for a FAIL the scheduler sends itself, e.g. for a missed heartbeat: UI and API state changes build no
+        # airflow facet, and the worker's runtime task instance has its bundle above
         return getattr(TaskInstanceInfo.get_stored_dag_version(ti), f"bundle_{key}", None)
 
     @staticmethod
@@ -1174,7 +1169,9 @@ class TaskInstanceInfo(InfoJsonEncodable):
             with state.session.begin_nested():
                 return ti.dag_version
         except Exception:
-            log.warning("OpenLineage failed to read the Dag version of task instance %s", ti.id)
+            log.warning(
+                "OpenLineage failed to read the Dag version of task instance %s", getattr(ti, "id", None)
+            )
             log.debug("Exception details:", exc_info=True)
             return None
 
@@ -1202,13 +1199,22 @@ class TaskInstanceInfo(InfoJsonEncodable):
         if AIRFLOW_V_3_0_PLUS and (ti_id := getattr(self.obj, "id", None)) is not None:
             self.id = str(ti_id)
             self._fields.append("id")
-        loop = _build_loop_info(position) if position and position.in_loop else {}
+        loop: dict[str, Any] = {}
+        if position and position.in_loop:
+            for name, value in (
+                ("index", position.loop_index),
+                ("region_id", position.loop_region_id),
+                ("trajectory", position.loop_trajectory),
+                ("forked_from_region_id", position.loop_forked_from_region_id),
+                ("resumes_from_index", position.loop_resumes_from_index),
+            ):
+                if value is not None:
+                    loop[name] = str(value) if isinstance(value, UUID) else value
         # Only a loop gate's runtime task instance has one, once it has evaluated ``until``
-        decision = getattr(self.obj, "loop_decision", None)
-        if decision is not None:
-            loop["decision"] = {"stop": decision.stop}
-            if decision.reason is not None:
-                loop["decision"]["reason"] = decision.reason
+        if (decision := getattr(self.obj, "loop_decision", None)) is not None:
+            loop["decision"] = {"stop": getattr(decision, "stop", None)}
+            if (reason := getattr(decision, "reason", None)) is not None:
+                loop["decision"]["reason"] = reason
         if loop:
             self.loop = loop
             self._fields.append("loop")
@@ -1218,19 +1224,6 @@ class TaskInstanceInfo(InfoJsonEncodable):
             self.region_id = str(region_id)
             self.region_index = getattr(self.obj, "region_index", None)
             self._fields.extend(("region_id", "region_index"))
-
-
-def _build_loop_info(position: TaskInstancePosition) -> dict[str, Any]:
-    fields = {
-        "index": position.loop_index,
-        "region_id": str(position.loop_region_id) if position.loop_region_id else None,
-        "trajectory": position.loop_trajectory,
-        "forked_from_region_id": (
-            str(position.loop_forked_from_region_id) if position.loop_forked_from_region_id else None
-        ),
-        "resumes_from_index": position.loop_resumes_from_index,
-    }
-    return {name: value for name, value in fields.items() if value is not None}
 
 
 class AssetInfo(InfoJsonEncodable):
@@ -1446,7 +1439,7 @@ class TaskGroupInfo(InfoJsonEncodable):
     }
     casts = {
         # group_id is the group's own id, while the job facet and task.loop name groups by their full id
-        "full_group_id": lambda tg: tg.group_id,
+        "full_group_id": lambda tg: getattr(tg, "group_id", None),
     }
     includes = [
         "downstream_group_ids",
@@ -1644,11 +1637,8 @@ def get_task_loop_info(task: Any) -> dict[str, Any] | None:
     if (loop_group := _find_enclosing_loop(task)[1]) is None:
         return None
     return {
-        "group_id": loop_group.group_id,
-        "max_iterations": loop_group.max_iterations,
-        "has_until": loop_group.has_until,
-        "gate_task_id": loop_group.gate_task_id,
-        "terminal_task_id": loop_group.terminal_task_id,
+        field: getattr(loop_group, field, None)
+        for field in ("group_id", "max_iterations", "has_until", "gate_task_id", "terminal_task_id")
     }
 
 
@@ -2370,7 +2360,9 @@ def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict,
     for single_task in sorted(dag.tasks, key=lambda x: x.task_id):
         task_edges, group_edges = edge_map.get(single_task.task_id, ({}, {}))
         task_loop = get_task_loop_info(single_task)
-        is_mapped = single_task.get_needs_expansion()
+        get_needs_expansion = getattr(single_task, "get_needs_expansion", None)
+        is_mapped = bool(get_needs_expansion()) if callable(get_needs_expansion) else None
+        trigger_rule = getattr(single_task, "trigger_rule", None)
         tasks[single_task.task_id] = {
             "operator": get_fully_qualified_class_name(single_task),
             "task_group": single_task.task_group.group_id if single_task.task_group else None,
@@ -2379,9 +2371,9 @@ def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict,
             # Expanded by itself or by a mapped task group around it
             "is_mapped": is_mapped,
             "parse_time_mapped_count": _get_parse_time_mapped_count(single_task) if is_mapped else None,
-            "trigger_rule": getattr(single_task.trigger_rule, "value", single_task.trigger_rule),
-            "depends_on_past": single_task.depends_on_past,
-            "retries": single_task.retries,
+            "trigger_rule": getattr(trigger_rule, "value", trigger_rule),
+            "depends_on_past": getattr(single_task, "depends_on_past", None),
+            "retries": getattr(single_task, "retries", None),
             "emits_ol_events": _emits_ol_events(single_task),
             "ui_color": single_task.ui_color,
             "ui_fgcolor": single_task.ui_fgcolor,
@@ -2399,11 +2391,13 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
     result = {}
     for tg_id, tg in dag.task_group_dict.items():
         task_edges, group_edges = edge_map.get(tg_id, ({}, {}))
-        group_type = _get_task_group_type(tg)
+        is_mapped = _is_mapped_task_group(tg)
         result[tg_id] = {
             "parent_group": tg.parent_group.group_id if tg.parent_group else None,
-            "group_type": group_type,
-            "parse_time_mapped_count": _get_parse_time_mapped_count(tg) if group_type == "mapped" else None,
+            # Independent, so a group could be both
+            "is_mapped": is_mapped,
+            "is_loop": hasattr(tg, "gate_task_id"),
+            "parse_time_mapped_count": _get_parse_time_mapped_count(tg) if is_mapped else None,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
@@ -2418,18 +2412,15 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
     return result
 
 
-def _get_task_group_type(task_group: Any) -> str:
-    """Tell whether a task group is a loop, a mapped task group or a plain one."""
-    if hasattr(task_group, "gate_task_id"):
-        return "loop"
-    if (is_mapped := getattr(task_group, "is_mapped", None)) is None:
-        # Only the scheduler's serialized task groups tell it themselves
-        try:
-            from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-        except ImportError:  # Airflow 2
-            from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
-        is_mapped = isinstance(task_group, MappedTaskGroup)
-    return "mapped" if is_mapped else "task_group"
+def _is_mapped_task_group(task_group: Any) -> bool:
+    if (is_mapped := getattr(task_group, "is_mapped", None)) is not None:
+        return bool(is_mapped)
+    # Only the scheduler's serialized task groups tell it themselves
+    try:
+        from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    except ImportError:  # Airflow 2
+        from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
+    return isinstance(task_group, MappedTaskGroup)
 
 
 def _get_parse_time_mapped_count(node: Any) -> int | None:

@@ -92,7 +92,6 @@
           "type": "integer"
         },
         "retry_delay": {
-          "description": "Delay before a retry, as \"<seconds> seconds\", before retry_exponential_backoff and max_retry_delay apply.",
           "type": "string"
         },
         "retry_exponential_backoff": {
@@ -123,15 +122,14 @@
           "type": "string"
         },
         "task_group": {
-          "description": "The task's own task group, absent for a task in no group. It never describes a loop, even when the group is one: task.loop does, for every task in a loop.",
+          "description": "Task group related information",
           "type": "object",
           "properties": {
             "group_id": {
-              "description": "Id of the group without the ids of its parent groups.",
               "type": "string"
             },
             "full_group_id": {
-              "description": "Full id of the group, with the ids of its parent groups, as task.loop.group_id and the keys of AirflowJobFacet.taskGroups name groups. A task sits directly in its loop when it equals task.loop.group_id.",
+              "description": "Group id including the ids of its parent groups.",
               "type": "string"
             },
             "downstream_group_ids": {
@@ -157,40 +155,32 @@
           "required": ["group_id"]
         },
         "loop": {
-          "$ref": "#/$defs/TaskLoop"
+          "description": "The loop the task runs in (Airflow 3.4+).",
+          "type": "object",
+          "properties": {
+            "group_id": {
+              "type": "string"
+            },
+            "max_iterations": {
+              "type": "integer"
+            },
+            "has_until": {
+              "type": "boolean"
+            },
+            "gate_task_id": {
+              "type": "string"
+            },
+            "terminal_task_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true,
       "required": [
         "task_id"
       ]
-    },
-    "TaskLoop": {
-      "description": "The loop the task runs in (Airflow 3.4+), whether the task sits directly in the loop or in a task group inside it. Absent outside a loop. taskInstance.loop tells which iteration the event comes from.",
-      "type": "object",
-      "properties": {
-        "group_id": {
-          "description": "Full group id of the loop, including the ids of its parent groups.",
-          "type": "string"
-        },
-        "max_iterations": {
-          "description": "Maximum number of iterations of the loop.",
-          "type": "integer"
-        },
-        "has_until": {
-          "description": "Whether the loop has an until condition that can stop it before max_iterations.",
-          "type": "boolean"
-        },
-        "gate_task_id": {
-          "description": "Id of the loop's gate, the task that ends each iteration and decides whether the loop goes on.",
-          "type": "string"
-        },
-        "terminal_task_id": {
-          "description": "Id of the last task of the loop body, whose result the gate and the next iteration read.",
-          "type": "string"
-        }
-      },
-      "additionalProperties": true
     },
     "DAG": {
       "type": "object",
@@ -232,62 +222,81 @@
         "duration": {
           "type": "number"
         },
-        "id": {
-          "description": "UUID of this attempt (Airflow 3+). Every try, and every task instance a clear creates again, gets a new one.",
-          "type": "string",
-          "format": "uuid"
-        },
         "map_index": {
-          "description": "Position in a mapped task's expansion. Absent for a task that isn't mapped.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Id of the task instance attempt (Airflow 3+).",
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "max_tries": {
           "type": "integer"
         },
         "rendered_map_index": {
-          "description": "Label of the mapped instance, rendered from the task's map_index_template. Absent when the task isn't mapped or renders no label.",
-          "type": "string"
-        },
-        "dag_version_id": {
-          "description": "Id of the Dag version the attempt runs (Airflow 3+), which can differ from the Dag run's when the task instance was cleared to run on another version.",
-          "type": "string",
-          "format": "uuid"
-        },
-        "dag_bundle_name": {
-          "description": "Name of the Dag bundle the attempt runs from (Airflow 3+).",
-          "type": "string"
-        },
-        "dag_bundle_version": {
-          "description": "Version of the Dag bundle the attempt runs from (Airflow 3+). Absent for a bundle without versions.",
           "type": "string"
         },
         "expanded_ti_count": {
-          "description": "Number of live instances in the mapped task's expansion (Airflow 3.4+), counted within the loop iteration inside a loop. Absent for a task that isn't mapped.",
+          "description": "Number of instances in the mapped task's expansion (Airflow 3.4+).",
           "type": "integer"
-        },
-        "loop": {
-          "$ref": "#/$defs/TaskInstanceLoop"
         },
         "region_id": {
-          "description": "Id of the region (one execution of a loop or of a mapped task's expansion) the task instance belongs to (Airflow 3.4+). Shared by the task instances of that region. For a mapped task it is its expansion's, see loop.region_id for the loop's. Absent for a task that is neither mapped nor in a loop.",
-          "type": "string",
-          "format": "uuid"
+          "description": "Region of the loop iteration or mapped expansion (Airflow 3.4+).",
+          "type": "string"
         },
         "region_index": {
-          "description": "Position inside the region (Airflow 3.4+): the iteration for a task in a loop that isn't mapped, the map index for a mapped task. Together with dag_id, the Dag run's run_id, task_id, region_id and try_number it identifies one attempt. Absent with region_id.",
+          "description": "Position in the region (Airflow 3.4+).",
           "type": "integer"
+        },
+        "dag_version_id": {
+          "type": "string"
+        },
+        "dag_bundle_name": {
+          "type": "string"
+        },
+        "dag_bundle_version": {
+          "type": "string"
+        },
+        "loop": {
+          "description": "The loop iteration of the task instance (Airflow 3.4+).",
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "integer"
+            },
+            "region_id": {
+              "type": "string"
+            },
+            "trajectory": {
+              "type": "integer"
+            },
+            "forked_from_region_id": {
+              "type": "string"
+            },
+            "resumes_from_index": {
+              "type": "integer"
+            },
+            "decision": {
+              "type": "object",
+              "properties": {
+                "stop": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": true
         },
         "pool": {
           "type": "string"
         },
         "try_number": {
-          "description": "Try of the task instance, counted per region_id and region_index.",
           "type": "integer"
-        },
-        "max_tries": {
-          "description": "Last try_number that can be retried on failure. Equals the task's retries until the task instance is cleared, which sets it to the last try_number plus retries.",
-          "type": "integer"
-        },
-        "state": {
-          "description": "State of the task instance when the event is sent, e.g. running on START, success or skipped on COMPLETE, and up_for_retry or failed on FAIL. A FAIL with up_for_retry is retried, and one with failed is final unless the task instance is cleared. A FAIL with restarting comes from a try that a clear stopped, and the task runs again.",
-          "type": "string"
         },
         "queued_dttm": {
           "type": "string",
@@ -303,51 +312,6 @@
         "pool",
         "try_number"
       ]
-    },
-    "TaskInstanceLoop": {
-      "description": "The iteration of the loop the event comes from (Airflow 3.4+), task.loop being that loop. Absent outside a loop. Fields that can't be known are left out.",
-      "type": "object",
-      "properties": {
-        "index": {
-          "description": "Iteration, counted from 1.",
-          "type": "integer"
-        },
-        "region_id": {
-          "description": "Id of the loop region holding the iteration, shared by every task instance of that pass of the loop, mapped ones included.",
-          "type": "string",
-          "format": "uuid"
-        },
-        "trajectory": {
-          "description": "1 for the loop's original region, and one more for each fork of it. Clearing a loop gate with the later iterations forks the loop region, and the higher trajectory is the current one.",
-          "type": "integer",
-          "minimum": 1
-        },
-        "forked_from_region_id": {
-          "description": "Id of the previous loop region of the chain this fork extends. Absent for the original region. The fork replaces the iterations from resumes_from_index on, which earlier regions of the chain can hold too.",
-          "type": "string",
-          "format": "uuid"
-        },
-        "resumes_from_index": {
-          "description": "First iteration the fork holds. Absent for the original region, which holds them from 1.",
-          "type": "integer",
-          "minimum": 0
-        },
-        "decision": {
-          "description": "Decision of a loop gate, on its COMPLETE or FAIL event only. A FAIL with stop false at the last iteration means the loop's until was still false at task.loop.max_iterations.",
-          "type": "object",
-          "properties": {
-            "stop": {
-              "description": "Whether the gate stopped the loop.",
-              "type": "boolean"
-            },
-            "reason": {
-              "description": "Reason given by until, if any.",
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": true
     },
     "DagRun": {
       "type": "object",

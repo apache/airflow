@@ -24,6 +24,9 @@ It checks:
       with `state` failed at `try_number` 1 and `max_tries` 2: it isn't retried although
       `try_number <= max_tries`
     - taskInstance's `dag_version_id` of every event, from Airflow 3.1 on
+    - every task event's identity: taskInstance's `id`, `dag_version_id` (Airflow 3.1+) and bundle, the absence
+      of fields that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
+      and the parent run, plus each task in the Dag's job facet
 """
 
 from __future__ import annotations
