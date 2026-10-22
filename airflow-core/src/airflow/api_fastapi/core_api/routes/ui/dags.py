@@ -86,11 +86,11 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskCo
 from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
-from airflow.models.hitl import HITLDetail
+from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -282,10 +282,7 @@ def get_dags(
             .options(
                 defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
             )
-            .where(
-                HITLDetail.responded_at.is_(None),
-                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
-            )
+            .where(HITLDetail.responded_at.is_(None), awaiting_response_clause())
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
             .order_by(TaskInstance.dag_id)
         )

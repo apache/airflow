@@ -26,6 +26,7 @@ import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
 import { useHITLReviewModalRouteSync } from "src/components/HITLReview/useHITLReviewModalRouteSync.ts";
 
+import { HITL_PENDING_STATES } from "src/utils/hitl";
 import { useAutoRefresh } from "src/utils/query";
 
 import { NeedsReviewIndicator } from "./NeedsReviewIndicator";
@@ -52,7 +53,7 @@ const usePendingHitl = ({
       dagRunId: runId ?? "~",
       orderBy: ["dag_id", "run_after", "created_at", "task_display_name"],
       responseReceived: false,
-      state: ["deferred", "awaiting_input"],
+      state: HITL_PENDING_STATES,
       taskId,
     },
     undefined,

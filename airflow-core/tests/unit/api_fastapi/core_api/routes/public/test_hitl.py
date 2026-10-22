@@ -598,6 +598,47 @@ class TestUpdateHITLDetailEndpoint:
         assert refreshed.next_method == "execute_complete"
         assert "event" in (refreshed.next_kwargs or {})
 
+    @pytest.mark.parametrize(
+        ("start_date_offset", "next_method", "expected_status"),
+        [
+            pytest.param(timedelta(seconds=-5), None, 200, id="checking-for-this-answer"),
+            pytest.param(timedelta(seconds=5), None, 409, id="new-attempt-has-not-asked-yet"),
+            pytest.param(timedelta(seconds=-5), "execute_complete", 409, id="resumed-run"),
+        ],
+    )
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_response_to_a_running_task_needs_the_attempt_waiting_for_it(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+        start_date_offset: timedelta,
+        next_method: str | None,
+        expected_status: int,
+    ) -> None:
+        detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
+        ti = session.get(TIModel, sample_ti.id)
+        assert detail is not None
+        assert ti is not None
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = detail.created_at + start_date_offset
+        ti.next_method = next_method
+        session.commit()
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        refreshed_detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
+        refreshed_ti = session.get(TIModel, sample_ti.id)
+        assert refreshed_detail is not None
+        assert refreshed_ti is not None
+        assert refreshed_detail.response_received is (expected_status == 200)
+        # The running task picks the answer up itself, so the response never resumes it.
+        assert refreshed_ti.state == TaskInstanceState.RUNNING
+
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_400_for_invalid_option(
         self,
