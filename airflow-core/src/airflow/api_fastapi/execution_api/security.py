@@ -117,6 +117,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
     DagProcessorToken,
     ExecutionToken,
     TaskTokenScope,
+    TIClaims,
     TIToken,
     TokenScope,
 )
@@ -490,10 +491,14 @@ async def require_dag_in_granted_bundle(
 DagInGrantedBundle = Depends(require_dag_in_granted_bundle)
 
 
-def issue_execution_token(services: svcs.Container, response: Response, sub: str) -> None:
+def issue_execution_token(
+    services: svcs.Container, response: Response, sub: str, claims: dict[str, str] | None = None
+) -> None:
     """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
     generator: JWTGenerator = services.get(JWTGenerator)
-    response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
+    response.headers["Refreshed-API-Token"] = generator.generate(
+        extras={**(claims or {}), "sub": sub, "scope": "execution"}
+    )
 
 
 class ExecutionAPIRoute(APIRoute):
@@ -547,7 +552,7 @@ async def get_team_name_dep(
     async with create_session_async() as session:
         if isinstance(token, (DagProcessorToken, DagParseToken)):
             return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+        return await session.scalar(_team_name_for_requester_stmt(token))
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:
@@ -575,6 +580,13 @@ def _team_name_for_ti_stmt(ti_id):
         .where(TaskInstance.id == ti_id)
         .execution_options(include_all_attempts=True)
     )
+
+
+def _team_name_for_requester_stmt(token: ExecutionToken):
+    """Build the select statement resolving a task's or callback's token to its team name."""
+    if isinstance(token.claims, TIClaims) and token.claims.bundle_name:
+        return _team_name_for_bundle_stmt(token.claims.bundle_name)
+    return _team_name_for_ti_stmt(token.id)
 
 
 def _team_name_for_bundle_stmt(bundle_name):

@@ -20,24 +20,29 @@ import pytest
 
 pytestmark = pytest.mark.db_test
 
-MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-000000000000/state"
+MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-000000000000"
 
 
-class TestUpdateCallbackStateEndpointVersioning:
-    """The callbacks/{callback_id}/state endpoint didn't exist before the 2027-02-28 API version."""
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        pytest.param("GET", "context", None, id="context"),
+        pytest.param("PATCH", "state", {"state": "success"}, id="state"),
+    ],
+)
+class TestCallbackContextAndStateEndpointVersioning:
+    """The callback context and state endpoints didn't exist before the 2027-02-28 API version."""
 
-    def test_old_version_returns_404(self, client):
-        """Before 2027-02-28 the route is absent, so routing itself 404s (no endpoint-shaped detail)."""
+    def test_old_version_returns_404(self, client, method, path, body):
         client.headers["Airflow-API-Version"] = "2026-10-30"
 
-        response = client.patch(MISSING_CALLBACK_URL, json={"state": "success"})
+        response = client.request(method, f"{MISSING_CALLBACK_URL}/{path}", json=body)
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
 
-    def test_head_version_routes_to_endpoint(self, client):
-        """At head the route exists: the same request reaches the endpoint's own 404 handling."""
-        response = client.patch(MISSING_CALLBACK_URL, json={"state": "success"})
+    def test_head_version_routes_to_endpoint(self, client, method, path, body):
+        response = client.request(method, f"{MISSING_CALLBACK_URL}/{path}", json=body)
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "not_found"

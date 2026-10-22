@@ -121,3 +121,13 @@ class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (
         schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
     )
+
+
+class AddCallbackContextEndpoint(VersionChange):
+    """Add the endpoint a routed Dag processor callback reads its context from."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/callbacks/{callback_id}/context", ["GET"]).didnt_exist,
+    )

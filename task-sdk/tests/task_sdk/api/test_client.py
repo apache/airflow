@@ -40,6 +40,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetStateStoreResponse,
     CallbackTerminalState,
     ConnectionResponse,
+    DagCallbackContext,
     DagResponse,
     DagRunState,
     DagRunStateResponse,
@@ -2811,20 +2812,61 @@ class TestCallbackOperations:
             client.callbacks.run(callback_id)
         assert err.value.response.status_code == 409
 
+    def test_get_context_returns_the_callback_context(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/callbacks/{callback_id}/context"
+            return httpx2.Response(
+                status_code=200,
+                json={
+                    "context": {
+                        "type": "DagCallback",
+                        "dag_id": "test_dag",
+                        "run_id": "test_run",
+                        "is_failure_callback": False,
+                    }
+                },
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        context = client.callbacks.get_context(callback_id).context
+
+        assert context == DagCallbackContext(
+            type="DagCallback", dag_id="test_dag", run_id="test_run", is_failure_callback=False
+        )
+
     @pytest.mark.parametrize(
-        ("state", "output"),
+        ("state", "output", "expected_body"),
         [
-            pytest.param(CallbackTerminalState.SUCCESS, None, id="success-without-output"),
-            pytest.param(CallbackTerminalState.FAILED, "exited with code 3", id="failed-with-output"),
+            pytest.param(
+                CallbackTerminalState.SUCCESS,
+                None,
+                {"state": "success", "output": None},
+                id="success-without-output",
+            ),
+            pytest.param(
+                CallbackTerminalState.FAILED,
+                "exited with code 3",
+                {"state": "failed", "output": "exited with code 3"},
+                id="failed-with-output",
+            ),
+            pytest.param(
+                CallbackTerminalState.FAILED,
+                "x" * 2001,
+                {"state": "failed", "output": "x" * 2000},
+                id="failed-truncated",
+            ),
         ],
     )
-    def test_finish_reports_the_terminal_state(self, state, output):
+    def test_finish_reports_the_terminal_state(self, state, output, expected_body):
         callback_id = uuid7()
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PATCH"
             assert request.url.path == f"/callbacks/{callback_id}/state"
-            assert json.loads(request.content) == {"state": state.value, "output": output}
+            assert json.loads(request.content) == expected_body
             return httpx2.Response(status_code=204)
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
