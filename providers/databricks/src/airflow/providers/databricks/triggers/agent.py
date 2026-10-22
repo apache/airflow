@@ -33,7 +33,7 @@ class DatabricksAgentInvocationTrigger(BaseTrigger):
 
     :param app_url: HTTPS base URL of the deployed app.
     :param invocation_id: UUID identifying the invocation to poll.
-    :param databricks_conn_id: Databricks connection using service principal OAuth.
+    :param databricks_conn_id: Databricks connection using service principal OAuth or OAuth token federation.
         Defaults to ``databricks_default``.
     :param session_id: Conversation ID sent as the routing key. Defaults to ``None``.
     :param polling_period_seconds: Seconds between status checks. Defaults to ``10``.
@@ -71,7 +71,9 @@ class DatabricksAgentInvocationTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            async with DatabricksAgentHook(databricks_conn_id=self.databricks_conn_id) as hook:
+            async with DatabricksAgentHook(
+                databricks_conn_id=self.databricks_conn_id, caller="DatabricksAgentInvocationTrigger"
+            ) as hook:
                 while True:
                     result = await hook.a_get_invocation(
                         self.invocation_id, self.session_id, app_url=self.app_url

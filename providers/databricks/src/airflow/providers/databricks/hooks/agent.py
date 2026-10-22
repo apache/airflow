@@ -81,12 +81,13 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
     invocation API through the managed-agent contract. Background invocations remain available
     through ``create_invocation`` and ``get_invocation`` without that extra.
 
-    :param databricks_conn_id: Databricks workspace connection configured with
-        ``service_principal_oauth=true``, a client ID in login and a client secret in password.
+    :param databricks_conn_id: Databricks workspace connection configured with service principal
+        OAuth credentials or OAuth token federation.
         Defaults to ``databricks_default``.
     :param timeout_seconds: HTTP request timeout in seconds. Defaults to ``180``.
     :param retry_limit: Maximum number of attempts for transient HTTP failures. Defaults to ``3``.
     :param retry_delay: Minimum delay between HTTP retries in seconds. Defaults to ``1``.
+    :param caller: Name of the operator or trigger calling the hook. Defaults to ``Unknown``.
     """
 
     def __init__(
@@ -95,8 +96,9 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1,
+        caller: str = "Unknown",
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, caller=caller)
 
     agent_platform = "databricks.agent_runtime"
 
@@ -220,10 +222,6 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                         ) from exc
             if isinstance(exc.__cause__, RetryError) and cause is not None:
                 raise cause from None
-            if isinstance(cause, requests.HTTPError) and (
-                cause.response.status_code == 429 or cause.response.status_code >= 500
-            ):
-                raise cause from None
             raise ManagedAgentInvocationError(
                 "Databricks managed-agent request failed; inspect the app logs"
             ) from exc
@@ -261,9 +259,7 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                             and isinstance(block.get("text"), str)
                         ):
                             parts.append(block["text"])
-                        else:
-                            break
-                    else:
+                    if parts:
                         text = "".join(parts)
                 break
         return ManagedAgentResponse(
@@ -276,8 +272,28 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
 
     def _validate_oauth(self) -> None:
         conn = self.databricks_conn
-        if not conn.extra_dejson.get("service_principal_oauth") or not conn.login or not conn.password:
-            raise ValueError("Databricks Apps requires service_principal_oauth with a client ID and secret")
+        extra = conn.extra_dejson
+        # These methods take precedence over workspace OAuth in the base hook's token selection.
+        if (
+            "token" in extra
+            or (not conn.login and conn.password)
+            or "azure_tenant_id" in extra
+            or extra.get("use_azure_managed_identity")
+            or extra.get("use_default_azure_credential")
+        ):
+            raise ValueError(
+                "Databricks Apps requires workspace OAuth; PAT and Azure AD tokens are not supported"
+            )
+        if extra.get("service_principal_oauth"):
+            if not conn.login or not conn.password:
+                raise ValueError("service_principal_oauth requires a client ID and secret")
+        elif not (
+            extra.get("federated_token_provider")
+            or self._is_aws_federation()
+            or conn.login == "federated_k8s"
+            or extra.get("federated_k8s")
+        ):
+            raise ValueError("Databricks Apps requires service principal OAuth or OAuth token federation")
 
     def _get_headers(self, token: str, session_id: str | None) -> dict[str, str]:
         headers = {**self.user_agent_header, "Authorization": f"Bearer {token}"}
@@ -359,7 +375,7 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             for attempt in retry:
                 with attempt:
                     self._get_remaining_timeout(deadline, endpoint)
-                    token = self._get_sp_token(self._get_oidc_token_service_url())
+                    token = cast("str", self._get_token(raise_error=True))
                     remaining = self._get_remaining_timeout(deadline, endpoint)
                     request_timeout = remaining if remaining is not None else self.timeout_seconds
                     if method == "GET":
@@ -427,7 +443,7 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    token = await self._a_get_sp_token(self._get_oidc_token_service_url())
+                    token = cast("str", await self._a_get_token(raise_error=True))
                     async with self._session.get(
                         url,
                         headers=self._get_headers(token, session_id),

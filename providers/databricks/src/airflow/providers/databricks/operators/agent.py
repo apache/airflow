@@ -44,7 +44,7 @@ class DatabricksAgentInvokeOperator(BaseOperator):
 
     :param app_url: HTTPS base URL of the deployed app. (templated)
     :param input: JSON-serializable agent input. (templated)
-    :param databricks_conn_id: Databricks connection using service principal OAuth.
+    :param databricks_conn_id: Databricks connection using service principal OAuth or OAuth token federation.
         Defaults to ``databricks_default``. (templated)
     :param session_id: Conversation ID. CLI template agents require this field.
         Defaults to ``None``. (templated)
@@ -94,7 +94,9 @@ class DatabricksAgentInvokeOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> DatabricksAgentHook:
-        return DatabricksAgentHook(databricks_conn_id=self.databricks_conn_id)
+        return DatabricksAgentHook(
+            databricks_conn_id=self.databricks_conn_id, caller="DatabricksAgentInvokeOperator"
+        )
 
     def _get_invocation_id(self, context: Context) -> str:
         if self.invocation_id is not None:

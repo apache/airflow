@@ -46,7 +46,11 @@ def operator():
         polling_period_seconds=3,
     )
     op.hook = mock.create_autospec(DatabricksAgentHook, instance=True)
-    op.hook.create_invocation.return_value = {"id": INVOCATION_ID, "status_url": "ignored"}
+    op.hook.create_invocation.return_value = {
+        "id": INVOCATION_ID,
+        "status": "queued",
+        "status_url": "ignored",
+    }
     return op
 
 
@@ -269,7 +273,9 @@ def test_timeout_after_sleep(monotonic, sleep, operator):
     sleep.assert_called_once_with(1)
 
 
-def test_defers(operator):
+@pytest.mark.parametrize("status", ["queued", "active"])
+def test_defers(operator, status):
+    operator.hook.create_invocation.return_value["status"] = status
     operator.deferrable = True
     with pytest.raises(TaskDeferred) as exc:
         operator.execute({})
@@ -353,4 +359,4 @@ def test_hook_configuration(hook):
         task_id="invoke", app_url=APP_URL, input={}, databricks_conn_id="oauth"
     )
     assert operator.hook is hook.return_value
-    hook.assert_called_once_with(databricks_conn_id="oauth")
+    hook.assert_called_once_with(databricks_conn_id="oauth", caller="DatabricksAgentInvokeOperator")

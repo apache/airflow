@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
+import time
 from unittest import mock
 from uuid import UUID
 
@@ -44,8 +46,13 @@ INVOCATION_ID = "550e8400-e29b-41d4-a716-446655440000"
 
 
 @pytest.fixture
-def hook():
+def hook(request):
     hook = DatabricksAgentHook(retry_limit=2, retry_delay=0)
+    hook.retry_args["sleep"] = (
+        mock.AsyncMock(spec=asyncio.sleep)
+        if request.node.get_closest_marker("asyncio")
+        else mock.Mock(spec=time.sleep)
+    )
     hook.databricks_conn = Connection(
         conn_id="databricks_default",
         conn_type="databricks",
@@ -56,6 +63,11 @@ def hook():
     )
     hook.user_agent_header = {"user-agent": "test"}
     return hook
+
+
+def test_caller_in_user_agent():
+    hook = DatabricksAgentHook(caller="DatabricksAgentInvokeOperator")
+    assert "operator/DatabricksAgentInvokeOperator" in hook.user_agent_header["user-agent"]
 
 
 @pytest.mark.parametrize(
@@ -86,8 +98,90 @@ def test_requires_oauth(hook, extra, login, password):
     hook.databricks_conn = Connection(
         conn_id="databricks_default", conn_type="databricks", extra=extra, login=login, password=password
     )
-    with pytest.raises(ValueError, match="service_principal_oauth"):
+    with pytest.raises(ValueError, match="OAuth|service_principal_oauth"):
         hook.create_invocation(INVOCATION_ID, {}, app_url=APP_URL)
+
+
+@pytest.fixture(
+    params=[
+        ({"federated_token_provider": "my.identity.get_token"}, ""),
+        ({"federated_aws": True}, ""),
+        ({}, "federated_aws"),
+        ({"federated_k8s": True}, ""),
+        ({}, "federated_k8s"),
+    ],
+    ids=["token-provider", "aws-extra", "aws-login", "k8s-extra", "k8s-login"],
+)
+def federated_hook(hook, request):
+    extra, login = request.param
+    hook.databricks_conn = Connection(
+        conn_id="databricks_default",
+        conn_type="databricks",
+        host="workspace.cloud.databricks.com",
+        login=login,
+        extra=json.dumps(extra),
+    )
+    return hook
+
+
+@mock.patch.object(
+    DatabricksAgentHook, "_get_federated_databricks_token", autospec=True, return_value="oauth"
+)
+@mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+def test_federated_invocation(http, token, federated_hook):
+    response = mock.Mock(spec=requests.Response)
+    response.status_code = 200
+    response.json.return_value = {"id": INVOCATION_ID, "status": "queued"}
+    http.return_value = response
+
+    result = federated_hook.create_invocation(INVOCATION_ID, {}, app_url=APP_URL)
+
+    assert result == response.json.return_value
+    token.assert_called_once_with(federated_hook, "https://workspace.cloud.databricks.com/oidc/v1/token")
+    assert http.call_args.kwargs["headers"]["Authorization"] == "Bearer oauth"
+
+
+@mock.patch.object(
+    DatabricksAgentHook, "_a_get_federated_databricks_token", autospec=True, return_value="oauth"
+)
+@mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession", autospec=True)
+@pytest.mark.asyncio
+async def test_async_federated_invocation(session, token, federated_hook):
+    response = mock.Mock(spec=aiohttp.ClientResponse)
+    response.status = 200
+    response.json = mock.AsyncMock(spec=aiohttp.ClientResponse.json, return_value={"status": "completed"})
+    session.return_value.get.return_value.__aenter__.return_value = response
+
+    async with federated_hook:
+        result = await federated_hook.a_get_invocation(INVOCATION_ID, app_url=APP_URL)
+
+    assert result == {"status": "completed"}
+    token.assert_awaited_once_with(federated_hook, "https://workspace.cloud.databricks.com/oidc/v1/token")
+    assert session.return_value.get.call_args.kwargs["headers"]["Authorization"] == "Bearer oauth"
+
+
+@pytest.fixture(
+    params=[
+        {"token": "pat"},
+        {"azure_tenant_id": "tenant"},
+        {"use_azure_managed_identity": True},
+        {"use_default_azure_credential": True},
+    ]
+)
+def conflicting_auth_hook(hook, request):
+    hook.databricks_conn.extra = json.dumps({"federated_k8s": True, **request.param})
+    return hook
+
+
+def test_rejects_auth_taking_precedence_over_oauth(conflicting_auth_hook):
+    with pytest.raises(ValueError, match="requires workspace OAuth"):
+        conflicting_auth_hook.create_invocation(INVOCATION_ID, {}, app_url=APP_URL)
+
+
+@pytest.mark.asyncio
+async def test_async_rejects_auth_taking_precedence_over_oauth(conflicting_auth_hook):
+    with pytest.raises(ValueError, match="requires workspace OAuth"):
+        await conflicting_auth_hook.a_get_invocation(INVOCATION_ID, app_url=APP_URL)
 
 
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
@@ -378,6 +472,19 @@ class TestManagedAgent:
             ("", ""),
             ([{"type": "text", "text": "Final "}, {"type": "text", "text": "answer"}], "Final answer"),
             (["Final ", {"type": "text", "text": "answer"}], "Final answer"),
+            (
+                [
+                    {"type": "reasoning", "summary": "Checking the data"},
+                    {"type": "text", "text": "Final "},
+                    {"type": "mcp_call", "name": "lookup"},
+                    {"type": "text", "text": "answer"},
+                ],
+                "Final answer",
+            ),
+            (
+                [{"type": "text", "text": "Final answer"}, {"type": "mcp_call", "name": "lookup"}],
+                "Final answer",
+            ),
         ],
     )
     def test_template_response_uses_last_assistant_message(self, call, identity, content, expected):
@@ -407,6 +514,15 @@ class TestManagedAgent:
             [None],
             [{"role": "assistant", "content": []}],
             [{"type": "ai", "content": [{"type": "image", "url": "image.png"}]}],
+            [
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "reasoning", "summary": "Checking the data"},
+                        {"type": "mcp_call", "name": "lookup"},
+                    ],
+                }
+            ],
             [{"role": "assistant", "content": "Earlier"}, {"role": "assistant", "content": None}],
         ],
     )
@@ -545,31 +661,6 @@ class TestManagedAgent:
         with pytest.raises(requests.HTTPError) as exc:
             hook.agent(APP_URL).invoke(ManagedAgentRequest(prompt="hello"))
         assert exc.value is error
-
-    @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
-    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-    @pytest.mark.parametrize("status", [429, 500])
-    def test_reraised_http_error_remains_transient(self, http, token, hook, status):
-        hook.retry_args["reraise"] = True
-        failed_post = mock.Mock(spec=requests.Response)
-        failed_post.status_code = status
-        original_error = requests.HTTPError(response=failed_post)
-        failed_post.raise_for_status.side_effect = original_error
-        status_response = mock.Mock(spec=requests.Response)
-        status_response.status_code = 200
-        status_response.json.return_value = {"id": INVOCATION_ID, "status": "active"}
-        http.side_effect = lambda method, *args, **kwargs: {"POST": failed_post, "GET": status_response}[
-            method
-        ]
-
-        with pytest.raises(requests.HTTPError) as exc:
-            hook.agent(APP_URL).invoke(
-                ManagedAgentRequest(prompt="hello", vendor_options={"invocation_id": INVOCATION_ID})
-            )
-
-        assert exc.value is original_error
-        expected_methods = ["POST"] * hook.retry_limit + (["GET"] if status == 500 else [])
-        assert [call.args[0] for call in http.call_args_list] == expected_methods
 
     @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)

@@ -36,9 +36,19 @@ Authentication
 
 Configure a Databricks connection with the workspace URL in ``host``, the service
 principal's client ID in ``login``, its client secret in ``password``, and
-``{"service_principal_oauth": true}`` in ``extra``. The service principal needs
-permission to use the deployed app. Databricks Apps requires OAuth; personal
-access tokens are not supported. Supply the app's HTTPS base URL as ``app_url``.
+``{"service_principal_oauth": true}`` in ``extra``.
+
+Alternatively, use OAuth token federation through ``federated_token_provider``,
+``federated_aws`` or ``federated_k8s``, as described in
+:doc:`/connections/databricks`. These modes reuse the base Databricks hook's
+token exchange and refresh without requiring a client secret. Configure the
+corresponding Databricks federation policy and identity provider for your workload.
+
+The service principal needs ``CAN USE`` permission on the deployed app. The hook
+requires Databricks workspace OAuth; personal access tokens and Azure AD tokens
+are not supported. Do not combine OAuth settings with PAT or Azure AD
+authentication settings, which take precedence in the base hook.
+Supply the app's HTTPS base URL as ``app_url``.
 
 Invoke an agent
 ---------------
@@ -154,7 +164,11 @@ Other input schemas remain available through ``create_invocation`` and the opera
 
 Each call generates a new invocation UUID. For one direct ``agent.invoke(...)``
 per task, a stable UUID in ``vendor_options={"invocation_id": "YOUR_UUID"}`` can
-reuse that invocation across task retries. Do not set a fixed invocation ID in
+reuse that invocation across task retries. A caller-provided UUID must be unique
+per Dag run and task instance, while remaining unchanged across retries of that
+invocation. Reusing it in a later Dag run returns the stored result for the same
+input or an HTTP 409 conflict if the input changed.
+Do not set a fixed invocation ID in
 ``ManagedAgentToolset`` vendor options: the toolset forwards those options on every
 call, so a different prompt would conflict and a repeated prompt would return the
 stored result.
@@ -168,6 +182,8 @@ vendor options cannot override the app URL or connection.
 become ``text``; an object with a string ``output`` field uses that field as text.
 For CLI template outputs containing a list of messages, ``text`` uses the last
 assistant message's content when it is a string or a list of text blocks.
+Non-text blocks are ignored when extracting text from a list; if no text blocks
+are found, the output is returned as JSON text.
 Both OpenAI ``role="assistant"`` and LangGraph ``type="ai"`` messages are recognized.
 Unrecognized outputs become JSON text. Non-string outputs are also available in
 ``structured``. The invocation ID is returned as ``trace_ref``.
