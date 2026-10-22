@@ -60,6 +60,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
+from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -1187,11 +1188,20 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
-    def test_enqueue_executor_callbacks_fails_only_callback_rejected_at_flush(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("rejected_at", "expected_output"),
+        [
+            pytest.param("make", "Failed to queue callback: ValueError", id="workload-not-built"),
+            pytest.param("flush", "Failed to queue callback: IntegrityError", id="rejected-at-flush"),
+        ],
+    )
+    def test_enqueue_executor_callbacks_fails_only_rejected_callback(
+        self, dag_maker, session, rejected_at, expected_output
+    ):
         def test_callback():
             pass
 
-        with dag_maker(dag_id="test_callback_rejected_at_flush"):
+        with dag_maker(dag_id="test_callback_rejected"):
             pass
         dag_run = dag_maker.create_dagrun()
 
@@ -1214,9 +1224,15 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=Job())
         executor = self.job_runner.executor
         original_queue_workload = executor.queue_workload
+        original_make = workloads.ExecuteCallback.make
+
+        def make(callback, **kwargs):
+            if rejected_at == "make" and callback.id == rejected_callback.id:
+                raise ValueError("cannot build workload")
+            return original_make(callback=callback, **kwargs)
 
         def queue_workload(workload, session):
-            if workload.callback.id == str(rejected_callback.id):
+            if rejected_at == "flush" and workload.callback.id == str(rejected_callback.id):
                 # Stands in for an executor row the database rejects on flush, like an
                 # over-long edge_job.command.
                 session.add(Variable(key="duplicate", val="y"))
@@ -1224,13 +1240,16 @@ class TestSchedulerJob:
             # Like EdgeExecutor, track the workload as running as soon as it is queued.
             executor.running.add(workload.key)
 
-        with mock.patch.object(executor, "queue_workload", autospec=True, side_effect=queue_workload):
+        with (
+            mock.patch.object(workloads.ExecuteCallback, "make", autospec=True, side_effect=make),
+            mock.patch.object(executor, "queue_workload", autospec=True, side_effect=queue_workload),
+        ):
             self.job_runner._enqueue_executor_callbacks(session)
         session.flush()
 
         rejected = session.get(ExecutorCallback, rejected_callback.id)
         assert rejected.state == CallbackState.FAILED
-        assert rejected.output == "Failed to queue callback: IntegrityError"
+        assert rejected.output == expected_output
         assert session.get(ExecutorCallback, accepted_callback.id).state == CallbackState.QUEUED
 
         queued_callback_ids = {
