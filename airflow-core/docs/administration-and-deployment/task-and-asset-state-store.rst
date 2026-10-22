@@ -184,7 +184,7 @@ Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBacke
 * ``serialize_asset_state_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
 * ``deserialize_asset_state_store_from_ref``: called by ``AssetStateStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
-Airflow stores a reference in the database as ``{"__airflow_state_ref__": "<reference>"}``, which is what the UI and REST API show for that key, and passes only the inner string to the ``deserialize_*`` hook. A value kept inline (the hook returned ``None``) is stored and shown as itself, so returning ``None`` for small values keeps them readable and editable in the UI while large values go to external storage. The skeleton below does this with a size threshold.
+Airflow stores a reference in the database as ``{"__airflow_state_ref__": "<reference>"}``, which is what the UI and REST API show for that key, and passes only the inner string to the ``deserialize_*`` hook. A value kept inline (the hook returned ``None``) is stored and shown as itself, so returning ``None`` for small values keeps them readable and editable in the UI while large values go to external storage. The skeleton below does this with a size threshold. Because a top-level ``__airflow_state_ref__`` key marks a reference, ``set()`` rejects a value that is a dict with that key.
 
 Older Airflow versions wrap every return value as a reference, including ``None``, and their default ``serialize_*`` hooks return the JSON-encoded value. A backend that also runs on those versions should return ``super().serialize_task_state_store_to_ref(value=value, key=key, scope=scope)`` (or the asset variant) for values it keeps inline: it returns ``None`` where inline storage is supported and the JSON string where it is not.
 
@@ -226,7 +226,8 @@ Example skeleton:
         ) -> str | None:
             payload = json.dumps(value).encode()
             if len(payload) < THRESHOLD_BYTES:
-                return None  # small enough to keep in the database
+                # Keep small values in the database; super() returns the right default for this Airflow version.
+                return super().serialize_task_state_store_to_ref(value=value, key=key, scope=scope)
             s3_key = self._task_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=payload)
             return s3_key
@@ -240,7 +241,8 @@ Example skeleton:
         ) -> str | None:
             payload = json.dumps(value).encode()
             if len(payload) < THRESHOLD_BYTES:
-                return None  # small enough to keep in the database
+                # Keep small values in the database; super() returns the right default for this Airflow version.
+                return super().serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             s3_key = self._asset_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=payload)
             return s3_key

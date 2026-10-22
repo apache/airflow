@@ -210,8 +210,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> str | None:
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
-            # The base default keeps the value inline in the DB on SDKs that support it, and returns
-            # the JSON string on older SDKs, which wrap every return value as a reference.
+            # Not `return None`: older Task SDKs wrap every return value, so use the installed default.
             return super().serialize_task_state_store_to_ref(value=value, key=key, scope=scope)
         path = _build_task_path(scope, key)
         _write_to_object_storage(path, serialized)
@@ -232,8 +231,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> str | None:
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
-            # The base default keeps the value inline in the DB on SDKs that support it, and returns
-            # the JSON string on older SDKs, which wrap every return value as a reference.
+            # Not `return None`: older Task SDKs wrap every return value, so use the installed default.
             return super().serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
         path = _build_asset_path(scope, key)
         _write_to_object_storage(path, serialized)
