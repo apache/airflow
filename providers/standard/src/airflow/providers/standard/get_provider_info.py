@@ -83,6 +83,7 @@ def get_provider_info():
                 "integration-name": "Standard",
                 "python-modules": [
                     "airflow.providers.standard.hooks.filesystem",
+                    "airflow.providers.standard.hooks.inbound_webhook",
                     "airflow.providers.standard.hooks.package_index",
                     "airflow.providers.standard.hooks.subprocess",
                 ],
@@ -140,6 +141,92 @@ def get_provider_info():
                         "password": "Password for package index (will be masked)",
                     },
                 },
+            },
+            {
+                "hook-class-name": "airflow.providers.standard.hooks.inbound_webhook.InboundWebhookHook",
+                "hook-name": "Inbound Webhook",
+                "connection-type": "inbound_webhook",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "port"],
+                    "relabeling": {"password": "Shared secret"},
+                },
+                "conn-fields": {
+                    "source_type": {
+                        "label": "Source type",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "How deliveries are verified and named, such as hmac_json or token_header; airflow providers webhook-sources lists the installed source types. Leave empty to use the webhook name, so that webhook_github is the github source type.",
+                    },
+                    "signature_header": {
+                        "label": "Signature header",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json: header carrying the HMAC-SHA256 signature, e.g. X-Signature. Required for hmac_json.",
+                    },
+                    "signature_prefix": {
+                        "label": "Signature prefix",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json: text before the digest in the signature header, e.g. sha256= or v1=.",
+                    },
+                    "signature_encoding": {
+                        "label": "Signature encoding",
+                        "schema": {"type": ["string", "null"], "enum": ["hex", "base64"]},
+                        "description": "hmac_json: encoding of the digest, hex (default) or base64.",
+                    },
+                    "token_header": {
+                        "label": "Token header",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "token_header: header carrying the shared secret, e.g. Authorization. Required for token_header.",
+                    },
+                    "token_prefix": {
+                        "label": "Token prefix",
+                        "schema": {"type": ["string", "null"]},
+                        "description": 'token_header: text before the secret in the token header, e.g. "Bearer ".',
+                    },
+                    "event_field": {
+                        "label": "Event field",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json and token_header: dotted path into the JSON body naming the event, e.g. event or data.type. Set this or Event header.",
+                    },
+                    "event_header": {
+                        "label": "Event header",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json and token_header: header naming the event. Set this or Event field.",
+                    },
+                    "path_field": {
+                        "label": "Path field",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json and token_header, optional: dotted path to a value that becomes the event's path, such as a service or project name.",
+                    },
+                    "delivery_id_field": {
+                        "label": "Delivery ID field",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json and token_header, optional: dotted path to the ID the service gives each delivery and repeats when it retries one, so retries are recognised. Set this or Delivery ID header.",
+                    },
+                    "delivery_id_header": {
+                        "label": "Delivery ID header",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "hmac_json and token_header, optional: header carrying that ID. Set this or Delivery ID field.",
+                    },
+                    "store_payload": {
+                        "label": "Stored payload",
+                        "schema": {"type": ["string", "null"], "enum": ["full", "summary", "none"]},
+                        "description": "What asset events and the delivery record keep of each delivery: full, the payload as parsed from the body; summary, the parts the source type keeps, or the whole payload if it keeps no summary; or none. Defaults to the source type's default, or else to the [webhooks] store_payload option, which is what hmac_json and token_header use.",
+                    },
+                    "max_body_bytes": {
+                        "label": "Maximum body size",
+                        "schema": {"type": ["integer", "null"], "minimum": 1},
+                        "description": "Optional: larger deliveries are refused, in bytes. Replaces the [webhooks] max_body_bytes option, higher or lower; the option applies when this is empty.",
+                    },
+                },
+            },
+        ],
+        "webhook-sources": [
+            {
+                "source-type": "hmac_json",
+                "classpath": "airflow.providers.standard.webhooks.generic.HmacJsonSource",
+            },
+            {
+                "source-type": "token_header",
+                "classpath": "airflow.providers.standard.webhooks.generic.TokenHeaderSource",
             },
         ],
         "task-decorators": [
