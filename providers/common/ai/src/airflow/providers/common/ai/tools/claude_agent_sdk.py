@@ -17,7 +17,7 @@
 """
 Give Airflow tools to an agent loop run by the Claude Agent SDK.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations
@@ -266,6 +266,8 @@ class AirflowTools:
             ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or, for
             ``ClaudeSDKClient.receive_response()``, when the result message has ``is_error``
             set (for example ``max_turns`` reached or an API failure).
+            For a streamed prompt, any result message with ``is_error`` set raises, even when a
+            later turn succeeds.
         :raises ResultError: for ``query()`` when the result message has ``is_error`` set.
             The CLI exits non-zero right after such a result, so the SDK raises
             ``claude_agent_sdk.ResultError`` (a ``ProcessError``) from the stream before this
@@ -282,6 +284,9 @@ class AirflowTools:
         raised = True
         try:
             result: ResultMessage | None = None
+            # Each turn yields its own ResultMessage; keep the first error so a later success
+            # cannot mask it.
+            error_result: ResultMessage | None = None
             async for message in messages:
                 if isinstance(message, AssistantMessage):
                     # The CLI sends each turn's message before running that turn's tools, which is
@@ -289,14 +294,16 @@ class AirflowTools:
                     state.turn = message.message_id
                 if isinstance(message, ResultMessage):
                     result = message
+                    if message.is_error and error_result is None:
+                        error_result = message
                 if state.failures:
                     raise state.failures[0]
             if result is None:
                 if state.failures:
                     raise state.failures[0]
                 raise RuntimeError("The Claude Agent SDK stream ended without a ResultMessage.")
-            if result.is_error:
-                raise RuntimeError(_describe_error_result(result))
+            if error_result is not None:
+                raise RuntimeError(_describe_error_result(error_result))
             raised = False
             return result
         finally:
