@@ -23,6 +23,7 @@ import type { TaskContext } from "../sdk/task.js";
 import type { TaskClient, TaskStateStore } from "../sdk/client.js";
 import type {
   ConnectionResult,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   SetXComOpts,
@@ -36,6 +37,7 @@ import type {
   DeleteVariable,
   GetXCom,
   SetXCom,
+  DeleteXCom,
   GetConnection,
   SkipDownstreamTasks,
   TriggerDagRun,
@@ -375,6 +377,18 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
+    },
+
+    async deleteXCom(opts: DeleteXComOpts): Promise<void> {
+      const msg: DeleteXCom = {
+        type: "DeleteXCom",
+        key: opts.key,
+        dag_id: opts.dagId ?? ctx.dagId,
+        task_id: opts.taskId ?? ctx.taskId,
+        run_id: opts.runId ?? ctx.runId,
+        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
+      };
+      await rpc("DeleteXCom", null, msg, () => undefined, "throw");
     },
 
     // ---- Control flow ----
