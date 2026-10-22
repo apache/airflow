@@ -85,8 +85,11 @@ async def test_run(hook_class, sleep, result):
     assert [event.payload for event in events] == [
         {"status": "success", "invocation_id": INVOCATION_ID, "error_type": None}
     ]
-    hook_class.assert_called_once_with(APP_URL, "oauth")
-    assert hook.a_get_invocation.await_args_list == [mock.call(INVOCATION_ID, "conversation")] * 3
+    hook_class.assert_called_once_with(databricks_conn_id="oauth")
+    assert (
+        hook.a_get_invocation.await_args_list
+        == [mock.call(INVOCATION_ID, "conversation", app_url=APP_URL)] * 3
+    )
     assert sleep.await_args_list == [mock.call(3)] * 2
     hook.__aexit__.assert_awaited_once()
 

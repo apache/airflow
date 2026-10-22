@@ -94,7 +94,7 @@ class DatabricksAgentInvokeOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> DatabricksAgentHook:
-        return DatabricksAgentHook(self.app_url, self.databricks_conn_id)
+        return DatabricksAgentHook(databricks_conn_id=self.databricks_conn_id)
 
     def _get_invocation_id(self, context: Context) -> str:
         if self.invocation_id is not None:
@@ -133,7 +133,9 @@ class DatabricksAgentInvokeOperator(BaseOperator):
     def execute(self, context: Context) -> dict[str, Any]:
         invocation_id = self._get_invocation_id(context)
         self.log.info("Submitting Databricks agent invocation %s.", invocation_id)
-        submitted = self.hook.create_invocation(invocation_id, self.input, self.session_id)
+        submitted = self.hook.create_invocation(
+            invocation_id, self.input, self.session_id, app_url=self.app_url
+        )
         self.log.info("Databricks agent invocation %s was submitted.", invocation_id)
         if submitted.get("status") == "failed":
             self._get_result(submitted, invocation_id)
@@ -158,7 +160,9 @@ class DatabricksAgentInvokeOperator(BaseOperator):
         deadline = time.monotonic() + self.timeout
         while True:
             remaining = self._get_remaining_time(deadline, invocation_id)
-            response = self.hook.get_invocation(invocation_id, self.session_id, timeout_seconds=remaining)
+            response = self.hook.get_invocation(
+                invocation_id, self.session_id, app_url=self.app_url, timeout_seconds=remaining
+            )
             # A completed invocation arriving after the deadline still counts as a timeout.
             remaining = self._get_remaining_time(deadline, invocation_id)
             result = self._get_result(response, invocation_id)
@@ -192,7 +196,9 @@ class DatabricksAgentInvokeOperator(BaseOperator):
             raise DatabricksAgentInvocationError(
                 f"Polling Databricks agent invocation {invocation_id} failed ({error_type}); inspect trigger logs"
             )
-        result = self._get_result(self.hook.get_invocation(invocation_id, self.session_id), invocation_id)
+        result = self._get_result(
+            self.hook.get_invocation(invocation_id, self.session_id, app_url=self.app_url), invocation_id
+        )
         if result is not None:
             return result
         raise DatabricksAgentInvocationError(

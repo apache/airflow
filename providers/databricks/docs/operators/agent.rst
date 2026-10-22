@@ -96,7 +96,17 @@ supported by this operator.
 
 For direct calls, use
 :class:`~airflow.providers.databricks.hooks.agent.DatabricksAgentHook` and its
-``create_invocation`` and ``get_invocation`` methods.
+``create_invocation`` and ``get_invocation`` methods. Configure the hook with
+``databricks_conn_id`` and pass ``app_url`` to each call, including
+``a_get_invocation`` for asynchronous polling. The same hook can address different
+apps using the same connection:
+
+.. code-block:: python
+
+    hook = DatabricksAgentHook(databricks_conn_id="databricks_oauth")
+    submitted = hook.create_invocation(invocation_id, input_data, app_url=app_url)
+    status = hook.get_invocation(invocation_id, app_url=app_url)
+
 See `Query agents deployed on Databricks
 <https://docs.databricks.com/aws/en/agents/query-llms>`_ for the API contract.
 

@@ -150,7 +150,9 @@ def test_submit_without_waiting(operator):
     operator.wait_for_termination = False
     operator.deferrable = True
     assert operator.execute({}) == operator.hook.create_invocation.return_value
-    operator.hook.create_invocation.assert_called_once_with(INVOCATION_ID, operator.input, "conversation")
+    operator.hook.create_invocation.assert_called_once_with(
+        INVOCATION_ID, operator.input, "conversation", app_url=APP_URL
+    )
     operator.hook.get_invocation.assert_not_called()
 
 
@@ -181,7 +183,9 @@ def test_immediate_result(monotonic, operator, status, deferrable):
     }
     operator.hook.get_invocation.return_value = result
     assert operator.execute({}) == result
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=3600)
+    operator.hook.get_invocation.assert_called_once_with(
+        INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3600
+    )
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)
@@ -192,7 +196,7 @@ def test_waits_for_result(monotonic, sleep, operator):
     assert operator.execute({}) == result
     assert (
         operator.hook.get_invocation.call_args_list
-        == [mock.call(INVOCATION_ID, "conversation", timeout_seconds=3600)] * 2
+        == [mock.call(INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3600)] * 2
     )
     sleep.assert_called_once_with(3)
 
@@ -208,7 +212,9 @@ def test_stored_failure_stops_task_retries(operator):
     with pytest.raises(AirflowFailException, match="new.*invocation_id") as exc:
         operator.execute({})
     assert INVOCATION_ID in str(exc.value)
-    operator.hook.create_invocation.assert_called_once_with(INVOCATION_ID, operator.input, "conversation")
+    operator.hook.create_invocation.assert_called_once_with(
+        INVOCATION_ID, operator.input, "conversation", app_url=APP_URL
+    )
 
 
 def test_resumed_stored_failure_stops_task_retries(operator):
@@ -218,7 +224,7 @@ def test_resumed_stored_failure_stops_task_retries(operator):
             {}, {"status": "success", "invocation_id": INVOCATION_ID}, invocation_id=INVOCATION_ID
         )
     assert INVOCATION_ID in str(exc.value)
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", app_url=APP_URL)
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True)
@@ -238,7 +244,9 @@ def test_rejects_late_terminal_result(monotonic, operator, elapsed):
     operator.hook.get_invocation.return_value = {"status": "completed", "output": "late"}
     with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
         operator.execute({})
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=3600)
+    operator.hook.get_invocation.assert_called_once_with(
+        INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3600
+    )
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)
@@ -251,7 +259,9 @@ def test_timeout_after_sleep(monotonic, sleep, operator):
     operator.hook.get_invocation.return_value = {"status": "active"}
     with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
         operator.execute({})
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=1)
+    operator.hook.get_invocation.assert_called_once_with(
+        INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=1
+    )
     sleep.assert_called_once_with(1)
 
 
@@ -281,7 +291,7 @@ def test_execute_complete(operator, status):
         )
         == result
     )
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", app_url=APP_URL)
 
 
 @pytest.mark.parametrize(
@@ -330,7 +340,7 @@ def test_trigger_terminal_failure(operator, status, message):
             {}, {"status": "success", "invocation_id": INVOCATION_ID}, invocation_id=INVOCATION_ID
         )
     assert INVOCATION_ID in str(exc.value)
-    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", app_url=APP_URL)
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.DatabricksAgentHook", autospec=True)
@@ -339,4 +349,4 @@ def test_hook_configuration(hook):
         task_id="invoke", app_url=APP_URL, input={}, databricks_conn_id="oauth"
     )
     assert operator.hook is hook.return_value
-    hook.assert_called_once_with(APP_URL, "oauth")
+    hook.assert_called_once_with(databricks_conn_id="oauth")

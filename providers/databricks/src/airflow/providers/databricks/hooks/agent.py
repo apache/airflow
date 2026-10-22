@@ -81,8 +81,6 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
     invocation API through the managed-agent contract. Background invocations remain available
     through ``create_invocation`` and ``get_invocation`` without that extra.
 
-    :param app_url: HTTPS base URL for background invocation methods. Defaults to ``None``;
-        managed-agent calls receive the app URL as their ``agent`` argument.
     :param databricks_conn_id: Databricks workspace connection configured with
         ``service_principal_oauth=true``, a client ID in login and a client secret in password.
         Defaults to ``databricks_default``.
@@ -93,21 +91,17 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
 
     def __init__(
         self,
-        app_url: str | None = None,
         databricks_conn_id: str = "databricks_default",
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1,
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay)
-        self.app_url = self._validate_app_url(app_url) if app_url is not None else None
 
     agent_platform = "databricks.agent_runtime"
 
     @staticmethod
-    def _validate_app_url(app_url: str | None) -> str:
-        if app_url is None:
-            raise ValueError("app_url is required for background invocation methods")
+    def _validate_app_url(app_url: str) -> str:
         parsed = urlsplit(app_url)
         if (
             parsed.scheme != "https"
@@ -296,6 +290,8 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         invocation_id: str,
         input: Any,
         session_id: str | None = None,
+        *,
+        app_url: str,
     ) -> dict[str, Any]:
         """
         Start a background invocation; retrying the same UUID and input is idempotent.
@@ -303,22 +299,29 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         :param invocation_id: UUID identifying the invocation.
         :param input: JSON-serializable input whose schema is defined by the agent.
         :param session_id: Conversation ID, also sent as the routing key. Defaults to ``None``.
+        :param app_url: HTTPS base URL of the deployed app.
         :return: Complete JSON submission response returned by the agent server.
         """
         invocation_id = str(UUID(invocation_id))
         payload = {"id": invocation_id, "input": input, "background": True}
         if session_id is not None:
             payload["session_id"] = session_id
-        return self._do_agent_api_call("POST", "api/invocations", payload, session_id)
+        return self._do_agent_api_call("POST", "api/invocations", payload, session_id, app_url=app_url)
 
     def get_invocation(
-        self, invocation_id: str, session_id: str | None = None, *, timeout_seconds: float | None = None
+        self,
+        invocation_id: str,
+        session_id: str | None = None,
+        *,
+        app_url: str,
+        timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
         """
         Get the status and output of an invocation.
 
         :param invocation_id: UUID identifying the invocation.
         :param session_id: Conversation ID sent as the routing key. Defaults to ``None``.
+        :param app_url: HTTPS base URL of the deployed app.
         :param timeout_seconds: Optional polling request/retry budget in seconds. Defaults to ``None``,
             which uses the hook's HTTP timeout and retry settings. OAuth refresh uses the base hook's
             token timeout; if it exhausts this budget, no invocation request is sent.
@@ -326,7 +329,12 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         """
         invocation_id = str(UUID(invocation_id))
         return self._do_agent_api_call(
-            "GET", f"api/invocations/{invocation_id}", None, session_id, timeout_seconds=timeout_seconds
+            "GET",
+            f"api/invocations/{invocation_id}",
+            None,
+            session_id,
+            timeout_seconds=timeout_seconds,
+            app_url=app_url,
         )
 
     def _do_agent_api_call(
@@ -337,9 +345,9 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         session_id: str | None,
         *,
         timeout_seconds: float | None = None,
-        app_url: str | None = None,
+        app_url: str,
     ) -> dict[str, Any]:
-        app_url = self._validate_app_url(app_url if app_url is not None else self.app_url)
+        app_url = self._validate_app_url(app_url)
         self._validate_oauth()
         if timeout_seconds is not None and timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -354,6 +362,8 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                     token = self._get_sp_token(self._get_oidc_token_service_url())
                     remaining = self._get_remaining_timeout(deadline, endpoint)
                     request_timeout = remaining if remaining is not None else self.timeout_seconds
+                    if method == "GET":
+                        request_timeout = min(self.timeout_seconds, request_timeout)
                     response = requests.request(
                         method,
                         f"{app_url}/{endpoint}",
@@ -399,18 +409,21 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             exception, (aiohttp.ServerDisconnectedError, aiohttp.ClientOSError, ConnectionResetError)
         )
 
-    async def a_get_invocation(self, invocation_id: str, session_id: str | None = None) -> dict[str, Any]:
+    async def a_get_invocation(
+        self, invocation_id: str, session_id: str | None = None, *, app_url: str
+    ) -> dict[str, Any]:
         """
         Asynchronously get an invocation inside the hook's async context manager.
 
         :param invocation_id: UUID identifying the invocation.
         :param session_id: Conversation ID sent as the routing key. Defaults to ``None``.
+        :param app_url: HTTPS base URL of the deployed app.
         :return: Complete JSON invocation response, including output when available.
         """
         invocation_id = str(UUID(invocation_id))
         await self._a_cache_databricks_conn()
         self._validate_oauth()
-        url = f"{self._validate_app_url(self.app_url)}/api/invocations/{invocation_id}"
+        url = f"{self._validate_app_url(app_url)}/api/invocations/{invocation_id}"
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
