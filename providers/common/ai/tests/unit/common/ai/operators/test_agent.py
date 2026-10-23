@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import inspect
 import json
 import logging
 import sys
@@ -70,6 +71,7 @@ from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
     OWNER_TAG,
@@ -745,6 +747,21 @@ class TestAgentOperatorExecute:
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
+    def test_output_type_is_annotated_like_llm_operator(self):
+        annotation = inspect.signature(AgentOperator.__init__).parameters["output_type"].annotation
+        assert annotation == inspect.signature(LLMOperator.__init__).parameters["output_type"].annotation
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_passes_a_union_output_type_to_the_agent(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = _make_mock_agent(Summary(text="ok"), make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", output_type=Summary | int)
+        op.execute(context=_make_context())
+
+        expected = [Summary | int, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else Summary | int
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"] == expected
+
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_keys_the_run_by_attempt_without_a_task_instance_id(
         self, mock_hook_cls, make_mock_run_result
@@ -1033,6 +1050,22 @@ class TestAgentOperatorExecute:
         assert isinstance(result, Summary)
         assert result.text == "Great"
         assert result.score == 0.95
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_dumps_a_model_the_worker_cannot_register_from_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            Summary(text="Great", score=0.95), make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="test", prompt="Analyze this", llm_conn_id="my_llm", output_type=[Summary, int]
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == {"text": "Great", "score": 0.95}
 
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""

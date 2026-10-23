@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
@@ -47,7 +47,11 @@ from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        deserialize,
+        serialize,
+    )
 except ImportError:
     _CORE_WALKER = False
 
@@ -80,6 +84,14 @@ requires_typed_xcom = pytest.mark.skipif(
 
 class Entities(BaseModel):
     names: list[str]
+
+
+class Dated(BaseModel):
+    d: date
+
+
+class Link(BaseModel):
+    url: HttpUrl
 
 
 class Summary(BaseModel):
@@ -490,6 +502,63 @@ class TestLLMOperator:
 
         assert result == {"names": ["A", "B"]}
         assert not isinstance(result, Entities)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_serialize_output_keeps_python_field_types(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Dated(d=date(2026, 1, 2)))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Dated, serialize_output=True)
+        result = op.execute(context=MagicMock())
+
+        assert type(result) is dict
+        assert type(result["d"]) is date
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_a_model_the_worker_cannot_register_from_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """The worker registers no class from a list of types, so the model goes to XCom as a dict."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["A", "B"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[Entities, int])
+        result = op.execute(context=MagicMock())
+
+        assert result == {"names": ["A", "B"]}
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_models_inside_a_list_output_under_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """A list output of ``[list[Entities], str]`` is no model, yet its models need dumping for the worker."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result([Entities(names=["A"])])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[list[Entities], str])
+        result = op.execute(context=MagicMock())
+
+        assert result == [{"names": ["A"]}]
+        assert deserialize(serialize(result)) == [{"names": ["A"]}]
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_http_url_fields_so_xcom_can_serialize_them(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Link(url="https://example.com/a"))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[Link, str])
+        result = op.execute(context=MagicMock())
+
+        assert deserialize(serialize(result)) == {"url": "https://example.com/a"}
 
 
 def _make_context(ti_id=None):
@@ -1585,8 +1654,9 @@ class TestLLMOperatorApproval:
             (int, "5", 5),
             (list[str], '["a","b"]', ["a", "b"]),
             pytest.param(Summary, '{"text":"hello"}', Summary(text="hello"), marks=requires_typed_xcom),
+            pytest.param([Summary, int], '{"text":"hello"}', {"text": "hello"}, marks=requires_typed_xcom),
         ],
-        ids=["int", "list", "basemodel"],
+        ids=["int", "list", "basemodel", "basemodel-in-a-list-of-types"],
     )
     def test_execute_complete_restores_non_str_output_type(self, output_type, generated_output, expected):
         op = LLMOperator(

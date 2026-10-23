@@ -20,13 +20,21 @@ from __future__ import annotations
 
 import inspect
 import logging
+import operator
+from collections.abc import Iterator
+from functools import reduce
 from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.errors import PydanticUserError
-from pydantic_core import CoreSchema, PydanticSerializationError
+from pydantic_core import CoreSchema, PydanticSerializationError, to_jsonable_python
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
+
+try:
+    from airflow.sdk.serde import iter_pydantic_models
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
+    iter_pydantic_models = None  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +44,70 @@ _MAX_SHOWN_CHARS = 200
 # that indexes its input (``data.get``) when the review text is not the shape it expects. Anything else,
 # such as a validator's network or timeout error, propagates instead of reading as a failed conversion.
 _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
+
+
+def is_model_dump_required(output: Any, output_type: Any, *, serialize_output: bool) -> bool:
+    """
+    Tell whether an output holding ``BaseModel`` instances must be pushed to XCom dumped.
+
+    The instances are looked up in the output itself, including the elements of a list, tuple, set or
+    frozenset and the values of a dict. A downstream task can load a model from XCom only if the worker
+    registered the model's class, and the worker registers the classes ``iter_pydantic_models`` finds in
+    ``output_type``. It finds none in a list of output types, an output marker, an output function, a
+    ``TypeAliasType`` or a ``NewType``, so an instance of a class it did not find is dumped.
+    Without ``iter_pydantic_models`` there is no evidence either way, so the caller's ``serialize_output`` decides.
+    """
+    if not (found := [model for model, _ in _iter_models_in_output(output)]):
+        return False
+    if serialize_output:
+        return True
+    if iter_pydantic_models is None:
+        return False
+    registered = set(iter_pydantic_models(output_type))
+    return any(type(model) not in registered for model in found)
+
+
+def dump_output_for_xcom(output: Any, output_type: Any, *, serialize_output: bool) -> Any:
+    """
+    Return the output as it is pushed to XCom: dumped when ``is_model_dump_required``, else unchanged.
+
+    With ``serialize_output`` the dump holds Python values, as the ``model_dump()`` of 1.0.0 does, so a
+    ``date`` or ``Decimal`` field keeps its type; an output with a set, frozenset or dict key holding a model
+    is dumped to JSON values instead. A model the worker registers no class for, without ``serialize_output``,
+    is dumped to JSON values as well, field names rather than aliases, so a ``HttpUrl``, ``Path`` or ``Enum``
+    field is a string that XCom accepts.
+    """
+    if not is_model_dump_required(output, output_type, serialize_output=serialize_output):
+        return output
+    # Python mode is what 1.0.0 pushed, a minor release must not change it. A model dumped to a dict cannot
+    # be a set member, so python mode raises on a set holding models.
+    if serialize_output and not any(in_set for _, in_set in _iter_models_in_output(output)):
+        if isinstance(output, BaseModel):
+            return output.model_dump()
+        return TypeAdapter(Any).dump_python(output, mode="python")
+    return to_jsonable_python(output, by_alias=False)
+
+
+def _iter_models_in_output(output: Any) -> Iterator[tuple[BaseModel, bool]]:
+    """
+    Yield the ``BaseModel`` instances in an output, each with whether it must be hashable.
+
+    Looks inside list, tuple, set, frozenset and dict. A set member or a dict key is hashable, so it is
+    flagged, and so is whatever is nested in one. Dataclass and NamedTuple contents and model fields
+    are not walked.
+    """
+    stack = [(output, False)]
+    while stack:
+        item, in_set = stack.pop()
+        if isinstance(item, BaseModel):
+            yield item, in_set
+        elif isinstance(item, (set, frozenset)):
+            stack.extend((element, True) for element in item)
+        elif isinstance(item, (list, tuple)):
+            stack.extend((element, in_set) for element in item)
+        elif isinstance(item, dict):
+            stack.extend((key, True) for key in item)
+            stack.extend((value, in_set) for value in item.values())
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -72,7 +144,7 @@ def rehydrate_pydantic_output(
     """
     Turn the reviewed string back into ``output_type``.
 
-    ``raw`` is JSON, or bare text for types pydantic builds from a string. ``str`` outputs, output
+    ``raw`` is JSON, or bare text for types pydantic builds from a string. A list of candidate types is validated as their union. ``str`` outputs, output
     functions, pydantic-ai output markers such as ``ToolOutput`` and types pydantic has no schema for
     return ``raw`` unchanged, and so does an unedited output that does not validate back (with a warning).
 
@@ -82,12 +154,16 @@ def rehydrate_pydantic_output(
     """
     if output_type is str:
         return raw
+    declared_type = output_type
     try:
+        if isinstance(output_type, (list, tuple)):
+            # pydantic-ai treats a list of output types as "any of these".
+            output_type = reduce(operator.or_, output_type)
         adapter: TypeAdapter[Any] = TypeAdapter(output_type)
         is_output_function = _is_output_function(adapter.core_schema)
     # A pydantic-ai output marker (``ToolOutput``, ``NativeOutput``, ...) is not a type, and
-    # ``TypeAdapter`` fails on it with an ``AttributeError``.
-    except (PydanticUserError, AttributeError):
+    # ``TypeAdapter`` fails on it with an ``AttributeError``. Unioning an empty list or markers is a ``TypeError``.
+    except (PydanticUserError, AttributeError, TypeError):
         return raw
     if is_output_function:
         return raw
@@ -105,9 +181,7 @@ def rehydrate_pydantic_output(
                 log.warning("%s Returning the output unchanged.", message)
                 return raw
             raise ReviewedOutputValidationError(message) from json_error
-    if serialize_output and isinstance(rehydrated, BaseModel):
-        return rehydrated.model_dump()
-    return rehydrated
+    return dump_output_for_xcom(rehydrated, declared_type, serialize_output=serialize_output)
 
 
 def _validate_bare_text(adapter: TypeAdapter[Any], raw: str) -> Any:

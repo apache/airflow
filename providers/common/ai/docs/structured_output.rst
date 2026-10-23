@@ -24,6 +24,7 @@ Set ``output_type`` to a Pydantic ``BaseModel`` subclass. The LLM is instructed
 to return structured data, and the model instance is pushed to XCom unchanged
 so downstream tasks can type-hint the class directly
 (``def downstream(result: MyModel)``) and use attribute access (``result.field``).
+Inside a list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead.
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
@@ -34,6 +35,8 @@ classes nested inside a function or ``@dag``-decorated body, parameterized
 generics, and dynamically-built classes whose ``__name__`` does not match the
 attribute they are bound to cannot be re-imported, so they are skipped with a
 warning at worker startup and the value fails to deserialize at the consumer.
+A list of types (``output_type=[MyModel, int]``) registers no class, so the operator pushes the
+model as a ``dict`` even when ``serialize_output`` is ``False``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -63,5 +66,15 @@ class is not auto-registered. Add the class qualified name to
 that pattern work.
 
 If a downstream consumer needs the dict shape (e.g. forwarding to an external
-system that expects JSON-style payloads), pass ``serialize_output=True`` and the
-operator calls ``model_dump()`` before pushing to XCom.
+system that expects JSON-style payloads), the operator can push the model dumped
+instead of as an instance. Whether it does depends on ``serialize_output``:
+
+* With ``serialize_output=True``, every output holding a model is dumped: the
+  model itself, or one inside a list, tuple, set or dict. The dump uses ``model_dump()``, so field types such as
+  ``date`` and ``Decimal`` are kept. An output with a set, frozenset or dict key holding a model is dumped to
+  JSON values instead.
+* Without ``serialize_output``, a model whose class the worker registers
+  (``output_type=MyModel`` or ``output_type=list[MyModel]``) is pushed as an instance, not dumped. Only a model whose class the worker
+  cannot register is dumped. The worker registers the classes it finds by reading ``output_type``, and finds none
+  in a list of types such as ``output_type=[MyModel, int]``, so a ``MyModel`` output of that shape is dumped. That dump is JSON-compatible, so
+  ``HttpUrl``, ``Path`` and ``Enum`` fields become plain JSON values.

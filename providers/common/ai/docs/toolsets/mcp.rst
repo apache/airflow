@@ -55,9 +55,9 @@ Parameters
   connection runs its ``Extra.command`` on the worker, so whoever picks the
   connection picks the command. A ``token_provider`` or ``env_provider`` is
   shared by every connection the template renders to.
-- ``tool_prefix``: Optional prefix prepended to tool names to avoid
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore to avoid
   collisions when using multiple MCP servers (e.g. ``"weather"`` produces
-  ``"weather_get_forecast"``).
+  ``"weather_get_forecast"``). Default ``""`` (no prefix).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
   ``Authorization`` header. Called once, the first time this toolset

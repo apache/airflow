@@ -115,7 +115,8 @@ Structured output
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured data
 back. The model instance is pushed to XCom unchanged so downstream tasks can
 type-hint the class directly (``def downstream(result: MyModel)``) and use
-attribute access (``result.field``).
+attribute access (``result.field``). Inside a list of types (``[MyModel, int]``) the
+model is pushed as a ``dict`` instead.
 
 :doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
 ``serialize_output``.
@@ -454,11 +455,14 @@ Parameters
 - ``emit_message_history``: Push the post-run transcript to XCom under the key
   ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
   otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
-- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
-  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
-  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
-  downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, a Pydantic ``BaseModel`` output, or a
+  list, tuple, set or dict holding models, is dumped with ``model_dump()``-style
+  Python values before being pushed to XCom (JSON-compatible values if a set holds
+  the models). A model the worker cannot register from ``output_type`` (for example
+  one in a list of output types) is dumped to JSON-compatible values even when
+  this is ``False``. Default ``False``
+  -- a registered Pydantic instance flows through XCom unchanged. Set to
+  ``True`` when a downstream consumer needs the dict shape.
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review

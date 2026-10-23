@@ -28,7 +28,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapability
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
@@ -60,6 +60,7 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -95,12 +96,13 @@ try:
     # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
     from airflow.sdk.serde import (
         SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
-        iter_pydantic_models,
     )
 except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     import jinja2
     from pydantic_ai import Agent
     from pydantic_ai.capabilities import AgentCapability
@@ -276,10 +278,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
-        directly. The class must be defined at module scope -- nested classes
+        directly, except inside a list of types, where it is returned as a ``dict``
+        because the worker registers only the classes it finds in a single type or a union.
+        The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``). The connection IDs of
@@ -467,11 +473,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape.
+    :param serialize_output: If ``True``, a Pydantic ``BaseModel`` output, or a
+        list, tuple, set or dict holding models, is dumped to JSON-compatible
+        values with ``pydantic_core.to_jsonable_python`` before being pushed to
+        XCom. A model the worker cannot register from ``output_type`` (for example
+        one in a list of output types) is dumped even when this is ``False``.
+        Default ``False`` -- a registered Pydantic instance flows through XCom
+        unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -503,7 +511,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
+        output_type: type | UnionType | Sequence[type] = str,
         toolsets: list[AbstractToolset] | None = None,
         capabilities: list[AgentCapability[Any]] | None = None,
         enable_tool_logging: bool = True,
@@ -1106,21 +1114,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # So the approved answer is the last answer the agent returned, and there is no need to parse
             # it back from that text.
             output = self._output_under_review
-            if isinstance(output, BaseModel) and (
-                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
-            ):
-                # A downstream task can load a model from XCom only if the worker registered the model's
-                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
-                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
-                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
-                # condition above never reaches the iter_pydantic_models call.
-                output = output.model_dump()
+            output = dump_output_for_xcom(
+                output, self.output_type, serialize_output=self._serialize_model_output
+            )
             self._clear_usage_budget(context)
             return output
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         # Clean up the durable journal only after the run and every post-run step
         # that can still fail (the run-metadata and message-history XCom pushes
