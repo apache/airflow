@@ -603,8 +603,8 @@ for the full concept, including the equivalent Python API.
       return result;
     }
 
-**Retention.** ``retention`` is seconds to retain the key, counted from the time of the write.
-Every duration in this SDK is a number of seconds, ``executionTimeout`` and ``retryDelay`` included:
+**Retention.** ``retention`` is how long to keep the key, in seconds (see :ref:`typescript-sdk/durations`),
+counted from the time of the write:
 
 * A number retains the key for that many seconds from now; ``retention: 0`` expires the key
   immediately.
@@ -633,6 +633,15 @@ Logging
 Anything a task writes to stdout or stderr, such as ``console.log`` or ``console.error``, appears in the
 Airflow task log: stdout at ``INFO`` level, stderr at ``ERROR``. There is no dedicated structured-logging API
 yet.
+
+.. _typescript-sdk/durations:
+
+Durations
+---------
+
+Every duration in the SDK is a number of seconds, with no unit in its name: the Dag and task options
+``retryDelay``, ``executionTimeout`` and ``dagrunTimeout``, ``responseTimeout`` on a human-in-the-loop task,
+``pokeInterval`` on ``triggerDagRun``, and ``retention`` in the task state store.
 
 .. _typescript-sdk/types:
 
