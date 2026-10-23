@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.configuration import conf
+from airflow.models.callback import ExecutorCallback
 from airflow.models.db_callback_request import DbCallbackRequest
 
 if TYPE_CHECKING:
@@ -32,6 +34,11 @@ if TYPE_CHECKING:
 class DatabaseCallbackSink(BaseCallbackSink):
     """Sends callbacks to database."""
 
+    def __init__(self) -> None:
+        # Read here rather than per callback: the scheduler sends callbacks where it must not read
+        # configuration, which may come from the metadata database.
+        self.route_to_executors = conf.getboolean("callbacks", "route_dag_processor_callbacks")
+
     def send(self, callback: CallbackRequest, *, session: Session | None = None) -> None:
         """
         Send callback for execution.
@@ -41,5 +48,7 @@ class DatabaseCallbackSink(BaseCallbackSink):
         """
         if session is None:
             session = settings.get_session()()
-        db_callback = DbCallbackRequest(callback=callback, priority_weight=1)
-        session.add(db_callback)
+        if self.route_to_executors:
+            session.add(ExecutorCallback.from_dag_processor_request(callback))
+        else:
+            session.add(DbCallbackRequest(callback=callback, priority_weight=1))
