@@ -1,0 +1,9 @@
+A task interrupted by ``SIGTERM`` now fails instead of finishing normally
+
+The task runner's ``SIGTERM`` handler called ``on_kill()`` and returned, so ``execute()`` resumed from where the signal interrupted it and ran to its end. An operator whose ``on_kill`` tears down the work it is waiting on then returned normally and the task instance was committed ``success`` even though the work never happened. ``KubernetesPodOperator`` deletes its pod in ``on_kill``, so a pod evicted mid-run, a drained node or a restarted worker produced a green task.
+
+The handler now raises ``AirflowTaskTerminated`` after ``on_kill()``, which Airflow 2 also did, so such a task ends ``failed``. Tasks that were quietly being marked successful after an eviction will start showing up as failures.
+
+The raise only happens while the task's own body is running. A ``SIGTERM`` that arrives after the task has reported its result -- the supervisor's ``task_success_overtime`` kill, for example -- still only calls ``on_kill()``, so a finished task is not turned into a failed one.
+
+``AirflowTaskTerminated`` is classified as terminal, so a task killed this way fails without consuming a retry.
