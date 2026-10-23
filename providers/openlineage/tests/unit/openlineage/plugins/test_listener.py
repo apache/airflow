@@ -45,7 +45,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.plugins.listener import OpenLineageListener, _get_task_end_date
 from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
@@ -2486,6 +2486,71 @@ class TestOpenLineageListenerAirflow3:
             try_number=1,
             map_index=-1,
         )
+
+    @pytest.mark.parametrize(
+        ("hook_name", "hook_kwargs", "adapter_method"),
+        [
+            pytest.param("on_task_instance_success", {}, "complete_task", id="success"),
+            pytest.param("on_task_instance_failed", {"error": ValueError("boom")}, "fail_task", id="failed"),
+            pytest.param("on_task_instance_skipped", {}, "complete_task", id="skipped"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("ti_end_date", "expected_end_time"),
+        [
+            pytest.param(
+                timezone.datetime(2023, 1, 2, 3, 4, 5),
+                "2023-01-02T03:04:05+00:00",
+                id="end_date_set_by_task_runner",
+            ),
+            pytest.param(None, "2023-01-03T13:01:01+00:00", id="end_date_not_set_falls_back_to_now"),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_terminal_event_time_comes_from_runtime_task_instance_end_date(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        time_machine,
+        hook_name,
+        hook_kwargs,
+        adapter_method,
+        ti_end_date,
+        expected_end_time,
+    ):
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
+        listener, task_instance = self._create_listener_and_task_instance()
+        task_instance.end_date = ti_end_date
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        getattr(listener, hook_name)(previous_state=None, task_instance=task_instance, **hook_kwargs)
+
+        adapter_call = getattr(listener.adapter, adapter_method)
+        adapter_call.assert_called_once()
+        assert adapter_call.call_args.kwargs["end_time"] == expected_end_time
+        # The facet must describe the same end date as the event, or its duration would disagree with it
+        assert mock_get_airflow_run_facet.call_args.kwargs["end_date"] == timezone.parse(expected_end_time)
+
+    @pytest.mark.parametrize("end_date", [None, "2023-01-02T03:04:05+00:00", MagicMock()])
+    @mock.patch("airflow.providers.openlineage.plugins.listener.timezone")
+    def test_get_task_end_date_ignores_values_that_are_not_datetimes(self, mock_timezone, end_date):
+        mock_timezone.utcnow.return_value = timezone.datetime(2023, 1, 3, 13, 1, 1)
+        task_instance = MagicMock(end_date=end_date)
+
+        assert _get_task_end_date(task_instance) == timezone.datetime(2023, 1, 3, 13, 1, 1)
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
