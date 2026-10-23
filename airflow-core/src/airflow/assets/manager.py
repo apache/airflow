@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection, Iterable
 from functools import partial
 from typing import TYPE_CHECKING
@@ -66,6 +67,47 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
+_APDR_PENDING_MARKER_UQ = "apdr_target_dag_id_pending_partition_key_uq"
+_APDR_PENDING_MARKER_SQLITE_COLUMNS = frozenset(
+    {"asset_partition_dag_run.target_dag_id", "asset_partition_dag_run.pending_partition_key"}
+)
+_SQLSTATE_UNIQUE_VIOLATION = "23505"
+_SQLITE_CONSTRAINT_UNIQUE = 2067
+_MYSQL_ER_DUP_ENTRY = 1062
+_MYSQL_DUP_KEY_RE = re.compile(r"for key '(?P<key>[^']+)'\s*\Z")
+
+
+def _is_pending_marker_conflict(error: exc.IntegrityError) -> bool:
+    """Identify the marker constraint using driver diagnostics, not SQL or bound parameters."""
+    orig = error.orig
+
+    # psycopg3 exposes SQLSTATE as ``sqlstate``; psycopg2 uses ``pgcode``.
+    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+    if sqlstate is not None:
+        return sqlstate == _SQLSTATE_UNIQUE_VIOLATION and (
+            getattr(getattr(orig, "diag", None), "constraint_name", None) == _APDR_PENDING_MARKER_UQ
+        )
+
+    # SQLite reports the offending columns rather than the constraint name.
+    sqlite_code = getattr(orig, "sqlite_errorcode", None)
+    if sqlite_code is not None:
+        if sqlite_code != _SQLITE_CONSTRAINT_UNIQUE:
+            return False
+        prefix, _, columns = str(orig).partition(":")
+        return prefix.lower() == "unique constraint failed" and (
+            {column.strip() for column in columns.split(",")} == _APDR_PENDING_MARKER_SQLITE_COLUMNS
+        )
+
+    args: tuple[object, ...] = getattr(orig, "args", ())
+    if len(args) < 2 or args[0] != _MYSQL_ER_DUP_ENTRY:
+        return False
+    # MySQL quotes the duplicate value before the key name. Anchor to the end so a value
+    # containing "for key '...'" cannot be mistaken for the actual constraint diagnostic.
+    match = _MYSQL_DUP_KEY_RE.search(str(args[1]))
+    if match is None:
+        return False
+    # MySQL may qualify the key with its table name.
+    return match.group("key").rsplit(".", 1)[-1] == _APDR_PENDING_MARKER_UQ
 
 
 class AssetManager(LoggingMixin):
@@ -732,7 +774,9 @@ class AssetManager(LoggingMixin):
                 try:
                     with session.begin_nested():
                         session.add(apdr)
-                except exc.IntegrityError:
+                except exc.IntegrityError as error:
+                    if not _is_pending_marker_conflict(error):
+                        raise
                     winner = cls._get_latest_pending_apdr(
                         target_key=target_key, target_dag_id=target_dag.dag_id, session=session
                     )
