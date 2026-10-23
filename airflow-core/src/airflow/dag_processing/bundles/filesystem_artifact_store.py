@@ -504,12 +504,14 @@ def _set_snapshot_permissions(snapshot_path: Path) -> None:
         directory.chmod(0o555)
 
 
-def fsync_tree(root: Path) -> None:
-    """Make all regular files and directory entries in a tree durable."""
+def fsync_tree(root: Path, *, ignore_file: Callable[[Path], bool] | None = None) -> None:
+    """Make regular files and directory entries durable, excluding files matched by ``ignore_file``."""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
         for filename in sorted(filenames):
             path = Path(dirpath) / filename
+            if ignore_file is not None and ignore_file(path):
+                continue
             if not path.is_symlink():
                 fsync_file(path)
     fsync_tree_directories(root)
