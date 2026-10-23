@@ -83,6 +83,15 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
       print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_ids='collect_stats')}")
 
 
+Debugging task instances in the UI
+----------------------------------
+
+For a DagRun that reached task execution, open the Dag's Grid view and select the task instance you want to inspect. Start with its logs to find the exception or external command output. Check **Rendered Templates** when a task uses templated fields, and check **XCom** to confirm that a small value was returned or pushed by an upstream task. XComs are intended for small values, not large objects such as dataframes; see :doc:`XComs <xcoms>`.
+
+After correcting the code or configuration, clear only the task instance you want to retry. The scheduler will queue it again when its dependencies are met. Use the clear dialog's upstream or downstream options only when those additional tasks should also run again. Once the task finishes, review its new logs and try history to compare the rerun with the previous attempt.
+
+
+
 Debugging Airflow Dags on the command line
 ==========================================
 
