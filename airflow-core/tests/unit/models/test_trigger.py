@@ -44,6 +44,7 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    AssetTriggerEvent,
     BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
@@ -440,7 +441,7 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
-@pytest.mark.parametrize("partition_key", ["2026-10-16", " region-west ", "x" * 250])
+@pytest.mark.parametrize("partition_key", [None, "2026-10-16", " region-west ", "x" * 250])
 def test_submit_event_preserves_native_asset_partition(session, partition_key):
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     session.add(trigger)
@@ -451,7 +452,7 @@ def test_submit_event_preserves_native_asset_partition(session, partition_key):
     session.flush()
     payload = {"partition_key": "payload-only", "changed": True}
 
-    Trigger.submit_event(trigger.id, TriggerEvent(payload, partition_key=partition_key), session=session)
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key=partition_key), session=session)
     session.flush()
     session.expire_all()
 
