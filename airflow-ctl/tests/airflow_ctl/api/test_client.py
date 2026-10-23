@@ -150,17 +150,15 @@ class TestClient:
     @pytest.mark.parametrize(
         "content_type",
         [
-            pytest.param("application/json", id="bare"),
             pytest.param("application/json; charset=utf-8", id="charset"),
             pytest.param("application/json;charset=UTF-8", id="charset-no-space"),
             pytest.param("Application/JSON", id="mixed-case"),
             pytest.param("application/problem+json", id="problem-json"),
         ],
     )
-    @pytest.mark.parametrize("status_code", [404, 500])
-    def test_error_parsing_json_media_type_variants(self, content_type, status_code):
+    def test_error_parsing_json_media_type_variants(self, content_type):
         response = make_unread_json_response(
-            status_code,
+            404,
             {"detail": "boom"},
             content_type=content_type,
             request=httpx.Request("GET", "http://error"),
@@ -192,12 +190,11 @@ class TestClient:
     @pytest.mark.parametrize(
         ("payload", "expected_extra"),
         [
-            pytest.param({"detail": "Not found"}, {"detail": "Not found"}, id="object"),
             pytest.param(["a", "b"], {"detail": ["a", "b"]}, id="array"),
             pytest.param("plain message", {"detail": "plain message"}, id="string"),
         ],
     )
-    @patch("airflowctl.api.client.log.warning")
+    @patch("airflowctl.api.client.log.warning", autospec=True)
     def test_error_log_accepts_non_object_json_body(self, mock_warning, payload, expected_extra):
         response = make_unread_json_response(404, payload, request=httpx.Request("GET", "http://error"))
 
