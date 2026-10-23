@@ -1061,7 +1061,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .where(func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks)
-            .order_by(-TI.priority_weight, DR.logical_date, TI.region_index)
+            # Asset-triggered dag runs have logical_date=NULL, so coalesce to run_after
+            # (never NULL; the asset event time for such runs) and tiebreak on DR.id to
+            # keep the ordering — and thus which rows reach the LIMIT — deterministic.
+            .order_by(
+                -TI.priority_weight, func.coalesce(DR.logical_date, DR.run_after), DR.id, TI.region_index
+            )
         )
 
         # Starvation filters should be applied before computing the row_num based on the
@@ -1093,13 +1098,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.row_number()
                 .over(
                     partition_by=[TI.dag_id, TI.run_id],
-                    order_by=[-TI.priority_weight, DR.logical_date, TI.region_index],
+                    order_by=[
+                        -TI.priority_weight,
+                        func.coalesce(DR.logical_date, DR.run_after),
+                        DR.id,
+                        TI.region_index,
+                    ],
                 )
                 .label("row_num"),
                 DM.max_active_tasks.label("dr_max_active_tasks"),
                 # Create columns for the order_by checks here for sqlite.
                 TI.priority_weight.label("priority_weight_for_ordering"),
-                DR.logical_date.label("logical_date_for_ordering"),
+                func.coalesce(DR.logical_date, DR.run_after).label("run_date_for_ordering"),
+                DR.id.label("dag_run_id_for_ordering"),
                 TI.region_index.label("region_index_for_ordering"),
             )
         ).subquery()
@@ -1116,7 +1127,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Add the order_by columns from the ranked query for sqlite.
             .order_by(
                 -ranked_query.c.priority_weight_for_ordering,
-                ranked_query.c.logical_date_for_ordering,
+                ranked_query.c.run_date_for_ordering,
+                ranked_query.c.dag_run_id_for_ordering,
                 ranked_query.c.region_index_for_ordering,
             )
             .options(selectinload(TI.dag_model))
