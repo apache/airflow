@@ -109,7 +109,7 @@
     "zoomToTask": "縮放至選定任務"
   },
   "jsonPreview": {
-    "items_one": "{{count, number}} 個項目",
+    "items_one": "1 個項目",
     "items_other": "{{count, number}} 個項目"
   },
   "limitedList": "+ 其他 {{count, number}} 項",
