@@ -180,6 +180,19 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc._subprocess_schema_version == OLDEST_SCHEMA_VERSION
         assert "Parsing the bundle" in cap_structlog
 
+    @pytest.mark.parametrize(("configured", "expected"), [("True", True), ("False", False)])
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_the_parse_request_carries_create_cron_data_intervals(
+        self, mock_parse_dag, parse, configured, expected
+    ):
+        """The runtime picks the cron timetable, so the scheduler option has to reach it."""
+        mock_parse_dag.side_effect = play_runtime(_reply_with(_serialize_dag("native_dag")))
+        with conf_vars({("scheduler", "create_cron_data_intervals"): configured}):
+            proc = parse()
+
+        assert proc.parsing_result.import_errors is None
+        assert proc._parse_request.create_cron_data_intervals is expected
+
     @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
     def test_each_dag_gets_its_own_source_keyed_by_dag_id(self, mock_parse_dag, mock_get_source_code, parse):
