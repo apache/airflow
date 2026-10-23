@@ -35,6 +35,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.cursors import decode_cursor, parse_cursor
 from airflow.api_fastapi.core_api.services.public import task_instances as task_instances_service
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
@@ -2418,6 +2419,54 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
+
+    @pytest.mark.parametrize("order_by", ["data_interval_start", "data_interval_end"])
+    def test_cursor_pages_when_ordering_by_a_dag_run_data_interval(self, test_client, session, order_by):
+        # Both are `to_replace` entries pointing at DagRun columns, so ORDER BY worked, but
+        # encoding the cursor reads the value off the TaskInstance row and it had no such
+        # attribute. Paging, rather than one request, is what exercises the encode.
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)
+            ],
+            dag_id=dag_id,
+        )
+        # The fixture leaves the run's data interval NULL, which would let the primary-key
+        # tie-break carry the paging on its own. Give it a real interval so the sort key matters.
+        interval_start = DEFAULT_DATETIME_1
+        interval_end = DEFAULT_DATETIME_1 + dt.timedelta(hours=1)
+        session.execute(
+            update(DagRun)
+            .where(DagRun.dag_id == dag_id)
+            .values(data_interval_start=interval_start, data_interval_end=interval_end)
+        )
+        session.commit()
+        expected = interval_start if order_by == "data_interval_start" else interval_end
+
+        seen: list[str] = []
+        cursor = ""
+        first_token = None
+        while cursor is not None:
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": 2, "order_by": [order_by], "cursor": cursor},
+            )
+            assert response.status_code == 200, response.json()
+            page = response.json()
+            seen.extend(ti["task_id"] for ti in page["task_instances"])
+            if first_token is None:
+                first_token = page["next_cursor"]
+            cursor = page["next_cursor"]
+
+        assert len(seen) == 5
+        assert len(set(seen)) == 5
+
+        # All five share one run, so the tie-break key alone would page correctly even if the
+        # interval encoded as null. Decode the boundary to check the real value went in.
+        token, _ = parse_cursor(first_token)
+        assert decode_cursor(token)[0] == expected
 
     def test_cursor_pagination_first_page(self, test_client, session):
         """First page with cursor='' returns cursor response without needing a real token."""
