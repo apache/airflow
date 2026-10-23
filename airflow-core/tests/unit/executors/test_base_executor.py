@@ -1560,3 +1560,17 @@ def test_run_workload_passes_routed_callback_options_only_when_set(
     assert {
         key: passed[key] for key in ("fetch_method", "execution_timeout") if key in passed
     } == expected_kwargs
+
+
+def test_release_callback_drops_it_from_queues_and_running():
+    """The reaper frees the slot of a callback that will get no executor event."""
+    executor = BaseExecutor()
+    queued, sent, other = CallbackKey(id="queued"), CallbackKey(id="sent"), CallbackKey(id="other")
+    executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][queued] = mock.Mock()
+    executor.running.update({sent, other})
+
+    executor.release_callback(queued)
+    executor.release_callback(sent)
+
+    assert not executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
+    assert executor.running == {other}

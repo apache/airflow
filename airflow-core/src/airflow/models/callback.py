@@ -83,6 +83,10 @@ def _format_kwargs_for_display(kwargs: dict | None) -> Any:
     return format_encoded_value_for_display(kwargs) if kwargs else ""
 
 
+def _get_request_data(request: CallbackRequest) -> dict[str, str]:
+    return {"req_class": request.__class__.__name__, CALLBACK_REQUEST_DATA_KEY: request.to_json()}
+
+
 class CallbackType(str, Enum):
     """
     Types of Callbacks.
@@ -129,6 +133,8 @@ class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
     __tablename__ = "callback"
+    # Every scheduler loop looks callbacks up by type and state.
+    __table_args__ = (Index("idx_callback_type_state", "type", "state"),)
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses
@@ -343,24 +349,47 @@ class ExecutorCallback(Callback):
     __mapper_args__ = {"polymorphic_identity": CallbackType.EXECUTOR}
 
     def __init__(
-        self, callback_def: ImportPathExecutorCallbackDefProtocol, fetch_method: CallbackFetchMethod, **kwargs
+        self,
+        callback_def: ImportPathExecutorCallbackDefProtocol | None,
+        fetch_method: CallbackFetchMethod,
+        *,
+        request: CallbackRequest | None = None,
+        **kwargs,
     ):
         """
-        Initialize an ExecutorCallback from a callback definition and fetch method.
+        Initialize an ExecutorCallback from a callback definition, or from a Dag processor callback request.
 
-        :param callback_def: Callback definition with path, kwargs, and executor
+        :param callback_def: Callback definition with path, kwargs, and executor; ``None`` with ``request``
         :param fetch_method: Method to fetch the callback at runtime
+        :param request: Dag processor callback request, for a callback the scheduler routes to an executor
         :param kwargs: Passed to parent Callback.__init__ (see base class for details)
         """
         from airflow.serialization.encoders import encode_stored_callback_kwargs
 
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
+        if request is not None:
+            self.bundle_name = request.bundle_name
+            self.data |= _get_request_data(request)
+            return
+        if callback_def is None:
+            raise TypeError("An ExecutorCallback needs a callback definition or a callback request")
         self.data |= callback_def.serialize()
         # The kwargs are decoded by the callback runner on the worker, which needs the marker
         # to tell them apart from the already-decoded kwargs of callbacks stored before it.
         self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
         self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
+
+    @classmethod
+    def from_dag_processor_request(cls, request: CallbackRequest) -> ExecutorCallback:
+        """
+        Store a Dag processor callback request for the scheduler to route to an executor.
+
+        The callback waits SCHEDULED until the scheduler queues it, or makes it a Dag processor
+        callback again. As an executor callback, no Dag processor claims it in the meantime, and
+        schedulers that don't route callbacks leave it alone: they only queue PENDING ones.
+        """
+        return cls(None, CallbackFetchMethod.DAG_ATTRIBUTE, request=request)
 
     def __repr__(self):
         if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
@@ -386,7 +415,7 @@ class DagProcessorCallback(Callback):
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
         self.bundle_name = callback.bundle_name
-        self.data |= {"req_class": callback.__class__.__name__, CALLBACK_REQUEST_DATA_KEY: callback.to_json()}
+        self.data |= _get_request_data(callback)
 
     def get_callback_request(self) -> CallbackRequest:
         if (request := super().get_callback_request()) is None:

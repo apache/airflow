@@ -84,6 +84,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.callback import CallbackKey
     from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
 
@@ -523,6 +524,11 @@ class BaseExecutor(LoggingMixin):
     def fail_connection_test(self, key: ConnectionTestKey) -> None:
         """Drop a connection-test workload from in-memory queues (called by the reaper)."""
         self.executor_queues[WorkloadType.TEST_CONNECTION].pop(key, None)
+        self.running.discard(key)
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Drop a callback workload settled without an executor event from in-memory queues (called by the reaper)."""
+        self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
         self.running.discard(key)
 
     def _get_metric_name(self, metric_base_name: str) -> str:

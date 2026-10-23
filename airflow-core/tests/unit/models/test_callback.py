@@ -599,6 +599,28 @@ class TestDagProcessorCallback:
             callback.get_callback_request()
 
 
+class TestExecutorCallbackFromDagProcessorRequest:
+    def test_stores_the_request_to_wait_for_routing(self, session):
+        request = DagCallbackRequest(
+            dag_id="test_dag", bundle_name="testing", bundle_version="v1", filepath="dag.py", run_id="r"
+        )
+        callback = ExecutorCallback.from_dag_processor_request(request)
+        session.add(callback)
+        session.commit()
+
+        session.expunge_all()
+        stored = session.get_one(Callback, callback.id)
+        assert isinstance(stored, ExecutorCallback)
+        assert stored.state == CallbackState.SCHEDULED
+        assert stored.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+        assert stored.bundle_name == "testing"
+        assert stored.get_callback_request() == request
+
+    def test_needs_a_definition_or_a_request(self):
+        with pytest.raises(TypeError, match="needs a callback definition or a callback request"):
+            ExecutorCallback(None, CallbackFetchMethod.IMPORT_PATH)
+
+
 class TestRoutedCallbackData:
     """The data the scheduler and the Execution API keep on a routed Dag processor callback."""
 

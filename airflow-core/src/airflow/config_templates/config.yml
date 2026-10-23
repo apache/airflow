@@ -3684,9 +3684,10 @@ callbacks:
         parses the Dag file at the Dag run's bundle version. Callbacks whose executor cannot run
         callbacks, and callbacks of Lang-SDK Dags, stay with the Dag processor.
 
-        Enable this only once every scheduler and worker runs a version that supports it. Turning it
-        off leaves callbacks that were already routed to their executors.
-      version_added: 3.4.0
+        Enable this only once API servers and workers run a version that supports it. Turning it off
+        hands callbacks not yet routed back to the Dag processor; routed ones still run on their
+        executors.
+      version_added: 3.5.0
       type: boolean
       example: ~
       default: "False"
@@ -3696,7 +3697,7 @@ callbacks:
         ``[callbacks] route_dag_processor_callbacks``. The worker terminates a callback that runs
         longer, and the scheduler fails a routed callback whose worker has not reported it finished
         within this time plus a grace period. 0 means no timeout.
-      version_added: 3.4.0
+      version_added: 3.5.0
       type: integer
       example: ~
       default: "300"
@@ -3705,7 +3706,7 @@ callbacks:
         The maximum number of Dag processor callbacks each scheduler loop routes to executors.
         Routed callbacks take executor slots from ``[core] parallelism`` and are sent before tasks,
         so this limits how much a burst of callbacks delays tasks.
-      version_added: 3.4.0
+      version_added: 3.5.0
       type: integer
       example: ~
       default: "20"

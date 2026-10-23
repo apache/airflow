@@ -25,7 +25,6 @@ import jwt
 import pytest
 import time_machine
 from pydantic import BaseModel
-from sqlalchemy import update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -47,8 +46,6 @@ from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
-    CallbackType,
-    DagProcessorCallback,
     ExecutorCallback,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -190,18 +187,11 @@ REQUEST_FIELDS: dict[str, Any] = {"filepath": "test_dag.py", "bundle_name": "tes
 
 def _add_routed_callback(session, request, state=CallbackState.RUNNING) -> Callback:
     """Store a Dag processor callback as the scheduler leaves it once routed."""
-    callback = DagProcessorCallback(priority_weight=1, callback=request)
+    callback = ExecutorCallback.from_dag_processor_request(request)
+    callback.state = state
     session.add(callback)
-    session.flush()
-    session.execute(
-        update(Callback)
-        .where(Callback.id == callback.id)
-        .values(type=CallbackType.EXECUTOR, state=state)
-        .execution_options(synchronize_session=False)
-    )
     session.commit()
-    session.expunge_all()
-    return session.get_one(Callback, callback.id)
+    return callback
 
 
 class TestRunCallbackStartDeadline:
