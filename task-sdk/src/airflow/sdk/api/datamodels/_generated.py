@@ -887,5 +887,4 @@ class TIRunContext(BaseModel):
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
     start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
     arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None
-    execution_timeout: Annotated[float | None, Field(title="Execution Timeout")] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False

@@ -40,7 +40,6 @@ def get_bundle() -> VersionBundle:
     from airflow.sdk.execution_time.schema.versions.v2026_10_30 import (
         AddArgBindingsToSupervisorTIRunContext,
         AddDagDefinitionsToDagFileParsingResult,
-        AddExecutionTimeoutToSupervisorTIRunContext,
         AddExpandedTICountToSupervisorTIRunContext,
         AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
         AddLoopRuntime,
@@ -59,7 +58,6 @@ def get_bundle() -> VersionBundle:
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
             AddExpandedTICountToSupervisorTIRunContext,
-            AddExecutionTimeoutToSupervisorTIRunContext,
         ),
         Version("2026-06-16"),
     )

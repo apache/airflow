@@ -89,8 +89,6 @@ from airflow.api_fastapi.execution_api.security import (
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
-    get_execution_timeout,
-    get_task,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
@@ -379,11 +377,11 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        serialized_task = get_task(dag_bag, ti, session=session)
-
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
+        if client_supports_arg_bindings() and (
+            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
+        ):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
             except ValidationError:
@@ -400,9 +398,6 @@ def ti_run(
                         "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
                     },
                 )
-
-        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
-            context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
         if ti.next_method:
