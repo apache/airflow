@@ -191,6 +191,48 @@ func TestDecodeStartupDetails_MissingRequiredTIFieldFails(t *testing.T) {
 	}
 }
 
+func TestDecodeDagFileParseRequestAppliesTheDefaultTimezone(t *testing.T) {
+	raw := marshalBody(t, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	})
+
+	body, err := decodeIncomingBody(raw)
+	require.NoError(t, err)
+	request, ok := body.(*genmodels.DagFileParseRequest)
+	require.True(t, ok, "expected *DagFileParseRequest, got %T", body)
+	assert.Equal(t, "UTC", request.DagDefaultTimezone)
+}
+
+func TestDecodeDagFileParseRequestPreservesTheConfiguredTimezone(t *testing.T) {
+	tests := []struct {
+		name     string
+		timezone any
+	}{
+		{"named timezone", "Europe/Amsterdam"},
+		{"fixed timezone", int64(19800)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := marshalBody(t, map[string]any{
+				"type":                 "DagFileParseRequest",
+				"file":                 "/bundles/go/etl",
+				"bundle_path":          "/bundles/go",
+				"bundle_name":          "go",
+				"dag_default_timezone": tt.timezone,
+			})
+
+			body, err := decodeIncomingBody(raw)
+			require.NoError(t, err)
+			request, ok := body.(*genmodels.DagFileParseRequest)
+			require.True(t, ok, "expected *DagFileParseRequest, got %T", body)
+			assert.EqualValues(t, tt.timezone, request.DagDefaultTimezone)
+		})
+	}
+}
+
 func TestDecodeConnectionResult(t *testing.T) {
 	raw := marshalBody(t, map[string]any{
 		"type":      "ConnectionResult",

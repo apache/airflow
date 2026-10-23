@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
+from airflow import settings
 from airflow._shared.observability.metrics import stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -79,6 +80,7 @@ from airflow.sdk.execution_time.task_runner import (
     check_xcom_backend_supports_loops,
 )
 from airflow.sdk.importers import DagSourceCode  # noqa: TC001
+from airflow.serialization.encoders import encode_timezone
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -126,7 +128,17 @@ class DagFileParseRequest(BaseModel):
     builds from the same schedule.
     """
 
+    dag_default_timezone: str | int = "UTC"
+    """Encoded ``[core] default_timezone`` for a Dag without a ``start_date``."""
+
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
+
+
+def _get_dag_serialization_options() -> dict[str, bool | str | int]:
+    return {
+        "create_cron_data_intervals": conf.getboolean("scheduler", "create_cron_data_intervals"),
+        "dag_default_timezone": encode_timezone(settings.TIMEZONE),
+    }
 
 
 class DagFileParsingResult(BaseModel):
@@ -784,6 +796,6 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             bundle_path=bundle_path,
             bundle_name=bundle_name,
             callback_requests=callbacks,
-            create_cron_data_intervals=conf.getboolean("scheduler", "create_cron_data_intervals"),
+            **_get_dag_serialization_options(),
         )
         self.send_msg(msg, request_id=0)

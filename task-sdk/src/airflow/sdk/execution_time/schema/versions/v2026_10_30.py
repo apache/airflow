@@ -150,17 +150,18 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     )
 
 
-class AddCreateCronDataIntervalsToDagFileParseRequest(VersionChange):
+class AddDagSerializationOptionsToDagFileParseRequest(VersionChange):
     """
-    Carry ``[scheduler] create_cron_data_intervals`` to the runtime that parses a Dag file.
+    Carry cron interval and default timezone settings to the runtime that parses a Dag file.
 
-    A bundle cannot read the Airflow configuration, so the Dag processor sends the option with the
-    parse request, and the runtime builds the timetable that Python's ``_create_timetable``
-    builds from the same schedule.
+    A bundle cannot read the Airflow configuration, so the Dag processor sends the settings with the
+    parse request. The runtime can then build the timetable that Python's ``_create_timetable``
+    builds from the same schedule, including the timezone of a Dag without a ``start_date``.
     """
 
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
         schema(DagFileParseRequest).field("create_cron_data_intervals").didnt_exist,
+        schema(DagFileParseRequest).field("dag_default_timezone").didnt_exist,
     )

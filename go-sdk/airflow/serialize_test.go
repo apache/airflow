@@ -41,7 +41,7 @@ import (
 // sends.
 func serializedDag(t *testing.T, dag *DagRef) map[string]any {
 	t.Helper()
-	return serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{})
+	return serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{DefaultTimezone: "UTC"})
 }
 
 // serializedDagWithOptions is serializedDag for a Dag processor that sends options with the parse
@@ -435,11 +435,17 @@ func TestSerializeWritesTheTimetableOfTheSchedule(t *testing.T) {
 // [scheduler] create_cron_data_intervals picks the timetable that Python's DAG builds from a cron
 // expression. Python resolves a preset to its expression before it builds either timetable.
 func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.T) {
+	amsterdam, err := time.LoadLocation("Europe/Amsterdam")
+	require.NoError(t, err)
+	cet, err := time.LoadLocation("CET")
+	require.NoError(t, err)
 	tests := []struct {
-		name     string
-		schedule string
-		option   bool
-		want     string
+		name            string
+		schedule        string
+		startDate       time.Time
+		option          bool
+		defaultTimezone any
+		want            string
 	}{
 		{
 			name:     "cron expression, option off",
@@ -453,12 +459,47 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 			}`,
 		},
 		{
-			name:     "cron expression, option on",
-			schedule: "0 3 * * *",
-			option:   true,
+			name:      "cron expression, option on",
+			schedule:  "0 3 * * *",
+			startDate: time.Date(2026, 2, 1, 0, 0, 0, 0, amsterdam),
+			option:    true,
 			want: `{
 				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
-				"__var": {"expression": "0 3 * * *", "timezone": "UTC"}
+				"__var": {"expression": "0 3 * * *", "timezone": "Europe/Amsterdam"}
+			}`,
+		},
+		{
+			name:      "named timezone whose winter abbreviation is its name",
+			schedule:  "0 3 * * *",
+			startDate: time.Date(2026, 2, 1, 0, 0, 0, 0, cet),
+			want: `{
+				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
+				"__var": {
+					"expression": "0 3 * * *", "timezone": "CET", "interval": 0,
+					"run_immediately": false
+				}
+			}`,
+		},
+		{
+			name:            "deployment default timezone",
+			schedule:        "0 3 * * *",
+			defaultTimezone: "Europe/Amsterdam",
+			want: `{
+				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
+				"__var": {
+					"expression": "0 3 * * *", "timezone": "Europe/Amsterdam", "interval": 0,
+					"run_immediately": false
+				}
+			}`,
+		},
+		{
+			name:            "numeric deployment default timezone",
+			schedule:        "0 3 * * *",
+			option:          true,
+			defaultTimezone: 19800,
+			want: `{
+				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+				"__var": {"expression": "0 3 * * *", "timezone": 19800}
 			}`,
 		},
 		{
@@ -484,11 +525,12 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dag := Dag("etl", DagSpec{Schedule: tt.schedule})
+			dag := Dag("etl", DagSpec{Schedule: tt.schedule, StartDate: tt.startDate})
 			dag.Task(ping)
 
 			assertJSON(t, tt.want, serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{
 				CreateCronDataIntervals: tt.option,
+				DefaultTimezone:         tt.defaultTimezone,
 			})["timetable"])
 		})
 	}
@@ -499,6 +541,12 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 func TestSerializeWritesTheTimezoneThatTheStartDateGives(t *testing.T) {
 	shanghai, err := time.LoadLocation("Asia/Shanghai")
 	require.NoError(t, err)
+	cet, err := time.LoadLocation("CET")
+	require.NoError(t, err)
+	gmt, err := time.LoadLocation("GMT")
+	require.NoError(t, err)
+	etcGMTMinusOne, err := time.LoadLocation("Etc/GMT-1")
+	require.NoError(t, err)
 	tests := []struct {
 		name      string
 		startDate time.Time
@@ -507,6 +555,11 @@ func TestSerializeWritesTheTimezoneThatTheStartDateGives(t *testing.T) {
 		{"no start date", time.Time{}, "UTC"},
 		{"UTC start date", time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), "UTC"},
 		{"named timezone", time.Date(2026, 2, 1, 0, 0, 0, 0, shanghai), "Asia/Shanghai"},
+		{"CET in winter", time.Date(2026, 2, 1, 0, 0, 0, 0, cet), "CET"},
+		{"CET in summer", time.Date(2026, 7, 1, 0, 0, 0, 0, cet), "CET"},
+		{"GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, gmt), "GMT"},
+		{"Etc GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, etcGMTMinusOne), "Etc/GMT-1"},
+		{"fixed zone named CET", time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("CET", 3600)), float64(3600)},
 		{
 			// Python writes the offset in seconds for a timezone that has no name to write, and Go
 			// decodes a JSON number as a float64.
