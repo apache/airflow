@@ -39,12 +39,18 @@ Publishing partitioned asset events
 
 A watcher trigger can set a native partition key when yielding an event::
 
-    yield TriggerEvent({"changed": True}, partition_key="2026-10-16")
+    from airflow.triggers.base import AssetTriggerEvent
+
+    yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
 
 Airflow stores ``partition_key`` on the asset event for use by partition-aware schedules.
 The payload is still stored in ``extra["payload"]``. A ``partition_key`` inside the payload
 alone does not assign a native partition. Keys must contain a non-whitespace character and
 be at most 250 characters long. Omit the argument to publish an ordinary asset event.
+
+Existing watchers yielding ``TriggerEvent`` continue to publish ordinary asset events.
+``AssetTriggerEvent`` carries asset metadata through the triggerer supervisor, which
+registers the update using the existing asset event and partition scheduling models.
 
 See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
