@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-22T13:04:50.043572
+# This constraints file was automatically generated on 2026-10-23T07:12:44.681177
 # via `uv pip install --resolution highest` for the "v3-4-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -313,7 +313,7 @@ fastcore==2.2.33
 fasteners==0.20
 fastjsonschema==2.22.2
 fastuuid==0.14.0
-filelock==4.2.2
+filelock==4.2.4
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flower==2.2.0
@@ -404,12 +404,12 @@ hdfs==2.7.3
 hf-xet==1.7.0
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.13.1
+httpcore2==2.14.0
 httpcore==1.0.9
 httplib2==0.32.0
 httpr==0.7.6
 httptools==0.9.0
-httpx2==2.13.1
+httpx2==2.14.0
 httpx==0.28.1
 huggingface_hub==2.2.0
 humanize==4.16.0
@@ -442,7 +442,7 @@ jeepney==0.9.0
 jiter==0.17.0
 jmespath==1.1.0
 joblib==1.6.0
-joserfc==1.7.5
+joserfc==1.7.7
 jpype1==1.7.1
 jsonpath-ng==1.11.0
 jsonpickle==4.1.4
@@ -553,7 +553,7 @@ pgvector==0.5.1
 pillow==12.3.0
 pinecone==9.1.0
 pinotdb==9.2.2
-platformdirs==4.13.4
+platformdirs==4.13.5
 pluggy==1.7.0
 polars-runtime-32==2.0.0
 polars==2.0.0
@@ -605,7 +605,7 @@ pyspnego==0.12.4
 python-arango==8.3.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.6.3
+python-discovery==1.6.4
 python-dotenv==1.2.4
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -669,7 +669,7 @@ sqlalchemy_drill==1.1.10
 sqlglot==30.23.0
 sqlparse==0.6.0
 stack-data==0.6.3
-starlette==1.8.0
+starlette==1.9.0
 statsd==4.0.1
 std-uritemplate==2.0.12
 strictyaml==1.7.3
