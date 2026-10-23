@@ -194,6 +194,26 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     return changed_files
 
 
+def get_changed_files_since(base_ref: str, commit_ref: str) -> tuple[str, ...] | None:
+    """Return the files changed between two commits, or None when they cannot be computed."""
+    # `--no-renames`, as `diff-tree` in `get_changed_files`: a rename counts as a delete plus an add,
+    # so that the tests of the old path are selected too.
+    result = run_command(
+        ["git", "diff", "--name-only", "--no-renames", base_ref, commit_ref],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning] Error when running diff command [/]\n{result.stdout}\n{result.stderr}")
+        return None
+    changed_files = tuple(result.stdout.splitlines()) if result.stdout else ()
+    console_print(f"\n[info]Changed files since {base_ref}:[/]\n")
+    console_print(changed_files)
+    console_print()
+    return changed_files
+
+
 @ci_group.command(
     name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
 )
@@ -249,6 +269,20 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     show_default=True,
 )
 @click.option(
+    "--selective-tests-on-push",
+    help="Select tests for a push event from the changed files, as for a pull request, "
+    "instead of running all tests.",
+    is_flag=True,
+    envvar="SELECTIVE_TESTS_ON_PUSH",
+)
+@click.option(
+    "--push-base-commit",
+    help="With --selective-tests-on-push: select tests from the files changed since this commit. "
+    "Without it, a push runs all tests.",
+    envvar="PUSH_BASE_COMMIT",
+    default="",
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -275,6 +309,8 @@ def selective_check(
     github_context: str,
     github_context_input: StringIO | None,
     ci_platform: str,
+    selective_tests_on_push: bool,
+    push_base_commit: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -286,10 +322,23 @@ def selective_check(
             github_context = github_context_input.read()
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
-        if commit_ref is not None:
+        changed_files: tuple[str, ...] = ()
+        if commit_ref is not None and selective_tests_on_push and github_event == GithubEvents.PUSH:
+            # The base is the last successful run of the branch, so this run also covers the commits
+            # whose push runs failed or were cancelled by a newer push. Without one, nothing after the
+            # branch point is known to pass, so everything runs.
+            pushed_files = (
+                get_changed_files_since(base_ref=push_base_commit, commit_ref=commit_ref)
+                if push_base_commit
+                else None
+            )
+            if pushed_files is None:
+                console_print("[warning]No tested base commit for the push, running all tests[/]")
+                commit_ref = None
+            else:
+                changed_files = pushed_files
+        elif commit_ref is not None:
             changed_files = get_changed_files(commit_ref=commit_ref)
-        else:
-            changed_files = ()
         sc = SelectiveChecks(
             commit_ref=commit_ref,
             files=changed_files,
@@ -301,6 +350,7 @@ def selective_check(
             github_actor=github_actor,
             github_context_dict=github_context_dict,
             platform=ci_platform,
+            selective_tests_on_push=selective_tests_on_push,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -346,10 +396,12 @@ class WorkflowInfo(NamedTuple):
         return PUBLIC_AMD_RUNNERS
 
     def is_canary_run(self) -> str:
+        # A push is never a canary: the CI workflows build on push only to run the selective tests
+        # of the pushed commit, and full runs of release branches are dispatched by
+        # `release-branch-ci.yml`.
         if (
             self.event_name
             in [
-                GithubEvents.PUSH.value,
                 GithubEvents.WORKFLOW_DISPATCH.value,
                 GithubEvents.SCHEDULE.value,
             ]

@@ -94,8 +94,9 @@ label in the PR if you are a committer and want to force dependency upgrade.
 
 ## Canary run
 
-This workflow is triggered when a pull request is merged into the `main`
-branch or pushed to any of the `v*-*-test` branches. The `canary` run
+This workflow runs on a schedule on the `main` branch, and a few times a day
+on the release branches that have new commits (see
+[Release branch runs](#release-branch-runs)). The `canary` run
 aims to upgrade dependencies to their latest versions and promptly
 pushes a preview of the CI/PROD image cache to the GitHub Registry. This
 allows pull requests to quickly utilize the new cache, which is
@@ -116,8 +117,17 @@ constraints will not be updated, meaning that regular PRs will continue
 using the older version of dependencies that passed one of the previous
 `canary` runs.
 
-The `canary` runs are executed 6 times a day on schedule, you can also
+The `canary` runs are scheduled 4 times a day on `main`, alternating between
+`ci-amd.yml` (01:58, 13:58 UTC) and `ci-arm.yml` (07:28, 19:28 UTC). You can also
 trigger the `canary` run manually via `workflow-dispatch` mechanism.
+
+A scheduled canary that has nothing new to test finishes at once: its first job,
+`Check if the run is needed`, looks up the last completed full run (`schedule` or
+`workflow_dispatch`) of the same workflow on the branch, and when that run tested the
+same commit and succeeded, every other job is skipped and the run succeeds. When the
+last run failed or was cancelled, or new commits landed since, the canary runs in full.
+A skipped canary does not post to Slack. A canary on an unchanged commit therefore does
+not pick up dependencies released since the last run; the next commit's canary does.
 
 # Workflows
 
@@ -175,13 +185,61 @@ Release branches (named `v*-*-test`) get a more focused set of tests. These bran
 
 This approach saves time and resources while still ensuring release quality.
 
+### Release branch runs
+
+Release-prep and providers branches (`vX-Y-test`, `providers-<name>/vX-Y`, `chart/vX-Yx-test`,
+`airflow-ctl/vX-Y-test`) do **not** run the full CI on push. Backports land in bursts while a release
+is prepared, and a full AMD + ARM run per merged commit was mostly cancelled by the next merge after
+it had already used hundreds of runner-minutes. Every backport PR has run CI against the branch
+already, so the branch needs a full run of its current HEAD a few times a day, not one per commit.
+
+**Full runs.** [`release-branch-ci.yml`](../../../../.github/workflows/release-branch-ci.yml) runs from
+`main` on a schedule and starts `ci-amd.yml` or `ci-arm.yml` with `workflow_dispatch` on each release
+branch, unless the last `workflow_dispatch` run of that workflow on the branch tested its current HEAD
+and succeeded, or is still running. A run of an unchanged HEAD is repeated only when the previous one
+failed or was cancelled:
+
+| Slot (UTC)   | Workflow started |
+|--------------|------------------|
+| 04:43, 16:43 | `ci-amd.yml`     |
+| 10:43, 22:43 | `ci-arm.yml`     |
+
+A `workflow_dispatch` run on a release branch is a canary run: it runs the full matrix and refreshes
+the branch's constraints and image cache. Branches without a commit in the last 7 days are skipped.
+`release-branch-ci.yml` can also be started by hand, with optional `branch`, `platform` and `force`
+inputs.
+
+**Incremental tests on push.** `ci-amd.yml` still has a `push` trigger for these branches (AMD only),
+but a push run only tests what changed since the last successful run of `ci-amd.yml` on the branch,
+whether that was a push run or a full run. The first job, `Check if the run is needed`, finds that
+run's commit through the Actions API on `ubuntu-slim`. `build-info` fetches that one commit (a
+two-commit diff needs no history in between) and passes it to selective checks as
+`--push-base-commit`, together with `--selective-tests-on-push`, so the run selects tests from the
+files changed since that commit as for a pull request, and is not a canary run. If there is no
+successful run to build on, or the base commit cannot be fetched or diffed, all tests run. A
+successful run of the same commit is passed over, so re-running a push run tests it again.
+
+Push runs have a concurrency group of their own per branch: a newer push cancels the push run still
+in progress, and the newer run then covers the cancelled run's changes too, because a cancelled run
+is not a successful one. A failed run's changes are tested again the same way. A push never cancels a
+full run of the branch.
+
+Nothing has to be switched on or off for a release.
+
+The workflow files of the release branch itself decide what a run does, so an older release branch
+only gets this behaviour once the change that introduced it has been backported to it. Until then it
+keeps running the full CI on every push.
+
+The CI image cache of `vX-Y-test` and providers branches is still refreshed on every push, by
+[`refresh-image-registry-cache.yml`](../../../../.github/workflows/refresh-image-registry-cache.yml).
+
 ### Branch Detection Logic
 
 The system determines which tests to run through the `build-info` job. This job checks the `AIRFLOW_BRANCH` setting in `airflow_breeze/branch_defaults.py` to understand what branch type it's working with, then enables or disables test groups accordingly.
 
 ## Tests Workflow Structure
 
-The Tests workflow handles all code validation for Apache Airflow. When changes get pushed to `main` or release branches, these runs become "canary" builds that also update shared infrastructure like dependency constraints and Docker images.
+The Tests workflow handles all code validation for Apache Airflow. Its scheduled runs on `main` and its full runs on release branches (see [Release branch runs](#release-branch-runs)) are "canary" builds that also update shared infrastructure like dependency constraints and Docker images.
 
 ### Workflow Execution Flow
 

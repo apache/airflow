@@ -47,6 +47,8 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--default-branch",
                 "--default-constraints-branch",
                 "--platform",
+                "--selective-tests-on-push",
+                "--push-base-commit",
             ],
         },
         {

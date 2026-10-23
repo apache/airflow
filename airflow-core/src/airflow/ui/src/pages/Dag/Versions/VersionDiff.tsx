@@ -65,10 +65,18 @@ const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
   },
 ];
 
-const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): ChangeColumns => [
+const buildColumns = (
+  translate: TFunction<"dag">,
+  valuesShown: boolean,
+  truncated: boolean,
+): ChangeColumns => [
   {
     accessorKey: "path",
-    cell: ({ row }) => <PathText path={row.original.path} />,
+    // Only a redacted record that merged changes sharing a public path counts more than one, so
+    // the count rides on the path it qualifies instead of a column that is almost always 1.
+    cell: ({ row }) => (
+      <PathText occurrences={row.original.occurrence_count} path={row.original.path} truncated={truncated} />
+    ),
     enableSorting: false,
     header: translate("versions.columns.path"),
   },
@@ -100,11 +108,6 @@ const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): Change
     enableSorting: false,
     header: translate("versions.columns.impact"),
   },
-  {
-    accessorKey: "occurrence_count",
-    enableSorting: false,
-    header: translate("versions.columns.occurrences"),
-  },
   ...(valuesShown ? buildValueColumns(translate) : []),
 ];
 
@@ -119,7 +122,7 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
 
   return (
     <DataTable
-      columns={buildColumns(translate, valuesShown)}
+      columns={buildColumns(translate, valuesShown, diff.truncated)}
       data={diff.changes}
       // The summary heads the table's own header row, so the comparison, what it leaves out and
       // the control over its columns read as one line rather than three stacked ones.
