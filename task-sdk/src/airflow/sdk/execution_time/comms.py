@@ -1003,6 +1003,11 @@ class SetXCom(BaseModel):
     mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
+    @property
+    def resolved_map_index(self) -> int:
+        """The map index, or -1 when the task is not mapped."""
+        return -1 if self.map_index is None else self.map_index
+
 
 class DeleteXCom(BaseModel):
     key: str

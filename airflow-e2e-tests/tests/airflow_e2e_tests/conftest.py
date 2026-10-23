@@ -64,6 +64,7 @@ from airflow_e2e_tests.constants import (
     KAFKA_DIR_PATH,
     LANG_SDK_NATIVE_TOOLCHAIN,
     LANG_SDK_STATE_STORE_RETENTION_DAYS,
+    LANG_SDK_XCOM_OBJECT_STORAGE_COMPOSE_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     NODE_IMAGE,
@@ -251,24 +252,26 @@ def _create_kafka_topics(compose_instance):
         )
 
 
+# XComObjectStorageBackend requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY as env vars
+# because `universal-path` uses boto3's native S3 client, which relies on environment variables
+# for authentication rather than parsing credentials from the connection URI
+_XCOM_OBJECT_STORAGE_ENV = (
+    "AWS_ACCESS_KEY_ID=test\n"
+    "AWS_SECRET_ACCESS_KEY=test\n"
+    "AWS_DEFAULT_REGION=us-east-1\n"
+    "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+    "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
+    "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
+    f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
+    "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
+    "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
+)
+
+
 def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     _copy_localstack_files(tmp_dir)
 
-    dot_env_file.write_text(
-        f"AIRFLOW_UID={os.getuid()}\n"
-        # XComObjectStorageBackend requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY as env vars
-        # because `universal-path` uses boto3's native S3 client, which relies on environment variables
-        # for authentication rather than parsing credentials from the connection URI
-        "AWS_ACCESS_KEY_ID=test\n"
-        "AWS_SECRET_ACCESS_KEY=test\n"
-        "AWS_DEFAULT_REGION=us-east-1\n"
-        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
-        "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
-        "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
-        f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
-        "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
-        "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
-    )
+    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n{_XCOM_OBJECT_STORAGE_ENV}")
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
@@ -404,6 +407,37 @@ def _build_example_bundle(workdir, *, native=False):
     console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
 
 
+def _build_java_worker_image(tmp_dir, build_context_excludes):
+    """Build the ``airflow-java-worker`` image, which extends DOCKER_IMAGE with a JRE.
+
+    Keep the bundles that *build_context_excludes* names out of the build context: Dockerfile.java
+    only adds a JRE and copies nothing from the context, so without this docker build would tar and
+    stream the bundles (hundreds of MB of Spark JARs) to the daemon for nothing. They reach the
+    containers via the compose bind-mounts, not the image.
+    """
+    copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
+    (tmp_dir / ".dockerignore").write_text("".join(f"{path}\n" for path in build_context_excludes))
+
+    # We build explicitly so testcontainers' DockerCompose.start() does not
+    # need to handle the build itself (which avoids --no-build vs --build flag
+    # uncertainty across testcontainers versions).
+    console.print(f"[yellow]Building airflow-java-worker image on top of {DOCKER_IMAGE}...")
+    subprocess.run(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"DOCKER_IMAGE={DOCKER_IMAGE}",
+            "-t",
+            "airflow-java-worker",
+            "-f",
+            str(tmp_dir / "Dockerfile.java"),
+            str(tmp_dir),
+        ],
+        check=True,
+    )
+
+
 def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     """Set up the java_sdk E2E test mode.
 
@@ -450,9 +484,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         for build in bundle_builds:
             build.result()
 
-    # Copy compose override and Dockerfile into the temp directory.
+    # Copy the compose override into the temp directory.
     copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
-    copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
     # Copy each bundle's JARs into its own directory; the compose bind-mounts
     # expose them to the worker, where each is registered as its own Dag bundle.
@@ -470,31 +503,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     )
     copyfile(JAVA_TEST_BUNDLE_DAGS_PATH / "java_test_dags.py", tmp_dir / "dags" / "java_test_dags.py")
 
-    # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
-    # JRE and copies nothing from the context, so without this docker build would
-    # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
-    # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
-    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\ndags/\n")
-
-    # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
-    # We do this explicitly so testcontainers' DockerCompose.start() does not
-    # need to handle the build itself (which avoids --no-build vs --build flag
-    # uncertainty across testcontainers versions).
-    console.print(f"[yellow]Building airflow-java-worker image on top of {DOCKER_IMAGE}...")
-    subprocess.run(
-        [
-            "docker",
-            "build",
-            "--build-arg",
-            f"DOCKER_IMAGE={DOCKER_IMAGE}",
-            "-t",
-            "airflow-java-worker",
-            "-f",
-            str(tmp_dir / "Dockerfile.java"),
-            str(tmp_dir),
-        ],
-        check=True,
-    )
+    _build_java_worker_image(tmp_dir, ["java-jars/", "scala-jars/", "java-test-jars/", "dags/"])
 
     # Four JavaCoordinators on the same worker image. The first three each serve their
     # own artifact bundle for the stub tasks of their queue (one bundle is one classpath).
@@ -896,6 +905,90 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_lang_sdk_xcom_object_storage_integration(dot_env_file, tmp_dir):
+    """Set up the lang_sdk_xcom_object_storage E2E test mode.
+
+    Builds one Dag definition in each language SDK (``typescript_native_example``,
+    ``go_native_pipeline`` and ``java_native_e2e``) and runs them on one worker image, with
+    XComObjectStorageBackend on LocalStack. Each one's own bundle sits in the Dags folder, where the Dag
+    processor parses it and the worker runs its tasks.
+    """
+    native = LANG_SDK_NATIVE_TOOLCHAIN
+    _copy_localstack_files(tmp_dir)
+    copyfile(LANG_SDK_XCOM_OBJECT_STORAGE_COMPOSE_PATH, tmp_dir / "lang-sdk-xcom-object-storage.yml")
+
+    _build_ts_sdk_example_bundle(native=native)
+    copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
+    # trigger_downstream starts typescript_example, a Python Dag with stub TaskHandler, whose stub tasks run
+    # from the bundle in ts-bundles.
+    ts_bundles_dir = tmp_dir / "ts-bundles"
+    ts_bundles_dir.mkdir()
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    (tmp_dir / "dags" / "typescript").mkdir()
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", tmp_dir / "dags" / "typescript" / "example.min.mjs"
+    )
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
+    )
+
+    _pack_go_sdk_bundle(GO_SDK_NATIVE_BUNDLE_PKG, GO_SDK_NATIVE_BUNDLE_NAME, native=native)
+    native_dags_dir = tmp_dir / "dags" / "go"
+    native_dags_dir.mkdir()
+    packed_native_bundle = native_dags_dir / GO_SDK_NATIVE_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_NATIVE_BUNDLE_NAME, packed_native_bundle)
+    os.chmod(packed_native_bundle, 0o755)
+
+    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
+    _run_java_sdk_gradle(JAVA_SDK_ROOT_PATH, "publishToMavenLocal", "-PskipSigning=true", native=native)
+    # The Gradle `bundle` task never prunes its destination, so build from an empty directory.
+    rmtree(JAVA_NATIVE_BUNDLE_LIBS_PATH, ignore_errors=True)
+    _build_example_bundle(JAVA_NATIVE_BUNDLE_ROOT_PATH, native=native)
+    copytree(JAVA_NATIVE_BUNDLE_LIBS_PATH, tmp_dir / "dags" / "java-native")
+    _build_java_worker_image(tmp_dir, ["ts-bundles/", "dags/"])
+
+    dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
+    # Each runtime has one coordinator, which parses its Dag definition in every Dag bundle. Only the
+    # NodeCoordinator also runs stub tasks. The Go and Java coordinators set no task_handler_bundle_name,
+    # so they run the tasks from the Dag's own bundle.
+    coordinator_config = json.dumps(
+        {
+            "ts": {
+                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+                "kwargs": {
+                    "task_handler_bundle_name": "ts-task-handlers",
+                    "node_executable": "/opt/nodejs/node",
+                },
+            },
+            "go-sdk": {
+                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+                "kwargs": {},
+            },
+            "java-jdk": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {},
+            },
+        }
+    )
+    queue_to_coordinator = json.dumps({"typescript": "ts", "golang": "go-sdk", "java-native": "java-jdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"NODE_IMAGE={NODE_IMAGE}\n"
+        f"{_XCOM_OBJECT_STORAGE_ENV}"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # Read by typescript_example, the Dag that the TypeScript Dag triggers.
+        "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
+        "AIRFLOW_VAR_TYPESCRIPT_EXAMPLE_GREETING=greetings from e2e\n"
+        # Read by the seed task of the Go Dag.
+        "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
@@ -953,6 +1046,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "ts_sdk":
         compose_file_names.append("ts.yml")
         _setup_ts_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "lang_sdk_xcom_object_storage":
+        compose_file_names.extend(["localstack.yml", "ts.yml", "lang-sdk-xcom-object-storage.yml"])
+        _setup_lang_sdk_xcom_object_storage_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

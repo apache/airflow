@@ -210,6 +210,17 @@ LANG_SDK_NATIVE_DAG_PARSING_FILES = (
     r"^task-sdk/src/airflow/sdk/importers/.*",
 )
 
+# Sources of the `lang_sdk_xcom_object_storage` e2e mode, which runs the configured XCom backend for
+# TypeScript, Go and Java task XComs: the coordinator-side backend, the base XCom class it calls, the
+# object storage backend, and the mode's own compose override and tests.
+LANG_SDK_XCOM_BACKEND_FILES = (
+    r"^task-sdk/src/airflow/sdk/coordinators/_xcom_backend\.py$",
+    r"^task-sdk/src/airflow/sdk/bases/xcom\.py$",
+    r"^providers/common/io/src/airflow/providers/common/io/xcom/.*",
+    r"^airflow-e2e-tests/docker/lang-sdk-xcom-object-storage\.yml$",
+    r"^airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/.*",
+)
+
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
@@ -283,6 +294,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+            *LANG_SDK_XCOM_BACKEND_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
@@ -291,6 +303,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/go\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+            *LANG_SDK_XCOM_BACKEND_FILES,
         ],
         FileGroupForCi.OPENLINEAGE_E2E_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/.*",
@@ -316,6 +329,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+            *LANG_SDK_XCOM_BACKEND_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,

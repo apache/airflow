@@ -409,6 +409,14 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			canSkip: true,
 			wantErr: "task runtime context is missing",
 		},
+		"pushing the return value fails": {
+			client:    &branchClient{failOn: "PushXCom decide return_value false"},
+			withTI:    true,
+			canSkip:   true,
+			wantErr:   "pushing the return_value XCom: xcom refused",
+			wantRun:   true,
+			wantCalls: []string{"PushXCom decide return_value false"},
+		},
 		"recording the skipped tasks fails": {
 			client: &branchClient{
 				failOn: "PushXCom decide skipmixin_key map[skipped:[load]]",
@@ -450,6 +458,46 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			s.EqualError(runBranch(task, tt.client, tt.withTI, tt.canSkip), tt.wantErr)
 			s.Equal(tt.wantRun, ran, "whether fn ran")
 			s.Equal(tt.wantCalls, tt.client.calls)
+		})
+	}
+}
+
+func (s *TaskSuite) TestTaskFunctionFailsWhenItCannotPushTheReturnValue() {
+	fnErr := errors.New("no table")
+	cases := map[string]struct {
+		client  *branchClient
+		withTI  bool
+		fnErr   error
+		wantErr string
+	}{
+		"push fails": {
+			client:  &branchClient{failOn: "PushXCom decide return_value 3"},
+			withTI:  true,
+			wantErr: "pushing the return_value XCom: xcom refused",
+		},
+		"no task instance": {
+			client:  &branchClient{},
+			wantErr: "task runtime context is missing",
+		},
+		"fn fails too": {
+			client:  &branchClient{failOn: "PushXCom decide return_value 3"},
+			withTI:  true,
+			fnErr:   fnErr,
+			wantErr: "no table\npushing the return_value XCom: xcom refused",
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(
+				func(contexttest.Context) (int, error) { return 3, tt.fnErr },
+			)
+			s.Require().NoError(err)
+
+			err = runBranch(task, tt.client, tt.withTI, false)
+			s.EqualError(err, tt.wantErr)
+			if tt.fnErr != nil {
+				s.ErrorIs(err, tt.fnErr)
+			}
 		})
 	}
 }

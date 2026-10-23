@@ -492,6 +492,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
   are left to `canary` runs. Like the other
   deployed e2e suites, enabling them forces `PROD Image building`.
+* `Language SDK XCom backend files` (the sources of the `lang_sdk_xcom_object_storage` mode of the
+  deployed-stack tests, which runs the configured `[core] xcom_backend` for TypeScript, Go and Java task
+  XComs) turn on the Java, Go and TypeScript SDK E2E tests together, so the mode's CI job runs as well. They
+  are the coordinator-side backend (`task-sdk/src/airflow/sdk/coordinators/_xcom_backend.py`), the base XCom
+  class (`task-sdk/src/airflow/sdk/bases/xcom.py`), the object storage backend
+  (`providers/common/io/src/airflow/providers/common/io/xcom/`), and the mode's compose override and suite
+  (`airflow-e2e-tests/docker/lang-sdk-xcom-object-storage.yml`,
+  `airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/`). The job runs on `canary`
+  runs too.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -657,7 +666,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, native Lang-SDK Dag parsing, or Lang-SDK XCom backend changes ("true"/"false") | true                                     |      |
 | run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
