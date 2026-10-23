@@ -632,25 +632,16 @@ def get_task_documentation(operator: AnyOperator | None) -> tuple[str | None, st
     if not operator:
         return None, None
 
-    doc, mime_type = None, None
-    if operator.doc:
-        doc = operator.doc
-        mime_type = "text/plain"
-    elif operator.doc_md:
-        doc = operator.doc_md
-        mime_type = "text/markdown"
-    elif operator.doc_json:
-        doc = operator.doc_json
-        mime_type = "application/json"
-    elif operator.doc_yaml:
-        doc = operator.doc_yaml
-        mime_type = "application/x-yaml"
-    elif operator.doc_rst:
-        doc = operator.doc_rst
-        mime_type = "text/x-rst"
-
-    if doc:
-        return _truncate_string_to_byte_size(doc), mime_type
+    for attribute, mime_type in (
+        ("doc", "text/plain"),
+        ("doc_md", "text/markdown"),
+        ("doc_json", "application/json"),
+        ("doc_yaml", "application/x-yaml"),
+        ("doc_rst", "text/x-rst"),
+    ):
+        # The scheduler's mapped operator leaves the ones its task doesn't set undefined
+        if doc := getattr(operator, attribute, None):
+            return _truncate_string_to_byte_size(doc), mime_type
     return None, None
 
 

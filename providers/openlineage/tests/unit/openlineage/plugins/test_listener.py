@@ -1314,21 +1314,28 @@ class TestOpenLineageListenerAirflow3:
     @pytest.mark.db_test
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
     @pytest.mark.parametrize("holds_another_version", [False, True])
+    @pytest.mark.parametrize("mapped", [False, True])
     def test_scheduler_failure_of_task_in_loop_shares_the_run_id_of_its_attempt(
-        self, mocker, dag_maker, holds_another_version
+        self, mocker, dag_maker, holds_another_version, mapped
     ):
+        def add_work():
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+
         with dag_maker(serialized=True):
 
             @task_group
             def body():
-                EmptyOperator(task_id="work")
+                add_work()
 
             create_loop(body, max_iterations=3)
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "body.work")
         if holds_another_version:
             # The scheduler holds the latest version of a Dag edited since, where the task left the loop
             with DAG(ti.dag_id) as edited, TaskGroup("body"):
-                EmptyOperator(task_id="work")
+                add_work()
             ti.task = create_scheduler_dag(edited).get_task("body.work")
             ti.task.dag.dag_version_id = uuid7()
         listener = OpenLineageListener()
@@ -1339,8 +1346,9 @@ class TestOpenLineageListenerAirflow3:
 
         task_instance_facet = submit.call_args.kwargs["run_facets"]["airflow"].taskInstance
         assert submit.call_args.kwargs["run_id"] == task_instance_facet["id"] == str(ti.id)
-        # Its region rows don't tell the iteration of the task of another version
-        assert task_instance_facet.get("loop") == (None if holds_another_version else {"index": 1})
+        assert task_instance_facet["map_index"] == (ti.region_index if mapped else None)
+        # Only the stored region_index of a task that isn't mapped, placed from its own task, is the iteration
+        assert task_instance_facet.get("loop") == (None if holds_another_version or mapped else {"index": 1})
 
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
