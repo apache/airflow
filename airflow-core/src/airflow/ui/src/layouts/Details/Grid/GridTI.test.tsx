@@ -53,6 +53,7 @@ const buildStackShadow = (backCardState: string) =>
 type RenderGridTIOptions = {
   readonly hasNote?: boolean;
   readonly instance?: LightGridTaskInstanceSummary;
+  readonly isGroup?: boolean;
   readonly isMapped?: boolean;
   readonly runId?: string;
   readonly taskId?: string;
@@ -63,6 +64,7 @@ const renderGridTI = (
   {
     hasNote,
     instance = taskInstance,
+    isGroup,
     isMapped,
     runId = SELECTED_RUN_ID,
     taskId = "selected_task",
@@ -79,6 +81,7 @@ const renderGridTI = (
                   dagId="example_dag"
                   hasNote={hasNote}
                   instance={{ ...instance, task_id: taskId }}
+                  isGroup={isGroup}
                   isMapped={isMapped}
                   label={taskId}
                   runId={runId}
@@ -145,6 +148,22 @@ describe("GridTI", () => {
       );
     },
   );
+
+  it.each<{
+    backCardState: string;
+    childStates: Record<string, number>;
+    primaryState: LightGridTaskInstanceSummary["state"];
+  }>([
+    { backCardState: "skipped", childStates: { skipped: 2, success: 1 }, primaryState: "success" },
+    { backCardState: "success", childStates: { success: 3 }, primaryState: "success" },
+  ])("stacks task group cells like mapped tasks", ({ backCardState, childStates, primaryState }) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, child_states: childStates, state: primaryState },
+      isGroup: true,
+    });
+
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(buildStackShadow(backCardState));
+  });
 
   it("shows a single card for unmapped tasks", () => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
