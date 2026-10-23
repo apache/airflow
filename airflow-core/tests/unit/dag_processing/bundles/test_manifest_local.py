@@ -18,10 +18,13 @@
 from __future__ import annotations
 
 import gc
+import importlib
 import json
 import os
 import shutil
 import stat
+import sys
+from importlib.util import cache_from_source
 from pathlib import Path
 from unittest import mock
 
@@ -924,6 +927,130 @@ class TestValidation:
 
 
 class TestCacheRecovery:
+    @pytest.mark.parametrize("has_validation_marker", [True, False])
+    def test_helper_import_bytecode_does_not_invalidate_cached_snapshot(
+        self, tmp_path, monkeypatch, has_validation_marker
+    ):
+        source = tmp_path / "source"
+        helper_name = "manifest_local_bundle_helper"
+        _write_file(source, f"{helper_name}.py", "VALUE = 'helper'\n")
+        bundle = _make_bundle(tmp_path)
+        published = _publish(bundle, source)
+        bundle.refresh()
+        cached_helper = bundle.path / f"{helper_name}.py"
+        tracking_file = get_bundle_tracking_file(bundle_name=bundle.name, version=published.version)
+        tracking_inode = tracking_file.stat().st_ino
+        monkeypatch.syspath_prepend(str(bundle.path))
+        # Breeze disables bytecode generation; production helper imports normally enable it.
+        monkeypatch.setattr(sys, "dont_write_bytecode", False)
+        monkeypatch.setattr(sys, "pycache_prefix", None)
+        try:
+            helper = importlib.import_module(helper_name)
+            assert helper.VALUE == "helper"
+        finally:
+            sys.modules.pop(helper_name, None)
+        cached_bytecode = Path(cache_from_source(str(cached_helper)))
+        assert cached_bytecode.exists()
+        remove_bundle_tree_forcefully(published.version_path)
+        ManifestLocalDagBundle._validated_version_paths.clear()
+        if not has_validation_marker:
+            bundle._validation_marker_path(published.version).unlink()
+
+        fresh = _make_bundle(tmp_path, version=published.version)
+        fresh.initialize()
+
+        assert cached_helper.read_text() == "VALUE = 'helper'\n"
+        assert cached_bytecode.exists()
+        assert tracking_file.stat().st_ino == tracking_inode
+
+    @pytest.mark.parametrize("location", ["cache", "published"])
+    @pytest.mark.parametrize(
+        ("source_file", "bytecode_file"),
+        [
+            ("dags/example.py", "dags/__pycache__/example.cpython-313.pyc"),
+            ("dags/example.py", "dags/__pycache__/example.cpython-313.opt-1.pyc"),
+            ("dags/example.py", "dags/__pycache__/example.cpython-313.opt-O2.pyc"),
+            ("dags/example.py", "dags/__pycache__/example.pypy310.pyc"),
+            ("dags/example.helper.py", "dags/__pycache__/example.helper.cpython-313.pyc"),
+            ("dags/example.py", "dags/__pycache__/example.cpython-313.pyc.123456789"),
+        ],
+    )
+    def test_runtime_bytecode_is_accepted_only_in_cache(self, tmp_path, location, source_file, bytecode_file):
+        source = tmp_path / "source"
+        _write_file(source, source_file, "VALUE = 'helper'\n")
+        bundle = _make_bundle(tmp_path)
+        published = _publish(bundle, source)
+        if location == "cache":
+            bundle.refresh()
+            snapshot_path = bundle.path
+        else:
+            snapshot_path = published.version_path
+            _add_write_bits(snapshot_path / Path(source_file).parent)
+        bytecode_path = _write_file(snapshot_path, bytecode_file, "bytecode")
+
+        if location == "cache":
+            remove_bundle_tree_forcefully(published.version_path)
+            ManifestLocalDagBundle._validated_version_paths.clear()
+            fresh = _make_bundle(tmp_path, version=published.version)
+            fresh.initialize()
+            assert (fresh.path / source_file).read_text() == "VALUE = 'helper'\n"
+            assert bytecode_path.exists()
+        else:
+            with pytest.raises(BundleManifestError, match="files not present in the manifest"):
+                bundle.refresh()
+
+    @pytest.mark.parametrize(
+        ("relative_path", "entry_type"),
+        [
+            ("dags/__pycache__/orphan.cpython-313.pyc", "file"),
+            ("dags/__pycache__/example.pyc", "file"),
+            ("dags/__pycache__/example.cpython-313.pyc.tmp", "file"),
+            ("dags/__pycache__/nested/example.cpython-313.pyc", "file"),
+            ("dags/example.cpython-313.pyc", "file"),
+            ("dags/__pycache__/example.cpython-313.opt-.pyc", "file"),
+            ("dags/__pycache__/example.cpython-313.py", "file"),
+            ("dags/__pycache__/example.cpython-313.pyc", "symlink"),
+            ("dags/__pycache__/example.cpython-313.pyc", "fifo"),
+        ],
+    )
+    def test_bytecode_tolerance_does_not_hide_invalid_cache_entries(
+        self, tmp_path, relative_path, entry_type
+    ):
+        bundle, _, _ = _published_bundle(tmp_path)
+        bundle.refresh()
+        extra_path = bundle.path / relative_path
+        extra_path.parent.mkdir(parents=True, exist_ok=True)
+        if entry_type == "symlink":
+            target = _write_file(tmp_path, "outside.pyc", "bytecode")
+            _create_symlink_or_skip(target, extra_path)
+        elif entry_type == "fifo":
+            try:
+                os.mkfifo(extra_path)
+            except OSError as e:
+                pytest.skip(f"mkfifo is not supported in this test environment: {e}")
+        else:
+            extra_path.write_text("unexpected")
+        ManifestLocalDagBundle._validated_version_paths.clear()
+
+        fresh = _make_bundle(tmp_path)
+
+        with pytest.raises(BundleManifestError, match="structurally invalid cache copy"):
+            _ = fresh.path
+
+    @mock.patch.object(bundle_module.os, "walk", autospec=True)
+    def test_cache_validation_tolerates_bytecode_temp_removed_after_directory_scan(self, mock_walk, tmp_path):
+        cache_dir = tmp_path / "__pycache__"
+        cache_dir.mkdir()
+        mock_walk.return_value = [
+            (str(tmp_path), ["__pycache__"], []),
+            (str(cache_dir), [], ["example.cpython-313.pyc.123456789"]),
+        ]
+
+        assert (
+            list(ManifestLocalDagBundle._iter_snapshot_files(tmp_path, cached_source_paths={"example.py"}))
+            == []
+        )
+
     def test_marker_does_not_certify_truncated_cache_tree(self, tmp_path):
         # Simulates stale cleanup's shutil.rmtree being interrupted partway: the version
         # dir still exists (truncated) and the marker survives. The structural pass behind
@@ -977,15 +1104,18 @@ class TestCacheRecovery:
         with pytest.raises(BundleManifestError, match="structurally invalid cache copy"):
             _ = fresh.path
 
-    def test_move_aside_removes_tracking_file(self, tmp_path):
-        # A tracking file pointing at a version dir this bundle removed would crash stale
-        # cleanup (plain rmtree, only BlockingIOError caught) on every future sweep.
+    @conf_vars(
+        {
+            ("dag_processor", "stale_bundle_cleanup_min_versions"): "0",
+            ("dag_processor", "stale_bundle_cleanup_age_threshold"): "60",
+        }
+    )
+    def test_corrupt_cache_rebuild_restores_tracking_lock(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
         bundle.refresh()
 
         tracking_file = get_bundle_tracking_file(bundle_name=bundle.name, version=published.version)
-        tracking_file.parent.mkdir(parents=True, exist_ok=True)
-        tracking_file.write_text("2026-07-22T00:00:00+00:00")
+        assert tracking_file.exists()
 
         cached_dag = bundle.versions_dir / published.version / "dags/example.py"
         _add_write_bits(cached_dag)
@@ -996,7 +1126,9 @@ class TestCacheRecovery:
         fresh = _make_bundle(tmp_path)
         fresh.refresh()
 
-        assert not tracking_file.exists()
+        assert tracking_file.exists()
+        _set_tracking_timestamp(fresh, published.version, "2000-01-01T00:00:00+00:00")
+        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
         assert (fresh.versions_dir / published.version / "dags/example.py").read_text() == "print('dag')"
 
 
@@ -1024,6 +1156,77 @@ class TestStaleVersionCleanup:
     @staticmethod
     def _remove_stale_versions(bundle: ManifestLocalDagBundle) -> None:
         BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
+
+    @pytest.mark.parametrize("snapshot_failure", ["missing", "corrupt"])
+    def test_failed_first_refresh_leaves_no_tracking_file(self, tmp_path, snapshot_failure):
+        bundle, _, published = _published_bundle(tmp_path)
+        if snapshot_failure == "missing":
+            remove_bundle_tree_forcefully(published.version_path)
+        else:
+            published_dag = published.version_path / "dags/example.py"
+            _add_write_bits(published_dag)
+            published_dag.write_text("corrupt")
+        tracking_file = get_bundle_tracking_file(bundle_name=bundle.name, version=published.version)
+
+        with pytest.raises(BundleManifestError):
+            bundle.refresh()
+
+        assert not (bundle.versions_dir / published.version).exists()
+        assert not tracking_file.exists()
+        del bundle
+        gc.collect()
+        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
+        assert not tracking_file.exists()
+
+    @pytest.mark.parametrize("snapshot_failure", ["missing", "corrupt"])
+    def test_failed_refresh_preserves_previous_version_lock(self, tmp_path, snapshot_failure):
+        bundle, source, first = _published_bundle(tmp_path)
+        bundle.refresh()
+        first_path = bundle.path
+        _write_file(source, "dags/example.py", "print('dag v2')")
+        second = _publish(bundle, source)
+        if snapshot_failure == "missing":
+            remove_bundle_tree_forcefully(second.version_path)
+        else:
+            published_dag = second.version_path / "dags/example.py"
+            _add_write_bits(published_dag)
+            published_dag.write_text("corrupt")
+
+        with pytest.raises(BundleManifestError):
+            bundle.refresh()
+
+        assert bundle.get_current_version().version == first.version
+        assert bundle.path == first_path
+        assert not (bundle.versions_dir / second.version).exists()
+        assert not get_bundle_tracking_file(bundle_name=bundle.name, version=second.version).exists()
+        first_tracking_file = _set_tracking_timestamp(bundle, first.version, self.STALE)
+        self._remove_stale_versions(bundle)
+        assert (first_path / "dags/example.py").read_text() == "print('dag')"
+
+        del bundle
+        gc.collect()
+        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
+        assert not first_path.exists()
+        assert not first_tracking_file.exists()
+
+    @mock.patch.object(ManifestLocalDagBundle, "_materialize_cached_version", autospec=True)
+    def test_failed_refresh_preserves_another_refreshers_tracking_record(self, mock_materialize, tmp_path):
+        bundle, _, published = _published_bundle(tmp_path)
+        tracking_file = get_bundle_tracking_file(bundle_name=bundle.name, version=published.version)
+
+        def replace_tracking_then_fail(*args, **kwargs):
+            replacement = tracking_file.with_suffix(".replacement")
+            replacement.write_text(self.STALE)
+            replacement.replace(tracking_file)
+            raise BundleManifestError("materialization failed")
+
+        mock_materialize.side_effect = replace_tracking_then_fail
+
+        with pytest.raises(BundleManifestError, match="materialization failed"):
+            bundle.refresh()
+
+        assert not (bundle.versions_dir / published.version).exists()
+        assert tracking_file.read_text() == self.STALE
 
     def test_cleanup_keeps_the_version_being_served(self, tmp_path):
         # Cleanup ranks versions by when tasks last used them, not by release order, so the
@@ -1072,6 +1275,22 @@ class TestStaleVersionCleanup:
         mock_acquire.assert_called_once()
         assert bundle.path == bundle.versions_dir / published.version
         assert bundle._release_version_in_use is None
+
+    def test_refresh_preserves_current_lock_when_reacquisition_fails(self, tmp_path, monkeypatch):
+        bundle, _, published = _published_bundle(tmp_path)
+        bundle.refresh()
+        mock_acquire = mock.create_autospec(
+            bundle_module.BundleVersionLock.acquire, side_effect=PermissionError
+        )
+        monkeypatch.setattr(bundle_module.BundleVersionLock, "acquire", mock_acquire)
+
+        bundle.refresh()
+
+        mock_acquire.assert_called_once()
+        assert bundle.get_current_version().version == published.version
+        _set_tracking_timestamp(bundle, published.version, self.STALE)
+        self._remove_stale_versions(bundle)
+        assert (bundle.path / "dags/example.py").read_text() == "print('dag')"
 
     @pytest.mark.filterwarnings("error::ResourceWarning", "error::pytest.PytestUnraisableExceptionWarning")
     def test_discarded_bundle_closes_its_lock_file(self, tmp_path):
