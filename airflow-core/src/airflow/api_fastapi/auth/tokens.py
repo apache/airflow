@@ -163,6 +163,9 @@ class JWKS:
                 return
 
             try:
+                # PyJWKSet.from_dict raises AttributeError for a JSON array or scalar.
+                if not isinstance(data, dict):
+                    raise TypeError(f"JWKS must be a JSON object, not {type(data).__name__}")
                 keyset = jwt.PyJWKSet.from_dict(data)
             except (jwt.PyJWKError, jwt.PyJWKSetError, KeyError, TypeError, ValueError):
                 if not self.raise_on_fetch_error:

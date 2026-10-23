@@ -116,7 +116,7 @@ class InProcessExecutionAPI:
             # Auth dependency overrides bypass validation, so the stub skips validator setup in lifespan().
             registry.register_value(JWTValidator, None)
             # No external Dag processor can reach this app, so it must not load trust settings meant for
-            # API servers, whose Dag bundle checks can fail in other components.
+            # API servers, which can fail to load in components configured differently.
             registry.register_value(DagProcessorIdentityVerifier, None)
             _configure_in_process_auth(self._app, triggerer_id=self.triggerer_id)
 

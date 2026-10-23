@@ -112,12 +112,12 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
 
     # InProcessExecutionAPI stubs out the identity verifier: don't create one in that case.
     if DagProcessorIdentityVerifier in registry:
-        app.state.dag_processor_identity_verifier = None
         yield
         return
 
     async with create_dag_processor_identity_verifier() as verifier:
-        app.state.dag_processor_identity_verifier = verifier
+        # None when the exchange is disabled; the route answers 404 then.
+        registry.register_value(DagProcessorIdentityVerifier, verifier)
         yield
 
 

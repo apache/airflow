@@ -520,7 +520,7 @@ not yet use this client. Provisioning a token file alone does not switch that co
 HTTP or remove its need for database access.
 
 In-memory sessions from workload identity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Processor integrations can use ``WorkloadIdentitySessionTokenProvider`` to obtain and renew
 ``dag_processor_session`` credentials through ``POST /execution/dag-processor/session-token``.
@@ -545,14 +545,20 @@ Use your identity provider's exact issuer, HTTPS JWKS URL, and signing algorithm
 ``ES256``, or ``EdDSA``). Use a dedicated audience, distinct from ``[execution_api] jwt_audience``.
 The API server verifies the signature, issuer, audience, issued-at time, expiry, and any not-before
 claim, using ``[api_auth] jwt_leeway`` for clock skew. Only exact subjects listed in ``grants`` can
-obtain a session. Every granted bundle must be configured on the API server, which otherwise refuses
-to start. This option is empty by default, disabling the exchange.
+obtain a session. If a grant names a Dag bundle that the API server does not have configured, the
+API server logs an error at startup and refuses that subject's exchanges with HTTP 403. This option
+is empty by default, disabling the exchange.
 Apply the same trust configuration to all API-server replicas and restart them after changes.
 
+The option trusts a single issuer. Dag processors whose identities come from different issuers, such
+as separate Kubernetes clusters, cannot all obtain sessions from the same API server.
+
 The JWKS endpoint must accept unauthenticated HTTPS GET requests from the Airflow API server.
-The fetcher sends no authentication credentials and uses HTTPX's default certificate trust,
-including ``SSL_CERT_FILE`` or ``SSL_CERT_DIR`` when configured. These environment settings affect
-other HTTPX clients in the API-server process; there is no per-issuer CA or authentication option.
+The fetcher sends no authentication credentials and uses HTTPX's default certificate trust.
+``SSL_CERT_FILE`` or ``SSL_CERT_DIR``, when set, replace the default CA bundle rather than adding
+to it, and they apply to every HTTPX client in the API-server process. A bundle that holds only a
+private CA cuts those clients off from public roots, so include the roots they still need. There is
+no per-issuer CA or authentication option.
 Authenticated JWKS endpoints, including Kubernetes API-server discovery protected by service-account
 authentication, are not supported by this implementation. For those clusters, serve the public JWKS
 through a suitable HTTPS endpoint before enabling the exchange. See Kubernetes'
@@ -586,7 +592,8 @@ The client does not wait automatically. This prevents two processes sharing an i
 active Jobs at the same time.
 
 The processor integration supplies a callable that reads the current platform identity on each
-exchange. For example:
+exchange. Any exception the callable raises is re-raised as ``WorkloadIdentityUnavailableError``, an
+``OSError``, so a failed optional renewal leaves the valid Job credential in use. For example:
 
 .. code-block:: python
 
@@ -613,8 +620,9 @@ session JWT to disk and does not fall back to a session-token file. ``token_prov
 ``token_file`` are mutually exclusive. HTTPS is required for the exchange, and redirects are rejected.
 The exchange uses the same API TLS configuration and request timeout as the Task SDK client,
 including private certificate authorities and client certificates. Registration retries transient
-exchange failures using the configured Execution API retry policy; optional early renewal makes
-one bounded attempt so it does not delay requests using a valid Job credential.
+exchange failures using the configured Execution API retry policy, waiting at least the
+``Retry-After`` interval of an HTTP 503 before the next attempt. Optional early renewal makes one
+bounded attempt so it does not delay requests using a valid Job credential.
 
 Session expiry is capped by both the external identity's remaining lifetime and
 ``[execution_api] jwt_expiration_time``. Clock-skew leeway never extends this cap, and an identity
@@ -631,12 +639,12 @@ unknown signing key. Fetches, including failed attempts, are limited to one per 
 API-server process. Publish new keys before signing with them and retain old keys while their tokens
 remain valid.
 
-If a required signing key cannot be fetched, the exchange returns HTTP 503 with ``Retry-After``,
-allowing registration to retry. A cached matching key remains usable during an outage. Invalid
-identities and keys absent from a successfully fetched keyset return HTTP 401.
+If a required signing key cannot be fetched, the exchange returns HTTP 503 with ``Retry-After``, and
+registration waits at least that long before retrying. A cached matching key remains usable during
+an outage. Invalid identities and keys absent from a successfully fetched key set return HTTP 401.
 
 File-based provisioning
-~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^
 
 On a trusted host with the API signing key, provision a session token for the bundles
 the client may access::
@@ -652,7 +660,7 @@ provisioner with the same token file and bundles keeps that session, so running 
 their Jobs.
 
 Credential permissions and renewal
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The three credentials have different issuers and permissions:
 

@@ -195,6 +195,30 @@ class TestJWKS:
                 await refresh
             assert len(requests) == 2
 
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_jwks_body_that_is_not_an_object_is_a_failed_fetch(self, clock, ed25519_private_key):
+        bodies = [[{"kty": "OKP"}]]
+
+        def handle(request):
+            return httpx.Response(200, json=bodies[-1])
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=True,
+            )
+            with pytest.raises(JWKSUnavailableError):
+                await jwks.get_key("known")
+            clock.return_value = 111
+            bodies.append({"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+            known = await jwks.get_key("known")
+            # Once the hourly refresh is due, a bad body must not stop the cached key from validating.
+            clock.return_value = 111 + jwks.refresh_interval_secs + 1
+            bodies.append([{"kty": "OKP"}])
+            assert await jwks.get_key("known") is known
+
     @pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
     async def test_fetch_jwks_success(self, private_key):
         jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "kid")]})
