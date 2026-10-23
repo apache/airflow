@@ -874,7 +874,7 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.max_attempts = max_attempts
 
     def execute(self, context: Context):
-        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
+        if self.deferrable:
             self._delete_or_defer_until_settled()
             return
 
@@ -917,7 +917,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         Issue the delete once (deferrable mode), then defer.
 
         If accepted, defer to :class:`RedshiftDeleteClusterTrigger` to await deletion. If the cluster is
-        busy (``InvalidClusterStateFault``), defer to :class:`RedshiftClusterSettledTrigger`; the
+        busy (``InvalidClusterStateFault``), defer to :class:`RedshiftClusterSettledTrigger` regardless of
+        ``wait_for_completion``, since the delete cannot be issued until it settles; the
         ``_retry_delete_when_settled`` callback re-issues the delete once it settles.
         """
         try:
@@ -946,7 +947,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
             )
             return
 
-        self._defer_until_deleted()
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
+            self._defer_until_deleted()
 
     def _defer_until_deleted(self) -> None:
         """Defer to the delete-completion waiter, short-circuiting if the cluster is already gone."""
