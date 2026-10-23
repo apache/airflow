@@ -20,36 +20,18 @@ import pytest
 import yaml
 from ci.prek import lang_sdk_compat_matrix as matrix, update_ts_sdk_readme_matrix as hook
 
-SCHEMA_VERSION = "2026-06-16"
-
-
-def _doc() -> dict:
-    def entry(supported: bool) -> dict:
-        return {"supported": supported, "since": "3.3" if supported else None, "note": ""}
-
-    return {
-        "sdk": "ts",
-        "supervisor_schema_version": SCHEMA_VERSION,
-        "min_airflow_version": "3.3",
-        "states": {state: entry(True) for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {
-            cap.name: {mode: entry(True) for mode in matrix.AUTHORING_MODES}
-            if cap.name in matrix.SHARED_CAPABILITY_NAMES
-            else entry(True)
-            for cap in matrix.CAPABILITY_DIMENSIONS
-        },
-    }
-
 
 class TestMain:
     @pytest.fixture
-    def wired(self, tmp_path, monkeypatch):
+    def wired(self, tmp_path, monkeypatch, capabilities_doc):
+        doc = capabilities_doc("ts")
         capabilities_yaml = tmp_path / "capabilities.yaml"
-        capabilities_yaml.write_text(yaml.safe_dump(_doc()))
+        capabilities_yaml.write_text(yaml.safe_dump(doc))
         readme = tmp_path / "README.md"
         readme.write_text(f"intro\n\n{matrix.README_MATRIX_HEADER}\n{matrix.README_MATRIX_FOOTER}\n\noutro\n")
         ts_supervisor = tmp_path / "supervisor.ts"
-        ts_supervisor.write_text(f'export const SUPERVISOR_API_VERSION = "{SCHEMA_VERSION}" as const;\n')
+        schema_version = doc["supervisor_schema_version"]
+        ts_supervisor.write_text(f'export const SUPERVISOR_API_VERSION = "{schema_version}" as const;\n')
         monkeypatch.setattr(
             hook,
             "LANG_SDKS",

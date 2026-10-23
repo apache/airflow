@@ -129,6 +129,8 @@ capabilities:
     sdk_version: "1.0.0"
   dag-params:
     supported: false
+  dag-callbacks:
+    supported: false
   explicit-dependencies:
     supported: true
     since: "3.4.0"
@@ -165,9 +167,6 @@ capabilities:
     since: "3.4.0"
     sdk_version: "1.0.0"
     note: "triggerDagRun"
-  provider-operators:
-    supported: false
-    note: "only built-in tasks (triggerDagRun / hitl); no generated provider bindings"
   dynamic-dag-generation:
     supported: true
     since: "3.4.0"
@@ -207,10 +206,10 @@ capabilities:
     stub-task-handler:
       supported: false
       note: "runtime does not report task outlets yet"
-  callbacks:
+  task-callbacks:
     dag-definition:
       supported: false
-      note: "no SDK-defined callback functions"
+      note: "no SDK-defined task callbacks"
     stub-task-handler:
       supported: false
-      note: "a Python-declared callback does not run for a coordinator task"
+      note: "a Python-declared task callback does not run for a stub task"

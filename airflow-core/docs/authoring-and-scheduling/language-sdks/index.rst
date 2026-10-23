@@ -353,6 +353,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
+   * - ``dag-callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
    * - ``explicit-dependencies`` (MUST †)
      - ✓ 1.0.0
      - ✓ 1.0.0
@@ -385,10 +389,6 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``provider-operators`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
    * - ``dynamic-dag-generation`` (MAY †)
      - ✓ 1.0.0
      - ✓ 1.0.0
@@ -417,7 +417,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
-   * - ``callbacks`` (MAY †)
+   * - ``task-callbacks`` (MAY †)
      - ✗
      - ✗
      - ✗
@@ -446,7 +446,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
-   * - ``callbacks`` (MAY)
+   * - ``task-callbacks`` (MAY)
      - ✗
      - ✗
      - ✗

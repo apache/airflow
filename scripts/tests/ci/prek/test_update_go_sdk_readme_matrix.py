@@ -23,33 +23,17 @@ from ci.prek import lang_sdk_compat_matrix as matrix, update_go_sdk_readme_matri
 SCHEMA_VERSION = "2026-06-16"
 
 
-def _doc() -> dict:
-    def entry(supported: bool) -> dict:
-        return {"supported": supported, "since": "3.3" if supported else None, "note": ""}
-
-    return {
-        "sdk": "go",
-        "supervisor_schema_version": SCHEMA_VERSION,
-        "min_airflow_version": "3.3",
-        "states": {state: entry(True) for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {
-            cap.name: {mode: entry(True) for mode in matrix.AUTHORING_MODES}
-            if cap.name in matrix.SHARED_CAPABILITY_NAMES
-            else entry(True)
-            for cap in matrix.CAPABILITY_DIMENSIONS
-        },
-    }
-
-
 class TestMain:
     @pytest.fixture
-    def wired(self, tmp_path, monkeypatch):
+    def wired(self, tmp_path, monkeypatch, capabilities_doc):
+        doc = capabilities_doc("go")
         capabilities_yaml = tmp_path / "capabilities.yaml"
-        capabilities_yaml.write_text(yaml.safe_dump(_doc()))
+        capabilities_yaml.write_text(yaml.safe_dump(doc))
         readme = tmp_path / "README.md"
         readme.write_text(f"intro\n\n{matrix.README_MATRIX_HEADER}\n{matrix.README_MATRIX_FOOTER}\n\noutro\n")
         go_messages = tmp_path / "messages.go"
-        go_messages.write_text(f'package execution\n\nconst SupervisorSchemaVersion = "{SCHEMA_VERSION}"\n')
+        schema_version = doc["supervisor_schema_version"]
+        go_messages.write_text(f'package execution\n\nconst SupervisorSchemaVersion = "{schema_version}"\n')
         monkeypatch.setattr(
             hook,
             "LANG_SDKS",

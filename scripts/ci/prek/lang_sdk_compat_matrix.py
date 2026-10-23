@@ -106,6 +106,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("dag-args", "MUST", "dag-definition", True),
     Capability("task-args", "MUST", "dag-definition", True),
     Capability("dag-params", "MUST", "dag-definition", True),
+    Capability("dag-callbacks", "MAY", "dag-definition", True),
     Capability("explicit-dependencies", "MUST", "dag-definition", True),
     Capability("edge-labels", "MAY", "dag-definition", True),
     Capability("taskflow-dependencies", "MUST", "dag-definition", True),
@@ -114,7 +115,6 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("if-else-branching", "SHOULD", "dag-definition", True),
     Capability("switch-case-branching", "SHOULD", "dag-definition", True),
     Capability("trigger-dag-run", "MAY", "dag-definition", True),
-    Capability("provider-operators", "MAY", "dag-definition", True),
     Capability("dynamic-dag-generation", "MAY", "dag-definition", True),
     Capability("human-in-the-loop", "MAY", "dag-definition", True),
     Capability("dag-test", "SHOULD", "dag-definition", True),
@@ -124,7 +124,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("taskflow-binding", "MUST", "stub-task-handler", False),
     Capability("mapped-tasks", "MAY", "shared", True),
     Capability("asset-inlets-outlets", "MAY", "shared", True),
-    Capability("callbacks", "MAY", "shared", True),
+    Capability("task-callbacks", "MAY", "shared", True),
 ]
 
 CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS}
@@ -174,7 +174,6 @@ def _build_capability_rows(groups: tuple[Group, ...], mode: Mode | None) -> list
             cap.name,
             cap.tier,
             cap.gated and mode != STUB_TASK_HANDLER_MODE,
-            # Only a shared capability has one entry per authoring mode to pick between.
             mode if cap.group == "shared" else None,
         )
         for group in groups

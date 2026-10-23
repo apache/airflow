@@ -497,6 +497,12 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``dag-params`` (MUST †)
     Dag-level params can be declared on a Dag definition.
 
+``dag-callbacks`` (MAY †)
+    Dag-level callbacks (``on_failure_callback`` and the rest) can be declared on a Dag
+    definition as functions in the target language, and Airflow runs them. This is a
+    Dag-definition concern only: the callbacks of a Python Dag are Python functions that the
+    Python runtime runs whichever SDK executes the tasks.
+
 ``explicit-dependencies`` (MUST †)
     Order-only dependencies can be drawn between tasks, the equivalent of Python's ``>>`` and
     ``<<``.
@@ -525,14 +531,6 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``trigger-dag-run`` (MAY †)
     A Dag definition can declare a task that triggers a run of another Dag, like
     ``TriggerDagRunOperator``.
-
-``provider-operators`` (MAY †)
-    A Dag definition can declare a task that runs a Python provider operator, which executes
-    in the Python runtime. The SDK surface is a declarative binding over the operator's
-    parameters rather than a reimplementation, the same shape the YAML Dag importer's
-    ``uses`` takes, so the bindings are meant to be generated from the Python operators as
-    the source of truth. A built-in task that mirrors an operator's name while running in the
-    SDK's own runtime, such as ``trigger-dag-run``, does not count.
 
 ``dynamic-dag-generation`` (MAY †)
     One artifact can generate several Dags from code, for example in a loop.
@@ -582,11 +580,11 @@ the other, so each one is declared once per mode. In a Dag definition the tier a
     A task's asset inlets and outlets are honored, so a successful task emits events for its
     outlets.
 
-``callbacks`` (MAY)
-    Task and Dag callbacks (``on_failure_callback`` and the rest) run. The two authoring modes
-    ask different things of the SDK: in a Dag definition the SDK declares the callback as a
-    function in its own language, while for a stub task the callback is declared in the Python
-    Dag and the SDK's execution path has to let the Python runtime run it.
+``task-callbacks`` (MAY)
+    Task-level callbacks (``on_failure_callback`` and the rest) run for a task of this SDK.
+    The two authoring modes ask different things of the SDK: in a Dag definition the SDK
+    declares the callback as a function in its own language, while for a ``@task.stub`` task
+    the callback is declared in the Python Dag and the SDK's execution path has to get it run.
 
 Compatibility matrix
 ~~~~~~~~~~~~~~~~~~~~

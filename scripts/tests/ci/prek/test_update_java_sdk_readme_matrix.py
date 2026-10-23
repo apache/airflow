@@ -20,36 +20,18 @@ import pytest
 import yaml
 from ci.prek import lang_sdk_compat_matrix as matrix, update_java_sdk_readme_matrix as hook
 
-SCHEMA_VERSION = "2026-06-16"
-
-
-def _doc() -> dict:
-    def entry(supported: bool) -> dict:
-        return {"supported": supported, "since": "3.3" if supported else None, "note": ""}
-
-    return {
-        "sdk": "java",
-        "supervisor_schema_version": SCHEMA_VERSION,
-        "min_airflow_version": "3.3",
-        "states": {state: entry(True) for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {
-            cap.name: {mode: entry(True) for mode in matrix.AUTHORING_MODES}
-            if cap.name in matrix.SHARED_CAPABILITY_NAMES
-            else entry(True)
-            for cap in matrix.CAPABILITY_DIMENSIONS
-        },
-    }
-
 
 class TestMain:
     @pytest.fixture
-    def wired(self, tmp_path, monkeypatch):
+    def wired(self, tmp_path, monkeypatch, capabilities_doc):
         """Point the hook at a temp capabilities.yaml plus temp README and Dokka module doc."""
+        doc = capabilities_doc("java")
         capabilities_yaml = tmp_path / "capabilities.yaml"
-        capabilities_yaml.write_text(yaml.safe_dump(_doc()))
+        capabilities_yaml.write_text(yaml.safe_dump(doc))
         gradle_properties = tmp_path / "gradle.properties"
+        schema_version = doc["supervisor_schema_version"]
         gradle_properties.write_text(
-            f"projectVersion=1.0.0-SNAPSHOT\n{hook.SCHEMA_VERSION_PROPERTY}={SCHEMA_VERSION}\n"
+            f"projectVersion=1.0.0-SNAPSHOT\n{hook.SCHEMA_VERSION_PROPERTY}={schema_version}\n"
         )
         targets = []
         for name in ("README.md", "module.md"):

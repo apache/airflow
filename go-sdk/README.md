@@ -148,6 +148,7 @@ prek hook regenerate it.
 | capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `dag-params` | MUST † | ✗ | – | – |  |
+| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
 | capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | Before / After |
 | capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.Label(text).On(task) |
 | capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
@@ -156,7 +157,6 @@ prek hook regenerate it.
 | capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.If |
 | capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.Switch |
 | capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun |
-| capability: `provider-operators` | MAY † | ✗ | – | – | only built-in tasks (airflow.TriggerDagRun); no generated provider bindings |
 | capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `human-in-the-loop` | MAY † | ✗ | – | – |  |
 | capability: `dag-test` | SHOULD † | ✗ | – | – |  |
@@ -164,13 +164,13 @@ prek hook regenerate it.
 | capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
 | capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
 | capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
-| capability: `callbacks` | MAY † | ✗ | – | – | no SDK-defined callback functions |
+| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
 | **Python Dag with stub TaskHandler** |  |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
 | capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
 | capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
-| capability: `callbacks` | MAY | ✗ | – | – | a Python-declared callback does not run for a coordinator task |
+| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 

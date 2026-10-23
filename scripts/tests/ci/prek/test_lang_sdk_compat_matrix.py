@@ -254,7 +254,7 @@ class TestRenderMarkdownTable:
             "taskflow-binding",
             "mapped-tasks",
             "asset-inlets-outlets",
-            "callbacks",
+            "task-callbacks",
         ]
         assert set(dag_definition_names) >= matrix.SHARED_CAPABILITY_NAMES
         assert all(not row.gated for row in stub_task_handler.groups[0].rows)
