@@ -22,6 +22,7 @@ import inspect
 import json
 import logging
 import os
+import pickle
 import re
 import shutil
 import subprocess
@@ -638,7 +639,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 file.write_bytes(
                     self.pickling_library.dumps({"args": self.op_args, "kwargs": resolved_kwargs})
                 )
-            except Exception:
+            except pickle.PicklingError:
                 # Identify which specific kwarg(s) failed to serialize so the
                 # user gets a clear error instead of an opaque PicklingError.
                 bad_keys: list[str] = []
