@@ -555,13 +555,6 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
-    execution_timeout: float | None = None
-    """
-    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
-
-    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
-    """
-
     multi_team: bool = False
     """
     Whether the deployment runs in multi-team mode.

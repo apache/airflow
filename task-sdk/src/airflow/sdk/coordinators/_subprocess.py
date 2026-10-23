@@ -408,23 +408,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         return self
 
-    def _on_child_started(
-        self,
-        *,
-        ti: TaskInstance,
-        dag_rel_path: str | os.PathLike[str],
-        bundle_info,
-        sentry_integration: str,
-    ) -> None:
-        super()._on_child_started(
-            ti=ti,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            sentry_integration=sentry_integration,
-        )
-        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
-        self._arm_execution_timeout()
-
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
