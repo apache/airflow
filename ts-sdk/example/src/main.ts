@@ -66,7 +66,7 @@ export async function writeAndReadTaskState() {
   const store = getClient().taskStateStore;
   const { runId, tryNumber } = getContext();
 
-  await store.set(JOB_ID_KEY, runId, { retentionSeconds: NEVER_EXPIRE });
+  await store.set(JOB_ID_KEY, runId, { retention: NEVER_EXPIRE });
   await store.set(STATE_SCRATCH_KEY, { attempt: tryNumber });
 
   const jobId = await store.get<string>(JOB_ID_KEY);

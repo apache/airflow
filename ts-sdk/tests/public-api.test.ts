@@ -449,7 +449,7 @@ describe("public API", () => {
     >();
     expectTypeOf<TaskClient["deleteVariable"]>().toEqualTypeOf<(key: string) => Promise<void>>();
     expectTypeOf<TaskStateStoreSetOpts>().toEqualTypeOf<{
-      retentionSeconds?: number | typeof NEVER_EXPIRE;
+      retention?: number | typeof NEVER_EXPIRE;
     }>();
     expectTypeOf<TaskClient["taskStateStore"]>().toEqualTypeOf<TaskStateStore>();
     expectTypeOf<TaskStateStore["get"]>().toEqualTypeOf<

@@ -165,7 +165,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
     [
       "taskStateStore.set",
       "SetTaskStateStore",
-      (c: TaskClient) => c.taskStateStore.set("k", 1, { retentionSeconds: 60 }),
+      (c: TaskClient) => c.taskStateStore.set("k", 1, { retention: 60 }),
     ],
     [
       "taskStateStore.delete",
@@ -446,7 +446,7 @@ describe("taskStateStore.set retention", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionSeconds: NEVER_EXPIRE });
+    await c.taskStateStore.set("k", 1, { retention: NEVER_EXPIRE });
 
     expect(sent[0]).toEqual({
       type: "SetTaskStateStore",
@@ -457,22 +457,22 @@ describe("taskStateStore.set retention", () => {
     });
   });
 
-  it("sends now + retentionSeconds for a finite retentionSeconds", async () => {
+  it("sends now + retention for a finite retention", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionSeconds: 60 });
+    await c.taskStateStore.set("k", 1, { retention: 60 });
 
     expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:01:00.000Z" });
   });
 
-  it("sends now (expire immediately) for retentionSeconds 0", async () => {
+  it("sends now (expire immediately) for retention 0", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionSeconds: 0 });
+    await c.taskStateStore.set("k", 1, { retention: 0 });
 
     expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:00:00.000Z" });
   });
@@ -535,15 +535,15 @@ describe("taskStateStore.set guards", () => {
   it.each([
     ["negative", -1],
     ["NaN", Number.NaN],
-  ])("rejects retentionSeconds=%s without sending a request", async (_label, retentionSeconds) => {
+  ])("rejects retention=%s without sending a request", async (_label, retention) => {
     const { client: c, sent } = recordingClient();
-    await expect(c.taskStateStore.set("k", 1, { retentionSeconds })).rejects.toThrow(RangeError);
+    await expect(c.taskStateStore.set("k", 1, { retention })).rejects.toThrow(RangeError);
     expect(sent).toHaveLength(0);
   });
 
   it("rejects an empty key without sending a request", async () => {
     const { client: c, sent } = recordingClient();
-    await expect(c.taskStateStore.set("", 1, { retentionSeconds: 60 })).rejects.toThrow(RangeError);
+    await expect(c.taskStateStore.set("", 1, { retention: 60 })).rejects.toThrow(RangeError);
     expect(sent).toHaveLength(0);
   });
 });
@@ -577,7 +577,7 @@ describe("task state store key type guard", () => {
       "set",
       (c: TaskClient) => {
         // @ts-expect-error exercising the runtime guard against an untyped caller.
-        return c.taskStateStore.set(undefined, 1, { retentionSeconds: 60 });
+        return c.taskStateStore.set(undefined, 1, { retention: 60 });
       },
     ],
     [

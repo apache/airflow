@@ -169,7 +169,7 @@ function toExpiresAt(ms: number): string {
   return at.toISOString();
 }
 
-/** Resolve `retentionSeconds` (or the deployment default) to a wire `expires_at`. */
+/** Resolve `retention` (or the deployment default) to a wire `expires_at`. */
 function resolveExpiresAt(seconds: number | typeof NEVER_EXPIRE | undefined): string | null {
   if (seconds === undefined) {
     return resolveDefaultExpiresAt();
@@ -178,7 +178,7 @@ function resolveExpiresAt(seconds: number | typeof NEVER_EXPIRE | undefined): st
     return null;
   }
   if (!Number.isFinite(seconds) || seconds < 0) {
-    throw new RangeError(`retentionSeconds must be >= 0 or NEVER_EXPIRE, got ${String(seconds)}`);
+    throw new RangeError(`retention must be >= 0 or NEVER_EXPIRE, got ${String(seconds)}`);
   }
   return toExpiresAt(seconds * MS_PER_SECOND);
 }
@@ -191,7 +191,7 @@ function resolveDefaultExpiresAt(): string | null {
   if (raw === undefined) {
     throw new Error(
       `${RETENTION_DAYS_ENV_VAR} is not set, so the default retention is unknown. It carries ` +
-        "[state_store] default_retention_days to the runtime; pass retentionSeconds or " +
+        "[state_store] default_retention_days to the runtime; pass retention or " +
         "NEVER_EXPIRE to set the expiry explicitly.",
     );
   }
@@ -279,7 +279,7 @@ export function createCoordinatorClient(
         ti_id: tiId,
         key,
         value,
-        expires_at: resolveExpiresAt(opts.retentionSeconds),
+        expires_at: resolveExpiresAt(opts.retention),
       };
       await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },
