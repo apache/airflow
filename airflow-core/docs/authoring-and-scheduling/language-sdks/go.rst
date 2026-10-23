@@ -204,12 +204,13 @@ When a task only has to run after another, without receiving its value, draw the
 
     cleaned := dag.Task(cleanup)
 
-    loaded.Before(cleaned)                        // loaded >> cleaned
-    cleaned.After(loaded, summarized)             // [loaded, summarized] >> cleaned
-    loaded.Before(airflow.Label(cleaned, "done")) // a labelled edge
+    loaded.Before(cleaned)                           // loaded >> cleaned
+    cleaned.After(loaded, summarized)                // [loaded, summarized] >> cleaned
+    loaded.Before(airflow.Label("done").On(cleaned)) // a labelled edge
 
 Both take any number of tasks or task groups, and drawing a dependency that already exists changes nothing.
-``airflow.Label`` puts a label on the edge, which the Airflow UI shows on the graph.
+``airflow.Label`` takes the text, and ``On`` names the tasks the label's edges reach, which is Python's
+``loaded >> Label("done") >> cleaned``. The Airflow UI shows the label on the graph.
 
 Pass a value through ``airflow.Inputs`` when the downstream task needs it, and use ``Before`` or ``After`` when it
 only needs to run in order.

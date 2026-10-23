@@ -183,28 +183,31 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	// The task pushes no XCom when fn failed: its result is the zero value, and pushing it would
+	// feed a value the task never produced to the downstream tasks that read it.
+	if err != nil {
+		return err
+	}
 	if branch != nil {
 		// The task pushes the value that decide returns, and decide runs only on a result that fn
-		// returned without an error. So the task pushes no XCom when fn or decide fails.
-		if err != nil {
-			return err
-		}
+		// returned without an error.
 		value, skipped, err := f.decide(retValues[0].Interface())
 		if err != nil {
 			return err
 		}
 		rv := reflect.ValueOf(value)
 		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			f.sendXcom(ctx, value, sdkClient, logger)
+			if err := f.sendXcom(ctx, value, sdkClient); err != nil {
+				return err
+			}
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res := retValues[0].Interface()
-		f.sendXcom(ctx, res, sdkClient, logger)
+		return f.sendXcom(ctx, retValues[0].Interface(), sdkClient)
 	}
-	return err
+	return nil
 }
 
 // skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
@@ -268,16 +271,12 @@ func (b *branchRun) skipDownstream(
 	return nil
 }
 
-func (f *taskFunction) sendXcom(
-	ctx context.Context,
-	value any,
-	c sdk.XComClient,
-	logger *slog.Logger,
-) {
+// sendXcom pushes the task's return value. A failure fails the task: leaving it successful would
+// only move the error to the downstream tasks, which fail later on the XCom that is not there.
+func (f *taskFunction) sendXcom(ctx context.Context, value any, c sdk.XComClient) error {
 	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
 	if !ok {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
-		return
+		return errors.New("setting the return value XCom: task runtime context is missing")
 	}
 	ti := runtimeContext.TaskInstance()
 	err := c.PushXCom(ctx, sdk.TaskInstance{
@@ -287,8 +286,9 @@ func (f *taskFunction) sendXcom(
 		MapIndex: ti.MapIndex,
 	}, sdk.XComReturnValueKey, value)
 	if err != nil {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
+	return nil
 }
 
 func (f *taskFunction) validateFn(

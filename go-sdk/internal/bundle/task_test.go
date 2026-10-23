@@ -453,3 +453,53 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 		})
 	}
 }
+
+// runTask runs task as the task instance extract of dag1 with client.
+func runTask(task Task, client *branchClient) error {
+	ctx := context.WithValue(
+		context.Background(),
+		sdkcontext.SdkClientContextKey,
+		sdk.Client(client),
+	)
+	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, sdk.NewTIRunContext(
+		context.Background(),
+		sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "extract"},
+		sdk.DagRun{DagID: "dag1", RunID: "run1"},
+	))
+	return task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil)
+}
+
+func (s *TaskSuite) TestPushesTheReturnValue() {
+	task, err := NewTaskFunction(func(contexttest.Context) (int, error) { return 7, nil })
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.Require().NoError(runTask(task, client))
+
+	s.Equal([]string{"PushXCom extract return_value 7"}, client.calls)
+}
+
+// A failed push fails the task, so the downstream tasks do not fail later on an XCom that is
+// not there.
+func (s *TaskSuite) TestFailsWhenItCannotPushTheReturnValue() {
+	task, err := NewTaskFunction(func(contexttest.Context) (int, error) { return 7, nil })
+	s.Require().NoError(err)
+
+	client := &branchClient{failOn: "PushXCom extract return_value 7"}
+	s.EqualError(
+		runTask(task, client),
+		"setting the return value XCom: xcom refused",
+	)
+}
+
+// A task whose fn failed pushes nothing: its result is the zero value, not one it produced.
+func (s *TaskSuite) TestThatFailsPushesNoReturnValue() {
+	task, err := NewTaskFunction(
+		func(contexttest.Context) (int, error) { return 0, errors.New("no table") },
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.EqualError(runTask(task, client), "no table")
+	s.Empty(client.calls)
+}
