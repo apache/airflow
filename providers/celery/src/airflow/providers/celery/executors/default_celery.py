@@ -90,7 +90,9 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
             log.warning(
                 "No visibility_timeout configured in [celery_broker_transport_options]. "
                 "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
+                "will be redelivered by the broker. On Airflow 3.1.9 and newer the redelivered "
+                "message is discarded and the original task keeps running; on earlier versions the "
+                "redelivery terminates the original task. "
                 "If you have long-running tasks, increase this value in your Airflow configuration: "
                 "[celery_broker_transport_options] visibility_timeout = <seconds>"
             )

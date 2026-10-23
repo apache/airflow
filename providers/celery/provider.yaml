@@ -385,10 +385,15 @@ config:
         default: "1.0"
       task_acks_late:
         description: |
-          If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the
-          task to a Celery worker, even if the original task is still running successfully. The new task
-          instance then runs concurrently with the original task and the Airflow UI and logs only show an
-          error message:
+          If an Airflow task's execution time exceeds the visibility_timeout, the broker redelivers the
+          message to a Celery worker, even if the original task is still running successfully. Both
+          deliveries carry the same Celery task id.
+          With apache-airflow-providers-celery 3.18.0 or newer running on Airflow 3.1.9 or newer, the
+          redelivered message is recognized and discarded: the worker logs
+          'Task already running elsewhere, ignoring redelivered message' and the original task is left
+          running. Both version floors are required.
+          On earlier versions the redelivered message runs concurrently with the original task and fails
+          it, and the Airflow UI and logs only show an error message:
           'Task Instance Not Running' FAILED: Task is in the running state'
           Setting task_acks_late to True acknowledges the task only after it completes.
           Note: for Redis and SQS brokers, task_acks_late does NOT override visibility_timeout.
