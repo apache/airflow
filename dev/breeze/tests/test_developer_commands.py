@@ -24,7 +24,8 @@ import pytest
 from click import UsageError
 from click.testing import CliRunner
 
-from airflow_breeze.commands.developer_commands import build_docs, down, run
+from airflow_breeze.commands.developer_commands import build_docs, down, run, shell
+from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
@@ -187,3 +188,40 @@ class TestRunIncludeMypyVolume:
     )
     def test_include_mypy_volume_is_passed_to_shell_params(self, runner, args, env, expected):
         assert self._invoke(runner, args, env=env).include_mypy_volume is expected
+
+
+class TestShellForwardPorts:
+    @pytest.fixture(autouse=True)
+    def _no_docker(self, monkeypatch):
+        monkeypatch.setenv("SKIP_SAVING_CHOICES", "true")
+        monkeypatch.delenv("FORWARD_PORTS", raising=False)
+
+    def _invoke(self, runner: CliRunner, command, args: list[str], env: dict[str, str] | None = None):
+        with (
+            patch("airflow_breeze.commands.main_command.check_for_rosetta_environment", autospec=True),
+            patch("airflow_breeze.commands.main_command.check_for_python_emulation", autospec=True),
+            patch(
+                "airflow_breeze.commands.main_command.generate_provider_dependencies_if_needed", autospec=True
+            ),
+            patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+            patch("airflow_breeze.commands.developer_commands.build_ci_image_if_needed", autospec=True),
+            patch("airflow_breeze.commands.developer_commands.fix_ownership_using_docker", autospec=True),
+            patch(
+                "airflow_breeze.commands.developer_commands.enter_shell", autospec=True
+            ) as mock_enter_shell,
+        ):
+            mock_enter_shell.return_value.returncode = 0
+            runner.invoke(command, args, env=env, catch_exceptions=False)
+        return mock_enter_shell.call_args.kwargs["shell_params"]
+
+    @pytest.mark.parametrize(
+        ("command", "args", "env", "expected"),
+        [
+            pytest.param(shell, [], None, True, id="default"),
+            pytest.param(shell, ["--no-forward-ports"], None, False, id="flag"),
+            pytest.param(shell, [], {"FORWARD_PORTS": "false"}, False, id="env"),
+            pytest.param(main, ["--no-forward-ports"], None, False, id="breeze-without-subcommand"),
+        ],
+    )
+    def test_forward_ports_is_passed_to_shell_params(self, runner, command, args, env, expected):
+        assert self._invoke(runner, command, args, env=env).forward_ports is expected

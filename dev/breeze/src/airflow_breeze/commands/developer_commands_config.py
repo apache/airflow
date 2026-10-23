@@ -72,6 +72,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--forward-ports",
                 "--max-time",
             ],
         },
@@ -187,6 +188,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--forward-ports",
                 "--max-time",
                 "--verbose-commands",
                 "--keep-env-variables",

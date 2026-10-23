@@ -205,6 +205,14 @@ option_forward_ports = click.option(
     default=False,
     help="Forward ports to host (for accessing Airflow UI/API from host machine).",
 )
+option_forward_ports_by_default = click.option(
+    "--forward-ports/--no-forward-ports",
+    default=True,
+    show_default=True,
+    envvar="FORWARD_PORTS",
+    help="Forward the SSH, API server, Flower and database ports to the host. Use --no-forward-ports to run "
+    "alongside another Breeze container that already holds them.",
+)
 option_excluded_providers = click.option(
     "--excluded-providers",
     help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
