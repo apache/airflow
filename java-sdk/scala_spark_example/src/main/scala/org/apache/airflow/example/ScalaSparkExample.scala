@@ -131,9 +131,7 @@ class SparkLoad extends Task {
 }
 
 /**
- * The Python Dag file owns `scala_spark_example` and declares its three tasks
- * with `@task.stub`, so the bundle registers one handler per task ID rather
- * than declaring a Dag of its own.
+ * Task handlers for the `scala_spark_example` Dag declared in `dags/scala_spark_examples.py`.
  */
 object ScalaSparkExample {
   def build(): Bundle =
