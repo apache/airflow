@@ -54,10 +54,14 @@ _AIOHTTP_UNSUPPORTED_EXTRA_OPTIONS = {"stream", "cert", "trust_env"}
 
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
-    """Combine base url with endpoint."""
-    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-        return f"{base_url}/{endpoint}"
-    return (base_url or "") + (endpoint or "")
+    """Combine base url with endpoint, separated by exactly one slash."""
+    if not base_url or not endpoint:
+        return (base_url or "") + (endpoint or "")
+    if base_url.endswith("://"):
+        # A connection without a host gives a scheme-only base url, whose trailing
+        # slashes are the authority separator rather than a path boundary.
+        return base_url + endpoint
+    return f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
 
 def _order_srv_targets(answers: Iterable[SRV]) -> list[tuple[str, int]]:
