@@ -102,12 +102,16 @@ class JWTRefreshMiddleware:
             if message["type"] == "http.response.start":
                 response_started = True
                 headers = MutableHeaders(scope=message)
-                cookie_values = cleanup_cookies
-                # The token set by the route itself wins: appending ours after it would override it.
-                if token_cookie and not any(
-                    value.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") for value in headers.getlist("set-cookie")
-                ):
-                    cookie_values = [token_cookie, *cleanup_cookies]
+                route_cookie_names = {value.split("=", 1)[0] for value in headers.getlist("set-cookie")}
+                cookie_values = []
+                # Cookies set by the route itself win: appending ours after them would override them.
+                if token_cookie and COOKIE_NAME_JWT_TOKEN not in route_cookie_names:
+                    cookie_values.append(token_cookie)
+                for value in cleanup_cookies:
+                    name = value.split("=", 1)[0]
+                    # The root-path token cleanup targets "/", not the cookie path the route sets the token on.
+                    if name == COOKIE_NAME_JWT_TOKEN or name not in route_cookie_names:
+                        cookie_values.append(value)
                 for value in cookie_values:
                     headers.append("set-cookie", value)
             await send(message)

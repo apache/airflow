@@ -64,6 +64,13 @@ def _build_app(static_dir=None, root_path: str = "") -> tuple[FastAPI, dict]:
         )
         return response
 
+    @app.get("/auth/login_callback_with_extra_cookie")
+    def login_callback_with_extra_cookie():
+        response = PlainTextResponse("logged in")
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, "issued_token", path=refresh_token.get_cookie_path())
+        response.set_cookie("foo", "issued_foo", path=refresh_token.get_cookie_path())
+        return response
+
     @app.get("/api/v2/auth/logout")
     def logout():
         response = PlainTextResponse("logged out")
@@ -317,16 +324,14 @@ class TestJWTRefreshMiddleware:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("new_user", [(MagicMock(),), (None,)])
-    async def test_generate_new_user_token(self, mock_auth_manager, new_user):
+    @pytest.mark.parametrize(
+        ("new_user", "expected_token"), [(MagicMock(spec=BaseUser), "new_token"), (None, "")]
+    )
+    async def test_generate_new_user_token(self, mock_auth_manager, new_user, expected_token):
         mock_auth_manager.generate_jwt.return_value = "new_token"
         app, seen = _build_app()
         middleware = JWTRefreshMiddleware(app)
-        new_token = await middleware.generate_new_user_token(MagicMock(), new_user)
-        if new_user is None:
-            assert new_token == ""
-        else:
-            assert new_token == "new_token"
+        assert await middleware.generate_new_user_token(MagicMock(), new_user) == expected_token
 
     @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
     def test_refresh_user_with_extra_cookies(
@@ -375,3 +380,21 @@ class TestJWTRefreshMiddleware:
             response.headers["set-cookie"]
             == '_token=new_token; HttpOnly; Path=/; SameSite=lax, foo=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax'
         )
+
+    @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
+    def test_invalid_token_does_not_clear_extra_cookie_set_by_route(
+        self, mock_get_extra_cookies: MagicMock, mock_resolve_user, mock_auth_manager
+    ):
+        mock_get_extra_cookies.return_value = {"foo": "", "bar": ""}
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
+
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get(
+            "/auth/login_callback_with_extra_cookie"
+        )
+
+        assert response.headers.get_list("set-cookie") == [
+            "_token=issued_token; Path=/; SameSite=lax",
+            "foo=issued_foo; Path=/; SameSite=lax",
+            'bar=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+        ]
