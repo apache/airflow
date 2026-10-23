@@ -1972,10 +1972,11 @@ class SelectiveChecks:
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
-            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
-            # depend on that (intermittently failing) download.
+            # ktlint and spotless run the java-sdk Gradle wrapper, which downloads the Gradle
+            # distribution on a cold cache. Skip both hooks when no java-sdk files changed, so
+            # unrelated PRs do not depend on a download that fails intermittently.
             prek_hooks_to_skip.add("ktlint")
+            prek_hooks_to_skip.add("spotless")
             # Rewriting the verification metadata resolves the entire Java SDK dependency graph
             # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that resolution.
@@ -1985,6 +1986,11 @@ class SelectiveChecks:
             # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
             # harness changed. Those last do not force full_tests_needed, so they need their own group.
             prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped together
+            # with the conformance check, not with ktlint, because JAVA_SDK_CONFORMANCE_FILES
+            # includes airflow-core's schema.json. A PR that changes only schema.json can leave
+            # the Java SDK's copy of the schema out of date, and this hook detects the outdated copy.
+            prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
             # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema
