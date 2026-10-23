@@ -21,7 +21,7 @@ import json
 from collections.abc import AsyncIterator, Hashable
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import structlog
 from pydantic import (
@@ -463,14 +463,33 @@ class TriggerEvent(BaseModel):
     Must be natively JSON-serializable, or registered with the airflow serialization code.
     """
 
-    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
-    """Native partition key for asset updates emitted by this event, if any."""
-
-    def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
-        super().__init__(payload=payload, partition_key=partition_key, **kwargs)
+    def __init__(self, payload, **kwargs):
+        super().__init__(payload=payload, **kwargs)
 
     def __repr__(self) -> str:
         return f"TriggerEvent<{self.payload!r}>"
+
+
+class AssetTriggerEvent(TriggerEvent):
+    """
+    An asset update emitted by a watcher, optionally identifying a native partition.
+
+    The partition key applies to every asset associated with the trigger. The payload
+    remains available in each asset event's extras and to any deferred task resumed
+    by the same trigger.
+    """
+
+    type: Literal["AssetTriggerEvent"] = "AssetTriggerEvent"
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
+
+    def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
+        # The IPC encoder excludes unset fields, so the discriminator must be explicitly set.
+        super().__init__(
+            payload=payload,
+            type=kwargs.pop("type", "AssetTriggerEvent"),
+            partition_key=partition_key,
+            **kwargs,
+        )
 
 
 class BaseTaskEndEvent(TriggerEvent):
@@ -502,10 +521,7 @@ class BaseTaskEndEvent(TriggerEvent):
     def ser_model(self) -> dict[str, Any]:
         # We need to customize the serialized schema so it works for the custom constructor we have to keep
         # the interface to this class "nice"
-        data: dict[str, Any] = {"task_instance_state": self.task_instance_state, "xcoms": self.xcoms}
-        if self.partition_key is not None:
-            data["partition_key"] = self.partition_key
-        return data
+        return {"task_instance_state": self.task_instance_state, "xcoms": self.xcoms}
 
 
 class TaskSuccessEvent(BaseTaskEndEvent):
@@ -528,13 +544,18 @@ class TaskSkippedEvent(BaseTaskEndEvent):
 
 def trigger_event_discriminator(v):
     if isinstance(v, dict):
+        if v.get("type") == "AssetTriggerEvent":
+            return "_asset_"
         return v.get("task_instance_state", "_event_")
+    if isinstance(v, AssetTriggerEvent):
+        return "_asset_"
     if isinstance(v, TriggerEvent):
         return getattr(v, "task_instance_state", "_event_")
 
 
 DiscrimatedTriggerEvent = Annotated[
     Annotated[TriggerEvent, Tag("_event_")]
+    | Annotated[AssetTriggerEvent, Tag("_asset_")]
     | Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)]
     | Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)]
     | Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
