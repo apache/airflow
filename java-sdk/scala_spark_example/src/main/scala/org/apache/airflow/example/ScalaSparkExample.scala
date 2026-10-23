@@ -60,17 +60,11 @@ private object SparkEtl {
       .config("spark.driver.bindAddress", "127.0.0.1")
       .getOrCreate()
 
-  // "return_value" is the key Airflow gives a task's return value, and the key
-  // both calls default to in Java. Scala does not take Kotlin's default
-  // arguments, so it passes the key: 3-arg getXCom is (key, dagId, taskId).
-  // Wire integers arrive boxed.
-  private val ReturnValueKey = "return_value"
-
-  def readUpstreamLong(client: Client, context: Context, taskId: String): Long =
-    client.getXCom(ReturnValueKey, context.dagRun.dagId, taskId).asInstanceOf[Number].longValue()
+  def readUpstreamLong(client: Client, taskId: String): Long =
+    client.getXCom(taskId).asInstanceOf[Number].longValue()
 
   def pushLong(client: Client, value: Long): Unit =
-    client.setXCom(ReturnValueKey, java.lang.Long.valueOf(value))
+    client.setXCom(java.lang.Long.valueOf(value))
 }
 
 /** Builds the Spark DataFrame and reports how many records were extracted. */
@@ -99,7 +93,7 @@ class SparkTransform extends Task {
   override def execute(context: Context, client: Client): Unit = {
     // Read the upstream count only to demonstrate XCom passing between JVM
     // tasks; the aggregation below recomputes from the source dataset.
-    val extractedCount = SparkEtl.readUpstreamLong(client, context, SparkEtl.ExtractTaskId)
+    val extractedCount = SparkEtl.readUpstreamLong(client, SparkEtl.ExtractTaskId)
     log.info("Transform received {} records from extract", java.lang.Long.valueOf(extractedCount))
 
     val spark = SparkEtl.newSession("scala-spark-etl-transform")
@@ -120,7 +114,7 @@ class SparkLoad extends Task {
   private val log: Logger = LogManager.getLogger(classOf[SparkLoad])
 
   override def execute(context: Context, client: Client): Unit = {
-    val total = SparkEtl.readUpstreamLong(client, context, SparkEtl.TransformTaskId)
+    val total = SparkEtl.readUpstreamLong(client, SparkEtl.TransformTaskId)
     log.info("Loading aggregated revenue {}", java.lang.Long.valueOf(total))
 
     val spark = SparkEtl.newSession("scala-spark-etl-load")
