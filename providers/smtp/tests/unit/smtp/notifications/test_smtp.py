@@ -238,6 +238,74 @@ class TestSmtpNotifier:
                 **DEFAULT_EMAIL_PARAMS,
             )
 
+    @pytest.mark.parametrize(
+        ("argument_from_email", "connection_from_email", "config_from_email", "expected"),
+        [
+            pytest.param(None, TEST_SENDER, None, TEST_SENDER, id="connection-only"),
+            pytest.param(None, None, TEST_SENDER, TEST_SENDER, id="config-only"),
+            pytest.param(
+                None,
+                TEST_SENDER,
+                f"config_{SENDER_EMAIL_SUFFIX}",
+                TEST_SENDER,
+                id="connection-wins-over-config",
+            ),
+            pytest.param(
+                TEST_SENDER,
+                f"connection_{SENDER_EMAIL_SUFFIX}",
+                f"config_{SENDER_EMAIL_SUFFIX}",
+                TEST_SENDER,
+                id="argument-wins-over-both",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_from_email_precedence(
+        self,
+        mock_smtphook_hook,
+        create_dag_without_db,
+        argument_from_email,
+        connection_from_email,
+        config_from_email,
+        expected,
+    ):
+        """An explicit from_email wins, then the connection extra, then the [email] config."""
+        mock_smtphook_hook.return_value.__enter__.return_value.from_email = connection_from_email
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        with conf_vars({("email", "from_email"): config_from_email}):
+            notifier = SmtpNotifier(
+                to=TEST_RECEIVER,
+                from_email=argument_from_email,
+                subject=TEST_SUBJECT,
+                html_content=TEST_BODY,
+            )
+            notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+            from_email=expected,
+            to=TEST_RECEIVER,
+            subject=TEST_SUBJECT,
+            html_content=TEST_BODY,
+            smtp_conn_id=SMTP_CONN_ID,
+            **DEFAULT_EMAIL_PARAMS,
+        )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_without_any_from_email_raises(self, mock_smtphook_hook, create_dag_without_db):
+        """With no sender anywhere, the notifier still reports it rather than inventing one."""
+        mock_smtphook_hook.return_value.__enter__.return_value.from_email = None
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        with conf_vars({("email", "from_email"): None}):
+            notifier = SmtpNotifier(to=TEST_RECEIVER, subject=TEST_SUBJECT, html_content=TEST_BODY)
+            with pytest.raises(ValueError, match="You should provide `from_email`"):
+                notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
+
+        mock_smtphook_hook.return_value.__enter__.return_value.send_email_smtp.assert_not_called()
+
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_custom_smtp_conn_id(self, mock_smtphook_hook, create_dag_without_db):
         """Test that a custom smtp_conn_id is correctly passed to SmtpHook."""

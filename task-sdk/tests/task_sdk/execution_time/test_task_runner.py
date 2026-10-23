@@ -5000,7 +5000,8 @@ class TestEmailNotifications:
                 else:
                     mock_smtp_notifier.assert_called_once()
                     kwargs = mock_smtp_notifier.call_args.kwargs
-                    assert kwargs["from_email"] == self.FROM
+                    # SmtpNotifier resolves the sender itself: connection extra, then config.
+                    assert kwargs["from_email"] is None
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
@@ -5058,7 +5059,8 @@ class TestEmailNotifications:
                 else:
                     mock_smtp_notifier.assert_called_once()
                     kwargs = mock_smtp_notifier.call_args.kwargs
-                    assert kwargs["from_email"] == self.FROM
+                    # SmtpNotifier resolves the sender itself: connection extra, then config.
+                    assert kwargs["from_email"] is None
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
@@ -5110,7 +5112,8 @@ class TestEmailNotifications:
                     kwargs["html_content"]
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
-                assert kwargs["from_email"] == self.FROM
+                # SmtpNotifier resolves the sender itself: connection extra, then config.
+                assert kwargs["from_email"] is None
 
     def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
         """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""

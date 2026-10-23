@@ -52,6 +52,9 @@ class SmtpNotifier(BaseNotifier):
 
     You can define a default template for subject and html_content in the SMTP connection configuration.
 
+    When ``from_email`` is not given, the sender is taken from the ``from_email`` extra of the SMTP
+    connection, and failing that from the ``[email] from_email`` configuration.
+
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
     """
@@ -122,10 +125,15 @@ class SmtpNotifier(BaseNotifier):
     def _build_email_content(self, smtp: SmtpHook, context: Context):
         fields_to_re_render = []
         if self.from_email is None:
-            if smtp.from_email is not None:
-                self.from_email = smtp.from_email
-            else:
-                raise ValueError("You should provide `from_email` or define it in the connection")
+            # The connection is the more specific setting, so it wins over the [email] from_email
+            # config. Callers that resolve the config themselves and pass the result in keep that
+            # value; see the sender precedence in the class docstring.
+            self.from_email = smtp.from_email or conf.get("email", "from_email", fallback=None)
+            if self.from_email is None:
+                raise ValueError(
+                    "You should provide `from_email`, define it in the connection, "
+                    "or configure [email] from_email"
+                )
             fields_to_re_render.append("from_email")
         if self.subject is None:
             smtp_default_templated_subject_path: str
