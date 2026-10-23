@@ -27,7 +27,17 @@
                                 "parentJobName": "openlineage_trigger_dag_deferrable.trigger_dagrun",
                                 "rootParentRunId": "{{ is_uuid(result) }}",
                                 "rootParentJobNamespace": "{{ result is string }}",
-                                "rootParentJobName": "openlineage_trigger_dag_deferrable"
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
@@ -44,7 +54,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun"
+                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -52,7 +69,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -154,7 +178,17 @@
                                 "parentJobName": "openlineage_trigger_dag_deferrable.trigger_dagrun",
                                 "rootParentRunId": "{{ is_uuid(result) }}",
                                 "rootParentJobNamespace": "{{ result is string }}",
-                                "rootParentJobName": "openlineage_trigger_dag_deferrable"
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
@@ -172,7 +206,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun"
+                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -180,7 +221,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -247,7 +295,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -283,7 +338,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -325,7 +387,17 @@
                                 "parentJobName": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
                                 "rootParentRunId": "{{ is_uuid(result) }}",
                                 "rootParentJobNamespace": "{{ result is string }}",
-                                "rootParentJobName": "openlineage_trigger_dag_deferrable"
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
@@ -342,7 +414,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2"
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -350,7 +429,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -451,7 +537,17 @@
                                 "parentJobName": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
                                 "rootParentRunId": "{{ is_uuid(result) }}",
                                 "rootParentJobNamespace": "{{ result is string }}",
-                                "rootParentJobName": "openlineage_trigger_dag_deferrable"
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
@@ -469,7 +565,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2"
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -477,7 +580,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -539,7 +649,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -569,7 +686,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag_deferrable",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
