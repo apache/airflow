@@ -345,6 +345,12 @@ export type PushLogsBody = {
      * Log chunk data as incremental log text.
      */
     log_chunk_data: string;
+    /**
+     * Task Instance Id
+     *
+     * Attempt UUID of the job; tells apart task instances that share the other key fields.
+     */
+    task_instance_id?: string | null;
 };
 
 /**
@@ -385,6 +391,14 @@ export type TaskInstanceDto = {
      * Map Index
      */
     map_index?: number;
+    /**
+     * Region Id
+     */
+    region_id?: string;
+    /**
+     * Region Index
+     */
+    region_index?: number;
     /**
      * Hostname
      */
@@ -891,7 +905,14 @@ export type LogfilePathData = {
          */
         map_index: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Task Instance Id
+         *
+         * Attempt UUID of the job; tells apart task instances that share the other key fields.
+         */
+        task_instance_id?: string | null;
+    };
     url: '/edge_worker/v1/logs/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}';
 };
 
@@ -904,6 +925,10 @@ export type LogfilePathErrors = {
      * Forbidden
      */
     403: HttpExceptionResponse;
+    /**
+     * Not Found
+     */
+    404: HttpExceptionResponse;
     /**
      * Validation Error
      */
@@ -983,6 +1008,10 @@ export type PushLogsErrors = {
      * Forbidden
      */
     403: HttpExceptionResponse;
+    /**
+     * Not Found
+     */
+    404: HttpExceptionResponse;
     /**
      * Validation Error
      */

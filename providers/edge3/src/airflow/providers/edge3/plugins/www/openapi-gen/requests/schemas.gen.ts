@@ -494,6 +494,19 @@ export const PushLogsBodySchema = {
             type: 'string',
             title: 'Log Chunk Data',
             description: 'Log chunk data as incremental log text.'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id',
+            description: 'Attempt UUID of the job; tells apart task instances that share the other key fields.'
         }
     },
     type: 'object',
@@ -537,6 +550,15 @@ export const TaskInstanceDTOSchema = {
             type: 'integer',
             title: 'Map Index',
             default: -1
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
         },
         hostname: {
             anyOf: [
