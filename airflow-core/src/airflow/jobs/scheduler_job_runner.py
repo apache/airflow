@@ -595,6 +595,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _set_task_if_started_from_trigger(
+        self,
+        task_instance: TI,
+        *,
+        serialized_dags: dict[tuple[str, str], SerializedDAG | None],
+        session: Session,
+    ) -> bool:
+        """
+        Set the task of ``task_instance`` and return True if the triggerer starts it, without the executor.
+
+        :param serialized_dags: the Dags already read, by Dag run: read once per Dag run, not per task.
+
+        :meta private:
+        """
+        # A task resumed by its trigger has next_method set: it must run its next method on the executor
+        if task_instance.next_method is not None:
+            return False
+        dag_run_key = (task_instance.dag_id, task_instance.run_id)
+        if dag_run_key not in serialized_dags:
+            serialized_dags[dag_run_key] = self.scheduler_dag_bag.get_dag_for_run(
+                dag_run=task_instance.dag_run, session=session
+            )
+        serialized_dag = serialized_dags[dag_run_key]
+        if not serialized_dag or not serialized_dag.has_task(task_instance.task_id):
+            return False
+        task = serialized_dag.get_task(task_instance.task_id)
+        if not (task.start_from_trigger is True and task.start_trigger_args):
+            return False
+        task_instance.task = task
+        return True
+
     def _task_concurrency_allows_execution(
         self,
         *,
@@ -740,6 +771,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Select SCHEDULED TIs that can run given pool and concurrency constraints, and mark them QUEUED.
 
+        The selected TIs whose task has ``start_from_trigger`` are deferred to the triggerer instead.
+
         ``pools`` and ``starved_pools`` must come from a prior ``_acquire_pool_capacity`` call (or an
         equivalent pre-built dict in tests).  The pool stats are updated in-place as slots are
         virtually allocated to each selected TI.
@@ -753,6 +786,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.models.pool import Pool
 
         executable_tis: list[TI] = []
+        # Tasks with start_from_trigger take their pool and concurrency slots like the others, but are deferred
+        # to the triggerer instead of being queued on an executor.
+        tis_to_defer: list[TI] = []
+        serialized_dags: dict[tuple[str, str], SerializedDAG | None] = {}
 
         pool_to_team_name: dict[str, str | None] = {}
         if self._multi_team:
@@ -793,7 +830,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
                 max_tis,
-                excluded_ti_ids=[ti.id for ti in executable_tis],
+                excluded_ti_ids=[ti.id for ti in itertools.chain(executable_tis, tis_to_defer)],
             )
 
             timer = stats.timer("scheduler.critical_section_query_duration")
@@ -949,34 +986,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     continue
 
-                if executor_obj := self._try_to_load_executor(
-                    task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
+                if self._set_task_if_started_from_trigger(
+                    task_instance, serialized_dags=serialized_dags, session=session
                 ):
-                    if TYPE_CHECKING:
-                        # All executors should have a name if they are initted from the executor_loader.
-                        # But we need to check for None to make mypy happy.
-                        assert executor_obj.name
+                    tis_to_defer.append(task_instance)
+                else:
+                    if executor_obj := self._try_to_load_executor(
+                        task_instance,
+                        session,
+                        team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET),
+                    ):
+                        if TYPE_CHECKING:
+                            # All executors should have a name if they are initted from the executor_loader.
+                            # But we need to check for None to make mypy happy.
+                            assert executor_obj.name
 
-                    if executor_slots_available[executor_obj.name] <= 0:
-                        self.log.debug(
-                            "Not scheduling %s since its executor %s does not currently have any more "
-                            "available slots",
-                            task_instance.task_id,
-                            executor_obj.name,
-                        )
+                        if executor_slots_available[executor_obj.name] <= 0:
+                            self.log.debug(
+                                "Not scheduling %s since its executor %s does not currently have any more "
+                                "available slots",
+                                task_instance.task_id,
+                                executor_obj.name,
+                            )
+                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                            continue
+                        executor_slots_available[executor_obj.name] -= 1
+                    else:
+                        # This is a defensive guard for if we happen to have a task who's executor cannot be
+                        # found. The check in the dag parser should make this not realistically possible but
+                        # the loader can fail if some direct DB modification has happened or another as yet
+                        # unknown edge case. _try_to_load_executor will log an error message explaining the
+                        # executor cannot be found.
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
-                    executor_slots_available[executor_obj.name] -= 1
-                else:
-                    # This is a defensive guard for if we happen to have a task who's executor cannot be
-                    # found. The check in the dag parser should make this not realistically possible but the
-                    # loader can fail if some direct DB modification has happened or another as yet unknown
-                    # edge case. _try_to_load_executor will log an error message explaining the executor
-                    # cannot be found.
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                    continue
 
-                executable_tis.append(task_instance)
+                    executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
                 concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
                 concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
@@ -986,7 +1030,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 pool_stats["open"] = open_slots
 
-                if len(executable_tis) >= max_tis:
+                if len(executable_tis) + len(tis_to_defer) >= max_tis:
                     break
 
             # Check this to avoid accidental infinite loops
@@ -997,10 +1041,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
 
-            if len(executable_tis) >= max_tis or not found_new_filters:
+            if len(executable_tis) + len(tis_to_defer) >= max_tis or not found_new_filters:
                 break
 
-            if executable_tis:
+            if executable_tis or tis_to_defer:
                 if num_refill_queries >= MAX_TI_REFILL_QUERIES_PER_LOOP:
                     self.log.debug(
                         "Selected %s of %s task instances; reached the limit of %s refill queries.",
@@ -1033,6 +1077,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
+
+        for task_instance in tis_to_defer:
+            task_instance.defer_task(session=session)
 
         return self._mark_task_instances_queued(executable_tis, session=session)
 
