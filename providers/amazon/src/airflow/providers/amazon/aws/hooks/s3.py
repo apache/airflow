@@ -1882,7 +1882,7 @@ class S3Hook(AwsBaseHook):
                 raise S3HookPathTraversalError(
                     f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
                 ) from None
-            if resolved_relative_path == Path("."):
+            if resolved_relative_path == Path(".") or obj.key.endswith(("/.", "/..")):
                 continue
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)

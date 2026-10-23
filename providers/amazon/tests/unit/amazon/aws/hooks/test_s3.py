@@ -2174,6 +2174,31 @@ class TestAwsS3Hook:
         assert not stale_file.exists()
         assert s3_client.get_object(Bucket=s3_bucket, Key=key)["Body"].read() == b"directory key"
 
+    @pytest.mark.parametrize(
+        ("key", "when_added"),
+        [
+            pytest.param("dags/nested/.", "before", id="fresh_sync_dot"),
+            pytest.param("dags/nested/deep/..", "after", id="refresh_parent"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_nested_directory(
+        self, s3_bucket, s3_client, tmp_path, key, when_added
+    ):
+        if when_added == "before":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/nested/dag.py", Body=b"dag content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+
+        hook = S3Hook()
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+
+        if when_added == "after":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+
     def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
         s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
 
