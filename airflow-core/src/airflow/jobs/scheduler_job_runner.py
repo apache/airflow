@@ -71,7 +71,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import DagNotFound, TaskNotFound
+from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorException
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
@@ -4526,40 +4526,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param team_name: Optional pre-resolved team name. If NOTSET and multi-team is enabled,
                          will query the database to resolve team name. None indicates global team.
         """
-        executor = None
         if self._multi_team:
             # Use provided team_name if available, otherwise query the database
             if team_name is NOTSET:
                 team_name = self._get_workload_team_name(workload, session)
         else:
             team_name = None
-        # If there is no executor set on the workload fetch the default (either globally or for the team)
-        if workload.get_executor_name() is None:
-            if not team_name:
-                # No team is specified, use the global default executor
-                executor = self.executor
-            else:
-                # We do have a team, use the default executor for that team
-                for _executor in self.executors:
-                    # First executor that resolves should be the default for that team
-                    if _executor.team_name == team_name:
-                        executor = _executor
-                        break
-                else:
-                    # No executor found for that team, fall back to global default
-                    executor = self.executor
+
+        executor: BaseExecutor | None
+        executor_name = workload.get_executor_name()
+        if executor_name is None and not team_name:
+            # No team and no executor named on the workload, so it's always the global default.
+            executor = self.executor
         else:
-            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
-            for _executor in self.executors:
-                if _executor.name and workload.get_executor_name() in (
-                    _executor.name.alias,
-                    _executor.name.module_path,
-                    _executor.name.module_path.split(".")[-1],
-                ):
-                    # The executor must either match the team or be global (i.e. team_name is None)
-                    if team_name and _executor.team_name == team_name or _executor.team_name is None:
-                        executor = _executor
-                        break
+            # The resolver below only sees names, so keep a mapping from each name to its executor.
+            executors_by_name: dict[ExecutorName, BaseExecutor] = {
+                _executor.name: _executor for _executor in self.executors if _executor.name
+            }
+            try:
+                resolved_name = ExecutorLoader.resolve_executor_name(
+                    executor_name, team_name, executor_names=executors_by_name
+                )
+            except UnknownExecutorException:
+                # The name matches nothing this team may use, e.g. another team's executor. Warned below.
+                executor = None
+            else:
+                executor = executors_by_name[resolved_name]
 
         if executor is not None:
             self.log.debug(
