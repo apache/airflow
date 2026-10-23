@@ -208,11 +208,11 @@ export interface TaskRef<TReturn = unknown> extends Node {
  * A scope that declares tasks under a shared id prefix, and carries edges as a
  * whole — Python's `TaskGroup`, spelled to TypeScript convention.
  *
- * Offers the same `task` and `taskGroup` methods as the Dag, so nesting is the
- * same call at every depth. Each id it declares is prefixed with the group id
- * unless {@link TaskGroupOptions.prefixGroupId} turns that off, and the group
- * itself stands at either end of an edge, so a whole group can be ordered
- * against a task or against another group.
+ * Offers the same `task`, `taskGroup`, `if` and `switch` methods as the Dag,
+ * so nesting is the same call at every depth. Each id it declares is prefixed
+ * with the group id unless {@link TaskGroupOptions.prefixGroupId} turns that
+ * off, and the group itself stands at either end of an edge, so a whole group
+ * can be ordered against a task or against another group.
  */
 export interface TaskGroupRef extends Node {
   /** Identifier of the Dag this group belongs to. */
@@ -242,6 +242,16 @@ export interface TaskGroupRef extends Node {
   ): TaskFactory<TArgs, TResult>;
   /** Nest a group inside this one. */
   taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef;
+  /** Declare a condition in this group; its id is prefixed as a task's is. */
+  if<TArgs extends object | void = void>(
+    handler: (args: TArgs) => boolean | Promise<boolean>,
+    ...args: DeciderArgs<NoInfer<TArgs>>
+  ): Condition;
+  /** Declare a switch in this group; its id is prefixed as a task's is. */
+  switch<TArgs extends object | void = void>(
+    handler: (args: TArgs) => TaskRef | Promise<TaskRef>,
+    ...args: DeciderArgs<NoInfer<TArgs>>
+  ): Branch;
   before(...downstream: readonly Node[]): TaskGroupRef;
   after(...upstream: readonly Node[]): TaskGroupRef;
 }
@@ -793,20 +803,30 @@ export class Dag {
     handler: (args: TArgs) => boolean | Promise<boolean>,
     ...args: DeciderArgs<NoInfer<TArgs>>
   ): Condition {
-    return this.#placeCondition(this.#placeDecider(handler, args) as TaskRef<boolean>);
+    return this.#placeCondition("dag.if", undefined, handler, args);
   }
 
-  #placeDecider(handler: (args: never) => unknown, args: readonly unknown[]): TaskRef {
+  #placeDecider(
+    groupId: string | undefined,
+    handler: (args: never) => unknown,
+    args: readonly unknown[],
+  ): TaskRef {
     const [inputs, spec] = args as [unknown, TaskOptions | undefined];
-    const factory = this.#addTask(undefined, handler, spec) as (...inputs: unknown[]) => TaskRef;
+    const factory = this.#addTask(groupId, handler, spec) as (...inputs: unknown[]) => TaskRef;
     return inputs === undefined ? factory() : factory(inputs);
   }
 
-  #placeCondition(condition: TaskRef<boolean>): Condition {
+  #placeCondition(
+    method: string,
+    groupId: string | undefined,
+    handler: (args: never) => boolean | Promise<boolean>,
+    args: readonly unknown[],
+  ): Condition {
+    const condition = this.#placeDecider(groupId, handler, args) as TaskRef<boolean>;
     const taskId = condition.taskId;
     const branches: ConditionRecord = {};
     this.#conditions.set(taskId, branches);
-    this.#wrapDecider("dag.if", taskId, async (held: unknown) => {
+    this.#wrapDecider(method, taskId, async (held: unknown) => {
       if (typeof held !== "boolean") {
         throw new Error(
           `Condition "${taskId}" of Dag "${this.dagId}" returned ${describeValue(held)} ` +
@@ -822,7 +842,7 @@ export class Dag {
       // `await` calls `then(resolve, reject)`, so a function here means the condition was awaited.
       if (typeof target === "function") {
         throw new Error(
-          `dag.if(...) of Dag "${this.dagId}" was awaited. It builds a branch rather than ` +
+          `${method}(...) of Dag "${this.dagId}" was awaited. It builds a branch rather than ` +
             "doing work, so there is nothing to wait for; drop the await",
         );
       }
@@ -870,7 +890,7 @@ export class Dag {
   }
 
   #wrapDecider(
-    verb: "dag.if" | "dag.switch",
+    method: string,
     taskId: string,
     decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
   ): void {
@@ -879,7 +899,7 @@ export class Dag {
     if (record.fn === undefined) {
       const { label, operatorName } = record.operator;
       throw new Error(
-        `A ${label ?? operatorName} task of Dag "${this.dagId}" was given to ${verb}, ` +
+        `A ${label ?? operatorName} task of Dag "${this.dagId}" was given to ${method}, ` +
           "which needs a handler to decide the branch with",
       );
     }
@@ -903,7 +923,7 @@ export class Dag {
     handler: (args: TArgs) => TaskRef | Promise<TaskRef>,
     ...args: DeciderArgs<NoInfer<TArgs>>
   ): Branch {
-    return this.#placeBranch(this.#placeDecider(handler, args) as TaskRef<TaskRef>);
+    return this.#placeBranch("dag.switch", undefined, handler, args);
   }
 
   #forwardEdges<T>(ref: TaskRef, self: () => T) {
@@ -919,11 +939,17 @@ export class Dag {
     };
   }
 
-  #placeBranch(decider: TaskRef<TaskRef>): Branch {
+  #placeBranch(
+    method: string,
+    groupId: string | undefined,
+    handler: (args: never) => TaskRef | Promise<TaskRef>,
+    args: readonly unknown[],
+  ): Branch {
+    const decider = this.#placeDecider(groupId, handler, args) as TaskRef<TaskRef>;
     const taskId = decider.taskId;
     const candidates: TaskRef[] = [];
     this.#branches.set(taskId, candidates);
-    this.#wrapDecider("dag.switch", taskId, async (chosen: unknown) => {
+    this.#wrapDecider(method, taskId, async (chosen: unknown) => {
       const known = candidates.map((ref) => ref.taskId);
       const picked = isTaskRef(chosen) && chosen.dagId === this.dagId ? chosen.taskId : undefined;
       if (picked === undefined || !known.includes(picked)) {
@@ -1242,6 +1268,10 @@ export class Dag {
       ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
       taskGroup: (childId: string, options?: TaskGroupOptions) =>
         this.#addGroup(groupId, childId, options),
+      if: (handler: (args: never) => boolean | Promise<boolean>, ...args: readonly unknown[]) =>
+        this.#placeCondition(`taskGroup("${groupId}").if`, groupId, handler, args),
+      switch: (handler: (args: never) => TaskRef | Promise<TaskRef>, ...args: readonly unknown[]) =>
+        this.#placeBranch(`taskGroup("${groupId}").switch`, groupId, handler, args),
       before: (...downstream) => {
         for (const other of downstream) this.#addOrderEdge(group, other, "before");
         return group;
