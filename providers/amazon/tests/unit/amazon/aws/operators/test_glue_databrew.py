@@ -26,6 +26,7 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.operators.glue_databrew import GlueDataBrewStartJobOperator
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 JOB_NAME = "test_job"
@@ -82,6 +83,21 @@ class TestGlueDataBrewOperator:
         )
         mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
         operator.execute(None)
+        mock_hook_get_waiter.assert_not_called()
+
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(GlueDataBrewHook, "conn")
+    @mock.patch.object(GlueDataBrewHook, "get_waiter")
+    def test_start_job_deferrable(self, mock_hook_get_waiter, mock_conn, wait_for_completion):
+        operator = GlueDataBrewStartJobOperator(
+            task_id="task_test", job_name=JOB_NAME, wait_for_completion=wait_for_completion, deferrable=True
+        )
+        operator.defer = mock.MagicMock()
+
+        with expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion):
+            operator.execute(None)
+
+        operator.defer.assert_called_once()
         mock_hook_get_waiter.assert_not_called()
 
     def test_template_fields(self):
