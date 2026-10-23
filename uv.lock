@@ -2739,7 +2739,7 @@ requires-dist = [
     { name = "semver", specifier = ">=3.0.2" },
     { name = "semver", marker = "extra == 'devscripts'", specifier = ">=3.0.2" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
-    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl" },
+    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl" },
     { name = "sphinx-argparse", marker = "extra == 'docs'", specifier = ">=0.4.0" },
     { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = ">=3.8.0" },
     { name = "sphinx-autobuild", marker = "extra == 'docs'", specifier = ">=2024.10.2" },
@@ -5089,6 +5089,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "requests" },
+    { name = "tenacity" },
 ]
 
 [package.optional-dependencies]
@@ -5100,6 +5101,9 @@ avro = [
 ]
 azure-identity = [
     { name = "azure-identity" },
+]
+common-ai = [
+    { name = "apache-airflow-providers-common-ai" },
 ]
 fab = [
     { name = "apache-airflow-providers-fab" },
@@ -5125,6 +5129,7 @@ dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-amazon" },
+    { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-databricks", extra = ["sqlalchemy"] },
@@ -5144,6 +5149,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.0,<4" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
@@ -5165,14 +5171,16 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
+    { name = "tenacity", specifier = ">=8.3.0" },
 ]
-provides-extras = ["avro", "amazon", "azure-identity", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
+provides-extras = ["common-ai", "avro", "amazon", "azure-identity", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-amazon", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-common-ai", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
@@ -23784,14 +23792,14 @@ wheels = [
 
 [[package]]
 name = "sphinx-airflow-theme"
-version = "0.3.14"
-source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl" }
+version = "0.3.16"
+source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl" }
 dependencies = [
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl", hash = "sha256:9c654e2bdcbee06aee21c7c0a1f92784d2b17c190fa0fca1302b1d974e9ed381" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl", hash = "sha256:0c63a9fbff4197f9541dcfd91a81d7aa9b6edf037409f87b941c5526ccc609a9" },
 ]
 
 [package.metadata]

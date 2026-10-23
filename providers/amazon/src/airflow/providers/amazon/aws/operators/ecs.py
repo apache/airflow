@@ -39,7 +39,12 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSkipException,
+    conf,
+)
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -404,6 +409,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure. Can be an int or a container of ints.
+    :param fail_on_exit_code: Non-zero exit codes that fail the task without retrying.
+        Can be an int or a container of ints (default: None). A matching code reported
+        by a stopped container takes precedence over ``skip_on_exit_code`` and other
+        container failures. Missing exit codes do not match this option.
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     :param stop_task_on_failure: If True, attempt to stop the ECS task if the Airflow task fails
@@ -472,6 +481,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         skip_on_exit_code: int | Container[int] | None = None,
+        fail_on_exit_code: int | Container[int] | None = None,
         stop_task_on_failure: bool = True,
         **kwargs,
     ):
@@ -516,6 +526,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
             else []
         )
         self.stop_task_on_failure = stop_task_on_failure
+        self.fail_on_exit_code = (
+            fail_on_exit_code
+            if isinstance(fail_on_exit_code, Container)
+            else [fail_on_exit_code]
+            if fail_on_exit_code is not None
+            else []
+        )
 
     @staticmethod
     def _get_ecs_task_id(task_arn: str | None) -> str | None:
@@ -787,11 +804,26 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     f" {task.get('stoppedReason', '')}"
                 )
             containers = task["containers"]
+            if self.fail_on_exit_code:
+                failed_container = next(
+                    (
+                        container
+                        for container in containers
+                        if container.get("lastStatus") == "STOPPED"
+                        and container.get("exitCode") not in (None, 0)
+                        and container["exitCode"] in self.fail_on_exit_code
+                    ),
+                    None,
+                )
+                if failed_container is not None:
+                    containers = [failed_container]
             for container in containers:
                 if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
                     exit_code = container.get("exitCode", 1)
-                    if exit_code in self.skip_on_exit_code:
-                        exception_cls: type[AirflowException] = AirflowSkipException
+                    if container.get("exitCode") is not None and exit_code in self.fail_on_exit_code:
+                        exception_cls: type[AirflowException] = AirflowFailException
+                    elif exit_code in self.skip_on_exit_code:
+                        exception_cls = AirflowSkipException
                     else:
                         exception_cls = AirflowException
 

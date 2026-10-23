@@ -84,7 +84,7 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
 
 
 Debugging Airflow Dags on the command line
-==========================================
+------------------------------------------
 
 With the same two line addition as mentioned in the above section, you can now easily debug a Dag using pdb as well.
 Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experience on the command line.

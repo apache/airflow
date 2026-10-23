@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -1443,6 +1444,8 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     :param verbose: Whether to print steps details when waiting for completion.
         Defaults to true, consider turning off for pipelines that have thousands of steps.
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
 
     :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
     """
@@ -1485,7 +1488,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         self.log.info(
             "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=SageMakerPipelineTrigger(
                     waiter_type=SageMakerPipelineTrigger.Type.COMPLETE,
@@ -1542,6 +1545,8 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         Defaults to true, consider turning off for pipelines that have thousands of steps.
     :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
 
     :return str: Returns the status of the pipeline execution after the operation has been done.
     """
@@ -1587,7 +1592,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
             return status
 
         # else, eventually wait for completion
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=SageMakerPipelineTrigger(
                     waiter_type=SageMakerPipelineTrigger.Type.STOPPED,
