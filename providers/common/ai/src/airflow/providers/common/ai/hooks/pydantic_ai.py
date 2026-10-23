@@ -208,11 +208,10 @@ class PydanticAIHook(BaseHook):
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
                 "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
             )
+        # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
+        # this same connection its first ``get_conn`` would make.
         hook = conn.get_hook(hook_params=hook_params)
-        if isinstance(hook, PydanticAIHook):
-            # Saves the second fetch of this same connection the hook's first ``get_conn``
-            # would make.
-            hook._seed_connection(conn)
+        hook._seed_connection(conn)
         return hook
 
     @classmethod
@@ -279,19 +278,23 @@ class PydanticAIHook(BaseHook):
     def _get_conn_and_extra(self) -> tuple[Connection, dict[str, Any]]:
         """Return this hook's connection and its deserialized extra, fetching at most once."""
         if self._conn is None:
-            self._conn = self.get_connection(self.llm_conn_id)
-            self._conn_extra_dejson = self._conn.extra_dejson
+            # Published together, once both are in hand: a reader never sees the connection
+            # next to the empty default extra, whether ``extra_dejson`` is still masking in
+            # another thread (two gathered async calls on one hook) or raised.
+            conn = self.get_connection(self.llm_conn_id)
+            extra = conn.extra_dejson
+            self._conn, self._conn_extra_dejson = conn, extra
         return self._conn, self._conn_extra_dejson
 
     def _seed_connection(self, conn: Connection) -> None:
         """
-        Prime this hook's connection cache with an already-fetched ``Connection``.
+        Prime this hook's connection cache with a ``Connection`` the caller already fetched.
 
-        Used by :meth:`_resolve_fallback_models`, which must call ``conn.get_hook()`` to
-        dispatch a fallback's hook class from its ``conn_type`` and so already holds the
-        ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
-        would fetch that same connection a second time the first time it runs, doubling the
-        Execution API round trips a fallback chain costs.
+        A caller that dispatches the hook class from ``conn.get_hook()`` holds the
+        ``Connection`` it built the hook from: :meth:`get_hook` for the hook it returns,
+        :meth:`_resolve_fallback_models` for each fallback. Without this,
+        :meth:`_get_conn_and_extra` would fetch that same connection a second time the first
+        time it runs.
         """
         self._conn = conn
         self._conn_extra_dejson = conn.extra_dejson

@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import sys
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
@@ -2418,3 +2419,46 @@ class TestPydanticAIHookAsync:
             await PydanticAIHook.aget_hook("llm")
 
         Connection.get_hook.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    async def test_concurrent_acreate_agent_calls_each_see_a_complete_connection(
+        self, mock_agent_cls, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add(
+            "primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]}
+        )
+        loop_guarded_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        def slow_extra(conn):
+            time.sleep(0.05)  # long enough for the other call to reach the cache meanwhile
+            return json.loads(conn.extra) if conn.extra else {}
+
+        with patch.object(Connection, "extra_dejson", new=property(_off_the_event_loop(slow_extra))):
+            await asyncio.gather(hook.acreate_agent(instructions="a"), hook.acreate_agent(instructions="b"))
+
+        first_model, second_model = (c.args[0] for c in mock_agent_cls.call_args_list)
+        assert isinstance(first_model, FallbackModel)
+        assert isinstance(second_model, FallbackModel)
+        assert (
+            first_model.models
+            == second_model.models
+            == [
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["anthropic:claude-opus-4-6"],
+            ]
+        )
+
+
+class TestPydanticAIHookConnectionCache:
+    def test_get_conn_fetches_again_after_the_extra_failed(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+        failing_extra = property(MagicMock(side_effect=RuntimeError("masking failed")))
+
+        with patch.object(Connection, "extra_dejson", new=failing_extra), pytest.raises(RuntimeError):
+            hook.get_conn()
+
+        assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
+        assert PydanticAIHook.get_connection.call_args_list == [call("primary"), call("primary")]
