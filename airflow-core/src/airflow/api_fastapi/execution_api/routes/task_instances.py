@@ -120,6 +120,7 @@ from airflow.models.xcom import build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.retries import is_deadlock, replay_on_deadlock
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
@@ -456,6 +457,65 @@ def ti_update_state(
     dag_bag: DagBagDep,
 ):
     """
+    Update the state of a TaskInstance, replaying the whole unit if it loses a deadlock.
+
+    Registering asset changes here acquires row locks on the consumer's pending
+    AssetPartitionDagRun rows, and this route registers *several* assets in one transaction,
+    so it can both form and lose a deadlock cycle. A deadlock aborts the entire transaction --
+    on MySQL InnoDB rolls the victim back completely, destroying any SAVEPOINT -- so recovery
+    has to re-run the whole unit, not the failing statement.
+
+    The replay boundary is the entire body on purpose. Everything it reads before registration
+    (the working set, the loop gate, the computed update) is discarded by the rollback too, so
+    a narrower boundary would rebuild the write from state that no longer exists. Each attempt
+    therefore starts from a rolled-back, expunged session and re-reads everything.
+
+    The boundary **ends at the commit**. ``_ti_update_state_once`` returns its deferred
+    callbacks rather than running them, and they are invoked here, outside the loop. Running
+    them inside meant a callback that lost a deadlock was treated as a failure of a
+    transaction that had already committed: the replay re-entered the route, met its own
+    duplicate-state check, returned 200, and silently skipped the remaining notifications.
+    A rollback cannot undo a commit, so post-commit effects are not part of the retryable unit.
+
+    Scope. Branches that return before that commit -- the ``SERVER_TERMINATED`` handling and
+    the duplicate-state short circuit -- leave their (read-mostly) work to ``SessionDep`` as
+    they always have. They are inside the replay loop and so would be re-run, but no claim is
+    made here about deadlock behaviour in those branches; they are not covered by tests.
+    """
+    result = None
+    asset_callbacks: Sequence[Callable[[], None]] = ()
+    for attempt in replay_on_deadlock(session, description="ti_update_state"):
+        with attempt:
+            result, asset_callbacks = _ti_update_state_once(
+                task_instance_id=task_instance_id,
+                ti_patch_payload=ti_patch_payload,
+                session=session,
+                dag_bag=dag_bag,
+            )
+
+    # Outside the loop on purpose. These run after the transaction has committed, so a
+    # failure in one cannot be undone by a rollback and must not be treated as a failure of
+    # that transaction. Replaying here re-entered the route, met its own duplicate-state
+    # check, and returned 200 while silently skipping the remaining notifications.
+    for callback in asset_callbacks:
+        callback()
+    return result
+
+
+def _ti_update_state_once(
+    *,
+    task_instance_id: UUID,
+    ti_patch_payload: TIStateUpdate,
+    session: Session,
+    dag_bag: DBDagBag,
+):
+    """
+    One attempt at the state update. See :func:`ti_update_state` for the replay contract.
+
+    Returns ``(response, deferred_callbacks)``. The callbacks are deliberately *not* invoked
+    here: they belong outside the retry boundary, because by the time they run the transaction
+    has already committed and cannot be rolled back.
+
     Update the state of a TaskInstance.
 
     Not all state transitions are valid, and transitioning to some states requires extra information to be
@@ -488,7 +548,8 @@ def ti_update_state(
         if ti is None:
             raise HTTPException(status_code=404, detail={"reason": "not_found"})
         if ti.working_set is None:
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
+            return Response(status_code=status.HTTP_204_NO_CONTENT), ()
+
         if (ti.hostname, ti.pid) != (ti_patch_payload.hostname, ti_patch_payload.pid) or (
             ti_patch_payload.hostname is None or ti_patch_payload.pid is None
         ):
@@ -504,7 +565,7 @@ def ti_update_state(
             ti.complete_restart(session=session)
         elif ti.state not in set(TerminalTIState):
             raise HTTPException(status_code=409, detail={"reason": "invalid_state"})
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        return Response(status_code=status.HTTP_204_NO_CONTENT), ()
 
     loop_group = None
     loop_gate = None
@@ -619,7 +680,7 @@ def ti_update_state(
             requested_state=ti_patch_payload.state.value,
             previous_state=previous_state,
         )
-        return Response(status_code=status.HTTP_200_OK)
+        return Response(status_code=status.HTTP_200_OK), ()
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning(
@@ -693,7 +754,12 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
+    except Exception as exc:
+        if is_deadlock(exc):
+            # Must escape: the enclosing replay cannot recover a deadlock that has already
+            # been converted into a FAILED task, and the transaction is dead anyway, so the
+            # recovery path below could not persist that FAILED state either.
+            raise
         if loop_gate is not None:
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
@@ -777,7 +843,15 @@ def ti_update_state(
                     task_id=task_id,
                     region_index=region_index,
                 )
-            except Exception:
+            except Exception as exc:
+                if is_deadlock(exc):
+                    # This runs inside the route's transaction, before its commit, so a
+                    # deadlock here aborts the whole unit -- the task state and asset events
+                    # above are gone with it. Swallowing it leaves an aborted transaction that
+                    # fails at some later, unrelated statement, and the replay never sees the
+                    # deadlock it could have recovered from. Best-effort cleanup is still
+                    # best-effort for every *other* failure.
+                    raise
                 log.warning(
                     "Failed to clear task state on success",
                     dag_id=dag_id,
@@ -785,11 +859,11 @@ def ti_update_state(
                     task_id=task_id,
                 )
 
-    # Release the task_instance row lock before running listener callbacks.
+    # Release the task_instance row lock before the caller runs listener callbacks.
     session.commit()
 
-    for callback in asset_callbacks:
-        callback()
+    # The caller invokes these *after* the replay loop; see ti_update_state.
+    return None, asset_callbacks
 
 
 def _build_rejected_gate_payload(
@@ -939,7 +1013,12 @@ def _create_ti_state_update_query_and_update_state(
                 )
         try:
             _emit_task_span(ti, state=updated_state, resolver=TaskCoordinateResolver(dag_bag, session))
-        except Exception:
+        except Exception as exc:
+            if is_deadlock(exc):
+                # The resolver reads through this transaction's session, so a deadlock here
+                # aborts the unit. Swallowing it hides the one error the owner could recover
+                # from and leaves a transaction that fails later, somewhere unrelated.
+                raise
             log.warning("Failed to emit task span", exc_info=True)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed

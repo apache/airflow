@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 from collections.abc import Generator
 from datetime import timedelta
 from unittest import mock
@@ -23,8 +24,9 @@ from uuid import uuid4
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exc as sa_exc, func, select, update
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -33,6 +35,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagDetails,
 )
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
+from airflow.assets.manager import AssetManager
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -42,6 +45,7 @@ from airflow.models.asset import (
     AssetModel,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
@@ -51,10 +55,13 @@ from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
+from airflow.utils.retries import MAX_ATTEMPTS, replay_on_deadlock
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
@@ -62,15 +69,18 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
+    clear_db_pakl,
     clear_db_runs,
     clear_db_teams,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
+from unit.listeners import asset_listener
 
 DEFAULT_DATE = timezone.datetime(2020, 6, 11, 18, 0, 0)
 
@@ -2165,6 +2175,338 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with dag_id: `dag` was not found"
+
+
+class TestPostAssetEventsRealDeadlockVictim:
+    """
+    A **genuine** deadlock between the public route and a multi-call task transaction.
+
+    The sibling class injects its deadlock to pin the recovery wiring deterministically. This
+    one forms a real cycle through two real database transactions, because "the public route
+    can be a victim" was otherwise only ever argued from source.
+
+    The cycle needs the public transaction to hold two APDR rows while the task transaction
+    takes the same two in the opposite order:
+
+      * public -- one ``register_asset_change`` fanning out to ``k1`` and ``k2`` (sorted)
+      * task   -- two ``register_asset_change`` calls in one transaction: ``k2``, then ``k1``
+
+    Per-call key sorting cannot help the task: its calls are ordered by the caller, not by the
+    helper. Being ordered *within* its single call is what stops the public route forming a
+    cycle; it is not what stops it losing one.
+
+    The mapper fan-out and the rendezvous are fixture setup. Every lock, statement,
+    transaction boundary and retry is production code.
+
+    **Which side loses is the database's choice, not the test's.** Both participants replay,
+    so the assertions state the property that holds either way: a real cycle forms and both
+    commit. For this schedule PostgreSQL has aborted the public side and MySQL the task side --
+    removing the public route's replay makes this fail on PostgreSQL with HTTP 500, which is
+    where the public-victim path is actually gated. The deterministic public-side recovery
+    assertions live in :class:`TestPostAssetEventsDeadlockRecovery`, which injects its deadlock.
+    """
+
+    @pytest.mark.need_serialized_dag
+    def test_public_route_recovers_when_it_loses_a_real_cycle(
+        self, test_client, session, dag_maker, listener_manager
+    ):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite serialises writers, so the two-transaction schedule cannot run")
+
+        asset_listener.clear()
+        listener_manager(asset_listener)
+        clear_db_apdr()
+        clear_db_pakl()
+
+        public_asset = Asset(name="pv-public-asset")
+        task_asset = Asset(name="pv-task-asset")
+        with dag_maker(
+            dag_id="pv-consumer",
+            schedule=PartitionedAssetTimetable(assets=public_asset & task_asset),
+            session=session,
+        ):
+            EmptyOperator(task_id="consumer")
+        session.commit()
+
+        public_id = session.scalar(select(AssetModel.id).where(AssetModel.name == public_asset.name))
+        task_id = session.scalar(select(AssetModel.id).where(AssetModel.name == task_asset.name))
+        assert public_id is not None
+        assert task_id is not None
+
+        def fan_out(self_mapper, key):
+            # One incoming key becomes both downstream keys; anything else passes through.
+            return ["k1", "k2"] if key == "fan" else [key]
+
+        gate = threading.Barrier(2)
+        obs: dict[str, dict] = {"public": {}, "task": {}}
+        registrations = {"n": 0}
+        # No APDR rows are seeded, deliberately. The public route carries no
+        # ``partition_date``, so its reuse locks are *shared* and two shared holders never
+        # block each other. Its cycle therefore has to come from the creation path, where each
+        # pending INSERT holds a ``(target_dag_id, pending_partition_key)`` unique-index entry
+        # until commit -- the original R1 shape.
+        #
+        # Seeded through an independent session: the suite can enclose the test's own session
+        # in an outer transaction, where its commit only releases a SAVEPOINT and the row stays
+        # invisible to other connections.
+        seeder = settings.Session.session_factory()
+        try:
+            task_event = AssetEvent(asset_id=task_id, extra={"which": "task"})
+            seeder.add(task_event)
+            seeder.commit()
+            task_event_id = task_event.id
+        finally:
+            seeder.close()
+        real_acquire = AssetManager._get_or_create_apdr.__func__
+        met: dict[int, object] = {}
+
+        def rendezvous(cls, **kwargs):
+            # Release both participants only once each holds its first key, so each then
+            # requests one the other already holds. Past this point the cycle is guaranteed:
+            # neither index entry is released before its transaction ends.
+            got = real_acquire(cls, **kwargs)
+            tid = threading.get_ident()
+            if not met.get(tid):
+                met[tid] = True
+                try:
+                    gate.wait(timeout=30)
+                except threading.BrokenBarrierError:
+                    # Recorded, not suppressed: if only one side arrives they serialise, no
+                    # cycle forms, and the test would otherwise pass while proving nothing.
+                    met[tid] = "barrier-broken"
+            return got
+
+        real_register = AssetManager.register_asset_change.__func__
+
+        def counting_register(cls, **kwargs):
+            if kwargs.get("source_is_api"):
+                registrations["n"] += 1
+            return real_register(cls, **kwargs)
+
+        def task_transaction():
+            """A task-shaped transaction: two acquisitions of the same keys, opposite order.
+
+            It acquires through the production helper rather than ``register_asset_change``,
+            because that entry point also depends on asset-activation and listening-Dag
+            lookups whose state varies with suite ordering. What this test needs from the task
+            side is only that it holds the two rows in the opposite order inside one
+            transaction; the locking, reconciliation and replay it exercises are production.
+            """
+            res = obs["task"]
+            s_task = settings.Session.session_factory()
+            s_task.begin()
+            attempts = 0
+            try:
+                for attempt in replay_on_deadlock(s_task, description="task"):
+                    with attempt:
+                        attempts += 1
+                        for key in ("k2", "k1"):
+                            apdr = AssetManager._get_or_create_apdr(
+                                target_key=key,
+                                target_partition_date=None,
+                                target_dag=s_task.get(DagModel, "pv-consumer"),
+                                rollup_fingerprint={},
+                                allow_reuse=True,
+                                session=s_task,
+                            )
+                            s_task.add(
+                                PartitionedAssetKeyLog(
+                                    asset_id=task_id,
+                                    asset_event_id=task_event_id,
+                                    asset_partition_dag_run_id=apdr.id,
+                                    target_dag_id="pv-consumer",
+                                    target_partition_key=key,
+                                    source_partition_key=key,
+                                )
+                            )
+                        s_task.commit()
+                res["committed"] = True
+            except Exception as exc:
+                res["error"] = f"{type(exc).__name__}: {exc}"[:160]
+                s_task.rollback()
+            finally:
+                res["attempts"] = attempts
+                s_task.close()
+
+        with (
+            mock.patch.object(IdentityMapper, "to_downstream", fan_out),
+            mock.patch.object(AssetManager, "_get_or_create_apdr", classmethod(rendezvous)),
+            mock.patch.object(AssetManager, "register_asset_change", classmethod(counting_register)),
+        ):
+            worker = threading.Thread(target=task_transaction, name="task")
+            worker.start()
+            try:
+                response = test_client.post(
+                    "/assets/events", json={"asset_id": public_id, "partition_key": "fan"}
+                )
+                obs["public"]["status"] = response.status_code
+                obs["public"]["attempts"] = registrations["n"]
+            finally:
+                gate.abort()
+                worker.join(120)
+
+        assert not worker.is_alive(), f"the task transaction hung: {obs}"
+        assert "error" not in obs["task"], f"the task transaction failed: {obs}"
+        assert obs["public"]["status"] == 200, f"the public route did not recover: {obs}"
+
+        session.rollback()
+        # Both participants' events survive, each linked to both fan-out keys.
+        events = session.scalars(
+            select(AssetEvent.id).where(AssetEvent.asset_id.in_([public_id, task_id]))
+        ).all()
+        assert len(events) == 2, f"expected one public event and the seeded task event: {obs}"
+        links = session.execute(
+            select(PartitionedAssetKeyLog.asset_id, PartitionedAssetKeyLog.target_partition_key).order_by(
+                PartitionedAssetKeyLog.asset_id, PartitionedAssetKeyLog.target_partition_key
+            )
+        ).all()
+        assert sorted({(a, k) for a, k in links}) == sorted(
+            [(public_id, "k1"), (public_id, "k2"), (task_id, "k1"), (task_id, "k2")]
+        ), f"links={[tuple(x) for x in links]} obs={obs}"
+
+        # The public route notified for its own asset exactly once, however many attempts it
+        # took. The task side's notifications come from the ordinary inline path and are not
+        # what this test is about, so they are excluded rather than counted.
+        public_notifications = [a for a in asset_listener.changed if a.name == public_asset.name]
+        assert len(public_notifications) == 1, (
+            f"the public route notified {len(public_notifications)} times: {obs}"
+        )
+        assert sorted(met.values()) == [True, True], (
+            f"both participants must hold one row before either requests the second; "
+            f"rendezvous state={met} obs={obs}"
+        )
+        assert obs["public"]["attempts"] > 1 or obs["task"]["attempts"] > 1, (
+            f"both reached the rendezvous but no cycle formed: {obs}"
+        )
+
+
+class TestPostAssetEventsDeadlockRecovery(TestAssets):
+    """
+    The public route owns its transaction and must replay it when it loses a deadlock.
+
+    Registering a partitioned asset change takes row locks on the consumer's pending
+    AssetPartitionDagRun rows, so this single-call route can be the *victim* of a cycle formed
+    by a producer that registers several assets in one transaction. Being ordered within its
+    own call prevents it from forming a cycle; it does not exempt it from losing one.
+
+    The deadlock is injected rather than raced here, so the schedule is deterministic and the
+    test asserts the recovery *wiring*: attempts, committed rows, listener counts and the HTTP
+    outcome. A genuine database-formed cycle, recovered the same way, is exercised separately
+    by the standalone control that drives two real transactions into one.
+    """
+
+    @staticmethod
+    def _mysql_deadlock():
+        """An OperationalError shaped like the one MySQL actually surfaces.
+
+        InnoDB rolls the victim's whole transaction back, so SQLAlchemy's RELEASE SAVEPOINT
+        fails with 1305 and that is what the caller sees; the real 1213 survives only in the
+        cause chain.
+        """
+
+        class _Err(Exception):
+            def __init__(self, errno, message):
+                super().__init__(errno, message)
+
+        deadlock = sa_exc.OperationalError("UPDATE", {}, _Err(1213, "Deadlock found"))
+        masking = sa_exc.OperationalError("RELEASE SAVEPOINT", {}, _Err(1305, "SAVEPOINT missing"))
+        masking.__cause__ = deadlock
+        return masking
+
+    def test_recovers_and_commits_exactly_one_event(self, test_client, session, listener_manager):
+        """A replayed attempt must leave no trace: one event, one listener call."""
+        asset_listener.clear()
+        listener_manager(asset_listener)
+        (asset,) = self.create_assets(num=1, session=session)
+        session.commit()
+        before = session.scalar(select(func.count()).select_from(AssetEvent))
+
+        calls = {"n": 0}
+        real = AssetManager.register_asset_change.__func__
+
+        def failing_once(cls, **kwargs):
+            calls["n"] += 1
+            result = real(cls, **kwargs)
+            if calls["n"] == 1:
+                raise self._mysql_deadlock()
+            return result
+
+        with mock.patch.object(AssetManager, "register_asset_change", classmethod(failing_once)):
+            response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 200, response.text
+        assert calls["n"] == 2, "the route did not replay exactly once"
+
+        session.rollback()
+        after = session.scalar(select(func.count()).select_from(AssetEvent))
+        assert after - before == 1, (
+            "the discarded attempt left an AssetEvent behind; its rollback was incomplete"
+        )
+        assert len(asset_listener.changed) == 1, (
+            f"listeners fired {len(asset_listener.changed)} times; a discarded attempt must "
+            "notify nothing, and the surviving one exactly once"
+        )
+
+    def test_exhaustion_reports_the_original_deadlock_and_commits_nothing(
+        self, test_client, session, listener_manager
+    ):
+        asset_listener.clear()
+        listener_manager(asset_listener)
+        (asset,) = self.create_assets(num=1, session=session)
+        session.commit()
+        before = session.scalar(select(func.count()).select_from(AssetEvent))
+
+        calls = {"n": 0}
+        real = AssetManager.register_asset_change.__func__
+
+        def always_failing(cls, **kwargs):
+            calls["n"] += 1
+            real(cls, **kwargs)
+            raise self._mysql_deadlock()
+
+        with mock.patch.object(AssetManager, "register_asset_change", classmethod(always_failing)):
+            response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert calls["n"] == MAX_ATTEMPTS, f"attempts were not bounded: {calls}"
+        # The app's SQLAlchemyError handler turns the exhausted deadlock into a 500 rather
+        # than letting it escape the route. That the surfaced exception is the original 1213
+        # and not the 1305 that masked it is pinned at the unit level, in
+        # tests/unit/utils/test_deadlock.py.
+        assert response.status_code == 500, response.text
+
+        session.rollback()
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == before
+        assert asset_listener.changed == [], "a failed route fired listeners"
+
+    def test_listeners_do_not_fire_before_the_commit(self, test_client, session, listener_manager):
+        """Deferral is the prerequisite for replay, and fixes a latent bug on its own.
+
+        Before this, the manager fired asset listeners inline, mid-transaction. They would
+        notify even when the surrounding transaction later rolled back -- and, under replay,
+        for attempts that never happened.
+        """
+        asset_listener.clear()
+        listener_manager(asset_listener)
+        (asset,) = self.create_assets(num=1, session=session)
+        session.commit()
+
+        seen_at_registration: list[int] = []
+        real = AssetManager.register_asset_change.__func__
+
+        def observing(cls, **kwargs):
+            result = real(cls, **kwargs)
+            # Still inside the route's transaction, before its commit.
+            seen_at_registration.append(len(asset_listener.changed))
+            return result
+
+        with mock.patch.object(AssetManager, "register_asset_change", classmethod(observing)):
+            response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 200, response.text
+        assert seen_at_registration == [0], (
+            f"listeners had already fired mid-transaction: {seen_at_registration}"
+        )
+        assert len(asset_listener.changed) == 1
 
 
 class TestPostAssetEvents(TestAssets):

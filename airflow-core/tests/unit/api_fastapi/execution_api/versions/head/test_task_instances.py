@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -37,13 +38,14 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, exc as sa_exc, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.selectable import Select
 
+import airflow.api_fastapi.execution_api.routes.task_instances as task_instances_module
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -58,6 +60,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, T
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.assets.manager import AssetManager
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -76,6 +79,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
+from airflow.utils.retries import MAX_ATTEMPTS
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
@@ -3508,6 +3512,283 @@ class TestTIUpdateState:
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == "s3://bucket/my-task"
         assert len(asset_listener.emitted) == 1
+
+    @staticmethod
+    def _mysql_deadlock():
+        """Shaped like what MySQL actually surfaces: 1305 masking the real 1213."""
+
+        class _Err(Exception):
+            def __init__(self, errno, message):
+                super().__init__(errno, message)
+
+        deadlock = sa_exc.OperationalError("UPDATE", {}, _Err(1213, "Deadlock found"))
+        masking = sa_exc.OperationalError("RELEASE SAVEPOINT", {}, _Err(1305, "SAVEPOINT missing"))
+        masking.__cause__ = deadlock
+        return masking
+
+    def test_ti_update_state_replays_the_whole_unit_on_deadlock(self, client, session, create_task_instance):
+        """A deadlock must replay the transaction, not fail the task.
+
+        This route registers several assets in one transaction, so it can both form and lose a
+        deadlock cycle. Its catch-all would otherwise convert the loss into a FAILED task --
+        and could not even persist that, because the transaction is already dead.
+
+        The deadlock is injected so the schedule is deterministic; a genuine database-formed
+        cycle recovered through the same mechanism is exercised by the standalone control that
+        drives two real transactions into one.
+        """
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(
+            task_id="test_ti_update_state_replays_the_whole_unit_on_deadlock",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        calls = {"n": 0}
+        real = TaskInstance.register_asset_changes_in_db
+
+        def failing_once(ti, task_outlets, outlet_events, *, session, **kwargs):
+            calls["n"] += 1
+            result = real(
+                ti=ti, task_outlets=task_outlets, outlet_events=outlet_events, session=session, **kwargs
+            )
+            if calls["n"] == 1:
+                raise self._mysql_deadlock()
+            return result
+
+        with mock.patch.object(TaskInstance, "register_asset_changes_in_db", side_effect=failing_once):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204
+        assert calls["n"] == 2, f"the route did not replay exactly once: {calls}"
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS, (
+            "the deadlock was converted into a FAILED task instead of being replayed"
+        )
+        # Exactly one event: the discarded attempt must leave nothing behind.
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+
+    def _success_payload(self):
+        return {
+            "state": "success",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+            "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+            "outlet_events": [],
+        }
+
+    def _asset_and_ti(self, session, create_task_instance, task_id):
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(task_id=task_id, start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        return ti
+
+    @pytest.mark.parametrize(
+        ("failure", "label"),
+        [
+            pytest.param("deadlock", "deadlock", id="deadlock"),
+            pytest.param("ordinary", "ordinary", id="ordinary-error"),
+        ],
+    )
+    def test_a_failing_post_commit_callback_does_not_re_enter_the_transaction(
+        self, client, session, create_task_instance, failure, label
+    ):
+        """Post-commit notifications are outside the retry boundary.
+
+        A callback runs after the transaction has committed, so a rollback cannot undo its
+        effects and a failure in one is not a failure of that transaction. When callbacks ran
+        inside the loop, a callback that lost a database deadlock caused the whole route to be
+        re-entered; it then met its own duplicate-state check, returned 200, and silently
+        skipped the remaining notifications.
+
+        Both a deadlock and an ordinary error are checked, because the defect was specifically
+        *classification* after commit: only the deadlock was treated as retryable.
+
+        ``notify_asset_changed`` is replaced before registration so the deferred ``partial``
+        captures the raising version. The default implementation swallows listener exceptions
+        internally, which is why the independent reproduction used a configured
+        ``core.asset_manager_class`` instead; both reach the same callback boundary.
+        """
+        ti = self._asset_and_ti(session, create_task_instance, f"test_post_commit_callback_{label}")
+
+        # Count entries into the route *body*, not into registration. A replay that
+        # short-circuits on its own duplicate-state check never reaches registration, so a
+        # registration counter cannot see the re-entry at all.
+        entries = {"n": 0}
+        real_once = task_instances_module._ti_update_state_once
+
+        def counting_once(**kwargs):
+            entries["n"] += 1
+            return real_once(**kwargs)
+
+        def exploding(*args, **kwargs):
+            if failure == "deadlock":
+                raise self._mysql_deadlock()
+            raise RuntimeError("listener exploded")
+
+        outcome: dict[str, object] = {}
+        with (
+            mock.patch.object(task_instances_module, "_ti_update_state_once", counting_once),
+            mock.patch.object(AssetManager, "notify_asset_changed", staticmethod(exploding)),
+        ):
+            try:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/state", json=self._success_payload()
+                )
+            except Exception as exc:  # the callback's error propagating is acceptable
+                outcome["raised"] = type(exc).__name__
+            else:
+                outcome["status"] = response.status_code
+
+        # Asserted outside the try. An assertion inside it would be caught by the handler
+        # above, which is exactly how an earlier version of this test passed against the
+        # defect it was written to detect.
+        assert entries["n"] == 1, (
+            f"the transaction body was re-entered {entries['n']} times after it had already "
+            f"committed: {outcome}"
+        )
+        assert outcome.get("status") != 200, (
+            "a failing post-commit callback was converted into a successful duplicate-state "
+            f"response by the retry: {outcome}"
+        )
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS
+        # The committed work stands; only the notification failed.
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+
+    @pytest.mark.parametrize(
+        ("backend_error", "expect_replay"),
+        [
+            pytest.param("deadlock", True, id="deadlock-escapes-to-the-owner"),
+            pytest.param("ordinary", False, id="ordinary-error-stays-best-effort"),
+        ],
+    )
+    def test_state_cleanup_lets_a_deadlock_reach_the_retry_owner(
+        self, client, session, create_task_instance, backend_error, expect_replay
+    ):
+        """``state_store.clear_on_success`` runs inside the transaction, before its commit.
+
+        It is an opt-in option (default ``False``) and its best-effort handler is inherited,
+        not introduced here. But a deadlock raised by the state-store DELETE aborts the whole
+        unit -- the task state and asset events written above are gone with it -- and
+        swallowing it leaves an aborted transaction that fails later at something unrelated,
+        where the replay can no longer recognise it.
+
+        Only deadlocks escape. Every other cleanup failure stays best-effort, which the
+        ``ordinary`` arm pins.
+        """
+        ti = self._asset_and_ti(session, create_task_instance, f"test_state_cleanup_{backend_error}")
+
+        entries = {"n": 0}
+        cleared = {"n": 0}
+        real_once = task_instances_module._ti_update_state_once
+
+        def counting_once(**kwargs):
+            entries["n"] += 1
+            return real_once(**kwargs)
+
+        class _Backend:
+            def clear(self_inner, scope, *, session):
+                cleared["n"] += 1
+                if cleared["n"] == 1:
+                    if backend_error == "deadlock":
+                        raise self._mysql_deadlock()
+                    raise RuntimeError("state store unavailable")
+
+        with (
+            conf_vars({("state_store", "clear_on_success"): "True"}),
+            mock.patch.object(task_instances_module, "_ti_update_state_once", counting_once),
+            mock.patch.object(task_instances_module, "get_state_backend", return_value=_Backend()),
+        ):
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=self._success_payload())
+
+        assert response.status_code == 204, response.text
+        if expect_replay:
+            assert entries["n"] == 2, (
+                f"the cleanup deadlock never reached the retry owner: entries={entries} cleared={cleared}"
+            )
+        else:
+            assert entries["n"] == 1, (
+                f"an ordinary cleanup error was retried; it must stay best-effort: {entries}"
+            )
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+
+    def test_task_span_deadlock_reaches_the_retry_owner(self, client, session, create_task_instance):
+        """Tracing resolves through the route's own session, so it can lose the deadlock too."""
+        ti = self._asset_and_ti(session, create_task_instance, "test_task_span_deadlock")
+
+        entries = {"n": 0}
+        spans = {"n": 0}
+        real_once = task_instances_module._ti_update_state_once
+
+        def counting_once(**kwargs):
+            entries["n"] += 1
+            return real_once(**kwargs)
+
+        def emit(*args, **kwargs):
+            spans["n"] += 1
+            if spans["n"] == 1:
+                raise self._mysql_deadlock()
+
+        with (
+            mock.patch.object(task_instances_module, "_ti_update_state_once", counting_once),
+            mock.patch.object(task_instances_module, "_emit_task_span", emit),
+        ):
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=self._success_payload())
+
+        assert response.status_code == 204, response.text
+        assert entries["n"] == 2, f"the tracing deadlock was swallowed: {entries} {spans}"
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+
+    def test_ti_update_state_bounds_deadlock_replay(self, client, session, create_task_instance):
+        """A deadlock that never clears must stop, not spin."""
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(
+            task_id="test_ti_update_state_bounds_deadlock_replay",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        calls = {"n": 0}
+
+        def always_failing(ti, task_outlets, outlet_events, *, session, **kwargs):
+            calls["n"] += 1
+            raise self._mysql_deadlock()
+
+        with mock.patch.object(TaskInstance, "register_asset_changes_in_db", side_effect=always_failing):
+            with contextlib.suppress(sa_exc.OperationalError):
+                client.patch(
+                    f"/execution/task-instances/{ti.id}/state",
+                    json={
+                        "state": "success",
+                        "end_date": DEFAULT_END_DATE.isoformat(),
+                        "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                        "outlet_events": [],
+                    },
+                )
+
+        assert calls["n"] == MAX_ATTEMPTS, f"attempts were not bounded: {calls}"
+        session.expire_all()
+        assert session.scalars(select(AssetEvent)).all() == [], "a discarded attempt committed an asset event"
 
     def test_ti_update_state_to_success_rolls_back_partial_asset_registration(
         self, client, session, create_task_instance
