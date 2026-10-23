@@ -29,6 +29,8 @@ from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessStopWorkflowRunOperator,
     MwaaServerlessUpdateWorkflowOperator,
 )
+from airflow.providers.amazon.aws.triggers.mwaa_serverless import MwaaServerlessWorkflowRunCompletedTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -80,6 +82,83 @@ class TestMwaaServerlessStartWorkflowRunOperator:
             WorkflowVersion="2",
         )
         assert result == RUN_ID
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_client_token(self, mock_conn):
+        op = MwaaServerlessStartWorkflowRunOperator(
+            task_id="start_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            client_token="my-token",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.start_workflow_run.return_value = {"RunId": RUN_ID, "Status": "STARTING"}
+        mock_conn.return_value = mock_client
+
+        op.execute({})
+
+        mock_client.start_workflow_run.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN, ClientToken="my-token"
+        )
+
+    @mock.patch.object(AwsBaseHook, "get_waiter")
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_wait_for_completion(self, mock_conn, mock_get_waiter):
+        op = MwaaServerlessStartWorkflowRunOperator(
+            task_id="start_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            wait_for_completion=True,
+            waiter_delay=5,
+            waiter_max_attempts=10,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.start_workflow_run.return_value = {"RunId": RUN_ID, "Status": "STARTING"}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_get_waiter.assert_called_once_with("workflow_run_complete")
+        mock_get_waiter.return_value.wait.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            RunId=RUN_ID,
+            WaiterConfig={"Delay": 5, "MaxAttempts": 10},
+        )
+        assert result == RUN_ID
+
+    @mock.patch.object(AwsBaseHook, "get_waiter")
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_deferrable(self, mock_conn, mock_get_waiter):
+        op = MwaaServerlessStartWorkflowRunOperator(
+            task_id="start_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            deferrable=True,
+            waiter_delay=5,
+            waiter_max_attempts=10,
+            aws_conn_id="my_conn",
+            region_name="eu-west-1",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.start_workflow_run.return_value = {"RunId": RUN_ID, "Status": "STARTING"}
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute({})
+
+        mock_get_waiter.assert_not_called()
+        assert exc_info.value.method_name == "execute_complete"
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, MwaaServerlessWorkflowRunCompletedTrigger)
+        assert trigger.waiter_args == {"WorkflowArn": WORKFLOW_ARN, "RunId": RUN_ID}
+        assert trigger.waiter_delay == 5
+        assert trigger.attempts == 10
+        assert trigger.aws_conn_id == "my_conn"
+        assert trigger.region_name == "eu-west-1"
+
+    def test_execute_complete(self):
+        assert self.operator.execute_complete({}, {"status": "success", "run_id": RUN_ID}) == RUN_ID
+
+    def test_execute_complete_failure(self):
+        with pytest.raises(RuntimeError, match="Error while waiting for MWAA Serverless workflow run"):
+            self.operator.execute_complete({}, {"status": "error", "message": "failed", "run_id": RUN_ID})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
