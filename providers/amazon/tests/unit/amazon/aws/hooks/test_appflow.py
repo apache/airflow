@@ -71,9 +71,71 @@ def test_conn_attributes(hook):
 def test_run_flow(hook):
     with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
         hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
-    hook.conn.describe_flow_execution_records.assert_called_with(flowName=FLOW_NAME)
+    hook.conn.describe_flow_execution_records.assert_called_with(flowName=FLOW_NAME, maxResults=100)
     assert hook.conn.describe_flow_execution_records.call_count == 1
     hook.conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
+
+
+def test_run_flow_paginated(hook):
+    page1 = {
+        "flowExecutions": [{"executionId": "other_id", "executionStatus": "Successful"}],
+        "nextToken": "token123",
+    }
+    page2 = {
+        "flowExecutions": [
+            {
+                "executionId": EXECUTION_ID,
+                "executionResult": {"recordsProcessed": 5},
+                "executionStatus": "Successful",
+            }
+        ]
+    }
+    hook.conn.describe_flow_execution_records.side_effect = [page1, page2]
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        res = hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert res == EXECUTION_ID
+    assert hook.conn.describe_flow_execution_records.call_count == 2
+    hook.conn.describe_flow_execution_records.assert_has_calls(
+        [
+            mock.call(flowName=FLOW_NAME, maxResults=100),
+            mock.call(flowName=FLOW_NAME, maxResults=100, nextToken="token123"),
+        ]
+    )
+
+
+def test_run_flow_execution_not_found(hook):
+    hook.conn.describe_flow_execution_records.return_value = {
+        "flowExecutions": [{"executionId": "different_id", "executionStatus": "Successful"}]
+    }
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        with mock.patch.object(hook.log, "warning") as mock_warning:
+            res = hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert res == EXECUTION_ID
+    mock_warning.assert_called_once_with(
+        "Execution %s for flow %s was not found in execution records.", EXECUTION_ID, FLOW_NAME
+    )
+
+
+def test_run_flow_repeating_token(hook):
+    page = {
+        "flowExecutions": [{"executionId": "other_id", "executionStatus": "Successful"}],
+        "nextToken": "same_token",
+    }
+    hook.conn.describe_flow_execution_records.return_value = page
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        with mock.patch.object(hook.log, "warning") as mock_warning:
+            res = hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert res == EXECUTION_ID
+    assert hook.conn.describe_flow_execution_records.call_count == 2
+    mock_warning.assert_called_once_with(
+        "Execution %s for flow %s was not found in execution records.", EXECUTION_ID, FLOW_NAME
+    )
 
 
 def test_update_flow_filter(hook):
