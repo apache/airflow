@@ -531,13 +531,24 @@ class FileTaskHandler(logging.Handler):
         :return: executor of the task instance
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
-        executor = self.executor_instances.get(executor_name)
+        team_name = None
+        if conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(ti.dag_id)
+        # A team's executor has its own config, such as the cluster its pods run on.
+        cache_key = f"{team_name}:{executor_name}" if team_name else executor_name
+        executor = self.executor_instances.get(cache_key)
         if executor is None:
-            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+            if team_name:
+                executor = ExecutorLoader.load_executor(
+                    ExecutorLoader.resolve_executor_name(ti.executor, team_name)
+                )
+            elif executor_name == self.DEFAULT_EXECUTOR_KEY:
                 executor = ExecutorLoader.get_default_executor()
             else:
                 executor = ExecutorLoader.load_executor(executor_name)
-            self.executor_instances[executor_name] = executor
+            self.executor_instances[cache_key] = executor
 
         return executor
 

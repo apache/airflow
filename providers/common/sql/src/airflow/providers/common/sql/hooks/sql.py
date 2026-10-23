@@ -35,10 +35,12 @@ try:
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+    from sqlalchemy.pool import NullPool
 except ImportError:
     create_engine = None  # type: ignore[assignment]
     inspect = None  # type: ignore[assignment]
     make_url = None  # type: ignore[assignment]
+    NullPool = None  # type: ignore[assignment,misc]
     ArgumentError = Exception  # type: ignore[misc,assignment]
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
@@ -378,7 +380,10 @@ class DbApiHook(BaseHook):
                 "SQLAlchemy is required for database inspection. "
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
-        return inspect(self.get_sqlalchemy_engine())
+        # The inspector is cached for the hook's lifetime, so a pooled engine would keep the
+        # connection it reflected with open until the process exits. With NullPool, no
+        # connection outlives the inspection that opened it.
+        return inspect(self.get_sqlalchemy_engine({"poolclass": NullPool}))
 
     def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
         """

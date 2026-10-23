@@ -49,7 +49,7 @@ import {
   Dag,
   getClient,
   getContext,
-  label,
+  Label,
   NEVER_EXPIRE,
   SUPERVISOR_API_VERSION,
   TaskHandler,
@@ -73,7 +73,13 @@ describe("public API", () => {
       taskId: "public_api_downstream",
     });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
-    expect(() => upstream.before(label(downstream, "rows"))).not.toThrow();
+    expect(() => upstream.before(Label.of("rows").on(downstream))).not.toThrow();
+    expectTypeOf<keyof Label>().toEqualTypeOf<"on">();
+    const rejectsLabelWithoutNode = () => {
+      // @ts-expect-error a label needs on() to name the node that its edge connects to.
+      upstream.before(Label.of("rows"));
+    };
+    void rejectsLabelWithoutNode;
     // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
     await expect(new Bundle(dag).serve()).rejects.toThrow("Missing --comm");
@@ -443,7 +449,7 @@ describe("public API", () => {
     >();
     expectTypeOf<TaskClient["deleteVariable"]>().toEqualTypeOf<(key: string) => Promise<void>>();
     expectTypeOf<TaskStateStoreSetOpts>().toEqualTypeOf<{
-      retentionMs?: number | typeof NEVER_EXPIRE;
+      retention?: number | typeof NEVER_EXPIRE;
     }>();
     expectTypeOf<TaskClient["taskStateStore"]>().toEqualTypeOf<TaskStateStore>();
     expectTypeOf<TaskStateStore["get"]>().toEqualTypeOf<
