@@ -247,7 +247,7 @@
           "type": "string"
         },
         "region_index": {
-          "description": "Position of the task instance in its region (Airflow 3.4+): the map index, from 0, of a mapped task, and otherwise the loop iteration, from 1, as `loop.index`.",
+          "description": "Position of the task instance in its region (Airflow 3.4+): the map index, from 0, of a mapped task, and otherwise the loop iteration, from 1, as `loop.index`. With `region_id`, the coordinates Airflow's REST API and UI select the task instance by.",
           "type": "integer"
         },
         "dag_version_id": {
