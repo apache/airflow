@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
-from unittest.mock import DEFAULT, MagicMock
+from unittest.mock import DEFAULT, AsyncMock, MagicMock
 
 import pytest
-from pydantic_ai import CancellationToken
+from pydantic_ai import Agent, CancellationToken, RunCancelled
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
 
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.operators.agent import AgentOperator
@@ -61,6 +64,55 @@ class TestRunAgentSync:
             mixin.run_agent_sync(agent, "prompt")
 
         assert mixin._cancellation_token is None
+
+
+class TestRunAgentAsync:
+    @pytest.mark.asyncio
+    async def test_forwards_held_cancellation_token_and_clears_after_success(self):
+        mixin = CancellableAgentRunMixin()
+        agent = MagicMock(spec=["run"])
+        held: dict[str, object] = {}
+
+        async def capture(*args, **kwargs):
+            held["token"] = mixin._cancellation_token
+            return DEFAULT
+
+        agent.run = AsyncMock(side_effect=capture)
+
+        result = await mixin.run_agent_async(agent, "prompt", usage_limits=None)
+
+        assert result is agent.run.return_value
+        passed = agent.run.call_args.kwargs["cancellation_token"]
+        assert isinstance(passed, CancellationToken)
+        assert passed is held["token"]
+        agent.run.assert_awaited_once_with("prompt", cancellation_token=passed, usage_limits=None)
+        assert mixin._cancellation_token is None
+
+    @pytest.mark.asyncio
+    async def test_clears_token_when_run_raises(self):
+        mixin = CancellableAgentRunMixin()
+        agent = MagicMock(spec=["run"])
+        agent.run = AsyncMock(side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError):
+            await mixin.run_agent_async(agent, "prompt")
+
+        assert mixin._cancellation_token is None
+
+    @pytest.mark.asyncio
+    async def test_on_kill_cancels_an_awaited_run(self):
+        """on_kill is called on the thread that runs the event loop; the run it awaits must unwind."""
+        mixin = CancellableAgentRunMixin()
+        mixin.log = MagicMock()
+
+        async def hang(messages, info) -> ModelResponse:
+            await asyncio.sleep(30)
+            return ModelResponse(parts=[TextPart("too late")])
+
+        asyncio.get_running_loop().call_later(0.1, mixin.on_kill)
+
+        with pytest.raises(RunCancelled):
+            await asyncio.wait_for(mixin.run_agent_async(Agent(FunctionModel(hang)), "prompt"), timeout=10)
 
 
 class TestOnKill:
