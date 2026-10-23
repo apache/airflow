@@ -17,11 +17,11 @@
 ---
 sdk: ts
 
-min_airflow_version: "3.4.0"
+min_airflow_version: "3.5.0"
 
 # Keep in sync with SUPERVISOR_API_VERSION in src/generated/supervisor.ts. The render hook fails
 # if the two disagree.
-supervisor_schema_version: "2026-10-30"
+supervisor_schema_version: "2027-02-28"
 
 # The runtime terminates a task with SucceedTask, RetryTask, TaskState (failed/removed), or, for a
 # human-in-the-loop task, AwaitInputTask; only a triggerDagRun task emits TaskState skipped or

@@ -2050,4 +2050,4 @@ export interface XComSequenceSliceResult {
  *  (e.g. bundle metadata) and runs the migrator accordingly.
  *  Exposed so the SDK author / operator can confirm which schema
  *  version their build is pinned to. */
-export const SUPERVISOR_API_VERSION = "2026-10-30" as const;
+export const SUPERVISOR_API_VERSION = "2027-02-28" as const;
