@@ -818,9 +818,9 @@ without restarting. Keep the directory mount in the values file: a ``subPath`` m
 does not receive `Secret updates <https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod>`_.
 Choose a token lifetime that leaves time for your cluster's projection delay and transient outages.
 
-The rollout check confirms that the provisioner process started; the Secret-key wait
-checks only that a token has been published at least once. Neither check proves that
-an existing token is still valid or that rotation continues successfully.
+The ``kubectl rollout status`` check confirms that the provisioner process started;
+the Secret-key wait checks only that a token has been published at least once. Neither
+check proves that an existing token is still valid or that rotation continues successfully.
 
 Allow the trusted provisioner to reach the Kubernetes API over TLS if the trusted
 namespace restricts egress. It uses its mounted service-account token and cluster CA,
