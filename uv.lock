@@ -2739,7 +2739,7 @@ requires-dist = [
     { name = "semver", specifier = ">=3.0.2" },
     { name = "semver", marker = "extra == 'devscripts'", specifier = ">=3.0.2" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
-    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl" },
+    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl" },
     { name = "sphinx-argparse", marker = "extra == 'docs'", specifier = ">=0.4.0" },
     { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = ">=3.8.0" },
     { name = "sphinx-autobuild", marker = "extra == 'docs'", specifier = ">=2024.10.2" },
@@ -23792,14 +23792,14 @@ wheels = [
 
 [[package]]
 name = "sphinx-airflow-theme"
-version = "0.3.14"
-source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl" }
+version = "0.3.16"
+source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl" }
 dependencies = [
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl", hash = "sha256:9c654e2bdcbee06aee21c7c0a1f92784d2b17c190fa0fca1302b1d974e9ed381" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl", hash = "sha256:0c63a9fbff4197f9541dcfd91a81d7aa9b6edf037409f87b941c5526ccc609a9" },
 ]
 
 [package.metadata]

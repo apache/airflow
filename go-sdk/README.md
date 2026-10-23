@@ -117,46 +117,62 @@ prek hook regenerate it.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
 
-| Dimension | Tier | Supported | Since | Notes |
-|---|---|---|---|---|
-| **TaskInstance states** |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.3 |  |
-| state: `failed` | MUST | ✓ | 3.3 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
-| state: `skipped` | SHOULD | ✓ | 3.4 | airflow.TriggerDagRun with SkipWhenAlreadyExists only |
-| state: `deferred` | MAY | ✓ | 3.4 | airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime |
-| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
-| state: `removed` | MAY | ✓ | 3.3 |  |
-| **Runtime capabilities** |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
-| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
-| capability: `task-logging` | MUST | ✓ | 3.3 | slog records streamed over the logs socket |
-| capability: `xcom-read-write` | MUST | ✓ | 3.3 | PushXCom / GetXCom |
-| capability: `connection-read` | MUST | ✓ | 3.3 | GetConnection |
-| capability: `variable-read-write` | MUST | ✓ | 3.4 |  |
-| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | AFBNDL01 native binary via airflow-go-pack |
-| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✓ | 3.4 |  |
-| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
-| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
-| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
-| **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – | no object-storage API yet |
+| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
+|---|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `failed` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4.0 | 1.0.0 | RetryTask |
+| state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun with SkipWhenAlreadyExists only |
+| state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime |
+| state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| **Task runtime** |  |  |  |  |  |
+| capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | slog records streamed over the logs socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | PushXCom / GetXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | GetConnection |
+| capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | AFBNDL01 native binary via airflow-go-pack |
+| capability: `retry-policy` | MAY | ✗ | – | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `asset-state-store` | MAY | ✗ | – | – | no task-facing asset state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
+| capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
+| capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
+| **Dag definition** |  |  |  |  |  |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 | airflow.Dag |
+| capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-params` | MUST † | ✗ | – | – |  |
+| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
+| capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | Before / After |
+| capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.Label(text).On(task) |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 | DagRef.TaskGroup |
+| capability: `task-loops` | MAY † | ✗ | – | – |  |
+| capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.If |
+| capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.Switch |
+| capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun |
+| capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `human-in-the-loop` | MAY † | ✗ | – | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
+| capability: `asset-definition` | MAY † | ✗ | – | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
+| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
+| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
+| **Python Dag with stub TaskHandler** |  |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
+| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
 
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
