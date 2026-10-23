@@ -59,12 +59,6 @@ the actual column names and types:
 With Object Storage
 -------------------
 
-.. note::
-
-    ``datasource_config`` runs on the DataFusion engine of ``common.sql``, which pins
-    ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
-    ``iceberg-core``.
-
 Use ``datasource_config`` to generate queries for data stored in object storage
 (e.g., S3, GCS, Azure Blob Storage, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
@@ -75,7 +69,9 @@ the schema context.
 
     Object-storage schema introspection requires the ``datafusion`` extra of
     ``apache-airflow-providers-common-sql``. Install it with
-    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``. ``common.sql`` pins
+    ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
+    ``iceberg-core``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python
