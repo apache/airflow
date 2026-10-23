@@ -296,9 +296,10 @@ class Credentials:
                         if self.client_kind == ClientKind.CLI:
                             raise AirflowCtlKeyringException("Keyring backend is not available") from e
                         self.api_token = None
-        except FileNotFoundError:
+        except (FileNotFoundError, json.JSONDecodeError):
             # This is expected during the auth login command.
             # Also allow token-only usage without local config (for commands like `version --remote`).
+            # JSONDecodeError handles the case where the credentials file exists but is empty or corrupted.
             if self.client_kind not in (ClientKind.AUTH, ClientKind.NO_AUTH) and self.api_token is None:
                 raise AirflowCtlCredentialNotFoundException("No credentials file found. Please login first.")
 
