@@ -37,6 +37,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     AssetStateStoreResponse,
+    CallbackTerminalState,
     ConnectionResponse,
     DagResponse,
     DagRunState,
@@ -2422,4 +2423,37 @@ class TestCallbackOperations:
         client = make_client(transport=httpx2.MockTransport(handle_request))
         with pytest.raises(ServerResponseError) as err:
             client.callbacks.run(callback_id)
+        assert err.value.response.status_code == 409
+
+    @pytest.mark.parametrize(
+        ("state", "output"),
+        [
+            pytest.param(CallbackTerminalState.SUCCESS, None, id="success-without-output"),
+            pytest.param(CallbackTerminalState.FAILED, "exited with code 3", id="failed-with-output"),
+        ],
+    )
+    def test_finish_reports_the_terminal_state(self, state, output):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/state"
+            assert json.loads(request.content) == {"state": state.value, "output": output}
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.finish(callback_id, state=state, output=output)
+
+    def test_finish_raises_when_the_callback_is_not_running(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "previous_state": "queued"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.finish(callback_id, state=CallbackTerminalState.FAILED)
         assert err.value.response.status_code == 409
