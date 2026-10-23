@@ -32,6 +32,7 @@ from airflow.providers.openlineage.utils.sql import (
     create_information_schema_query,
     get_table_schemas,
 )
+from airflow.providers.openlineage.utils.utils import should_use_external_connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -52,10 +53,39 @@ DEFAULT_INFORMATION_SCHEMA_COLUMNS = [
     "udt_name",
 ]
 DEFAULT_INFORMATION_SCHEMA_TABLE_NAME = "information_schema.columns"
+_OFFLINE_DEFAULT_SCHEMAS: dict[str, str] = {
+    "postgres": "public",
+    "redshift": "public",
+    "mssql": "dbo",
+}
 
 
 def default_normalize_name_method(name: str) -> str:
     return name.lower()
+
+
+def get_default_schema(
+    hook: DbApiHook, connection: Any, dialect: str, use_external_connection: bool = True
+) -> str | None:
+    """
+    Return the default schema applied to tables parsed from SQL without an explicit schema.
+
+    Some hooks (e.g. Postgres, Redshift, MSSQL, Oracle) query the database to discover the current
+    schema. When ``use_external_connection`` is False, a static default is returned for those dialects
+    instead, so that no database connection is opened. Oracle connections without a login and all other
+    hooks are asked for their default schema as usual.
+
+    :param hook: Airflow Hook used to connect to the database
+    :param connection: Airflow connection of the hook
+    :param dialect: database dialect returned by the hook
+    :param use_external_connection: whether the database can be queried for the current schema
+    """
+    if not use_external_connection:
+        if dialect in _OFFLINE_DEFAULT_SCHEMAS:
+            return _OFFLINE_DEFAULT_SCHEMAS[dialect]
+        if dialect == "oracle" and getattr(connection, "login", None):
+            return connection.login.upper()
+    return hook.get_openlineage_default_schema()
 
 
 class GetTableSchemasParams(TypedDict):
@@ -498,10 +528,14 @@ def get_openlineage_facets_with_sql(
         log.debug("%s has no database info provided", hook)
         return None
 
+    use_external_connection = should_use_external_connection(hook)
+    use_connection = use_connection and use_external_connection
+
     try:
+        dialect = hook.get_openlineage_database_dialect(connection)
         sql_parser = SQLParser(
-            dialect=hook.get_openlineage_database_dialect(connection),
-            default_schema=hook.get_openlineage_default_schema(),
+            dialect=dialect,
+            default_schema=get_default_schema(hook, connection, dialect, use_external_connection),
         )
     except AttributeError:
         log.debug("%s failed to get database dialect", hook)

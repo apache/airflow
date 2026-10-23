@@ -308,10 +308,15 @@ class BaseSQLOperator(BaseOperator):
             return OperatorLineage()
 
         try:
-            sql_parser = SQLParser(
-                dialect=hook.get_openlineage_database_dialect(connection),
-                default_schema=hook.get_openlineage_default_schema(),
-            )
+            dialect = hook.get_openlineage_database_dialect(connection)
+            try:
+                from airflow.providers.openlineage.sqlparser import get_default_schema
+            except ImportError:
+                # OpenLineage provider release < 2.21.0
+                default_schema = hook.get_openlineage_default_schema()
+            else:
+                default_schema = get_default_schema(hook, connection, dialect, use_external_connection)
+            sql_parser = SQLParser(dialect=dialect, default_schema=default_schema)
         except AttributeError:
             self.log.debug("%s failed to get database dialect", hook)
             return None
@@ -321,7 +326,7 @@ class BaseSQLOperator(BaseOperator):
             hook=hook,
             database_info=database_info,
             database=self.database,
-            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            sqlalchemy_engine=hook.get_sqlalchemy_engine() if use_external_connection else None,
             use_connection=use_external_connection,
         )
 
