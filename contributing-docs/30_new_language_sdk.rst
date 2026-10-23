@@ -596,12 +596,13 @@ hand-authored ``<sdk>/capabilities.yaml``, from which prek hooks generate the pu
 
     java-sdk/capabilities.yaml          <- the only file you edit
       |
-      |  hook: update-java-sdk-readme-matrix
+      +-- hook: update-java-sdk-readme-matrix
+      |     +--> java-sdk/README.md            (user-facing landing page)
+      |     +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
       |
-      +--> java-sdk/README.md            (user-facing landing page)
-      +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
-      +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
-           (consolidated cross-SDK matrix)
+      +-- hook: update-lang-sdk-central-matrix   (reads every SDK in LANG_SDKS)
+            +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
+                 (consolidated cross-SDK matrix)
 
 Each hook rewrites its targets and exits non-zero when a target was stale, so a drifted table fails
 the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than
