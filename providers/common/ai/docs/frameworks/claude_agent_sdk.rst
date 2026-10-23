@@ -46,12 +46,13 @@ Airflow connection:
     :start-after: [START example_claude_agent_sdk]
     :end-before: [END example_claude_agent_sdk]
 
-The model can call ``list_tables``, ``get_schema`` and ``query``, the tools ``SQLToolset``
-serves. Each call writes a group to the task log. This is the log of one run against a
-temporary SQLite database, captured as the task logger wrote it, for the question "Inspect
-the columns of each table first with get_schema, then tell me which customer name has the
-highest total order amount and in which city they live." Which tools the model calls, in
-what order, and how long each takes depend on the model and the question:
+The model can call ``list_tables``, ``get_schema``, ``query`` and ``check_query``, the
+tools ``SQLToolset`` serves. Each call writes a group to the task log. This is the log of
+one run against a temporary SQLite database, captured as the task logger wrote it, for
+the question "Inspect the columns of each table first with get_schema, then tell me
+which customer name has the highest total order amount and in which city they live."
+Which tools the model calls, in what order, and how long each takes depend on the model
+and the question:
 
 .. code-block:: text
 
@@ -168,6 +169,9 @@ a success. Which exception you get depends on the stream:
   ``run()`` raises ``RuntimeError`` with the result's ``subtype``, ``result``,
   ``errors``, ``stop_reason``, ``api_error_status`` and ``terminal_reason`` where they are
   set, with long values shortened.
+
+For a streamed prompt, ``run()`` raises ``RuntimeError`` whenever any result message has
+``is_error`` set, even if a later turn succeeds.
 
 If a tool failure of the kind above was also recorded, ``ToolCallError`` is raised first
 on either stream. ``RuntimeError`` is also raised when the stream ends without any
