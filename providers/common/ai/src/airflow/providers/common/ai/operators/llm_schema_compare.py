@@ -110,7 +110,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param output_retries: How many times the model is asked again when its output
         fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
-    :param data_sources: List of DataSourceConfig objects, one per system.
+    :param data_sources: List of DataSourceConfig objects, one per system. A
+        source whose connection is not a ``DbApiHook`` is read through DataFusion, which
+        ``common.sql`` pins below 52.
     :param db_conn_ids: Connection IDs for databases to compare (used with
         ``table_names``).
     :param table_names: Tables to introspect from each ``db_conn_id``.

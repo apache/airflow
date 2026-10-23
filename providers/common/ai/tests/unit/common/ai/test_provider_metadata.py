@@ -422,7 +422,7 @@ TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
     "hook": ("HookToolset", "toolsets/hook"),
     "sql": ("SQLToolset", "toolsets/sql"),
     "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
-    "logging": ("LoggingToolset", "toolsets/logging"),
+    "logging": ("ToolLoggingCapability", "toolsets/logging"),
     "mcp": ("MCPToolset", "toolsets/mcp"),
     "object_storage": ("ObjectStorageToolset", "toolsets/object_storage"),
     "sandbox": ("SandboxToolset", "sandbox/index"),

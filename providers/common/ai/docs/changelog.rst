@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+.. note::
+  ``LoggingToolset`` is removed from the public API. Importing it from either
+  ``airflow.providers.common.ai.toolsets.LoggingToolset`` (exported from the package since
+  1.0.0, see #74449 under 1.0.0 Features below) or
+  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (public since 0.1.0) now
+  raises ``ImportError``. ``AgentOperator``
+  still logs tool calls through ``enable_tool_logging``. To log tool calls of an agent you
+  build yourself, pass ``capabilities=[ToolLoggingCapability()]`` to the pydantic-ai ``Agent``
+  (import it from ``airflow.providers.common.ai.toolsets.logging``); its ``logger`` argument
+  sets the logger. See :doc:`stability`.
+
 1.1.0
 .....
 
@@ -65,6 +76,7 @@ Misc
   ``capabilities`` or ``spec_file`` move to ``AgentOperator`` or ``@task.agent``. See
   :ref:`howto/operator:llm`.
 
+.. note::
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
