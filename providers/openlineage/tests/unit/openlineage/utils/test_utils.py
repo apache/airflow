@@ -4418,12 +4418,8 @@ def test_stored_and_runtime_task_instances_identify_an_execution_alike(dag_maker
     stored.state, stored.try_number, stored.max_tries = TaskInstanceState.UP_FOR_RETRY, 1, 2
     resolver = TaskCoordinateResolver.for_dag(stored.task.dag, session)
     mapped = stored.task.get_needs_expansion()
-
-    class Runtime(SimpleNamespace):
-        log_url = RuntimeTaskInstance.log_url
-
     # What the server sends the worker for this execution, on the task of the Dag the worker parses
-    runtime = Runtime(
+    runtime = SimpleNamespace(
         id=stored.id,
         dag_id=stored.dag_id,
         run_id=stored.run_id,
@@ -4453,7 +4449,7 @@ def test_stored_and_runtime_task_instances_identify_an_execution_alike(dag_maker
     runtime_info = dict(TaskInstanceInfo(runtime, position=get_task_instance_position(runtime)))
 
     # Only stored task instances have these, which describe the attempt's resources rather than which it is
-    left_out = {"duration", "pool", "queued_dttm"}
+    left_out = {"duration", "pool", "queued_dttm", "log_url"}
     # Only the worker is told these
     left_out |= {"expanded_ti_count", "loop"}
     assert {k: v for k, v in stored_info.items() if k not in left_out} == {

@@ -1341,7 +1341,6 @@ class TestOpenLineageListenerAirflow3:
         assert submit.call_args.kwargs["run_id"] == task_instance_facet["id"] == str(ti.id)
         # Its region rows don't tell the iteration of the task of another version
         assert task_instance_facet.get("loop") == (None if holds_another_version else {"index": 1})
-        assert "/mapped/" not in task_instance_facet["log_url"]
 
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")

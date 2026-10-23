@@ -1178,11 +1178,6 @@ class TaskInstanceInfo(InfoJsonEncodable):
             # The worker gets the bundle name of the Dag and the bundle version of the Dag run
             self.dag_bundle_name = getattr(self._dag, "bundle_name", None)
             self.dag_bundle_version = getattr(self._dag_run, "bundle_version", None)
-        if is_stored and position and position.map_index == -1 and getattr(self.obj, "region_index", -1) >= 0:
-            # Airflow builds a stored log_url with region_index as the map index, the iteration for a loop body
-            self.log_url = self.obj.log_url.replace(
-                f"/tasks/{self.obj.task_id}/mapped/{self.obj.region_index}", f"/tasks/{self.obj.task_id}", 1
-            )
         if position and position.expanded_ti_count is not None:
             self.expanded_ti_count = position.expanded_ti_count
             self._fields.append("expanded_ti_count")
