@@ -78,10 +78,11 @@ PRs should **never** target `v3-2-stable` directly unless explicitly instructed 
 > RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
 > without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
-> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
-> check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
-> (adjust the branch filter for the relevant `v3-X-test` branch).
+> verify that the full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the `v3-X-test` HEAD have
+> succeeded before cutting the RC. They are started by `release-branch-ci.yml`, not on push; see
+> [CI of the `vX-Y-test` branch](README_RELEASE_AIRFLOW.md#ci-of-the-vx-y-test-branch). You can see them at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Aworkflow_dispatch+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch, and check `ci-arm.yml` the same way).
 
 ## Developing for Airflow 3
 

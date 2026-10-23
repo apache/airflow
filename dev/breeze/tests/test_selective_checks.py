@@ -2915,6 +2915,39 @@ def test_expected_output_push(
 
 
 @pytest.mark.parametrize(
+    ("selective_tests_on_push", "expected_outputs"),
+    [
+        pytest.param(
+            False,
+            {
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
+                "full-tests-needed": "true",
+            },
+            id="Push runs all tests by default",
+        ),
+        pytest.param(
+            True,
+            {
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "full-tests-needed": "false",
+                "run-unit-tests": "true",
+            },
+            id="Push selects tests from the changed files when selective tests on push are enabled",
+        ),
+    ],
+)
+def test_selective_tests_on_push(selective_tests_on_push: bool, expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/api.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        default_branch="v3-4-test",
+        selective_tests_on_push=selective_tests_on_push,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(

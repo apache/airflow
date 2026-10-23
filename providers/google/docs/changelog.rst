@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+.. warning::
+    Subclasses of ``CloudLoggingRemoteLogIO`` that override ``prepare_log_filter`` must accept a
+    ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
+    With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
+
 22.8.0
 ......
 

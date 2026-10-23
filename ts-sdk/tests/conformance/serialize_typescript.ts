@@ -37,6 +37,7 @@ import {
 } from "../../src/generated/dag-schema-fields.js";
 import {
   Dag,
+  Label,
   type DagSpec,
   type TaskGroupRef,
   type TaskRef,
@@ -55,7 +56,7 @@ interface DagCase {
   readonly spec?: Readonly<Record<string, unknown>>;
   readonly groups?: readonly string[];
   readonly tasks: readonly TaskCase[];
-  readonly order_edges?: readonly (readonly [string, string])[];
+  readonly order_edges?: readonly (readonly [string, string, string?])[];
 }
 
 // A duration is already a number of seconds in this SDK's authoring API.
@@ -132,12 +133,12 @@ function buildDag(dagCase: DagCase): Dag {
     }
     refs.set(qualifiedTaskId(task), factories.get(qualifiedTaskId(task))!(inputs));
   }
-  for (const [upstream, downstream] of dagCase.order_edges ?? []) {
+  for (const [upstream, downstream, text] of dagCase.order_edges ?? []) {
     const from = groups.get(upstream) ?? refs.get(upstream);
     const to = groups.get(downstream) ?? refs.get(downstream);
     if (!from || !to)
       throw new Error(`${dagCase.dag_id}: no node "${from ? downstream : upstream}"`);
-    from.before(to);
+    from.before(text === undefined ? to : Label.of(text).on(to));
   }
   return dag;
 }
