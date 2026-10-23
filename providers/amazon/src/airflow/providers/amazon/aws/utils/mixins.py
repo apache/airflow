@@ -30,9 +30,31 @@ from __future__ import annotations
 from functools import cache, cached_property
 from typing import Any, Generic, NamedTuple, TypeVar, final
 
+from botocore.config import Config
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 AwsHookType = TypeVar("AwsHookType", bound=AwsGenericHook)
+
+
+def normalize_botocore_config(
+    botocore_config: dict[str, Any] | Config | None,
+) -> dict[str, Any] | Config | None:
+    """
+    Reduce ``botocore_config`` to the mapping that the operator and sensor interfaces declare.
+
+    A ``Config`` instance is accepted by the hooks but cannot be serialized, so one that reaches a
+    trigger argument fails the task at defer time, once the operator's AWS call has already been
+    made. Both forms build the same client, so the mapping is kept as the single representation.
+    """
+    if not isinstance(botocore_config, Config):
+        return botocore_config
+    # Only the caller's own options, so that the mapping does not pin whichever defaults the
+    # installed botocore happens to carry.
+    user_provided_options = getattr(botocore_config, "_user_provided_options", None)
+    if user_provided_options is None:
+        return botocore_config
+    return dict(user_provided_options)
 
 
 class AwsHookParams(NamedTuple):
@@ -53,7 +75,7 @@ class AwsHookParams(NamedTuple):
         aws_conn_id: str | None,
         region_name: str | None,
         verify: bool | str | None,
-        botocore_config: dict[str, Any] | None,
+        botocore_config: dict[str, Any] | Config | None,
         additional_params: dict,
     ):
         """
@@ -83,7 +105,7 @@ class AwsHookParams(NamedTuple):
                     self.botocore_config = params.botocore_config
                     self.foo = foo
         """
-        return cls(aws_conn_id, region_name, verify, botocore_config)
+        return cls(aws_conn_id, region_name, verify, normalize_botocore_config(botocore_config))
 
 
 class AwsBaseHookMixin(Generic[AwsHookType]):
