@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import Field
 
@@ -76,10 +77,12 @@ class CallbackTerminalState(str, Enum):
 
 
 class CallbackRunPayload(StrictBaseModel):
-    """The worker process exchanging a callback's token, so a retry of its own exchange is recognized."""
+    """The attempt exchanging a callback's token, so a retry of its own exchange is recognized."""
 
     hostname: str
     pid: int
+    attempt_id: UUID
+    """Generated once per attempt to run the callback, so no other attempt matches it."""
 
 
 class CallbackTerminalStatePayload(StrictBaseModel):
