@@ -20,7 +20,8 @@ DAG with tasks whose events only taskInstance's `state` tells apart (requires Ai
 It checks:
     - a task that skips itself emits START with `state` running, and COMPLETE with `state` skipped, which
       a successful task's COMPLETE would carry as success
-      (Airflow 3.0 calls no listener when a task skips itself, so it emits no COMPLETE there)
+      (Airflow 3.0 calls no listener when a task skips itself, so it emits no COMPLETE there, and its lone
+      START isn't checked)
     - a task that raises AirflowFailException with retries left emits START with `state` running, and FAIL
       with `state` failed at `try_number` 1 and `max_tries` 2: it isn't retried although
       `try_number <= max_tries`
