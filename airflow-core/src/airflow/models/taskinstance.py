@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import attrs
@@ -1428,11 +1428,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-        map_index = f"/mapped/{self.region_index}" if self.region_index >= 0 else ""
-        try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-
-        return _log_uri
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}"
+        query: dict[str, Any] = {}
+        if self.region_id == SENTINEL_REGION_ID:
+            if self.region_index >= 0:
+                _log_uri += f"/mapped/{self.region_index}"
+        else:
+            # In a region, region_index is a map index only for a mapped task (in a loop it is the iteration
+            # otherwise), and the UI selects the task instance by its region, which tells loop iterations apart
+            if (task := getattr(self, "task", None)) is not None and task.get_needs_expansion():
+                _log_uri += f"/mapped/{self.region_index}"
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number > 0:
+            query["try_number"] = self.try_number
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:

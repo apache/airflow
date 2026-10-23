@@ -25,6 +25,32 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add emit_message_history to record an agent transcript without seeding it (#74811)``
+* ``Push LLMOperator's token usage and cost to XCom (#74355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use common.compat mask_secret in MCPHook (#75064)``
+* ``Preserve SQL table allowlist validation with newer sqlglot and add OpenAI Decisions and System One to the connection vendor list (#73822)``
+
+Misc
+~~~~
+
+* ``Remove unused mypy suppressions in common providers (#75257)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Number task loop iterations from one instead of zero (#74773)``
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Fix Modal contract test importing a private class from its old location (#75188)``
+
 1.0.0
 .....
 

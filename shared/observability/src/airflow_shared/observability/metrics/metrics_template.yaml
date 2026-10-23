@@ -207,6 +207,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.critical_section_refill_limit_reached"
+    description: "Count of times the scheduler stopped querying for more task instances to fill
+    its batch because it reached the per-loop limit of refill queries. The remaining runnable
+    task instances are considered in the next scheduler loop."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti.start"
     description: "Number of started task in a given Dag. Similar to {job_name}_start but for task.
     Metric with dag_id and task_id tagging."
