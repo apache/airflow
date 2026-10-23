@@ -26,11 +26,15 @@ from sqlalchemy import delete
 
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowFailException, timezone
 from airflow.providers.google.marketing_platform.operators.bid_manager import (
     GoogleBidManagerCreateQueryOperator,
     GoogleBidManagerDeleteQueryOperator,
     GoogleBidManagerDownloadReportOperator,
+    GoogleBidManagerGetQueryOperator,
+    GoogleBidManagerGetReportOperator,
+    GoogleBidManagerListQueriesOperator,
+    GoogleBidManagerListReportsOperator,
     GoogleBidManagerRunQueryOperator,
 )
 from airflow.utils.session import create_session
@@ -426,6 +430,31 @@ class TestGoogleBidManagerDownloadReportOperator:
             object_name=REPORT_NAME + ".gz",
         )
 
+    @pytest.mark.parametrize(
+        ("state", "expected_exception", "match"),
+        [
+            ("FAILED", AirflowFailException, "failed execution"),
+            ("RUNNING", ValueError, "is in state 'RUNNING'. Expected 'DONE'"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_non_done_status_raises(self, mock_hook, state, expected_exception, match):
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": state},
+            }
+        }
+        mock_context = {"task_instance": mock.Mock()}
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        with pytest.raises(expected_exception, match=match):
+            op.execute(context=mock_context)
+
 
 class TestGoogleBidManagerRunQueryOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
@@ -483,8 +512,110 @@ class TestGoogleBidManagerCreateQueryOperator:
         with NamedTemporaryFile("w+", suffix=".json") as f:
             f.write(json.dumps(body))
             f.flush()
-            op = GoogleBidManagerCreateQueryOperator(body=body, task_id="test_task")
+            op = GoogleBidManagerCreateQueryOperator(
+                body=f.name,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                task_id="test_task",
+            )
             op.prepare_template()
 
             assert isinstance(op.body, dict)
             assert op.body == body
+
+
+class TestGoogleBidManagerGetQueryOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute(self, hook_mock):
+        return_value = {"queryId": QUERY_ID}
+        hook_mock.return_value.get_query.return_value = return_value
+
+        op = GoogleBidManagerGetQueryOperator(
+            query_id=QUERY_ID,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            task_id="test_task",
+        )
+        result = op.execute(context=None)
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.get_query.assert_called_once_with(query_id=QUERY_ID)
+        assert result == return_value
+
+
+class TestGoogleBidManagerListQueriesOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute(self, hook_mock):
+        return_value = [{"queryId": QUERY_ID}]
+        hook_mock.return_value.list_queries.return_value = return_value
+
+        op = GoogleBidManagerListQueriesOperator(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            task_id="test_task",
+        )
+        result = op.execute(context=None)
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.list_queries.assert_called_once_with()
+        assert result == return_value
+
+
+class TestGoogleBidManagerGetReportOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute(self, hook_mock):
+        return_value = {"key": {"queryId": QUERY_ID, "reportId": REPORT_ID}}
+        hook_mock.return_value.get_report.return_value = return_value
+
+        op = GoogleBidManagerGetReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            task_id="test_task",
+        )
+        result = op.execute(context=None)
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.get_report.assert_called_once_with(query_id=QUERY_ID, report_id=REPORT_ID)
+        assert result == return_value
+
+
+class TestGoogleBidManagerListReportsOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute(self, hook_mock):
+        return_value = {"reports": [{"key": {"queryId": QUERY_ID, "reportId": REPORT_ID}}]}
+        hook_mock.return_value.list_reports.return_value = return_value
+
+        op = GoogleBidManagerListReportsOperator(
+            query_id=QUERY_ID,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            task_id="test_task",
+        )
+        result = op.execute(context=None)
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.list_reports.assert_called_once_with(query_id=QUERY_ID)
+        assert result == return_value
