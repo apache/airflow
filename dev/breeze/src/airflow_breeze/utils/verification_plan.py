@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -102,8 +103,8 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
 )
 
 # Gated CI jobs that run a prek hook a default `prek install` never triggers (the hooks are
-# manual or pre-push stage), mapped to that hook. They are not plan items; the hooks are
-# reported separately so the user can run them with `--stage manual`.
+# manual or pre-push stage), mapped to that hook. They are not plan items; breeze verify lists
+# the hooks separately with `--stage manual`, and `--run` runs them after the plan items.
 PREK_JOBS: dict[str, str] = {
     "run_mypy_providers": "mypy-providers",
     "has_migrations": "migration-round-trip",
@@ -118,12 +119,12 @@ def build_unit_test_items(group: str, test_types_json: str | None) -> list[Verif
     return [
         VerificationItem(
             "unit",
-            f'{prefix} --run-in-parallel --run-db-tests-only --parallel-test-types "{test_types}"',
+            f"{prefix} --run-in-parallel --run-db-tests-only --parallel-test-types {shlex.quote(test_types)}",
             "breeze",
         ),
         VerificationItem(
             "unit",
-            f'{prefix} --use-xdist --skip-db-tests --no-db-cleanup --backend none --parallel-test-types "{test_types}"',
+            f"{prefix} --use-xdist --skip-db-tests --no-db-cleanup --backend none --parallel-test-types {shlex.quote(test_types)}",
             "breeze",
         ),
     ]
@@ -154,18 +155,20 @@ def build_local_verification_plan(
             items += [VerificationItem(*command) for command in commands]
     if sc.docs_build:
         items.append(
-            VerificationItem("docs", f"breeze build-docs {sc.docs_list_as_string}".rstrip(), "breeze")
+            VerificationItem(
+                "docs", shlex.join(["breeze", "build-docs", *sc.docs_list_as_string.split()]), "breeze"
+            )
         )
     if full:
         # Jobs CI runs on every PR regardless of the change.
         breeze_tests = VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host")
         if breeze_tests not in items:
             items.append(breeze_tests)
-        if dists := " ".join(sorted(json.loads(sc.shared_distributions_as_json))):
+        if dists := sorted(json.loads(sc.shared_distributions_as_json)):
             items.append(
                 VerificationItem(
                     "unit",
-                    f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+                    f'for d in {shlex.join(dists)}; do (cd "shared/$d" && uv run --group dev pytest) || exit 1; done',
                     "host",
                 )
             )
