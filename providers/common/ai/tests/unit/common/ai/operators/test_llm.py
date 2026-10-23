@@ -1657,7 +1657,7 @@ class TestLLMOperatorMultimodalPromptApproval:
                 "scores": {},
             },
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
