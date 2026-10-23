@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import ssl
 import sys
 import uuid
@@ -51,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetStateStorePutBody,
     AssetStateStoreResponse,
     CallbackContextResponse,
+    CallbackRunPayload,
     CallbackState,
     CallbackTerminalStatePayload,
     ConnectionResponse,
@@ -1183,7 +1185,9 @@ class CallbackOperations:
 
     def run(self, callback_id: uuid.UUID) -> None:
         """Exchange the single-use callback token for an execution token."""
-        self.client.patch(f"callbacks/{callback_id}/run")
+        # Identifies this process, so a retry of an exchange whose response was lost is accepted.
+        body = CallbackRunPayload(hostname=get_hostname(), pid=os.getpid())
+        self.client.patch(f"callbacks/{callback_id}/run", content=body.model_dump_json())
 
     def get_context(self, callback_id: uuid.UUID) -> CallbackContextResponse:
         """Fetch the context of a running Dag-attribute callback from the API server."""

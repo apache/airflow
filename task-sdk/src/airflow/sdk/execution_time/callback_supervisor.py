@@ -30,7 +30,7 @@ from uuid import UUID
 
 import attrs
 import structlog
-from pydantic import Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk.api.datamodels._generated import CallbackState
@@ -39,6 +39,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetPreviousDagRun,
     GetPreviousTI,
+    GetPrevSuccessfulDagRun,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -62,7 +63,6 @@ from airflow.sdk.execution_time.supervisor import (
 if TYPE_CHECKING:
     from typing import Self
 
-    from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.client import Client
@@ -93,6 +93,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 _CALLBACK_REQUEST_TYPES: tuple[type[BaseModel], ...] = (
     DeleteVariable,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetPreviousDagRun,
     GetPreviousTI,
     GetTICount,
@@ -109,6 +110,7 @@ _CALLBACK_REQUEST_TYPES: tuple[type[BaseModel], ...] = (
 CallbackToSupervisor = Annotated[
     DeleteVariable
     | GetConnection
+    | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTICount
@@ -155,6 +157,19 @@ def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
         return default if value is None else value
 
     context["xcom_pull"] = xcom_pull
+
+
+class _UnsupportedRequest(BaseModel):
+    """
+    A request a callback can't make, decoded so it gets an error response.
+
+    The child waits for a response to every request, so one dropped as undecodable would block the
+    callback until its timeout.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    type: str
 
 
 SERDE_KWARGS_ENCODING = "serde"
@@ -291,7 +306,9 @@ class CallbackSubprocess(WatchedSubprocess):
     """Seconds the callback may run; ``None`` reads ``[callbacks] callback_execution_timeout``."""
     timed_out: bool = attrs.field(default=False, init=False)
 
-    decoder: ClassVar[TypeAdapter[CallbackToSupervisor]] = TypeAdapter(CallbackToSupervisor)
+    decoder: ClassVar[TypeAdapter[CallbackToSupervisor | _UnsupportedRequest]] = TypeAdapter(
+        Annotated[CallbackToSupervisor | _UnsupportedRequest, Field(union_mode="left_to_right")]
+    )
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]]] = (
         WatchedSubprocess._get_shared_request_handlers(*_CALLBACK_REQUEST_TYPES)
     )

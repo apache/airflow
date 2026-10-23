@@ -648,11 +648,13 @@ class TestRoutedCallbackData:
         session.commit()
         started = timezone.datetime(2026, 10, 22, 12, 0, 0)
 
-        callback.mark_started(started)
+        callback.mark_started(started, started_by={"hostname": "worker-1", "pid": 4242})
         session.commit()
         session.expire_all()
 
-        assert session.get_one(Callback, callback.id).started_at == started
+        stored = session.get_one(Callback, callback.id)
+        assert stored.started_at == started
+        assert stored.started_by == {"hostname": "worker-1", "pid": 4242}
 
     def test_repr_of_a_routed_callback_names_its_request_and_executor(self):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)

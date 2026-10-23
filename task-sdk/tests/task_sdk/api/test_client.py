@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pickle
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -2424,12 +2425,15 @@ class TestAssetStateOperations:
 
 
 class TestCallbackOperations:
-    def test_run_exchanges_token(self):
+    @mock.patch("airflow.sdk.api.client.get_hostname", return_value="worker-1")
+    def test_run_exchanges_token(self, _hostname):
         callback_id = uuid7()
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PATCH"
             assert request.url.path == f"/callbacks/{callback_id}/run"
+            # Identifies the worker, so a retry of its own exchange is accepted.
+            assert json.loads(request.read()) == {"hostname": "worker-1", "pid": os.getpid()}
             return httpx2.Response(
                 status_code=204,
                 headers={"Refreshed-API-Token": "execution-token"},

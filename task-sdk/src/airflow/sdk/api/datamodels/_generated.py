@@ -63,6 +63,18 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackRunPayload(BaseModel):
+    """
+    The worker process exchanging a callback's token, so a retry of its own exchange is recognized.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    hostname: Annotated[str, Field(title="Hostname")]
+    pid: Annotated[int, Field(title="Pid")]
+
+
 class CallbackState(str, Enum):
     """
     All possible states of callbacks.

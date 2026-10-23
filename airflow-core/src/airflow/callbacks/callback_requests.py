@@ -73,6 +73,8 @@ class TaskCallbackRequest(BaseCallbackRequest):
     """Whether on success, on failure, on retry"""
     context_from_server: ti_datamodel.TIRunContext | None = None
     """Task execution context from the Server"""
+    task_started: bool = True
+    """Whether the attempt ran on a worker. A routed callback for one that never did avoids its queue."""
     type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
 
     @property
@@ -96,6 +98,8 @@ class EmailRequest(BaseCallbackRequest):
     """Whether this is for a failure or retry email"""
     context_from_server: ti_datamodel.TIRunContext
     """Task execution context from the Server"""
+    task_started: bool = True
+    """Whether the attempt ran on a worker. A routed email for one that never did avoids its queue."""
     type: Literal["EmailRequest"] = "EmailRequest"
 
 

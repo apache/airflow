@@ -25,15 +25,23 @@ import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from operator import attrgetter
-from typing import Any
-from unittest.mock import ANY, Mock, patch
+from typing import Any, get_args
+from unittest.mock import ANY, Mock, create_autospec, patch
 
 import pytest
 import structlog
 
-from airflow.sdk.api.datamodels._generated import CallbackState, DagCallbackContext, XComResponse
+from airflow.sdk.api.client import CallbackOperations, Client
+from airflow.sdk.api.datamodels._generated import (
+    CallbackState,
+    DagCallbackContext,
+    PrevSuccessfulDagRunResponse,
+    XComResponse,
+)
 from airflow.sdk.execution_time.callback_supervisor import (
+    _CALLBACK_REQUEST_TYPES,
     CallbackSubprocess,
+    CallbackToSupervisor,
     Path,
     execute_callback,
     supervise_callback,
@@ -42,6 +50,7 @@ from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetVariableKeys,
     GetXCom,
@@ -376,6 +385,16 @@ class TestCallbackHandleRequest:
             test_id="put_variable",
             client_mock=ClientMock(method_path="variables.set", args=("k", "v", None), response=None),
         ),
+        RequestCase(
+            message=GetPrevSuccessfulDagRun(ti_id=uuid.UUID("12345678-1234-5678-1234-567812345678")),
+            test_id="get_prev_successful_dag_run",
+            client_mock=ClientMock(
+                method_path="task_instances.get_previous_successful_dagrun",
+                # Answered for the callback's own id, as the Dag processor answers for its process.
+                args=("12345678-1234-5678-1234-567812345678",),
+                response=PrevSuccessfulDagRunResponse(),
+            ),
+        ),
     ]
 
     @pytest.fixture
@@ -419,6 +438,28 @@ class TestCallbackHandleRequest:
 
         if client_mock:
             mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)
+
+    def test_a_request_a_callback_cannot_make_gets_an_error(self, callback_subprocess, mocker):
+        """The child waits for every response, so a dropped request would block it until its timeout."""
+        proc, _read_end = callback_subprocess
+        send_msg = mocker.patch.object(CallbackSubprocess, "send_msg", autospec=True)
+
+        generator = proc.handle_requests(log=mocker.Mock())
+        next(generator)
+        generator.send(_RequestFrame(id=7, body={"type": "GetAssetsByAlias", "alias_name": "alias"}))
+
+        send_msg.assert_called_once_with(proc, None, request_id=7, error=ANY)
+        assert send_msg.call_args.kwargs["error"].detail["message"] == "Unhandled request"
+
+
+def test_callbacks_can_make_the_requests_a_dag_processor_answers():
+    """A routed callback reaches the same context as one a Dag processor runs."""
+    from airflow.dag_processing.processor import BaseDagFileProcessorProcess
+
+    expected = {*BaseDagFileProcessorProcess._client_request_types, MaskSecret}
+    assert set(_CALLBACK_REQUEST_TYPES) == expected
+    assert set(get_args(get_args(CallbackToSupervisor)[0])) == expected
+    assert set(CallbackSubprocess._request_handlers) == expected
 
 
 class TestConfigureLogging:
@@ -546,7 +587,11 @@ class TestCallbackExecutionTimeout:
 
     @pytest.mark.parametrize(
         ("execution_timeout", "expected"),
-        [pytest.param(7.0, 7.0, id="stamped"), pytest.param(None, 3, id="config")],
+        [
+            pytest.param(7.0, 7.0, id="stamped"),
+            pytest.param(0, 0, id="stamped-no-timeout"),
+            pytest.param(None, 3, id="config"),
+        ],
     )
     def test_timeout_stamped_by_the_scheduler_overrides_the_config(
         self, callback_subprocess, execution_timeout, expected
@@ -858,6 +903,12 @@ class TestSuperviseCallbackExchangesTokenFirst:
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
 
 
+def _make_client() -> Mock:
+    client = Mock(spec=Client)
+    client.callbacks = create_autospec(CallbackOperations, instance=True)
+    return client
+
+
 class TestSuperviseRoutedCallback:
     """A routed callback reads its context after the exchange and reports its outcome."""
 
@@ -884,7 +935,7 @@ class TestSuperviseRoutedCallback:
     @patch.object(CallbackSubprocess, "start")
     def test_context_is_read_after_the_exchange(self, mock_start, _nondumpable, fetch_method, reads_context):
         calls: list[str] = []
-        client = Mock()
+        client = _make_client()
         client.callbacks.run.side_effect = lambda callback_id: calls.append("exchange")
         context = DagCallbackContext(type="DagCallback", dag_id="test_dag", run_id="test_run")
         client.callbacks.get_context.side_effect = lambda callback_id: (
@@ -915,7 +966,7 @@ class TestSuperviseRoutedCallback:
     def test_outcome_is_reported(
         self, mock_start, _nondumpable, exit_code, timed_out, expected_state, expected_output
     ):
-        client = Mock()
+        client = _make_client()
         process = Mock(wait=Mock(return_value=exit_code), timed_out=timed_out)
         process._get_callback_execution_timeout.return_value = 30
         mock_start.return_value = process
@@ -933,7 +984,7 @@ class TestSuperviseRoutedCallback:
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
     def test_failing_to_report_leaves_the_outcome_to_the_executor(self, mock_start, _nondumpable):
-        client = Mock()
+        client = _make_client()
         client.callbacks.update_state.side_effect = RuntimeError("404 Not Found")
         mock_start.return_value = Mock(wait=Mock(return_value=0))
 

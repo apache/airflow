@@ -41,7 +41,7 @@ from airflow.callbacks.callback_requests import (
     EmailRequest,
     TaskCallbackRequest,
 )
-from airflow.executors.workloads.callback import START_DEADLINE_KEY
+from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, START_DEADLINE_KEY
 from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
@@ -53,6 +53,7 @@ from airflow.sdk.definitions.callback import SyncCallback
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_callbacks, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -267,6 +268,67 @@ class TestRunCallbackIdentityClaims:
         assert claims["dag_id"] == "test_dag"
         assert "run_id" not in claims
         assert "bundle_name" not in claims
+
+
+WORKER = {"hostname": "worker-1", "pid": 4242}
+
+
+class TestRunCallbackRetriedExchange:
+    def test_the_same_worker_can_repeat_its_exchange(self, client, session, queued_callback):
+        """A worker that lost the response to its exchange retries it, and still runs the callback once."""
+        url = f"/execution/callbacks/{queued_callback.id}/run"
+
+        first = client.patch(url, json=WORKER)
+        retried = client.patch(url, json=WORKER)
+
+        assert first.status_code == retried.status_code == 204
+        payload = jwt.decode(retried.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert payload["sub"] == str(queued_callback.id)
+        assert payload["scope"] == "execution"
+        session.expire_all()
+        callback = session.get_one(Callback, queued_callback.id)
+        assert callback.state == CallbackState.RUNNING
+        assert callback.started_by == WORKER
+
+    @pytest.mark.parametrize(
+        "retry_body",
+        [
+            pytest.param(None, id="unidentified"),
+            pytest.param({**WORKER, "hostname": "worker-2"}, id="other-host"),
+            pytest.param({**WORKER, "pid": 1}, id="other-process"),
+        ],
+    )
+    def test_any_other_exchange_of_a_started_callback_is_refused(self, client, queued_callback, retry_body):
+        """A second delivery of the workload must not run the callback again."""
+        url = f"/execution/callbacks/{queued_callback.id}/run"
+        client.patch(url, json=WORKER)
+
+        response = client.patch(url, json=retry_body) if retry_body else client.patch(url)
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_lifetime"),
+    [
+        pytest.param({EXECUTION_TIMEOUT_KEY: 3600}, 3600 + 1800, id="outlasts-the-report-window"),
+        pytest.param({}, 600, id="default-without-timeout"),
+    ],
+)
+@conf_vars({("execution_api", "jwt_expiration_time"): "600"})
+def test_run_token_lasts_until_the_callback_must_report(
+    client, session, queued_callback, data, expected_lifetime
+):
+    """A callback doesn't heartbeat, so nothing refreshes its token while it runs."""
+    queued_callback.data = {**queued_callback.data, **data}
+    session.commit()
+
+    response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
+    assert response.status_code == 204
+    payload = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+    assert payload["exp"] - payload["iat"] == expected_lifetime
 
 
 class TestGetCallbackContext:

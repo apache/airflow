@@ -3684,7 +3684,8 @@ callbacks:
         parses the Dag file at the Dag run's bundle version. Callbacks whose executor cannot run
         callbacks, and callbacks of Lang-SDK Dags, stay with the Dag processor.
 
-        Enable this only once API servers and workers run a version that supports it. Turning it off
+        Enable this only once schedulers, API servers and workers run a version that supports it:
+        callbacks stored for routing wait until a scheduler that routes them runs. Turning it off
         hands callbacks not yet routed back to the Dag processor; routed ones still run on their
         executors.
       version_added: 3.5.0
@@ -3693,19 +3694,22 @@ callbacks:
       default: "False"
     routed_callback_execution_timeout:
       description: |
-        Maximum execution time in seconds for a callback routed by
-        ``[callbacks] route_dag_processor_callbacks``. The worker terminates a callback that runs
-        longer, and the scheduler fails a routed callback whose worker has not reported it finished
-        within this time plus a grace period. 0 means no timeout.
+        Maximum time in seconds a callback routed by ``[callbacks] route_dag_processor_callbacks``
+        may take on its worker, including preparing its Dag bundle and parsing its Dag file. The
+        worker terminates a callback that takes longer, and the scheduler fails a routed callback
+        whose worker has not reported it finished within this time plus a grace period. 0 means no
+        timeout: the worker never terminates the callback, and a callback whose worker is lost stays
+        running until its executor reports it.
       version_added: 3.5.0
       type: integer
       example: ~
       default: "300"
     max_routed_callbacks_per_loop:
       description: |
-        The maximum number of Dag processor callbacks each scheduler loop routes to executors.
-        Routed callbacks take executor slots from ``[core] parallelism`` and are sent before tasks,
-        so this limits how much a burst of callbacks delays tasks.
+        The maximum number of Dag processor callbacks each scheduler loop routes to executors, or
+        hands back to the Dag processor when they can't be routed. Callbacks are routed only into
+        free executor slots, ahead of tasks, so this limits how many of those slots a burst of
+        callbacks takes from tasks each loop.
       version_added: 3.5.0
       type: integer
       example: ~

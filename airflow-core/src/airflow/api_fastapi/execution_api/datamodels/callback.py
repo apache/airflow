@@ -67,6 +67,13 @@ class CallbackContextResponse(BaseModel):
     ]
 
 
+class CallbackRunPayload(StrictBaseModel):
+    """The worker process exchanging a callback's token, so a retry of its own exchange is recognized."""
+
+    hostname: str
+    pid: int
+
+
 class CallbackTerminalStatePayload(StrictBaseModel):
     """The outcome a worker reports for a callback it ran."""
 

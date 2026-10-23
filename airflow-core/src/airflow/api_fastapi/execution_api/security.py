@@ -28,6 +28,12 @@ Token types (``TokenType``):
     Restricted scope, only accepted on routes that opt in via
     ``Security(require_auth, scopes=["token:workload"])``.
 
+``"callback"``
+    A callback's single-use token, exchanged at ``/callbacks/{id}/run`` for an
+    ``execution`` token that carries the callback's ``dag_id``, ``run_id`` and
+    ``bundle_name``. A callback has no task instance, so its team is resolved
+    from the signed bundle.
+
 ``"dag_processor_session"``
     Issued to a Dag processor session by trusted provisioning, never by the
     processor itself. ``sub`` identifies the session and the ``dag_bundles``
@@ -458,12 +464,17 @@ DagInGrantedBundle = Depends(require_dag_in_granted_bundle)
 
 
 def issue_execution_token(
-    services: svcs.Container, response: Response, sub: str, claims: dict[str, str] | None = None
+    services: svcs.Container,
+    response: Response,
+    sub: str,
+    claims: dict[str, str] | None = None,
+    min_valid_for: float | None = None,
 ) -> None:
     """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
     generator: JWTGenerator = services.get(JWTGenerator)
     response.headers["Refreshed-API-Token"] = generator.generate(
-        extras={**(claims or {}), "sub": sub, "scope": "execution"}
+        extras={**(claims or {}), "sub": sub, "scope": "execution"},
+        valid_for=max(generator.valid_for, min_valid_for) if min_valid_for else None,
     )
 
 

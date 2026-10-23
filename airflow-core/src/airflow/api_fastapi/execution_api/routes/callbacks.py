@@ -27,6 +27,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.callback import (
     CallbackContextResponse,
+    CallbackRunPayload,
     CallbackTerminalStatePayload,
     DagCallbackContext,
     EmailCallbackContext,
@@ -39,6 +40,7 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
+from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, get_callback_report_window
 from airflow.models.callback import Callback
 from airflow.models.dagrun import DagRun
 from airflow.utils.helpers import prune_dict
@@ -94,9 +96,24 @@ def run_callback(
     response: Response,
     session: SessionDep,
     services=DepContainer,
+    body: CallbackRunPayload | None = None,
 ) -> None:
-    """Exchange a single-use callback token for a short-lived execution token."""
+    """
+    Exchange a single-use callback token for a short-lived execution token.
+
+    A worker that identifies itself can repeat its own exchange, as when it never got the response,
+    and gets a new execution token. Any other exchange of a callback that already started is refused.
+    """
     callback = _get_callback(callback_id, session, for_update=True)
+    started_by = body.model_dump() if body is not None else None
+
+    if (
+        callback.state == CallbackState.RUNNING
+        and started_by is not None
+        and callback.started_by == started_by
+    ):
+        _issue_callback_token(callback, response, session, services)
+        return
 
     if callback.state != CallbackState.QUEUED:
         raise HTTPException(
@@ -122,10 +139,19 @@ def run_callback(
         )
 
     callback.state = CallbackState.RUNNING
-    callback.mark_started(now)
+    callback.mark_started(now, started_by=started_by)
+    _issue_callback_token(callback, response, session, services)
 
+
+def _issue_callback_token(callback: Callback, response: Response, session: SessionDep, services) -> None:
+    # A callback doesn't heartbeat, so its token must last until it reports its outcome.
+    timeout = callback.data.get(EXECUTION_TIMEOUT_KEY)
     issue_execution_token(
-        services, response, sub=str(callback_id), claims=_get_identity_claims(callback, session)
+        services,
+        response,
+        sub=str(callback.id),
+        claims=_get_identity_claims(callback, session),
+        min_valid_for=get_callback_report_window(timeout) if timeout else None,
     )
 
 

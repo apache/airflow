@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk.api.datamodels._generated import (
     DagCallbackContext,
     EmailCallbackContext,
@@ -170,7 +171,14 @@ def _run_dag_callbacks(context: DagCallbackContext, dag: DAG, log: FilteringBoun
         "failure" if context.is_failure_callback else "success",
         dag_id=context.dag_id,
     )
-    return _run_callbacks(callbacks, template_context, log)
+    errors = _run_callbacks(callbacks, template_context, log)
+    if errors:
+        tags = {"dag_id": context.dag_id}
+        if context.dag_run is not None and context.dag_run.team_name:
+            tags["team_name"] = context.dag_run.team_name
+        # The metric the Dag processor emits for the Dag callbacks it runs.
+        stats.incr("dag.callback_exceptions", len(errors), tags=tags)
+    return errors
 
 
 def _run_task_callbacks(context: TaskCallbackContext, dag: DAG, log: FilteringBoundLogger) -> list[str]:

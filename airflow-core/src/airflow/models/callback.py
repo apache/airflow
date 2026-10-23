@@ -44,6 +44,7 @@ from airflow.executors.workloads.callback import (
     SERDE_KWARGS_ENCODING,
     START_DEADLINE_KEY,
     STARTED_AT_KEY,
+    STARTED_BY_KEY,
     CallbackFetchMethod,
 )
 from airflow.models import Base
@@ -250,9 +251,14 @@ class Callback(Base, BaseWorkload):
         value = self.data.get(STARTED_AT_KEY)
         return datetime.fromisoformat(value) if value else None
 
-    def mark_started(self, when: datetime) -> None:
+    @property
+    def started_by(self) -> dict[str, Any] | None:
+        """Return the worker process that exchanged the callback's token, if it identified itself."""
+        return self.data.get(STARTED_BY_KEY)
+
+    def mark_started(self, when: datetime, *, started_by: dict[str, Any] | None = None) -> None:
         # Reassigned rather than mutated so the JSON column is flagged as changed.
-        self.data = {**self.data, STARTED_AT_KEY: when.isoformat()}
+        self.data = {**self.data, STARTED_AT_KEY: when.isoformat(), STARTED_BY_KEY: started_by}
 
     def get_callback_request(self) -> CallbackRequest | None:
         """Return the Dag processor callback request this callback stores, or ``None`` if it has none."""
