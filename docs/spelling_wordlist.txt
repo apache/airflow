@@ -79,6 +79,7 @@ apikey
 apis
 AppBuilder
 appbuilder
+appender
 Appflow
 appflow
 approle
@@ -1049,6 +1050,7 @@ LocalObjectReference
 localstack
 Lockbox
 lodash
+Logback
 logfile
 logformat
 loglevel
