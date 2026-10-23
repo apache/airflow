@@ -553,7 +553,7 @@ class VariableOperations:
     def get(self, key: str) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
         try:
-            resp = self.client.get(f"variables/{key}")
+            resp = self.client.get(f"variables/{quote(key, safe='/')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -582,7 +582,7 @@ class VariableOperations:
     def set(self, key: str, value: str | None, description: str | None = None) -> OKResponse:
         """Set an Airflow Variable via the API server."""
         body = VariablePostBody(val=value, description=description)
-        self.client.put(f"variables/{key}", content=body.model_dump_json())
+        self.client.put(f"variables/{quote(key, safe='/')}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
@@ -593,7 +593,7 @@ class VariableOperations:
         key: str,
     ) -> OKResponse:
         """Delete a variable with given key via the API server."""
-        self.client.delete(f"variables/{key}")
+        self.client.delete(f"variables/{quote(key, safe='/')}")
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
