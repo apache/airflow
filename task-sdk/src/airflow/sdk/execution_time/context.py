@@ -1147,6 +1147,67 @@ class AssetStateStoreAccessors:
         return f"<AssetStateStoreAccessors [{', '.join(parts)}]>"
 
 
+class TriggerAssetStateStoreAccessors(AssetStateStoreAccessors):
+    """
+    Asset state store accessors for a watcher trigger.
+
+    Watchers with the same trigger classpath and kwargs share one trigger, and every event it
+    yields goes to all of its assets, so the trigger has one position to keep no matter how many
+    assets it serves. Writes go to every asset; reads return the first asset holding the key.
+    """
+
+    def _accessors(self) -> list[AssetStateStoreAccessor]:
+        # Sorted so reads pick the same asset on every triggerer, whatever order the assets were loaded in.
+        return [self._by_name[n] for n in sorted(self._by_name)] + [
+            self._by_uri[u] for u in sorted(self._by_uri)
+        ]
+
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Return the value from the first asset holding ``key``, or ``default`` if none does."""
+        for accessor in self._accessors():
+            # set() rejects None, so None here means the asset does not hold the key.
+            if (value := accessor.get(key)) is not None:
+                return value
+        return default
+
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of `get` that awaits instead of blocking the event loop."""
+        for accessor in self._accessors():
+            if (value := await accessor.aget(key)) is not None:
+                return value
+        return default
+
+    def set(self, key: str, value: JsonValue) -> None:
+        """Write the value for ``key`` to every asset the trigger watches."""
+        for accessor in self._accessors():
+            accessor.set(key, value)
+
+    async def aset(self, key: str, value: JsonValue) -> None:
+        """Async version of `set` that awaits instead of blocking the event loop."""
+        for accessor in self._accessors():
+            await accessor.aset(key, value)
+
+    def delete(self, key: str) -> None:
+        """Delete ``key`` from every asset the trigger watches."""
+        for accessor in self._accessors():
+            accessor.delete(key)
+
+    async def adelete(self, key: str) -> None:
+        """Async version of `delete` that awaits instead of blocking the event loop."""
+        for accessor in self._accessors():
+            await accessor.adelete(key)
+
+    def clear(self) -> None:
+        """Delete all state keys from every asset the trigger watches."""
+        for accessor in self._accessors():
+            accessor.clear()
+
+    async def aclear(self) -> None:
+        """Async version of `clear` that awaits instead of blocking the event loop."""
+        for accessor in self._accessors():
+            await accessor.aclear()
+
+
 class MacrosAccessor:
     """Wrapper to access Macros module lazily."""
 

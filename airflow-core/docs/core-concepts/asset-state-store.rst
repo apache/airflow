@@ -172,6 +172,8 @@ Using ``asset_state_store`` inside a Watcher Trigger
 
 Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched asset, so no subscripting is needed.
 
+Watchers on several assets that use the same trigger class and arguments share one trigger. The accessor then covers all of those assets: ``set``, ``delete`` and ``clear`` apply to every one of them, and ``get`` returns the value from the first asset (by name) that holds the key.
+
 .. code-block:: python
 
     import asyncio
