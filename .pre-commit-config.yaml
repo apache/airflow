@@ -326,6 +326,20 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: sync-java-sdk-docs
+        name: Sync the Java SDK quick start and version across the user-facing docs
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/sync_java_sdk_docs.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/java\.rst$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/sync_java_sdk_docs\.py$
+        additional_dependencies: ['rich>=13.6.0']
+        pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
         name: Sync Java SDK supervisor schema with configured version
         env:
