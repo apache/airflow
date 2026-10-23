@@ -21,12 +21,15 @@ from dataclasses import dataclass
 import pytest
 from pydantic import BaseModel, Field, computed_field
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
-from datetime import timedelta
+import hashlib
+import json
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
@@ -38,12 +41,22 @@ from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
     XCOM_HUMAN_ACTION,
+    XCOM_HUMAN_FEEDBACK_PREFIX,
     AgentSessionData,
     HumanActionData,
     SessionStatus,
 )
-from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
+from airflow.providers.standard.exceptions import (
+    HITLRejectException,
+    HITLTimeoutError,
+    HITLTriggerEventError,
+)
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
+
+MIXIN = "airflow.providers.common.ai.mixins.hitl_review"
 
 
 class FakeAgenticOperator(HITLReviewMixin):
@@ -169,6 +182,13 @@ class TestToString:
 
 
 class TestHITLReviewMixin:
+    """The review on Airflow before 3.3, which polls the human action XCom inside ``execute()``."""
+
+    @pytest.fixture(autouse=True)
+    def _poll_instead_of_parking(self):
+        with patch(f"{MIXIN}.AIRFLOW_V_3_3_PLUS", False):
+            yield
+
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
     def test_pushes_session_and_output_on_start(
         self, mock_sleep, fake_op, mock_ti, context, mock_supervisor_comms
@@ -479,3 +499,215 @@ class TestHITLReviewMixin:
                 message_history=[],
                 deadline=None,
             )
+
+
+class ParkingOperator(FakeAgenticOperator):
+    """Saves its conversation as JSON, the way an operator must to park between review rounds."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.regenerate_calls: list[tuple[str, Any]] = []
+        self.on_regenerate = lambda: None
+
+    def regenerate_with_feedback(self, *, feedback: str, message_history):
+        self.on_regenerate()
+        self.regenerate_calls.append((feedback, message_history))
+        return f"Revised: {feedback}", [*message_history, feedback]
+
+    def dump_review_state(self, message_history) -> str:
+        return json.dumps(message_history)
+
+    def load_review_state(self, context, state: str):
+        return json.loads(state)
+
+    def complete_hitl_review(self, context, approved_output: str, *, state: str | None):
+        return {"approved": approved_output, "state": state}
+
+
+def _answer(option: str, feedback: Any = None) -> dict[str, Any]:
+    """The event core adds to ``next_kwargs`` when the review request is answered."""
+    params_input = {} if feedback is None else {"feedback": feedback}
+    return {"chosen_options": [option], "params_input": params_input, "responded_by_user": None}
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Parking in awaiting_input needs Airflow 3.3+")
+class TestParkedReview:
+    """The review on Airflow 3.3+, which parks the task between rounds instead of polling."""
+
+    @pytest.fixture
+    def op(self):
+        return ParkingOperator(hitl_timeout=timedelta(hours=2))
+
+    @pytest.fixture
+    def ti(self, xcom_backed_ti):
+        return xcom_backed_ti
+
+    @pytest.fixture
+    def ctx(self, review_context):
+        return review_context
+
+    @staticmethod
+    def _review_requests(comms) -> list[CreateHITLDetailPayload]:
+        """The Human-in-the-loop requests the task sent to the supervisor, one per parked round."""
+        return [
+            c.kwargs["msg"]
+            for c in comms.send.call_args_list
+            if isinstance(c.kwargs.get("msg"), CreateHITLDetailPayload)
+        ]
+
+    def test_first_round_parks_instead_of_polling(
+        self, park, op, ti, ctx, mock_supervisor_comms, time_machine
+    ):
+        time_machine.move_to(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), tick=False)
+
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=["prompt"]))
+
+        assert paused.method_name == "resume_hitl_review"
+        assert paused.timeout == timedelta(hours=2)
+        assert paused.kwargs["iteration"] == 1
+        assert datetime.fromisoformat(paused.kwargs["deadline"]) == datetime(2026, 1, 1, 14, 0, tzinfo=UTC)
+        state = ctx["task_state_store"].get("common_ai_hitl_review_state")
+        assert json.loads(state) == ["prompt"]
+        assert paused.kwargs["state_sha256"] == hashlib.sha256(state.encode()).hexdigest()
+        assert ctx["task_state_store"].set.call_args.kwargs["retention"] == timedelta(hours=2, days=1)
+        assert AgentSessionData.model_validate(ti.xcoms[XCOM_AGENT_SESSION]).parked is True
+        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == "Initial"
+        ti.xcom_pull.assert_not_called()
+        (request,) = self._review_requests(mock_supervisor_comms)
+        assert request.ti_id == ti.id
+        assert request.options == ["Approve", "Request changes", "Reject"]
+        assert request.defaults is None
+        assert request.params["feedback"]["schema"] == {"type": ["string", "null"]}
+
+    def test_request_changes_regenerates_and_parks_the_next_round(
+        self, park, op, ti, ctx, mock_supervisor_comms, time_machine
+    ):
+        time_machine.move_to(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), tick=False)
+        first = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=["prompt"]))
+        time_machine.move_to(datetime(2026, 1, 1, 13, 30, tzinfo=UTC), tick=False)
+        resumed = ParkingOperator(hitl_timeout=timedelta(hours=2))
+        status_while_regenerating = []
+        resumed.on_regenerate = lambda: status_while_regenerating.append(
+            ti.xcoms[XCOM_AGENT_SESSION]["status"]
+        )
+
+        second = park(
+            lambda: resumed.resume_hitl_review(
+                ctx, **first.kwargs, event=_answer("Request changes", " Shorter ")
+            )
+        )
+
+        assert resumed.regenerate_calls == [("Shorter", ["prompt"])]
+        # Pushed before regenerating, so the plugin refuses a second answer for the round meanwhile.
+        assert status_while_regenerating == [SessionStatus.CHANGES_REQUESTED]
+        assert ti.xcoms[f"{XCOM_HUMAN_FEEDBACK_PREFIX}1"] == "Shorter"
+        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == "Revised: Shorter"
+        assert AgentSessionData.model_validate(ti.xcoms[XCOM_AGENT_SESSION]).iteration == 2
+        assert second.kwargs["iteration"] == 2
+        assert second.kwargs["deadline"] == first.kwargs["deadline"]
+        assert second.timeout == timedelta(minutes=30)
+        assert json.loads(ctx["task_state_store"].get("common_ai_hitl_review_state")) == ["prompt", "Shorter"]
+        # Each round asks again: on Airflow 3.3 the new request is what clears the earlier answer.
+        first_request, second_request = self._review_requests(mock_supervisor_comms)
+        assert first_request == second_request
+
+    def test_approve_completes_with_the_saved_state(self, park, op, ti, ctx):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=["prompt"]))
+
+        result = op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Approve"))
+
+        assert result == {"approved": "Initial", "state": json.dumps(["prompt"])}
+        assert op.regenerate_calls == []
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.APPROVED
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
+
+    def test_reject_raises_and_drops_the_conversation(self, park, op, ti, ctx):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+
+        with pytest.raises(HITLRejectException, match="rejected at iteration 1"):
+            op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Reject"))
+
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.REJECTED
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
+
+    def test_timeout_event_raises_hitl_timeout_error(self, park, op, ti, ctx):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+        timeout_event = {"error": "No response before the deadline.", "error_type": "timeout"}
+
+        with pytest.raises(HITLTimeoutError, match="Task exceeded timeout"):
+            op.resume_hitl_review(ctx, **paused.kwargs, event=timeout_event)
+
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.TIMEOUT_EXCEEDED
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
+
+    def test_deadline_passing_during_regeneration_fails_instead_of_parking(
+        self, park, op, ti, ctx, mock_supervisor_comms, time_machine
+    ):
+        time_machine.move_to(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), tick=False)
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+        time_machine.move_to(datetime(2026, 1, 1, 14, 0, 1, tzinfo=UTC), tick=False)
+
+        with pytest.raises(HITLTimeoutError, match="Task exceeded timeout"):
+            op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Request changes", "Shorter"))
+
+        assert len(self._review_requests(mock_supervisor_comms)) == 1
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.TIMEOUT_EXCEEDED
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
+
+    @pytest.mark.parametrize(
+        "feedback", [None, "", "   ", {"value": "the form echoed the param spec"}], ids=repr
+    )
+    def test_request_changes_without_feedback_waits_again_on_the_same_round(
+        self, park, op, ti, ctx, mock_supervisor_comms, feedback
+    ):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+
+        again = park(
+            lambda: op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Request changes", feedback))
+        )
+
+        assert op.regenerate_calls == []
+        assert again.kwargs == paused.kwargs
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.PENDING_REVIEW
+        first_request, second_request = self._review_requests(mock_supervisor_comms)
+        assert first_request == second_request
+
+    def test_approve_ignores_a_feedback_param_that_is_not_text(self, park, op, ctx):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+
+        result = op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Approve", {"value": ""}))
+
+        assert result["approved"] == "Initial"
+
+    def test_request_changes_on_the_last_iteration_raises_without_regenerating(self, park, ti, ctx):
+        op = ParkingOperator()
+        op.max_hitl_iterations = 1
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=[]))
+
+        with pytest.raises(HITLMaxIterationsError, match="exceeded max iterations"):
+            op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Request changes", "Shorter"))
+
+        assert op.regenerate_calls == []
+        assert ti.xcoms[XCOM_AGENT_SESSION]["status"] == SessionStatus.MAX_ITERATIONS_EXCEEDED
+
+    def test_refuses_a_conversation_that_changed_while_parked(self, park, op, ctx):
+        paused = park(lambda: op.run_hitl_review(ctx, "Initial", message_history=["prompt"]))
+        ctx["task_state_store"].set("common_ai_hitl_review_state", json.dumps(["edited"]))
+
+        with pytest.raises(HITLTriggerEventError, match="missing or changed"):
+            op.resume_hitl_review(ctx, **paused.kwargs, event=_answer("Request changes", "Shorter"))
+
+        assert op.regenerate_calls == []
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
+
+    @patch(f"{MIXIN}.time.sleep", autospec=True)
+    def test_operator_that_cannot_save_its_conversation_keeps_polling(self, mock_sleep, ti, ctx):
+        ti.xcom_pull.side_effect = lambda **kwargs: HumanActionData(action="approve", iteration=1).model_dump(
+            mode="json"
+        )
+
+        result = FakeAgenticOperator().run_hitl_review(ctx, "Initial")
+
+        assert result == "Initial"
+        assert AgentSessionData.model_validate(ti.xcoms[XCOM_AGENT_SESSION]).parked is False
+        assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None

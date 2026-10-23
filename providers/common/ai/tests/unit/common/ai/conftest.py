@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -24,11 +25,14 @@ from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
     from airflow.sdk.log import mask_secret
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.exceptions import TaskAwaitingInput
 
 REGISTERED_SECRET = "db-password-91c3"
 
@@ -147,3 +151,51 @@ def usage_budget_context(task_state_store_accessor):
     ti.id = uuid4()
     ti.max_tries = 0
     return {"task_instance": ti, "task_state_store": task_state_store_accessor}
+
+
+@pytest.fixture
+def xcom_backed_ti() -> Any:
+    """
+    A task instance whose XCom pushes can be pulled back, as they are when a task resumes in the same try.
+
+    The pushed values are in its ``xcoms`` dict.
+    """
+    xcoms: dict[str, Any] = {}
+    ti = MagicMock(
+        spec=[
+            "id",
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            "try_number",
+            "max_tries",
+            "xcom_push",
+            "xcom_pull",
+        ]
+    )
+    ti.configure_mock(
+        id=uuid4(), dag_id="d", task_id="t", run_id="r", map_index=-1, try_number=1, max_tries=0
+    )
+    ti.xcom_push.side_effect = lambda key, value: xcoms.__setitem__(key, value)
+    ti.xcom_pull.side_effect = lambda key, task_ids=None, map_indexes=None: xcoms.get(key)
+    ti.xcoms = xcoms
+    return ti
+
+
+@pytest.fixture
+def review_context(xcom_backed_ti, task_state_store_accessor, mock_supervisor_comms) -> Any:
+    """A context for a HITL review that parks: the task instance, its task state store, and supervisor comms."""
+    return {"task_instance": xcom_backed_ti, "task_state_store": task_state_store_accessor}
+
+
+@pytest.fixture
+def park():
+    """Return a function that runs a call expected to park the task and returns the ``TaskAwaitingInput``."""
+
+    def _park(call):
+        with pytest.raises(TaskAwaitingInput) as exc:
+            call()
+        return exc.value
+
+    return _park

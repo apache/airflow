@@ -142,10 +142,11 @@ What a plain task leaves to you
       - :doc:`tool_approval`
     * - A reviewer wants to send an agent's answer back with feedback, several times.
       - ``enable_hitl_review=True`` on ``AgentOperator`` opens a review loop with a chat
-        UI and a REST API. The task holds its worker slot for the whole review.
-        Airflow 3.1 and later. For a single approve or reject of an agent's answer, put
-        the standard provider's ``ApprovalOperator`` after the agent task instead; it
-        waits without a worker slot.
+        UI and a REST API. Airflow 3.1 and later. On Airflow 3.3 and later the task
+        waits for the reviewer without a worker slot; on 3.1 and 3.2 it holds its slot
+        for the whole review. For a single approve or reject with no feedback or
+        regeneration, put the standard provider's ``ApprovalOperator`` after the agent
+        task instead.
       - :doc:`hitl_review`
     * - The agent needs your databases, object storage or an API you already have a
         hook for.

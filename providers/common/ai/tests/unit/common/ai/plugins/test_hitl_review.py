@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -56,7 +56,12 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.hitl import HITLDetail
+    from airflow.sdk.serde import deserialize
 
 if AIRFLOW_V_3_4_PLUS:
     from airflow.models.dynamic_region import DynamicRegion
@@ -106,6 +111,7 @@ def _create_hitl_session(
     iteration=1,
     prompt="Summarize",
     current_output="Initial output",
+    parked=False,
     session=None,
 ):
     """Create HITL session and output XCom entries in the database."""
@@ -115,6 +121,7 @@ def _create_hitl_session(
         max_iterations=5,
         prompt=prompt,
         current_output=current_output,
+        parked=parked,
     )
     _write_xcom(
         session,
@@ -652,7 +659,6 @@ class TestWriteXcom:
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
     def test_write_uses_current_attempt_after_retry(self, session, dag_maker):
         from airflow.models.xcom import XComModelV2
-        from airflow.utils.state import TaskInstanceState
 
         _clear_db()
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
@@ -694,9 +700,18 @@ class TestIsTaskCompleted:
         )
         assert result is True
 
-    def test_returns_false_when_ti_running(self, session, dag_maker):
-        from airflow.utils.state import TaskInstanceState
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input needs Airflow 3.3+")
+    def test_returns_false_when_ti_awaiting_input(self, session, dag_maker):
+        with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
+        ti = dr.get_task_instance("t", session=session)
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        session.commit()
 
+        assert _is_task_completed(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t") is False
+
+    def test_returns_false_when_ti_running(self, session, dag_maker):
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -720,8 +735,6 @@ class TestIsTaskCompleted:
         ],
     )
     def test_ignores_historical_attempt_state(self, session, dag_maker, old_state, archived_state):
-        from airflow.utils.state import TaskInstanceState
-
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         run = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -1763,3 +1776,115 @@ class TestConflictOnWrongStatus:
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
         )
         assert response.status_code == 409
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Parking in awaiting_input needs Airflow 3.3+")
+class TestAnswerParkedReview:
+    """A review parked in awaiting_input is answered through its Human-in-the-loop request."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+    STORED_KWARGS = {"iteration": 1, "deadline": None, "state_sha256": "abc"}
+
+    @pytest.fixture
+    def parked_ti(self, dag_maker, session):
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        run = dag_maker.create_dagrun(
+            run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date
+        )
+        dag_maker.sync_dagbag_to_db()
+        ti = run.get_task_instance(TEST_TASK_ID, session=session)
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        ti.next_method = "resume_hitl_review"
+        ti.next_kwargs = self.STORED_KWARGS
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                options=["Approve", "Request changes", "Reject"],
+                subject="Review",
+                params={"feedback": {"value": "", "schema": {"type": ["string", "null"]}}},
+            )
+        )
+        session.commit()
+        _create_hitl_session(parked=True)
+        yield ti
+        _clear_db()
+
+    @staticmethod
+    def _reload(session, ti):
+        session.expire_all()
+        return session.get(type(ti), ti.id), session.get(HITLDetail, ti.id)
+
+    @pytest.mark.parametrize(
+        ("path", "body", "option", "feedback", "status"),
+        [
+            pytest.param("approve", None, "Approve", "", "approved", id="approve"),
+            pytest.param(
+                "feedback",
+                {"feedback": "Shorter"},
+                "Request changes",
+                "Shorter",
+                "changes_requested",
+                id="changes",
+            ),
+            pytest.param("reject", None, "Reject", "", "rejected", id="reject"),
+        ],
+    )
+    def test_action_answers_the_request_and_resumes_the_task(
+        self, test_client, session, parked_ti, path, body, option, feedback, status
+    ):
+        response = test_client.post(f"/hitl-review/sessions/{path}", params=self.PARAMS, json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] == status
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == "scheduled"
+        assert ti.next_method == "resume_hitl_review"
+        event = deserialize(ti.next_kwargs["event"])
+        assert event["chosen_options"] == [option]
+        assert event["params_input"] == {"feedback": feedback}
+        assert {k: v for k, v in ti.next_kwargs.items() if k != "event"} == self.STORED_KWARGS
+        assert detail.chosen_options == [option]
+        assert detail.responded_by == {"id": "test", "name": "test"}
+
+    def test_answer_before_the_task_parks_waits_for_the_park(self, test_client, session, parked_ti):
+        session.get(type(parked_ti), parked_ti.id).state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 200
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == TaskInstanceState.RUNNING
+        assert detail.response_received
+        assert detail.chosen_options == ["Approve"]
+
+    def test_answered_request_is_not_answered_twice(self, test_client, session, parked_ti):
+        detail = session.get(HITLDetail, parked_ti.id)
+        detail.chosen_options = ["Reject"]
+        detail.responded_at = timezone.utcnow()
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 409
+        assert "already answered" in response.json()["detail"]
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == "awaiting_input"
+        assert detail.chosen_options == ["Reject"]
+
+    @pytest.mark.parametrize("state", [None, "success", "failed", "scheduled"])
+    def test_answer_is_refused_when_the_task_is_not_waiting_for_one(
+        self, test_client, session, parked_ti, state
+    ):
+        session.get(type(parked_ti), parked_ti.id).state = state
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 409
+        assert "not waiting for a review answer" in response.json()["detail"]
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == state
+        assert not detail.response_received

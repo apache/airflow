@@ -34,6 +34,7 @@ from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapabil
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import RunUsage
+from pydantic_core import to_jsonable_python
 
 from airflow.providers.common.ai.durable.capability import DURABLE_UNIT_TOOLSETS, AirflowDurability
 from airflow.providers.common.ai.durable.journal import DurableJournal, build_task_storage, journal_scope
@@ -60,6 +61,7 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -418,7 +420,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         iterative review loop after the first generation.  A human reviewer
         can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
-        on the task instance.  Default ``False``. Cannot be combined with a
+        on the task instance.  On Airflow 3.3+ the task waits for each
+        answer in the ``awaiting_input`` state, holding no worker slot, and
+        each round runs in a new worker process.  Default ``False``. Cannot be combined with a
         ``SandboxToolset`` that provisions its own sandbox (raises):
         regeneration after feedback is a second run, which would start from an
         empty sandbox while its history describes the first run's files. A
@@ -434,10 +438,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param hitl_timeout: Maximum wall-clock time to wait for
         all review rounds combined.  ``None`` means no wall-clock timeout;
         the review still ends on a terminal action (approve or reject),
-        ``max_hitl_iterations``, or when polling the human action XCom fails
-        too many times in a row.
+        ``max_hitl_iterations``, or, on Airflow before 3.3, when polling the
+        human action XCom fails too many times in a row.
     :param hitl_poll_interval: Seconds between XCom polls
-        while waiting for a human response.  Default ``10``.
+        while waiting for a human response on Airflow before 3.3; not used
+        on Airflow 3.3+, where the task parks instead.  Default ``10``.
 
     **Per-tool approval** (Airflow 3.3+):
 
@@ -1097,27 +1102,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         if self.enable_hitl_review:
             self._output_under_review = output
-            self.run_hitl_review(
+            # On Airflow 3.3+ this parks the task, and the review ends in resume_hitl_review.
+            approved = self.run_hitl_review(
                 context,
                 output,
                 message_history=result.all_messages(),
             )
-            # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
-            # So the approved answer is the last answer the agent returned, and there is no need to parse
-            # it back from that text.
-            output = self._output_under_review
-            if isinstance(output, BaseModel) and (
-                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
-            ):
-                # A downstream task can load a model from XCom only if the worker registered the model's
-                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
-                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
-                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
-                # condition above never reaches the iter_pydantic_models call.
-                output = output.model_dump()
-            self._clear_usage_budget(context)
-            return output
+            return self.complete_hitl_review(context, approved, state=None)
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -1428,6 +1419,64 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
         if (model_name := getattr(result.response, "model_name", None)) is not None:
             ti.xcom_push(key=MODEL_NAME_XCOM_KEY, value=model_name)
+
+    def dump_review_state(self, message_history: Any) -> str:
+        """Save the conversation, and what the task returns if the output under review is approved."""
+        output = self._output_under_review
+        state: dict[str, Any] = {
+            "messages": ModelMessagesTypeAdapter.dump_python(message_history, mode="json")
+        }
+        output_json = dump_output_to_json(output)
+        if (
+            rehydrate_pydantic_output(self.output_type, output_json, serialize_output=False, is_edited=False)
+            == output
+        ):
+            state["output_json"] = output_json
+        else:
+            # Reading the JSON back would give a different value: an output function's or an output
+            # marker's result stays text, and "42" under ``str | int`` becomes 42. Save the result instead.
+            state["result"] = to_jsonable_python(self._reviewed_result(output))
+        return json.dumps(state)
+
+    def load_review_state(self, context: Context, state: str) -> Any:
+        """Restore the conversation and the usage budget before regenerating in the resumed task."""
+        ti = context["task_instance"]
+        # The regeneration shares the budget the paused rounds spent, as it does without a pause.
+        self._usage_budget = self._build_usage_budget(context, coerce_usage_limits(self.usage_limits), ti=ti)
+        self._run_usage = self._usage_budget.load() if self._usage_budget else None
+        self._run_identity_attrs = build_run_identity_attributes(ti)
+        return ModelMessagesTypeAdapter.validate_python(json.loads(state)["messages"])
+
+    def complete_hitl_review(self, context: Context, approved_output: str, *, state: str | None) -> Any:
+        """Return the approved output as the agent returned it; ``approved_output`` is only its display text."""
+        # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
+        # So the approved answer is the last answer the agent returned.
+        if state is None:
+            result = self._reviewed_result(self._output_under_review)
+        elif "result" in (saved := json.loads(state)):
+            result = saved["result"]
+        else:
+            result = self._reviewed_result(
+                rehydrate_pydantic_output(
+                    self.output_type, saved["output_json"], serialize_output=False, is_edited=False
+                )
+            )
+        self._clear_usage_budget(context)
+        return result
+
+    def _reviewed_result(self, output: Any) -> Any:
+        """Return what the task pushes for an approved ``output``."""
+        if isinstance(output, BaseModel) and (
+            self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
+        ):
+            # A downstream task can load a model from XCom only if the worker registered the model's
+            # class. The worker registers the classes that iter_pydantic_models finds in output_type.
+            # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+            # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
+            # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
+            # condition above never reaches the iter_pydantic_models call.
+            return output.model_dump()
+        return output
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """
