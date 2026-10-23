@@ -24,12 +24,14 @@ import { LuInfo } from "react-icons/lu";
 import { NoModelInfo } from "src/components/NoModelInfo";
 import { Tooltip } from "src/components/Tooltip";
 import { useModelInfo } from "src/hooks/useModelInfo";
+import type { TaskRegion } from "src/region";
 
 interface ModelPanelProps {
   dagId: string;
   runId: string;
   taskId: string;
   mapIndex: number;
+  region?: TaskRegion;
 }
 
 // Pydantic-ai prices a response via genai-prices' per-token rate lookup (see
@@ -74,18 +76,20 @@ const StatBox: FC<{ label: string; tooltip?: ReactNode; value: number | string }
   </Box>
 );
 
-export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex }) => {
-  const { modelName, usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex);
+export const ModelLoading: FC = () => (
+  <Flex align="center" gap={2} p={2}>
+    <Spinner colorPalette="brand" size="sm" />
+    <Text color="fg.muted" fontSize="sm">
+      Loading model info...
+    </Text>
+  </Flex>
+);
+
+export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex, region }) => {
+  const { modelName, usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex, region);
 
   if (loading) {
-    return (
-      <Flex align="center" gap={2} p={2}>
-        <Spinner colorPalette="brand" size="sm" />
-        <Text color="fg.muted" fontSize="sm">
-          Loading model info...
-        </Text>
-      </Flex>
-    );
+    return <ModelLoading />;
   }
 
   if (!modelName && !usage) {
