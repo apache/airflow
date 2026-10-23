@@ -32,6 +32,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 	"gopkg.in/yaml.v3"
 
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
@@ -337,7 +338,7 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	assert.Nil(t, result.ImportErrors)
 	require.Len(t, result.SerializedDags, 2)
 	for i, dag := range []*DagRef{etl, reports} {
-		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl"))
+		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{}))
 		assertJSON(t, want, result.SerializedDags[i].Data)
 	}
 
