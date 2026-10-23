@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import logging
 import os
 import re
+import selectors
 import subprocess
 import sys
 from importlib.metadata import version as importlib_version
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -394,8 +397,8 @@ class TestBeamHook:
 
 class TestBeamRunner:
     @mock.patch("subprocess.Popen")
-    @mock.patch("select.select")
-    def test_beam_wait_for_done_logging(self, mock_select, mock_popen, caplog):
+    @mock.patch("airflow.providers.apache.beam.hooks.beam.selectors.DefaultSelector")
+    def test_beam_wait_for_done_logging(self, mock_selector_cls, mock_popen, caplog):
         logger_name = "fake-beam-wait-for-done-logger"
         fake_logger = logging.getLogger(logger_name)
 
@@ -415,10 +418,15 @@ class TestBeamRunner:
             b"apache-beam-other-stderr",
         ]
         fake_stdout_fd.readline.side_effect = [b"apache-beam-stdout", StopIteration]
-        mock_select.side_effect = [
-            ([fake_stderr_fd], None, None),
-            (None, None, None),
-            ([fake_stderr_fd], None, None),
+
+        # selector.select() returns a list of (SelectorKey, events); the hook
+        # reads key.fileobj. Build keys whose fileobj is the fake stderr fd.
+        stderr_key = SimpleNamespace(fileobj=fake_stderr_fd)
+        mock_selector = mock_selector_cls.return_value
+        mock_selector.select.side_effect = [
+            [(stderr_key, selectors.EVENT_READ)],
+            [],
+            [(stderr_key, selectors.EVENT_READ)],
         ]
         mock_proc.poll.side_effect = [None, True]
         mock_proc.returncode = 1
@@ -440,6 +448,37 @@ class TestBeamRunner:
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
         assert "apache-beam-other-stderr" in warn_messages
+
+    def test_run_beam_command_high_fd_number(self):
+        """
+        Regression test: run_beam_command must still read the subprocess output
+        when the process holds >= 1024 open file descriptors.
+
+        The previous select.select() loop raised "filedescriptor out of range in
+        select()" once the subprocess's stdout/stderr pipe fds were numbered
+        >= FD_SETSIZE (1024), aborting the pipeline run. The selectors
+        (epoll/poll) based loop has no such ceiling. This runs a real
+        subprocess under a high fd count and checks its output is captured.
+        """
+        collected: list[str] = []
+
+        # Occupy a block of low fd numbers so the subprocess pipe fds land
+        # above the select() ceiling (>= 1024).
+        padding = [os.open(os.devnull, os.O_RDONLY) for _ in range(1100)]
+        try:
+            cmd = [
+                sys.executable,
+                "-c",
+                "import sys; print('beam-high-fd-line'); sys.stdout.flush()",
+            ]
+            # Must not raise "filedescriptor out of range in select()".
+            run_beam_command(cmd, logging.getLogger("beam-high-fd"), collected.append)
+        finally:
+            for fd in padding:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+
+        assert any("beam-high-fd-line" in line for line in collected), collected
 
 
 class TestBeamOptionsToArgs:
