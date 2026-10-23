@@ -542,7 +542,7 @@ class DAG:
     )
     access_control: dict[str, dict[str, Collection[str]]] | None = attrs.field(
         default=None,
-        converter=attrs.Converter(_convert_access_control),  # type: ignore[misc, call-overload]
+        converter=attrs.Converter(_convert_access_control),  # type: ignore[misc]
     )
     is_paused_upon_creation: bool | None = None
     jinja_environment_kwargs: dict | None = None
@@ -1394,8 +1394,8 @@ class DAG:
 
             # Scheduler DAG shouldn't have these attributes, but assigning them
             # here is an easy hack to get this test() thing working.
-            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined, union-attr]
-            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined, union-attr]
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,

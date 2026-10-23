@@ -43,7 +43,7 @@ except ModuleNotFoundError:
     class ArgNotSet:  # type: ignore[no-redef]
         """Sentinel type for annotations, useful when None is not viable."""
 
-    NOTSET = ArgNotSet()  # type: ignore[no-redef]
+    NOTSET = ArgNotSet()
 
 
 def is_arg_set(value: T | ArgNotSet) -> TypeIs[T]:

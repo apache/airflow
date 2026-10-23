@@ -38,7 +38,7 @@ def get_listener_manager() -> ListenerManager:
     _listener_manager.add_hookspecs(lifecycle)
     _listener_manager.add_hookspecs(taskinstance)
 
-    integrate_listener_plugins(_listener_manager)  # type: ignore[arg-type]
+    integrate_listener_plugins(_listener_manager)
     return _listener_manager
 
 

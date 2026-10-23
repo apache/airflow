@@ -513,7 +513,7 @@ class AssetAny(AssetBooleanCondition):
 class AssetAll(AssetBooleanCondition):
     """Use to combine assets schedule references in an "and" relationship."""
 
-    agg_func = all  # type: ignore[assignment]
+    agg_func = all
 
     @property
     def requires_batching(self) -> bool:
