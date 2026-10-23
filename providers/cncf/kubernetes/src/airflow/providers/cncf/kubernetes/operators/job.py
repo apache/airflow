@@ -712,8 +712,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
             if self.delete_on_status not in ("Complete", "Failed", None):
                 raise AirflowException(
                     "The `delete_on_status` parameter must be one of 'Complete', 'Failed' or None. "
-                    "The current value is %s",
-                    str(self.delete_on_status),
+                    f"The current value is {self.delete_on_status}"
                 )
 
             if self.wait_for_completion:

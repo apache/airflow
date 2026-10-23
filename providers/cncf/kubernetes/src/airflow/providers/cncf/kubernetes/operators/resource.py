@@ -153,7 +153,7 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
             with open(self.yaml_conf_file) as stream:
                 self._create_objects(yaml.safe_load_all(stream))
         else:
-            raise AirflowException("File %s not found", self.yaml_conf_file)
+            raise AirflowException(f"File {self.yaml_conf_file} not found")
         self.log.info("Resource was created")
 
 
@@ -186,4 +186,4 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
             with open(self.yaml_conf_file) as stream:
                 self._delete_objects(yaml.safe_load_all(stream))
         else:
-            raise AirflowException("File %s not found", self.yaml_conf_file)
+            raise AirflowException(f"File {self.yaml_conf_file} not found")

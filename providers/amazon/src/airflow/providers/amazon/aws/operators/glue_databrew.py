@@ -131,7 +131,7 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         validated_event = validate_execute_complete_event(event)
 
         if validated_event["status"] != "success":
-            raise AirflowException("Error while running AWS Glue DataBrew job: %s", validated_event)
+            raise AirflowException(f"Error while running AWS Glue DataBrew job: {validated_event}")
 
         run_id = validated_event.get("run_id", "")
         status = validated_event.get("status", "")

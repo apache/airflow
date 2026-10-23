@@ -622,7 +622,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                 create_batch_job_config=self.create_batch_job_config,
             )
         except Exception as e:
-            raise AirflowException("Something went wrong during creation of the batch job: %s", e)
+            raise AirflowException(f"Something went wrong during creation of the batch job: {e}")
 
         self.log.info("Job with name %s was successfully created!", job.name)
         context["ti"].xcom_push(key="job_name", value=job.name)
@@ -705,7 +705,7 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         try:
             job = self.hook.get_batch_job(job_name=self.job_name)
         except ValueError:
-            raise AirflowException("Job with name %s not found", self.job_name)
+            raise AirflowException(f"Job with name {self.job_name} not found")
 
         context["ti"].xcom_push(key="job_status", value=job.state)
         return job.model_dump(mode="json")
@@ -845,13 +845,13 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         try:
             delete_response = self.hook.delete_batch_job(job_name=self.job_name)
         except ValueError:
-            raise AirflowException("Job with name %s was not found", self.job_name)
+            raise AirflowException(f"Job with name {self.job_name} was not found")
 
         self.log.info("Job with name %s was submitted for deletion.", self.job_name)
 
         if delete_response.error:
             raise AirflowException(
-                "Job with name %s was not deleted due to error: %s", self.job_name, delete_response.error
+                f"Job with name {self.job_name} was not deleted due to error: {delete_response.error}"
             )
 
         return delete_response.model_dump()
@@ -917,7 +917,7 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         try:
             self.hook.cancel_batch_job(job_name=self.job_name)
         except ValueError:
-            raise AirflowException("Job with name %s was not found", self.job_name)
+            raise AirflowException(f"Job with name {self.job_name} was not found")
 
         self.log.info("Job with name %s was successfully cancelled", self.job_name)
 
@@ -1017,7 +1017,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
                 )
                 time.sleep(polling_interval)
         except Exception as e:
-            raise AirflowException("Something went wrong during waiting of the batch job: %s", e)
+            raise AirflowException(f"Something went wrong during waiting of the batch job: {e}")
         return job
 
     def _validate_results_folder(self):
@@ -1257,7 +1257,7 @@ class GenAIGeminiGetFileOperator(GoogleCloudBaseOperator):
         try:
             file = self.hook.get_file(file_name=self.file_name)
         except ClientError:
-            raise AirflowException("File with name %s not found", self.file_name)
+            raise AirflowException(f"File with name {self.file_name} not found")
 
         self.log.info("Find file with name: %s", file.name)
         context["ti"].xcom_push(key="file_uri", value=file.uri)
@@ -1398,7 +1398,7 @@ class GenAIGeminiDeleteFileOperator(GoogleCloudBaseOperator):
         try:
             delete_response = self.hook.delete_file(file_name=self.file_name)
         except ClientError:
-            raise AirflowException("File %s not found!", self.file_name)
+            raise AirflowException(f"File {self.file_name} not found!")
 
         self.log.info("File %s was successfully deleted!", self.file_name)
 
