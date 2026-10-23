@@ -2215,18 +2215,13 @@ def reset_dag_bundle_config_cache():
         yield
         return
 
-    try:
-        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
-    except ImportError:
-        # compat for airflow versions without the snapshot cache
-        yield
-        return
+    from tests_common.test_utils.config import _clear_dag_bundle_config_cache
 
-    _load_bundle_config_snapshot.cache_clear()
+    _clear_dag_bundle_config_cache()
     try:
         yield
     finally:
-        _load_bundle_config_snapshot.cache_clear()
+        _clear_dag_bundle_config_cache()
 
 
 @pytest.fixture(autouse=True)

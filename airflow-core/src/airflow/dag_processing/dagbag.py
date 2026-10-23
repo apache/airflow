@@ -63,7 +63,13 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
-    from airflow.sdk.importers import AbstractDagImporter, DagDefinition, DagImportWarning, DagSourceCode
+    from airflow.sdk.importers import (
+        AbstractDagImporter,
+        DagDefinition,
+        DagImporterRegistry,
+        DagImportWarning,
+        DagSourceCode,
+    )
 
     BaggedDAG: TypeAlias = DAG | LangSDKSerializedDAG
     """A Dag a Dag bag holds: a Python Dag, or a native Dag from a Lang-SDK runtime."""
@@ -122,13 +128,18 @@ def _get_bundle_team_name(bundle_name: str | None) -> str | None:
     return DagBundlesManager()._bundle_config[bundle_name].team_name
 
 
-def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None = None) -> None:
+def _validate_executor_fields(
+    dag: DAG | SerializedDAG,
+    bundle_name: str | None = None,
+    *,
+    team_name: str | None | ArgNotSet = NOTSET,
+) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
 
-    dag_team_name = _get_bundle_team_name(bundle_name)
+    dag_team_name = team_name if is_arg_set(team_name) else _get_bundle_team_name(bundle_name)
     if dag_team_name:
         log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 
@@ -155,9 +166,12 @@ def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None 
 def _assign_default_team_pools(
     dag: DAG,
     bundle_name: str | None = None,
+    *,
+    team_name: str | None | ArgNotSet = NOTSET,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    if not (dag_team_name := _get_bundle_team_name(bundle_name)):
+    dag_team_name = team_name if is_arg_set(team_name) else _get_bundle_team_name(bundle_name)
+    if not dag_team_name:
         return
 
     for task in dag.tasks:
@@ -199,11 +213,15 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
         parse_lang_sdk_files: bool = False,
+        *,
+        importer_registry: DagImporterRegistry | None = None,
+        team_name: str | None | ArgNotSet = NOTSET,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
         self.parse_lang_sdk_files = parse_lang_sdk_files
+        self._team_name = team_name
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -221,7 +239,9 @@ class DagBag(LoggingMixin):
         self.dags_hash: dict[str, str] = {}
 
         self.known_pools = known_pools
-        self._importer_registry = get_importer_registry(bundle_name)
+        self._importer_registry = (
+            importer_registry if importer_registry is not None else get_importer_registry(bundle_name)
+        )
         # Importers only read the bundle's name and path, so a bag built without a bundle
         # hands them its Dag folder instead.
         self._bundle = LocalDagBundle(
@@ -380,8 +400,8 @@ class DagBag(LoggingMixin):
                 dag.relative_fileloc = self._get_relative_fileloc(fileloc)
                 dag.bundle_name = self.bundle_name
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
-                _assign_default_team_pools(dag, self.bundle_name)
+                _validate_executor_fields(dag, self.bundle_name, team_name=self._team_name)
+                _assign_default_team_pools(dag, self.bundle_name, team_name=self._team_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:
