@@ -21,8 +21,11 @@ import json
 import os
 import re
 import shlex
+import subprocess
+import sys
 import types
 from pathlib import Path
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import patch
 
@@ -30,6 +33,7 @@ import pytest
 from git import RemoteReference, Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
+from airflow.dag_processing.bundles import base as bundle_base
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -37,10 +41,9 @@ from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
-if AIRFLOW_V_3_4_PLUS:
-    from airflow.dag_processing.bundles.base import DagBundleRefreshError
+DagBundleRefreshError = getattr(bundle_base, "DagBundleRefreshError", None)
 
 
 def _version_str(version_result):
@@ -94,6 +97,40 @@ def assert_repo_is_closed(bundle: GitDagBundle):
     assert bundle.bare_repo.git.cat_file_all is None
     assert bundle.repo.git.cat_file_header is None
     assert bundle.bare_repo.git.cat_file_header is None
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Simulates a 3.4 core with the BundleVersion API")
+@pytest.mark.parametrize("airflow_version", ["3.4.0b2", "3.4.0"])
+def test_import_on_airflow_3_4_without_refresh_error(airflow_version):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            dedent(
+                """
+                import sys
+
+                import airflow
+
+                airflow.__version__ = sys.argv[1]
+                from airflow.dag_processing.bundles import base
+
+                base.__dict__.pop("DagBundleRefreshError", None)
+                assert "airflow.providers.git.bundles.git" not in sys.modules
+
+                from airflow.providers.git.bundles.git import GitDagBundle
+
+                assert issubclass(GitDagBundle, base.BaseDagBundle)
+                """
+            ),
+            airflow_version,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 class TestGitDagBundle:
@@ -1790,7 +1827,7 @@ class TestGitDagBundle:
     @pytest.mark.parametrize("expose_refresh_contract", [True, False])
     @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
     def test_refresh_failure_preserves_previous_checkout(
-        self, mock_githook, git_repo, fetch_method, expose_refresh_contract
+        self, mock_githook, git_repo, fetch_method, expose_refresh_contract, monkeypatch
     ):
         """A failed refresh must not corrupt the previous working tree."""
         repo_path, repo = git_repo
@@ -1816,11 +1853,10 @@ class TestGitDagBundle:
                 return []
             raise fetch_error
 
-        supports_contract = AIRFLOW_V_3_4_PLUS and expose_refresh_contract
-        with (
-            mock.patch(fetch_method, autospec=True, side_effect=fail_fetch),
-            mock.patch("airflow.providers.git.bundles.git.AIRFLOW_V_3_4_PLUS", supports_contract),
-        ):
+        supports_contract = DagBundleRefreshError is not None and expose_refresh_contract
+        if not expose_refresh_contract:
+            monkeypatch.delattr(bundle_base, "DagBundleRefreshError", raising=False)
+        with mock.patch(fetch_method, autospec=True, side_effect=fail_fetch):
             with pytest.raises(DagBundleRefreshError if supports_contract else GitCommandError) as exc_info:
                 bundle.refresh()
 
@@ -1861,7 +1897,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == version_before
         assert (bundle.path / "test_dag.py").read_text() == "partially changed content"
-        if AIRFLOW_V_3_4_PLUS:
+        if DagBundleRefreshError is not None:
             assert not isinstance(exc_info.value, DagBundleRefreshError)
         assert exc_info.value is error or exc_info.value.__cause__ is error
 
