@@ -156,6 +156,12 @@ describe("GridTI", () => {
   }>([
     { backCardState: "skipped", childStates: { skipped: 2, success: 1 }, primaryState: "success" },
     { backCardState: "success", childStates: { success: 3 }, primaryState: "success" },
+    {
+      backCardState: "upstream_failed",
+      childStates: { failed: 1, success: 1, upstream_failed: 2 },
+      primaryState: "failed",
+    },
+    { backCardState: "success", childStates: { failed: 2, success: 3 }, primaryState: "failed" },
   ])("stacks task group cells like mapped tasks", ({ backCardState, childStates, primaryState }) => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
       instance: { ...taskInstance, child_states: childStates, state: primaryState },
