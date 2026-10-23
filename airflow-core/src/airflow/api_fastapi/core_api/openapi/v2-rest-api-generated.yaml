@@ -13082,6 +13082,7 @@ components:
           default: none
         max_active_runs:
           type: integer
+          minimum: 1.0
           title: Max Active Runs
           default: 10
         run_on_latest_version:
@@ -17196,6 +17197,91 @@ components:
       - error
       title: PluginImportErrorResponse
       description: Plugin Import Error serializer for responses.
+    PluginLinkActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: link
+          title: Action Type
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - href
+      title: PluginLinkActionResponse
+      description: Serializer for a UI action that opens a URL.
+    PluginReactActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: react
+          title: Action Type
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - bundle_url
+      title: PluginReactActionResponse
+      description: Serializer for a UI action that mounts a React component behind
+        a button.
     PluginResponse:
       properties:
         name:
@@ -17238,6 +17324,20 @@ components:
             $ref: '#/components/schemas/ReactAppResponse'
           type: array
           title: React Apps
+        ui_actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/PluginLinkActionResponse'
+            - $ref: '#/components/schemas/PluginReactActionResponse'
+            discriminator:
+              propertyName: action_type
+              mapping:
+                link: '#/components/schemas/PluginLinkActionResponse'
+                react: '#/components/schemas/PluginReactActionResponse'
+          type: array
+          title: Ui Actions
+          description: User-defined actions rendered on Dag, Dag Run, and Task Instance
+            table rows and header cards.
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'

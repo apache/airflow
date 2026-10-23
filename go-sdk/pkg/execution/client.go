@@ -477,10 +477,6 @@ func (s taskStateStore) Set(
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
 
-	// TODO: warn when the serialized value exceeds the deployment's
-	// [state_store] max_value_storage_bytes, matching Python's
-	// airflow.sdk.execution_time.context task store setter.
-
 	_, err = s.client.comm.Communicate(ctx, genmodels.SetTaskStateStore{
 		TIID:      s.client.tiID,
 		Key:       key,

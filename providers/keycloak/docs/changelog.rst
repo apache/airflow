@@ -46,6 +46,18 @@ Changelog
     authorization rules that depend on ``UNANIMOUS`` before provisioning an
     existing client. ``--dry-run`` reports the proposed change without applying it.
 
+0.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Grant Keycloak SuperAdmin access to teamless resources (#74640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+
 0.11.1
 ......
 
