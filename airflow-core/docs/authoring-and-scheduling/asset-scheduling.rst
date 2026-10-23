@@ -470,6 +470,20 @@ raise an error. Single-asset schedules and ``|`` expressions support either mode
 Pending partitioned runs created while batching was disabled are not merged when you
 enable batching, so let them finish before changing the setting.
 
+For partitioned runs, the database uniqueness guard permits at most one marked pending
+row per ``(Dag, partition key)``. New batched rows receive a marker; new non-batched rows
+do not. The migration marks the newest historical pending row in each group, leaving
+older duplicates unmarked. Reuse does not promote those unmarked rows, and upgrading
+does not combine their events or repair previously split pending runs.
+
+Producers hold a pending row until their event links commit, so the scheduler defers
+consuming or removing it. A producer carrying a partition date takes an exclusive lock;
+one carrying no date takes a shared lock. The scheduler's claim takes a row lock even
+when ``use_row_level_locking=False``. Public asset-event and task-completion transactions
+retry database deadlocks up to three attempts. Public asset-event listeners run after
+commit; listener failure no longer rolls back an already committed event. Metrics and
+tracing can be emitted again by a retried attempt.
+
 For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
 :ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
 remain queued for subsequent scheduler passes.

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
@@ -95,6 +96,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.utils.retries import replay_on_deadlock
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -400,11 +402,6 @@ def create_asset_event(
     user: GetUserDep,
 ) -> AssetEventResponse:
     """Create asset events."""
-    asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
-    if not asset_model:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
-    timestamp = timezone.utcnow()
-
     api_user_teams: set[str] = set()
     api_allow_consumer_teams: list[str] | None = None
     api_allow_global_consumers: bool = True
@@ -414,21 +411,58 @@ def create_asset_event(
             api_allow_consumer_teams = body.access_control.consumer_teams
             api_allow_global_consumers = body.access_control.allow_global
 
-    assets_event = asset_manager.register_asset_change(
-        asset=asset_model,
-        timestamp=timestamp,
-        extra=body.extra,
-        partition_key=body.partition_key,
-        source_is_api=True,
-        api_user_teams=api_user_teams,
-        api_allow_consumer_teams=api_allow_consumer_teams,
-        api_allow_global_consumers=api_allow_global_consumers,
-        session=session,
-    )
+    # Registering a partitioned asset event acquires row locks on the consumer's pending
+    # AssetPartitionDagRun rows, so this route can lose a deadlock to a producer that
+    # registers several assets in one transaction. A deadlock aborts the whole transaction,
+    # so recovery has to replay the whole unit -- which means this route commits for itself
+    # rather than leaving it to ``SessionDep``. The dependency's later commit then has
+    # nothing left to do.
+    #
+    # ``callback_sink`` is what makes that replay safe. Without it the manager fires asset
+    # listeners inline, mid-transaction, so a discarded attempt would still have notified
+    # them -- and, independently of replay, they fire today even when the surrounding
+    # transaction later rolls back.
+    callbacks: list[Callable[[], None]] = []
+    response: AssetEventResponse | None = None
 
-    if not assets_event:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
-    return AssetEventResponse.model_validate(assets_event)
+    for attempt in replay_on_deadlock(session, description="create_asset_event"):
+        with attempt:
+            callbacks = []  # per-attempt: anything gathered by a discarded attempt is dropped
+            asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
+            if not asset_model:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found"
+                )
+
+            assets_event = asset_manager.register_asset_change(
+                asset=asset_model,
+                timestamp=timezone.utcnow(),
+                extra=body.extra,
+                partition_key=body.partition_key,
+                source_is_api=True,
+                api_user_teams=api_user_teams,
+                api_allow_consumer_teams=api_allow_consumer_teams,
+                api_allow_global_consumers=api_allow_global_consumers,
+                callback_sink=callbacks,
+                session=session,
+            )
+            if not assets_event:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found"
+                )
+            # Build the response before committing: the commit expires the instance, and the
+            # validated model holds plain values that survive it.
+            response = AssetEventResponse.model_validate(assets_event)
+            session.commit()
+
+    # Only the attempt that committed reaches here, so each listener fires once per event
+    # that actually exists. A callback that raises must not re-run the committed work.
+    for callback in callbacks:
+        callback()
+
+    if TYPE_CHECKING:
+        assert response is not None
+    return response
 
 
 @assets_router.post(

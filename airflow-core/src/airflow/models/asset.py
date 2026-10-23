@@ -946,24 +946,24 @@ class AssetPartitionDagRun(Base):
     We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
     with the PartitionedAssetKeyLog mapping table.
 
-    Rows are never deleted from this table, so multiple records with the same
-    target_dag_id / partition_key are expected in general; each dag run that
-    gets created leaves its APDR record behind.
+    Completed rows normally remain, so multiple records with the same
+    target_dag_id / partition_key are expected. The scheduler deletes pending
+    rows whose rollup fingerprint no longer matches the consumer timetable.
 
     Where created_dag_run_id is null, the Dag run has not yet been created.
     With batching disabled, each event creates its own row, so multiple pending
     rows for the same pair are expected. With event batching enabled, events
-    accumulate on one pending row per target_dag_id / partition_key, and a
-    unique constraint on (target_dag_id, pending_partition_key) keeps
-    concurrent writers from creating a second one.
+    accumulate on a pending row per target_dag_id / partition_key. A unique
+    constraint on (target_dag_id, pending_partition_key) permits at most one
+    marked row for each pair, without forbidding unmarked historical duplicates.
 
-    pending_partition_key mirrors partition_key on a pending row created with
-    batching enabled, and is null otherwise; the `_sync_pending_partition_key`
-    validator clears it once the Dag run is created. A unique index treats null
-    as distinct from every value on all three supported backends, so it only
-    compares batched pending rows. It stands in for a partial unique index on
-    (target_dag_id, partition_key) WHERE created_dag_run_id IS NULL, which
-    MySQL does not support.
+    New rows receive pending_partition_key only when batching is enabled. The
+    migration also marks the highest-ID historical pending row in each pair,
+    regardless of its original batching setting; older duplicates remain NULL.
+    Reuse does not promote an unmarked row. The `_sync_pending_partition_key`
+    validator clears the marker once the Dag run is created through the ORM;
+    bulk SQL writers must clear it explicitly. NULLs remain exempt from the
+    uniqueness guard on all three supported backends.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -22,11 +22,12 @@ import itertools
 import logging
 import threading
 from collections import Counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, exc, func, insert, select
+from sqlalchemy import delete, event, exc, func, insert, select, update
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import Session
 
@@ -58,6 +59,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import PartitionedAtRuntime
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import capture_orm_selects
@@ -68,6 +70,9 @@ from tests_common.test_utils.db import (
     clear_db_pakl,
 )
 from unit.listeners import asset_listener
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 pytestmark = pytest.mark.db_test
 
@@ -453,18 +458,25 @@ class TestAssetManager:
         thread_count = 100
         with caplog.at_level(logging.DEBUG):
             with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
-                ids = pool.map(lambda _: _get_or_create_apdr(), [None] * thread_count)
+                # Consume worker results before log assertions so worker exceptions propagate.
+                ids = list(pool.map(lambda _: _get_or_create_apdr(), [None] * thread_count))
 
-        # A thread either finds the row with its lookup, or loses the INSERT to the unique
-        # constraint and reuses the winner's row; which one happens is a timing detail.
-        msg_counts = Counter(r.msg for r in caplog.records)
-        create_msg = "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag"
-        found_msg = "Existing APDR found for key test_partition_key dag_id testing_dag"
-        lost_race_msg = (
-            "Another process created the APDR for key test_partition_key dag_id testing_dag first; reusing it"
+        counts = Counter(r.msg for r in caplog.records)
+        assert (
+            counts["No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag"] == 1
         )
-        assert msg_counts[create_msg] == 1
-        assert msg_counts[found_msg] + msg_counts[lost_race_msg] == thread_count - 1
+        # Every other thread reused it.
+        assert counts["Existing APDR found for key test_partition_key dag_id testing_dag"] == thread_count - 1
+        # Creation is guarded by a unique constraint rather than a mutex, so on a backend with
+        # real write concurrency some threads lose the INSERT race, re-read, and join the
+        # winner. That is the recovery branch doing its job; the counts above already pin the
+        # outcome (exactly one creation, everyone else reusing). SQLite serialises writers, so
+        # it normally records none of these.
+        assert set(counts) <= {
+            "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag",
+            "Existing APDR found for key test_partition_key dag_id testing_dag",
+            *(k for k in counts if k.startswith("Lost APDR race for key")),
+        }
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
@@ -693,7 +705,16 @@ class TestAssetManager:
                 for _ in range(2)
             ]
 
-        assert len(lookups) == (2 if allow_reuse else 0)
+        # Two calls. With reuse the first finds nothing and creates (1 unlocked lookup); the
+        # second finds the row and then re-reads it by primary key under a share lock before
+        # reusing it (1 unlocked lookup + 1 locking read) -- hence 3, not 2. Without reuse
+        # nothing is looked up at all. The locking read is the lifetime guarantee: see
+        # ``AssetManager._lock_pending_apdr``.
+        assert len(lookups) == (3 if allow_reuse else 0), [str(q) for q in lookups]
+        locking_reads = [q for q in lookups if "SHARE" in str(q).upper() or "FOR UPDATE" in str(q).upper()]
+        assert len(locking_reads) == (1 if allow_reuse else 0), (
+            f"expected exactly one locking re-read on the reuse path, got {locking_reads}"
+        )
         expected_count = 1 if allow_reuse else 2
         assert len({apdr.id for apdr in apdrs}) == expected_count
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == expected_count
@@ -970,7 +991,6 @@ class TestAssetManager:
         from airflow.sdk import Asset, HourWindow, RollupMapper, StartOfHourMapper
         from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
         from airflow.timetables.base import compute_rollup_fingerprint
-        from airflow.timetables.simple import PartitionedAssetTimetable as CorePartitionedAssetTimetable
 
         asset_1 = Asset(name="asset-stamp-test")
         # sdk version — dag_maker serializes this to a core timetable.
@@ -1764,3 +1784,779 @@ class TestFilterDagsByTeam:
         )
 
         assert (dag in result) == expected_in
+
+
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestApdrAcquisitionConcurrency:
+    """
+    Two producers reusing one pending APDR, driven through the real acquisition helper.
+
+    ``TestAssetPartitionDateConcurrency`` calls ``_reconcile_partition_date`` directly and so
+    never acquires the producer row lock. That is why it could not see the regression this
+    class pins: a shared lock taken before reconciliation has to be *upgraded* when a date
+    turns out to need writing, and on MySQL two holders of the shared record lock that both
+    need the exclusive one deadlock (1213) -- on a single row, with agreeing dates, where no
+    key ordering can help. ``_lock_pending_apdr`` therefore picks its strength up front from
+    the incoming date, avoiding conversion within this acquisition.
+
+    "Committed" here means a committed ``PartitionedAssetKeyLog`` row for that producer's own
+    event, not a returned ORM object.
+    """
+
+    D1 = timezone.datetime(2026, 1, 1)
+    D2 = timezone.datetime(2026, 2, 2)
+    D3 = timezone.datetime(2026, 3, 3)
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_write_concurrency(self, session):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite serialises writers, so the two-transaction schedule cannot run")
+
+    @pytest.fixture
+    def fixtures(self, session):
+        clear_db_apdr()
+        clear_db_pakl()
+        asset = AssetModel(uri="test://acq/", name="acq_asset", group="asset")
+        dag = DagModel(dag_id="acq_dag", is_stale=False, bundle_name="testing")
+        session.add_all([asset, dag])
+        session.commit()
+        # Distinct events so each producer's link is individually identifiable.
+        events = [AssetEvent(asset_id=asset.id, extra={}) for _ in range(2)]
+        session.add_all(events)
+        session.commit()
+        yield asset.id, dag.dag_id, [e.id for e in events]
+        clear_db_apdr()
+        clear_db_pakl()
+        session.rollback()
+        session.execute(delete(AssetEvent).where(AssetEvent.asset_id == asset.id))
+        session.execute(delete(DagModel).where(DagModel.dag_id == "acq_dag"))
+        session.execute(delete(AssetModel).where(AssetModel.name == "acq_asset"))
+        session.commit()
+
+    @staticmethod
+    def _run_pair(session, asset_id, dag_id, event_ids, incoming):
+        """Run two producers concurrently; rendezvous inside the acquisition path."""
+        barrier = threading.Barrier(2)
+        results: dict[str, dict] = {"A": {}, "B": {}}
+        guard = threading.Lock()
+        real_reconcile = AssetManager._reconcile_partition_date.__func__
+
+        def wrapped(cls, **kwargs):
+            name = threading.current_thread().name
+            try:
+                # Advisory. If the other producer is blocked on an exclusive row lock it can
+                # never arrive, and that serialisation is the intended behaviour -- so the
+                # rendezvous is recorded, not required.
+                barrier.wait(timeout=2.0)
+                overlapped = True
+            except threading.BrokenBarrierError:
+                overlapped = False
+            with guard:
+                results[name]["overlapped"] = overlapped
+            return real_reconcile(cls, **kwargs)
+
+        def worker(name, event_id, date):
+            res = results[name]
+            s = settings.Session.session_factory()
+            s.begin()
+            try:
+                res["conn"] = id(s.connection().connection.dbapi_connection)
+                apdr = AssetManager._get_or_create_apdr(
+                    target_key="acq-key",
+                    target_partition_date=date,
+                    target_dag=s.get(DagModel, dag_id),
+                    rollup_fingerprint={},
+                    allow_reuse=True,
+                    session=s,
+                )
+                s.add(
+                    PartitionedAssetKeyLog(
+                        asset_id=asset_id,
+                        asset_event_id=event_id,
+                        asset_partition_dag_run_id=apdr.id,
+                        target_dag_id=dag_id,
+                        target_partition_key="acq-key",
+                        source_partition_key="acq-key",
+                    )
+                )
+                s.commit()
+                res["committed"] = True
+            except Exception as exc:
+                orig = getattr(exc, "orig", None)
+                res["error"] = f"{type(exc).__name__}:{getattr(orig, 'args', (None,))[0]}"
+                res["committed"] = False
+                s.rollback()
+            finally:
+                s.close()
+
+        threads = [
+            threading.Thread(target=worker, args=(n, e, d), name=n)
+            for n, e, d in zip(("A", "B"), event_ids, incoming)
+        ]
+        with mock.patch.object(AssetManager, "_reconcile_partition_date", classmethod(wrapped)):
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(90)
+        assert not [t.name for t in threads if t.is_alive()], f"a producer hung: {results}"
+        session.rollback()
+        return results
+
+    @pytest.mark.parametrize(
+        ("seed", "incoming", "marked", "allowed_final"),
+        [
+            # The deadlocking cases: a date has to be written onto the reused row.
+            pytest.param(None, ("D1", "D1"), True, ("D1",), id="undated-same-date-marked"),
+            pytest.param(None, ("D1", "D1"), False, ("D1",), id="undated-same-date-unmarked"),
+            pytest.param(None, ("D2", "D3"), True, (None,), id="undated-conflicting"),
+            # Either order is valid: A-first gives NULL then D3, B-first NULL then D2.
+            # Which one wins is decided by lock order, not by which thread started first.
+            pytest.param("D1", ("D2", "D3"), True, ("D2", "D3"), id="dated-conflicting"),
+            pytest.param("D1", ("D1", "D1"), True, ("D1",), id="dated-same-date"),
+            # Controls that passed even with the shared lock; kept so a fix cannot regress them.
+            pytest.param("D1", (None, None), True, ("D1",), id="dated-no-incoming"),
+            pytest.param(None, (None, None), True, (None,), id="undated-no-incoming"),
+        ],
+    )
+    def test_two_producers_reusing_one_apdr_both_commit(
+        self, session, fixtures, seed, incoming, marked, allowed_final
+    ):
+        asset_id, dag_id, event_ids = fixtures
+        names = {"D1": self.D1, "D2": self.D2, "D3": self.D3, None: None}
+        row = AssetPartitionDagRun(
+            target_dag_id=dag_id,
+            created_dag_run_id=None,
+            partition_key="acq-key",
+            pending_partition_key="acq-key" if marked else None,
+            partition_date=names[seed],
+            rollup_fingerprint={},
+        )
+        session.add(row)
+        session.commit()
+        apdr_id = row.id
+
+        results = self._run_pair(session, asset_id, dag_id, event_ids, [names[i] for i in incoming])
+
+        conns = [results[n].get("conn") for n in ("A", "B")]
+        assert None not in conns
+        assert len(set(conns)) == 2, f"producers shared a connection: {results}"
+        assert all(results[n].get("committed") for n in ("A", "B")), f"a producer failed to commit: {results}"
+
+        links = session.scalars(
+            select(PartitionedAssetKeyLog.asset_event_id).order_by(PartitionedAssetKeyLog.asset_event_id)
+        ).all()
+        assert sorted(links) == sorted(event_ids), (
+            f"expected one committed link per producer event, got {list(links)}"
+        )
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+        # Read the date with a Core select rather than ``session.get``. This session added the
+        # row itself, so ``get`` can answer from the identity map with the pre-workers value --
+        # an earlier version of this assertion failed against a database that was in fact
+        # correct.
+        final = session.scalar(
+            select(AssetPartitionDagRun.partition_date).where(AssetPartitionDagRun.id == apdr_id)
+        )
+        allowed = {names[x] for x in allowed_final}
+        assert final in allowed, (
+            f"seed={seed} incoming={incoming} final={final} not in {allowed} results={results}"
+        )
+
+        # The lock strength must match what the producers carried: exclusive when a date may
+        # be written (so they cannot overlap), shared otherwise.
+        carries_date = any(i is not None for i in incoming)
+        overlapped = any(results[n].get("overlapped") for n in ("A", "B"))
+        assert overlapped is not carries_date, (
+            f"carries_date={carries_date} but overlapped={overlapped}; the lock strength "
+            f"decision did not take effect: {results}"
+        )
+
+    def test_locking_read_repopulates_the_cached_row(self, session, fixtures):
+        """The value read after the lock must be the locked value, not the cached one.
+
+        The unlocked candidate lookup puts the row in the identity map. Without
+        ``populate_existing`` the locking SELECT hands back that same instance with its
+        pre-lock columns, so the helper would decide from a value the lock does not protect.
+        """
+        asset_id, dag_id, _events = fixtures
+        row = AssetPartitionDagRun(
+            target_dag_id=dag_id,
+            created_dag_run_id=None,
+            partition_key="acq-key",
+            pending_partition_key="acq-key",
+            partition_date=self.D1,
+            rollup_fingerprint={},
+        )
+        session.add(row)
+        session.commit()
+        apdr_id = row.id
+
+        producer = settings.Session.session_factory()
+        producer.begin()
+        try:
+            candidate = AssetManager._get_latest_pending_apdr(
+                target_key="acq-key", target_dag_id=dag_id, session=producer
+            )
+            assert candidate is not None
+            assert candidate.partition_date == self.D1
+
+            # A competitor commits a different date on its own connection, and is allowed to
+            # finish -- this is a staged interleaving, not a timing race.
+            other = settings.Session.session_factory()
+            other.begin()
+            try:
+                other.execute(
+                    update(AssetPartitionDagRun)
+                    .where(AssetPartitionDagRun.id == apdr_id)
+                    .values(partition_date=self.D2)
+                )
+                other.commit()
+            finally:
+                other.close()
+
+            locked = AssetManager._lock_pending_apdr(
+                apdr_id=apdr_id,
+                target_key="acq-key",
+                target_dag_id=dag_id,
+                for_write=True,
+                session=producer,
+            )
+            assert locked is not None
+            independent = producer.scalar(
+                select(AssetPartitionDagRun.partition_date).where(AssetPartitionDagRun.id == apdr_id)
+            )
+            assert independent == self.D2, "the competitor's write is not visible at all"
+            assert locked.partition_date == self.D2, (
+                "the locking read returned the identity-map instance with its pre-lock date; "
+                "populate_existing is missing"
+            )
+        finally:
+            producer.rollback()
+            producer.close()
+
+
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestAssetPartitionDateConcurrency:
+    """
+    Committed counterparts of the standalone date/lifecycle controls.
+
+    Two producers can reuse the same pending APDR and carry different ``partition_date``
+    values. ``_reconcile_partition_date`` resolves that inside one conditional UPDATE so the
+    database serialises the decision; a Python read-modify-write would let whichever
+    transaction committed last win, which is order-dependent and therefore not reproducible.
+
+    Each schedule runs on genuinely independent sessions obtained from
+    ``settings.Session.session_factory()`` -- ``settings.Session`` is a ``scoped_session``, so
+    calling it twice in one thread returns the *same* session and would prove nothing.
+    """
+
+    D1 = timezone.datetime(2026, 1, 1)
+    D2 = timezone.datetime(2026, 2, 2)
+    D3 = timezone.datetime(2026, 3, 3)
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_write_concurrency(self, session):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite serialises writers, so the two-transaction schedule cannot run")
+
+    @pytest.fixture
+    def seeded(self, session):
+        """Create the shared target and return ``(apdr_id, dag, asset)``."""
+        clear_db_apdr()
+        clear_db_pakl()
+        asset = AssetModel(uri="test://date_conc/", name="date_conc_asset", group="asset")
+        dag = DagModel(dag_id="date_conc_dag", is_stale=False, bundle_name="testing")
+        session.add_all([asset, dag])
+        session.commit()
+        yield asset, dag
+        clear_db_apdr()
+        clear_db_pakl()
+        session.rollback()
+        session.execute(delete(DagModel).where(DagModel.dag_id == "date_conc_dag"))
+        session.execute(delete(AssetModel).where(AssetModel.name == "date_conc_asset"))
+        session.commit()
+
+    def _seed_apdr(self, session, dag, partition_date):
+        row = AssetPartitionDagRun(
+            target_dag_id=dag.dag_id,
+            created_dag_run_id=None,
+            partition_key="date-conc-key",
+            pending_partition_key="date-conc-key",
+            partition_date=partition_date,
+            rollup_fingerprint={},
+        )
+        session.add(row)
+        session.commit()
+        return row.id
+
+    def _carry_concurrently(self, apdr_id, dag, dates):
+        """Both workers read the row, then each carries its own date. Returns observations."""
+        barrier = threading.Barrier(len(dates))
+        observed: dict[datetime | None, Any] = {}
+        lock = threading.Lock()
+
+        def carry(incoming):
+            s = settings.Session.session_factory()
+            s.begin()
+            try:
+                row = s.get(AssetPartitionDagRun, apdr_id)
+                assert row is not None, "the seeded row disappeared before the schedule ran"
+                with lock:
+                    observed[incoming] = {"seen": row.partition_date, "ran": False}
+                # Both transactions must have read the pre-existing value before either
+                # writes; otherwise this degenerates into two sequential carries.
+                barrier.wait(timeout=30)
+                valid = AssetManager._reconcile_partition_date(
+                    apdr=row,
+                    target_partition_date=incoming,
+                    target_dag_id=dag.dag_id,
+                    target_key="date-conc-key",
+                    session=s,
+                )
+                with lock:
+                    observed[incoming]["ran"] = True
+                    observed[incoming]["valid"] = valid
+                s.commit()
+            finally:
+                s.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(dates)) as pool:
+            # list() re-raises anything a worker hit, including BrokenBarrierError. An earlier
+            # standalone version of this schedule swallowed those and reported success while
+            # every worker had in fact died.
+            list(pool.map(carry, dates))
+        assert len(observed) == len(dates)
+        assert all(o["ran"] for o in observed.values()), f"a worker never reconciled: {observed}"
+        return observed
+
+    def test_conflicting_dates_onto_an_undated_row_suppress_to_null(self, session, seeded):
+        """C1: both carries disagree, so neither may win.
+
+        Seeded NULL, so a stale read-modify-write would have *both* workers adopt their own
+        date and leave an order-dependent winner. The end state must be NULL.
+        """
+        _asset, dag = seeded
+        apdr_id = self._seed_apdr(session, dag, None)
+
+        observed = self._carry_concurrently(apdr_id, dag, [self.D2, self.D3])
+        assert all(o["seen"] is None for o in observed.values()), (
+            f"workers did not both observe the seeded NULL: {observed}"
+        )
+
+        session.rollback()
+        final = session.get(AssetPartitionDagRun, apdr_id).partition_date
+        assert final is None, f"conflicting dates left {final!r} instead of suppressing to NULL"
+
+    def test_conflicting_dates_onto_a_dated_row_do_not_suppress_to_null(self, session, seeded):
+        """C2: the mirror case, which C1 alone cannot distinguish.
+
+        Seeded with ``D1`` and carrying ``D2``/``D3``. A stale read-modify-write suppresses
+        both to NULL here, so asserting "not NULL" rejects exactly what C1 cannot.
+        """
+        _asset, dag = seeded
+        apdr_id = self._seed_apdr(session, dag, self.D1)
+
+        self._carry_concurrently(apdr_id, dag, [self.D2, self.D3])
+
+        session.rollback()
+        final = session.get(AssetPartitionDagRun, apdr_id).partition_date
+        assert final != self.D1, "the seeded date survived two disagreeing carries"
+        assert final in (self.D2, self.D3), (
+            f"a disagreement against an already-dated row left {final!r}; the row had a date, "
+            "so the first carry suppresses it and the second adopts its own"
+        )
+
+    def test_matching_date_is_adopted_onto_an_undated_row(self, session, seeded):
+        """C3: positive control -- without it, code that never writes passes C1."""
+        _asset, dag = seeded
+        apdr_id = self._seed_apdr(session, dag, None)
+
+        s = settings.Session.session_factory()
+        s.begin()
+        try:
+            row = s.get(AssetPartitionDagRun, apdr_id)
+            assert (
+                AssetManager._reconcile_partition_date(
+                    apdr=row,
+                    target_partition_date=self.D2,
+                    target_dag_id=dag.dag_id,
+                    target_key="date-conc-key",
+                    session=s,
+                )
+                is True
+            )
+            s.commit()
+        finally:
+            s.close()
+
+        session.rollback()
+        assert session.get(AssetPartitionDagRun, apdr_id).partition_date == self.D2
+
+
+class _DescendingDagIdSet(set):
+    """A ``set`` that always iterates in descending ``dag_id`` order.
+
+    ``_queue_dagruns`` takes a real set and calls ``difference`` on it, so the substitute has
+    to stay a set. Only iteration order is pinned, which is what the production sort consumes.
+    """
+
+    def __iter__(self):
+        return iter(sorted(set.__iter__(self), key=lambda dag: dag.dag_id, reverse=True))
+
+
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestAssetPartitionDagRunPendingMarker:
+    """
+    Cover the ``pending_partition_key`` dedup marker.
+
+    The marker guards *batched* pending rows only. Each test below pins one edge of that
+    invariant; several of them fail on the pre-marker implementation, which is noted per test.
+    """
+
+    FINGERPRINT = {"asset-1|test://marker/": {"__type": "IdentityMapper", "__var": {}}}
+
+    @pytest.fixture
+    def fixture(self, session, request):
+        clear_db_apdr()
+        clear_db_pakl()
+        # Unique per test so rows from a sibling test cannot collide on the primary key or
+        # be picked up by the lookups under test.
+        suffix = request.node.name.replace("[", "_").replace("]", "")[:40]
+        asset = AssetModel(uri=f"test://marker/{suffix}", name=f"marker_asset_{suffix}", group="asset")
+        dag = DagModel(dag_id=f"marker_dag_{suffix}", is_stale=False, bundle_name="testing")
+        session.add_all([asset, dag])
+        session.commit()
+        yield asset, dag
+        clear_db_pakl()
+        clear_db_apdr()
+
+    def _call(self, session, dag, asset, *, key="k", allow_reuse, date=None):
+        return AssetManager._get_or_create_apdr(
+            target_key=key,
+            target_partition_date=date,
+            target_dag=dag,
+            rollup_fingerprint=self.FINGERPRINT,
+            allow_reuse=allow_reuse,
+            session=session,
+        )
+
+    @staticmethod
+    def _make_dag_run_id(session, dag_maker) -> int:
+        """Create a real DagRun and return its id (APDR.created_dag_run_id is a FK to dag_run.id)."""
+        with dag_maker(dag_id=f"marker_run_src_{uuid4().hex[:8]}", session=session):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun()
+        session.flush()
+        return dr.id
+
+    def test_non_batched_rows_get_null_markers_and_stay_distinct(self, session, fixture):
+        """allow_reuse=False keeps one row per event; markers stay NULL so the guard is bypassed.
+
+        Fails with an unconditional marker: the second insert violates the constraint.
+        """
+        asset, dag = fixture
+        first = self._call(session, dag, asset, allow_reuse=False)
+        second = self._call(session, dag, asset, allow_reuse=False)
+
+        assert first.id != second.id
+        assert first.pending_partition_key is None
+        assert second.pending_partition_key is None
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 2
+
+    def test_batched_row_is_marked(self, session, fixture):
+        """allow_reuse=True marks the row it creates, enrolling it in the guard."""
+        asset, dag = fixture
+        apdr = self._call(session, dag, asset, allow_reuse=True)
+        assert apdr.pending_partition_key == "k"
+
+    def test_duplicate_marked_pending_row_is_rejected_by_the_database(self, session, fixture):
+        """The constraint — not a lock — is what prevents a second marked pending row.
+
+        This is the #71070 defect: two producer assets previously took two different
+        AssetModel locks and both inserted.
+        """
+        asset, dag = fixture
+        self._call(session, dag, asset, allow_reuse=True)
+        session.flush()
+
+        duplicate = AssetPartitionDagRun(
+            target_dag_id=dag.dag_id,
+            created_dag_run_id=None,
+            partition_key="k",
+            pending_partition_key="k",
+            rollup_fingerprint=self.FINGERPRINT,
+        )
+        session.add(duplicate)
+        with pytest.raises(exc.IntegrityError):
+            session.flush()
+        session.rollback()
+
+    def test_completion_clears_the_marker_and_frees_the_key(self, session, fixture, dag_maker):
+        """Completing a row releases its marker so the next batched event can be marked."""
+        asset, dag = fixture
+        first = self._call(session, dag, asset, allow_reuse=True)
+        assert first.pending_partition_key == "k"
+
+        first.created_dag_run_id = self._make_dag_run_id(session, dag_maker)  # scheduler's ORM assignment
+        session.flush()
+        assert first.pending_partition_key is None
+
+        second = self._call(session, dag, asset, allow_reuse=True)
+        assert second.id != first.id
+        assert second.pending_partition_key == "k"
+
+    def test_legacy_null_marker_row_is_reused_without_promotion(self, session, fixture):
+        """A pre-migration row has a NULL marker; batched events join it and leave it NULL.
+
+        Promotion is what must *not* happen — see the toggle test for why.
+        """
+        asset, dag = fixture
+        legacy = AssetPartitionDagRun(
+            target_dag_id=dag.dag_id,
+            created_dag_run_id=None,
+            partition_key="k",
+            pending_partition_key=None,
+            rollup_fingerprint=self.FINGERPRINT,
+        )
+        session.add(legacy)
+        session.flush()
+
+        reused = self._call(session, dag, asset, allow_reuse=True)
+        assert reused.id == legacy.id
+        assert reused.pending_partition_key is None
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    def test_batching_toggle_does_not_promote_a_marker_onto_a_colliding_row(self, session, fixture):
+        """enabled -> disabled -> enabled leaves an older marked row and a newer unmarked one.
+
+        Variant B selects the newer unmarked row. Promoting its marker would collide with the
+        older row, so the implementation must reuse it as-is.
+        """
+        asset, dag = fixture
+        marked = self._call(session, dag, asset, allow_reuse=True)  # batching on
+        assert marked.pending_partition_key == "k"
+        unmarked = self._call(session, dag, asset, allow_reuse=False)  # batching off
+        assert unmarked.pending_partition_key is None
+
+        reused = self._call(session, dag, asset, allow_reuse=True)  # batching on again
+        assert reused.id == unmarked.id
+        assert reused.pending_partition_key is None
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 2
+
+    def test_older_pending_behind_newer_completed_is_reused(self, session, fixture, dag_maker):
+        """Documented divergence from the pre-marker lookup.
+
+        The old code ordered by id and reused only if the newest row was pending, so it would
+        create a third row here. Selecting the newest *pending* row reuses the older one, which
+        is required: creating another marked row could collide with the older row's marker.
+        """
+        asset, dag = fixture
+        older_pending = self._call(session, dag, asset, allow_reuse=False)
+        newer = self._call(session, dag, asset, allow_reuse=False)
+        newer.created_dag_run_id = self._make_dag_run_id(session, dag_maker)
+        session.flush()
+
+        reused = self._call(session, dag, asset, allow_reuse=True)
+        assert reused.id == older_pending.id
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 2
+
+    def test_unrelated_integrity_error_is_not_swallowed(self, session, fixture):
+        """Only the marker constraint means "lost the race"; anything else must propagate.
+
+        Guards against the recovery branch turning a foreign-key failure into silent reuse.
+        """
+        asset, dag = fixture
+        unrelated = exc.IntegrityError(
+            "INSERT ...", {}, Exception("FOREIGN KEY constraint failed: some_other_fkey")
+        )
+        with mock.patch.object(Session, "flush", side_effect=unrelated):
+            with pytest.raises(exc.IntegrityError, match="some_other_fkey"):
+                self._call(session, dag, asset, allow_reuse=True)
+        session.rollback()
+
+    def test_recovers_when_the_winner_completes_before_the_re_read(self, session, fixture, dag_maker):
+        """The losing insert must tolerate the winner vanishing from the pending set.
+
+        A single re-select raised RuntimeError here; the bounded loop re-reads, misses, and
+        inserts a fresh row instead.
+        """
+        asset, dag = fixture
+        winner = self._call(session, dag, asset, allow_reuse=True)
+        session.flush()
+        assert winner.pending_partition_key == "k"
+
+        run_id = self._make_dag_run_id(session, dag_maker)
+        real_lookup = AssetManager._get_latest_pending_apdr
+        calls = {"n": 0}
+
+        def staged_lookup(*, target_key, target_dag_id, session):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Stale read: the producer misses the winner and proceeds to INSERT, which
+                # the real unique constraint rejects.
+                return None
+            if calls["n"] == 2:
+                # The scheduler completes the winner in the window between that rejection and
+                # this recovery read, so there is no pending row left to join.
+                winner.created_dag_run_id = run_id
+                session.flush()
+                return None
+            return real_lookup(target_key=target_key, target_dag_id=target_dag_id, session=session)
+
+        with mock.patch.object(AssetManager, "_get_latest_pending_apdr", staticmethod(staged_lookup)):
+            recovered = self._call(session, dag, asset, allow_reuse=True)
+
+        # The conflict branch ran (two staged reads consumed) and recovery produced a new row
+        # rather than raising, which is what a single re-select could not do.
+        assert calls["n"] >= 2
+        assert recovered.id != winner.id
+        assert recovered.pending_partition_key == "k"
+        assert winner.pending_partition_key is None
+
+    def test_retry_exhaustion_preserves_integrity_error(self, session, fixture):
+        """Sustained real conflict with nothing to join surfaces an actionable error, not a spin.
+
+        The conflict comes from the actual unique constraint, not a synthetic exception: a
+        marked pending row exists but the lookup never returns it, so every attempt genuinely
+        violates the database and the loop runs out of attempts. This mirrors the stale-marker
+        state a mixed-version writer can leave behind.
+        """
+        asset, dag = fixture
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id=dag.dag_id,
+                created_dag_run_id=None,
+                partition_key="k",
+                pending_partition_key="k",
+                rollup_fingerprint=self.FINGERPRINT,
+            )
+        )
+        session.flush()
+
+        with mock.patch.object(AssetManager, "_get_latest_pending_apdr", staticmethod(lambda **kw: None)):
+            with pytest.raises(exc.IntegrityError):
+                self._call(session, dag, asset, allow_reuse=True)
+        session.rollback()
+
+    def test_lifecycle_invalidation_is_bounded(self, session, fixture):
+        """Repeatedly ineligible candidates cannot turn acquisition into an unbounded loop."""
+        asset, dag = fixture
+        self._call(session, dag, asset, allow_reuse=True)
+
+        with mock.patch.object(AssetManager, "_lock_pending_apdr", autospec=True, return_value=None) as lock:
+            with pytest.raises(RuntimeError, match="after 3 attempts"):
+                self._call(session, dag, asset, allow_reuse=True)
+        assert lock.call_count == 3
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @staticmethod
+    def _drive_fanout(session, dag_maker, consumer_dag_ids, mapper_keys):
+        """Run real queueing for ``consumer_dag_ids`` and return the acquisition order.
+
+        Returns the ``(dag_id, target_key)`` pairs that ``_get_or_create_apdr`` was actually
+        handed, in call order.
+        """
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.sdk import PartitionedAtRuntime
+
+        asset = Asset(name="fanout-order-asset")
+        for consumer_dag_id in consumer_dag_ids:
+            with dag_maker(
+                dag_id=consumer_dag_id,
+                schedule=PartitionedAssetTimetable(assets=asset),
+                session=session,
+            ):
+                EmptyOperator(task_id="t1")
+        with dag_maker(
+            dag_id="fanout-order-producer", schedule=PartitionedAtRuntime(), session=session
+        ) as producer_dag:
+            EmptyOperator(task_id="emit", outlets=[asset])
+        dr = dag_maker.create_dagrun(partition_key="2026-01-01T00:00:00", session=session)
+        [ti] = dr.get_task_instances(session=session)
+        session.commit()
+
+        seen: list[tuple[str, str]] = []
+        real_helper = AssetManager._get_or_create_apdr.__func__
+        real_queue = AssetManager._queue_dagruns.__func__
+
+        def recording(cls, *, target_key, target_dag, **kwargs):
+            seen.append((target_dag.dag_id, target_key))
+            return real_helper(cls, target_key=target_key, target_dag=target_dag, **kwargs)
+
+        def pin_order(cls, *, dags_to_queue, **kwargs):
+            return real_queue(cls, dags_to_queue=_DescendingDagIdSet(dags_to_queue), **kwargs)
+
+        # Patch the real default mapper rather than substituting a locally defined class: the
+        # timetable serialises its mapper by import path, so a test-local class cannot
+        # round-trip. Descending keys expose an unsorted acquisition order.
+        with (
+            mock.patch.object(IdentityMapper, "to_downstream", return_value=list(mapper_keys)),
+            mock.patch.object(AssetManager, "_queue_dagruns", classmethod(pin_order)),
+            mock.patch.object(AssetManager, "_get_or_create_apdr", classmethod(recording)),
+        ):
+            TaskInstance.register_asset_changes_in_db(
+                ti=ti,
+                task_outlets=[o.asprofile() for o in producer_dag.get_task("emit").outlets],
+                outlet_events=[],
+                session=session,
+            )
+            session.commit()
+        return seen
+
+    @pytest.mark.need_serialized_dag
+    def test_fanout_keys_are_acquired_in_sorted_order(self, session, dag_maker):
+        """Production queueing must acquire fan-out keys in one globally agreed order.
+
+        The marker guard makes each pending INSERT hold a unique-index entry until commit, so
+        two transactions touching the same key set in opposite orders deadlock (PostgreSQL
+        40P01; MySQL 1213, which aborts the victim entirely). Mappers are not required to
+        return a stable order, so ``_queue_partitioned_dags`` sorts before acquiring.
+
+        This drives the real queueing path with a mapper that deliberately returns keys in
+        descending order, and asserts the complete expected call sequence. An earlier version
+        of this test sorted its own inputs and called the helper directly, so it still passed
+        with both production sorting layers reversed; a later version asserted only
+        ``seen == sorted(seen)``, which a single reordered pair can still satisfy.
+        """
+        clear_db_apdr()
+        clear_db_pakl()
+        try:
+            seen = self._drive_fanout(session, dag_maker, ["fanout-order-consumer"], ["k-3", "k-1", "k-2"])
+            assert seen == [
+                ("fanout-order-consumer", "k-1"),
+                ("fanout-order-consumer", "k-2"),
+                ("fanout-order-consumer", "k-3"),
+            ], f"keys were not acquired in the one agreed order: {seen}"
+        finally:
+            clear_db_apdr()
+            clear_db_pakl()
+
+    @pytest.mark.need_serialized_dag
+    def test_fanout_order_is_stable_across_multiple_consumers(self, session, dag_maker):
+        """Both sort layers must hold: consumer DAGs first, then keys within each DAG.
+
+        ``dags_to_queue`` is a ``set``, so its natural iteration order depends on object
+        addresses and varies per process. The schedule pins it to descending ``dag_id`` so
+        that removing the DAG-level sort in ``_queue_dagruns`` fails this test on every run
+        rather than roughly half of them.
+        """
+        clear_db_apdr()
+        clear_db_pakl()
+        try:
+            # Created zz-first so insertion order also disagrees with the required order.
+            seen = self._drive_fanout(
+                session,
+                dag_maker,
+                ["fanout-order-zz-consumer", "fanout-order-aa-consumer"],
+                ["k-3", "k-1", "k-2"],
+            )
+            assert seen == [
+                ("fanout-order-aa-consumer", "k-1"),
+                ("fanout-order-aa-consumer", "k-2"),
+                ("fanout-order-aa-consumer", "k-3"),
+                ("fanout-order-zz-consumer", "k-1"),
+                ("fanout-order-zz-consumer", "k-2"),
+                ("fanout-order-zz-consumer", "k-3"),
+            ], f"fan-out was not acquired dag-major in sorted order: {seen}"
+        finally:
+            clear_db_apdr()
+            clear_db_pakl()

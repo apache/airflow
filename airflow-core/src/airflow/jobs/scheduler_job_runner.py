@@ -2453,6 +2453,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
         # two APDRs share a `created_at` under bulk asset-event ingestion.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        #
+        # `required=True` keeps this claim in place even when
+        # `[scheduler] use_row_level_locking` is False. That setting is an HA option -- it
+        # documents "do not run more than a single scheduler" -- but this claim is not only
+        # about scheduler-vs-scheduler. A *producer* extending a pending APDR holds a row
+        # lock on it, and this claim is what makes the scheduler skip that row instead of
+        # deleting or completing it underneath the producer. Routed through the HA toggle,
+        # the claim silently disappeared and the producer's lock merely delayed the
+        # deletion: the scheduler selected the row unlocked, blocked on DELETE, waited for
+        # the producer to commit its event log, and then removed the parent, leaving an
+        # orphaned `partitioned_asset_key_log` row. Measured on PostgreSQL 16 and MySQL 8.4.
         pending_apdrs = session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
@@ -2468,6 +2479,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
+                required=True,
                 session=session,
             )
         ).all()
