@@ -3844,7 +3844,7 @@ class TestDatabricksSQLStatementsOperator:
 
         assert (
             "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
-            "will be emitted when the Databricks run is submitted, not when the table is refreshed."
+            "will be emitted when the SQL statement is submitted, not when the table is refreshed."
         ) in caplog.text
 
     def test_empty_outlets_do_not_warn(self, caplog):
