@@ -130,6 +130,9 @@ stopping.
 
 The ``accurate_enough`` condition in the ``refine_estimate`` example above returns a
 ``LoopDecision``, so each iteration of that loop shows its error next to its outcome.
+:doc:`Refine a draft within a budget <apache-airflow-providers-common-ai:use_cases/refine_a_draft_within_a_budget>`
+uses the same pattern for LLM calls, stopping with a reason when a judge passes the draft or when
+the loop has spent its dollar or token budget.
 
 Read the loop context
 =====================
@@ -270,9 +273,10 @@ gate's state. A trigger rule such as ``always`` does not wait for the loop and
 may see only the iterations that exist so far.
 
 Inside the loop nothing changes: use ``loop.result`` and ``loop.previous``. A
-task outside the loop cannot pull a single value from a loop task, because the
-task ran once for each iteration, and cannot use its output to expand a mapped
-task.
+``ti.xcom_pull`` of another task in the same loop returns that task's value from the
+current iteration. A task outside the loop cannot pull a single value from a loop
+task, because the task ran once for each iteration, and cannot use its output to
+expand a mapped task.
 
 .. _loops-mapped-tasks:
 
