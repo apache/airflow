@@ -187,7 +187,7 @@ The system automatically fills in any missing values by walking up the hierarchy
 MappedOperator Default Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-MappedOperators (dynamic task mapping) also participate in the default value system:
+MappedOperators (task mapping) also participate in the default value system:
 
 .. code-block:: python
 

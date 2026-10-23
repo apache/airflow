@@ -129,8 +129,8 @@ test.describe("Backfill", () => {
         toDate: dates.to,
       });
 
-      // Navigate to verify UI reflects the paused state, then test toggle cycle.
-      await backfillPage.navigateToDagDetail(testDagId);
+      // The controls live with the backfill row, so assert them on the Backfills tab.
+      await backfillPage.navigateToBackfillsTab(testDagId);
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 15_000 });
 
       await backfillPage.togglePauseState();
@@ -150,7 +150,7 @@ test.describe("Backfill", () => {
         toDate: dates.to,
       });
 
-      await backfillPage.navigateToDagDetail(testDagId);
+      await backfillPage.navigateToBackfillsTab(testDagId);
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 15_000 });
 
       await backfillPage.clickCancelButton();
@@ -171,13 +171,11 @@ test.describe("Backfill", () => {
 
       await backfillPage.cancelBackfillViaApi(backfillId);
 
-      // Verify UI: no pause/resume controls visible after cancel.
-      await backfillPage.navigateToDagDetail(testDagId);
+      // Assert absence where the controls would render, so the check can fail.
+      await backfillPage.navigateToBackfillsTab(testDagId);
       await expect(backfillPage.pauseOrUnpauseButton).not.toBeVisible();
 
       // Verify: completedAt is set in backfills table.
-      await backfillPage.navigateToBackfillsTab(testDagId);
-
       const details = await backfillPage.getBackfillDetailsByDateRange({
         fromDate: dates.from,
         toDate: dates.to,

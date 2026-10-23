@@ -2,10 +2,14 @@
 
 method:       marketplace
 url:          apache/magpie
-min_version:  0.9.0.dev202609262258
+min_version:  0.9.0.dev202610192305
 
 plugins:
   - magpie-setup
   - magpie-utilities
   - magpie-agent-guard
   - magpie-release-management
+
+reconciled:
+  version: 0.9.0.dev202610192305
+  at:      2026-10-20

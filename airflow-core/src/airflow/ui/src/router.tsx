@@ -48,7 +48,7 @@ import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
-import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { GroupTaskInstance, GroupTaskInstances } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { LandingPage } from "src/pages/LandingPage";
@@ -59,6 +59,7 @@ import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
+import { Callbacks as DagRunCallbacks } from "src/pages/Run/Callbacks";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
 import { Settings } from "src/pages/Settings";
@@ -250,6 +251,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <DagRunCallbacks />, path: "callbacks" },
           pluginRoute,
         ],
         element: <Run />,
@@ -269,7 +271,7 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [{ element: <GroupTaskInstances />, index: true }],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },

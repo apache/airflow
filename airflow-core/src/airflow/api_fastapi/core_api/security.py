@@ -19,7 +19,6 @@ from __future__ import annotations
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
-from json import JSONDecodeError
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
@@ -1326,14 +1325,23 @@ async def _collect_teams_to_check(
     if method != "POST":
         teams.add(get_existing_team(resource_id) if resource_id else None)
     if method in ("POST", "PUT"):
-        try:
-            body = await request.json()
-        except JSONDecodeError:
-            # Fail closed: reject unparsable bodies before any authz decision.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Request body is not valid JSON",
-            )
+        body: Any = None
+        # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
+        # and the read below is its only parse: a bodyless request there names no team and must
+        # still be served. Every other route arriving here declares a body, which FastAPI has
+        # already parsed and cached by the time this dependency runs.
+        if await request.body():
+            try:
+                body = await request.json()
+            except Exception as e:
+                # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
+                # (a number over ``int_max_str_digits``) and RecursionError, none of them
+                # JSONDecodeError. Fail closed: a body that cannot be read may carry a
+                # ``team_name``, so reject it rather than treat it as naming no team.
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Request body is not valid JSON",
+                ) from e
         raw = body.get("team_name") if isinstance(body, dict) else None
         if raw is not None and not isinstance(raw, str):
             # Fail closed: reject non-string team_name before authz / DB lookup.

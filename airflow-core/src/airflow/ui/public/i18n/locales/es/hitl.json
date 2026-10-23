@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Acción Requerida",
   "requiredAction_other": "Acciones Requeridas",
-  "requiredActionCount_one": "Acción Requerida ({{count}})",
-  "requiredActionCount_other": "Acciones Requeridas ({{count}})",
+  "requiredActionCount_one": "Acción Requerida ({{count, number}})",
+  "requiredActionCount_other": "Acciones Requeridas ({{count, number}})",
   "requiredActionState": "Estado de Acción Requerida",
   "response": {
     "created": "Respuesta creada el ",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "Selecciona una acción requerida para ver detalles"
     },
     "list": {
-      "completedRequiredActions": "Acciones requeridas completadas ({{count}})",
+      "completedRequiredActions": "Acciones requeridas completadas ({{count, number}})",
       "loadError": "No se pudieron cargar las acciones requeridas",
       "loadingActions": "Cargando acciones requeridas...",
-      "pendingRequiredActions": "Acciones requeridas pendientes ({{count}})"
+      "pendingRequiredActions": "Acciones requeridas pendientes ({{count, number}})"
     },
     "openReviewDrawer": "Abrir Panel de Revisión",
     "pageLimitHint": "Solo se muestran aquí las primeras acciones. Usa \"$t(review.viewAll)\" para ver todas.",

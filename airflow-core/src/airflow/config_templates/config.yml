@@ -721,7 +721,10 @@ database:
       default: ""
     sql_alchemy_connect_args:
       description: |
-        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict, except for
+        psycopg3 URLs, where Airflow defaults ``prepare_threshold`` to ``None`` so that
+        server-side statement preparation does not break under a transaction-pooling
+        connection pooler. Keys set here are merged over that default and win.
         This is useful when you want to configure db engine args that SQLAlchemy won't parse
         in connection string. This can be set by passing a dictionary containing the create engine parameters.
         For more details about passing create engine parameters (keepalives variables, timeout etc)
@@ -738,11 +741,12 @@ database:
       default: ~
     sql_alchemy_connect_args_async:
       description: |
-        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict, except for
+        psycopg3 URLs -- see ``sql_alchemy_connect_args``.
         This is similar to ``sql_alchemy_connect_args``, but only for async connections and must be a dict.
 
-        This is applied to the async engine only. The default async Postgres driver (psycopg3) needs
-        no extra args. If you opt in to the ``asyncpg`` driver behind transaction-mode pgbouncer, set
+        This is applied to the async engine only. If you opt in to the ``asyncpg`` driver behind
+        transaction-mode pgbouncer, set
         ``statement_cache_size`` and ``prepared_statement_cache_size`` to ``0`` here to avoid "prepared
         statement does not exist" errors. See the async driver section of the Postgres setup guide.
       version_added: 3.1.0
@@ -932,6 +936,20 @@ logging:
         Recommended for production / cloud-native deployments where logs are collected by a log
         aggregator.
       version_added: "3.2.0"
+      type: boolean
+      example: "True"
+      default: "False"
+    task_logs_to_stdout:
+      description: |
+        Also forward task subprocess stdout/stderr to the worker's own stdout, so task logs reach
+        a container-level log collector (e.g. Kubernetes/Loki) in addition to the task-log handler
+        and the UI. This is not a global switch: it is only consulted when a caller leaves
+        ``subprocess_logs_to_stdout`` out of ``BaseExecutor.run_workload``. Executors that already pass
+        ``True`` explicitly (the LocalExecutor and the per-task entrypoint used by the Kubernetes, ECS,
+        Batch and Lambda executors) always forward task logs to stdout and ignore this setting. Currently
+        it is read by the Celery worker (which resolves ``[celery] task_logs_to_stdout`` first, then this
+        setting) and by the Edge3 worker's fork path on Airflow 3.4+.
+      version_added: 3.4.0
       type: boolean
       example: "True"
       default: "False"
@@ -1745,10 +1763,10 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Max number of deserialized SerializedDAG objects the API server keeps in memory.
-        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
-        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
-        before 3.2.2.
+        Max number of deserialized SerializedDAG objects the API server keeps in memory. Set to 0 for no
+        size limit, leaving eviction to ``dag_cache_ttl``. Setting both this and ``dag_cache_ttl`` to 0
+        disables eviction, so the API server retains every deserialized Dag it loads until restart, matching
+        the behavior before 3.2.2.
 
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
@@ -2049,7 +2067,7 @@ api:
       default: ~
     client_use_public_certs:
       description: |
-        Enable loading of public CA certificates from certifi into the client SSL context.
+        Enable trusting public CA certificates from the system trust store in the client SSL context.
       version_added: ~
       type: boolean
       example: ~
@@ -2688,6 +2706,19 @@ sentry:
 scheduler:
   description: ~
   options:
+    batch_asset_events:
+      description: |
+        Default for the ``batch_asset_events`` argument of asset-triggered timetables.
+        When false, each asset event creates a separate Dag run. Set this to true
+        to restore batching of queued events into one run. An explicit timetable
+        argument overrides this setting. Asset AND conditions and ``RollupMapper`` partition
+        mappers always default to batching, and passing ``batch_asset_events=False`` for them
+        is rejected. The setting is read when a Dag's timetable is constructed;
+        reparse Dags after changing it.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     job_heartbeat_sec:
       description: |
         Task instances listen for external kill signal (when you clear tasks
@@ -2749,6 +2780,40 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    dag_cache_size:
+      description: |
+        Max number of deserialized SerializedDAG objects the scheduler keeps in memory, keyed by Dag version
+        ID. Once full, the least recently used version is evicted, so this is a hard ceiling on how much the
+        cache can grow no matter how many Dag versions accumulate.
+
+        Raise it if the scheduler has more Dag versions with runs in flight than this; a limit below the
+        working set evicts versions that are still being scheduled, costing a database fetch and a
+        deserialization on the next loop. Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``.
+        Setting both this and ``dag_cache_ttl`` to 0 disables eviction, so the scheduler retains every
+        deserialized Dag it loads until restart, matching the behavior before 3.3.2.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "512"
+    dag_cache_ttl:
+      description: |
+        Seconds a deserialized SerializedDAG stays in the scheduler's cache. Defaults to 0, which disables
+        TTL and leaves eviction to the ``dag_cache_size`` LRU policy.
+
+        Note that each re-check resets an entry's expiry, so a TTL only reclaims Dag versions that stop being
+        requested for the whole interval. Versions still referenced by active Dag runs are kept, so
+        ``dag_cache_size`` remains the only hard ceiling and a TTL alone (``dag_cache_size = 0``) bounds
+        memory by the concurrently active set rather than outright.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked up
+        immediately, because the new version is a different cache key. A version rewritten in place is
+        re-checked against its current ``dag_hash`` once ``[core] min_serialized_dag_update_interval`` has
+        elapsed since the entry was last validated, so that option bounds how long a rewritten version can be
+        served stale.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
@@ -2886,6 +2951,8 @@ scheduler:
     max_dagruns_to_create_per_loop:
       description: |
         Max number of DAGs to create DagRuns for per scheduler loop.
+        Also limits non-partitioned asset-triggered Dag run creation across all selected
+        Dags, including those with event batching enabled.
       example: ~
       version_added: 2.0.0
       type: integer
@@ -2916,8 +2983,10 @@ scheduler:
       default: "1000"
     use_job_schedule:
       description: |
-        Turn off scheduler use of cron intervals by setting this to ``False``.
-        DAGs submitted manually in the web UI or with trigger_dag will still run.
+        Set to ``False`` to stop the scheduler creating Dag runs on its own, whether a Dag is due
+        by its timetable or has received asset events. Manually triggered Dag runs and backfills
+        are still created. Asset events received while this is off stay queued and create their
+        runs once it is turned back on.
       version_added: 1.10.2
       type: boolean
       example: ~
@@ -3102,6 +3171,14 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced triggers deleted in one triggerer loop and database
+        transaction. Remaining triggers are handled in later triggerer loops. This value must be at least 1.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "500"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
@@ -3302,15 +3379,15 @@ dag_processor:
         If ``extensions`` is omitted, the extensions declared by the importer class are used.
 
         An entry may also be given as a bare classpath string when it needs no other
-        settings, so ``["my_company.importers.YamlDagImporter"]`` is equivalent to
-        ``[{"classpath": "my_company.importers.YamlDagImporter"}]``.
+        settings, so ``["my_company.importers.TomlDagImporter"]`` is equivalent to
+        ``[{"classpath": "my_company.importers.TomlDagImporter"}]``.
       version_added: 3.4.0
       type: string
       example: >
         [
               {
-                "classpath": "my_company.importers.YamlDagImporter",
-                "extensions": [".yaml", ".yml"],
+                "classpath": "my_company.importers.TomlDagImporter",
+                "extensions": [".toml"],
                 "kwargs": {}
               }
             ]

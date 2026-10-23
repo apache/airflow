@@ -52,6 +52,7 @@ from airflow.sdk.execution_time.supervisor import (
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
     _ensure_client,
+    _import_task_runner_before_fork,
     _make_process_nondumpable,
 )
 
@@ -85,12 +86,34 @@ CallbackToSupervisor = Annotated[
 ]
 
 
+SERDE_KWARGS_ENCODING = "serde"
+
+
+def decode_callback_kwargs(callback_kwargs: dict[str, Any], encoding: str | None) -> dict[str, Any]:
+    """
+    Decode the kwargs of a callback, right before the callback is called.
+
+    ``encoding`` is ``None`` for kwargs that are passed as they are (callbacks stored by
+    earlier versions), or ``"serde"`` for serde-encoded kwargs. ``context`` is added by the
+    scheduler and is never encoded.
+    """
+    if encoding is None:
+        return callback_kwargs
+    if encoding != SERDE_KWARGS_ENCODING:
+        raise ValueError(f"Unsupported callback kwargs encoding: {encoding!r}")
+
+    from airflow.sdk.serde import deserialize
+
+    return {key: value if key == "context" else deserialize(value) for key, value in callback_kwargs.items()}
+
+
 def execute_callback(
     callback_path: str,
     callback_kwargs: dict,
     dag_rel_path: os.PathLike[str],
     bundle_path: os.PathLike[str] | None,
     log,
+    callback_kwargs_encoding: str | None = None,
 ) -> tuple[bool, str | None]:
     """
     Execute a callback function by importing and calling it, returning the success state.
@@ -111,6 +134,7 @@ def execute_callback(
     :param dag_rel_path: Relative path to the DAG file.
     :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
+    :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
     :return: Tuple of (success: bool, error_message: str | None)
     """
     if not callback_path:
@@ -138,6 +162,7 @@ def execute_callback(
         else:
             module = import_module(module_path)
         callback_callable = getattr(module, function_name)
+        callback_kwargs = decode_callback_kwargs(callback_kwargs, callback_kwargs_encoding)
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
 
@@ -200,6 +225,7 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        callback_kwargs_encoding: str | None = None,
         dag_rel_path: os.PathLike[str],
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
@@ -250,11 +276,13 @@ class CallbackSubprocess(WatchedSubprocess):
                 dag_rel_path=dag_rel_path,
                 bundle_path=bundle_path,
                 log=_log,
+                callback_kwargs_encoding=callback_kwargs_encoding,
             )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
 
+        _import_task_runner_before_fork()
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,
@@ -401,6 +429,7 @@ def supervise_callback(
     callback_path: str,
     callback_kwargs: dict,
     dag_rel_path: os.PathLike[str],
+    callback_kwargs_encoding: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -414,6 +443,7 @@ def supervise_callback(
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
     :param dag_rel_path: Relative path to the DAG file.
+    :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -442,6 +472,7 @@ def supervise_callback(
                 id=id,
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
+                callback_kwargs_encoding=callback_kwargs_encoding,
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
                 client=client,

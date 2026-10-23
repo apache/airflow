@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import threading
 from unittest import mock
+from uuid import UUID, uuid4
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Store backend requires Airflow >= 3.3", allow_module_level=True)
@@ -73,6 +74,14 @@ def conf_overrides(base_path):
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store requires Airflow >= 3.3")
 class TestPathBuilders:
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    def test_region_path_cannot_collide_with_task_id(self, conf_overrides):
+        region_id = uuid4()
+        regional = TaskScope("d", "r", "t", 0, region_id=region_id)
+        sentinel = TaskScope("d", "r", f"region={region_id}", 0)
+        assert str(_build_task_path(regional, "key")).endswith(f"d/r/region={region_id}/t/0/key")
+        assert str(_build_task_path(sentinel, "key")).endswith(f"d/r/region%3D{region_id}/0/key")
+
     def test_build_task_path_segments(self, conf_overrides):
         scope = TaskScope(dag_id="my_dag", run_id="run_1", task_id="my_task", map_index=-1)
         path = _build_task_path(scope, "job_id")
@@ -160,6 +169,44 @@ class TestStateStoreObjectStorageBackend:
     def test_set_and_get_task(self, store, task_scope):
         store.set(task_scope, "k", "hello")
         assert store.get(task_scope, "k") == "hello"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    def test_region_writes_and_serialized_references_are_isolated(self, store):
+        scopes = [TaskScope("d", "r", "t", 0, region_id=region) for region in (UUID(int=0), uuid4())]
+        refs = [
+            store.serialize_task_state_store_to_ref(value={"region": index}, key="k", scope=scope)
+            for index, scope in enumerate(scopes)
+        ]
+        assert refs[0] != refs[1]
+        assert [store.deserialize_task_state_store_from_ref(ref) for ref in refs] == [
+            {"region": 0},
+            {"region": 1},
+        ]
+        store.set(scopes[1], "k", "updated")
+        assert store.get(scopes[1], "k") == "updated"
+        assert store.deserialize_task_state_store_from_ref(refs[0]) == {"region": 0}
+        store.delete(scopes[1], "k")
+        assert store.get(scopes[1], "k") is None
+        assert store.deserialize_task_state_store_from_ref(refs[0]) == {"region": 0}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("async_clear", [False, True])
+    @pytest.mark.parametrize("all_map_indices", [False, True])
+    @pytest.mark.parametrize("clear_sentinel", [False, True])
+    async def test_clear_isolates_region_and_index(self, store, async_clear, all_map_indices, clear_sentinel):
+        regions = [UUID(int=0), uuid4(), uuid4()]
+        scopes = [TaskScope("d", "r", "t", index, region_id=region) for region in regions for index in (0, 1)]
+        for scope in scopes:
+            store.set(scope, "key", str(scope))
+        target = TaskScope("d", "r", "t", 0, region_id=regions[0 if clear_sentinel else 1])
+        if async_clear:
+            await store.aclear(target, all_map_indices=all_map_indices)
+        else:
+            store.clear(target, all_map_indices=all_map_indices)
+        for scope in scopes:
+            removed = scope.region_id == target.region_id and (all_map_indices or scope.map_index == 0)
+            assert store.get(scope, "key") == (None if removed else str(scope))
 
     def test_get_missing_returns_none(self, store, task_scope):
         assert store.get(task_scope, "missing") is None

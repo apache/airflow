@@ -26,6 +26,7 @@ import svcs
 from cadwyn import (
     Cadwyn,
     current_dependency_solver,
+    generate_versioned_models,
 )
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -40,6 +41,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_signing_args,
 )
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -52,6 +54,7 @@ logger = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "InProcessExecutionAPI",
     "create_task_execution_api_app",
+    "create_jwt_generator",
     "lifespan",
     "CorrelationIdMiddleware",
 ]
@@ -73,7 +76,8 @@ def _jwt_validator():
     return validator
 
 
-def _jwt_generator():
+def create_jwt_generator() -> JWTGenerator:
+    """Create a signer using the Execution API's configured key, audience, and lifetime."""
     from airflow.configuration import conf
 
     generator = JWTGenerator(
@@ -95,7 +99,7 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     # record this here
     app.state.svcs_registry = registry
 
-    registry.register_factory(JWTGenerator, _jwt_generator)
+    registry.register_factory(JWTGenerator, create_jwt_generator)
 
     # InProcessExecutionAPI stubs out JWTValidator: don't re-register in that case.
     if JWTValidator not in registry:
@@ -137,25 +141,25 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
+        token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
+        if token:
             try:
-                async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                claims = token.claims.model_dump()
 
-                    # Workload and callback tokens are long-lived and meant to survive
-                    # queue wait times so avoid refreshing them. If avalidated_claims
-                    # raises for such a token, the outer except handles it.
-                    if claims.get("scope") in ("workload", "callback"):
-                        return response
+                # Only short-lived execution tokens are renewed here. Any other type has a
+                # lifetime set by its issuer (workload and callback tokens outlive queue waits,
+                # the dag_processor_session token is rotated by provisioning, and Job and parsing
+                # tokens are renewed by re-registering and re-exchanging), so a new type must
+                # not become renewable by default. Tokens without a scope are legacy execution tokens.
+                if claims.get("scope", "execution") != "execution":
+                    return response
 
-                    now = int(time.time())
-                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                    valid_left = int(claims.get("exp", 0)) - now
-                    if valid_left <= refresh_when_less_than:
+                now = int(time.time())
+                token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+                valid_left = int(claims.get("exp", 0)) - now
+                if valid_left <= refresh_when_less_than:
+                    async with svcs.Container(request.app.state.svcs_registry) as services:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:
@@ -194,7 +198,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         References:
             - https://fastapi.tiangolo.com/how-to/extending-openapi/#modify-the-openapi-schema
         """
-        extra_schemas = get_extra_schemas()
+        extra_schemas = get_extra_schemas(openapi_schema["info"]["version"])
         for schema_name, schema in extra_schemas.items():
             if schema_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][schema_name] = schema
@@ -337,9 +341,10 @@ def create_task_execution_api_app(
     return app
 
 
-def get_extra_schemas() -> dict[str, dict]:
+def get_extra_schemas(version: str) -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+    from airflow.api_fastapi.execution_api.versions import bundle
     from airflow.executors.workloads import BundleInfo
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.trigger_rule import TriggerRule
@@ -347,7 +352,11 @@ def get_extra_schemas() -> dict[str, dict]:
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
-        "TaskInstance": TaskInstance.model_json_schema(),
+        "TaskInstance": (
+            TaskInstance
+            if version == "unversioned"
+            else generate_versioned_models(bundle)[version][TaskInstance]
+        ).model_json_schema(),
         "BundleInfo": BundleInfo.model_json_schema(),
         # Include the combined state enum too. In the datamodels we separate out SUCCESS from the other states
         # as that has different payload requirements

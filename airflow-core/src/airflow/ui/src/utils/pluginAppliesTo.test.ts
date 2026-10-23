@@ -19,6 +19,7 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  AssetResponse,
   DAGResponse,
   DAGRunResponse,
   ExternalViewResponse,
@@ -28,6 +29,7 @@ import type {
 } from "openapi/requests/types.gen";
 
 import {
+  mergeAppliesToContext,
   type AppliesToContext,
   hasAppliesToCriteria,
   isAppliesToPending,
@@ -36,6 +38,9 @@ import {
 
 // These fixtures carry only the fields the tests address, so they are cast through `unknown`
 // rather than spelling out every field of the full response types.
+const makeAsset = (name: string, group: string): AssetResponse =>
+  ({ group, id: 1, name, uri: `s3://bucket/${name}` }) as unknown as AssetResponse;
+
 const makeDag = (dagId: string, tagNames: Array<string>): DAGResponse =>
   ({
     dag_id: dagId,
@@ -78,6 +83,7 @@ const makeView = (
 
 const dag = makeDag("etl_sales", ["ml", "prod"]);
 
+const assetContext: AppliesToContext = { asset: makeAsset("orders", "sales"), isLoading: false };
 const dagContext: AppliesToContext = { dag, isLoading: false };
 const dagRunContext: AppliesToContext = { dag, dagRun: makeDagRun("failed"), isLoading: false };
 const taskContext: AppliesToContext = {
@@ -164,6 +170,22 @@ describe("matchesAppliesTo — qualified paths", () => {
         taskContext,
       ),
     ).toBe(true);
+  });
+});
+
+describe("matchesAppliesTo — asset destinations", () => {
+  it("roots an unqualified path at the asset", () => {
+    expect(matchesAppliesTo(makeView({ group: ["sales"] }, "asset"), assetContext)).toBe(true);
+    expect(matchesAppliesTo(makeView({ group: ["finance"] }, "asset"), assetContext)).toBe(false);
+  });
+
+  it("reaches the asset by naming it", () => {
+    expect(matchesAppliesTo(makeView({ "asset.name": ["orders"] }, "asset"), assetContext)).toBe(true);
+    expect(matchesAppliesTo(makeView({ "asset.name": ["refunds"] }, "asset"), assetContext)).toBe(false);
+  });
+
+  it("skips an asset path on a page that has no asset", () => {
+    expect(matchesAppliesTo(makeView({ "asset.name": ["orders"] }, "dag"), dagContext)).toBe(true);
   });
 });
 
@@ -313,5 +335,45 @@ describe("hasAppliesToCriteria", () => {
     ["a populated path", { state: ["failed"] }, true],
   ])("reports %s as %s", (_label, appliesTo, expected) => {
     expect(hasAppliesToCriteria(makeView(appliesTo))).toBe(expected);
+  });
+});
+
+// Exercised only indirectly through the scoping tests until now, and it decides which record
+// a row is judged against -- the thing that makes a table row scope to itself.
+describe("mergeAppliesToContext", () => {
+  const rowDag = makeDag("etl_sales", ["sales"]);
+  const rowRun = makeDagRun("success");
+
+  it("lets the row's record win for the entity it is", () => {
+    const merged = mergeAppliesToContext(dagRunContext, { dagRun: rowRun });
+
+    expect(merged.dagRun).toBe(rowRun);
+  });
+
+  it("keeps the route's Dag when it is the same Dag, as the richer record", () => {
+    // A details page carries fields a list row does not.
+    const merged = mergeAppliesToContext(dagContext, { dag: rowDag });
+
+    expect(merged.dag).toBe(dag);
+  });
+
+  it("takes the row's Dag when the route is about a different one", () => {
+    const otherDag = makeDag("other_dag", ["ml"]);
+    const merged = mergeAppliesToContext(dagContext, { dag: otherDag });
+
+    expect(merged.dag).toBe(otherDag);
+  });
+
+  it("falls back to the route's record where the row has none", () => {
+    const merged = mergeAppliesToContext(dagRunContext, { dag: undefined });
+
+    expect(merged.dagRun).toBe(dagRunContext.dagRun);
+    expect(merged.dag).toBe(dag);
+  });
+
+  // Withholding is decided from this, so losing it would show actions before scoping resolves.
+  it("passes isLoading through", () => {
+    expect(mergeAppliesToContext({ isLoading: true }, {}).isLoading).toBe(true);
+    expect(mergeAppliesToContext({ isLoading: false }, {}).isLoading).toBe(false);
   });
 });

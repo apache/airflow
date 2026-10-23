@@ -13,9 +13,9 @@
   "requiredAction_one": "Azione richiesta",
   "requiredAction_other": "Azioni richieste",
   "requiredAction_zero": "Nessuna azione richiesta",
-  "requiredActionCount_many": "Azioni richieste ({{count}})",
-  "requiredActionCount_one": "Azione richiesta ({{count}})",
-  "requiredActionCount_other": "Azioni richieste ({{count}})",
+  "requiredActionCount_many": "Azioni richieste ({{count, number}})",
+  "requiredActionCount_one": "Azione richiesta ({{count, number}})",
+  "requiredActionCount_other": "Azioni richieste ({{count, number}})",
   "requiredActionCount_zero": "Nessuna azione richiesta",
   "requiredActionState": "Stato dell'Azione richiesta",
   "response": {
