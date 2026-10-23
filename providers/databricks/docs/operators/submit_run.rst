@@ -247,3 +247,41 @@ DatabricksSubmitRunDeferrableOperator
 Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+
+Explicit assets
+---------------
+
+Use ``outlets`` to declare the Unity Catalog tables that the submitted run writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
+
+    from airflow.providers.databricks.assets.databricks import UnityTableIdentity
+
+    table = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com",
+        catalog="main",
+        schema="default",
+        table="my_airflow_table",
+    )
+
+    DatabricksSubmitRunOperator(
+        task_id="spark_jar_task",
+        new_cluster=new_cluster,
+        spark_jar_task={"main_class_name": "com.example.ProcessData"},
+        libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
+        outlets=[
+            table.to_asset()
+        ],
+    )
+
+An outlet is a declared output asset. It does not automatically verify that the
+job produced a new table commit.
+
+When ``wait_for_termination=False``, a successful task means that the
+Databricks run was submitted successfully, not that the declared table was
+refreshed. The operator emits a warning when outlets are configured in this mode.
+
+With synchronous or deferrable execution, task success follows successful remote
+completion. A declared outlet does not prove that a new Delta commit was written.
+If downstream tasks need the table to be ready, use ``wait_for_termination=True``
+or a Delta table sensor. Remote failure or cancellation does not produce a
+successful outlet event.

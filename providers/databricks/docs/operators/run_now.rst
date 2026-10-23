@@ -172,6 +172,44 @@ Durable execution requires Airflow 3.3 or newer, since it relies on the task sta
 operator always triggers a fresh run on retry, exactly as before this feature existed.
 
 
+
+Explicit assets
+^^^^^^^^^^^^^^^
+
+Use ``outlets`` to declare the Unity Catalog tables that the job writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
+
+    from airflow.providers.databricks.assets.databricks import UnityTableIdentity
+
+    table = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com",
+        catalog="main",
+        schema="default",
+        table="my_airflow_table",
+    )
+
+    DatabricksRunNowOperator(
+        task_id="run_now",
+        job_id=jobs_create_named.output,
+        outlets=[
+            table.to_asset()
+        ],
+    )
+
+An outlet is a declared output asset and does not automatically verify that the
+job produced a new table commit.
+
+When ``wait_for_termination=False``, a successful task means that the Databricks
+run was submitted successfully, not that the declared table was refreshed.
+The operator emits a warning when outlets are configured in this mode.
+
+With synchronous or deferrable execution, task success follows successful remote
+completion. A declared outlet does not prove that a new Delta commit was written.
+If downstream tasks need the table to be ready, use ``wait_for_termination=True``
+or a Delta table sensor. Remote failure or cancellation does not produce a
+successful outlet event.
+
+
 DatabricksRunNowDeferrableOperator
 ==================================
 

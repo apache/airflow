@@ -37,6 +37,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
@@ -51,6 +52,13 @@ DAG_ID = "example_databricks_operator"
 
 QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
 WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
+
+UNITY_TABLE = UnityTableIdentity(
+    host="my-workspace.cloud.databricks.com",
+    catalog="main",
+    schema="default",
+    table="my_airflow_table",
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -115,7 +123,11 @@ with DAG(
 
     # [START howto_operator_databricks_run_now]
     # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
-    run_now = DatabricksRunNowOperator(task_id="run_now", job_id=jobs_create_named.output)
+    run_now = DatabricksRunNowOperator(
+        task_id="run_now",
+        job_id=jobs_create_named.output,
+        outlets=[UNITY_TABLE.to_asset()],
+    )
 
     jobs_create_named >> run_now
     # [END howto_operator_databricks_run_now]
@@ -147,6 +159,7 @@ with DAG(
         new_cluster=new_cluster,
         spark_jar_task={"main_class_name": "com.example.ProcessData"},
         libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
+        outlets=[UNITY_TABLE.to_asset()],
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
@@ -157,6 +170,7 @@ with DAG(
         databricks_conn_id="databricks_default",
         statement="select * from default.my_airflow_table",
         warehouse_id=WAREHOUSE_ID,
+        outlets=[UNITY_TABLE.to_asset()],
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_operator_sql_statements]
