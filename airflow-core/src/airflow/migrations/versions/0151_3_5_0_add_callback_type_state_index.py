@@ -27,6 +27,7 @@ Create Date: 2026-10-23 09:00:00.000000
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
 
 revision = "f9520b8eed39"
@@ -42,5 +43,24 @@ def upgrade():
 
 
 def downgrade():
-    """Drop the index on the type and state of callbacks."""
+    """Drop the index, and settle routed callbacks, which earlier versions neither route nor reap."""
+    callback = sa.table(
+        "callback",
+        sa.column("type", sa.String),
+        sa.column("fetch_method", sa.String),
+        sa.column("state", sa.String),
+        sa.column("output", sa.Text),
+    )
+    routed = sa.and_(callback.c.type == "executor", callback.c.fetch_method == "dag_attribute")
+    # Waiting to be routed: hand them back to the Dag processor, which runs them in earlier versions.
+    op.execute(
+        callback.update()
+        .where(routed, callback.c.state == "scheduled")
+        .values(type="dag_processor", state=None)
+    )
+    op.execute(
+        callback.update()
+        .where(routed, callback.c.state.in_(["queued", "running"]))
+        .values(state="failed", output="Airflow was downgraded before the callback finished")
+    )
     op.drop_index("idx_callback_type_state", table_name="callback")

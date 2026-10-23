@@ -75,6 +75,13 @@ class CallbackTerminalState(str, Enum):
     FAILED = "failed"
 
 
+class CallbackRunPayload(StrictBaseModel):
+    """The worker process exchanging a callback's token, so a retry of its own exchange is recognized."""
+
+    hostname: str
+    pid: int
+
+
 class CallbackTerminalStatePayload(StrictBaseModel):
     """Payload for transitioning a callback from RUNNING to a terminal state."""
 

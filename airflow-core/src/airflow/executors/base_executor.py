@@ -935,7 +935,7 @@ class BaseExecutor(LoggingMixin):
                 optional_kwargs["callback_kwargs_encoding"] = kwargs_encoding
             if workload.callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
                 optional_kwargs["fetch_method"] = workload.callback.fetch_method.value
-            if execution_timeout := workload.callback.data.get(EXECUTION_TIMEOUT_KEY):
+            if (execution_timeout := workload.callback.data.get(EXECUTION_TIMEOUT_KEY)) is not None:
                 optional_kwargs["execution_timeout"] = execution_timeout
             return supervise_callback(
                 id=workload.callback.id,

@@ -1539,6 +1539,12 @@ class TestExecuteCallbackWorkload:
             {"fetch_method": "dag_attribute", "execution_timeout": 300},
             id="routed-dag-attribute",
         ),
+        pytest.param(
+            CallbackFetchMethod.DAG_ATTRIBUTE,
+            {"req_class": "DagCallbackRequest", "execution_timeout": 0},
+            {"fetch_method": "dag_attribute", "execution_timeout": 0},
+            id="routed-without-timeout",
+        ),
     ],
 )
 def test_run_workload_passes_routed_callback_options_only_when_set(
