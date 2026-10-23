@@ -58,6 +58,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
     aws_hook_class = EksHook
 
     def __init__(
+        log_events_on_startup,
         self,
         cluster_name: str,
         waiter_delay: int,
