@@ -117,6 +117,15 @@ class DagFileParseRequest(BaseModel):
     """Bundle name for team-specific executor validation."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
+
+    create_cron_data_intervals: bool = False
+    """``[scheduler] create_cron_data_intervals``.
+
+    A bundle cannot read the Airflow configuration, so the Dag processor sends the option with the
+    parse request, and the runtime builds the timetable that Python's ``_create_timetable``
+    builds from the same schedule.
+    """
+
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
 
@@ -775,5 +784,6 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             bundle_path=bundle_path,
             bundle_name=bundle_name,
             callback_requests=callbacks,
+            create_cron_data_intervals=conf.getboolean("scheduler", "create_cron_data_intervals"),
         )
         self.send_msg(msg, request_id=0)

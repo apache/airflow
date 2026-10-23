@@ -194,7 +194,10 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             for listener in listeners.values():
                 listener.setblocking(False)
             parse_request = DagFileParseRequest(
-                file=os.fspath(path), bundle_path=bundle_path, bundle_name=bundle_name
+                file=os.fspath(path),
+                bundle_path=bundle_path,
+                bundle_name=bundle_name,
+                create_cron_data_intervals=conf.getboolean("scheduler", "create_cron_data_intervals"),
             )
             proc = super().start(
                 target=_start_runtime_entrypoint,

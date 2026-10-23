@@ -394,6 +394,10 @@ type DagFileParseRequest struct {
 	// CallbackRequests corresponds to the JSON schema field "callback_requests".
 	CallbackRequests []interface{} `msgpack:"callback_requests,omitempty"`
 
+	// CreateCronDataIntervals corresponds to the JSON schema field
+	// "create_cron_data_intervals".
+	CreateCronDataIntervals bool `msgpack:"create_cron_data_intervals,omitempty"`
+
 	// File corresponds to the JSON schema field "file".
 	File string `msgpack:"file"`
 

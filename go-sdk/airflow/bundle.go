@@ -265,19 +265,23 @@ func (m *dagMap) has(dagID string) bool {
 
 // serialize serializes the Dags in registration order. If a Dag panics, the panic becomes that
 // Dag's Err.
-func (m *dagMap) serialize(fileloc, relativeFileloc string) []bundle.SerializedDag {
+func (m *dagMap) serialize(
+	fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) []bundle.SerializedDag {
 	m.mu.Lock()
 	dags := slices.Clone(m.order)
 	m.mu.Unlock()
 
 	serialized := make([]bundle.SerializedDag, len(dags))
 	for i, dag := range dags {
-		serialized[i] = serializeRecovering(dag, fileloc, relativeFileloc)
+		serialized[i] = serializeRecovering(dag, fileloc, relativeFileloc, options)
 	}
 	return serialized
 }
 
-func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle.SerializedDag) {
+func serializeRecovering(
+	dag *DagRef, fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) (s bundle.SerializedDag) {
 	s.DagID = dag.dagID
 	defer func() {
 		if r := recover(); r != nil {
@@ -288,7 +292,7 @@ func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle
 			s.Data, s.Err = nil, fmt.Errorf("%v", r)
 		}
 	}()
-	s.Data = dag.serialize(fileloc, relativeFileloc)
+	s.Data = dag.serialize(fileloc, relativeFileloc, options)
 	return s
 }
 
@@ -305,8 +309,10 @@ var (
 	_ bundle.DagSourceLister = coordinatorSource{}
 )
 
-func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
-	return s.dags.serialize(fileloc, relativeFileloc)
+func (s coordinatorSource) SerializeDags(
+	fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) []bundle.SerializedDag {
+	return s.dags.serialize(fileloc, relativeFileloc, options)
 }
 
 func (s coordinatorSource) ListDagSourceFiles() map[string]string {

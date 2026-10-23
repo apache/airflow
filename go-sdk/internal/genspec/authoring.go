@@ -81,7 +81,7 @@ var dagShape = authoringShape{
 		"task_group":                "the groups dag.TaskGroup registers",
 		"edge_info":                 "the edge labels airflow.Label makes",
 		"dag_dependencies":          "derived from the edges and the assets a Dag declares",
-		"timezone":                  "always UTC for a Go Dag, even when StartDate has another location",
+		"timezone":                  "derived from StartDate, the way Python's DAG.timezone is",
 		"timetable":                 "the serialized form of Schedule, which is injected instead",
 		"allowed_run_types":         "no Go authoring type yet: a list of DagRunType values",
 		"_concurrency":              "the pre-2.2 spelling of MaxActiveTasks",
@@ -98,7 +98,7 @@ var dagShape = authoringShape{
 		"start_date": {
 			goType:  "time.Time",
 			imports: []string{"time"},
-			doc:     "StartDate is the start_date of the Dag. The timezone of the Dag is UTC even when StartDate has another location, so Airflow reads Schedule in UTC.",
+			doc:     "StartDate is the start_date of the Dag. The Dag takes its timezone from StartDate, as Python's DAG does, and Airflow reads Schedule in that timezone.",
 		},
 		"end_date":         {goType: "time.Time", imports: []string{"time"}},
 		"dagrun_timeout":   {goType: "time.Duration", imports: []string{"time"}},
