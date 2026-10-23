@@ -30,8 +30,9 @@ from airflow.sdk import (
     teardown,
     timezone,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
+from airflow.sdk.execution_time.comms import XComResult
 
 from tests_common.test_utils.compat import BashOperator, EmptyOperator, PythonOperator
 
@@ -1118,3 +1119,43 @@ def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
 
     assert called["value"]
     _assert_valid_topological_order(dag.task_group, order)
+
+
+@pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
+def test_get_mapped_argument_expand(create_runtime_ti, mock_supervisor_comms, map_index, expected):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+        with MappedTaskGroup.expand({"value": upstream.output}, group_id="g") as mtg:
+            task = PythonOperator(
+                task_id="t",
+                python_callable=lambda **kwargs: None,
+                op_kwargs={"value": mtg.get_mapped_argument("value")},
+            )
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
+    runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.op_kwargs == {"value": expected}
+
+
+@pytest.mark.parametrize("map_index", [0, 1])
+def test_get_mapped_argument_expand_kwargs(create_runtime_ti, mock_supervisor_comms, map_index):
+    mapped_kwargs = [
+        {"op_kwargs": {"x": 1, "y": 2}, "templates_dict": {"a": "1"}},
+        {"op_kwargs": {"x": 3, "y": 4}, "templates_dict": {"a": "2"}},
+    ]
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: mapped_kwargs)
+        with MappedTaskGroup.expand_kwargs(upstream.output, group_id="process") as mtg:
+            task = PythonOperator(
+                task_id="t",
+                python_callable=lambda **kwargs: None,
+                op_kwargs=mtg.get_mapped_argument("op_kwargs"),
+                templates_dict=mtg.get_mapped_argument("templates_dict"),
+            )
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=mapped_kwargs)
+    runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.op_kwargs == mapped_kwargs[map_index]["op_kwargs"]
+    assert runtime_ti.task.templates_dict == mapped_kwargs[map_index]["templates_dict"]
