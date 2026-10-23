@@ -118,12 +118,12 @@ class DmsHook(AwsBaseHook):
 
         return tasks
 
-    def get_task_status(self, replication_task_arn: str) -> str | None:
+    def get_task_description(self, replication_task_arn: str) -> dict | None:
         """
-        Retrieve task status.
+        Retrieve the replication task description, without task settings.
 
         :param replication_task_arn: Replication task ARN
-        :return: Current task status
+        :return: The task as returned by ``DescribeReplicationTasks``, or ``None`` if not found
         """
         replication_tasks = self.find_replication_tasks_by_arn(
             replication_task_arn=replication_task_arn,
@@ -131,11 +131,23 @@ class DmsHook(AwsBaseHook):
         )
 
         if len(replication_tasks) == 1:
-            status = replication_tasks[0]["Status"]
-            self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
-            return status
+            task = replication_tasks[0]
+            self.log.info(
+                'Replication task with ARN(%s) has status "%s".', replication_task_arn, task["Status"]
+            )
+            return task
         self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
         return None
+
+    def get_task_status(self, replication_task_arn: str) -> str | None:
+        """
+        Retrieve task status.
+
+        :param replication_task_arn: Replication task ARN
+        :return: Current task status
+        """
+        task = self.get_task_description(replication_task_arn)
+        return task["Status"] if task else None
 
     def create_replication_task(
         self,

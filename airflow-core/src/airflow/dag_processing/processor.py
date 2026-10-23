@@ -73,7 +73,11 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.execution_time.task_runner import (
+    RuntimeTaskInstance,
+    _send_error_email_notification,
+    check_xcom_backend_supports_loops,
+)
 from airflow.sdk.importers import DagSourceCode  # noqa: TC001
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
@@ -135,7 +139,7 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
-ToManager = Annotated[
+ToManagerMessage = (
     DagFileParsingResult
     | GetConnection
     | GetVariable
@@ -151,9 +155,10 @@ ToManager = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
-    | MaskSecret,
-    Field(discriminator="type"),
-]
+    | MaskSecret
+)
+
+ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
 
 ToDagProcessor = Annotated[
     DagFileParseRequest
@@ -282,6 +287,9 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
+            # Only possible because importing the SDK resolves the XCom backend here; the worker check is the
+            # one that must stay, so drop this one rather than keep that import working for its sake.
+            check_xcom_backend_supports_loops(dag)
             data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
@@ -586,7 +594,6 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
-    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
@@ -711,6 +718,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     client: Client
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 
 XCOM_KEYS = ("$x", "$xcom")
 TEMPLATE_KEYS = ("$t", "$template")
+FILE_KEYS = ("$f", "$file")
 CONST_KEY = "$const"
 
 # Keys deferred to a later edition...
@@ -107,12 +108,25 @@ class _MarkerRef(BaseModel):
     _marker_keys: ClassVar[tuple[str, ...]]
 
     @classmethod
+    def _process_value_schema(cls, field_schema: JsonSchemaValue) -> JsonSchemaValue:
+        """
+        Post-process published schema for each marker key.
+
+        The default publishes the field's schema as a disjoint union.
+        :class:`FileRef` overrides it to reject a templated filename in the
+        schema too.
+        """
+        return _as_exclusive_union(field_schema)
+
+    @classmethod
     def __get_pydantic_json_schema__(
         cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
         schema = handler(core_schema)
-        value_schema = _as_exclusive_union(next(iter(schema.get("properties", {}).values())))
-        schema["properties"] = {key: value_schema for key in cls._marker_keys}
+        schema["properties"] = {
+            key: cls._process_value_schema(next(iter(schema.get("properties", {}).values())))
+            for key in cls._marker_keys
+        }
         schema["additionalProperties"] = False
         if len(cls._marker_keys) > 1:  # Pydantic sets the correct 'required' for the single-variant case.
             schema.pop("required", None)
@@ -132,11 +146,54 @@ class XComRef(_MarkerRef):
 
 
 class TemplateRef(_MarkerRef):
-    """A Jinja template."""
+    """
+    A Jinja template, rendered when the task runs.
+
+    The template is a Jinja string, or a file reference (``$f``) to load a
+    template file.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "description": (
+                "A Jinja template, rendered when the task runs. This can be an "
+                "inline string, or a file reference ($f) to load a template file."
+            ),
+        },
+    )
 
     _marker_keys = TEMPLATE_KEYS
 
-    source: str = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
+    source: str | FileRef = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
+
+
+class FileRef(_MarkerRef):
+    """
+    A file input (AIP-80 FileTemplate).
+
+    The path is a static string. A templated filename (a ``$f`` wrapping a
+    ``$t``) is reserved for a future release and rejected for now.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"description": "A file input."},
+    )
+
+    _marker_keys = FILE_KEYS
+
+    path: str | TemplateRef = Field(serialization_alias="$f", validation_alias=AliasChoices(*FILE_KEYS))
+
+    @classmethod
+    def _process_value_schema(cls, field_schema: JsonSchemaValue) -> JsonSchemaValue:
+        return {"type": "string"}
+
+    @model_validator(mode="after")
+    def _reject_templated_filename(self) -> FileRef:
+        if isinstance(self.path, TemplateRef):
+            raise ValueError("templated filename ($f wrapping $t) is not supported yet")
+        return self
 
 
 class ConstRef(_MarkerRef):
@@ -163,12 +220,16 @@ def _value_discriminator(v: Any) -> str:
             return "xcom"
         if key in TEMPLATE_KEYS:
             return "template"
+        if key in FILE_KEYS:
+            return "file"
         if key == CONST_KEY:
             return "const"
     if isinstance(v, XComRef):
         return "xcom"
     if isinstance(v, TemplateRef):
         return "template"
+    if isinstance(v, FileRef):
+        return "file"
     if isinstance(v, ConstRef):
         return "const"
     return "literal"
@@ -222,11 +283,14 @@ class Literal(RootModel):
 Value = Annotated[
     Annotated[XComRef, Tag("xcom")]
     | Annotated[TemplateRef, Tag("template")]
+    | Annotated[FileRef, Tag("file")]
     | Annotated[ConstRef, Tag("const")]
     | Annotated[Literal, Tag("literal")],
     Discriminator(_value_discriminator),
 ]
 
+TemplateRef.model_rebuild()
+FileRef.model_rebuild()
 Literal.model_rebuild()
 
 
@@ -264,6 +328,13 @@ class Task(BaseModel):
             if sum(1 for k in ("uses", "run") if data.get(k) is not None) > 1:
                 raise ValueError(f"task {data.get('id')!r} may not set both 'uses' and 'run'")
         return data
+
+    def get_dependency_ids(self) -> set[str]:
+        """Ids of the tasks this task depends on: explicit ``needs`` plus any XCom references."""
+        ids = set(self.needs)
+        for value in itertools.chain(self.with_.values(), (self.run or {}).values()):
+            ids.update(_iter_xcom_task_ids(value))
+        return ids
 
     @classmethod
     def __get_pydantic_json_schema__(
@@ -449,10 +520,7 @@ class DagDocument(BaseModel):
             raise ValueError(f"duplicate task id(s): {duplicates}")
         validated_task_ids = set(task_id_counts)
         for t in self.tasks:
-            refs = set(t.needs)
-            for v in itertools.chain(t.with_.values(), (t.run or {}).values()):
-                refs.update(_iter_xcom_task_ids(v))
-            if t.id_ in refs:
+            if t.id_ in (refs := t.get_dependency_ids()):
                 raise ValueError(f"task {t.id_!r} depends on itself")
             if missing := (refs - validated_task_ids):
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")

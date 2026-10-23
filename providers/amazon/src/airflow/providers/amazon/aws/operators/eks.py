@@ -47,10 +47,28 @@ from airflow.providers.amazon.aws.utils import (
     build_resource_in_use_retry_args,
     validate_execute_complete_event,
 )
-from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.amazon.aws.utils.mixins import AwsHookParams, aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    conf,
+)
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
+except ImportError:
+
+    class KubernetesPodExecOperator(BaseOperator):  # type: ignore[no-redef]
+        """Keep existing EKS operators importable with older Kubernetes providers."""
+
+        def __init__(self, **kwargs):
+            raise AirflowOptionalProviderFeatureException(
+                "EksPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10.22.0."
+            )
+
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -835,7 +853,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
-            self.hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            self.hook.conn.get_waiter("cluster_deleted").wait(
+                name=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
 
     def delete_any_nodegroups(self) -> None:
         """
@@ -854,7 +875,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                         self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
-            self.hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
+            self.hook.get_waiter("all_nodegroups_deleted").wait(
+                clusterName=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self) -> None:
@@ -879,7 +903,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                             clusterName=self.cluster_name, fargateProfileName=profile
                         )
                 self.hook.conn.get_waiter("fargate_profile_deleted").wait(
-                    clusterName=self.cluster_name, fargateProfileName=profile
+                    clusterName=self.cluster_name,
+                    fargateProfileName=profile,
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
@@ -976,7 +1002,9 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
             self.hook.conn.get_waiter("nodegroup_deleted").wait(
-                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+                clusterName=self.cluster_name,
+                nodegroupName=self.nodegroup_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -1242,25 +1270,10 @@ class EksPodOperator(KubernetesPodOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.cluster_name,
-                pod_namespace=self.namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().execute(context)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().execute(context)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         eks_hook = EksHook(
@@ -1269,25 +1282,10 @@ class EksPodOperator(KubernetesPodOperator):
         )
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=eks_cluster_name,
-                pod_namespace=pod_namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().trigger_reentry(context, event)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=eks_cluster_name, pod_namespace=pod_namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().trigger_reentry(context, event)
 
     def _write_credentials_to_file(
         self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None
@@ -1368,3 +1366,102 @@ class EksPodOperator(KubernetesPodOperator):
                 self.log.exception("Failed to refresh AWS credentials.")
                 raise
         super()._refresh_cached_properties()
+
+
+class EksPodExecOperator(KubernetesPodExecOperator):
+    """
+    Execute a command in a running container of an existing Pod on Amazon EKS.
+
+    The operator authenticates with Amazon EKS and delegates command execution to
+    :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`.
+    It does not create, restart, or delete the target Pod.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EksPodExecOperator`
+
+    :param cluster_name: The name of the Amazon EKS Cluster containing the Pod. (templated)
+    :param pod_name: Name of the existing Kubernetes Pod. (templated)
+    :param command: Command and arguments to execute in the container. (templated)
+    :param namespace: Namespace containing the Pod. Defaults to ``default``. (templated)
+    :param container_name: Name of the container in which to execute the command. When omitted, the
+        ``kubectl.kubernetes.io/default-container`` annotation or the first container is used.
+        Defaults to ``None``. (templated)
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+        Defaults to ``aws_default``. If this is ``None`` or empty, the default boto3 credential
+        strategy is used without an Airflow connection lookup.
+    :param region_name: AWS region containing the Amazon EKS Cluster. (templated)
+        Defaults to ``None``, which uses the region from the AWS connection when available and
+        otherwise falls back to the default boto3 region strategy.
+    :param verify: Whether to verify SSL certificates, or the path to a CA bundle. Defaults to
+        ``None``, which uses the value from the AWS connection when available. (templated)
+    :param botocore_config: Configuration dictionary for the botocore client. Defaults to ``None``,
+        which uses ``config_kwargs`` from the AWS connection when available.
+    :param kubernetes_conn_id: Kubernetes connection used for additional client configuration.
+        Defaults to ``kubernetes_default``, as with ``EksPodOperator``. (templated)
+    :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
+    :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name",
+        *(
+            field
+            for field in KubernetesPodExecOperator.template_fields
+            if field not in {"cluster_context", "config_file"}
+        ),
+    )
+
+    def __init__(
+        self,
+        *,
+        cluster_name: str,
+        pod_name: str,
+        command: Sequence[str],
+        namespace: str = DEFAULT_NAMESPACE_NAME,
+        container_name: str | None = None,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+        **kwargs,
+    ) -> None:
+        for parameter in ("in_cluster", "config_file", "cluster_context"):
+            if parameter in kwargs:
+                raise ValueError(f"The {parameter} is not an allowed parameter for the EksPodExecOperator.")
+        hook_params = AwsHookParams.from_constructor(
+            aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
+        )
+        super().__init__(
+            pod_name=pod_name,
+            command=command,
+            namespace=namespace,
+            container_name=container_name,
+            in_cluster=False,
+            cluster_context=None,
+            config_file=None,
+            **kwargs,
+        )
+        self.cluster_name = cluster_name
+        self.aws_conn_id = hook_params.aws_conn_id
+        self.region_name = hook_params.region_name
+        self.verify = hook_params.verify
+        self.botocore_config = hook_params.botocore_config
+
+    def execute(self, context: Context) -> str | None:
+        eks_hook = EksHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
+        ) as (config_file, _):
+            self.config_file = config_file
+            try:
+                return super().execute(context)
+            finally:
+                self.config_file = None
+                self.__dict__.pop("client", None)
+                self.__dict__.pop("hook", None)

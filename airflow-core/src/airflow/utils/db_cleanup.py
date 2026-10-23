@@ -496,9 +496,7 @@ def _do_delete(
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
-        if (
-            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
-        ):  # nothing left to delete
+        if not session.scalars(select(limited_query.exists())).one():  # nothing left to delete
             break
 
         batch_no = next(batch_counter)
@@ -765,7 +763,7 @@ def _build_query(
         query = query.outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
                 base_table_recency_col == column(max_date_col_name),
             ),
         )

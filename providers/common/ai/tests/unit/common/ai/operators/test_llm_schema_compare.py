@@ -29,6 +29,7 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
@@ -166,11 +167,11 @@ class TestLLMSchemaCompareOperator:
             data_sources=[ds, _make_ds_config(conn_id="ds2")],
             context_strategy="basic",
             system_prompt="additional instructions",
-            agent_params={"temperature": 0.5},
+            model_settings={"temperature": 0.5},
         )
         assert op.context_strategy == "basic"
         assert op.system_prompt == "additional instructions"
-        assert op.agent_params == {"temperature": 0.5}
+        assert op.model_settings == {"temperature": 0.5}
 
     @mock.patch("airflow.providers.common.ai.operators.llm_schema_compare.BaseHook")
     def test_get_db_hook_success(self, mock_base_hook):
@@ -272,7 +273,7 @@ class TestLLMSchemaCompareOperator:
             llm_conn_id="llm_conn",
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["orders"],
-            agent_params={"param": "value"},
+            model_settings={"temperature": 0},
         )
 
         mock_llm_hook = mock.Mock()
@@ -290,7 +291,8 @@ class TestLLMSchemaCompareOperator:
         mock_llm_hook.create_agent.assert_called_once_with(
             output_type=SchemaCompareResult,
             instructions="system_prompt",
-            param="value",
+            model_settings={"temperature": 0},
+            retries=None,
         )
         mock_agent.run_sync.assert_called_once_with(
             "user_prompt", usage_limits=None, cancellation_token=mock.ANY
@@ -705,7 +707,7 @@ class TestLLMSchemaCompareOperatorUsageBudget:
         seed_usage_budget(task_state_store_accessor, requests=1)
         op = self._make_operator(require_approval=True, allow_modifications=True)
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete(
                 usage_budget_context,
                 generated_output="{}",
@@ -822,13 +824,13 @@ class TestLLMSchemaCompareOperatorApproval:
             "params_input": {"output": modified},
         }
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
     def test_execute_rejects_sequence_prompt_with_require_approval(self):
         op = LLMSchemaCompareOperator(
             task_id="test_task",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            prompt=["describe", b"bytes"],
             llm_conn_id="llm_conn",
             **self._APPROVAL_KWARGS,
         )
