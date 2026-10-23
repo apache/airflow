@@ -713,6 +713,62 @@ class CommsTest {
     comm.close()
   }
 
+  private fun xComTaskInstance(mapIndex: Int?) =
+    StartupDetails().also {
+      it.ti =
+        TaskInstance().also { ti ->
+          ti.dagId = "d"
+          ti.taskId = "t"
+          ti.runId = "r"
+          ti.mapIndex = mapIndex
+        }
+    }
+
+  @Test
+  @DisplayName("deleteXCom sends the default key and the current task instance")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComSendsDefaultKeyAndCurrentTaskInstance() {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 2)) { it.deleteXCom() }
+
+    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("DeleteXCom", body["type"])
+    Assertions.assertEquals("return_value", body["key"])
+    Assertions.assertEquals("d", body["dag_id"])
+    Assertions.assertEquals("t", body["task_id"])
+    Assertions.assertEquals("r", body["run_id"])
+    Assertions.assertEquals(2L, body["map_index"])
+  }
+
+  @Test
+  @DisplayName("deleteXCom sends an explicit key")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComSendsExplicitKey() {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 0)) { it.deleteXCom("custom_key") }
+
+    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("custom_key", body["key"])
+    Assertions.assertEquals(0L, body["map_index"])
+  }
+
+  @Test
+  @DisplayName("deleteXCom resolves an unmapped task instance's map index to -1")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComResolvesUnmappedMapIndexToNegativeOne() {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom() }
+
+    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals(-1L, body["map_index"])
+  }
+
+  @Test
+  @DisplayName("deleteXCom raises ApiError when the supervisor reports an error")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComRaisesApiErrorOnErrorResponse() {
+    val (_, failure) = roundTrip(::errorResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom() }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
   @Test
   @DisplayName("Should fail a pending call when the coordinator socket closes")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)

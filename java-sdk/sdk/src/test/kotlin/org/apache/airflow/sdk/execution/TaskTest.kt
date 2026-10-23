@@ -413,6 +413,14 @@ class TaskTest {
           mapIndex: Int,
         ): Unit = throw UnsupportedOperationException("not used in test")
 
+        override fun deleteXCom(
+          key: String,
+          dagId: String,
+          taskId: String,
+          runId: String,
+          mapIndex: Int,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
         override fun getTaskStateStore(
           tiId: UUID,
           key: String,
@@ -525,6 +533,14 @@ class TaskTest {
       xComs += key to value
       events += "xcom:$key"
     }
+
+    override fun deleteXCom(
+      key: String,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
     override fun skipDownstreamTasks(taskIds: List<String>) {
       skipped += taskIds
