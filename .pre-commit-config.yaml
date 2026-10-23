@@ -27,6 +27,8 @@ default_env:
   # the committed ones. Hooks in nested configs do not inherit this and must pass --frozen to uv themselves.
   UV_FROZEN: "1"
 exclude: ^.*/.*_vendor/
+# Hooks with `priority: 1000` run in parallel, after every other hook in this file. Only the hooks
+# listed in scripts/ci/prek/check_prek_parallel_hooks.py may set a priority.
 repos:
   - repo: meta
     hooks:
@@ -251,6 +253,19 @@ repos:
           ^scripts/ci/license-templates/
   - repo: local
     hooks:
+      # Hooks with `priority: 1000` start in the order they appear in this file. This hook takes the
+      # longest of them, so it comes first. Because it needs the CI image, it would normally go in the
+      # CI image section at the end of this file. Its priority still makes it run after every hook that
+      # has no priority.
+      - id: check-template-fields-valid
+        name: Check templated fields mapped in operators/sensors
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
+        language: python
+        entry: ./scripts/ci/prek/check_template_fields.py
+        files: ^(providers/[^/]+|airflow-core)/src/airflow/(.*/)?(sensors|operators)/.*\.py$
+        require_serial: true
       - id: check-min-python-version
         name: Check minimum Python version
         env:
@@ -484,6 +499,7 @@ repos:
         name: Check the TS SDK serializes Dags the way Airflow does, after a shared change
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: "Serialize the shared test Dags with the TS SDK and with Airflow, and compare the two"
         entry: ./ts-sdk/scripts/ci/prek/check_serialization_conformance.py
         language: node
@@ -499,6 +515,7 @@ repos:
         name: Check the Go SDK serializes Dags the way Airflow does
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: "Serialize the shared test Dags with the Go SDK and with Airflow, and compare the two"
         entry: ./scripts/ci/prek/check_go_sdk_serialization_conformance.py
         # golang so prek provisions the toolchain that builds the Go serializer.
@@ -702,10 +719,12 @@ repos:
         name: Detect accidentally committed debug statements
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
       - id: check-builtin-literals
         name: Require literal syntax when initializing builtins
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
       - id: detect-private-key
         name: Detect if private key is added to the repository
         env:
@@ -758,6 +777,7 @@ repos:
         name: Check if there are no deprecate log warn
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
   - repo: https://github.com/adrienverge/yamllint
     rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
@@ -765,6 +785,7 @@ repos:
         name: Check YAML files with yamllint
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude: >
@@ -800,6 +821,7 @@ repos:
         name: Run codespell
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: Run codespell to check for common misspellings in files
         entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
           to the codespell dictionary at docs/spelling_wordlist.txt.
@@ -830,6 +852,7 @@ repos:
         name: Run zizmor to check for github workflow syntax errors
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         types: [yaml]
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
@@ -847,6 +870,7 @@ repos:
         name: Check internal Markdown links with lychee (offline mode)
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: >-
           Validate intra-repo links in Markdown files (relative paths, anchors,
           and fragments) without making any HTTP requests. Auto-generated client
@@ -915,6 +939,7 @@ repos:
         name: Check for test-only imports in production source
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_test_only_imports_in_src.py
         language: python
         pass_filenames: true
@@ -987,6 +1012,7 @@ repos:
         name: Lint Dockerfile
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         language: python
         entry: ./scripts/ci/prek/lint_dockerfile.py
         files: Dockerfile.*$
@@ -1033,6 +1059,7 @@ repos:
         name: Prevent deprecated sqlalchemy usage
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
         language: python
         files: >
@@ -1152,6 +1179,7 @@ repos:
       - id: check-for-inclusive-language
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         language: pygrep
         name: Check for language that we do not accept as community
         description: Please use more appropriate words for community documentation.
@@ -1365,6 +1393,7 @@ repos:
         name: Check if licenses are OK for Apache
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_license.py
         language: python
         files: ^LICENSE$
@@ -1373,6 +1402,7 @@ repos:
         name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
         language: python
         files: \.py$|^shared/observability/src/airflow_shared/observability/metrics/metrics_template\.yaml$
@@ -1419,6 +1449,7 @@ repos:
         name: Check Shell scripts syntax correctness
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         language: docker_image
         entry: koalaman/shellcheck:v0.8.0 -x -a
         files: \.(bash|sh)$|^hooks/build$|^hooks/push$
@@ -1642,6 +1673,7 @@ repos:
         name: Run markdownlint
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: Checks the style of Markdown files.
         entry: markdownlint
         language: node
@@ -1806,6 +1838,7 @@ repos:
         name: Check that all logging methods are lazy
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_lazy_logging.py
         language: python
         pass_filenames: true
@@ -1814,6 +1847,7 @@ repos:
         name: Check XComModel columns are read through xcom_entity, not directly in SQLAlchemy queries
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_xcom_model_columns.py
         language: python
         pass_filenames: true
@@ -1860,6 +1894,7 @@ repos:
         name: bandit
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         description: "Bandit is a tool for finding common security issues in Python code"
         entry: bandit
         language: python
@@ -1929,6 +1964,14 @@ repos:
         entry: ./scripts/ci/prek/check_prek_hooks_pycache_prefix.py
         pass_filenames: false
         files: (^|/)\.pre-commit-config\.yaml$|^scripts/ci/prek/check_prek_hooks_pycache_prefix\.py$
+      - id: check-prek-parallel-hooks
+        name: Only audited hooks run in parallel in the root prek config
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        language: python
+        entry: ./scripts/ci/prek/check_prek_parallel_hooks.py
+        pass_filenames: false
+        files: ^\.pre-commit-config\.yaml$|^scripts/ci/prek/check_prek_parallel_hooks\.py$
       - id: check-migration-patterns
         name: Check migration files for anti-patterns and style (MIG001-MIG004)
         env:
@@ -1942,14 +1985,6 @@ repos:
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
       ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
-      - id: check-template-fields-valid
-        name: Check templated fields mapped in operators/sensors
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        language: python
-        entry: ./scripts/ci/prek/check_template_fields.py
-        files: ^(providers/[^/]+|airflow-core)/src/airflow/(.*/)?(sensors|operators)/.*\.py$
-        require_serial: true
       - id: check-execution-api-versions
         name: Check execution API datamodel changes have corresponding version updates
         env:
@@ -2023,6 +2058,7 @@ repos:
         name: Check for problematic context manager class decorators
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        priority: 1000
         entry: ./scripts/ci/prek/check_contextmanager_class_decorators.py
         language: python
         files: .*test.*\.py$
