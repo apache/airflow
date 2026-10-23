@@ -46,6 +46,7 @@ import type {
   GetTaskStateStore,
   SetTaskStateStore,
   ConnectionResult as WireConnectionResult,
+  CreateHITLDetailPayload,
 } from "./protocol.js";
 
 /**
@@ -115,6 +116,12 @@ export interface CoordinatorClient extends TaskClient {
   getDagRunState(dagId: string, runId: string): Promise<string>;
   /** Whether a Dag is paused. */
   isDagPaused(dagId: string): Promise<boolean>;
+
+  /**
+   * Write the Human-in-the-loop request of a task instance. Writing it again replaces the
+   * request and drops any response already given, so a resumed task must never call this.
+   */
+  createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void>;
 }
 
 const VARIABLE_ABSENT_POLICY: AbsentRowPolicy = {
@@ -265,9 +272,6 @@ export function createCoordinatorClient(
       ) {
         throw new TypeError("task state store value must not be null, NaN, or Infinity");
       }
-      // TODO: warn when the serialized value exceeds the deployment's
-      // [state_store] max_value_storage_bytes, as Python's task store setter
-      // does, once the coordinator passes that setting to the runtime.
       const msg: SetTaskStateStore = {
         type: "SetTaskStateStore",
         ti_id: tiId,
@@ -423,6 +427,18 @@ export function createCoordinatorClient(
     // ---- Task state store ----
 
     taskStateStore,
+    // ---- Human-in-the-loop ----
+
+    async createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void> {
+      const request: CreateHITLDetailPayload = { type: "CreateHITLDetailPayload", ...msg };
+      await rpc(
+        "CreateHITLDetailPayload",
+        "HITLDetailRequestResult",
+        request,
+        () => undefined,
+        "throw",
+      );
+    },
 
     // ---- Connections ----
 

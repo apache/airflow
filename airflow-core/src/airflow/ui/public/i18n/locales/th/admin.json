@@ -22,7 +22,7 @@
     "connection_other": "การเชื่อมต่อทั้งหมด",
     "delete": {
       "deleteConnection_one": "ลบการเชื่อมต่อ 1 รายการ",
-      "deleteConnection_other": "ลบการเชื่อมต่อ {{count}} รายการ",
+      "deleteConnection_other": "ลบการเชื่อมต่อ {{count, number}} รายการ",
       "firstConfirmMessage_one": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
       "firstConfirmMessage_other": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
       "title": "ลบการเชื่อมต่อ"
@@ -119,7 +119,7 @@
     },
     "delete": {
       "deleteVariable_one": "ลบตัวแปร 1 รายการ",
-      "deleteVariable_other": "ลบตัวแปร {{count}} รายการ",
+      "deleteVariable_other": "ลบตัวแปร {{count, number}} รายการ",
       "firstConfirmMessage_one": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
       "firstConfirmMessage_other": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
       "title": "ลบตัวแปร",

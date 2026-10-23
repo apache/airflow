@@ -22,8 +22,8 @@
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
+import type { Operator } from "./operator.js";
 import type { TaskFunction } from "./task.js";
-import type { TriggerDagRunTask } from "./trigger-dag-run.js";
 
 // Assigned inside Bundle's static block, as Dag does for its tasks.
 let dagsOf: (bundle: Bundle) => ReadonlyMap<string, Dag>;
@@ -212,15 +212,33 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
   );
 }
 
-/** Internal: the `triggerDagRun(...)` task at `taskId` of a Dag this bundle
- *  declared in TypeScript, which the runtime runs without a handler. */
-export function getBundleTrigger(
+/**
+ * Internal: what kind of task the runtime is to run, and what it needs to run it.
+ *
+ * A `handler` runs the author's function. An `operator` is one the SDK runs itself,
+ * with no handler: its options come from the factory the task was declared with.
+ */
+export type BundleTask =
+  | { readonly kind: "handler"; readonly fn: TaskFunction }
+  | { readonly kind: "operator"; readonly operator: Operator<never, unknown>; readonly dag: Dag };
+
+/** Internal: the task `taskId` of Dag `dagId`, or `undefined` when this bundle does not provide it. */
+export function getBundleTask(
   bundle: Bundle,
   dagId: string,
   taskId: string,
-): TriggerDagRunTask | undefined {
+): BundleTask | undefined {
   const dag = dagsOf(bundle).get(dagId);
-  return dag === undefined ? undefined : getDagTaskRecords(dag).get(taskId)?.trigger;
+  if (dag === undefined) {
+    // A Dag declared in Python: the bundle holds only handlers for its stub tasks.
+    const fn = taskHandlersOf(bundle).get(dagId)?.get(taskId);
+    return fn === undefined ? undefined : { kind: "handler", fn };
+  }
+  // A Dag declared in TypeScript: the task's record says what runs it.
+  const record = getDagTaskRecords(dag).get(taskId);
+  if (record === undefined) return undefined;
+  if (record.operator) return { kind: "operator", operator: record.operator, dag };
+  return { kind: "handler", fn: record.fn };
 }
 
 /** Internal: finalize every Dag this bundle declared in TypeScript, so no task

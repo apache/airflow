@@ -26,11 +26,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
+from starlette.middleware.gzip import GZipMiddleware
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 from airflow import settings
+from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
@@ -174,7 +177,7 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views)
     mock_init_plugins.assert_called_once_with(test_app)
 
     # Assert that execution-related functions were also called
-    mock_create_task_exec_api.assert_called_once_with()
+    mock_create_task_exec_api.assert_called_once_with(dag_bag=test_app.state.dag_bag)
 
 
 @pytest.mark.parametrize("apps", ["all", "core", "execution"])
@@ -187,6 +190,36 @@ def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps
 
     assert installed.count(HttpAccessLogMiddleware) == 1
     assert installed[0] is HttpAccessLogMiddleware
+
+
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+@conf_vars({("metrics", "statsd_on"): "True"})
+def test_api_metrics_middleware_installed_for_every_apps_selection(apps):
+    """The execution API is mounted as a sub-app and `--apps execution` never reaches
+    ``init_middlewares``, so installing this middleware there would leave the surface every
+    running task depends on unmetered. It must also wrap GZipMiddleware so the recorded
+    duration includes compression time (see #60165)."""
+    installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
+
+    assert installed.count(HttpMetricsMiddleware) == 1
+    if GZipMiddleware in installed:
+        assert installed.index(HttpMetricsMiddleware) < installed.index(GZipMiddleware)
+
+
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
+    installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
+
+    assert HttpMetricsMiddleware not in installed
+
+
+def test_jwt_refresh_middleware_skips_static_mount():
+    """Static UI assets are served without resolving the user from the JWT cookie."""
+    [middleware] = [
+        m for m in app_module.create_app(apps="core").user_middleware if m.cls is JWTRefreshMiddleware
+    ]
+
+    assert middleware.kwargs == {"skip_path_prefixes": ("/static/",)}
 
 
 def test_catch_all_route_last():
@@ -310,6 +343,22 @@ class TestGetCookiePath:
         """When base_url contains a nested subpath, get_cookie_path() should return it."""
         with mock.patch.object(app_module, "API_ROOT_PATH", "/org/team-a/airflow/"):
             assert app_module.get_cookie_path() == "/org/team-a/airflow/"
+
+
+@pytest.mark.parametrize(
+    ("scheme", "ssl_cert", "exp"),
+    [
+        ("http", "", False),
+        ("https", "", True),
+        ("http", "/foo/bar/cert.crt", True),
+        ("https", "/foo/bar/cert/crt", True),
+    ],
+)
+def test_request_cookie_is_secure(scheme, ssl_cert, exp):
+    request = mock.Mock()
+    request.base_url.scheme = scheme
+    with conf_vars({("api", "ssl_cert"): ssl_cert}):
+        assert app_module.request_cookie_is_secure(request) == exp
 
 
 def test_create_auth_manager_thread_safety():

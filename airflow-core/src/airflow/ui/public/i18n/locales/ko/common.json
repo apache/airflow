@@ -168,6 +168,7 @@
   "generateToken": "토큰 생성",
   "includedIn": "포함됨",
   "key": "키",
+  "loading": "로드 중...",
   "logLevel": {
     "hide": "로그 레벨 숨기기",
     "hotkey": "l",
@@ -199,6 +200,7 @@
     "plugins": "플러그인",
     "security": "보안"
   },
+  "no": "아니요",
   "noItemsFound": "{{modelName}}을(를) 찾을 수 없음",
   "note": {
     "add": "메모 추가",
@@ -219,8 +221,8 @@
     "receivedAssetEvents": "수신된 에셋 이벤트"
   },
   "pause": "일시 중지",
-  "pendingDagRun_one": "대기 중인 Dag 실행 {{count}}개",
-  "pendingDagRun_other": "대기 중인 Dag 실행 {{count}}개",
+  "pendingDagRun_one": "대기 중인 Dag 실행 {{count, number}}개",
+  "pendingDagRun_other": "대기 중인 Dag 실행 {{count, number}}개",
   "presetFilters": {
     "deleteTitle": "프리셋 필터 삭제",
     "deleteWarning": "프리셋 필터는 이 브라우저에만 저장됩니다.",
@@ -271,6 +273,10 @@
   "selected": "선택됨",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "태스크 인스턴스를 지울 때 태스크 상태 저장소 항목을 삭제하지 않고 기본으로 유지합니다.",
+        "label": "지울 때 태스크 상태 유지"
+      },
       "preventRunningTask": {
         "helper": "태스크 인스턴스를 지울 때 현재 실행 중인 태스크를 건너뜁니다.",
         "label": "실행 중인 태스크 지우기 방지"
@@ -284,6 +290,13 @@
         "label": "태스크 지우기 기본 선택"
       },
       "title": "지우기"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Dags 목록에 각 Dag의 최근 태스크 상태를 표시합니다. 끄면 이를 불러오지 않으므로 Dag가 많은 환경에서 도움이 될 수 있습니다.",
+        "label": "최근 태스크 표시"
+      },
+      "title": "Dags 목록"
     },
     "description": "이 환경설정은 이 브라우저에만 저장되며 앱 전체에 적용됩니다.",
     "general": {
@@ -314,6 +327,13 @@
         "label": "상태 표시 기본 선택"
       },
       "title": "상태 표시"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 각 검색창에서 따로 선택한 설정과 공유 링크에 담긴 설정이 우선 적용됩니다.",
+        "label": "기본으로 부분 일치 사용"
+      },
+      "title": "검색"
     },
     "taskInstance": {
       "defaultTab": {
@@ -400,6 +420,7 @@
     "upstream_failed": "업스트림 실패"
   },
   "switchDag": "$t(dag_one) 전환",
+  "switchDagRun": "$t(dagRun_one) 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",
@@ -445,6 +466,8 @@
     "executorConfig": "실행기 구성",
     "hostname": "호스트 이름",
     "id": "ID",
+    "iteration": "반복",
+    "loopIterations": "실행된 반복 횟수",
     "maxTries": "최대 시도 횟수",
     "pid": "PID",
     "pool": "풀",
@@ -454,6 +477,11 @@
     "queuedWhen": "대기열에 추가된 시간",
     "renderedMapIndex": "렌더링된 맵 인덱스",
     "scheduledWhen": "예정된 시간",
+    "stateReason": "상태 이유",
+    "stateReasonSummary": {
+      "failed": "{{totalTries}}회 중 {{tryNumber}}번째 시도에서 중단됨",
+      "upForRetry": "{{totalTries}}회 중 {{tryNumber}}번째 시도 후 재시도 중"
+    },
     "trigger": "트리거",
     "triggerer": {
       "assigned": "할당된 트리거",
@@ -469,16 +497,21 @@
   "taskInstance_one": "태스크 인스턴스",
   "taskInstance_other": "태스크 인스턴스",
   "teams": {
-    "more_one": "외 {{count}}개",
-    "more_other": "외 {{count}}개",
+    "more_one": "외 {{count, number}}개",
+    "more_other": "외 {{count, number}}개",
     "none": "팀 없음",
     "title": "팀"
   },
   "timeRange": {
-    "last12Hours": "지난 12 시간",
-    "last24Hours": "지난 24 시간",
+    "anyTime": "전체 기간",
+    "in": "기간",
+    "last7Days": "지난 7일",
+    "last12Hours": "지난 12시간",
+    "last24Hours": "지난 24시간",
+    "last30Days": "지난 30일",
     "lastHour": "지난 1시간",
-    "pastWeek": "지난 주"
+    "latestRun": "최근 실행",
+    "pastWeek": "지난주"
   },
   "timestamp": {
     "hide": "타임스탬프 숨기기",
@@ -496,21 +529,21 @@
     "bulkClear": {
       "error": "{{resourceName}} 일괄 초기화 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 초기화되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 초기화되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 초기화 요청 제출됨"
       }
     },
     "bulkDelete": {
       "error": "{{resourceName}} 일괄 삭제 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 삭제 요청 제출됨"
       }
     },
     "bulkUpdate": {
       "error": "{{resourceName}} 일괄 업데이트 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 업데이트되었습니다. 키: {{keys}}",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 업데이트되었습니다. 키: {{keys}}",
         "title": "{{resourceName}} 일괄 업데이트 요청 제출됨"
       }
     },
@@ -531,7 +564,7 @@
     "import": {
       "error": "{{resourceName}} 가져오기 요청 실패",
       "success": {
-        "description": "{{count}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
+        "description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 가져와졌습니다.",
         "title": "{{resourceName}} 가져오기 요청 제출됨"
       }
     },
@@ -570,5 +603,6 @@
     "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",
     "unwrap": "줄바꿈 해제",
     "wrap": "줄바꿈"
-  }
+  },
+  "yes": "예"
 }

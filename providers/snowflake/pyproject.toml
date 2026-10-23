@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-snowflake"
-version = "6.19.0"
+version = "6.20.0"
 description = "Provider package apache-airflow-providers-snowflake for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -59,7 +59,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.12.0",
+    "apache-airflow-providers-common-compat>=1.23.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     "asgiref>=2.3.0; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
@@ -77,6 +77,11 @@ dependencies = [
     # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
     "snowflake-connector-python>=3.17.0",
     "snowflake-sqlalchemy>=1.7.0",
+    # snowflake-sqlalchemy (up to 1.11.1) subclasses sqlalchemy.orm.context.ORMSelectCompileState, which
+    # SQLAlchemy 2.1 made private, so importing it fails; 2.0.0rc2 itself declares sqlalchemy<2.1.
+    # Remove the cap once snowflake-sqlalchemy supports SQLAlchemy 2.1;
+    # tracked at https://github.com/apache/airflow/issues/75118
+    "sqlalchemy>=1.4.54,<2.1",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
     "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
@@ -94,7 +99,7 @@ dependencies = [
     "apache-airflow-providers-microsoft-azure>=12.8.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.3.0"
+    "apache-airflow-providers-openlineage>=2.16.0"
 ]
 
 [dependency-groups]
@@ -137,8 +142,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.19.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.19.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.20.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.20.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -34,6 +34,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { AddTaskStateStoreButton } from "./AddTaskStateStoreButton";
@@ -104,6 +105,7 @@ const getColumns = ({
         />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -112,9 +114,11 @@ const getColumns = ({
 export const TaskStateStore = () => {
   const { dagId = "", mapIndex: rawMapIndex = "-1", runId = "", taskId = "" } = useParams();
   const mapIndex = parseInt(rawMapIndex, 10);
+  const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
+    ...coordinates,
     dagId,
     dagRunId: runId,
     mapIndex,
@@ -125,8 +129,9 @@ export const TaskStateStore = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useTaskStateStoreServiceListTaskStateStore(
+  const { data, error, isLoading } = useTaskStateStoreServiceListTaskStateStore(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       limit: pagination.pageSize,
@@ -149,7 +154,6 @@ export const TaskStateStore = () => {
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="dag:taskStateStore.entry"
         noRowsMessage={translate("taskStateStore.emptyStore")}

@@ -66,6 +66,7 @@ from airflow_breeze.global_constants import (
     SelectiveTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
+    get_airflow_version,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
@@ -197,6 +198,18 @@ class HashableDict(dict[T, list[str]]):
         return hash(frozenset(self))
 
 
+# Core and Task SDK sources specific to the native Lang-SDK Dag path: routing a file to a
+# coordinator, parsing it through the coordinator's runtime, validating the serialized Dag,
+# and reading its source. Shared Dag processing files are left to the canary run.
+LANG_SDK_NATIVE_DAG_PARSING_FILES = (
+    r"^airflow-core/src/airflow/dag_processing/(importer_routing|lang_sdk_processor)\.py$",
+    r"^airflow-core/src/airflow/models/dagcode\.py$",
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
+    r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
+    r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
@@ -263,11 +276,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/java-test-bundle/.*",
+            r"^airflow-e2e-tests/java-native-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
@@ -300,6 +315,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -540,10 +556,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.TS_SDK_FILES: [
             # Documentation entry points and `.md` files do not affect the generated
-            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
-            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
-            # build.
-            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
+            # docs toolchain's own package, with its own tests that vitest does not run.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -892,6 +907,7 @@ class SelectiveChecks:
         github_actor: str = "",
         github_context_dict: dict[str, Any] | None = None,
         platform: str = CI_AMD_PLATFORM,
+        selective_tests_on_push: bool = False,
     ):
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
@@ -918,6 +934,7 @@ class SelectiveChecks:
         self._github_actor = github_actor
         self._github_context_dict = github_context_dict or {}
         self._platform = platform
+        self._selective_tests_on_push = selective_tests_on_push
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -971,8 +988,15 @@ class SelectiveChecks:
     def default_constraints_branch(self) -> str:
         return self._default_constraints_branch
 
+    def _get_full_run_events(self) -> list[GithubEvents]:
+        # Only `ci-amd.yml` / `ci-arm.yml` opt in: other push-triggered workflows (constraints, image
+        # cache) rely on a push selecting all Python versions.
+        if self._selective_tests_on_push:
+            return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+        return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+
     def _should_run_all_tests_and_versions(self) -> bool:
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+        if self._github_event in self._get_full_run_events():
             if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
                 console_print(
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
@@ -1337,6 +1361,10 @@ class SelectiveChecks:
     @cached_property
     def run_java_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
+
+    @cached_property
+    def run_ts_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_FILES)
 
     @cached_property
     def run_ts_sdk_docs(self) -> bool:
@@ -1850,8 +1878,10 @@ class SelectiveChecks:
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self._github_event == GithubEvents.SCHEDULE:
-            console_print("[warning]Upgrade to newer dependencies: Schedule event[/]")
+        # A dispatched run is a full run, like a scheduled canary: on release branches it replaces the
+        # push runs that used to update the constraints after a dependency backport.
+        if self._github_event in (GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH):
+            console_print(f"[warning]Upgrade to newer dependencies: {self._github_event} event[/]")
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             console_print(
@@ -1907,7 +1937,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        prek_hooks_to_skip.add("update-uv-lock")
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(
@@ -2115,12 +2144,23 @@ class SelectiveChecks:
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:
-        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
+        """Provider compatibility input matrix for the current run.
+
+        Filters out python versions that are not built. Also drops the entry whose
+        ``airflow-version`` matches the current branch version: on a ``vX-Y-test``
+        branch the just-bumped ``X.Y.0`` is added to the matrix by the version-bump
+        commit before it is released, so compat jobs that pull the released
+        ``apache/airflow:X.Y.0`` image/package would fail until GA. The entry starts
+        running again once the branch bumps to the next patch (``X.Y.1``) and ``X.Y.0``
+        is a real release.
+        """
+        current_airflow_version = get_airflow_version()
         return json.dumps(
             [
                 check
                 for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
+                and check["airflow-version"] != current_airflow_version
             ]
         )
 
@@ -2250,7 +2290,7 @@ class SelectiveChecks:
 
     def _is_canary_run(self):
         return (
-            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
+            self._github_event in self._get_full_run_events()
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
             and not self.only_text_non_doc_files_changed
         ) or CANARY_LABEL in self._pr_labels

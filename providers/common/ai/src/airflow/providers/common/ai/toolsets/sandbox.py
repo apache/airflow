@@ -74,6 +74,13 @@ _RELEASE_RETRY_DELAY = 1.0
 
 # Runs backend.create off the event loop. Its threads start on first use, not at import.
 _provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
+# One process-wide lock for every SandboxToolset. It guards each toolset's pending creation,
+# the ``_open`` flag that ``_close`` clears, and the ``_open`` re-check before a newly created
+# sandbox is published. Airflow deep-copies tasks and default_args together with the toolsets
+# they hold, and a lock cannot be deep-copied, so toolsets share this lock instead of holding
+# their own. It is never held during a backend call, so one toolset never waits for another
+# toolset's sandbox.
+_create_lock = threading.Lock()
 
 RUN_COMMAND = "run_command"
 
@@ -350,7 +357,6 @@ class SandboxToolset(AirflowToolset):
         self._max_export_bytes = int(max_export_bytes)
         self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
-        self._create_lock = threading.Lock()
         self._create_future: concurrent.futures.Future[str] | None = None
         # Set while attached: who this run claimed the sandbox as, when the sandbox ends
         # on this process's clock (None when the creator recorded no lifetime), and what
@@ -581,7 +587,7 @@ class SandboxToolset(AirflowToolset):
         return None
 
     def _close(self, *, run_failed: bool) -> None:
-        with self._create_lock:
+        with _create_lock:
             self._open = False
             pending = self._create_future
         sandbox = self._sandbox
@@ -747,7 +753,7 @@ class SandboxToolset(AirflowToolset):
         # A native framework can make the first calls from several threads, each with an
         # event loop of its own, so the one creation they share is a thread-safe future
         # that any loop can await, not a task bound to the loop that started it.
-        with self._create_lock:
+        with _create_lock:
             # Checked again under the lock: another thread may have finished creating it.
             if self._sandbox is not None:
                 return self._sandbox
@@ -775,14 +781,14 @@ class SandboxToolset(AirflowToolset):
                 f"Could not provision a sandbox on backend {self._backend.name!r}: {e}"
             ) from e
         else:
-            with self._create_lock:
+            with _create_lock:
                 if not self._open:
                     # The block ended while this call waited; closing destroys the sandbox.
                     raise SandboxTerminalError("The sandbox was closed while it was being provisioned.")
                 self._sandbox = sandbox
             return sandbox
         finally:
-            with self._create_lock:
+            with _create_lock:
                 if self._create_future is create_future:
                     self._create_future = None
 

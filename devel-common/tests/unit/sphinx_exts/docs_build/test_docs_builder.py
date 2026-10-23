@@ -17,11 +17,15 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import subprocess
 import sys
 import types
+from pathlib import Path
 from unittest import mock
+
+import pytest
 
 from sphinx_exts.docs_build import docs_builder
 from sphinx_exts.docs_build.code_utils import AIRFLOW_CONTENT_ROOT_PATH, DOCS_SOURCES_PATH
@@ -155,3 +159,51 @@ class TestRunSphinxInProcess:
         run.assert_called_once()
         assert run.call_args.args[0] == ["sphinx-autobuild", "src", "out"]
         docs_builder.build_main.assert_not_called()
+
+
+class TestBuildSphinxDocsSpelling:
+    @pytest.fixture
+    def builder(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(docs_builder, "GENERATED_PATH", tmp_path)
+        return AirflowDocsBuilder(package_name="apache-airflow-providers-ftp")
+
+    @staticmethod
+    def _fake_run_sphinx(findings: list[dict] | None, returncode: int = 0):
+        def run_sphinx(self, build_cmd, *, log_file, verbose):
+            spelling_args = [arg for arg in build_cmd if arg.startswith("airflow_spelling_output=")]
+            if findings is not None and spelling_args:
+                output = Path(spelling_args[0].split("=", 1)[1])
+                output.write_text(json.dumps(findings))
+            return returncode
+
+        return run_sphinx
+
+    def test_reports_the_misspellings_written_during_the_build(self, builder, monkeypatch):
+        findings = [{"file": "/docs/index.rst", "line": 3, "word": "zorp", "context": "a zorp"}]
+        monkeypatch.setattr(AirflowDocsBuilder, "_run_sphinx", self._fake_run_sphinx(findings))
+
+        build_errors, spelling_errors = builder.build_sphinx_docs(verbose=False)
+
+        assert build_errors == []
+        assert [(e.file_path, e.line_no, e.spelling) for e in spelling_errors] == [
+            (Path("/docs/index.rst"), 3, "zorp")
+        ]
+
+    def test_a_successful_build_without_spelling_results_is_an_error(self, builder, monkeypatch):
+        monkeypatch.setattr(AirflowDocsBuilder, "_run_sphinx", self._fake_run_sphinx(None))
+
+        _, spelling_errors = builder.build_sphinx_docs(verbose=False)
+
+        assert len(spelling_errors) == 1
+        assert spelling_errors[0].message.startswith("Spelling was not checked")
+
+    def test_stale_results_from_an_earlier_build_are_not_reported(self, builder, monkeypatch):
+        builder.spelling_output_file.parent.mkdir(parents=True)
+        builder.spelling_output_file.write_text(
+            json.dumps([{"file": None, "line": None, "word": "x", "context": ""}])
+        )
+        monkeypatch.setattr(AirflowDocsBuilder, "_run_sphinx", self._fake_run_sphinx(None, returncode=2))
+
+        _, spelling_errors = builder.build_sphinx_docs(verbose=False)
+
+        assert spelling_errors == []

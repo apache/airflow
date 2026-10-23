@@ -24,8 +24,10 @@ export {
   Dag,
   getClient,
   getContext,
+  Label,
   NEVER_EXPIRE,
   TaskHandler,
+  triggerDagRun,
   withArgNames,
 } from "../src/index.js";
 export type {

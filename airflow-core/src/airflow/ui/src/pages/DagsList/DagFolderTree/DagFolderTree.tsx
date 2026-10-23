@@ -94,7 +94,7 @@ const expandedForSelection = (
 ): Array<string> => {
   const values: Array<string> = [];
 
-  if (isMultiBundle && bundleName !== undefined) {
+  if (isMultiBundle && bundleName !== undefined && folder !== undefined && folder !== "") {
     values.push(bundleNodeValue(bundleName));
   }
 
@@ -102,7 +102,9 @@ const expandedForSelection = (
     const segments = folder.split("/");
 
     values.push(
-      ...segments.map((_, index) => folderNodeValue(bundleName, segments.slice(0, index + 1).join("/"))),
+      ...segments
+        .slice(0, -1)
+        .map((_, index) => folderNodeValue(bundleName, segments.slice(0, index + 1).join("/"))),
     );
   }
 
@@ -131,7 +133,7 @@ export const DagFolderTree = ({
   // Folders arrive asynchronously, so the first render has no nodes to expand yet: re-apply the
   // auto-expansion whenever the selection resolves to different nodes (on load, or when the user
   // lands on a URL that already points at a nested folder). Manual expansions are kept.
-  const selectionKey = `${nodeBundle ?? ""}|${selectedFolder ?? ""}|${isMultiBundle}`;
+  const selectionKey = JSON.stringify([nodeBundle, selectedFolder, isMultiBundle]);
   const [appliedSelectionKey, setAppliedSelectionKey] = useState(selectionKey);
 
   if (appliedSelectionKey !== selectionKey) {

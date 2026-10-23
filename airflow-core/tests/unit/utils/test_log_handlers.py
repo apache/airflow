@@ -336,6 +336,36 @@ class TestFileTaskLogHandler:
                 mock_get_default_executor.assert_not_called()
                 mock_load_executor.assert_called_once_with(executor_name)
 
+    @pytest.mark.parametrize(
+        ("dag_id", "ti_executor", "expected"),
+        [
+            pytest.param("team_a_dag", None, ("LocalExecutor", "team_a"), id="team-default"),
+            pytest.param("team_b_dag", None, ("CeleryExecutor", "team_b"), id="other-team-default"),
+            pytest.param("team_a_dag", "LocalExecutor", ("LocalExecutor", "team_a"), id="team-named"),
+            pytest.param("team_a_dag", "CeleryExecutor", ("CeleryExecutor", None), id="global-named"),
+            pytest.param("global_dag", None, ("CeleryExecutor", None), id="no-team"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("core", "multi_team"): "True",
+            ("core", "executor"): "CeleryExecutor;team_a=LocalExecutor;team_b=CeleryExecutor",
+        }
+    )
+    def test_get_executor_uses_the_teams_executor(self, dag_id, ti_executor, expected, clean_executor_loader):
+        teams = {"team_a_dag": "team_a", "team_b_dag": "team_b"}
+        ti = mock.MagicMock(dag_id=dag_id, executor=ti_executor)
+        handler = FileTaskHandler("")
+        handler.executor_instances = {}
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", side_effect=teams.get),
+            mock.patch.object(executor_loader.ExecutorLoader, "load_executor") as load_executor,
+        ):
+            handler._get_executor(ti)
+        (executor_name,), _ = load_executor.call_args
+        assert (executor_name.alias, executor_name.team_name) == expected
+
     def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):
             ti.log.info("test")
@@ -657,6 +687,7 @@ class TestFileTaskLogHandler:
             session.add(t)
             ti.triggerer = t
             t.task_instance = ti
+            session.flush()
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
         h.set_context(ti)
         expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=0.log"

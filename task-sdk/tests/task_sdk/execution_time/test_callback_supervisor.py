@@ -23,6 +23,7 @@ import signal
 import socket
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from operator import attrgetter
 from typing import Any
 from unittest.mock import ANY, Mock, patch
@@ -64,6 +65,15 @@ def callback_with_kwargs(arg1, arg2):
 def callback_that_raises():
     """A callback that always raises."""
     raise ValueError("something went wrong")
+
+
+received_kwargs: dict[str, Any] = {}
+
+
+def callback_recording_kwargs(**kwargs):
+    """A callback that records the kwargs it was called with."""
+    received_kwargs.clear()
+    received_kwargs.update(kwargs)
 
 
 class CallableClass:
@@ -160,6 +170,77 @@ class TestExecuteCallback:
             assert error_contains in error
         else:
             assert error is None
+
+    @pytest.mark.parametrize(
+        "encoded_kwargs",
+        [
+            pytest.param(
+                {
+                    "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 3600.0},
+                    "pair": {"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1, 2]},
+                    "plain": {"nested": [1, "two"]},
+                },
+                id="current",
+            ),
+            pytest.param(
+                {
+                    "interval": {"__type": "timedelta", "__var": 3600.0},
+                    "pair": {"__type": "tuple", "__var": [1, 2]},
+                    "plain": {"nested": [1, "two"]},
+                },
+                id="legacy",
+            ),
+        ],
+    )
+    def test_execute_callback_decodes_serde_encoded_kwargs(self, encoded_kwargs):
+        context = {"dag_run": {"dag_id": "test_dag"}, "deadline": {"id": "1"}}
+
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs={**encoded_kwargs, "context": context},
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+            callback_kwargs_encoding="serde",
+        )
+
+        assert (success, error) == (True, None)
+        assert received_kwargs == {
+            "interval": timedelta(hours=1),
+            "pair": (1, 2),
+            "plain": {"nested": [1, "two"]},
+            "context": context,
+        }
+
+    def test_execute_callback_passes_kwargs_as_is_without_encoding(self):
+        kwargs = {
+            "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 3600.0},
+            "plain": {"nested": [1, "two"]},
+        }
+
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs=kwargs,
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+        )
+
+        assert (success, error) == (True, None)
+        assert received_kwargs == kwargs
+
+    def test_execute_callback_fails_on_unsupported_kwargs_encoding(self):
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs={"arg1": "value1"},
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+            callback_kwargs_encoding="unknown",
+        )
+
+        assert success is False
+        assert "Unsupported callback kwargs encoding" in error
 
 
 class TestCallbackHandleRequest:
@@ -485,9 +566,10 @@ class TestCallbackSubprocessStart:
                 "bundle_path": bundle_path,
             }
 
-    def test_execute_callback_receives_correct_parameters(self, base_start_kwargs):
+    @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
+    def test_execute_callback_receives_correct_parameters(self, base_start_kwargs, callback_kwargs_encoding):
         """Test that execute_callback receives the correct parameters."""
-        CallbackSubprocess.start(**base_start_kwargs)
+        CallbackSubprocess.start(**base_start_kwargs, callback_kwargs_encoding=callback_kwargs_encoding)
         self.mock_super_start.call_args.kwargs["target"]()
 
         self.mock_super_start.assert_called_with(
@@ -500,6 +582,7 @@ class TestCallbackSubprocessStart:
             callback_path=base_start_kwargs["callback_path"],
             dag_rel_path=base_start_kwargs["dag_rel_path"],
             log=ANY,
+            callback_kwargs_encoding=callback_kwargs_encoding,
         )
 
     def test_execute_callback_with_bundle_info_should_pass_correct_parameters(
@@ -529,6 +612,7 @@ class TestCallbackSubprocessStart:
             callback_path=adjusted_kwargs["callback_path"],
             dag_rel_path=adjusted_kwargs["dag_rel_path"],
             log=ANY,
+            callback_kwargs_encoding=None,
         )
 
     def test_callback_supervisor_with_bundle_info_should_adjust_sys_path(
@@ -565,6 +649,20 @@ class TestCallbackSubprocessStart:
             CallbackSubprocess.start(**base_start_kwargs)
 
         assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
+
+    def test_start_imports_task_runner_before_forking(self, base_start_kwargs):
+        """The callback child is forked from this process, so it inherits a task runner imported here."""
+        calls = []
+        self.mock_super_start.side_effect = lambda **kwargs: calls.append("fork")
+
+        with patch(
+            "airflow.sdk.execution_time.callback_supervisor._import_task_runner_before_fork",
+            autospec=True,
+            side_effect=lambda: calls.append("import task runner"),
+        ):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert calls == ["import task runner", "fork"]
 
 
 class TestSuperviseCallbackExchangesTokenFirst:
@@ -608,3 +706,22 @@ class TestSuperviseCallbackExchangesTokenFirst:
             self._supervise(client)
 
         mock_start.assert_not_called()
+
+    @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_kwargs_encoding_is_passed_to_the_subprocess(
+        self, mock_start, _nondumpable, callback_kwargs_encoding
+    ):
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            callback_kwargs_encoding=callback_kwargs_encoding,
+            client=Mock(),
+        )
+
+        assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding

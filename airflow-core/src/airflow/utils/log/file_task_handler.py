@@ -38,17 +38,16 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
     from requests import Response
+    from sqlalchemy.orm import Session
 
     from airflow._shared.logging.remote import (
         LogMessages,
@@ -515,41 +514,12 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    @provide_session
-    def _render_filename(self, ti: TaskInstance, try_number: int, *, session=NEW_SESSION) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int, *, session: Session | None = None) -> str:
         """Return the worker log filename."""
-        dag_run = ti.get_dagrun(session=session)
+        from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 
-        date = dag_run.logical_date or dag_run.run_after
-        formatted_date = date.isoformat()
-
-        template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
-        if jinja_tpl:
-            return render_template(
-                jinja_tpl, {"ti": ti, "ts": formatted_date, "try_number": try_number}, native=False
-            )
-
-        if str_tpl:
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            return str_tpl.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                logical_date=formatted_date,
-                try_number=try_number,
-            )
-        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        context = prepare_task_log_contexts([ti], session=session)[ti.id]
+        return render_task_log_filename(ti, try_number, context=context)
 
     def _get_executor(self, ti: TaskInstance) -> BaseExecutor:
         """
@@ -561,13 +531,24 @@ class FileTaskHandler(logging.Handler):
         :return: executor of the task instance
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
-        executor = self.executor_instances.get(executor_name)
+        team_name = None
+        if conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(ti.dag_id)
+        # A team's executor has its own config, such as the cluster its pods run on.
+        cache_key = f"{team_name}:{executor_name}" if team_name else executor_name
+        executor = self.executor_instances.get(cache_key)
         if executor is None:
-            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+            if team_name:
+                executor = ExecutorLoader.load_executor(
+                    ExecutorLoader.resolve_executor_name(ti.executor, team_name)
+                )
+            elif executor_name == self.DEFAULT_EXECUTOR_KEY:
                 executor = ExecutorLoader.get_default_executor()
             else:
                 executor = ExecutorLoader.load_executor(executor_name)
-            self.executor_instances[executor_name] = executor
+            self.executor_instances[cache_key] = executor
 
         return executor
 
