@@ -1,0 +1,1 @@
+Serialize the timetable a Go Dag's ``schedule`` asks for. The Go SDK now honours ``[scheduler] create_cron_data_intervals`` and takes the Dag timezone from ``start_date`` instead of always writing ``UTC``, so a Go Dag and the equivalent Python Dag schedule the same way.
