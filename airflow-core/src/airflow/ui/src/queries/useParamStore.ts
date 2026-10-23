@@ -24,6 +24,7 @@ export const paramPlaceholder: ParamSpec = {
   description: null,
   schema: {
     const: undefined,
+    depends_on: undefined,
     description_md: undefined,
     enum: undefined,
     examples: undefined,
@@ -33,6 +34,7 @@ export const paramPlaceholder: ParamSpec = {
     maxLength: undefined,
     minimum: undefined,
     minLength: undefined,
+    options_map: undefined,
     section: undefined,
     title: undefined,
     type: undefined,

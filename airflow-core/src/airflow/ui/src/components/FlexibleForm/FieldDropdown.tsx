@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect } from "react";
+
 import { type SingleValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
@@ -40,13 +42,32 @@ const labelLookup = (
 
 const enumTypes = ["string", "number", "integer"];
 
+// Python str() of a string, integer, boolean or null parent value, because the serialized Dag
+// stores the keys of options_map with str()
+const getOptionKey = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "None";
+  }
+  if (typeof value === "boolean") {
+    return value ? "True" : "False";
+  }
+
+  return typeof value === "number" || typeof value === "string" ? String(value) : JSON.stringify(value);
+};
+
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
+  const { depends_on: dependsOn, options_map: optionsMap } = param.schema;
+  const enumValues =
+    dependsOn === undefined
+      ? param.schema.enum
+      : (optionsMap?.[getOptionKey(paramsDict[dependsOn]?.value)] ?? []);
+
   const options =
-    param.schema.enum?.map((value) => ({
+    enumValues?.map((value) => ({
       label: labelLookup(value, param.schema.values_display),
       value: String(value ?? NULL_STRING_VALUE),
     })) ?? [];
@@ -57,6 +78,18 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       : enumTypes.includes(typeof param.value)
         ? (options.find((opt) => opt.value === String(param.value)) ?? null)
         : null;
+
+  // A parent change can leave the value outside the new options, so clear it
+  const isStale = dependsOn !== undefined && param.value !== null && currentValue === null;
+
+  useEffect(() => {
+    const current = paramsDict[name];
+
+    if (isStale && current) {
+      setParamsDict({ ...paramsDict, [name]: { ...current, value: null } });
+      onUpdate("");
+    }
+  }, [isStale, name, onUpdate, paramsDict, setParamsDict]);
 
   const handleChange = (
     selected: SingleValue<{
@@ -70,7 +103,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       } else {
         // Map the string value back to the original typed enum value (e.g. number, string)
         // so that backend validation receives the correct type.
-        const originalValue = param.schema.enum?.find(
+        const originalValue = enumValues?.find(
           (enumVal) => String(enumVal ?? NULL_STRING_VALUE) === selected.value,
         );
 

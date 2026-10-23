@@ -82,6 +82,19 @@ class SerializedParam:
         }
 
 
+def _check_dependent_option(name: str, schema: Mapping[str, Any], values: Mapping[str, Any]) -> None:
+    """Raise if the value of a param with ``depends_on`` is not an option for the value of its parent."""
+    parent = schema.get("depends_on")
+    if parent is None or values[name] is None:
+        return
+    if parent not in values:
+        raise ParamValidationError(f"depends_on names {parent!r}, which is not a param")
+    # The serialized Dag stores the keys of options_map with str()
+    options = schema.get("options_map", {})
+    if values[name] not in options.get(str(values[parent]), []):
+        raise ParamValidationError(f"{values[name]!r} is not an option for {parent}={values[parent]!r}")
+
+
 def _coerce_param(v: Any) -> SerializedParam:
     if isinstance(v, SerializedParam):
         return v
@@ -150,7 +163,13 @@ class SerializedParamsDict(collections.abc.Mapping[str, Any]):
             except Exception as e:
                 raise ParamValidationError(f"Invalid input for param {k}: {e}") from None
 
-        return {k: _validate_one(k, v) for k, v in self.__dict.items()}
+        resolved = {k: _validate_one(k, v) for k, v in self.__dict.items()}
+        for k, v in self.__dict.items():
+            try:
+                _check_dependent_option(k, v.schema, resolved)
+            except ParamValidationError as e:
+                raise ParamValidationError(f"Invalid input for param {k}: {e}") from None
+        return resolved
 
     def dump(self) -> Mapping[str, Any]:
         """Dump the resolved values as a mapping."""

@@ -91,6 +91,7 @@ export const getHITLParamsDict = (
       description: translate("response.optionsDescription"),
       schema: {
         const: undefined,
+        depends_on: undefined,
         description_md: translate("response.optionsDescription"),
         enum: hitlDetail.options.length > 0 ? hitlDetail.options : undefined,
         examples: undefined,
@@ -100,6 +101,7 @@ export const getHITLParamsDict = (
         maxLength: undefined,
         minimum: undefined,
         minLength: undefined,
+        options_map: undefined,
         section: undefined,
         title: translate("response.optionsLabel"),
         type: hitlDetail.multiple ? "array" : "string",
@@ -149,6 +151,7 @@ export const getHITLParamsDict = (
 
       const schema: ParamSchema = {
         const: undefined,
+        depends_on: undefined,
         description_md: "",
         enum: undefined,
         examples: undefined,
@@ -158,6 +161,7 @@ export const getHITLParamsDict = (
         maxLength: undefined,
         minimum: undefined,
         minLength: undefined,
+        options_map: undefined,
         section: undefined,
         title: key,
         type: valueType,
