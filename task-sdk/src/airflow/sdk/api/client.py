@@ -1422,8 +1422,7 @@ class Client(httpx2.Client):
 def _has_json_body(response: httpx2.Response) -> bool:
     """Check whether a response declares a JSON body."""
     # Kept in sync with airflowctl.api.operations._has_json_body.
-    # Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy that
-    # rewrites "application/json" into "application/json; charset=utf-8" must not defeat the check.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
     media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
     return media_type == "application/json" or media_type.endswith("+json")
 
