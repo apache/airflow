@@ -30,6 +30,10 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
+    from docx.oxml.exceptions import InvalidXmlError
+    from docx.table import Table, _Cell
+    from docx.text.paragraph import Paragraph
+
     from airflow.sdk import Context
 
 
@@ -297,13 +301,13 @@ class DocumentLoaderOperator(BaseOperator):
     def _parse_bytes(self, raw: bytes, file_type: str) -> list[dict[str, Any]]:
         ext = file_type if file_type.startswith(".") else f".{file_type}"
         backend = self._resolve_backend(ext)
+        source_hint = f"<bytes:{ext}>"
 
         if backend == "pypdf":
             return self._parse_pdf_stream(io.BytesIO(raw))
         if backend == "python-docx":
-            return self._parse_docx_stream(io.BytesIO(raw))
+            return self._parse_docx_stream(io.BytesIO(raw), source_hint=source_hint)
 
-        source_hint = f"<bytes:{ext}>"
         text = self._decode(raw, source_hint=source_hint)
         if backend == "csv":
             return self._parse_csv_text(text)
@@ -329,7 +333,7 @@ class DocumentLoaderOperator(BaseOperator):
                 return self._parse_pdf_stream(fh)
         if backend == "python-docx":
             with file_path.open("rb") as fh:
-                return self._parse_docx_stream(fh)
+                return self._parse_docx_stream(fh, source_hint=str(file_path))
 
         raise ValueError(f"No parser found for backend '{backend}'.")
 
@@ -450,21 +454,123 @@ class DocumentLoaderOperator(BaseOperator):
                 documents.append({"text": text, "metadata": {"page_number": page_num + 1}})
         return documents
 
-    def _parse_docx_stream(self, stream: BinaryIO) -> list[dict[str, Any]]:
+    def _parse_docx_stream(self, stream: BinaryIO, *, source_hint: str) -> list[dict[str, Any]]:
         """
-        Parse a DOCX stream into documents.
+        Parse a DOCX stream into a single document.
 
-        Extracts paragraph text only. Tables, headers, footers, and footnotes
-        are not included. For richer DOCX parsing, plug in a dedicated
-        extraction tool (``Unstructured``, ``docling``) as a custom parser
-        backend.
+        Paragraphs and tables in the document body are extracted in document
+        order. Each table row becomes one "| cell | cell |" line, and a nested
+        table is flattened into its cell. Headers, footers, footnotes, content
+        controls, text boxes, and pending tracked insertions are not included.
         """
         try:
             from docx import Document
+            from docx.oxml.exceptions import InvalidXmlError
+            from docx.table import Table
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
 
         doc = Document(stream)
-        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-        text = "\n\n".join(paragraphs)
+        blocks = []
+        for block in doc.iter_inner_content():
+            if isinstance(block, Table):
+                rows = self._get_docx_table_rows_or_none(
+                    block, Table, InvalidXmlError, source_hint=source_hint
+                )
+                if rows is None:
+                    continue
+                text = "\n".join(f"| {' | '.join(cells)} |" for cells in rows)
+            else:
+                text = block.text
+            if text.strip():
+                blocks.append(text)
+        text = "\n\n".join(blocks)
         return [{"text": text, "metadata": {}}]
+
+    def _get_docx_table_rows_or_none(
+        self,
+        table: Table,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> list[list[str]] | None:
+        try:
+            return self._get_docx_table_rows(table, table_cls, invalid_xml_error_cls, source_hint=source_hint)
+        except (ValueError, invalid_xml_error_cls, RecursionError) as e:
+            # Malformed table XML raises ValueError (a vMerge with no cell above, or a gridSpan
+            # that does not fit the table) or InvalidXmlError (a missing required attribute).
+            # python-docx walks vertical merges up recursively, so one spanning about 1000 rows
+            # raises RecursionError.
+            self.log.warning("Skipping a table in %s that python-docx could not read: %r", source_hint, e)
+            return None
+
+    def _get_docx_table_rows(
+        self,
+        table: Table,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> list[list[str]]:
+        # w:gridBefore and w:gridAfter come straight from the XML and can be any integer, so the
+        # empty cells added for them only fill the row up to the column count.
+        column_count = len(table.columns)
+
+        rows = []
+        for row in table.rows:
+            # row.cells yields a cell once for every grid column its w:gridSpan covers, all at
+            # once: spans that add up to more than the table width are built in full, and a span
+            # below 1 drops the cell and its text. Both are rejected before row.cells is read.
+            spanned_columns = 0
+            for index, tc in enumerate(row._tr.tc_lst, start=1):
+                spanned_columns += tc.grid_span
+                if tc.grid_span < 1 or spanned_columns > column_count:
+                    raise ValueError(
+                        f"w:gridSpan {tc.grid_span} of cell {index} does not fit the {column_count} table columns"
+                    )
+            cells: list[str] = []
+            previous_cell = None
+            for cell in row.cells:
+                # python-docx repeats the same _Cell object for every grid column a horizontal
+                # merge spans: keep its text once and leave the other columns empty so later
+                # cells stay under their headers. A vertical merge repeats on each row it spans.
+                if cell is previous_cell:
+                    cells.append("")
+                    continue
+                previous_cell = cell
+                cells.append(
+                    self._get_docx_cell_text(cell, table_cls, invalid_xml_error_cls, source_hint=source_hint)
+                )
+            free_columns = max(0, column_count - len(cells))
+            grid_before = max(0, min(row.grid_cols_before, free_columns))
+            grid_after = max(0, min(row.grid_cols_after, free_columns - grid_before))
+            cells = [""] * grid_before + cells + [""] * grid_after
+            if any(cells):
+                rows.append(cells)
+        return rows
+
+    def _get_docx_cell_text(
+        self,
+        cell: _Cell,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> str:
+        parts = []
+        for item in cell.iter_inner_content():
+            if isinstance(item, table_cls):
+                rows = self._get_docx_table_rows_or_none(
+                    item, table_cls, invalid_xml_error_cls, source_hint=source_hint
+                )
+                if rows is None:
+                    continue
+                text = "; ".join(" / ".join(cells) for cells in rows)
+            else:
+                if TYPE_CHECKING:
+                    assert isinstance(item, Paragraph)
+                text = " ".join(item.text.split())
+            if text:
+                parts.append(text)
+        return " ".join(parts)
