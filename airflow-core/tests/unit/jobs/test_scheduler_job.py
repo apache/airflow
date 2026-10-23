@@ -39,6 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
+from pydantic import TypeAdapter
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
@@ -73,6 +74,7 @@ from airflow.jobs.scheduler_job_runner import (
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
 )
+from airflow.jobs.triggerer_job_runner import ToTriggerSupervisor, messages
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetActive,
@@ -161,6 +163,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
@@ -13681,6 +13684,74 @@ def _produce_and_register_asset_event(
     assert apdr.partition_key == expected_partition_key
 
     return apdr
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("temporal", [False, True])
+@pytest.mark.parametrize("event_kind", ["plain", "asset", "partitioned"])
+def test_watcher_event_creates_partitioned_consumer_run(dag_maker, session, temporal, event_kind):
+    asset = Asset(name="watcher-partitioned-asset")
+    dag_id = "watcher-partitioned-consumer"
+    with dag_maker(
+        dag_id=dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=StartOfDayMapper() if temporal else IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="consume")
+    ordinary_dag_id = "watcher-ordinary-consumer"
+    with dag_maker(dag_id=ordinary_dag_id, schedule=asset, session=session):
+        EmptyOperator(task_id="consume")
+    session.commit()
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.name == asset.name))
+    asset_model.add_trigger(trigger, "partition-watcher")
+    session.flush()
+    key = "2026-10-16T12:00:00"
+    payload = {"type": "AssetTriggerEvent", "partition_key": key}
+    event: TriggerEvent
+    if event_kind == "plain":
+        event = TriggerEvent(payload)
+    else:
+        event = AssetTriggerEvent(payload, partition_key=key if event_kind == "partitioned" else None)
+    adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(events=[(trigger.id, event, 7)])
+    decoded = adapter.validate_json(adapter.dump_json(changes))
+    Trigger.submit_event(trigger.id, decoded.events[0].event, session=session)
+    session.flush()
+
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset_model.id))
+    partitioned = event_kind == "partitioned"
+    assert asset_event.partition_key == (key if partitioned else None)
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
+    ordinary_candidate = session.scalar(
+        select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == ordinary_dag_id)
+    )
+    assert (ordinary_candidate is not None) is not partitioned
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == (
+        {dag_id} if partitioned else set()
+    )
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
+    assert len(runs) == int(partitioned)
+    if partitioned:
+        [run] = runs
+        assert run.partition_key == ("2026-10-16" if temporal else key)
+        assert run.logical_date is None
+        assert run.state == DagRunState.QUEUED
+        assert [event.id for event in run.consumed_asset_events] == [asset_event.id]
+        if temporal:
+            assert run.partition_date == pendulum.datetime(2026, 10, 16, tz="UTC")
+        else:
+            assert run.partition_date is None
 
 
 @pytest.mark.need_serialized_dag

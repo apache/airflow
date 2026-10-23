@@ -36,7 +36,7 @@ from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
-from airflow.triggers.base import BaseTaskEndEvent
+from airflow.triggers.base import AssetTriggerEvent, BaseTaskEndEvent
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -318,6 +318,7 @@ class Trigger(Base):
             AssetManager.register_asset_change(
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
+                partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
             )
         if trigger.callback:

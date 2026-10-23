@@ -106,12 +106,21 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     ToSupervisor,
     ToTask,
+    _new_encoder,
     _RequestFrame,
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.base import (
+    AssetTriggerEvent,
+    BaseEventTrigger,
+    BaseTrigger,
+    TaskFailedEvent,
+    TaskSkippedEvent,
+    TaskSuccessEvent,
+    TriggerEvent,
+)
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -3673,10 +3682,41 @@ def test_trigger_state_messages_round_trip_with_seqs():
     assert decoded_sync.to_cancel == {5}
 
 
-def test_handle_events_records_persist_confirmations(jobless_supervisor):
+@pytest.mark.parametrize("persist_seq", [None, 7])
+@pytest.mark.parametrize("wire_format", ["json", "msgpack"])
+@pytest.mark.parametrize(
+    "event",
+    [
+        AssetTriggerEvent({"changed": True}, partition_key="2026-10-16"),
+        AssetTriggerEvent(True),
+        TriggerEvent({"type": "AssetTriggerEvent", "partition_key": "payload-only"}),
+        TaskSuccessEvent(),
+        TaskFailedEvent(),
+        TaskSkippedEvent(),
+    ],
+)
+def test_asset_trigger_event_state_message_round_trip(persist_seq, wire_format, event):
+    adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(type="TriggerStateChanges", events=[(1, event, persist_seq)])
+
+    if wire_format == "json":
+        decoded = adapter.validate_json(adapter.dump_json(changes))
+    else:
+        decoded = adapter.validate_python(msgspec.msgpack.decode(_new_encoder().encode(changes)))
+
+    assert isinstance(decoded, messages.TriggerStateChanges)
+    assert decoded.events is not None
+    assert decoded.events[0].event == event
+    assert type(decoded.events[0].event) is type(event)
+    assert decoded.events[0].event.payload == event.payload
+    assert decoded.events[0].persist_seq == persist_seq
+
+
+@pytest.mark.parametrize("event_class", [TriggerEvent, AssetTriggerEvent])
+def test_handle_events_records_persist_confirmations(jobless_supervisor, event_class):
     """handle_events confirms the seq of a persisted event; events without a seq are not confirmed."""
-    event_with_seq = TriggerEvent(True)
-    event_without_seq = TriggerEvent("x")
+    event_with_seq = event_class(True)
+    event_without_seq = event_class("x")
     jobless_supervisor.events.append(TriggerEventEntry(1, event_with_seq, 7))
     jobless_supervisor.events.append(TriggerEventEntry(2, event_without_seq, None))
 
