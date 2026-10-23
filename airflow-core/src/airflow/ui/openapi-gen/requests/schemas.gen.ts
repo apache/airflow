@@ -985,6 +985,7 @@ export const $BackfillPostBody = {
         },
         max_active_runs: {
             type: 'integer',
+            minimum: 1,
             title: 'Max Active Runs',
             default: 10
         },
@@ -7005,6 +7006,126 @@ export const $PluginImportErrorResponse = {
     description: 'Plugin Import Error serializer for responses.'
 } as const;
 
+export const $PluginLinkActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'link',
+            title: 'Action Type'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'href'],
+    title: 'PluginLinkActionResponse',
+    description: 'Serializer for a UI action that opens a URL.'
+} as const;
+
+export const $PluginReactActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'react',
+            title: 'Action Type'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'bundle_url'],
+    title: 'PluginReactActionResponse',
+    description: 'Serializer for a UI action that mounts a React component behind a button.'
+} as const;
+
 export const $PluginResponse = {
     properties: {
         name: {
@@ -7064,6 +7185,28 @@ export const $PluginResponse = {
             },
             type: 'array',
             title: 'React Apps'
+        },
+        ui_actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/PluginLinkActionResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/PluginReactActionResponse'
+                    }
+                ],
+                discriminator: {
+                    propertyName: 'action_type',
+                    mapping: {
+                        link: '#/components/schemas/PluginLinkActionResponse',
+                        react: '#/components/schemas/PluginReactActionResponse'
+                    }
+                }
+            },
+            type: 'array',
+            title: 'Ui Actions',
+            description: 'User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.'
         },
         appbuilder_views: {
             items: {

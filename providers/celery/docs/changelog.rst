@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for forwarding CeleryExecutor task logs to stdout (#69597)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery result backend compatibility with PgBouncer (#74841)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.25.0
 ......
 

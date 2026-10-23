@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+15.3.0
+......
+
+.. note::
+
+    ``PowerBIDatasetRefreshOperator`` now starts refreshes on the worker, so workers need access
+    to the Power BI service. On Airflow 3.3 and later it resumes an existing refresh by default.
+    Set ``durable=False`` to submit a fresh refresh on each retry and cancel refreshes after
+    polling errors. ``MSGraphAsyncOperator`` recovery is opt-in with ``durable=True``.
+
+Features
+~~~~~~~~
+
+* ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675)``
+* ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
+
+Misc
+~~~~
+
+* ``Require azure-keyvault-secrets 4.11.0 or newer (#73822)``
+* ``Accept optional task instances in Azure Blob remote-log type hints (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 15.2.1
 ......
 

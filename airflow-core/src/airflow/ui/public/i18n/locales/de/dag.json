@@ -40,7 +40,7 @@
     "callback_one": "Callback",
     "callback_other": "Callbacks",
     "columns": {
-      "alertName": "Alarmname",
+      "alertName": "Frist-Alarm",
       "callback": "Callback",
       "deadlineTime": "Fristablauf",
       "missedBy": "Verspätung",
