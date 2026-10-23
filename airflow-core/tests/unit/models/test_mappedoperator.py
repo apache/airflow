@@ -1960,12 +1960,10 @@ def test_short_circuit_skips_later_tasks_in_task_group_mapped_over_upstream_outp
     "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
 )
 def test_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker, trigger_rule):
-    """Regression test for #39801 and its ``ALL_DONE_MIN_ONE_SUCCESS`` counterpart.
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped task group runs once its in-group upstream succeeds.
 
-    A task with a ``*_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
-    expanded task group must expand and run once its upstream (also inside the group)
-    succeeds, instead of being skipped or marked upstream_failed prematurely at its
-    unexpanded (map_index -1) summary ti.
+    It must not be skipped or marked upstream_failed prematurely at its unexpanded
+    (map_index -1) summary ti.
     """
     with dag_maker(dag_id=f"test_{trigger_rule.value}_in_mapped_task_group") as dag:
 
@@ -2042,34 +2040,57 @@ def test_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker, tr
 
 
 @pytest.mark.parametrize(
-    ("upstream_outcome", "expected_state"),
-    [("skip", "skipped"), ("fail", "upstream_failed")],
+    ("trigger_rule", "outside_outcome", "inner_outcome", "expected_state"),
+    [
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "skip", "skipped"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, "fail", "success", "success"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, "skip", "fail", "upstream_failed"),
+    ],
 )
-def test_all_done_min_one_success_decides_per_index_in_mapped_task_group(
-    dag_maker, upstream_outcome, expected_state
+def test_min_one_success_decides_per_index_in_mapped_task_group(
+    dag_maker, trigger_rule, outside_outcome, inner_outcome, expected_state
 ):
-    """An ``ALL_DONE_MIN_ONE_SUCCESS`` task in a mapped group is evaluated per expanded index."""
-    with dag_maker(dag_id=f"test_all_done_min_one_success_upstream_{upstream_outcome}") as dag:
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped group is evaluated per expanded index.
+
+    The middle index of its in-group upstream ends with ``inner_outcome``; an optional
+    upstream outside the group ends with ``outside_outcome``.
+    """
+    with dag_maker(
+        dag_id=f"test_{trigger_rule.value}_outside_{outside_outcome}_inner_{inner_outcome}"
+    ) as dag:
 
         @task
         def init():
             return ["seize", "the", "day"]
+
+        @task
+        def outside():
+            if outside_outcome == "skip":
+                raise AirflowSkipException
+            raise ValueError("boom")
+
+        outside_task = outside() if outside_outcome else None
 
         @task_group(group_id="tg")
         def tg(message):
             @task
             def imsleepy(message):
                 if message == "the":
-                    if upstream_outcome == "skip":
+                    if inner_outcome == "skip":
                         raise AirflowSkipException
-                    raise ValueError("boom")
+                    if inner_outcome == "fail":
+                        raise ValueError("boom")
                 return message
 
-            @task(trigger_rule=TriggerRule.ALL_DONE_MIN_ONE_SUCCESS)
+            @task(trigger_rule=trigger_rule)
             def imawake(message):
                 pass
 
-            imawake(imsleepy(message))
+            awake = imawake(imsleepy(message))
+            if outside_task is not None:
+                outside_task >> awake
 
         tg.expand(message=init())
 
