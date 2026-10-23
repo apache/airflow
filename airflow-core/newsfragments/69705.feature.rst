@@ -1,0 +1,1 @@
+Add ``JitteredCronTimetable``, a ``CronTriggerTimetable`` that offsets each Dag's fire time by a deterministic, per-Dag jitter to spread out Dags sharing a cron expression.
