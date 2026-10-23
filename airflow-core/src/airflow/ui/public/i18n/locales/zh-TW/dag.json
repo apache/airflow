@@ -348,6 +348,10 @@
       "changed": "變更",
       "removed": "移除"
     },
+    "pathOccurrences_one": "1 項變更共用此路徑",
+    "pathOccurrences_other": "{{count, number}} 項變更共用此路徑",
+    "pathOccurrencesAtLeast_one": "至少 1 項變更共用此路徑",
+    "pathOccurrencesAtLeast_other": "至少 {{count, number}} 項變更共用此路徑",
     "record_one": "記錄",
     "record_other": "記錄",
     "schemaChange": "序列化 Schema {{baseSchema}} → {{targetSchema}}",

@@ -1,5 +1,5 @@
 {
-  "allMapIndexes": "Alle Indexe",
+  "allMapIndexes": "Alle Planungs-Indizes",
   "allRuns": "Alle Läufe",
   "blockingDeps": {
     "dependency": "Abhängigkeiten",
@@ -42,9 +42,9 @@
     "columns": {
       "alertName": "Frist-Alarm",
       "callback": "Callback",
-      "deadlineTime": "Frist Zeit",
-      "missedBy": "Verpasst um",
-      "type": "Art"
+      "deadlineTime": "Fristablauf",
+      "missedBy": "Verspätung",
+      "type": "Typ"
     },
     "types": {
       "executor": "Synchron",
@@ -335,9 +335,9 @@
       "unknown": "Unbekannt"
     },
     "limitReached": {
-      "description": "Es gibt mehr Änderungen als die Begrenzung zulässt. Entferne die Begrenzung, um die restlichen zu sehen.",
-      "descriptionDefault": "Es gibt mehr Änderungen als die Begrenzung erlaubt. Setze das Maimum herauf, um mehr zu sehen.",
-      "title": "Zeige nur die ersten {{limit, number}} Änderungen"
+      "description": "Es gibt mehr Änderungen, als der Grenzwert für maximale Änderungen zulässt. Erhöhen Sie den Grenzwert, um die übrigen anzuzeigen.",
+      "descriptionDefault": "Es gibt mehr Änderungen, als der Standardgrenzwert zulässt. Legen Sie einen höheren Wert für maximale Änderungen fest, um die übrigen anzuzeigen.",
+      "title": "Es werden nur die ersten {{limit, number}} Änderungen angezeigt"
     },
     "maxChanges": "Maximale Änderungen",
     "maxChangesDefault": "Standard",
@@ -354,7 +354,7 @@
     "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
     "summary_one": "{{count, number}} Änderung",
     "summary_other": "{{count, number}} Änderungen",
-    "summaryAtLeast_one": "Mindestens {{count, number}} Änderungen",
+    "summaryAtLeast_one": "Mindestens {{count, number}} Änderung",
     "summaryAtLeast_other": "Mindestens {{count, number}} Änderungen",
     "target": "Vergleichen mit",
     "unavailable": {

@@ -40,10 +40,16 @@ from airflow.providers.amazon.aws.operators.ecs import (
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.amazon.version_compat import NOTSET
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSkipException,
+    TaskDeferred,
+)
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
+TASK_ARN = "arn:aws:ecs:us-east-1:123456789012:task/probe/00000000000000000000000000000001"
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
 TASK_ID = "d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"
@@ -664,6 +670,52 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         with pytest.raises(AirflowException) as ctx:
             self.ecs._check_success_task()
         assert type(ctx.value) is AirflowException
+
+    @pytest.mark.parametrize(
+        ("fail_codes", "skip_codes", "exit_codes", "expected"),
+        [
+            pytest.param(2, None, [2], AirflowFailException, id="int_match"),
+            pytest.param([2, 3], None, [3], AirflowFailException, id="list_match"),
+            pytest.param(2, None, [1], AirflowException, id="unmatched_code"),
+            pytest.param(1, None, [None], AirflowException, id="missing_exit_code"),
+            pytest.param(2, 2, [2], AirflowFailException, id="fail_over_skip"),
+            pytest.param(2, 3, [3, 2], AirflowFailException, id="later_container_over_skip"),
+        ],
+    )
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_fail_on_exit_code(
+        self, client_mock, fail_codes, skip_codes, exit_codes, expected
+    ):
+        self.set_up_operator(fail_on_exit_code=fail_codes, skip_on_exit_code=skip_codes)
+        self.ecs.arn = "arn"
+        containers = [
+            {"lastStatus": "STOPPED", **({"exitCode": code} if code is not None else {})}
+            for code in exit_codes
+        ]
+        client_mock.describe_tasks.return_value = {"tasks": [{"containers": containers}]}
+
+        with pytest.raises(expected) as raised:
+            self.ecs._check_success_task()
+
+        assert type(raised.value) is expected
+        client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_fail_on_exit_code_preserves_log_tail(self, client_mock):
+        self.set_up_operator(fail_on_exit_code=2)
+        self.ecs.arn = "arn"
+        self.ecs.task_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
+        self.ecs.task_log_fetcher.get_last_log_messages.return_value = ["COPY_PROBE_123"]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"lastStatus": "STOPPED", "exitCode": 2}]}]
+        }
+
+        with pytest.raises(AirflowFailException, match="COPY_PROBE_123"):
+            self.ecs._check_success_task()
+
+        self.ecs.task_log_fetcher.get_last_log_messages.assert_called_once_with(
+            self.ecs.number_logs_exception
+        )
 
     @pytest.mark.parametrize(
         ("launch_type", "tags"),
