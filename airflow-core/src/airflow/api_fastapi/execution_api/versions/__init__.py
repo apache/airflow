@@ -71,10 +71,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
     AddPreviousIterationToXComFilterParams,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddDagProcessorJobEndpoints
+from airflow.api_fastapi.execution_api.versions.v2027_02_28_xcom_params import AddRegionToXComFilterParams
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2027-02-28", AddDagProcessorJobEndpoints),
+    Version("2027-02-28", AddDagProcessorJobEndpoints, AddRegionToXComFilterParams),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,

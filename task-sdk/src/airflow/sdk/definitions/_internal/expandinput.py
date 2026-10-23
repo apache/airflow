@@ -17,20 +17,24 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence, Sized
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+import asyncio
+import math
+from abc import ABC, abstractmethod
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence, Sized
+from functools import partial
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, Union
 
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-
-ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
@@ -39,6 +43,153 @@ OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, 
 # The single argument of expand_kwargs() can be an XComArg, or a list with each
 # element being either an XComArg or a dict.
 OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
+
+
+class Resolved(NamedTuple):
+    """
+    An expand input resolved for iteration: its item count and an async read by index.
+
+    The ``.iterate()`` counterpart of ``ExpandInput.resolve``, which hands one mapped task
+    instance the item at its ``map_index``: every source is pulled once, and ``aget(index)`` then
+    picks the item an index maps to the way ``resolve`` does for ``.expand()`` (the cross product
+    of ``iterate(**kwargs)``, the mapping at that position for ``iterate_kwargs``). Reads run on
+    the task's event loop next to the indexed tasks' own SDK calls, so nothing here may block the loop
+    thread on the supervisor channel (see ``AsyncAwareExecutor.imap_unordered``).
+    """
+
+    length: int
+    aget: Callable[[int], Awaitable[Mapping[str, Any]]]
+
+
+class Source:
+    """
+    One resolved expand argument, read by index without a blocking supervisor call on the loop.
+
+    A Mapping is read as its ``(key, value)`` pairs, matching
+    ``DictOfListsExpandInput._expand_mapped_field``. A scalar is refused, as ``.expand()`` refuses
+    it: a literal at parse time, a pushed value by :meth:`from_argument`. A value with async
+    accessors (an ``XComIterable``, a mapped upstream's ``LazyXComSequence``) is read through them.
+    Anything else may block in ``__getitem__`` (a ``.map()`` result over a lazy sequence, for
+    instance), so it is read in a worker thread.
+    """
+
+    @classmethod
+    async def from_argument(cls, argument: Any, context: Mapping[str, Any]) -> Source:
+        """Build a source from an expand argument: pull it if it is an XComArg, then make it a sequence."""
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        if isinstance(argument, XComArg):
+            argument = await argument.aresolve(context)
+            # What .expand() refuses when the upstream pushes (_push_xcom_if_needed raises for a
+            # mapped dependant) is refused here: an IterableOperator is not a MappedOperator, so
+            # iter_mapped_dependants never finds it and that check does not fire for it.
+            from airflow.sdk.definitions.mappedoperator import is_mappable_value
+            from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
+
+            if argument is None:
+                raise XComForMappingNotPushed()
+            if not is_mappable_value(argument):
+                raise UnmappableXComTypePushed(argument)
+        if isinstance(argument, Mapping):
+            return cls(list(argument.items()))
+        if isinstance(argument, (str, bytes)) or not isinstance(argument, Iterable):
+            # A literal is refused at parse time (validate_mapping_kwargs, _validate_arg_names), as
+            # .expand() refuses it, and an upstream value above; nothing else reaches this.
+            raise TypeError(f"cannot iterate over a {type(argument).__name__!r} argument")
+        if not isinstance(argument, Sequence):
+            return cls(list(argument))
+        return cls(argument)
+
+    def __init__(self, value: Sequence[Any]) -> None:
+        self.value = value
+
+    async def alen(self) -> int:
+        """Item count: the value's own async count when it has one, else ``len()`` in a worker thread."""
+        if hasattr(self.value, "alen"):
+            return await self.value.alen()
+        return await asyncio.to_thread(len, self.value)
+
+    async def aget(self, index: int) -> Any:
+        """Item at ``index``; called once per item, so in-memory containers skip the thread hop."""
+        value = self.value
+        if isinstance(value, (list, tuple, range)):
+            return value[index]
+        if hasattr(value, "aget"):
+            return await value.aget(index)
+        return await asyncio.to_thread(value.__getitem__, index)
+
+    def shared(self) -> Source:
+        """
+        Return the source to read when several indexed tasks ask for the same position.
+
+        An in-memory container is read in place at no cost, so it is its own; a lazy value, whose
+        every read is a supervisor round trip or a ``.map()`` call, shares its recent reads
+        through a :class:`SharedReadsSource`.
+        """
+        if isinstance(self.value, (list, tuple, range)):
+            return self
+        return SharedReadsSource(self.value)
+
+
+class SharedReadsSource(Source):
+    """
+    A lazy source of a cross product, which shares the read of the element its indexed tasks use now.
+
+    ``iterate()`` over several sources combines them as a cross product, the last one varying
+    fastest, and indexed tasks are started in position order: every source but the last is asked
+    for the same element over a run of consecutive positions, ``iterate(a=<1000 items>, b=<50
+    items>)`` for each element of ``a`` 50 times in a row. Keeping the last read of each source
+    reads such an element once for its whole run, so only the last source is read per position,
+    as without sharing. A bigger cache would spare the last source's reads too, but values can be
+    arbitrarily large: this one holds no more than one value per source, the one the indexed
+    tasks running now already use, and lets it go when the source moves on.
+
+    A read is started once and shared, with ``asyncio.shield`` so that an indexed task being
+    cancelled does not cancel a read others wait for; a read that fails is forgotten, so the next
+    indexed task reads it again. A ``.map()`` callable then runs once per shared read, in the
+    context of the first indexed task that asks for it.
+    """
+
+    #: How many reads a source keeps: the element its indexed tasks use now.
+    MAX_READS: ClassVar[int] = 1
+
+    def __init__(self, value: Sequence[Any]) -> None:
+        super().__init__(value)
+        self._reads: OrderedDict[int, asyncio.Future[Any]] = OrderedDict()
+
+    async def aget(self, index: int) -> Any:
+        read = self._reads.get(index)
+        if read is None:
+            read = self._reads[index] = asyncio.ensure_future(super().aget(index))
+            read.add_done_callback(partial(self._forget_failed_read, index))
+            if len(self._reads) > self.MAX_READS:
+                self._reads.popitem(last=False)
+        else:
+            self._reads.move_to_end(index)
+        return await asyncio.shield(read)
+
+    def _forget_failed_read(self, index: int, read: asyncio.Future[Any]) -> None:
+        if (read.cancelled() or read.exception() is not None) and self._reads.get(index) is read:
+            del self._reads[index]
+
+
+def compute_index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> dict[str, int]:
+    """
+    Split a cross-product position into one index per expand argument.
+
+    The arguments are combined as ``itertools.product`` combines them in the order they were
+    given, so the last one varies fastest: position 3 of ``a=[1, 2], b=[10, 20]`` is ``a[1], b[1]``.
+    Shared by ``.expand()`` (``_expand_mapped_field`` picks its task instance's ``map_index``) and
+    ``.iterate()`` (``aresolve`` reads every position), so both hand an indexed task the same item.
+    """
+    indices: dict[str, int] = {}
+    for key in reversed(list(lengths)):
+        length = lengths[key]
+        if length < 1:
+            raise RuntimeError(f"cannot expand field mapped to length {length!r}")
+        indices[key] = map_index % length
+        map_index //= length
+    return {key: indices[key] for key in lengths}
 
 
 class _NotFullyPopulated(RuntimeError):
@@ -79,6 +230,98 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+@attrs.define(slots=False)
+class ExpandInput(ABC, ResolveMixin):
+    EXPAND_INPUT_TYPE: ClassVar[str]
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The value of the expand input."""
+        ...
+
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        """
+        Resolve every index of the input for an iterated task; see :class:`Resolved`.
+
+        Implementations must not make a blocking supervisor call on the loop thread: XComArg
+        sources are pulled with ``XComArg.aresolve`` and read through :class:`Source`.
+        ``stride`` is how far apart the positions the task reads are, ``across`` for an
+        instance of a spread task: a source shares its reads only when that pays off for it.
+        """
+        raise NotImplementedError()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        raise NotImplementedError()
+
+
+@attrs.define(slots=False)
+class DecoratedExpandInput(ExpandInput):
+    """The expand input of a decorated task, whose items arrive as ``op_kwargs``."""
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
+
+    delegate: ExpandInput
+
+    @property
+    def value(self) -> Any:
+        return self.delegate.value
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return self.delegate.iter_references()
+
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        length, aget = await self.delegate.aresolve(context, stride=stride)
+
+        async def aget_op_kwargs(index: int) -> Mapping[str, Any]:
+            return {"op_kwargs": await aget(index)}
+
+        return Resolved(length, aget_op_kwargs)
+
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        return self.delegate.resolve(context)
+
+
+class SpreadExpandInput(DecoratedExpandInput):
+    """
+    ExpandInput that spreads another ExpandInput's items across ``across`` task instances.
+
+    Items are distributed round-robin — item ``i`` goes to task instance ``i % across`` — so each
+    instance ends up with roughly ``len(values) / across`` items, but they are *not* contiguous
+    chunks of the original sequence (unlike ``itertools.batched(iterable, n)``). This affects
+    mapping cardinality, NOT resolve-time behavior.
+
+    Round-robin is used instead of contiguous chunking because the scheduler fixes the number of
+    task instances before the task runs, when only ``across`` is known: contiguous chunking would
+    need ``ceil(N / across)`` instances, and ``N`` is only known once the task resolves its input.
+    Fewer than ``across`` items simply leaves the surplus task instances empty. See
+    :ref:`sdk-mapped-tasks-vs-iterable-tasks` for the full rationale.
+
+    A runtime ``across`` (``.spread(across=<XComArg>)``) is resolved by ``MappedIterableOperator``
+    before this class is built, so ``across`` is always the int the scheduler expanded the task to.
+    """
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "spread"
+
+    def __init__(self, expand_input: ExpandInput, across: int):
+        if across < 2:
+            raise ValueError(f"across must be at least 2, got {across}")
+
+        super().__init__(expand_input)
+        self.across = across
+
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        # This instance reads every across-th position, so a source helps it by sharing its reads
+        # only when one of its elements is used over more positions in a row than that.
+        length, aget = await self.delegate.aresolve(context, stride=self.across)
+        if length == 0:
+            # Every instance is skipped, as the task instances of a mapped task over an empty input
+            # are. One whose share of a non-empty input is empty is not (see IterableOperator).
+            raise AirflowSkipException("The input to iterate over is empty.")
+        indices = range(context["ti"].map_index, length, self.across)
+        return Resolved(len(indices), lambda index: aget(indices[index]))
+
+
 @attrs.define(kw_only=True)
 class MappedArgument(ResolveMixin):
     """
@@ -107,7 +350,7 @@ class MappedArgument(ResolveMixin):
 
 
 @attrs.define()
-class DictOfListsExpandInput(ResolveMixin):
+class DictOfListsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -154,20 +397,8 @@ class DictOfListsExpandInput(ResolveMixin):
         return map_lengths
 
     def _expand_mapped_field(self, key: str, value: Any, map_index: int, all_lengths: dict[str, int]) -> Any:
-        def _find_index_for_this_field(index: int) -> int:
-            # Need to use the original user input to retain argument order.
-            for mapped_key in reversed(self.value):
-                mapped_length = all_lengths[mapped_key]
-                if mapped_length < 1:
-                    raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")
-                if mapped_key == key:
-                    return index % mapped_length
-                index //= mapped_length
-            return -1
-
-        found_index = _find_index_for_this_field(map_index)
-        if found_index < 0:
-            return value
+        # Use the original user input to retain argument order.
+        found_index = compute_index_for_each_field(map_index, {k: all_lengths[k] for k in self.value})[key]
         if isinstance(value, Sequence):
             return value[found_index]
         if not isinstance(value, dict):
@@ -183,6 +414,22 @@ class DictOfListsExpandInput(ResolveMixin):
         for x in self.value.values():
             if isinstance(x, XComArg):
                 yield from x.iter_references()
+
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        sources = {key: await Source.from_argument(value, context) for key, value in self.value.items()}
+        lengths = {key: await source.alen() for key, source in sources.items()}
+        # The cross product uses an element of a source over a run of positions in a row: the
+        # product of the lengths of the sources after it. Read every stride-th position (an
+        # instance of a spread task), a source shares its reads only when that run is longer than
+        # the stride; the last source, whose run is one position, never does.
+        runs = {key: math.prod(list(lengths.values())[i + 1 :]) for i, key in enumerate(lengths)}
+        sources = {key: source.shared() if runs[key] > stride else source for key, source in sources.items()}
+
+        async def aget(index: int) -> Mapping[str, Any]:
+            positions = compute_index_for_each_field(index, lengths)
+            return {key: await source.aget(positions[key]) for key, source in sources.items()}
+
+        return Resolved(math.prod(lengths.values()), aget)
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
@@ -217,7 +464,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define()
-class ListOfDictsExpandInput(ResolveMixin):
+class ListOfDictsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -238,12 +485,32 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
+    async def aresolve(self, context: Mapping[str, Any], *, stride: int = 1) -> Resolved:
+        # A single source uses each element for one position: nothing to share, whatever the stride.
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        if isinstance(self.value, XComArg):
+            source = await Source.from_argument(self.value, context)
+        else:
+            source = Source(
+                [await item.aresolve(context) if isinstance(item, XComArg) else item for item in self.value]
+            )
+
+        async def aget(index: int) -> Mapping[str, Any]:
+            mapping = await source.aget(index)
+            if not isinstance(mapping, Mapping):
+                raise ValueError(
+                    f"iterate_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]"
+                )
+            return mapping
+
+        return Resolved(await source.alen(), aget)
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
-        if map_index < 0:
+        if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        mapping: Any = None
         if isinstance(self.value, Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, Mapping):
