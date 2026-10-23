@@ -114,8 +114,7 @@ def get_json_error(response: httpx.Response):
         # If you are updating here don't forget to update the airflow-ctl-tests
         if not response.request.extensions.get("airflowctl_suppress_error_log"):
             detail = err.response.json()
-            # A JSON error body is not necessarily an object; anything else would make
-            # dict() raise and turn a handled error into a traceback.
+            # ``extra`` needs a mapping, but a JSON error body can be any JSON value.
             log.warning("Server error ", extra=detail if isinstance(detail, dict) else {"detail": detail})
         raise err
 
