@@ -648,6 +648,31 @@ class TestFilesystemPublication:
             store.validate_source_paths(source, cache_versions_dir=cache_versions_dir)
 
 
+class TestFsyncTree:
+    @mock.patch.object(store_module, "fsync_file", autospec=True, side_effect=store_module.fsync_file)
+    def test_ignored_file_can_disappear_while_authoritative_files_are_synced(self, mock_fsync, tmp_path):
+        tree = _write_source(tmp_path / "tree")
+        manifest = tree / MANIFEST_FILE_NAME
+        manifest.write_text("{}")
+        temporary_bytecode = tree / "dags" / "__pycache__" / "example.cpython-312.pyc.123"
+        temporary_bytecode.parent.mkdir()
+        temporary_bytecode.write_bytes(b"partial bytecode")
+
+        def ignore_file(path: Path) -> bool:
+            if path != temporary_bytecode:
+                return False
+            temporary_bytecode.unlink()
+            return True
+
+        store_module.fsync_tree(tree, ignore_file=ignore_file)
+
+        assert not temporary_bytecode.exists()
+        assert mock_fsync.call_count == 2
+        mock_fsync.assert_has_calls(
+            [mock.call(manifest), mock.call(tree / "dags" / "example.py")], any_order=True
+        )
+
+
 class TestRemoveBundleTreeForcefully:
     def test_removes_read_only_tree(self, tmp_path):
         tree = tmp_path / "tree"
