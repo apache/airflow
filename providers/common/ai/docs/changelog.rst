@@ -48,6 +48,33 @@ Changelog
   ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
   :doc:`structured_output`.
 
+.. warning::
+  The following changes are breaking for code written against 1.0.0:
+
+  * ``LlamaIndexHook`` and ``LangChainHook`` (both experimental, see :doc:`stability`):
+    ``embed_model`` and ``llm_model`` are now keyword-only.
+    In 1.0.0 they were the third and fourth positional parameters (after ``llm_conn_id`` and
+    ``embed_conn_id``), and the two hooks listed them in opposite order, so positional calls silently
+    swapped meanings between the hooks. Pass them by keyword, e.g. ``LlamaIndexHook(llm_model="gpt-5")``.
+  * ``PydanticAIHook``: when a connection supplies credentials (password or host) and the provider class
+    rejects the resulting keyword arguments (``TypeError``), the hook now raises ``ValueError``. In 1.0.0
+    it logged a warning and fell back to environment-variable authentication, which could authenticate
+    as a different identity than the connection. Fix the connection fields for that provider, or remove
+    the credentials from the connection if environment-variable authentication is what you want.
+  * ``airflow.providers.common.ai.policies.retry``: importing it without the Airflow ``RetryPolicy``
+    support (Airflow older than 3.3) now raises ``AirflowOptionalProviderFeatureException`` instead of
+    ``ImportError``. It is not an ``ImportError`` subclass (it derives from ``AirflowException``), so a
+    Dag that guards the import with ``except ImportError:`` as in the 1.0.0 example Dag now fails to
+    parse on those versions. Catch both, importing the exception from
+    ``airflow.providers.common.compat.sdk`` (works on Airflow 2.11 and 3.x)::
+
+      from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+      try:
+          from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
+      except (ImportError, AirflowOptionalProviderFeatureException):
+          LLMRetryPolicy = None
+
 1.1.0
 .....
 
