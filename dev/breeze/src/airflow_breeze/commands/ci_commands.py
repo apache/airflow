@@ -1847,3 +1847,7 @@ def approve_workflow_runs(
     created_since = datetime.now(UTC) - timedelta(hours=max_run_age_hours)
     results = process_waiting_runs(api, created_since=created_since)
     write_step_summary(results, github_repository)
+    failed_prs = [result.pr_number for result in results if result.failed]
+    if failed_prs:
+        console_print(f"[error]Processing failed for PRs: {', '.join(f'#{n}' for n in failed_prs)}[/]")
+        sys.exit(1)
