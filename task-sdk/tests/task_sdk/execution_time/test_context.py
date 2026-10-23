@@ -113,6 +113,7 @@ from airflow.sdk.execution_time.context import (
     _get_connection,
     _process_connection_result_conn,
     _wrap_external_ref,
+    build_context_from_dag_run,
     context_to_airflow_vars,
     set_current_context,
 )
@@ -2960,3 +2961,52 @@ class TestMacrosAccessorTeamScoping:
 
         assert accessor.team_a_macros.team_a_macro() == "team-a"
         assert accessor.global_macros.shared_macro() == "shared"
+
+
+class TestBuildContextFromDagRun:
+    @staticmethod
+    def _dag_run(**overrides):
+        from airflow.sdk.api.datamodels._generated import DagRun
+
+        return DagRun(
+            **{
+                "dag_id": "ctx_dag",
+                "run_id": "ctx_run",
+                "logical_date": timezone.datetime(2024, 6, 15, 12, 30),
+                "data_interval_start": timezone.datetime(2024, 6, 15),
+                "data_interval_end": timezone.datetime(2024, 6, 16),
+                "run_after": timezone.datetime(2024, 6, 16),
+                "start_date": timezone.datetime(2024, 6, 15, 12, 30),
+                "end_date": None,
+                "partition_key": None,
+                "run_type": "scheduled",
+                "state": "running",
+                "consumed_asset_events": [],
+                **overrides,
+            }
+        )
+
+    def test_builds_dag_run_fields_and_deadline(self):
+        dag_run = self._dag_run()
+        deadline = {"id": "abc", "deadline_time": "2024-06-15T13:00:00+00:00"}
+
+        context = build_context_from_dag_run(dag_run, deadline=deadline)
+
+        assert context == {
+            "dag_run": dag_run,
+            "run_id": "ctx_run",
+            "logical_date": timezone.datetime(2024, 6, 15, 12, 30),
+            "ds": "2024-06-15",
+            "ds_nodash": "20240615",
+            "ts": "2024-06-15T12:30:00+00:00",
+            "ts_nodash": "20240615T123000",
+            "ts_nodash_with_tz": "20240615T123000+0000",
+            "data_interval_start": timezone.datetime(2024, 6, 15),
+            "data_interval_end": timezone.datetime(2024, 6, 16),
+            "deadline": deadline,
+        }
+
+    def test_without_logical_date(self):
+        dag_run = self._dag_run(logical_date=None, data_interval_start=None, data_interval_end=None)
+
+        assert build_context_from_dag_run(dag_run) == {"dag_run": dag_run, "run_id": "ctx_run"}

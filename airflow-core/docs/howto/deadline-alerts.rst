@@ -282,7 +282,7 @@ A **custom synchronous callback** might look like this:
     def custom_sync_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
+        print(f"Deadline exceeded for Dag {context['dag_run'].dag_id}!")
         print(f"Context: {context}")
         print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
@@ -332,7 +332,7 @@ A **custom asynchronous callback** might look like this:
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
+        print(f"Deadline exceeded for Dag {context['dag_run'].dag_id}!")
         print(f"Context: {context}")
         print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
@@ -380,12 +380,15 @@ A **custom asynchronous callback** might look like this:
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
-:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
-provided context as part of their execution. This means that templating can be used when using a Notifier
-as long as the variables being templated are included in the simplified context. This currently includes the
-ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
-response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
+The context is built when the callback runs, from the Dag run as it is at that point, and Airflow renders
+:ref:`concepts:jinja-templating` in the string ``kwargs`` of both synchronous and asynchronous callbacks with
+it. It has the Dag run fields of a task's context, such as ``dag_run``, ``run_id``, ``logical_date``, ``ds``
+and ``ts``, plus the Deadline Alert as ``deadline`` (``{{ deadline.id }}``, ``{{ deadline.deadline_time }}``).
+There are no task fields such as ``ti``, since a deadline callback is not tied to a task. A template that fails
+to render is passed to the callback as is, and a warning is written to the callback log.
+
+Notifiers render their template fields again when they run, so a rendered value that itself contains
+``{{ ... }}``, for example one taken from Dag run ``conf``, is rendered a second time.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
