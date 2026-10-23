@@ -295,9 +295,32 @@ class TestLLMSchemaCompareOperator:
             retries=None,
         )
         mock_agent.run_sync.assert_called_once_with(
-            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+            "user_prompt", usage=mock.ANY, usage_limits=None, cancellation_token=mock.ANY
         )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @mock.patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="schema_context")
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_build_schema_context, make_reporting_agent, model_name
+    ):
+        mock_agent, expected_pushes = make_reporting_agent(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good"), model_name=model_name
+        )
+        op = LLMSchemaCompareOperator(
+            task_id="test",
+            prompt="Compare",
+            llm_conn_id="llm_conn",
+            db_conn_ids=["a", "b"],
+            table_names=["t"],
+        )
+        op.llm_hook = MagicMock()
+        op.llm_hook.create_agent.return_value = mock_agent
+        ti = MagicMock(id="ti-1")
+
+        op.execute(context={"task_instance": ti})
+
+        assert {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list} == expected_pushes
 
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
@@ -414,6 +437,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
+            usage=mock.ANY,
             usage_limits=None,
             cancellation_token=mock.ANY,
         )
