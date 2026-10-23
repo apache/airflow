@@ -28,17 +28,14 @@ from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from airflow.dag_processing.bundles import base as bundle_base
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.git.hooks.git import GitHook
-from airflow.providers.git.version_compat import AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
-
-if AIRFLOW_V_3_4_PLUS:
-    from airflow.dag_processing.bundles.base import DagBundleRefreshError
 
 if TYPE_CHECKING:
     from tenacity import RetryCallState
@@ -482,8 +479,10 @@ class GitDagBundle(BaseDagBundle):
                         ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
                     )
                 except GitCommandError as e:
-                    if AIRFLOW_V_3_4_PLUS:
-                        raise DagBundleRefreshError(
+                    # Some 3.4 cores predate the refresh-error contract.
+                    refresh_error = getattr(bundle_base, "DagBundleRefreshError", None)
+                    if refresh_error is not None:
+                        raise refresh_error(
                             "Failed to fetch the Dag bundle; the previous source files are unchanged",
                             source_unchanged=True,
                         ) from e
