@@ -6074,7 +6074,7 @@ requires-dist = [
     { name = "google-cloud-dataflow-client", specifier = ">=0.13.0" },
     { name = "google-cloud-dataform", specifier = ">=0.10.0" },
     { name = "google-cloud-dataplex", specifier = ">=2.18.0" },
-    { name = "google-cloud-dataproc", specifier = ">=5.27.0" },
+    { name = "google-cloud-dataproc", specifier = ">=5.32.0" },
     { name = "google-cloud-dataproc-metastore", specifier = ">=1.22.0" },
     { name = "google-cloud-dlp", specifier = ">=3.36.0" },
     { name = "google-cloud-kms", specifier = ">=3.12.0" },
@@ -13846,7 +13846,7 @@ wheels = [
 
 [[package]]
 name = "google-cloud-dataproc"
-version = "5.31.0"
+version = "5.32.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-core", extra = ["grpc"] },
@@ -13856,9 +13856,9 @@ dependencies = [
     { name = "proto-plus" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/30/65ccd4456e0109b516593bc77b37693adf00e1f4414d96776ba1f4f8f1b3/google_cloud_dataproc-5.31.0.tar.gz", hash = "sha256:56edc831b4190abb4b3c3b951ae90ed511e1df596f0b3a96435e5c7a894b091c", size = 571674, upload-time = "2026-10-01T18:16:05.539Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/bf/03b94a6ec4ee0da35005bd43332dadcdc9e3b63f7ea79ddced76225ae3d1/google_cloud_dataproc-5.32.0.tar.gz", hash = "sha256:1d825c8df67cfa080835f421ce49b5d9d001d3fc6ddcd34d3b26230b0254fb36", size = 573408, upload-time = "2026-10-15T17:49:47.588Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/fc/a0a83efef3f6fd42bb0e072d789507d472d96d4e9cc3f628c8382fc56d02/google_cloud_dataproc-5.31.0-py3-none-any.whl", hash = "sha256:3fd0111a72fdd23b56f7cd72a828c1e740b5aec835801ff8e2971e5fe8afa69c", size = 485377, upload-time = "2026-10-01T18:09:43.127Z" },
+    { url = "https://files.pythonhosted.org/packages/da/05/e3bb00b3c35fffcce375da7fc3904ef769936615af037b3269b485e71285/google_cloud_dataproc-5.32.0-py3-none-any.whl", hash = "sha256:424fb1fd8045f00d03df14ac1569bbdad32e3726a2d5388905fbd266a525ff85", size = 487057, upload-time = "2026-10-15T17:49:17.934Z" },
 ]
 
 [[package]]
