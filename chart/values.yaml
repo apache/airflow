@@ -2944,17 +2944,17 @@ pgbouncer:
     pod: {}
     container: {}
 
-  # Container level lifecycle hooks
-  containerLifecycleHooks:
-    preStop:
-      exec:
-        # Allow existing queries clients to complete within 120 seconds
-        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+  # Container level lifecycle hooks.
+  # No preStop hook is set by default. On shutdown Kubernetes sends SIGTERM to
+  # PgBouncer, which keeps serving the clients that are already connected and
+  # exits once they have all disconnected (or when terminationGracePeriodSeconds
+  # runs out). Meanwhile the terminating pod is removed from the Service
+  # endpoints, so new connections go to the remaining pods.
+  containerLifecycleHooks: {}
 
   # Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.
-  # Matches the default preStop hook above, which needs up to 120 seconds to
-  # drain client connections; with a shorter grace period the pod is killed
-  # mid-drain and in-flight connections are cut.
+  # This is how long existing client connections have to finish before the pod
+  # is killed; with a shorter grace period in-flight connections are cut.
   terminationGracePeriodSeconds: 120
 
   metricsExporterSidecar:
