@@ -295,7 +295,7 @@ The Analytics Operator is ideal for performing efficient, high-performance analy
 
 Supported Storage Systems
 -------------------------
-- S3
+- S3 (requires ``apache-airflow-providers-amazon[datafusion]``)
 - GCS
 - Azure Blob Storage
 - Local File System
