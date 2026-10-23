@@ -1,5 +1,8 @@
 {
   "additional_data": "Extra data",
+  "alias_one": "Alias",
+  "alias_other": "Aliassen",
+  "aliases": "Aliassen",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "assetStateStore": {
@@ -13,6 +16,8 @@
     "deleteWarning": "De asset zal deze opgeslagen store-invoer verliezen.",
     "edit": "Bewerk Asset State Store",
     "emptyState": "Asset state store slaat waarden op gescoped aan een asset identiteit, gedeeld over alle Dag runs. Workers kunnen naar de Asset State Store schrijven via de Task SDK.",
+    "entry_one": "Invoer",
+    "entry_other": "Invoeren",
     "lastUpdatedBy": "Laatst bijgewerkt door",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
@@ -24,7 +29,7 @@
     "button": "Event aanmaken",
     "manual": {
       "description": "Handmatig een Asset Event aanmaken",
-      "extra": "Asset Event extra",
+      "extra": "Extra Asset Event data",
       "label": "Handmatig"
     },
     "materialize": {
@@ -42,7 +47,11 @@
     "title": "Asset Event voor {{name}} aanmaken"
   },
   "events": "Events",
-  "extra": "Extra",
+  "filters": {
+    "groupPlaceholder": "Groep zoeken",
+    "hasEvents": "Met events",
+    "lastEventDateRange": "Datum van laatste event"
+  },
   "group": "Groep",
   "lastAssetEvent": "Laatste Asset Event",
   "name": "Naam",
@@ -50,5 +59,8 @@
   "scheduledDags": "Geplande Dags",
   "scheduling": "Scheduling",
   "searchPlaceholder": "Assets zoeken",
-  "taskDependencies": "Taak afhankelijkheden"
+  "taskDependencies": "Taak afhankelijkheden",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchers",
+  "watchers": "Watchers"
 }
