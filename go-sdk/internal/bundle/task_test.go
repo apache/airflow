@@ -479,6 +479,16 @@ func (s *TaskSuite) TestPushesTheReturnValue() {
 	s.Equal([]string{"PushXCom decide return_value 7"}, client.calls)
 }
 
+func (s *TaskSuite) TestPushesNoNilPointer() {
+	task, err := NewTaskFunction(func(contexttest.Context) (*int, error) { return nil, nil })
+	s.Require().NoError(err)
+
+	client := &recordingClient{}
+	s.Require().NoError(runTask(task, client, true, false))
+
+	s.Empty(client.calls)
+}
+
 func (s *TaskSuite) TestFailsWhenItCannotPushTheReturnValue() {
 	cases := map[string]struct {
 		client  *recordingClient
