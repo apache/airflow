@@ -134,4 +134,7 @@ form.task("rollout", async ({ answer }: { answer: HITLResult }) => ({
   approvedBy: answer.respondedByUser?.name,
 }))({ answer: sized });
 
-await new Bundle(release, regions, nightly, strict, assigned, form).serve();
+/** The Dags this module declares, exported so another bundle can serve them too. */
+export const dags = [release, regions, nightly, strict, assigned, form];
+
+await new Bundle(...dags).serve();

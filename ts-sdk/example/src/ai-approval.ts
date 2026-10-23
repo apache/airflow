@@ -112,7 +112,11 @@ interface AgentStep {
   pending: { id: string; toolName: string; input: ToolCall["input"] }[];
 }
 
-const dag = new Dag("ts_hitl_ai_approval", { queue: QUEUE, tags: ["typescript", "hitl", "ai"] });
+/** Exported so another bundle can serve this Dag too. */
+export const dag = new Dag("ts_hitl_ai_approval", {
+  queue: QUEUE,
+  tags: ["typescript", "hitl", "ai"],
+});
 
 // 1. The model drafts a refund, and the tool call waits for approval instead of running.
 const agentStep = dag.task("agent_step", async (): Promise<AgentStep> => {

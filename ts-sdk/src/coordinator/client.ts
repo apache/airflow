@@ -142,7 +142,8 @@ const TASK_STATE_STORE_ABSENT_POLICY: AbsentRowPolicy = {
 // `[state_store] default_retention_days` at launch
 // (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
 const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_SECOND = 1000;
+const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND;
 
 function assertKey(key: string): void {
   if (typeof key !== "string") {
@@ -161,24 +162,25 @@ function toExpiresAt(ms: number): string {
   const at = new Date(Date.now() + ms);
   if (Number.isNaN(at.getTime()) || at.getUTCFullYear() > 9999) {
     throw new RangeError(
-      `retention of ${ms}ms overflows the wire timestamp; use NEVER_EXPIRE instead`,
+      `a retention that ends ${ms}ms from now overflows the wire timestamp; ` +
+        "use NEVER_EXPIRE instead",
     );
   }
   return at.toISOString();
 }
 
-/** Resolve `retentionMs` (or the deployment default) to a wire `expires_at`. */
-function resolveExpiresAt(retentionMs: number | typeof NEVER_EXPIRE | undefined): string | null {
-  if (retentionMs === undefined) {
+/** Resolve `retentionSeconds` (or the deployment default) to a wire `expires_at`. */
+function resolveExpiresAt(seconds: number | typeof NEVER_EXPIRE | undefined): string | null {
+  if (seconds === undefined) {
     return resolveDefaultExpiresAt();
   }
-  if (retentionMs === NEVER_EXPIRE) {
+  if (seconds === NEVER_EXPIRE) {
     return null;
   }
-  if (!Number.isFinite(retentionMs) || retentionMs < 0) {
-    throw new RangeError(`retentionMs must be >= 0 or NEVER_EXPIRE, got ${String(retentionMs)}`);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new RangeError(`retentionSeconds must be >= 0 or NEVER_EXPIRE, got ${String(seconds)}`);
   }
-  return toExpiresAt(retentionMs);
+  return toExpiresAt(seconds * MS_PER_SECOND);
 }
 
 // The coordinator always passes the setting, so an absent or malformed value is
@@ -189,8 +191,8 @@ function resolveDefaultExpiresAt(): string | null {
   if (raw === undefined) {
     throw new Error(
       `${RETENTION_DAYS_ENV_VAR} is not set, so the default retention is unknown. It carries ` +
-        "[state_store] default_retention_days to the runtime; pass retentionMs or NEVER_EXPIRE to " +
-        "set the expiry explicitly.",
+        "[state_store] default_retention_days to the runtime; pass retentionSeconds or " +
+        "NEVER_EXPIRE to set the expiry explicitly.",
     );
   }
   const days = Number(raw);
@@ -277,7 +279,7 @@ export function createCoordinatorClient(
         ti_id: tiId,
         key,
         value,
-        expires_at: resolveExpiresAt(opts.retentionMs),
+        expires_at: resolveExpiresAt(opts.retentionSeconds),
       };
       await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },

@@ -565,7 +565,7 @@ The ``TaskClient``
    * - ``setXCom({ key, value, ... })``
      - Publishes an XCom value.
    * - ``taskStateStore``
-     - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retentionMs? })``,
+     - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retentionSeconds? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
 
 .. note::
@@ -595,7 +595,7 @@ for the full concept, including the equivalent Python API.
       let jobId = await store.get<string>("job_id");
       if (jobId == null) {
         jobId = await submitSparkJob();
-        await store.set("job_id", jobId, { retentionMs: NEVER_EXPIRE });
+        await store.set("job_id", jobId, { retentionSeconds: NEVER_EXPIRE });
       }
 
       const result = await waitForSparkJob(jobId);
@@ -603,15 +603,17 @@ for the full concept, including the equivalent Python API.
       return result;
     }
 
-**Retention.** ``retentionMs`` is milliseconds to retain the key, counted from the time of the write:
+**Retention.** ``retentionSeconds`` is seconds to retain the key, counted from the time of the write.
+Every duration in this SDK is a number of seconds, ``executionTimeout`` and ``retryDelay`` included:
 
-* A number retains the key for that many milliseconds from now; ``retentionMs: 0`` expires the key
+* A number retains the key for that many seconds from now; ``retentionSeconds: 0`` expires the key
   immediately.
 * ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
   the deployment default.
-* When ``retentionMs`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``, which
-  the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the key
-  never expires. This is not the same as ``retentionMs: 0`` above, which expires the key immediately.
+* When ``retentionSeconds`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``,
+  which the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the
+  key never expires. This is not the same as ``retentionSeconds: 0`` above, which expires the key
+  immediately.
 
 **Keys** must be non-empty strings of at most 512 characters; they may contain slashes. **Values** must be
 JSON-compatible (see :ref:`typescript-sdk/types`), and can never be ``null`` — ``set`` rejects a ``null``
