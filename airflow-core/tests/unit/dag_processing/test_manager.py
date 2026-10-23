@@ -3064,7 +3064,7 @@ class TestDagFileProcessorManager:
         assert not manager._bundles_waiting_for_refresh
 
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
-        """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
+        """DB-mode persistence gets a session when the caller does not supply one."""
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         manager._file_stats[file] = DagFileStat()
@@ -3142,7 +3142,12 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_finish_time > original_stat.last_finish_time
         assert manager._file_stats[file].num_dags == 0
 
-    def test_collect_results_processes_remaining_files_when_one_persist_fails(self, session):
+    @pytest.mark.parametrize("failure", ["persist", "commit"])
+    @mock.patch("sqlalchemy.orm.Session.commit", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    def test_collect_results_processes_remaining_files_when_one_persist_fails(
+        self, mock_persist, mock_commit, session, failure
+    ):
         manager = DagFileProcessorManager(max_runs=1)
         file_a = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
         file_b = DagFileInfo(bundle_name="testing", rel_path=Path("b.py"), bundle_path=TEST_DAGS_FOLDER)
@@ -3169,13 +3174,15 @@ class TestDagFileProcessorManager:
         stat_a_before = manager._file_stats[file_a]
         stat_b_before = manager._file_stats[file_b]
 
-        with mock.patch.object(
-            manager,
-            "persist_parsing_result",
-            side_effect=[RuntimeError("boom"), None],
-        ):
-            manager._collect_results()
+        if failure == "persist":
+            mock_persist.side_effect = [RuntimeError("persist failed"), None]
+        else:
+            mock_commit.side_effect = [RuntimeError("commit failed"), None]
 
+        manager._collect_results()
+
+        assert mock_persist.call_count == 2
+        assert mock_commit.call_count == (1 if failure == "persist" else 2)
         assert manager._file_stats[file_a] is not stat_a_before
         assert manager._file_stats[file_a].num_dags == stat_a_before.num_dags
         assert manager._file_stats[file_a].import_errors == stat_a_before.import_errors
