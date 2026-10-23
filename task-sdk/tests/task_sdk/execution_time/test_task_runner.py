@@ -6901,6 +6901,53 @@ class TestRunExecuteCallable:
         task.on_kill.assert_called_once()
         mock_supervisor_comms.send.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("server_timeout", "expected_seconds"),
+        [
+            pytest.param(60.0, 60.0, id="time-left"),
+            pytest.param(None, 300.0, id="server-omitted"),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
+    def test_prefers_run_context_execution_timeout(
+        self, mock_timeout, server_timeout, expected_seconds, mock_supervisor_comms, make_ti_context
+    ):
+        """The in-process timeout uses the seconds the API server sent."""
+        task = self._make_task(execution_timeout=timedelta(minutes=5))
+        run_context = make_ti_context()
+        run_context.execution_timeout = server_timeout
+        ti = mock.Mock(spec=RuntimeTaskInstance)
+        ti._ti_context_from_server = run_context
+
+        result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task, ti=ti)
+
+        assert result == "ok"
+        mock_timeout.assert_called_once_with(expected_seconds)
+        mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
+
+    @mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
+    def test_run_context_timeout_of_zero_fails_before_the_callable(
+        self, mock_timeout, mock_supervisor_comms, make_ti_context
+    ):
+        """A server value of 0 means the timeout already elapsed, even when the task timeout has not."""
+        task = self._make_task(execution_timeout=timedelta(minutes=5))
+        run_context = make_ti_context()
+        run_context.execution_timeout = 0.0
+        ti = mock.Mock(spec=RuntimeTaskInstance)
+        ti._ti_context_from_server = run_context
+        called: list[object] = []
+
+        def execute(context):
+            called.append(context)
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task, ti=ti)
+
+        assert called == []
+        task.on_kill.assert_called_once()
+        mock_timeout.assert_not_called()
+        mock_supervisor_comms.send.assert_not_called()
+
     def test_emits_task_execute_span_at_detail_level_2(self):
         """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
         exporter = InMemorySpanExporter()

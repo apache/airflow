@@ -1198,6 +1198,65 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
 
+    @pytest.mark.parametrize(
+        ("resuming", "elapsed", "configured", "expected"),
+        [
+            pytest.param(False, timedelta(hours=3), timedelta(minutes=5), 300.0, id="not-resuming"),
+            pytest.param(True, timedelta(minutes=4), timedelta(minutes=5), 60.0, id="time-left"),
+            pytest.param(True, timedelta(minutes=-1), timedelta(minutes=5), 300.0, id="clock-ahead"),
+            pytest.param(True, timedelta(minutes=6), timedelta(minutes=5), 0.0, id="already-elapsed"),
+            pytest.param(True, timedelta(minutes=1), None, None, id="no-timeout"),
+        ],
+    )
+    def test_ti_run_returns_remaining_execution_timeout_when_resuming(
+        self, client, dag_maker, time_machine, request, resuming, elapsed, configured, expected
+    ):
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+        dag_id = f"remaining_execution_timeout_{request.node.callspec.id}"
+        with dag_maker(dag_id, serialized=True):
+            if configured is None:
+
+                @task
+                def sleeper(): ...
+
+            else:
+
+                @task(execution_timeout=configured)
+                def sleeper(): ...
+
+            sleeper()
+
+        (ti,) = dag_maker.create_dagrun().get_task_instances()
+        # set_state() writes through a short-lived session and drops unsaved columns, so update
+        # the row the run route reads.
+        dag_maker.session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(
+                state=State.QUEUED,
+                start_date=instant - elapsed,
+                **({"next_method": "execute_complete", "next_kwargs": {"event": None}} if resuming else {}),
+            )
+        )
+        dag_maker.session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("execution_timeout") == expected
+        assert ("execution_timeout" in body) == (expected is not None)
+
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""
         from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
