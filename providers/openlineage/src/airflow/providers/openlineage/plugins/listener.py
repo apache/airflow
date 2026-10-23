@@ -52,7 +52,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
-    get_stored_task_instance_position,
+    get_orm_task_instance_positions,
     get_task_documentation,
     get_task_instance_position,
     get_task_instance_run_id,
@@ -889,7 +889,7 @@ class OpenLineageListener:
             # pickler loses TaskGroup attributes and crashes event emission -- see
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
-            position = get_stored_task_instance_position(ti, session=object_session(ti))
+            position = get_orm_task_instance_positions([ti], session=object_session(ti))[ti.id]
             task_uuid = get_task_instance_run_id(ti, logical_date=date, position=position)
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,

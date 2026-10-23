@@ -23,14 +23,13 @@ It checks, for a plain task, tasks, a mapped task and a mapped task group in a l
       iteration, counted from 1, and `map_index` the mapped position, and a plain task has no `loop`
     - task's `loop`, the loop around the task: its `group_id`, `max_iterations`, `has_until`, `gate_task_id`
       and `terminal_task_id`, also for a task of a task group inside a loop, and absent for the plain task
-    - `loop.region_id`, the loop region of the iteration, shared by the tasks of one iteration, mapped ones
-      included, `loop.trajectory` 1, and no `loop.forked_from_region_id` nor `loop.resumes_from_index`, as
-      no loop is cleared
+    - `loop.region_id` is set, without comparing it between events, `loop.trajectory` is 1, and there is no
+      `loop.forked_from_region_id` nor `loop.resumes_from_index`, as no loop is cleared
     - taskInstance's `expanded_ti_count` of the mapped tasks, the size of their expansion in the iteration
     - taskInstance's `max_tries` of the tasks other than the gates, the `retries` of each task
-    - taskInstance's `id` of every event, and `region_id` and `region_index` of the tasks in a loop: the
-      `region_index` is the iteration for a task that isn't mapped and the map index for a mapped one, and a
-      plain task has neither
+    - taskInstance's `id` is set on every event, and `region_id` on the tasks in a loop, without comparing them
+      between events, and `region_index` is the iteration for a task that isn't mapped and the map index for a
+      mapped one, while a plain task has neither
     - the gates' `loop.decision`: absent on START; for the loops without `until`, `stop` true only at the last
       iteration and no `reason`; for the loop with `until` (whose gate is named after it), the `reason` it
       returns and `stop` true at the iteration it ends the loop, before `max_iterations`; absent for the plain
@@ -41,9 +40,10 @@ It checks, for a plain task, tasks, a mapped task and a mapped task group in a l
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id` in the
       `taskGroups` of the Dag's job facet, and never in the task's `task_group`: in task events, only task's
       `loop` describes the loop
-    - the job facet's `is_mapped`, `is_loop` and `parse_time_mapped_count` of each group, and for its tasks their
-      `task_group`, `loop_group`, `is_mapped`, `parse_time_mapped_count` (2 for the mapped task group expanded
-      over a literal list, unknown for the task expanded over an upstream result) and `retries`
+    - the job facet's `is_mapped`, `is_loop` and `parse_time_mapped_count` of each group, the `retries` of each
+      task but the gates, and the `task_group`, `loop_group`, `is_mapped` and `parse_time_mapped_count` (2 for
+      the mapped task group expanded over a literal list, unknown for the task expanded over an upstream result)
+      of `plain_task`, `accumulate.increment`, `process_batch.process` and `process_batch.fetch.download`
     - taskInstance's `dag_version_id` of every event
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
     - every execution (iteration, map index, try) has its own `runId`, shared by its START and COMPLETE/FAIL

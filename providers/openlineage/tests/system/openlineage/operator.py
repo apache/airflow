@@ -317,6 +317,13 @@ def check_run_id_integrity(
 
     4. one attempt of a job has one ``runId``.
 
+    For a task in a loop, i.e. with ``task.loop``, also:
+
+    5. ``runId`` is ``taskInstance.id``, as its iterations share every other coordinate;
+    6. ``taskInstance.loop.region_id`` is ``taskInstance.region_id`` for a task that isn't mapped, and another region
+       for a mapped one, whose own region is its expansion inside the loop's;
+    7. one run of a loop, i.e. its Dag run, clear and ``loop.trajectory``, has one ``loop.region_id``.
+
     Only the events passed in are checked, i.e. those of the keys listed in the expected events.
     """
     problems: list[str] = []
@@ -370,6 +377,34 @@ def check_run_id_integrity(
     for (job_name, attempt_fields), run_ids in sorted(run_ids_by_attempt.items(), key=str):
         if len(run_ids) > 1:
             problems.append(f"`{job_name}` {attempt_fields} has several runIds: {sorted(run_ids)}")
+    return problems + _check_loop_runs(groups)
+
+
+def _check_loop_runs(groups: dict[str, list[tuple[str, dict]]]) -> list[str]:
+    """Check the events of tasks in a loop, see ``check_run_id_integrity``."""
+    problems: list[str] = []
+    loop_region_ids: dict[tuple, set[str]] = defaultdict(set)
+    for run_id, members in sorted(groups.items()):
+        for key, event in members:
+            airflow_facet = ((event.get("run") or {}).get("facets") or {}).get("airflow") or {}
+            if (loop_group := ((airflow_facet.get("task") or {}).get("loop") or {}).get("group_id")) is None:
+                continue
+            task_instance = airflow_facet.get("taskInstance") or {}
+            if task_instance.get("id") not in (None, run_id):
+                problems.append(f"[{key}] runId {run_id} in loop `{loop_group}` isn't taskInstance.id")
+            loop = task_instance.get("loop") or {}
+            if (loop_region_id := loop.get("region_id")) is None:
+                continue
+            mapped = task_instance.get("map_index") is not None
+            if (loop_region_id == task_instance.get("region_id")) is mapped:
+                problem = "of a mapped task is its own region_id" if mapped else "differs from its region_id"
+                problems.append(f"[{key}] runId {run_id}: loop.region_id {problem}")
+            dag_run = airflow_facet.get("dagRun") or {}
+            run = (dag_run.get("run_id"), dag_run.get("clear_number"), loop_group, loop.get("trajectory"))
+            loop_region_ids[run].add(loop_region_id)
+    for run, region_ids in sorted(loop_region_ids.items(), key=str):
+        if len(region_ids) > 1:
+            problems.append(f"loop run {run} has several loop.region_id: {sorted(region_ids)}")
     return problems
 
 
@@ -445,6 +480,9 @@ class OpenLineageTestOperator(BaseOperator):
         check_run_ids: bool = True,
         **kwargs,
     ):
+        # Never from the Dag's default_args: a retry would hide the mismatch the first try failed on, as that try
+        # deletes the Variables it checked
+        kwargs.setdefault("retries", 0)
         super().__init__(**kwargs)
         self.event_templates = event_templates
         self.file_path = file_path

@@ -87,6 +87,11 @@ except ImportError:
         MappedOperator as SerializedMappedOperator,
     )
 
+try:
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+except ImportError:  # Airflow 2
+    from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
+
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -95,7 +100,7 @@ if TYPE_CHECKING:
 
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
-    from sqlalchemy.orm import InstanceState, Session
+    from sqlalchemy.orm import Session
 
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
@@ -1132,8 +1137,10 @@ class TaskInstanceInfo(InfoJsonEncodable):
         "dag_version_id": lambda ti: (
             str(dag_version_id) if (dag_version_id := getattr(ti, "dag_version_id", None)) else None
         ),
-        "dag_bundle_version": lambda ti: TaskInstanceInfo.get_bundle_info(ti, "version"),
-        "dag_bundle_name": lambda ti: TaskInstanceInfo.get_bundle_info(ti, "name"),
+        "dag_bundle_version": lambda ti: (
+            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        ),
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
     @staticmethod
@@ -1144,41 +1151,15 @@ class TaskInstanceInfo(InfoJsonEncodable):
             return safe_getattr(ti, "_rendered_map_index")
         return getattr(ti, "rendered_map_index", None)
 
-    @staticmethod
-    def get_bundle_info(ti: TaskInstance | RuntimeTaskInstance, key: str) -> str | None:
-        """Return the name or version of the Dag bundle the attempt runs from."""
-        if (bundle := getattr(ti, "bundle_instance", None)) is not None:  # A runtime task instance
-            return getattr(bundle, key, None)
-        if not isinstance(ti, TaskInstance):
-            return None
-        # Only for a FAIL the scheduler sends itself, e.g. for a missed heartbeat: UI and API state changes build no
-        # airflow facet, and the worker's runtime task instance has its bundle above
-        return getattr(TaskInstanceInfo.get_stored_dag_version(ti), f"bundle_{key}", None)
-
-    @staticmethod
-    def get_stored_dag_version(ti: TaskInstance) -> Any:
-        """Return the Dag version of a stored task instance, or None when it can't be read, as on Airflow 2."""
-        from sqlalchemy import inspect
-
-        try:
-            state: InstanceState = inspect(ti)
-            if "dag_version" not in state.unloaded or state.session is None:
-                # Loaded already, or not in a session to load it from, so reading it doesn't query
-                return safe_getattr(ti, "dag_version")
-            # The event must still be sent without it, and the savepoint keeps the caller's transaction usable
-            with state.session.begin_nested():
-                return ti.dag_version
-        except Exception:
-            log.warning(
-                "OpenLineage failed to read the Dag version of task instance %s", getattr(ti, "id", None)
-            )
-            log.debug("Exception details:", exc_info=True)
-            return None
-
-    def __init__(self, obj, position: TaskInstancePosition | None = None):
+    def __init__(
+        self, obj, position: TaskInstancePosition | None = None, dag: Any = None, dag_run: Any = None
+    ):
         # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
         # with get_task_instance_position; it is then used as is.
         self._position = position
+        # A stored task instance's bundle comes from these, as the worker's does, without a query
+        self._dag = dag
+        self._dag_run = dag_run
         super().__init__(obj)
 
     def _extend_fields(self) -> None:
@@ -1193,10 +1174,25 @@ class TaskInstanceInfo(InfoJsonEncodable):
         self.map_index = map_index if map_index != -1 else None
         self.rendered_map_index = self.get_rendered_map_index(self.obj) if map_index != -1 else None
         self._fields.extend(("map_index", "rendered_map_index"))
+        is_stored = isinstance(self.obj, TaskInstance)
+        if is_stored and AIRFLOW_V_3_0_PLUS:
+            # The worker gets the bundle name of the Dag and the bundle version of the Dag run
+            self.dag_bundle_name = getattr(self._dag, "bundle_name", None)
+            self.dag_bundle_version = getattr(self._dag_run, "bundle_version", None)
+        if is_stored and position and position.map_index == -1 and getattr(self.obj, "region_index", -1) >= 0:
+            # Airflow builds a stored log_url with region_index as the map index, the iteration for a loop body
+            self.log_url = self.obj.log_url.replace(
+                f"/tasks/{self.obj.task_id}/mapped/{self.obj.region_index}", f"/tasks/{self.obj.task_id}", 1
+            )
         if position and position.expanded_ti_count is not None:
             self.expanded_ti_count = position.expanded_ti_count
             self._fields.append("expanded_ti_count")
-        if AIRFLOW_V_3_0_PLUS and (ti_id := getattr(self.obj, "id", None)) is not None:
+        # Before Airflow 3.4, a stored task instance failing with retries left already holds its next attempt's id
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and (AIRFLOW_V_3_4_PLUS or not is_stored)
+            and (ti_id := getattr(self.obj, "id", None)) is not None
+        ):
             self.id = str(ti_id)
             self._fields.append("id")
         loop: dict[str, Any] = {}
@@ -1510,7 +1506,7 @@ def get_airflow_run_facet(
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
-            taskInstance=TaskInstanceInfo(task_instance, position=ti_position),
+            taskInstance=TaskInstanceInfo(task_instance, position=ti_position, dag=dag, dag_run=dag_run),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
                 if include_full_task_info
@@ -1590,15 +1586,14 @@ class TaskInstancePosition:
 
     The loop fields are ``None`` outside a loop, and also when they can't be known. A runtime task instance
     tells all of them, and ``expanded_ti_count`` for a mapped task, through its ``loop`` and
-    ``expanded_ti_count``, read by ``get_task_instance_position``. A stored one tells them through Airflow's
-    ``TaskCoordinateResolver``, called by ``get_stored_task_instance_position``, and otherwise only what its
-    task and region rows tell. ``AirflowRunFacet.json`` describes what these fields mean in events.
+    ``expanded_ti_count``, read by ``get_task_instance_position``. A stored one tells only what its task and
+    region rows do: the iteration of a task that isn't mapped, from its ``region_index``.
+    ``AirflowRunFacet.json`` describes what these fields mean in events.
     """
 
     in_loop: bool
     map_index: int
     loop_index: int | None = None
-    loop_group_id: str | None = None
     loop_region_id: UUID | None = None
     loop_trajectory: int | None = None
     loop_forked_from_region_id: UUID | None = None
@@ -1606,15 +1601,24 @@ class TaskInstancePosition:
     expanded_ti_count: int | None = None
 
 
+def _is_loop_task_group(task_group: Any) -> bool:
+    if not AIRFLOW_V_3_4_PLUS:
+        return False
+    # Loops only exist from Airflow 3.4 on
+    from airflow.sdk.definitions._internal.loop import LoopTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+    return isinstance(task_group, (LoopTaskGroup, SerializedLoopTaskGroup))
+
+
 def _find_enclosing_loop(task: Any) -> tuple[bool, Any | None]:
     """Tell whether a task runs in a loop, and return that loop's group when it is known."""
-    from airflow.sdk.definitions._internal.loop import LoopTaskGroup
     from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
     group = getattr(task, "task_group", None)
     while isinstance(group, (TaskGroup, SerializedTaskGroup)):
-        if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
+        if _is_loop_task_group(group):
             return True, group
         group = group.parent_group
     if group is None:
@@ -1655,7 +1659,9 @@ def _get_task_instance_position(
         return TaskInstancePosition(in_loop=False, map_index=map_index)
     if (task := getattr(task_instance, "task", None)) is None:
         return None
-    in_loop, enclosing_loop = _find_enclosing_loop(task)
+    # A worker parses a bundle without versions as it is when the attempt starts, which may no longer have the
+    # task in the loop of the Dag version the attempt pins, while Airflow places the attempt with that version
+    in_loop = _find_enclosing_loop(task)[0] or getattr(task_instance, "loop", None) is not None
     loop_index: int | None = None
     if is_stored and not task.get_needs_expansion():
         # The stored region_index means a map index only for a mapped task. A task that isn't mapped has none,
@@ -1663,12 +1669,7 @@ def _get_task_instance_position(
         if in_loop:
             loop_index = map_index
         map_index = -1
-    return TaskInstancePosition(
-        in_loop=in_loop,
-        map_index=map_index,
-        loop_index=loop_index,
-        loop_group_id=enclosing_loop.group_id if enclosing_loop is not None else None,
-    )
+    return TaskInstancePosition(in_loop=in_loop, map_index=map_index, loop_index=loop_index)
 
 
 def _require_task_instance_position(
@@ -1708,199 +1709,64 @@ def get_task_instance_position(task_instance: TaskInstance | RuntimeTaskInstance
     return _add_runtime_loop_iteration(task_instance, _require_task_instance_position(task_instance))
 
 
-@attrs.define
-class _TaskCoordinate:
-    """Where Airflow stores a task instance, as its ``TaskCoordinateResolver`` reads it."""
-
-    dag_id: str
-    run_id: str
-    task_id: str
-    region_id: UUID
-    region_index: int
-    dag_version_id: UUID | None
-
-
-def _get_core_task_instance_position(
-    task_instance: TaskInstance, *, session: Session | None
-) -> TaskInstancePosition | None:
-    """Place a stored task instance in a region as Airflow places it for the worker, from Airflow 3.4 on."""
-    if session is None or not AIRFLOW_V_3_4_PLUS:
-        return None
-    region_id = task_instance.region_id
+def _holds_another_dag_version(task_instance: TaskInstance) -> bool:
+    """Tell whether a stored task instance in a region holds its task from another Dag version than its own."""
+    region_id = getattr(task_instance, "region_id", None)
     if not isinstance(region_id, UUID) or region_id.int == 0:
-        return None
+        return False
     dag = getattr(getattr(task_instance, "task", None), "dag", None)
-    if (dag_version_id := getattr(dag, "dag_version_id", None)) is None:
-        return None
-    from airflow.models.task_coordinates import TaskCoordinateResolver
-
-    # Placed with the Dag version the task instance holds, which its task facet describes too, even when it pins
-    # another one: the resolver would load and deserialize that version for every task instance in the scheduler
-    # or API server process, while the region rows it reads don't depend on the version.
-    coordinate = _TaskCoordinate(
-        dag_id=task_instance.dag_id,
-        run_id=task_instance.run_id,
-        task_id=task_instance.task_id,
-        region_id=region_id,
-        region_index=task_instance.region_index,
-        dag_version_id=dag_version_id,
-    )
-    try:
-        # The savepoint keeps the caller's transaction usable after a failure
-        with session.begin_nested():
-            resolver = TaskCoordinateResolver.for_dag(dag, session)
-            task = resolver.get_task(
-                coordinate.dag_id, coordinate.run_id, coordinate.task_id, dag_version_id=dag_version_id
-            )
-            loop = resolver.get_loop_context(coordinate, task=task)
-            expanded_ti_count = resolver.get_expanded_ti_count(coordinate, task=task)
-    except Exception:
-        log.warning("OpenLineage failed to place task instance %s with Airflow", task_instance.id)
-        log.debug("Exception details:", exc_info=True)
-        return None
-    map_index = task_instance.region_index if task.get_needs_expansion() else -1
-    if loop is None:
-        return TaskInstancePosition(in_loop=False, map_index=map_index, expanded_ti_count=expanded_ti_count)
-    return TaskInstancePosition(
-        in_loop=True,
-        map_index=map_index,
-        expanded_ti_count=expanded_ti_count,
-        loop_index=loop.index,
-        loop_group_id=loop.node_id,
-        loop_region_id=loop.region_id,
-        loop_trajectory=loop.trajectory,
-        loop_forked_from_region_id=loop.forked_from_region_id,
-        loop_resumes_from_index=loop.resumes_from_index,
-    )
-
-
-def get_stored_task_instance_position(
-    task_instance: TaskInstance, *, session: Session | None
-) -> TaskInstancePosition:
-    """
-    Place a stored task instance for an event about it, as Airflow places it for the worker when it can.
-
-    That needs Airflow 3.4+ and a session. Otherwise, or when Airflow fails to, it is placed with
-    ``get_orm_task_instance_positions``, which only knows what the task and region rows tell.
-    """
-    if (position := _get_core_task_instance_position(task_instance, session=session)) is not None:
-        return position
-    return get_orm_task_instance_positions([task_instance], session=session)[task_instance.id]
+    held_dag_version_id = getattr(dag, "dag_version_id", None)
+    return held_dag_version_id is not None and held_dag_version_id != task_instance.dag_version_id
 
 
 def get_orm_task_instance_positions(
     task_instances: Collection[TaskInstance], *, session: Session | None
 ) -> dict[UUID, TaskInstancePosition]:
     """
-    Place stored task instances, reading in one query the regions of those without their task and of mapped tasks in a loop.
+    Place stored task instances, reading the regions of those without their task in one query.
 
-    Server side only: workers never hold a session. An instance without its task raises when there is no session to
-    read its region, while a mapped task in a loop is then placed without its iteration.
+    With a session, an instance whose task comes from another Dag version than its own, as the scheduler holds
+    the latest one for a Dag edited since, is placed from its region too.
+
+    Server side only: workers never hold a session, and an instance that needs its region read without one
+    raises instead of opening a connection.
     """
     positions: dict[UUID, TaskInstancePosition] = {}
     unplaced: list[TaskInstance] = []
-    without_iteration: list[TaskInstance] = []
     for task_instance in task_instances:
-        if (position := _get_task_instance_position(task_instance)) is None:
+        position = None
+        # Another version may have moved the task in or out of a loop, while its region rows can't have changed
+        if session is None or not _holds_another_dag_version(task_instance):
+            position = _get_task_instance_position(task_instance)
+        if position is None:
             unplaced.append(task_instance)
         else:
             positions[task_instance.id] = position
-            # A stored mapped task in a loop keeps its iteration on its region only. Without a session it stays unknown.
-            if position.in_loop and position.loop_index is None and session is not None:
-                without_iteration.append(task_instance)
-    if not unplaced and not without_iteration:
+    if not unplaced:
         return positions
     if session is None:
-        # Only unplaced instances get here without a session, as no mapped task is added to without_iteration then
         raise ValueError("Placing a stored task instance without its task needs the session it was loaded in")
 
     from sqlalchemy import select
-    from sqlalchemy.orm import aliased
 
     from airflow.models.dynamic_region import DynamicRegion
 
-    parent = aliased(DynamicRegion)
-    query = (
-        select(
-            DynamicRegion.id,
-            DynamicRegion.node_id,
-            DynamicRegion.parent_region_id,
-            DynamicRegion.parent_region_index,
-            parent.node_id.label("parent_node_id"),
-            parent.parent_region_id.label("grandparent_region_id"),
-        )
-        .outerjoin(parent, parent.id == DynamicRegion.parent_region_id)
-        .where(
-            DynamicRegion.id.in_(
-                {task_instance.region_id for task_instance in (*unplaced, *without_iteration)}
+    regions = {
+        row.id: row
+        for row in session.execute(
+            select(DynamicRegion.id, DynamicRegion.node_id, DynamicRegion.parent_region_id).where(
+                DynamicRegion.id.in_({task_instance.region_id for task_instance in unplaced})
             )
         )
-    )
-    if unplaced:
-        regions = {row.id: row for row in session.execute(query)}
-    else:
-        # Only mapped tasks' iterations are missing, and they only describe the run, so failing to read them
-        # must not cost the event. The savepoint keeps the caller's transaction usable after a failure.
-        try:
-            with session.begin_nested():
-                regions = {row.id: row for row in session.execute(query)}
-        except Exception:
-            log.warning(
-                "OpenLineage failed to read the loop iteration of mapped task instances from their regions"
-            )
-            log.debug("Exception details:", exc_info=True)
-            return positions
-
-    # Airflow creates a region for each run of a loop and for the expansion of each mapped task, a task in a
-    # mapped task group included. As loops can't be nested nor sit in a mapped task group, a loop's region is
-    # top-level and a mapped task's region sits directly in its loop's region, if any. The provider's
-    # test_region_shapes_* tests check this against Airflow. Any other shape is placed as a loop without its
-    # iteration, which keeps the runId of each execution unique, instead of guessing.
+    }
     for task_instance in unplaced:
         region = regions.get(task_instance.region_id)
-        position = None
-        map_index = -1
         if region is not None and region.node_id == task_instance.task_id:
-            map_index = task_instance.region_index
-            if region.parent_region_id is None:
-                position = TaskInstancePosition(in_loop=False, map_index=map_index)
-            elif region.grandparent_region_id is None:
-                position = TaskInstancePosition(
-                    in_loop=True,
-                    map_index=map_index,
-                    loop_index=region.parent_region_index,
-                    loop_group_id=region.parent_node_id,
-                )
-        elif region is not None and region.parent_region_id is None:
-            position = TaskInstancePosition(
-                in_loop=True,
-                map_index=-1,
-                loop_index=task_instance.region_index,
-                loop_group_id=region.node_id,
+            positions[task_instance.id] = TaskInstancePosition(
+                in_loop=region.parent_region_id is not None, map_index=task_instance.region_index
             )
-        if position is None:
-            log.warning(
-                "OpenLineage can't place task instance %s from its region, which has an unexpected shape; "
-                "assuming it runs in a loop",
-                task_instance.id,
-            )
-            position = TaskInstancePosition(in_loop=True, map_index=map_index)
-        positions[task_instance.id] = position
-    for task_instance in without_iteration:
-        position = positions[task_instance.id]
-        region = regions.get(task_instance.region_id)
-        if (
-            region is not None
-            and region.parent_node_id == position.loop_group_id
-            and region.grandparent_region_id is None
-        ):
-            positions[task_instance.id] = attrs.evolve(position, loop_index=region.parent_region_index)
         else:
-            log.warning(
-                "OpenLineage can't read the loop iteration of task instance %s, as its region isn't directly "
-                "in its loop's region",
-                task_instance.id,
-            )
+            positions[task_instance.id] = TaskInstancePosition(in_loop=True, map_index=-1)
     return positions
 
 
@@ -2392,11 +2258,12 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
     for tg_id, tg in dag.task_group_dict.items():
         task_edges, group_edges = edge_map.get(tg_id, ({}, {}))
         is_mapped = _is_mapped_task_group(tg)
+        is_loop = _is_loop_task_group(tg)
         result[tg_id] = {
             "parent_group": tg.parent_group.group_id if tg.parent_group else None,
             # Independent, so a group could be both
             "is_mapped": is_mapped,
-            "is_loop": hasattr(tg, "gate_task_id"),
+            "is_loop": is_loop,
             "parse_time_mapped_count": _get_parse_time_mapped_count(tg) if is_mapped else None,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
@@ -2404,9 +2271,9 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
             "downstream_task_edges": task_edges,
             "downstream_group_edges": group_edges,
             **{
-                field: getattr(tg, field)  # Only a loop group has these
+                field: getattr(tg, field)
                 for field in ("gate_task_id", "has_until", "max_iterations", "terminal_task_id")
-                if hasattr(tg, field)
+                if is_loop and hasattr(tg, field)
             },
         }
     return result
@@ -2416,10 +2283,6 @@ def _is_mapped_task_group(task_group: Any) -> bool:
     if (is_mapped := getattr(task_group, "is_mapped", None)) is not None:
         return bool(is_mapped)
     # Only the scheduler's serialized task groups tell it themselves
-    try:
-        from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-    except ImportError:  # Airflow 2
-        from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
     return isinstance(task_group, MappedTaskGroup)
 
 

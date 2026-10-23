@@ -52,10 +52,10 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 1, "retry_delay": timedelta(seconds=1)},
+    default_args={"retries": 0},
 ) as dag:
 
-    @task
+    @task(retries=1, retry_delay=timedelta(seconds=1))
     def flaky_task(**context):
         if context["ti"].try_number == 1:
             raise ValueError("Intentional failure of the first try")

@@ -226,7 +226,7 @@
           "type": "integer"
         },
         "id": {
-          "description": "Id of the task instance attempt (Airflow 3+).",
+          "description": "Id of the task instance attempt (Airflow 3+). Absent from the FAIL events the scheduler sends itself before Airflow 3.4, when the task instance already holds its next attempt's id.",
           "type": "string"
         },
         "state": {
@@ -239,15 +239,15 @@
           "type": "string"
         },
         "expanded_ti_count": {
-          "description": "Number of instances in the mapped task's expansion (Airflow 3.4+).",
+          "description": "Number of instances, removed ones excluded, in the mapped task's expansion, of this loop iteration in a loop (Airflow 3.4+). Absent from the events the scheduler sends itself.",
           "type": "integer"
         },
         "region_id": {
-          "description": "Region of the loop iteration or mapped expansion (Airflow 3.4+).",
+          "description": "Region the task instance is stored in (Airflow 3.4+): the mapped task's expansion, in a loop or not, and otherwise the loop's region, as `loop.region_id`.",
           "type": "string"
         },
         "region_index": {
-          "description": "Position in the region (Airflow 3.4+).",
+          "description": "Position of the task instance in its region (Airflow 3.4+): the map index, from 0, of a mapped task, and otherwise the loop iteration, from 1, as `loop.index`.",
           "type": "integer"
         },
         "dag_version_id": {
@@ -260,25 +260,31 @@
           "type": "string"
         },
         "loop": {
-          "description": "The loop iteration of the task instance (Airflow 3.4+).",
+          "description": "The loop iteration of the task instance (Airflow 3.4+). The events the scheduler sends itself have at most `index`, for a task that isn't mapped.",
           "type": "object",
           "properties": {
             "index": {
+              "description": "The iteration, from 1.",
               "type": "integer"
             },
             "region_id": {
+              "description": "Region of the loop's run, shared by all its iterations; after a clear, the region of the rerun.",
               "type": "string"
             },
             "trajectory": {
+              "description": "1 for the loop's first run, n + 1 for its n-th rerun after a clear.",
               "type": "integer"
             },
             "forked_from_region_id": {
+              "description": "Region of the run a rerun after a clear was forked from.",
               "type": "string"
             },
             "resumes_from_index": {
+              "description": "Iteration a rerun after a clear resumes from.",
               "type": "integer"
             },
             "decision": {
+              "description": "Whether a loop gate stops the loop, once it decided.",
               "type": "object",
               "properties": {
                 "stop": {
