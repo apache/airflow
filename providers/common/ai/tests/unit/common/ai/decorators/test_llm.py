@@ -179,7 +179,7 @@ def test_sequence_prompt_with_require_approval_pauses_for_review(
     extra_kwargs,
     output,
 ):
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
     op = decorated_cls(
