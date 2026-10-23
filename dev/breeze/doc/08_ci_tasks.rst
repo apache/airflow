@@ -161,6 +161,23 @@ If it cannot determine which milestone should be added, it also adds a comment t
   :width: 100%
   :alt: Milestone Tag Assistant
 
+Approving workflow runs of external contributors
+------------------------------------------------
+
+The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 30 minutes. It approves
+the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
+than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. For every PR it also
+estimates the CI jobs selective checks will run and how long they take, and writes them to the job
+summary. Use ``--report-only`` to see the decisions without approving runs or changing labels. The rules
+are described in `CI workflows <ci/05_workflows.md>`_.
+
+These are all available flags of ``approve-workflow-runs`` command:
+
+.. image:: ./images/output_ci_approve-workflow-runs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_approve-workflow-runs.svg
+  :width: 100%
+  :alt: Breeze ci approve-workflow-runs
+
 -----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how

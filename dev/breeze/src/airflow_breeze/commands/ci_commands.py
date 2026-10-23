@@ -26,6 +26,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -1682,3 +1683,52 @@ def set_milestone(
         console_print(f"[success]Added notification comment to PR #{pr_number}[/]")
     except Exception as e:
         console_print(f"[warning]Failed to add notification comment to PR #{pr_number}: {e}[/]")
+
+
+@ci_group.command(
+    name="approve-workflow-runs",
+    help="Approve the waiting workflow runs of external contributors' PRs whose changes are safe "
+    "to run without a maintainer's look, and label the others 'need workflow approval'. "
+    "Used by the auto-approve-workflow-runs workflow.",
+)
+@click.option(
+    "--github-token",
+    help="GitHub token able to approve workflow runs and label PRs.",
+    envvar="GITHUB_TOKEN",
+    required=True,
+)
+@click.option(
+    "--max-run-age-hours",
+    help="Only decide on workflow runs created within this many hours; older waiting runs are left alone.",
+    type=click.IntRange(min=1),
+    default=24,
+    show_default=True,
+    envvar="MAX_RUN_AGE_HOURS",
+)
+@click.option(
+    "--report-only",
+    is_flag=True,
+    help="Only report the decisions and estimates, without approving runs or changing labels.",
+    envvar="REPORT_ONLY",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def approve_workflow_runs(
+    github_token: str, max_run_age_hours: int, report_only: bool, github_repository: str
+):
+    from airflow_breeze.utils.shared_options import get_dry_run
+    from airflow_breeze.utils.workflow_run_approval import (
+        GitHubApi,
+        process_waiting_runs,
+        write_step_summary,
+    )
+
+    api = GitHubApi(
+        github_repository=github_repository,
+        github_token=github_token,
+        report_only=report_only or get_dry_run(),
+    )
+    created_since = datetime.now(UTC) - timedelta(hours=max_run_age_hours)
+    results = process_waiting_runs(api, created_since=created_since)
+    write_step_summary(results, github_repository)
