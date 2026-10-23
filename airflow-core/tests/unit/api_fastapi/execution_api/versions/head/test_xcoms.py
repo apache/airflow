@@ -501,6 +501,50 @@ def test_outside_caller_cannot_read_a_single_value_of_a_loop_task(client, outsid
     assert client.get(get_loop_url(dr, "body.step")).status_code == 400
 
 
+@pytest.mark.parametrize("iteration", [1, 2, 3])
+def test_outside_caller_reads_one_pass_of_a_loop_task_it_names(client, outside_loop_run, iteration):
+    """
+    A value pointing at other XComs of its producer (an iterated task's result) names the producer's
+    region and pass, so its reads resolve there whoever makes them, a caller outside the loop included.
+    """
+    dr, _, root, _, _ = outside_loop_run
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": iteration}
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"key": "key", "value": f"step-{iteration}"}
+
+
+def test_loop_task_inside_the_loop_reads_another_pass_it_names(client, outside_loop_run):
+    dr, _, root, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[3])
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": 1}
+    )
+
+    assert response.json() == {"key": "key", "value": "step-1"}
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param({"include_prior_dates": True}, id="prior-dates"),
+        pytest.param({"previous_iteration": True}, id="previous-iteration"),
+    ],
+)
+def test_a_named_pass_cannot_be_combined_with_a_relative_scope(client, outside_loop_run, params):
+    dr, _, root, _, _ = outside_loop_run
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": 1, **params}
+    )
+
+    assert response.status_code == 400
+
+
 def test_outside_caller_cannot_read_the_previous_iteration_of_a_loop_task(client, outside_loop_run):
     dr = outside_loop_run[0]
 
