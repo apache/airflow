@@ -186,12 +186,11 @@ describe("serializeDag", () => {
       expect(taskVar(serializeWith({}))).not.toHaveProperty("queue");
     });
 
-    it("omits a queue that is already the schema default", () => {
-      // The scheduler re-derives it, as it does any other defaulted field.
+    it("preserves a Dag queue that equals the schema default", () => {
       const dag = new Dag("d", { queue: "default" });
       place(dag, "one");
 
-      expect(taskMap(serializeDag(dag, "", ".") as Json).get("one")).not.toHaveProperty("queue");
+      expect(taskMap(serializeDag(dag, "", ".") as Json).get("one")).toHaveProperty("queue", "default");
     });
 
     it("is not written onto the Dag itself, which has no queue field", () => {
@@ -397,13 +396,24 @@ describe("serializeDag", () => {
       expect(serializeWith({ failFast: true })).toMatchObject({ fail_fast: true });
     });
 
-    it("omits task fields left at their schema defaults", () => {
+    it("writes task fields explicitly set to their schema defaults", () => {
       const task = taskVar(
         serializeWith(
           {},
           { retries: 0, queue: "default", pool: "default_pool", retryDelay: 300, owner: "airflow" },
         ),
       );
+      expect(task).toMatchObject({
+        retries: 0,
+        queue: "default",
+        pool: "default_pool",
+        retry_delay: 300,
+        owner: "airflow",
+      });
+    });
+
+    it("leaves task fields out when the author does not set them", () => {
+      const task = taskVar(serializeWith({}));
       for (const key of ["retries", "queue", "pool", "retry_delay", "owner"]) {
         expect(task).not.toHaveProperty(key);
       }

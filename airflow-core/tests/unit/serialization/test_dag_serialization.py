@@ -5484,6 +5484,41 @@ class TestFillConfigDefaults:
             "mapped": timedelta(seconds=300),
         }
 
+    def test_fills_task_defaults_without_replacing_explicit_values(self, operator_defaults):
+        with operator_defaults({"retries": 3}):
+            with DAG(dag_id="native_dag", schedule=None) as dag:
+                BaseOperator(task_id="unset")
+                BaseOperator(task_id="explicit", retries=0)
+
+            data = DagSerialization.to_dict(dag)
+            data.pop("client_defaults", None)
+            task_vars = {task["__var"]["task_id"]: task["__var"] for task in data["dag"]["tasks"]}
+            task_vars["unset"].pop("retries", None)
+            task_vars["explicit"]["retries"] = 0
+
+            DagSerialization.fill_config_defaults(data)
+            tasks = DagSerialization.from_dict(data).task_dict
+
+            assert data["client_defaults"]["tasks"]["retries"] == 3
+            assert tasks["unset"].retries == 3
+            assert tasks["explicit"].retries == 0
+
+    def test_merges_task_defaults_without_replacing_existing_defaults(self, monkeypatch):
+        monkeypatch.setattr(
+            OperatorSerialization,
+            "generate_client_defaults",
+            classmethod(lambda _: {"retries": 3, "queue": "celery_q"}),
+        )
+        data = {
+            "__version": 3,
+            "dag": {"dag_id": "native_dag", "tasks": []},
+            "client_defaults": {"tasks": {"retries": 1}},
+        }
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert data["client_defaults"]["tasks"]["retries"] == 1
+        assert data["client_defaults"]["tasks"]["queue"] == "celery_q"
     def test_leaves_a_payload_without_a_dag_to_validation(self):
         data = {"__version": 3}
 
