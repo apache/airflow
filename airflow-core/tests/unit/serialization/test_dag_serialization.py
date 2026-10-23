@@ -646,6 +646,40 @@ class TestStringifiedDAGs:
         )
         assert actual == expected
 
+    @pytest.mark.parametrize("create_data_intervals", [False, True])
+    @pytest.mark.parametrize("timezone_name", ["UTC", "Europe/Amsterdam", "CET"])
+    def test_cron_schedule_serialization_matches_the_dag_timezone(self, create_data_intervals, timezone_name):
+        start_date = pendulum.datetime(2026, 2, 1, tz=timezone_name)
+        with conf_vars({("scheduler", "create_cron_data_intervals"): str(create_data_intervals).lower()}):
+            dag = DAG("cron_parity", schedule="0 3 * * *", start_date=start_date)
+
+        serialized = DagSerialization.to_dict(dag)["dag"]
+        expected_type = (
+            "airflow.timetables.interval.CronDataIntervalTimetable"
+            if create_data_intervals
+            else "airflow.timetables.trigger.CronTriggerTimetable"
+        )
+        expected_var = {"expression": "0 3 * * *", "timezone": timezone_name}
+        if not create_data_intervals:
+            expected_var.update({"interval": 0.0, "run_immediately": False})
+
+        assert serialized["timezone"] == timezone_name
+        assert serialized["timetable"] == {"__type": expected_type, "__var": expected_var}
+
+    @pytest.mark.parametrize("create_data_intervals", [False, True])
+    def test_cron_schedule_without_start_date_uses_the_default_timezone(self, create_data_intervals):
+        default_timezone = timezone.parse_timezone("Europe/Amsterdam")
+        with (
+            mock.patch("airflow.settings.TIMEZONE", default_timezone),
+            conf_vars({("scheduler", "create_cron_data_intervals"): str(create_data_intervals).lower()}),
+        ):
+            dag = DAG("cron_default_timezone", schedule="0 3 * * *")
+
+        serialized = DagSerialization.to_dict(dag)["dag"]
+
+        assert serialized["timezone"] == "Europe/Amsterdam"
+        assert serialized["timetable"]["__var"]["timezone"] == "Europe/Amsterdam"
+
     @pytest.mark.db_test
     def test_dag_serialization_preserves_empty_access_roles(self):
         """Verify that an explicitly empty access_control dict is preserved."""

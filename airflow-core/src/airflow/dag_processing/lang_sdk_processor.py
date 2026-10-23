@@ -43,6 +43,7 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     ToManagerMessage,
+    _get_dag_serialization_options,
 )
 from airflow.exceptions import DeserializationError
 from airflow.models.pool import Pool
@@ -197,7 +198,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 file=os.fspath(path),
                 bundle_path=bundle_path,
                 bundle_name=bundle_name,
-                create_cron_data_intervals=conf.getboolean("scheduler", "create_cron_data_intervals"),
+                **_get_dag_serialization_options(),
             )
             proc = super().start(
                 target=_start_runtime_entrypoint,

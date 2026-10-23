@@ -79,6 +79,30 @@ func (m *DagCallbackRequest) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
+// DecodeMsgpack applies DagFileParseRequest's schema defaults that msgpack would otherwise skip.
+func (m *DagFileParseRequest) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias DagFileParseRequest
+	v := alias{}
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return err
+	}
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["dag_default_timezone"]; !ok {
+		v.DagDefaultTimezone = "UTC"
+	}
+	*m = DagFileParseRequest(v)
+	return nil
+}
+
 // DecodeMsgpack applies DagRunResult's schema defaults that msgpack would otherwise skip.
 func (m *DagRunResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias DagRunResult

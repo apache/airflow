@@ -196,29 +196,50 @@ func serializeTimetable(
 	}
 }
 
-// encodeTimezone returns the timezone of a Dag that starts at start, in the form that Python's
-// encode_timezone writes for the timezone that DAG.timezone takes from the same start_date: the name
-// of a named timezone, the offset in seconds of a fixed offset timezone, or "UTC". Airflow reads the
-// cron expression of the Dag in this timezone.
-func encodeTimezone(start time.Time) any {
+// encodeTimezone returns the timezone of a Dag in the form that Python's encode_timezone writes:
+// the name of a named timezone, the offset in seconds of a fixed offset timezone, or "UTC". A Dag
+// without a start date uses Airflow's encoded [core] default_timezone from the parse request.
+func encodeTimezone(start time.Time, defaultTimezone any) any {
 	if start.IsZero() {
-		// A Dag without a start_date takes the timezone of the Airflow config, which is UTC unless an
-		// operator sets it otherwise.
-		return "UTC"
+		if defaultTimezone == nil {
+			// The wire schema supplies UTC when the field is absent. Preserve that zero-value behavior
+			// for in-process callers that construct DagSerializationOptions directly.
+			return "UTC"
+		}
+		return defaultTimezone
 	}
 	location := start.Location().String()
-	abbreviation, offset := start.Zone()
-	// A location that time.LoadLocation returned is named, and its abbreviation at any one moment is
-	// not that name, so Python writes the name. A location that time.FixedZone made carries its name
-	// as its abbreviation, and a time that Go parsed carries the offset it was written with under the
-	// name "Local" or under no name at all: Python writes the offset in seconds for those.
-	if location != "" && location != "Local" && location != abbreviation {
+	if location != "" && location != "Local" && timezoneRulesMatch(start, location) {
 		return location
 	}
+	_, offset := start.Zone()
 	if offset == 0 {
 		return "UTC"
 	}
 	return offset
+}
+
+// timezoneRulesMatch distinguishes a location loaded from the timezone database from a fixed zone
+// that happens to have the same name. Comparing only the current offset would turn FixedZone("CET",
+// 3600) into the DST-aware IANA location CET.
+func timezoneRulesMatch(start time.Time, location string) bool {
+	actualAbbreviation, actualOffset := start.Zone()
+	actualStart, actualEnd := start.ZoneBounds()
+	named, err := time.LoadLocation(location)
+	if err != nil {
+		return false
+	}
+	namedTime := start.In(named)
+	namedAbbreviation, namedOffset := namedTime.Zone()
+	if actualAbbreviation != namedAbbreviation || actualOffset != namedOffset {
+		return false
+	}
+	namedStart, namedEnd := namedTime.ZoneBounds()
+	// Go does not expose whether a static location came from LoadLocation or FixedZone. When their
+	// names and rules are identical, retain the valid IANA name: it preserves more information and
+	// has the same scheduling behavior. Differing rules (for example fixed CET versus IANA CET) do
+	// not match these bounds and are encoded as offsets instead.
+	return actualStart.Equal(namedStart) && actualEnd.Equal(namedEnd)
 }
 
 // schemaField is the property of the serialization schema that one field of DagSpec, TaskSpec or
@@ -417,7 +438,7 @@ func (d *DagRef) serialize(
 	}
 	// A Dag takes its timezone from its start_date, as Python's DAG.timezone does. Airflow reads the
 	// cron expression of the Dag in that timezone.
-	timezone := encodeTimezone(d.spec.StartDate)
+	timezone := encodeTimezone(d.spec.StartDate, options.DefaultTimezone)
 	dag := map[string]any{
 		"dag_id":           d.dagID,
 		"fileloc":          fileloc,

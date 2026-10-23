@@ -37,6 +37,7 @@ import pytest
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
     _EXIT_GRACE_PERIOD,
@@ -181,6 +182,7 @@ class TestLangSDKDagFileProcessorProcess:
         assert "Parsing the bundle" in cap_structlog
 
     @pytest.mark.parametrize(("configured", "expected"), [("True", True), ("False", False)])
+    @patch("airflow.settings.TIMEZONE", timezone.parse_timezone("Europe/Amsterdam"))
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
     def test_the_parse_request_carries_create_cron_data_intervals(
         self, mock_parse_dag, parse, configured, expected
@@ -192,6 +194,7 @@ class TestLangSDKDagFileProcessorProcess:
 
         assert proc.parsing_result.import_errors is None
         assert proc._parse_request.create_cron_data_intervals is expected
+        assert proc._parse_request.dag_default_timezone == "Europe/Amsterdam"
 
     @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)

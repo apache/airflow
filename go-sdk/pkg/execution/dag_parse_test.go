@@ -55,9 +55,10 @@ func serializedDag(dagID string) bundle.SerializedDag {
 }
 
 var etlParseRequest = &genmodels.DagFileParseRequest{
-	File:       "/bundles/go/etl",
-	BundlePath: "/bundles/go",
-	BundleName: "go",
+	File:               "/bundles/go/etl",
+	BundlePath:         "/bundles/go",
+	BundleName:         "go",
+	DagDefaultTimezone: "UTC",
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -88,7 +89,7 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 
 	assert.Equal(t, "/bundles/go/etl", dags.fileloc)
 	assert.Equal(t, "etl", dags.relative)
-	assert.Equal(t, bundle.DagSerializationOptions{}, dags.options)
+	assert.Equal(t, bundle.DagSerializationOptions{DefaultTimezone: "UTC"}, dags.options)
 	assert.JSONEq(t, `{
 		"type": "DagFileParsingResult",
 		"fileloc": "/bundles/go/etl",
@@ -103,22 +104,29 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 // bundle cannot read the Airflow config that Python's DAG reads.
 func TestParseDagsPassesTheSerializationOptionsToTheSerializer(t *testing.T) {
 	tests := []struct {
-		name   string
-		option bool
+		name            string
+		createIntervals bool
+		defaultTimezone any
 	}{
-		{"create_cron_data_intervals off", false},
-		{"create_cron_data_intervals on", true},
+		{"default options", false, "UTC"},
+		{"create_cron_data_intervals on", true, "UTC"},
+		{"named default timezone", false, "Europe/Amsterdam"},
+		{"fixed default timezone", true, int64(19800)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dags := &serializedDags{}
 			req := *etlParseRequest
-			req.CreateCronDataIntervals = tt.option
+			req.CreateCronDataIntervals = tt.createIntervals
+			req.DagDefaultTimezone = tt.defaultTimezone
 
 			parseDags(dags, &req, discardLogger())
 
 			assert.Equal(t,
-				bundle.DagSerializationOptions{CreateCronDataIntervals: tt.option},
+				bundle.DagSerializationOptions{
+					CreateCronDataIntervals: tt.createIntervals,
+					DefaultTimezone:         tt.defaultTimezone,
+				},
 				dags.options,
 			)
 		})

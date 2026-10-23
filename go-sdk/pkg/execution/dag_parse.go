@@ -45,6 +45,7 @@ func parseDags(
 	if s != nil {
 		options := bundle.DagSerializationOptions{
 			CreateCronDataIntervals: req.CreateCronDataIntervals,
+			DefaultTimezone:         req.DagDefaultTimezone,
 		}
 		for _, dag := range s.SerializeDags(req.File, relative, options) {
 			dagIDs = append(dagIDs, dag.DagID)

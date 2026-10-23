@@ -2429,6 +2429,16 @@ class TestDagProcessingMessageTypes:
 
 
 class TestDagFileProcessorProcess:
+    @patch("airflow.settings.TIMEZONE", timezone.parse_timezone("Europe/Amsterdam"))
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_parse_request_carries_dag_serialization_options(self, send_msg, proc):
+        with conf_vars({("scheduler", "create_cron_data_intervals"): "True"}):
+            proc._on_child_started([], "/bundles/go/etl", pathlib.Path("/bundles/go"), "go")
+
+        request = send_msg.call_args.args[1]
+        assert request.create_cron_data_intervals is True
+        assert request.dag_default_timezone == "Europe/Amsterdam"
+
     def test_registered_message_types(self):
         expected = set(typing.get_args(typing.get_args(ToManager)[0]))
         assert set(DagFileProcessorProcess._request_handlers) == expected

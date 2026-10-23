@@ -833,6 +833,9 @@ describe("coordinator runtime integration", () => {
       type: "DagFileParseRequest",
       file: "/dags/test.mjs",
       bundle_path: "/dags",
+      bundle_name: "typescript",
+      create_cron_data_intervals: true,
+      dag_default_timezone: "Europe/Amsterdam",
     };
 
     async function parse(): Promise<Record<string, unknown>> {
