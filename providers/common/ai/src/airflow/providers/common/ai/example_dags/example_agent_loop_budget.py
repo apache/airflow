@@ -40,6 +40,17 @@ INCIDENT_NOTES = """\
 Next update at 10:30 UTC.
 """
 
+JUDGE_INSTRUCTIONS = """\
+Score a customer status page update from 0 to 1 against this style guide, and give one
+sentence of feedback on what to fix. Score 1 only if every rule holds.
+
+1. Every fact matches the incident notes.
+2. The first sentence says which customers are affected and how.
+3. No internal terms: no metric names, config, deploys, connection pools or rollbacks.
+4. At most 80 words.
+5. It ends with the time of the next update.
+"""
+
 
 class Score(BaseModel):
     """The judge's verdict on one draft."""
@@ -71,15 +82,7 @@ def example_agent_loop_budget():
             output_type=Score,
             # A dict in XCom, so ``tally`` can read it under ``airflow dags test`` too.
             serialize_output=True,
-            system_prompt=(
-                "Score a customer status page update from 0 to 1 against this style guide, and give "
-                "one sentence of feedback on what to fix. Score 1 only if every rule holds. "
-                "1. Every fact matches the incident notes. "
-                "2. The first sentence says which customers are affected and how. "
-                "3. No internal terms: no metric names, config, deploys, connection pools or rollbacks. "
-                "4. At most 80 words. "
-                "5. It ends with the time of the next update."
-            ),
+            system_prompt=JUDGE_INSTRUCTIONS,
             usage_limits={"total_tokens_limit": 10_000, "cost_limit": "0.20"},
         )
         def judge(draft):
