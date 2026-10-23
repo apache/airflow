@@ -159,6 +159,27 @@ class TestOtelCollectorDeployment:
             "--config=/etc/otel-collector/config.yml"
         ]
 
+    def test_default_container_security_context(self):
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}}, show_only=[DEPLOYMENT_TEMPLATE]
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+        }
+
+    def test_container_security_context_disable_defaults(self):
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "otelCollector": {"tracesEnabled": True},
+            },
+            show_only=[DEPLOYMENT_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) is None
+
     def test_args_override(self):
         custom = ["--config=/etc/otel-collector/config.yml", "--feature-gates=+foo"]
         docs = render_chart(

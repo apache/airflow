@@ -2767,6 +2767,8 @@ otelCollector:
   labels: {}
   podAnnotations: {}
 
+  # Detailed security contexts for the OTel Collector.
+  # By default, the container disallows privilege escalation and drops all capabilities.
   securityContexts:
     pod: {}
     container: {}

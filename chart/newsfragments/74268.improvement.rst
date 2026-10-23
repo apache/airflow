@@ -1,0 +1,2 @@
+Apply the default container security context to the OTel Collector, preventing privilege escalation and
+dropping all Linux capabilities unless security context defaults are disabled.
