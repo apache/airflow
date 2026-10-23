@@ -30,7 +30,7 @@ spends. To cap a pass, set ``usage_limits`` on each task.
 What this demonstrates
 ----------------------
 
-* :ref:`Task loops <apache-airflow:loops>` -- ``refine.loop(max_iterations=5, until=good_enough)``
+* :ref:`Task loops <apache-airflow:loops>` -- ``refine.loop(max_iterations=20, until=good_enough)``
   repeats the task group, and ``good_enough`` returns a ``LoopDecision`` with a reason.
 * The ``usage`` XCom that ``@task.agent`` and ``@task.llm`` push, read back inside the loop to
   keep a running total of tokens and estimated cost.
@@ -61,10 +61,18 @@ The gate logs its decision for each iteration, and ``publish`` logs the result. 
 
 .. code-block:: text
 
-    Loop iteration 1: continue (max_iterations=5): score 0.7; $0.008118 of $5.00, 1,498 of 500,000 tokens
-    Loop iteration 2: continue (max_iterations=5): score 0.85; $0.016206 of $5.00, 3,194 of 500,000 tokens
-    Loop iteration 3: stop (max_iterations=5): passed: score 0.9; $0.024117 of $5.00, 4,823 of 500,000 tokens
-    3 passes, score 0.9, 4823 tokens, $0.024117
+    Loop iteration 1: continue (max_iterations=20): score 0.5; $0.007317 of $5.00, 1,427 of 500,000 tokens
+    Loop iteration 2: continue (max_iterations=20): score 0.7; $0.016605 of $5.00, 3,131 of 500,000 tokens
+    Loop iteration 3: continue (max_iterations=20): score 0.5; $0.025290 of $5.00, 4,870 of 500,000 tokens
+    Loop iteration 4: continue (max_iterations=20): score 0.5; $0.033585 of $5.00, 6,543 of 500,000 tokens
+    Loop iteration 5: continue (max_iterations=20): score 0.5; $0.042198 of $5.00, 8,226 of 500,000 tokens
+    Loop iteration 6: continue (max_iterations=20): score 0.7; $0.051069 of $5.00, 9,919 of 500,000 tokens
+    Loop iteration 7: continue (max_iterations=20): score 0.5; $0.060381 of $5.00, 11,643 of 500,000 tokens
+    Loop iteration 8: continue (max_iterations=20): score 0.7; $0.069204 of $5.00, 13,376 of 500,000 tokens
+    Loop iteration 9: continue (max_iterations=20): score 0.5; $0.079605 of $5.00, 15,175 of 500,000 tokens
+    Loop iteration 10: continue (max_iterations=20): score 0.5; $0.087213 of $5.00, 16,883 of 500,000 tokens
+    Loop iteration 11: stop (max_iterations=20): passed: score 0.9; $0.096552 of $5.00, 18,624 of 500,000 tokens
+    11 passes, score 0.9, 18624 tokens, $0.096552
 
 The Dag
 -------
@@ -99,7 +107,7 @@ ending:
      - Reason on the last gate
      - Result
    * - Converged
-     - ``passed: score 0.9; $0.024117 of $5.00, 4,823 of 500,000 tokens``
+     - ``passed: score 0.9; $0.096552 of $5.00, 18,624 of 500,000 tokens``
      - The gate succeeds and ``publish`` runs.
    * - Dollar budget spent
      - ``dollar budget spent: score 0.9; $0.016362 of $0.01, 3,226 of 500,000 tokens``
@@ -108,7 +116,7 @@ ending:
      - ``token budget spent: score 0.0; cost unknown, 745 of 600 tokens``
      - The gate succeeds and ``publish`` runs.
    * - ``max_iterations`` reached
-     - ``score 0.0; cost unknown, 1,245 of 500,000 tokens``
+     - ``score 0.0; cost unknown, 4,995 of 500,000 tokens``
      - The last gate fails and ``publish`` is ``upstream_failed``.
 
 The converged row is the run above. The dollar row ran the same models with a $0.01 cap and a
@@ -120,18 +128,22 @@ last reason:
 
 .. code-block:: text
 
-    Loop condition remained false at max_iterations=5: score 0.0; cost unknown, 1,245 of 500,000 tokens
+    Loop condition remained false at max_iterations=20: score 0.0; cost unknown, 4,995 of 500,000 tokens
 
 Stopping on a budget is a successful end of the loop, so ``publish`` runs and returns the last
 draft even though it did not pass. Check ``passes[-1]["score"]`` in ``publish`` if a draft below
 the threshold should not go out.
 
 A per-task ``usage_limits`` that trips is not a budget stop. The task fails with
-``UsageLimitExceeded``, the gate does not run, and the loop fails. The task log shows:
+``UsageLimitExceeded``, the gate does not run, and the loop fails. The task log shows what the
+call spent before it stopped:
 
 .. code-block:: text
 
-    Failure caused by Exceeded the total_tokens_limit of 100 (total_tokens=122). Consider raising the limit, ...
+    LLM run failed: requests=0, tool_calls=0, input_tokens=118, output_tokens=4, total_tokens=122
+    Task failed with exception
+
+The exception reads ``Exceeded the total_tokens_limit of 100 (total_tokens=122)``.
 
 Set each task's limits above what a normal pass spends, so they only catch a runaway call.
 

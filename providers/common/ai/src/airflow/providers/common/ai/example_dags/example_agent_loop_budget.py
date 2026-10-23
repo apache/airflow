@@ -133,7 +133,7 @@ def example_agent_loop_budget():
         log.info("%d passes, score %s, %s tokens, %s", len(passes), last["score"], last["tokens"], usd)
         return last["draft"]
 
-    refinement = refine.loop(max_iterations=5, until=good_enough)
+    refinement = refine.loop(max_iterations=20, until=good_enough)
     publish(refinement["tally"].output)
 
 
