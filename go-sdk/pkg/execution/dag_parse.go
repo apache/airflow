@@ -43,7 +43,11 @@ func parseDags(
 	}
 	var dagIDs, failures []string
 	if s != nil {
-		for _, dag := range s.SerializeDags(req.File, relative) {
+		options := bundle.DagSerializationOptions{
+			CreateCronDataIntervals: req.CreateCronDataIntervals,
+			DefaultTimezone:         req.DagDefaultTimezone,
+		}
+		for _, dag := range s.SerializeDags(req.File, relative, options) {
 			dagIDs = append(dagIDs, dag.DagID)
 			if dag.Err != nil {
 				logger.Error("Dag could not be serialized", "dag_id", dag.DagID, "error", dag.Err)

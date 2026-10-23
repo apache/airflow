@@ -65,10 +65,24 @@ type SerializedDag struct {
 	Err   error
 }
 
+// DagSerializationOptions are the Airflow settings that the Dag processor sends with a parse
+// request. A bundle cannot read the Airflow config that Python's DAG reads, so the Dag processor
+// sends the settings that the serializer needs instead.
+type DagSerializationOptions struct {
+	// CreateCronDataIntervals is [scheduler] create_cron_data_intervals. Python's DAG builds a
+	// CronDataIntervalTimetable from a cron expression when it is set, and a CronTriggerTimetable
+	// when it is not.
+	CreateCronDataIntervals bool
+	// DefaultTimezone is Airflow's encoded [core] default_timezone. A Dag without a start date uses
+	// it as both its timezone and its cron timetable timezone. Nil represents the wire schema's
+	// default value, "UTC", for in-process callers.
+	DefaultTimezone any
+}
+
 // DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
 // order.
 type DagSerializer interface {
-	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
+	SerializeDags(fileloc, relativeFileloc string, options DagSerializationOptions) []SerializedDag
 }
 
 // DagSourceLister reports the source file that declared each Dag of a bundle, by dag_id.

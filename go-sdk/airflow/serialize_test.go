@@ -31,14 +31,27 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	msgpack "github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // serializedDag registers dag and returns the dag object of its serialized form, decoded from
-// JSON so that a test can compare it with JSON.
+// JSON so that a test can compare it with JSON. It serializes the Dag with the options of a parse
+// request that sets none of them, which is what a Dag processor with the default Airflow config
+// sends.
 func serializedDag(t *testing.T, dag *DagRef) map[string]any {
 	t.Helper()
+	return serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{DefaultTimezone: "UTC"})
+}
+
+// serializedDagWithOptions is serializedDag for a Dag processor that sends options with the parse
+// request.
+func serializedDagWithOptions(
+	t *testing.T, dag *DagRef, options bundle.DagSerializationOptions,
+) map[string]any {
+	t.Helper()
 	Bundle().Register(dag)
-	raw, err := json.Marshal(dag.serialize("/bundles/app/etl", "etl"))
+	raw, err := json.Marshal(dag.serialize("/bundles/app/etl", "etl", options))
 	require.NoError(t, err)
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(raw, &payload))
@@ -149,7 +162,7 @@ func TestSerializeWritesTheWholeDag(t *testing.T) {
 			"deadline": null,
 			"allowed_run_types": null
 		}
-	}`, dag.serialize("/bundles/app/etl", "etl"))
+	}`, dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
 }
 
 func TestSerializePanicsForADagThatIsNotRegistered(t *testing.T) {
@@ -158,7 +171,7 @@ func TestSerializePanicsForADagThatIsNotRegistered(t *testing.T) {
 
 	assert.PanicsWithValue(t,
 		`airflow: Dag "etl" is not registered, so its group edges are not expanded yet`,
-		func() { dag.serialize("/bundles/app/etl", "etl") },
+		func() { dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}) },
 	)
 }
 
@@ -213,7 +226,9 @@ func TestSerializeWritesTheFieldsOfDagSpec(t *testing.T) {
 		"tags": ["alpha", "gamma"],
 		"timetable": {
 			"__type": "airflow.timetables.trigger.CronTriggerTimetable",
-			"__var": {"expression": "0 3 * * *", "timezone": "UTC", "interval": 0, "run_immediately": false}
+			"__var": {
+				"expression": "0 3 * * *", "timezone": 28800, "interval": 0, "run_immediately": false
+			}
 		}
 	}`, withoutKeys(got,
 		"dag_id", "fileloc", "relative_fileloc", "timezone", "tasks", "dag_dependencies",
@@ -413,6 +428,162 @@ func TestSerializeWritesTheTimetableOfTheSchedule(t *testing.T) {
 			dag.Task(ping)
 
 			assertJSON(t, tt.want, serializedDag(t, dag)["timetable"])
+		})
+	}
+}
+
+// [scheduler] create_cron_data_intervals picks the timetable that Python's DAG builds from a cron
+// expression. Python resolves a preset to its expression before it builds either timetable.
+func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.T) {
+	amsterdam, err := time.LoadLocation("Europe/Amsterdam")
+	require.NoError(t, err)
+	cet, err := time.LoadLocation("CET")
+	require.NoError(t, err)
+	tests := []struct {
+		name            string
+		schedule        string
+		startDate       time.Time
+		option          bool
+		defaultTimezone any
+		want            string
+	}{
+		{
+			name:     "cron expression, option off",
+			schedule: "0 3 * * *",
+			want: `{
+				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
+				"__var": {
+					"expression": "0 3 * * *", "timezone": "UTC", "interval": 0,
+					"run_immediately": false
+				}
+			}`,
+		},
+		{
+			name:      "cron expression, option on",
+			schedule:  "0 3 * * *",
+			startDate: time.Date(2026, 2, 1, 0, 0, 0, 0, amsterdam),
+			option:    true,
+			want: `{
+				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+				"__var": {"expression": "0 3 * * *", "timezone": "Europe/Amsterdam"}
+			}`,
+		},
+		{
+			name:      "named timezone whose winter abbreviation is its name",
+			schedule:  "0 3 * * *",
+			startDate: time.Date(2026, 2, 1, 0, 0, 0, 0, cet),
+			want: `{
+				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
+				"__var": {
+					"expression": "0 3 * * *", "timezone": "CET", "interval": 0,
+					"run_immediately": false
+				}
+			}`,
+		},
+		{
+			name:            "deployment default timezone",
+			schedule:        "0 3 * * *",
+			defaultTimezone: "Europe/Amsterdam",
+			want: `{
+				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
+				"__var": {
+					"expression": "0 3 * * *", "timezone": "Europe/Amsterdam", "interval": 0,
+					"run_immediately": false
+				}
+			}`,
+		},
+		{
+			name:            "numeric deployment default timezone",
+			schedule:        "0 3 * * *",
+			option:          true,
+			defaultTimezone: 19800,
+			want: `{
+				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+				"__var": {"expression": "0 3 * * *", "timezone": 19800}
+			}`,
+		},
+		{
+			name:     "preset, option on",
+			schedule: "@quarterly",
+			option:   true,
+			want: `{
+				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+				"__var": {"expression": "0 0 1 */3 *", "timezone": "UTC"}
+			}`,
+		},
+		{
+			name:   "no schedule, option on",
+			option: true,
+			want:   `{"__type": "airflow.timetables.simple.NullTimetable", "__var": {}}`,
+		},
+		{
+			name:     "@once, option on",
+			schedule: "@once",
+			option:   true,
+			want:     `{"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dag := Dag("etl", DagSpec{Schedule: tt.schedule, StartDate: tt.startDate})
+			dag.Task(ping)
+
+			assertJSON(t, tt.want, serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{
+				CreateCronDataIntervals: tt.option,
+				DefaultTimezone:         tt.defaultTimezone,
+			})["timetable"])
+		})
+	}
+}
+
+// A Dag takes its timezone from its start_date, as Python's DAG.timezone does, and Airflow reads the
+// cron expression of the Dag in that timezone.
+func TestSerializeWritesTheTimezoneThatTheStartDateGives(t *testing.T) {
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	cet, err := time.LoadLocation("CET")
+	require.NoError(t, err)
+	gmt, err := time.LoadLocation("GMT")
+	require.NoError(t, err)
+	etcGMTMinusOne, err := time.LoadLocation("Etc/GMT-1")
+	require.NoError(t, err)
+	tests := []struct {
+		name      string
+		startDate time.Time
+		want      any
+	}{
+		{"no start date", time.Time{}, "UTC"},
+		{"UTC start date", time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), "UTC"},
+		{"named timezone", time.Date(2026, 2, 1, 0, 0, 0, 0, shanghai), "Asia/Shanghai"},
+		{"CET in winter", time.Date(2026, 2, 1, 0, 0, 0, 0, cet), "CET"},
+		{"CET in summer", time.Date(2026, 7, 1, 0, 0, 0, 0, cet), "CET"},
+		{"GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, gmt), "GMT"},
+		{"Etc GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, etcGMTMinusOne), "Etc/GMT-1"},
+		{"fixed zone named CET", time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("CET", 3600)), float64(3600)},
+		{
+			// Python writes the offset in seconds for a timezone that has no name to write, and Go
+			// decodes a JSON number as a float64.
+			"fixed offset timezone",
+			time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("UTC-8", -8*3600)),
+			float64(-8 * 3600),
+		},
+		{
+			// Python writes "UTC" for a fixed offset of zero, and reads it back as a fixed offset.
+			"fixed offset of zero",
+			time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("", 0)),
+			"UTC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dag := Dag("etl", DagSpec{Schedule: "0 3 * * *", StartDate: tt.startDate})
+			dag.Task(ping)
+
+			fields := serializedDag(t, dag)
+			assert.Equal(t, tt.want, fields["timezone"])
+			// Airflow reads the cron expression of the Dag in the timezone of the Dag.
+			timetable := fields["timetable"].(map[string]any)["__var"].(map[string]any)
+			assert.Equal(t, tt.want, timetable["timezone"])
 		})
 	}
 }
@@ -727,7 +898,7 @@ func TestSerializeWritesALiteralWithItsIntegersAsIntegers(t *testing.T) {
 	dag.Task(keepAnything, Inputs(Literal(map[string]any{"big": int64(9007199254740993)})))
 
 	Bundle().Register(dag)
-	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl"))
+	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
 	require.NoError(t, err)
 	var decoded map[string]any
 	require.NoError(t, msgpack.Unmarshal(raw, &decoded))
@@ -742,7 +913,7 @@ func TestSerializeSharesNothingWithALiteral(t *testing.T) {
 	dag.Task(keepAnything, Inputs(Literal(map[string]any{"rows": []any{"a"}})))
 	Bundle().Register(dag)
 
-	first := dag.serialize("/bundles/app/etl", "etl")
+	first := dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{})
 	value := first["dag"].(map[string]any)["tasks"].([]any)[0].(map[string]any)["__var"].(map[string]any)["_arg_bindings"].([]any)[0].(map[string]any)["value"]
 	value.(map[string]any)["rows"].([]any)[0] = "changed"
 
@@ -1030,14 +1201,14 @@ func TestSerializeSharesNoConfWithTheDag(t *testing.T) {
 		return tasks[0].(map[string]any)["__var"].(map[string]any)["conf"].(map[string]any)
 	}
 
-	first := conf(dag.serialize("/bundles/app/etl", "etl"))
+	first := conf(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
 	first["tables"].([]any)[0] = "changed"
 	first["target"].(map[string]any)["db"] = "changed"
 	first["added"] = true
 
 	assert.Equal(t,
 		map[string]any{"tables": []any{"rows"}, "target": map[string]any{"db": "warehouse"}},
-		conf(dag.serialize("/bundles/app/etl", "etl")),
+		conf(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{})),
 	)
 }
 
@@ -1093,7 +1264,7 @@ func TestSerializeKeepsTheNumbersOfConfNumbersInMsgpack(t *testing.T) {
 	}}), TaskSpec{TaskID: "trigger"})
 	Bundle().Register(dag)
 
-	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl"))
+	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
 	require.NoError(t, err)
 	dec := msgpack.NewDecoder(bytes.NewReader(raw))
 	dec.UseLooseInterfaceDecoding(true)

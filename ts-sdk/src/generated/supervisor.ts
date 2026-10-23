@@ -283,6 +283,8 @@ export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type14 = "EmailRequest";
 export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
+export type CreateCronDataIntervals = boolean;
+export type DagDefaultTimezone = string | number;
 export type Type15 = "DagFileParseRequest";
 export type Fileloc = string;
 export type LastLoaded = string | null;
@@ -1025,6 +1027,8 @@ export interface DagFileParseRequest {
   bundle_path: BundlePath;
   bundle_name: BundleName1;
   callback_requests?: CallbackRequests;
+  create_cron_data_intervals?: CreateCronDataIntervals;
+  dag_default_timezone?: DagDefaultTimezone;
   type?: Type15;
 }
 /**

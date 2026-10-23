@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // A serialized Dag is the Dag JSON that Airflow stores for a Dag and that its scheduler reads.
@@ -78,16 +80,16 @@ const (
 	defaultGroupUIFgColor = "#000"
 )
 
-// A Schedule maps to one of these timetables. Python's DAG picks the same ones for a schedule
-// string while [scheduler] create_cron_data_intervals is false, which is its default. When the
-// option is true, Python picks CronDataIntervalTimetable for a cron expression instead. A bundle
-// cannot read the option, so a Go Dag always gets CronTriggerTimetable
-// (https://github.com/apache/airflow/issues/67938).
+// A Schedule maps to one of these timetables. Python's DAG picks the same ones from the same
+// schedule string. For a cron expression it picks between the two cron timetables with [scheduler]
+// create_cron_data_intervals, which a bundle cannot read, so the Dag processor sends the option
+// with the parse request.
 const (
-	nullTimetable        = "airflow.timetables.simple.NullTimetable"
-	onceTimetable        = "airflow.timetables.simple.OnceTimetable"
-	continuousTimetable  = "airflow.timetables.simple.ContinuousTimetable"
-	cronTriggerTimetable = "airflow.timetables.trigger.CronTriggerTimetable"
+	nullTimetable             = "airflow.timetables.simple.NullTimetable"
+	onceTimetable             = "airflow.timetables.simple.OnceTimetable"
+	continuousTimetable       = "airflow.timetables.simple.ContinuousTimetable"
+	cronTriggerTimetable      = "airflow.timetables.trigger.CronTriggerTimetable"
+	cronDataIntervalTimetable = "airflow.timetables.interval.CronDataIntervalTimetable"
 )
 
 // cronPresets maps each cron preset to the expression that Python records for it. It holds the same
@@ -158,9 +160,11 @@ func checkSchedule(schedule string) error {
 	return nil
 }
 
-// serializeTimetable returns the timetable that Python's DAG builds from the same schedule string.
-// Dag has already checked the Schedule with checkSchedule.
-func serializeTimetable(schedule string) map[string]any {
+// serializeTimetable returns the timetable that Python's DAG builds from the same schedule string
+// in the timezone of the Dag. Dag has already checked the Schedule with checkSchedule.
+func serializeTimetable(
+	schedule string, timezone any, options bundle.DagSerializationOptions,
+) map[string]any {
 	switch schedule {
 	case "":
 		return map[string]any{"__type": nullTimetable, "__var": map[string]any{}}
@@ -173,15 +177,69 @@ func serializeTimetable(schedule string) map[string]any {
 	if preset, ok := cronPresets[schedule]; ok {
 		expression = preset
 	}
+	// Python's DAG resolves a preset to its expression before it builds either timetable, so both
+	// timetables hold the expression and not the preset.
+	if options.CreateCronDataIntervals {
+		return map[string]any{
+			"__type": cronDataIntervalTimetable,
+			"__var":  map[string]any{"expression": expression, "timezone": timezone},
+		}
+	}
 	return map[string]any{
 		"__type": cronTriggerTimetable,
 		"__var": map[string]any{
 			"expression":      expression,
-			"timezone":        "UTC",
+			"timezone":        timezone,
 			"interval":        0.0,
 			"run_immediately": false,
 		},
 	}
+}
+
+// encodeTimezone returns the timezone of a Dag in the form that Python's encode_timezone writes:
+// the name of a named timezone, the offset in seconds of a fixed offset timezone, or "UTC". A Dag
+// without a start date uses Airflow's encoded [core] default_timezone from the parse request.
+func encodeTimezone(start time.Time, defaultTimezone any) any {
+	if start.IsZero() {
+		if defaultTimezone == nil {
+			// The wire schema supplies UTC when the field is absent. Preserve that zero-value behavior
+			// for in-process callers that construct DagSerializationOptions directly.
+			return "UTC"
+		}
+		return defaultTimezone
+	}
+	location := start.Location().String()
+	if location != "" && location != "Local" && timezoneRulesMatch(start, location) {
+		return location
+	}
+	_, offset := start.Zone()
+	if offset == 0 {
+		return "UTC"
+	}
+	return offset
+}
+
+// timezoneRulesMatch distinguishes a location loaded from the timezone database from a fixed zone
+// that happens to have the same name. Comparing only the current offset would turn FixedZone("CET",
+// 3600) into the DST-aware IANA location CET.
+func timezoneRulesMatch(start time.Time, location string) bool {
+	actualAbbreviation, actualOffset := start.Zone()
+	actualStart, actualEnd := start.ZoneBounds()
+	named, err := time.LoadLocation(location)
+	if err != nil {
+		return false
+	}
+	namedTime := start.In(named)
+	namedAbbreviation, namedOffset := namedTime.Zone()
+	if actualAbbreviation != namedAbbreviation || actualOffset != namedOffset {
+		return false
+	}
+	namedStart, namedEnd := namedTime.ZoneBounds()
+	// Go does not expose whether a static location came from LoadLocation or FixedZone. When their
+	// names and rules are identical, retain the valid IANA name: it preserves more information and
+	// has the same scheduling behavior. Differing rules (for example fixed CET versus IANA CET) do
+	// not match these bounds and are encoded as offsets instead.
+	return actualStart.Equal(namedStart) && actualEnd.Equal(namedEnd)
 }
 
 // schemaField is the property of the serialization schema that one field of DagSpec, TaskSpec or
@@ -362,11 +420,14 @@ func encodeDuration(d time.Duration) float64 { return float64(d.Microseconds()) 
 // serialize returns the serialized Dag that Airflow stores for d. A DagFileParsingResult carries it
 // as the data of one entry of serialized_dags. Python's DagSerialization.to_dict returns the same
 // shape for a Dag authored in Python. fileloc is the path of the file that declares the Dag, and
-// relativeFileloc is that path relative to the root of its Dag bundle.
+// relativeFileloc is that path relative to the root of its Dag bundle. options are the Airflow
+// settings that the Dag processor sent with the parse request.
 //
 // serialize panics unless d is registered. Registration expands each edge to or from a task group
 // into edges between tasks, which the downstream_task_ids of a serialized Dag hold.
-func (d *DagRef) serialize(fileloc, relativeFileloc string) map[string]any {
+func (d *DagRef) serialize(
+	fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) map[string]any {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -375,14 +436,15 @@ func (d *DagRef) serialize(fileloc, relativeFileloc string) map[string]any {
 			"airflow: Dag %q is not registered, so its group edges are not expanded yet", d.dagID,
 		))
 	}
+	// A Dag takes its timezone from its start_date, as Python's DAG.timezone does. Airflow reads the
+	// cron expression of the Dag in that timezone.
+	timezone := encodeTimezone(d.spec.StartDate, options.DefaultTimezone)
 	dag := map[string]any{
 		"dag_id":           d.dagID,
 		"fileloc":          fileloc,
 		"relative_fileloc": relativeFileloc,
-		// A Go Dag has no timezone of its own. Airflow reads its cron expression in UTC, the timezone
-		// that serializeTimetable writes.
-		"timezone":         "UTC",
-		"timetable":        serializeTimetable(d.spec.Schedule),
+		"timezone":         timezone,
+		"timetable":        serializeTimetable(d.spec.Schedule, timezone, options),
 		"tasks":            d.serializeTasksLocked(),
 		"dag_dependencies": d.serializeDagDependenciesLocked(),
 		"task_group":       d.serializeTaskGroupsLocked(),

@@ -958,6 +958,23 @@
           "title": "Callback Requests",
           "type": "array"
         },
+        "create_cron_data_intervals": {
+          "default": false,
+          "title": "Create Cron Data Intervals",
+          "type": "boolean"
+        },
+        "dag_default_timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": "UTC",
+          "title": "Dag Default Timezone"
+        },
         "type": {
           "const": "DagFileParseRequest",
           "default": "DagFileParseRequest",

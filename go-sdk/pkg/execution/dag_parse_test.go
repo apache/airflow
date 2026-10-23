@@ -33,14 +33,17 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// serializedDags is a DagSerializer that records the paths it was called with.
+// serializedDags is a DagSerializer that records the arguments it was called with.
 type serializedDags struct {
 	dags              []bundle.SerializedDag
 	fileloc, relative string
+	options           bundle.DagSerializationOptions
 }
 
-func (s *serializedDags) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
-	s.fileloc, s.relative = fileloc, relativeFileloc
+func (s *serializedDags) SerializeDags(
+	fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) []bundle.SerializedDag {
+	s.fileloc, s.relative, s.options = fileloc, relativeFileloc, options
 	return s.dags
 }
 
@@ -52,9 +55,10 @@ func serializedDag(dagID string) bundle.SerializedDag {
 }
 
 var etlParseRequest = &genmodels.DagFileParseRequest{
-	File:       "/bundles/go/etl",
-	BundlePath: "/bundles/go",
-	BundleName: "go",
+	File:               "/bundles/go/etl",
+	BundlePath:         "/bundles/go",
+	BundleName:         "go",
+	DagDefaultTimezone: "UTC",
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -85,6 +89,7 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 
 	assert.Equal(t, "/bundles/go/etl", dags.fileloc)
 	assert.Equal(t, "etl", dags.relative)
+	assert.Equal(t, bundle.DagSerializationOptions{DefaultTimezone: "UTC"}, dags.options)
 	assert.JSONEq(t, `{
 		"type": "DagFileParsingResult",
 		"fileloc": "/bundles/go/etl",
@@ -93,6 +98,39 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 			{"data": {"__version": 3, "dag": {"dag_id": "reports"}}}
 		]
 	}`, wireJSON(t, result))
+}
+
+// The Dag processor sends [scheduler] create_cron_data_intervals with the parse request, because a
+// bundle cannot read the Airflow config that Python's DAG reads.
+func TestParseDagsPassesTheSerializationOptionsToTheSerializer(t *testing.T) {
+	tests := []struct {
+		name            string
+		createIntervals bool
+		defaultTimezone any
+	}{
+		{"default options", false, "UTC"},
+		{"create_cron_data_intervals on", true, "UTC"},
+		{"named default timezone", false, "Europe/Amsterdam"},
+		{"fixed default timezone", true, int64(19800)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dags := &serializedDags{}
+			req := *etlParseRequest
+			req.CreateCronDataIntervals = tt.createIntervals
+			req.DagDefaultTimezone = tt.defaultTimezone
+
+			parseDags(dags, &req, discardLogger())
+
+			assert.Equal(t,
+				bundle.DagSerializationOptions{
+					CreateCronDataIntervals: tt.createIntervals,
+					DefaultTimezone:         tt.defaultTimezone,
+				},
+				dags.options,
+			)
+		})
+	}
 }
 
 func TestParseDagsAnswersWithNoDagsWhenTheBundleHasNoSerializer(t *testing.T) {

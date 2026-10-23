@@ -167,10 +167,13 @@ class ServerTest {
     MessagePack.newDefaultPacker(out).use { packer ->
       packer.packArrayHeader(2)
       packer.packInt(id)
-      packer.packMapHeader(3)
+      packer.packMapHeader(6)
       packer.packString("type").packString("DagFileParseRequest")
       packer.packString("file").packString(file)
       packer.packString("bundle_path").packString(bundlePath)
+      packer.packString("bundle_name").packString("java")
+      packer.packString("create_cron_data_intervals").packBoolean(true)
+      packer.packString("dag_default_timezone").packString("Europe/Amsterdam")
     }
     return out.toByteArray()
   }
