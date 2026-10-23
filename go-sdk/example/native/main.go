@@ -78,7 +78,7 @@ func newPipelineDag() *airflow.DagRef {
 		airflow.Inputs(airflow.Literal("south"), airflow.Literal(2)),
 	)
 	summed := extract.Task(summarize, airflow.Inputs(north, south))
-	seeded.Before(airflow.Label(extract, "fan out"))
+	seeded.Before(airflow.Label("fan out").On(extract))
 
 	loaded := dag.Task(loadRows, airflow.Inputs(summed, airflow.Literal("s3://bucket/out")))
 	empty := dag.Task(reportEmpty)

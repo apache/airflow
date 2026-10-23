@@ -16,20 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+from airflow.providers.edge3.models.types import (
+    CALLBACK_JOB_MAP_INDEX,
+    CALLBACK_JOB_TRY_NUMBER,
+    EXECUTE_CALLBACK_TAG,
+    build_callback_run_id,
+)
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody
-from airflow.providers.edge3.worker_api.routes.logs import logfile_path, push_logs
+from airflow.providers.edge3.worker_api.routes.logs import _logfile_path, logfile_path, push_logs
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
@@ -43,6 +52,8 @@ pytestmark = pytest.mark.db_test
 DAG_ID = "my_dag"
 TASK_ID = "my_task"
 RUN_ID = "manual__2024-11-24"
+CALLBACK_ID = "12345678-1234-5678-1234-567812345678"
+CALLBACK_LOG_PATH = f"executor_callbacks/{DAG_ID}/{RUN_ID}/{CALLBACK_ID}"
 
 
 class TestLogsApiRoutes:
@@ -218,3 +229,85 @@ class TestLogsApiRoutes:
         assert logs[0].try_number == 1
         assert logs[0].map_index == -1
         assert "Lorem Ipsum" in logs[0].log_chunk_data
+
+    @pytest.fixture
+    def make_callback_job(self, session: Session):
+        def make(command: dict) -> EdgeJobModel:
+            job = EdgeJobModel(
+                dag_id=EXECUTE_CALLBACK_TAG,
+                task_id=CALLBACK_ID,
+                run_id=build_callback_run_id(CALLBACK_ID),
+                map_index=CALLBACK_JOB_MAP_INDEX,
+                try_number=CALLBACK_JOB_TRY_NUMBER,
+                state=TaskInstanceState.RUNNING,
+                queue="default",
+                concurrency_slots=1,
+                command=json.dumps(command),
+            )
+            session.add(job)
+            session.commit()
+            return job
+
+        _logfile_path.cache_clear()
+        yield make
+        session.execute(delete(EdgeJobModel))
+        session.commit()
+        _logfile_path.cache_clear()
+
+    def test_logfile_path_for_callback_job(self, make_callback_job):
+        job = make_callback_job({"type": EXECUTE_CALLBACK_TAG, "log_path": CALLBACK_LOG_PATH})
+
+        path = logfile_path(
+            dag_id=job.dag_id,
+            task_id=job.task_id,
+            run_id=job.run_id,
+            try_number=job.try_number,
+            map_index=job.map_index,
+        )
+
+        assert path == CALLBACK_LOG_PATH
+
+    def test_push_logs_for_callback_job(self, make_callback_job, session: Session, tmp_path: Path):
+        job = make_callback_job({"type": EXECUTE_CALLBACK_TAG, "log_path": CALLBACK_LOG_PATH})
+        log_data = PushLogsBody(log_chunk_data="callback log line", log_chunk_time=timezone.utcnow())
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), create_session() as api_session:
+            push_logs(
+                dag_id=job.dag_id,
+                task_id=job.task_id,
+                run_id=job.run_id,
+                try_number=job.try_number,
+                map_index=job.map_index,
+                body=log_data,
+                session=api_session,
+            )
+        logs: Sequence[EdgeLogsModel] = session.scalars(select(EdgeLogsModel)).all()
+        assert [(log.dag_id, log.task_id, log.run_id, log.log_chunk_data) for log in logs] == [
+            (EXECUTE_CALLBACK_TAG, CALLBACK_ID, build_callback_run_id(CALLBACK_ID), "callback log line")
+        ]
+        assert (tmp_path / CALLBACK_LOG_PATH).read_text() == "callback log line"
+
+    @pytest.mark.parametrize(
+        "stored_command",
+        [
+            pytest.param(None, id="no-edge-job"),
+            pytest.param({"type": EXECUTE_CALLBACK_TAG}, id="no-log-path"),
+        ],
+    )
+    def test_push_logs_for_callback_job_without_log_path(
+        self, make_callback_job, stored_command: dict | None, session: Session
+    ):
+        if stored_command is not None:
+            make_callback_job(stored_command)
+        log_data = PushLogsBody(log_chunk_data="callback log line", log_chunk_time=timezone.utcnow())
+        with pytest.raises(HTTPException) as exc_info, create_session() as api_session:
+            push_logs(
+                dag_id=EXECUTE_CALLBACK_TAG,
+                task_id=CALLBACK_ID,
+                run_id=build_callback_run_id(CALLBACK_ID),
+                try_number=CALLBACK_JOB_TRY_NUMBER,
+                map_index=CALLBACK_JOB_MAP_INDEX,
+                body=log_data,
+                session=api_session,
+            )
+        assert exc_info.value.status_code == 404
+        assert session.scalars(select(EdgeLogsModel)).all() == []

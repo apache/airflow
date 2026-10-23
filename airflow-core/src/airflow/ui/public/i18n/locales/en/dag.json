@@ -323,7 +323,6 @@
       "before": "Before",
       "category": "Category",
       "impact": "Impact",
-      "occurrences": "Occurrences",
       "operation": "Operation",
       "path": "Path"
     },
@@ -349,6 +348,10 @@
       "changed": "Changed",
       "removed": "Removed"
     },
+    "pathOccurrences_one": "{{count, number}} change shares this path",
+    "pathOccurrences_other": "{{count, number}} changes share this path",
+    "pathOccurrencesAtLeast_one": "At least {{count, number}} change shares this path",
+    "pathOccurrencesAtLeast_other": "At least {{count, number}} changes share this path",
     "record_one": "Record",
     "record_other": "Records",
     "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",

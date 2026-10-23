@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Alle Indexe",
   "allRuns": "Alle Läufe",
   "blockingDeps": {
     "dependency": "Abhängigkeiten",
@@ -33,6 +34,21 @@
       "thursday": "Donnerstag",
       "tuesday": "Dienstag",
       "wednesday": "Mittwoch"
+    }
+  },
+  "callbacks": {
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Frist-Alarm",
+      "callback": "Callback",
+      "deadlineTime": "Frist Zeit",
+      "missedBy": "Verpasst um",
+      "type": "Art"
+    },
+    "types": {
+      "executor": "Synchron",
+      "triggerer": "Asynchron"
     }
   },
   "code": {
@@ -243,6 +259,7 @@
     "auditLog": "Prüf-Log",
     "backfills": "Auffüllungen",
     "calendar": "Kalender",
+    "callbacks": "Callbacks",
     "code": "Programmcode",
     "details": "Details",
     "logs": "Protokolle",
@@ -306,7 +323,6 @@
       "before": "Vor",
       "category": "Kategorie",
       "impact": "Auswirkung",
-      "occurrences": "Auftritte",
       "operation": "Einsatz",
       "path": "Pfad"
     },
@@ -317,6 +333,11 @@
       "metadata": "Metadaten",
       "provenance": "Ursprung",
       "unknown": "Unbekannt"
+    },
+    "limitReached": {
+      "description": "Es gibt mehr Änderungen als die Begrenzung zulässt. Entferne die Begrenzung, um die restlichen zu sehen.",
+      "descriptionDefault": "Es gibt mehr Änderungen als die Begrenzung erlaubt. Setze das Maimum herauf, um mehr zu sehen.",
+      "title": "Zeige nur die ersten {{limit, number}} Änderungen"
     },
     "maxChanges": "Maximale Änderungen",
     "maxChangesDefault": "Standard",
@@ -333,6 +354,8 @@
     "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
     "summary_one": "{{count, number}} Änderung",
     "summary_other": "{{count, number}} Änderungen",
+    "summaryAtLeast_one": "Mindestens {{count, number}} Änderungen",
+    "summaryAtLeast_other": "Mindestens {{count, number}} Änderungen",
     "target": "Vergleichen mit",
     "unavailable": {
       "description": "Diese Versionen können nicht verglichen werden. Grund:",

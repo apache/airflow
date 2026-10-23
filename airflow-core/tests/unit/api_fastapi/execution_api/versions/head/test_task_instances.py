@@ -657,6 +657,7 @@ class TestTIRunState:
         assert response.status_code == 200
         if version == "2026-06-30":
             assert "loop" not in response.json()
+            assert "expanded_ti_count" not in response.json()
             return
         assert response.json()["loop"] == {
             "node_id": loop.group_id,
@@ -664,7 +665,57 @@ class TestTIRunState:
             "max_iterations": 4,
             "terminal_task_id": loop.terminal_task_id,
             "terminal_is_mapped": mapped,
+            "region_id": str(parent.id),
+            "trajectory": 1,
         }
+        assert response.json().get("expanded_ti_count") == (1 if mapped else None)
+
+    def test_startup_loop_context_describes_the_fork_holding_the_iteration(self, client, session, dag_maker):
+        @task_group
+        def body():
+            EmptyOperator(task_id="terminal")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(ti for ti in dr.task_instances if ti.task_id == loop.terminal_task_id)
+        original = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        session.add(original)
+        session.flush()
+        fork = DynamicRegion.fork_family(original.id, 2, {original.id: original}, session=session)
+        session.flush()
+        ti.region_id, ti.region_index = fork.id, 2
+        ti.state = State.QUEUED
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        loop_context = response.json()["loop"]
+        assert loop_context["region_id"] == str(fork.id)
+        assert loop_context["trajectory"] == 2
+        assert loop_context["forked_from_region_id"] == str(original.id)
+        assert loop_context["resumes_from_index"] == 2
+
+    @pytest.mark.parametrize("removed", [0, 1])
+    def test_startup_expanded_ti_count_counts_live_instances_of_the_expansion(
+        self, client, session, dag_maker, removed
+    ):
+        with dag_maker(serialized=True):
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        tis = sorted(dr.task_instances, key=lambda ti: ti.map_index)
+        for ti in tis[3 - removed :]:
+            ti.state = State.REMOVED
+        tis[0].state = State.QUEUED
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{tis[0].id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert response.json()["expanded_ti_count"] == 3 - removed
 
     @pytest.mark.parametrize("regional", [False, True])
     def test_startup_xcom_cleanup_keys_belong_to_the_starting_try(
@@ -1099,6 +1150,53 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+
+    @pytest.mark.parametrize(
+        ("decorator", "expected"),
+        [
+            pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
+            pytest.param(task.stub, None, id="stub-without-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(
+                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+            ),
+            pytest.param(task(execution_timeout=timedelta(seconds=10)), 10.0, id="python-task"),
+        ],
+    )
+    def test_ti_run_returns_execution_timeout(self, client, dag_maker, decorator, expected):
+        with dag_maker("test_execution_timeout_dag", serialized=True):
+
+            @decorator
+            def sleeper(): ...
+
+            sleeper()
+
+        (ti,) = dag_maker.create_dagrun().get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("execution_timeout") == expected
+        assert ("execution_timeout" in body) == (expected is not None)
+
+    def test_ti_run_returns_execution_timeout_for_mapped_stub(self, client, dag_maker):
+        with dag_maker("test_mapped_stub_execution_timeout", serialized=True):
+
+            @task.stub(execution_timeout=timedelta(seconds=90))
+            def transform(country: str): ...
+
+            transform.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["execution_timeout"] == 90.0
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""
