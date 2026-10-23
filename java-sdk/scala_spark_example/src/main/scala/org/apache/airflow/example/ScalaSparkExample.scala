@@ -19,7 +19,7 @@
 
 package org.apache.airflow.example
 
-import org.apache.airflow.sdk.{Bundle, BundleBuilder, Client, Context, DagDef, Server, Task}
+import org.apache.airflow.sdk.{Bundle, Client, Context, Server, Task}
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.sum
@@ -60,13 +60,17 @@ private object SparkEtl {
       .config("spark.driver.bindAddress", "127.0.0.1")
       .getOrCreate()
 
-  // 3-arg getXCom(key, dagId, taskId) reads the upstream return value; wire
-  // integers arrive boxed.
+  // "return_value" is the key Airflow gives a task's return value, and the key
+  // both calls default to in Java. Scala does not take Kotlin's default
+  // arguments, so it passes the key: 3-arg getXCom is (key, dagId, taskId).
+  // Wire integers arrive boxed.
+  private val ReturnValueKey = "return_value"
+
   def readUpstreamLong(client: Client, context: Context, taskId: String): Long =
-    client.getXCom("return_value", context.dagRun.dagId, taskId).asInstanceOf[Number].longValue()
+    client.getXCom(ReturnValueKey, context.dagRun.dagId, taskId).asInstanceOf[Number].longValue()
 
   def pushLong(client: Client, value: Long): Unit =
-    client.setXCom("return_value", java.lang.Long.valueOf(value))
+    client.setXCom(ReturnValueKey, java.lang.Long.valueOf(value))
 }
 
 /** Builds the Spark DataFrame and reports how many records were extracted. */
@@ -132,18 +136,21 @@ class SparkLoad extends Task {
   }
 }
 
+/**
+ * The Python Dag file owns `scala_spark_example` and declares its three tasks
+ * with `@task.stub`, so the bundle registers one handler per task ID rather
+ * than declaring a Dag of its own.
+ */
 object ScalaSparkExample {
-  def build(): DagDef =
-    new DagDef(SparkEtl.DagId)
-      .addTask(SparkEtl.ExtractTaskId, classOf[SparkExtract])
-      .addTask(SparkEtl.TransformTaskId, classOf[SparkTransform])
-      .addTask(SparkEtl.LoadTaskId, classOf[SparkLoad])
+  def build(): Bundle =
+    new Bundle()
+      .register(SparkEtl.DagId, SparkEtl.ExtractTaskId, classOf[SparkExtract])
+      .register(SparkEtl.DagId, SparkEtl.TransformTaskId, classOf[SparkTransform])
+      .register(SparkEtl.DagId, SparkEtl.LoadTaskId, classOf[SparkLoad])
 }
 
 /** Bundle entry point served to Airflow's Java coordinator. */
-object ScalaSparkBundleBuilder extends BundleBuilder {
-  override def getDags(): java.lang.Iterable[DagDef] = java.util.List.of(ScalaSparkExample.build())
-
+object ScalaSparkBundleBuilder {
   def main(args: Array[String]): Unit =
-    Server.create(args).serve(new Bundle(getDags()))
+    Server.create(args).serve(ScalaSparkExample.build())
 }
