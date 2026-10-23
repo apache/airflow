@@ -199,6 +199,7 @@ body:
         - redis
         - salesforce
         - samba
+        - search
         - segment
         - sendgrid
         - sftp
