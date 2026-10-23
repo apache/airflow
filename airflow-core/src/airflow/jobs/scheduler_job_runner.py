@@ -380,7 +380,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             fallback=2,
         )
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
-        self._max_dag_load_failures_per_queued_run = conf.getint("scheduler", "max_dag_load_failures_per_queued_run", fallback=0)
+        self._max_dag_load_failures_per_queued_run = conf.getint(
+            "scheduler", "max_dag_load_failures_per_queued_run", fallback=0
+        )
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
@@ -3185,7 +3187,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_id,
                         failure_counter,
                     )
-                    max_failed_runs = session.scalar(select(DagModel.max_consecutive_failed_dag_runs).where(DagModel.dag_id == dag_id))
+                    max_failed_runs = session.scalar(
+                        select(DagModel.max_consecutive_failed_dag_runs).where(DagModel.dag_id == dag_id)
+                    )
                     if max_failed_runs > 0:
                         dag_run._check_last_n_dagruns_failed(dag_id, max_failed_runs, session)
                     del self._queued_run_dag_load_failures[load_failure_id]
