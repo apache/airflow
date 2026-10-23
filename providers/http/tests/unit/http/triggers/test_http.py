@@ -38,6 +38,8 @@ from airflow.providers.http.triggers.http import (
 )
 from airflow.triggers.base import TriggerEvent
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
 TEST_CONN_ID = "http_default"
 TEST_AUTH_TYPE = None
@@ -388,3 +390,79 @@ class TestHttpEventTrigger:
         assert kwargs["data"] == TEST_DATA
         assert kwargs["json"] is None
         assert kwargs["params"] is None
+
+async def _single_positional_arg(resp):
+    return resp == "ok"
+
+
+async def _default_second_arg_not_overwritten(resp, threshold=5):
+    return resp == "ok" and threshold == 5
+
+
+async def _keyword_only_arg_not_passed_positionally(resp, *, strict=True):
+    return resp == "ok" and strict is True
+
+
+async def _explicit_asset_state_store_kwarg(resp, asset_state_store=None):
+    return resp == "ok" and asset_state_store == "sentinel_store"
+
+
+async def _var_keyword_kwargs(resp, **kwargs):
+    return resp == "ok" and kwargs.get("asset_state_store") == "sentinel_store"
+
+
+async def _positional_only_asset_state_store(resp, asset_state_store="default_val", /):
+    return resp == "ok" and asset_state_store == "default_val"
+
+
+class TestHttpEventTriggerResponseCheckCallableShapes:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "check",
+        [
+            pytest.param(_single_positional_arg, id="single_positional_arg"),
+            pytest.param(_default_second_arg_not_overwritten, id="default_second_arg_not_overwritten"),
+            pytest.param(
+                _keyword_only_arg_not_passed_positionally,
+                id="keyword_only_arg_not_passed_positionally",
+            ),
+            pytest.param(_explicit_asset_state_store_kwarg, id="explicit_asset_state_store_kwarg"),
+            pytest.param(_var_keyword_kwargs, id="var_keyword_kwargs"),
+            pytest.param(_positional_only_asset_state_store, id="positional_only_asset_state_store"),
+        ],
+    )
+    async def test_run_response_check_callable_shapes(self, event_trigger, check):
+        event_trigger.asset_state_store = "sentinel_store"
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=check)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="asset_state_store arrived in Airflow 3.3.0")
+    async def test_run_response_check_with_real_asset_state_store_autospec(self, event_trigger):
+        """Verify compatibility with AssetStateStoreAccessors when available on Airflow >= 3.3."""
+        from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+
+        mock_store = mock.create_autospec(AssetStateStoreAccessors, instance=True)
+        event_trigger.asset_state_store = mock_store
+
+        async def check(resp, asset_state_store=None):
+            return resp == "ok" and asset_state_store is mock_store
+
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=check)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_run_response_check_without_asset_state_store_attribute(self, event_trigger):
+        """Verify behavior on Airflow versions where asset_state_store is not set on BaseEventTrigger."""
+        if hasattr(event_trigger, "asset_state_store"):
+            del event_trigger.asset_state_store
+        assert not hasattr(event_trigger, "asset_state_store")
+
+        async def mock_check_with_store(response, asset_state_store=None):
+            return response == "ok" and asset_state_store is None
+
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=mock_check_with_store)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
