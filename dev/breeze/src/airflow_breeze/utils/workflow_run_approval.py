@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -50,6 +51,8 @@ NEED_WORKFLOW_APPROVAL_LABEL = "need workflow approval"
 # Only PRs to main are approved automatically. PRs to release branches (``v3-4-test``,
 # ``airflow-ctl/v0-1-test``, ...) run those branches' own, older workflows and always need a maintainer.
 AUTO_APPROVABLE_BASE_BRANCH = "main"
+
+MAX_ERROR_TEXT_LENGTH = 200
 
 # Changes here can change which runner a job uses (``runs-on:``, ``runner-type`` computed by
 # selective checks, the scripts build-info runs) or what the workflows do, so they always need a
@@ -410,6 +413,7 @@ class PullRequestResult:
     head_sha: str
     run_ids: list[int]
     decision: ApprovalDecision
+    failed: bool = False
 
 
 def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[PullRequestResult]:
@@ -447,28 +451,54 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
             )
             continue
         for pr in matching_prs:
-            if len(matching_prs) > 1:
-                # The runs cannot be told apart by PR, so one PR's decision must not approve them all.
-                decision = ApprovalDecision(
-                    approve=False, reasons=["its head commit is the head of several open PRs"]
-                )
-            else:
-                decision = decide_for_pull_request(api=api, pr=pr)
-            if decision.approve:
-                run_ids = find_runs_started_for_current_pr(api=api, pr=pr, runs=head_runs)
-                if not run_ids:
+            failed = False
+            decision: ApprovalDecision | None = None
+            try:
+                if len(matching_prs) > 1:
+                    # The runs cannot be told apart by PR, so one PR's decision must not approve them all.
                     decision = ApprovalDecision(
-                        approve=False,
-                        reasons=["its waiting runs started before the PR was opened or retargeted"],
-                        estimate=decision.estimate,
+                        approve=False, reasons=["its head commit is the head of several open PRs"]
                     )
-                    run_ids = [run["id"] for run in head_runs]
+                else:
+                    decision = decide_for_pull_request(api=api, pr=pr)
+                pr_run_ids = run_ids
+                if decision.approve:
+                    pr_run_ids = find_runs_started_for_current_pr(api=api, pr=pr, runs=head_runs)
+                    if not pr_run_ids:
+                        decision = ApprovalDecision(
+                            approve=False,
+                            reasons=["its waiting runs started before the PR was opened or retargeted"],
+                            estimate=decision.estimate,
+                        )
+                        pr_run_ids = run_ids
+                apply_decision(api=api, pr=pr, run_ids=pr_run_ids, decision=decision)
+            except (requests.RequestException, subprocess.CalledProcessError) as e:
+                # One failing PR must not stop the others; the failure is reported through ``failed``.
+                failed = True
+                console_print(f"[warning]PR #{pr['number']}: processing failed: {escape(str(e))}[/]")
+                pr_run_ids = run_ids
+                # Without the label a PR that keeps failing drops out of the query window unnoticed.
+                try:
+                    if not has_need_workflow_approval_label(pr):
+                        api.add_label(pr["number"], NEED_WORKFLOW_APPROVAL_LABEL)
+                except requests.RequestException as label_error:
+                    console_print(
+                        f"[warning]PR #{pr['number']}: adding the label failed: {escape(str(label_error))}[/]"
+                    )
+                decision = ApprovalDecision(
+                    approve=False,
+                    reasons=[build_failure_reason(e)],
+                    estimate=decision.estimate if decision else None,
+                )
             results.append(
                 PullRequestResult(
-                    pr_number=pr["number"], head_sha=head_sha, run_ids=run_ids, decision=decision
+                    pr_number=pr["number"],
+                    head_sha=head_sha,
+                    run_ids=pr_run_ids,
+                    decision=decision,
+                    failed=failed,
                 )
             )
-            apply_decision(api=api, pr=pr, run_ids=run_ids, decision=decision)
     return results
 
 
@@ -514,11 +544,25 @@ def decide_for_pull_request(*, api: GitHubApi, pr: dict[str, Any]) -> ApprovalDe
     )
 
 
+def build_failure_reason(error: Exception) -> str:
+    text = " ".join(str(error).split())
+    if len(text) > MAX_ERROR_TEXT_LENGTH:
+        # The end of a failed git command holds its exit status, so keep both ends.
+        half = (MAX_ERROR_TEXT_LENGTH - len("...")) // 2
+        text = f"{text[:half]}...{text[-half:]}"
+    reason = f"processing failed with {type(error).__name__}"
+    return f"{reason}: {text}" if text else reason
+
+
+def has_need_workflow_approval_label(pr: dict[str, Any]) -> bool:
+    return any(label["name"] == NEED_WORKFLOW_APPROVAL_LABEL for label in pr.get("labels", []))
+
+
 def apply_decision(
     *, api: GitHubApi, pr: dict[str, Any], run_ids: list[int], decision: ApprovalDecision
 ) -> None:
     pr_number = pr["number"]
-    has_label = any(label["name"] == NEED_WORKFLOW_APPROVAL_LABEL for label in pr.get("labels", []))
+    has_label = has_need_workflow_approval_label(pr)
     console_print(f"[info]PR #{pr_number}: {format_estimate(decision.estimate)}[/]")
     if decision.approve:
         console_print(
@@ -562,7 +606,12 @@ def write_step_summary(results: list[PullRequestResult], github_repository: str)
         "|---|---|---|---|---|",
     ]
     for result in results:
-        decision = "approved" if result.decision.approve else f"`{NEED_WORKFLOW_APPROVAL_LABEL}`"
+        if result.failed:
+            decision = "failed"
+        elif result.decision.approve:
+            decision = "approved"
+        else:
+            decision = f"`{NEED_WORKFLOW_APPROVAL_LABEL}`"
         lines.append(
             f"| [#{result.pr_number}](https://github.com/{github_repository}/pull/{result.pr_number}) "
             f"| `{result.head_sha[:10]}` | {decision} | {format_estimate(result.decision.estimate)} "

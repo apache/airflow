@@ -21,18 +21,24 @@ from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
+import requests
+from click.testing import CliRunner
 
+from airflow_breeze.commands.ci_commands import approve_workflow_runs
 from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, EstimatedJobGroup
 from airflow_breeze.utils.selective_checks import SelectiveChecks
+from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
     MAX_AUTO_APPROVED_JOB_MINUTES,
     MAX_AUTO_APPROVED_SOURCE_LINES,
+    MAX_ERROR_TEXT_LENGTH,
     NEED_WORKFLOW_APPROVAL_LABEL,
     ApprovalDecision,
     ChangedFile,
     GitHubApi,
     PullRequestResult,
     apply_decision,
+    build_failure_reason,
     build_selective_checks,
     count_source_lines,
     decide_approval,
@@ -433,6 +439,28 @@ def test_write_step_summary_lists_expected_jobs_and_time(tmp_path, monkeypatch):
     assert "| Provider tests (1 providers, 74 test files) | 110 | 16 |" in text
 
 
+def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    write_step_summary(
+        [
+            PullRequestResult(
+                pr_number=10,
+                head_sha="abcdef0123456789",
+                run_ids=[1],
+                decision=ApprovalDecision(approve=False, reasons=["processing failed"]),
+                failed=True,
+            )
+        ],
+        "apache/airflow",
+    )
+
+    text = summary.read_text()
+    assert "| `abcdef0123` | failed |" in text
+    assert NEED_WORKFLOW_APPROVAL_LABEL not in text
+
+
 @pytest.mark.parametrize(
     ("paths", "approve"),
     [
@@ -530,11 +558,6 @@ def test_process_waiting_runs_does_not_approve_a_commit_shared_by_several_prs(mo
 def test_approve_workflow_runs_command_never_writes_in_dry_run(
     mock_api, mock_process, mock_summary, args, report_only
 ):
-    from click.testing import CliRunner
-
-    from airflow_breeze.commands.ci_commands import approve_workflow_runs
-    from airflow_breeze.utils.shared_options import set_dry_run
-
     try:
         result = CliRunner().invoke(approve_workflow_runs, ["--github-token", "token", *args])
     finally:
@@ -615,3 +638,166 @@ def test_escape_markdown():
     assert escape_markdown("it changes .github/[x](http://evil)|`y`") == (
         "it changes .github/\\[x\\]\\(http://evil\\)\\|\\`y\\`"
     )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(requests.HTTPError("502 Server Error"), id="http-error"),
+        pytest.param(requests.ConnectionError("reset"), id="connection-error"),
+        pytest.param(subprocess.CalledProcessError(128, ["git", "diff"]), id="git-error"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_continues_after_a_pull_request_fails(mock_decide, error):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_last_base_change.return_value = None
+    api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa"), _run(2, "bbb")]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa"), _pr(11, "bbb")]
+    mock_decide.side_effect = [error, ApprovalDecision(approve=True, reasons=["cheap"])]
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert [(r.pr_number, r.decision.approve, r.failed) for r in results] == [
+        (10, False, True),
+        (11, True, False),
+    ]
+    assert type(error).__name__ in results[0].decision.reasons[0]
+    assert api.approve_run.call_args_list == [mock.call(2)]
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_records_a_failure_while_approving_as_not_approved(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_last_base_change.return_value = None
+    api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa"), _run(2, "aaa")]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
+    api.approve_run.side_effect = [None, requests.HTTPError("409 Conflict")]
+    mock_decide.return_value = ApprovalDecision(approve=True, reasons=["cheap"])
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert [(r.pr_number, r.run_ids, r.decision.approve, r.failed) for r in results] == [
+        (10, [1, 2], False, True)
+    ]
+    assert api.approve_run.call_args_list == [mock.call(1), mock.call(2)]
+    api.add_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+
+
+def _api_with_prs(prs, runs):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_last_base_change.return_value = None
+    api.get_runs_waiting_for_approval.return_value = runs
+    api.get_open_pull_requests.return_value = prs
+    return api
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_labels_failed_pull_requests_that_lack_the_label_without_approving(mock_decide):
+    api = _api_with_prs(
+        [_pr(10, "aaa"), _pr(11, "bbb", labels=[NEED_WORKFLOW_APPROVAL_LABEL])],
+        [_run(1, "aaa"), _run(2, "bbb")],
+    )
+    mock_decide.side_effect = requests.HTTPError("502 Server Error")
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert [(r.failed, r.decision.approve) for r in results] == [(True, False), (True, False)]
+    assert api.add_label.call_args_list == [mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL)]
+    api.approve_run.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_survives_a_failure_to_label_a_failed_pull_request(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa"), _pr(11, "bbb")], [_run(1, "aaa"), _run(2, "bbb")])
+    api.add_label.side_effect = requests.ConnectionError("reset")
+    mock_decide.side_effect = [
+        requests.HTTPError("502 Server Error"),
+        ApprovalDecision(approve=True, reasons=["cheap"]),
+    ]
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert [(r.pr_number, r.failed) for r in results] == [(10, True), (11, False)]
+    assert api.add_label.call_args_list == [mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL)]
+    assert api.approve_run.call_args_list == [mock.call(2)]
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_keeps_each_failed_pull_requests_own_estimate(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa"), _pr(11, "bbb")], [_run(1, "aaa"), _run(2, "bbb")])
+    api.approve_run.side_effect = requests.HTTPError("409 Conflict")
+    estimate = CiMinutesEstimate(job_groups=[])
+    mock_decide.side_effect = [
+        ApprovalDecision(approve=True, reasons=["cheap"], estimate=estimate),
+        requests.HTTPError("502 Server Error"),
+    ]
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert [(r.pr_number, r.failed) for r in results] == [(10, True), (11, True)]
+    assert results[0].decision.estimate is estimate
+    assert results[1].decision.estimate is None
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_reason"),
+    [
+        pytest.param(
+            requests.HTTPError("502 Server\nError"),
+            "processing failed with HTTPError: 502 Server Error",
+            id="whitespace-collapsed",
+        ),
+        pytest.param(
+            requests.ConnectionError(),
+            "processing failed with ConnectionError",
+            id="empty-message",
+        ),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_describes_the_error_in_the_failure_reason(mock_decide, error, expected_reason):
+    api = _api_with_prs([_pr(10, "aaa")], [_run(1, "aaa")])
+    mock_decide.side_effect = error
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert results[0].decision.reasons == [expected_reason]
+
+
+def test_build_failure_reason_keeps_the_end_of_a_long_error():
+    error = subprocess.CalledProcessError(128, ["git", "diff", "x" * 1000])
+
+    reason = build_failure_reason(error)
+
+    assert reason.startswith("processing failed with CalledProcessError: Command '['git', 'diff'")
+    assert reason.endswith("returned non-zero exit status 128.")
+    assert "..." in reason
+    assert len(reason) == len("processing failed with CalledProcessError: ") + MAX_ERROR_TEXT_LENGTH - 1
+
+
+@pytest.mark.parametrize(("failed", "exit_code"), [(False, 0), (True, 1)])
+@mock.patch(f"{MODULE}.write_step_summary", autospec=True)
+@mock.patch(f"{MODULE}.process_waiting_runs", autospec=True)
+@mock.patch(f"{MODULE}.GitHubApi", autospec=True)
+def test_approve_workflow_runs_command_exits_non_zero_after_summary_when_a_pr_failed(
+    mock_api, mock_process, mock_summary, failed, exit_code
+):
+    results = [
+        PullRequestResult(
+            pr_number=10,
+            head_sha="abc",
+            run_ids=[1],
+            decision=ApprovalDecision(approve=False, reasons=["processing failed"]),
+            failed=failed,
+        )
+    ]
+    mock_process.return_value = results
+
+    result = CliRunner().invoke(approve_workflow_runs, ["--github-token", "token"])
+
+    assert result.exit_code == exit_code, result.output
+    mock_summary.assert_called_once_with(results, mock.ANY)

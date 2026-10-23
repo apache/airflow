@@ -118,8 +118,10 @@ approves a backlog of older waiting runs at once; those stay with maintainers. A
 head of several open PRs is never approved automatically, because its runs cannot be told apart by
 PR, and only runs started after the PR was opened and after its base branch last changed are
 approved (retargeting a PR does not start new runs). Other PRs get the
-`need workflow approval` label and wait for a maintainer. The label is removed when
-a later commit of the PR is approved automatically.
+`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
+a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
+failure stays visible even if the label could not be added. The label is removed when a later commit
+of the PR is approved automatically.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must
