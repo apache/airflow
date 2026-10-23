@@ -14144,6 +14144,11 @@ def test_scheduler_first_producer_reselects_after_waiting(
                 session=s,
             )
             obs["producer_apdr_id"] = got.id
+            # Ordering proof that the producer really waited on the claim: its acquisition
+            # cannot return until the scheduler's transaction is released. This does not rely
+            # on performance_schema data-lock reporting, which the attributed query below
+            # needs and which is not populated on every supported MySQL build.
+            obs["acquired_after_release"] = release.is_set()
             _attach_second_event(
                 s,
                 asset_id=asset_id,
@@ -14177,11 +14182,14 @@ def test_scheduler_first_producer_reselects_after_waiting(
             assert producer_ready.wait(timeout=30), f"the producer never started: {obs}"
             # Attributed to this pair: the database must report *this* producer blocked by
             # *this* scheduler, not merely that something somewhere is waiting.
+            # Corroborating detail where the backend reports it: this producer blocked by
+            # this scheduler, rather than "something somewhere is waiting". Recorded, not
+            # required, because data-lock reporting is not available on every build.
             obs["lock_wait_observed"] = _await_attributed_wait(
                 session,
                 waiter=obs.get("producer_backend"),
                 blocker=obs.get("blocker_backend"),
-                timeout=30,
+                timeout=10,
             )
         finally:
             release.set()
@@ -14193,8 +14201,9 @@ def test_scheduler_first_producer_reselects_after_waiting(
     assert not tp.is_alive(), f"the producer hung: {obs}"
     assert "scheduler_error" not in obs, obs
     assert "producer_error" not in obs, obs
-    assert obs["lock_wait_observed"] is True, (
-        f"the producer never blocked on the claim's lock, so this schedule did not test anything: {obs}"
+    assert obs.get("acquired_after_release") is True, (
+        f"the producer's acquisition returned before the scheduler released its claim, so it "
+        f"never blocked on that lock and this schedule did not test anything: {obs}"
     )
     assert obs["producer_committed"] is True, obs
     assert obs["producer_apdr_id"] != apdr_id, (
