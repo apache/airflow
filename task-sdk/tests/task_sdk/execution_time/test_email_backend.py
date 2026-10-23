@@ -78,6 +78,28 @@ class TestLegacyEmailBackendNotifier:
             from_email="from@x.com",
         )
 
+    def test_notify_passes_none_from_email_by_default(self):
+        """When from_email is omitted, notify() passes from_email=None to allow backend-defined defaults."""
+        backend = mock.create_autospec(_legacy_email_backend)
+        notifier = _LegacyEmailBackendNotifier(
+            to=["a@b.com"],
+            subject="Subject",
+            html_content="<p>body</p>",
+        )
+        with (
+            mock.patch.object(conf, "getimport", autospec=True, return_value=backend),
+            mock.patch.object(conf, "get", autospec=True, return_value="my_conn"),
+        ):
+            notifier.notify(context={})
+
+        backend.assert_called_once_with(
+            ["a@b.com"],
+            "Subject",
+            "<p>body</p>",
+            conn_id="my_conn",
+            from_email=None,
+        )
+
     def test_notify_raises_when_backend_unresolvable(self):
         """An empty/unloadable backend raises rather than silently doing nothing."""
         notifier = _LegacyEmailBackendNotifier(to="a@b.com")
