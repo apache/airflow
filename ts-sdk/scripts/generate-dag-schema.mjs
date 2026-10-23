@@ -106,6 +106,7 @@ export const EXCLUDED_TASK_FIELDS = {
   on_failure_fail_dagrun: "only valid on teardown tasks, which the SDK does not model yet",
   returns_dag_result:
     "the SDK does not send dag_result on the return-value XCom push, so the flag would do nothing",
+  cancel_state: "only meaningful with cancel_on, which the SDK does not model yet",
 };
 
 /**
@@ -130,6 +131,7 @@ export const UNEXPRESSIBLE_TASK_FIELDS = {
   inlets: "an array of assets, which the SDK does not model yet",
   outlets: "an array of assets, which the SDK does not model yet",
   start_trigger_args: "an object; deferrable-operator machinery",
+  cancel_on: "an array of AIP-125 webhook conditions, which the SDK does not model yet",
 };
 
 /**
@@ -196,6 +198,7 @@ export const UNEXPRESSIBLE_DAG_FIELDS = {
   edge_info: "an object holding the edges, which the Dag builds from its wiring",
   dag_dependencies: "an object the serializer derives from the Dag's tasks",
   rerun_with_latest_version: "a nullable boolean the generator cannot narrow to one type",
+  cancel_on: "an array of AIP-125 webhook conditions, which the SDK does not model yet",
 };
 
 /** Whether the serializer, not the author, owns `key` in `definition`. */

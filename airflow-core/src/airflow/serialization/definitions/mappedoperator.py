@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.node import DAGNode as TaskSDKDAGNode
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -210,6 +211,14 @@ class SerializedMappedOperator(DAGNode):
     @property
     def is_teardown(self) -> bool:
         return self._get_partial_kwargs_or_operator_default("is_teardown")
+
+    @property
+    def cancel_on(self) -> tuple[SerializedWebhookMatch, ...]:
+        return self._get_partial_kwargs_or_operator_default("cancel_on")
+
+    @property
+    def cancel_state(self) -> str | None:
+        return self._get_partial_kwargs_or_operator_default("cancel_state")
 
     @property
     def depends_on_past(self) -> bool:

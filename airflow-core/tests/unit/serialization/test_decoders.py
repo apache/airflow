@@ -19,17 +19,25 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
+
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.variable import Variable
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.serde import serialize
-from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
+from airflow.serialization.decoders import (
+    decode_cancel_state,
+    decode_deadline_alert_model,
+    decode_webhook_matches,
+    resolve_deadline_alert_interval,
+)
 from airflow.serialization.definitions.deadline import (
     SerializedDeadlineAlert,
     SerializedReferenceModels,
     SerializedVariableInterval,
 )
+from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
 
 
 async def empty_callback_for_deadline():
@@ -82,3 +90,41 @@ class TestDecodeDeadlineAlertModel:
         )
 
         assert decode_deadline_alert_model(row).name == "my_deadline"
+
+
+class TestDecodeWebhookMatches:
+    def test_decodes_conditions_in_canonical_form(self):
+        decoded = decode_webhook_matches(
+            [{"webhook": "github", "events": ["push"], "match": {"number": [42]}}, {"webhook": "slack"}]
+        )
+
+        assert decoded == (
+            SerializedWebhookMatch(webhook="github", events=("push",), match=(("number", ("42",)),)),
+            SerializedWebhookMatch(webhook="slack"),
+        )
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"webhook": "github"}, id="not-a-list"),
+            pytest.param([], id="no-condition"),
+            pytest.param(["github"], id="not-an-object"),
+            pytest.param([{"events": ["push"]}], id="no-webhook"),
+            pytest.param([{"webhook": "github", "branch": "main"}], id="unknown-key"),
+            pytest.param([{"webhook": "GitHub"}], id="outside-the-grammar"),
+        ],
+    )
+    def test_refuses_malformed_conditions(self, value):
+        with pytest.raises(ValueError, match="."):
+            decode_webhook_matches(value)
+
+
+class TestDecodeCancelState:
+    @pytest.mark.parametrize("value", ["failed", "skipped"])
+    def test_decodes_a_cancel_state(self, value):
+        assert decode_cancel_state(value) == value
+
+    @pytest.mark.parametrize("value", ["upstream_failed", None, ["failed"]])
+    def test_refuses_any_other_value(self, value):
+        with pytest.raises(ValueError, match="cancel_state must be one of"):
+            decode_cancel_state(value)

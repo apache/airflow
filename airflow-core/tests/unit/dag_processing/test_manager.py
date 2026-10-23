@@ -286,8 +286,9 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 # content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
 # lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
 # per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
-# of them are already recorded.
-FIXED_PER_CALL = 9
+# of them are already recorded. One of the per-call statements loads the Dags' cancel conditions
+# (dag_cancel_condition), whether or not any Dag has cancel_on.
+FIXED_PER_CALL = 10
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 # A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the

@@ -64,6 +64,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
 from airflow.models.asset import AssetDagRunQueue
 from airflow.models.base import Base, StringID
+from airflow.models.dag_cancel_condition import DagCancelCondition
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
@@ -447,6 +448,7 @@ class DagModel(Base):
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )
+    cancel_conditions = relationship(DagCancelCondition, cascade="all, delete, delete-orphan")
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
     )

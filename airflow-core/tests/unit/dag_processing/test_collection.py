@@ -40,6 +40,7 @@ from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
+    CancelConditionOperation,
     DagModelOperation,
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
@@ -59,6 +60,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
+from airflow.models.dag_cancel_condition import DagCancelCondition
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -71,6 +73,7 @@ from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import StartOfDayMapper, StartOfMonthMapper
 from airflow.partition_mappers.window import DayWindow
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
@@ -80,19 +83,22 @@ from airflow.sdk import (
     AssetAll,
     AssetAndTimeSchedule,
     AssetWatcher,
+    WebhookMatch,
 )
 from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
 from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.decoders import decode_timetable
 from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -687,6 +693,140 @@ class TestAssetModelOperationSyncAssetActive:
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()
         assert orm_assets["myasset", "file://myasset/"].active is None, "should not activate due to conflict"
+
+
+CLOSED_BY_CONF = WebhookMatch(
+    "github", events=["pull_request"], match={"action": "closed"}, correlation_key_conf="pr"
+)
+PUSHED = WebhookMatch("github", events=["push"])
+ANY_SLACK_EVENT = WebhookMatch("slack")
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("testing_dag_bundle")
+class TestCancelConditionOperation:
+    @pytest.fixture(autouse=True)
+    def clean_db(self) -> Generator:
+        clear_db_dags()
+        yield
+        clear_db_dags()
+
+    @staticmethod
+    def build_dag(**task_kwargs) -> DAG:
+        with DAG("cancellable", schedule=None) as dag:
+            BashOperator(task_id="task", bash_command="echo 1", **task_kwargs)
+        return dag
+
+    @staticmethod
+    def sync(dag: DAG | LazyDeserializedDAG, session) -> None:
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        CancelConditionOperation.collect(dags).sync(orm_dags)
+        session.flush()
+
+    @staticmethod
+    def get_rows(session) -> list[tuple]:
+        return [
+            tuple(row)
+            for row in session.execute(
+                select(
+                    DagCancelCondition.task_id,
+                    DagCancelCondition.webhook,
+                    DagCancelCondition.events,
+                    DagCancelCondition.match,
+                    DagCancelCondition.correlation_key_conf,
+                    DagCancelCondition.cancel_state,
+                ).order_by(DagCancelCondition.task_id, DagCancelCondition.webhook)
+            )
+        ]
+
+    def test_conditions_are_stored_for_the_dag_and_its_tasks(self, session):
+        with DAG("cancellable", schedule=None, cancel_on=[CLOSED_BY_CONF]) as dag:
+            BashOperator(task_id="skipped", bash_command="echo 1", cancel_on=[PUSHED], cancel_state="skipped")
+            BashOperator.partial(task_id="mapped", cancel_on=[ANY_SLACK_EVENT]).expand(
+                bash_command=["echo 1"]
+            )
+            BashOperator(task_id="plain", bash_command="echo 1")
+
+        self.sync(dag, session)
+
+        assert self.get_rows(session) == [
+            ("", "github", ["pull_request"], {"action": ["closed"]}, "pr", None),
+            ("mapped", "slack", None, {}, None, "failed"),
+            ("skipped", "github", ["push"], {}, None, "skipped"),
+        ]
+
+    def test_sync_leaves_unchanged_conditions_alone(self, session):
+        dag = self.build_dag(cancel_on=[PUSHED, CLOSED_BY_CONF])
+        self.sync(dag, session)
+        session.expunge_all()
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+
+        with assert_queries_count(0):
+            CancelConditionOperation.collect(dags).sync(orm_dags)
+            session.flush()
+
+    @pytest.mark.parametrize(
+        ("task_kwargs", "expected"),
+        [
+            pytest.param(
+                {"cancel_on": [PUSHED]},
+                [("task", "github", ["push"], {}, None, "failed")],
+                id="condition-removed",
+            ),
+            pytest.param(
+                {"cancel_on": [PUSHED, CLOSED_BY_CONF, ANY_SLACK_EVENT]},
+                [
+                    ("task", "github", ["pull_request"], {"action": ["closed"]}, "pr", "failed"),
+                    ("task", "github", ["push"], {}, None, "failed"),
+                    ("task", "slack", None, {}, None, "failed"),
+                ],
+                id="condition-added",
+            ),
+            pytest.param({}, [], id="cancel-on-dropped"),
+            pytest.param(
+                {"cancel_on": [PUSHED, CLOSED_BY_CONF], "cancel_state": "skipped"},
+                [
+                    ("task", "github", ["pull_request"], {"action": ["closed"]}, "pr", "skipped"),
+                    ("task", "github", ["push"], {}, None, "skipped"),
+                ],
+                id="cancel-state-changed",
+            ),
+        ],
+    )
+    def test_sync_updates_changed_conditions(self, session, task_kwargs, expected):
+        self.sync(self.build_dag(cancel_on=[PUSHED, CLOSED_BY_CONF]), session)
+
+        self.sync(self.build_dag(**task_kwargs), session)
+
+        assert sorted(self.get_rows(session), key=str) == sorted(expected, key=str)
+
+    def test_equivalent_conditions_are_stored_once(self, session):
+        data = DagSerialization.to_dict(self.build_dag())
+        # A Lang-SDK Dag can write one condition in several ways; the Python SDK never does.
+        data["dag"]["cancel_on"] = [
+            {"webhook": "github", "events": ["push", "push"], "match": {"number": 42}},
+            {"webhook": "github", "events": ["push"], "match": {"number": ["42"]}},
+        ]
+
+        self.sync(LazyDeserializedDAG(data=data), session)
+
+        assert self.get_rows(session) == [("", "github", ["push"], {"number": ["42"]}, None, None)]
+
+    def test_bulk_write_to_db_stores_conditions_for_no_more_queries_than_without_them(self, session):
+        def count_resync_queries(dag: DAG) -> int:
+            SerializedDAG.bulk_write_to_db("testing", None, [dag])
+            with count_queries() as result:
+                SerializedDAG.bulk_write_to_db("testing", None, [dag])
+            return sum(result.values())
+
+        without_cancel_on = count_resync_queries(self.build_dag())
+        clear_db_dags()
+        with_cancel_on = count_resync_queries(self.build_dag(cancel_on=[PUSHED]))
+
+        assert self.get_rows(session) == [("task", "github", ["push"], {}, None, "failed")]
+        assert with_cancel_on == without_cancel_on
 
 
 @pytest.mark.need_serialized_dag

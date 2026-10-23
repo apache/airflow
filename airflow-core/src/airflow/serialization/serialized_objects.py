@@ -72,9 +72,11 @@ from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventA
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.decoders import (
     decode_asset_like,
+    decode_cancel_state,
     decode_deadline_alert,
     decode_relativedelta,
     decode_timetable,
+    decode_webhook_matches,
 )
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -102,6 +104,7 @@ from airflow.serialization.encoders import (
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
+    encode_webhook_matches,
     ensure_serialized_asset,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -148,6 +151,10 @@ _OPERATOR_TIMEDELTA_FIELDS = frozenset({"retry_delay", "execution_timeout", "max
 # re-parsing the DAG source on the worker. Applies both to a mapped operator's
 # ``partial_kwargs`` and to a DAG's ``default_args``.
 _HAS_FLAG_FIELDS = _OPERATOR_CALLBACK_FIELDS | frozenset({"retry_policy"})
+# Encoded and decoded explicitly, both on a task and in a mapped task's partial_kwargs: the generic
+# path would write each WebhookMatch with str(), and would read a serde envelope around them
+# without checking the webhook match grammar.
+_CANCEL_ON_FIELDS = frozenset({"cancel_on", "cancel_state"})
 
 
 def _get_registered_priority_weight_strategy(
@@ -1025,7 +1032,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         if op.partial_kwargs:
             serialized_op["partial_kwargs"] = {}
-            for k, v in op.partial_kwargs.items():
+            partial_kwargs = op.partial_kwargs
+            # Encoded below. Looked up once rather than tested for each key, as most tasks have neither.
+            if "cancel_on" in partial_kwargs or "cancel_state" in partial_kwargs:
+                partial_kwargs = {k: v for k, v in partial_kwargs.items() if k not in _CANCEL_ON_FIELDS}
+            for k, v in partial_kwargs.items():
                 if cls._is_excluded(v, k, op):
                     continue
 
@@ -1035,6 +1046,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
                 serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
+            if cancel_on := op.partial_kwargs.get("cancel_on"):
+                serialized_op["partial_kwargs"].update(
+                    cls._serialize_cancel_on(cancel_on, op.partial_kwargs.get("cancel_state"))
+                )
 
         # Store python_callable_name instead of python_callable.
         # exclude_module=True ensures stable names across bundle version changes.
@@ -1050,7 +1065,19 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     @classmethod
     def serialize_operator(cls, op: SdkOperator) -> dict[str, Any]:
-        return cls._serialize_node(op)
+        serialized_op = cls._serialize_node(op)
+        if op.cancel_on:
+            serialized_op.update(cls._serialize_cancel_on(op.cancel_on, op.cancel_state))
+        return serialized_op
+
+    @staticmethod
+    def _serialize_cancel_on(cancel_on: Any, cancel_state: str | None) -> dict[str, Any]:
+        # Called only for a task with cancel_on, so that the many tasks without one pay no call.
+        # cancel_state only applies with cancel_on. A task without cancel_on can still inherit one
+        # from default_args, and storing it would change the Dag's hash for nothing.
+        if cancel_state is None:
+            return {"cancel_on": encode_webhook_matches(cancel_on)}
+        return {"cancel_on": encode_webhook_matches(cancel_on), "cancel_state": cancel_state}
 
     @classmethod
     def _serialize_node(cls, op: SdkOperator) -> dict[str, Any]:
@@ -1175,6 +1202,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 )
 
         deserialized_partial_kwarg_defaults = {}
+        has_partial_cancel_state = False
 
         for k_in, v_in in encoded_op.items():
             k = k_in  # surpass PLW2901
@@ -1199,6 +1227,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif k == "partial_kwargs":
                 # Use unified deserializer that supports both encoded and non-encoded values
                 v = cls._deserialize_partial_kwargs(v, client_defaults)
+                has_partial_cancel_state = "cancel_state" in v
             elif k in {"expand_input", "op_kwargs_expand_input"}:
                 v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
             elif k == "operator_class":
@@ -1219,7 +1248,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 or k not in op.get_serialized_fields()
                 or k in ("outlets", "inlets")
             ):
-                v = cls.deserialize(v)
+                # Neither cancel field is a serialized field, so they are told apart only here, which
+                # the far more common serialized fields never reach.
+                if k in _CANCEL_ON_FIELDS:
+                    v = cls._deserialize_cancel_field(k, v)
+                else:
+                    v = cls.deserialize(v)
             elif k == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
             elif k == "weight_rule":
@@ -1254,6 +1288,14 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             for k, v in deserialized_partial_kwarg_defaults.items():
                 if k not in op.partial_kwargs:
                     op.partial_kwargs[k] = v
+
+        # The encoded keys are tested first, so that the many tasks without a cancel_state skip the rest.
+        if (
+            (has_partial_cancel_state or "cancel_state" in encoded_op)
+            and op.cancel_state is not None
+            and not op.cancel_on
+        ):
+            raise ValueError(f"Task {op.task_id!r} has cancel_state {op.cancel_state!r} but no cancel_on")
 
         for k in op.get_serialized_fields() - encoded_op.keys():
             # TODO: refactor deserialization of BaseOperator and MappedOperator (split it out), then check
@@ -1664,6 +1706,18 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # For all other fields, return as-is (strings, ints, bools, etc.)
             return value
 
+    @staticmethod
+    def _deserialize_cancel_field(field_name: str, value: Any) -> Any:
+        """
+        Decode a task's ``cancel_on`` or ``cancel_state``, on the task or in its ``partial_kwargs``.
+
+        Kept out of ``_deserialize_field_value``, which nearly every field goes through, so that the
+        many tasks without either pay no test for them there.
+        """
+        if field_name == "cancel_on":
+            return decode_webhook_matches(value)
+        return decode_cancel_state(value)
+
     @classmethod
     def _deserialize_partial_kwargs(
         cls, partial_kwargs_data: dict[str, Any], client_defaults: dict[str, Any] | None = None
@@ -1684,8 +1738,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         deserialized = {}
 
         for k, v in partial_kwargs_data.items():
+            if k in _CANCEL_ON_FIELDS:
+                deserialized[k] = cls._deserialize_cancel_field(k, v)
             # Check if this is an encoded value (has __type and __var structure)
-            if isinstance(v, dict) and Encoding.TYPE in v and Encoding.VAR in v:
+            elif isinstance(v, dict) and Encoding.TYPE in v and Encoding.VAR in v:
                 # This is encoded - use full deserialization
                 deserialized[k] = cls.deserialize(v)
             else:
@@ -1699,7 +1755,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             for k, default_value in task_defaults.items():
                 if k not in deserialized:
                     # Apply the same deserialization logic to client_defaults
-                    deserialized[k] = cls._deserialize_field_value(k, default_value)
+                    if k in _CANCEL_ON_FIELDS:
+                        deserialized[k] = cls._deserialize_cancel_field(k, default_value)
+                    else:
+                        deserialized[k] = cls._deserialize_field_value(k, default_value)
 
         return deserialized
 
@@ -1792,6 +1851,10 @@ class DagSerialization(BaseSerialization):
             else:
                 serialized_dag["allowed_run_types"] = None
 
+            # Absent rather than null when unset, so that no Dag without it gets a new hash.
+            if dag.cancel_on:
+                serialized_dag["cancel_on"] = encode_webhook_matches(dag.cancel_on)
+
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
@@ -1814,6 +1877,8 @@ class DagSerialization(BaseSerialization):
                         flags_to_remove.append(k)
                 for k in flags_to_remove:
                     del default_args_dict[k]
+                if cancel_on := dag.default_args.get("cancel_on"):
+                    default_args_dict["cancel_on"] = cls.serialize(encode_webhook_matches(cancel_on))
 
             return serialized_dag
         except SerializationError:
@@ -1893,6 +1958,8 @@ class DagSerialization(BaseSerialization):
                     v = frozenset(DagRunType(x) for x in v)
                 else:
                     v = None
+            elif k == "cancel_on":
+                v = decode_webhook_matches(v)
             # else use v as it is
 
             object.__setattr__(dag, k, v)

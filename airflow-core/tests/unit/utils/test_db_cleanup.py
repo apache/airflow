@@ -1245,6 +1245,7 @@ class TestDBCleanup:
             # pending its created_dag_run_id is NULL, so those rows are not cleaned
             "asset_partition_dag_run",
             "asset_watcher",  # cascade from trigger
+            "dag_cancel_condition",  # cascade from dag
             "dag_favorite",  # cascade from dag
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
             "dynamic_region",  # cascade from dag_run; archived with it, never aged out on its own
