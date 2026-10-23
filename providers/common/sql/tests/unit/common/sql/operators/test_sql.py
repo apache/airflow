@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import importlib.util
 import inspect
+import logging
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -208,6 +209,25 @@ class TestSQLExecuteQueryOperator:
 
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_on_kill_cancels_running_query(self, mock_get_db_hook):
+        operator = self._construct_operator("SELECT pg_sleep(600);")
+
+        operator.on_kill()
+
+        mock_get_db_hook.return_value.cancel_query.assert_called_once_with()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_on_kill_does_not_raise_when_cancelling_fails(self, mock_get_db_hook, caplog):
+        mock_get_db_hook.return_value.cancel_query.side_effect = RuntimeError("connection is closed")
+        operator = self._construct_operator("SELECT pg_sleep(600);")
+
+        with caplog.at_level(logging.ERROR):
+            operator.on_kill()
+
+        mock_get_db_hook.return_value.cancel_query.assert_called_once_with()
+        assert "Failed to cancel the running SQL statement" in caplog.text
 
     @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_extra_dejson_fields_to_hook_params(self):
