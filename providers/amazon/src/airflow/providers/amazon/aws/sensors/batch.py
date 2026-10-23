@@ -102,6 +102,8 @@ class BatchSensor(AwsBaseSensor[BatchClientHook]):
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
+		    verify=self.verify,
+		    botocore_config=self.botocore_config,
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                 ),
