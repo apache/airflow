@@ -23,7 +23,7 @@ After you change the CI workflows in a way that adds, removes, splits or resizes
 groups, a changed matrix, new composite workflows, a move between runner types), refresh the
 estimates once the change has run on enough PRs, and in any case about once a month:
 
-1. Run `uv run --project dev/breeze python dev/calibrate_ci_minutes_estimates.py --since <date>`
+1. Run `uv run dev/calibrate_ci_minutes_estimates.py --since <date>`
    from the repository root with an authenticated `gh` CLI. Pick a date that covers at least a
    week of runs after the workflow change.
 2. Copy the medians and fits it prints into the constants of `ci_minutes_estimate.py`, and update

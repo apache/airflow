@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Measure the numbers behind ``dev/breeze/src/airflow_breeze/utils/ci_minutes_estimate.py``.
 
@@ -24,7 +27,7 @@ Downloads are cached in ``--cache-dir``, so re-runs only fetch new runs.
 
 Needs an authenticated ``gh`` CLI. Run from the repository root:
 
-    uv run --project dev/breeze python dev/calibrate_ci_minutes_estimates.py --since 2026-09-10
+    uv run dev/calibrate_ci_minutes_estimates.py --since 2026-09-10
 """
 
 from __future__ import annotations
