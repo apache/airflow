@@ -10267,31 +10267,61 @@ class TestSchedulerJob:
 
         shared = Asset(uri="test://shared", name="shared", group="test_group")
         dropped = Asset(uri="test://dropped", name="dropped", group="test_group")
+        schedule_only = Asset(uri="test://schedule_only", name="schedule_only", group="test_group")
+        outlet_only = Asset(uri="test://outlet_only", name="outlet_only", group="test_group")
+        inlet_only = Asset(uri="test://inlet_only", name="inlet_only", group="test_group")
 
         for i in range(3):
             with dag_maker(dag_id=f"consumer-{i}", schedule=[shared], session=session):
                 BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="schedule-only", schedule=[schedule_only], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
         with dag_maker(dag_id="producer", schedule=None, session=session):
             for i in range(3):
                 BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared, dropped])
                 BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
+
+        # Attach aliases: one to ``shared`` and one to an asset with no other reference.
+        alias_only = AssetModel(uri="test://alias_only", name="alias_only", group="test_group")
+        alias_only.aliases.append(AssetAliasModel(name="alias_for_alias_only", group="asset"))
+        shared_model = session.scalar(select(AssetModel).where(AssetModel.name == "shared"))
+        shared_model.aliases.append(AssetAliasModel(name="alias_for_shared", group="asset"))
+        session.add(alias_only)
+        session.flush()
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
         orphaned, active = self._find_assets_activation(session)
-        assert active == [dropped, shared]
+        assert {a.name for a in active} == {
+            "shared",
+            "dropped",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
         assert orphaned == []
 
         with dag_maker(dag_id="producer", schedule=None, session=session):
             for i in range(3):
                 BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared])
                 BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
         orphaned, active = self._find_assets_activation(session)
-        assert active == [shared]
-        assert orphaned == [dropped]
+        assert {a.name for a in active} == {
+            "shared",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
+        assert [a.name for a in orphaned] == ["dropped"]
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
