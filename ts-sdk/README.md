@@ -19,149 +19,44 @@
 
 # Airflow TypeScript SDK
 
-Write Apache Airflow Dags and tasks in TypeScript.
+Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
-**Status:** 0.1.0-beta1 · API may change · Node 22+ · ESM-only
-
-There are two ways to use it:
-
-- **Dag definition**: declare the whole Dag in TypeScript, with its schedule, tasks, options and dependencies.
-- **Python Dag with stub TaskHandler**: a TypeScript `TaskHandler` implements each stub task of a Python Dag.
-
-Both use the same task API, and one bundle can serve both.
+**Status:** 1.0.0-beta1 · API may change · Node 22+ · ESM-only
 
 ## Installation
 
 ```bash
-npm install apache-airflow-ts-sdk@0.1.0-beta1
+npm install apache-airflow-ts-sdk@1.0.0-beta1
 npm install --save-dev esbuild
 ```
 
-## Declaring a Dag
+## Quick start
+
+Declare a Dag in `src/main.ts`:
 
 ```ts
-import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
 
-const dag = new Dag("sales_pipeline", { schedule: "@daily", queue: "typescript" });
+const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 
-const extract = dag.task("extract", async (): Promise<number> => {
-  return Number((await getClient().getVariable("daily_row_count")) ?? "0");
+const extract = dag.task("extract", async (): Promise<number> => 42);
+const report = dag.task("report", async ({ rows }: { rows: number }) => {
+  console.log(`extracted ${rows} rows`);
 });
-const transform = dag.task(
-  "transform",
-  async ({ rows, region }: { rows: number; region: string }) => ({ rows, region }),
-);
 
-transform({ rows: extract(), region: "us" });
+report({ rows: extract() });
 
 await new Bundle(dag).serve();
 ```
 
-A handler takes one object of named arguments, and calling a task names its inputs. An input is either the
-reference another task's call returned, which makes this task wait for it and receive its value, or a literal.
-
-A Dag also has order-only dependencies (`before` and `after`), task groups, branching with `dag.if` and
-`dag.switch`, and `triggerDagRun`. See the
-[guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
-for all of them.
-
-## Implementing stub tasks of a Python Dag
-
-The Python Dag declares the tasks and their dependencies:
-
-```python
-from airflow.sdk import dag, task
-
-
-@dag
-def sales_pipeline():
-    @task.stub(queue="typescript")
-    def extract(): ...
-
-    @task.stub(queue="typescript")
-    def transform(extracted): ...
-
-    transform(extract())
-
-
-sales_pipeline()
-```
-
-TypeScript implements them, with a `TaskHandler` per stub task:
-
-```ts
-import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
-
-export async function extract() {
-  const rowCount = Number((await getClient().getVariable("daily_row_count")) ?? "0");
-  return { rowCount };
-}
-
-export async function transform({ extracted }: { extracted: { rowCount: number } }) {
-  return { transformedRows: extracted.rowCount };
-}
-
-await new Bundle(
-  new TaskHandler("sales_pipeline", "extract", extract),
-  new TaskHandler("sales_pipeline", "transform", transform),
-).serve();
-```
-
-A `TaskHandler` names the `dag_id` and `task_id` it implements, so the same `task_id` under two Dags is two
-different handlers. Nothing connects to Airflow until `bundle.serve()`, so a unit test can build a bundle and
-call a handler through `bundle.getTaskHandler(dagId, taskId)`.
-
-### TaskFlow arguments
-
-A Python Dag that calls a stub task TaskFlow-style passes those arguments to the handler, which destructures
-them by name:
-
-```python
-@task.stub(queue="typescript")
-def transform(region_code: str, threshold: float, dry_run: bool = False): ...
-
-
-transform("uk", 0.75)
-```
-
-```ts
-export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
-  // ...
-}
-```
-
-Names match ignoring case and underscores, so `region_code` reaches `regionCode` with nothing declared on
-either side. An argument filled from another task, as in `transform(extract(), "uk")`, arrives as that task's
-value. A dependency drawn with `>>` orders the tasks and passes nothing; read such a value with
-`getClient().getXCom`.
-
-`withArgNames` maps a handler's name to a different Python name, when the two cannot match on their own:
-
-```ts
-const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
-  // `label` is the call's `run_label`.
-});
-```
-
-## Writing tasks
-
-A handler is a plain, usually `async`, function. `getContext()` and `getClient()` give it the task's context and
-Airflow access while it runs, so it takes no SDK-supplied argument. A value it returns becomes the task's
-`return_value` XCom, and an uncaught error fails the task.
-
-## Building and deploying
-
-`airflow-ts-pack` builds the entry module and everything it imports into one file, `dist/bundle.min.mjs`:
+Build it into a single file:
 
 ```bash
 npx airflow-ts-pack src/main.ts --outdir dist
 ```
 
-- `--outdir <dir>`: output directory (default `dist`)
-- `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
-
-A bundle that declares Dags goes into a Dag bundle, such as the default `dags-folder` bundle. Route its queue to
-the Node.js coordinator:
+Put `dist/bundle.min.mjs` in a Dag bundle, such as the default `dags-folder` bundle, and send the `typescript`
+queue to the Node.js coordinator in `airflow.cfg`:
 
 ```ini
 [sdk]
@@ -169,31 +64,31 @@ coordinators = {"ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinat
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-A bundle that only implements stub tasks goes next to the Python Dag that declares them, or into the Dag
-bundle the coordinator's `task_handler_bundle_name` names. See the guide for all coordinator options.
+Airflow reads the bundle like any other Dag file: `ts_hello` shows up in the UI, runs on its schedule, and
+`report` receives the value `extract` returned.
 
-See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for a working project that serves
-both a Dag declared in TypeScript and the tasks of two Python Dags from one bundle.
+## Learn more
 
-## TaskClient
+The [TypeScript SDK guide][guide] covers:
 
-`getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
+| Topic                                                                                         | Guide section                                                  |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Task inputs, options, order-only dependencies, task groups, branching, triggering another Dag | [Declaring a Dag in TypeScript][declaring-a-dag-in-typescript] |
+| `approval` and `hitl` tasks that wait for a person                                            | [Human-in-the-loop tasks][human-in-the-loop-tasks]             |
+| `getContext()`, `getClient()` and the `TaskClient`                                            | [Writing tasks][writing-tasks]                                 |
+| Building a bundle with `airflow-ts-pack`                                                      | [Building a bundle][building-a-bundle]                         |
+| Where to deploy a bundle, and the `NodeCoordinator` options                                   | [Deploying][deploying]                                         |
+| What a Dag declared in TypeScript cannot do yet                                               | [Limitations][limitations]                                     |
 
-| Method                                                          | Description             |
-| --------------------------------------------------------------- | ----------------------- |
-| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables       |
-| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete |
-| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write         |
-| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections     |
+See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for a working project.
 
-Locator fields such as `dagId`, `runId`, and `taskId` default to the
-current task context when omitted.
-
-## Cancellation
-
-`getContext().signal` is an `AbortSignal` controlled by the active runtime.
-Pass it to `fetch()`, timers, database clients, child processes, or any other API that accepts an abort signal,
-so tasks can clean up cooperatively when Airflow terminates the task subprocess.
+[guide]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html
+[declaring-a-dag-in-typescript]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#declaring-a-dag-in-typescript
+[human-in-the-loop-tasks]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#human-in-the-loop-tasks
+[writing-tasks]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#writing-tasks
+[building-a-bundle]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#building-a-bundle
+[deploying]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#deploying
+[limitations]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html#limitations
 
 ## Compatibility matrix
 
@@ -216,7 +111,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `awaiting_input` | MAY | ✓ | 3.4 | approval() / hitl() in a native Dag |
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
@@ -227,7 +122,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `variable-read-write` | MUST | ✓ | 3.4 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4 | taskStateStore.get / set / delete / clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |

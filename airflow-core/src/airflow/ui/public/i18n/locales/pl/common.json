@@ -184,6 +184,12 @@
   "generateToken": "Wygeneruj token",
   "includedIn": "Zawarte w",
   "key": "Klucz",
+  "loading": "Ładowanie…",
+  "logLevel": {
+    "hide": "Ukryj poziomy logów",
+    "hotkey": "l",
+    "show": "Pokaż poziomy logów"
+  },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -210,6 +216,7 @@
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
+  "no": "Nie",
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
     "add": "Dodaj notatkę",
@@ -234,10 +241,10 @@
     "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
   },
   "pause": "Wstrzymaj",
-  "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
-  "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
-  "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
-  "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
+  "pendingDagRun_few": "{{count, number}} oczekujące wykonania Dagów",
+  "pendingDagRun_many": "{{count, number}} oczekujących wykonań Dagów",
+  "pendingDagRun_one": "{{count, number}} oczekujące wykonanie Daga",
+  "pendingDagRun_other": "{{count, number}} oczekujących wykonań Dagów",
   "presetFilters": {
     "deleteTitle": "Usuń zapisany filtr",
     "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
@@ -288,6 +295,10 @@
   "selected": "Wybrano",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Domyślnie zachowuj wpisy magazynu stanu zadania podczas czyszczenia instancji zadań, zamiast je usuwać.",
+        "label": "Zachowuj stan zadania przy czyszczeniu"
+      },
       "preventRunningTask": {
         "helper": "Pomijaj aktualnie uruchomione zadania podczas czyszczenia instancji zadań.",
         "label": "Zapobiegaj czyszczeniu uruchomionych zadań"
@@ -301,6 +312,13 @@
         "label": "Domyślny wybór przy czyszczeniu zadań"
       },
       "title": "Czyszczenie"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Pokazuj ostatnie stany zadań każdego Daga na liście Dagów. Wyłącz, aby ich nie ładować, co może pomóc we wdrożeniach z wieloma Dagami.",
+        "label": "Pokazuj ostatnie zadania"
+      },
+      "title": "Lista Dagów"
     },
     "description": "Te preferencje są zapisywane tylko w tej przeglądarce i obowiązują w całej aplikacji.",
     "general": {
@@ -319,6 +337,10 @@
         "helper": "Kierunek układu grafów Dagów i zasobów, dla których nie ustawiono go indywidualnie.",
         "label": "Domyślny kierunek grafu"
       },
+      "taskGroupsExpanded": {
+        "helper": "Rozwijaj grupy zadań w Dagach, dla których nie zapisano wyboru grup. Istniejące wybory są zachowywane.",
+        "label": "Domyślnie rozwijaj grupy zadań"
+      },
       "title": "Graf"
     },
     "marking": {
@@ -327,6 +349,13 @@
         "label": "Domyślny wybór przy oznaczaniu"
       },
       "title": "Oznaczanie"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Wybór dokonany w konkretnym polu wyszukiwania i udostępnione linki nadal mają pierwszeństwo.",
+        "label": "Domyślnie dopasowuj w dowolnym miejscu"
+      },
+      "title": "Wyszukiwanie"
     },
     "taskInstance": {
       "defaultTab": {
@@ -370,6 +399,7 @@
       "toggleExpand": "Rozwiń lub zwiń wszystkie grupy",
       "toggleFullscreen": "Przełącz pełny ekran",
       "toggleGraphGrid": "Przełącz widok grafu / siatki",
+      "toggleLogLevel": "Przełącz poziomy logów",
       "toggleSource": "Przełącz źródła",
       "toggleTaskGroup": "Rozwiń lub zwiń grupę zadań",
       "toggleTimestamp": "Przełącz znaczniki czasu",
@@ -416,6 +446,7 @@
     "upstream_failed": "Niepowodzenie poprzednika"
   },
   "switchDag": "Przełącz $t(dag_one)",
+  "switchDagRun": "Przełącz wykonanie",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
@@ -476,6 +507,11 @@
     "queuedWhen": "Zakolejkowano o",
     "renderedMapIndex": "Wyrenderowany indeks mapowania",
     "scheduledWhen": "Zaplanowano o",
+    "stateReason": "Przyczyna stanu",
+    "stateReasonSummary": {
+      "failed": "Zatrzymano przy próbie {{tryNumber}} z {{totalTries}}",
+      "upForRetry": "Ponawianie po próbie {{tryNumber}} z {{totalTries}}"
+    },
     "trigger": "Wyzwalacz",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
@@ -493,17 +529,22 @@
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "teams": {
-    "more_few": "i jeszcze {{count}}",
-    "more_many": "i jeszcze {{count}}",
-    "more_one": "i jeszcze {{count}}",
-    "more_other": "i jeszcze {{count}}",
+    "more_few": "i jeszcze {{count, number}}",
+    "more_many": "i jeszcze {{count, number}}",
+    "more_one": "i jeszcze {{count, number}}",
+    "more_other": "i jeszcze {{count, number}}",
     "none": "Brak zespołu",
     "title": "Zespoły"
   },
   "timeRange": {
+    "anyTime": "Dowolny czas",
+    "in": "w okresie",
+    "last7Days": "Ostatnie 7 dni",
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
+    "last30Days": "Ostatnie 30 dni",
     "lastHour": "Ostatnia godzina",
+    "latestRun": "Ostatnie wykonanie",
     "pastWeek": "Poprzedni tydzień"
   },
   "timestamp": {
@@ -522,21 +563,21 @@
     "bulkClear": {
       "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie wyczyszczono {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie usunięto {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie zaktualizowano {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
@@ -557,7 +598,7 @@
     "import": {
       "error": "Nie udało się wykonać żądania importu {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "description": "Pomyślnie zaimportowano {{count, number}} {{resourceName}}.",
         "title": "Wysłano żądanie importu {{resourceName}}"
       }
     },
@@ -596,5 +637,6 @@
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
-  }
+  },
+  "yes": "Tak"
 }

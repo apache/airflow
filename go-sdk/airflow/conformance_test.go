@@ -242,7 +242,7 @@ func buildConformanceDag(t *testing.T, dagCase conformanceDag) *airflow.DagRef {
 	for _, edge := range dagCase.OrderEdges {
 		downstream := node(edge[1])
 		if len(edge) == 3 {
-			downstream = airflow.Label(downstream, edge[2])
+			downstream = airflow.Label(edge[2]).On(downstream)
 		}
 		node(edge[0]).Before(downstream)
 	}
@@ -288,6 +288,13 @@ func conformanceTriggerDagRun(
 				label,
 				key,
 			)
+		}
+		if moment, ok := target.(*time.Time); ok {
+			// The value is spelled as Python's str(datetime), such as "2026-09-30 00:00:00+00:00".
+			parsed, err := time.Parse("2006-01-02 15:04:05Z07:00", value.Value)
+			require.NoError(t, err, "%s: %s", label, key)
+			*moment = parsed
+			continue
 		}
 		require.NoError(t, value.Decode(target), "%s: %s", label, key)
 	}

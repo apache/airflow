@@ -291,6 +291,7 @@ class EdgeWorker:
                     task=job.edge_job.key,
                     log_chunk_time=timezone.utcnow(),
                     log_chunk_data=f"{message}\n",
+                    task_instance_id=job.edge_job.task_instance_id,
                 )
             except Exception:
                 logger.exception("Failed to push drain notice to task log for %s", job.edge_job.identifier)
@@ -576,11 +577,19 @@ class EdgeWorker:
                             task=job.edge_job.key,
                             log_chunk_time=timezone.utcnow(),
                             log_chunk_data=chunk_data,
+                            task_instance_id=job.edge_job.task_instance_id,
                         )
         except (FileNotFoundError, OSError):
             logger.exception("Log file %s vanished while reading, ignoring.", job.logfile)
             # Swallow the exception; the file may have been removed by log rotation or cleanup while we were reading it.
             # We'll catch up on the next heartbeat/log push or file was uploaded by log integration in parallel.
+        except Exception:
+            # Log pushing is best effort. The job state must still reach the central site, or the job
+            # stays RUNNING there until [scheduler] task_instance_heartbeat_timeout passes.
+            logger.exception(
+                "Failed to push logs of %s to the central site. This part of the log will not be sent again.",
+                job.edge_job.identifier,
+            )
 
     async def start(self):
         """Start the execution in a loop until terminated."""
@@ -725,11 +734,18 @@ class EdgeWorker:
                 logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
 
                 # Push it upwards to logs for better diagnostic as well
-                await logs_push(
-                    task=job.edge_job.key,
-                    log_chunk_time=timezone.utcnow(),
-                    log_chunk_data=f"Error executing job:\n{ex_txt}",
-                )
+                try:
+                    await logs_push(
+                        task=job.edge_job.key,
+                        log_chunk_time=timezone.utcnow(),
+                        log_chunk_data=f"Error executing job:\n{ex_txt}",
+                        task_instance_id=job.edge_job.task_instance_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to push the error message of %s to the central site.",
+                        job.edge_job.identifier,
+                    )
                 await jobs_set_state(
                     job.edge_job.key, TaskInstanceState.FAILED, task_instance_id=job.edge_job.task_instance_id
                 )

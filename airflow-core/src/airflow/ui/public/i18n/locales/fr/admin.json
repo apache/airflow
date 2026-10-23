@@ -26,9 +26,9 @@
     "connection_one": "Connexion",
     "connection_other": "Connexions",
     "delete": {
-      "deleteConnection_many": "Supprimer {{count}} connexions",
+      "deleteConnection_many": "Supprimer {{count, number}} connexions",
       "deleteConnection_one": "Supprimer 1 connexion",
-      "deleteConnection_other": "Supprimer {{count}} connexions",
+      "deleteConnection_other": "Supprimer {{count, number}} connexions",
       "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connexion suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
@@ -160,9 +160,9 @@
       "isEncrypted": "Est chiffrée"
     },
     "delete": {
-      "deleteVariable_many": "Supprimer {{count}} Variables",
+      "deleteVariable_many": "Supprimer {{count, number}} Variables",
       "deleteVariable_one": "Supprimer 1 Variable",
-      "deleteVariable_other": "Supprimer {{count}} Variables",
+      "deleteVariable_other": "Supprimer {{count, number}} Variables",
       "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les variables suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la variable suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les variables suivantes :",

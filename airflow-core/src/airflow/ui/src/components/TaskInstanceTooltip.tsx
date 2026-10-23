@@ -20,6 +20,7 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
+  GanttTaskInstance,
   LightGridTaskInstanceSummary,
   TaskInstanceHistoryResponse,
   TaskInstanceResponse,
@@ -33,18 +34,28 @@ import { formatNumber, sortStateEntries, useDurationFormat } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
+  readonly loop_iteration?: GanttTaskInstance["loop_iteration"];
   readonly queued_when?: string | null;
   readonly scheduled_when?: string | null;
 } & LightGridTaskInstanceSummary;
 
 type Props = {
+  readonly loopMaxIterations?: number | null;
   readonly runId?: string | null;
   readonly taskInstance?:
     LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
+const TaskInstanceTooltip = ({
+  children,
+  loopMaxIterations,
+  positioning,
+  runId,
+  taskInstance,
+  tooltip,
+  ...rest
+}: Props) => {
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
 
@@ -79,6 +90,23 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
                   {translate("runId")}: {"dag_run_id" in taskInstance ? taskInstance.dag_run_id : runId}
                 </Text>
               ) : undefined}
+              {"loop_iteration" in taskInstance &&
+              taskInstance.loop_iteration !== null &&
+              taskInstance.loop_iteration !== undefined ? (
+                <Text>
+                  {translate("taskInstance.iteration")}: {taskInstance.loop_iteration.iteration}
+                </Text>
+              ) : undefined}
+              {"loop_iterations_count" in taskInstance &&
+              taskInstance.loop_iterations_count !== null &&
+              taskInstance.loop_iterations_count !== undefined ? (
+                <Text>
+                  {translate("taskInstance.loopIterations")}: {taskInstance.loop_iterations_count}
+                  {loopMaxIterations === null || loopMaxIterations === undefined
+                    ? undefined
+                    : `/${loopMaxIterations}`}
+                </Text>
+              ) : undefined}
               {"scheduled_when" in taskInstance &&
               taskInstance.scheduled_when !== null &&
               taskInstance.scheduled_when !== "" ? (
@@ -93,13 +121,18 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
                   {translate("taskInstance.queuedWhen")}: <Time datetime={taskInstance.queued_when} />
                 </Text>
               ) : undefined}
+              {/* Outside the branches below, which key off the shape a caller passes: the chart
+                  reports min_start_date rather than start_date, so a try nested in that branch
+                  never reached it. Shown for a first try too, since clearing a loop pass
+                  regenerates the later ones as fresh executions that start at try 1 -- two
+                  neighbouring bars can both be a first try, and this is what tells them apart. */}
+              {"try_number" in taskInstance && typeof taskInstance.try_number === "number" && (
+                <Text>
+                  {translate("tryNumber")}: {taskInstance.try_number}
+                </Text>
+              )}
               {"start_date" in taskInstance ? (
                 <>
-                  {taskInstance.try_number > 1 && (
-                    <Text>
-                      {translate("tryNumber")}: {taskInstance.try_number}
-                    </Text>
-                  )}
                   <Text>
                     {translate("startDate")}: <Time datetime={taskInstance.start_date} />
                   </Text>

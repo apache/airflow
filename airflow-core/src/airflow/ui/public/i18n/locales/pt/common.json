@@ -186,9 +186,9 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Eventos de Asset recebidos"
   },
-  "pendingDagRun_many": "{{count}} Execuções de Dag Pendentes",
-  "pendingDagRun_one": "{{count}} Execução de Dag Pendente",
-  "pendingDagRun_other": "{{count}} Execuções de Dag Pendentes",
+  "pendingDagRun_many": "{{count, number}} Execuções de Dag Pendentes",
+  "pendingDagRun_one": "{{count, number}} Execução de Dag Pendente",
+  "pendingDagRun_other": "{{count, number}} Execuções de Dag Pendentes",
   "pendingDagRun_zero": "Nenhuma execução de dag pendente",
   "reset": "Resetar",
   "runId": "ID da Execução",
@@ -323,7 +323,7 @@
     "bulkDelete": {
       "error": "Exclusão em Massa de {{resourceName}} Falhou",
       "success": {
-        "description": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
         "title": "Exclusão em Massa de {{resourceName}} Submetida"
       }
     },
@@ -344,7 +344,7 @@
     "import": {
       "error": "Importação de {{resourceName}} Falhou",
       "success": {
-        "description": "{{count}} {{resourceName}} foram importados com sucesso.",
+        "description": "{{count, number}} {{resourceName}} foram importados com sucesso.",
         "title": "Importação de {{resourceName}} Submetida"
       }
     },

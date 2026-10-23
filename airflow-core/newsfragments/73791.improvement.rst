@@ -1,0 +1,1 @@
+Mask XCom values in the audit log. Creating or updating an XCom entry through the REST API now records the XCom key and map index in the audit log with the value masked as ``***``, the same way Variable values are recorded, instead of storing the value as sent.

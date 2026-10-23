@@ -144,8 +144,9 @@ flowchart TD
     A([_should_run_all_tests_and_versions]) --> B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
     B -->|yes| C{PUSH and only<br/>.txt/.md files changed?}
     C -->|yes| NO1[False<br/>skip full tests]
-    C -->|no| D{PUSH and<br/>branch != main?}
-    D -->|yes - release branch push| NO2[False<br/>selective only]
+    C -->|no| D{PUSH with<br/>--selective-tests-on-push?}
+    D -->|yes - release branch push in ci-amd.yml| NO2[treated like PULL_REQUEST<br/>selective]
+    NO2 --> E
     D -->|no| YES1[True<br/>run everything]
     B -->|no - PULL_REQUEST| E{commit_ref missing?}
     E -->|yes| YES2[True]
@@ -184,9 +185,12 @@ Two related booleans share this machinery:
   versions instead of just the defaults. Labels (`default versions only`, `latest versions only`,
   `all versions`) override; otherwise it follows `_should_run_all_tests_and_versions()`.
 * **`is_canary_run`** — `True` for SCHEDULE/PUSH/DISPATCH events **on `apache/airflow`** (not forks)
-  when more than just `.txt`/`.md` changed, or whenever the `canary` label is set. Canary runs always
-  run unit tests even when `full_tests_needed` is `False` (this is what makes a *release-branch push*
-  still run its relevant unit tests — see the examples).
+  when more than just `.txt`/`.md` changed, or whenever the `canary` label is set. A PUSH with
+  `--selective-tests-on-push` (env `SELECTIVE_TESTS_ON_PUSH`) is **not** a canary: `ci-amd.yml` passes
+  that flag, so a push to a release branch runs the selective tests of the changes since the last
+  successful run of the branch (`--push-base-commit`), exactly as a pull request would. Workflows that run on push for other reasons (constraints, image cache) do not
+  pass it, and keep getting the full set of Python versions they need. Canary runs always run unit
+  tests even when `full_tests_needed` is `False`.
 
 ### Stage 2 — decide which jobs run
 
@@ -289,13 +293,13 @@ flowchart TD
         PR1[event=PULL_REQUEST<br/>files=providers/amazon/.../s3.py] --> PR2[full_tests_needed=False<br/>all_versions=False<br/>is_canary_run=False]
         PR2 --> PR3[unit tests: Providers amazon + Always<br/>default versions only<br/>amazon prek/mypy only]
     end
-    subgraph PUSHMAIN[Push / merge to main]
-        PM1[event=PUSH, branch=main] --> PM2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
-        PM2 --> PM3[full matrix, all versions,<br/>all canary-only jobs]
+    subgraph RELFULL[Release branch full run, dispatched]
+        RF1[event=WORKFLOW_DISPATCH<br/>branch=v3-x-test] --> RF2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
+        RF2 --> RF3[full matrix, all versions,<br/>all canary-only jobs]
     end
     subgraph RELPUSH[Push to release branch v3-x-test]
-        RP1[event=PUSH, branch!=main] --> RP2[full_tests_needed=False<br/>is_canary_run=True]
-        RP2 --> RP3[unit tests run via canary<br/>but selective test types<br/>default versions]
+        RP1[event=PUSH<br/>--selective-tests-on-push] --> RP2[full_tests_needed=False<br/>is_canary_run=False]
+        RP2 --> RP3[same selection as a PR<br/>with the files changed since<br/>the last successful run<br/>default versions]
     end
     subgraph CANARY[Scheduled nightly canary]
         CN1[event=SCHEDULE on apache/airflow] --> CN2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
@@ -315,13 +319,16 @@ flowchart TD
    PR runs the **full matrix** — same as a canary — because the change can affect everything. (A *non-test*
    workflow such as `codeql-analysis.yml`, or a `scripts/ci/prek/...` static-check hook, does **not** force
    the full matrix — see the `Environment files` carve-outs above.)
-4. **Push / merge to `main`.** `_should_run_all_tests_and_versions()` is true for PUSH on `main` →
-   `full_tests_needed=True`, `all_versions=True`, `is_canary_run=True`. The full matrix plus all
-   canary-only jobs run. This is the safety net that backstops aggressive PR-time optimisation.
-5. **Push to a release branch** (`v3-1-test`). PUSH but `branch != main` → `full_tests_needed=False`
-   (selective), yet `is_canary_run=True`, so `run_unit_tests=True`. The branch runs its *relevant*
-   unit tests on default versions rather than the entire matrix — release branches don't need the full
-   cross-version sweep on every push.
+4. **Full run of a release branch** (WORKFLOW_DISPATCH on `v3-1-test`, started by
+   `release-branch-ci.yml` a few times a day or by a release manager). `full_tests_needed=True`,
+   `all_versions=True`, `is_canary_run=True`. The full matrix plus all canary-only jobs run, and the
+   branch's constraints and image cache are refreshed. `main` gets the same from the scheduled canary;
+   neither builds the full matrix on push.
+5. **Push to a release branch** (`v3-1-test`). `ci-amd.yml` passes `--selective-tests-on-push` and
+   `--push-base-commit` (the commit of the last successful run of the workflow on the branch), so the
+   push is treated like a pull request whose files are those changed since that commit:
+   `full_tests_needed` and `is_canary_run` follow the PR rules, and the run selects only the tests
+   those changes need, on default versions. If the diff cannot be computed, all tests run.
 6. **Scheduled nightly canary** (SCHEDULE on `apache/airflow`). Full matrix on all versions, every
    canary-only job. The most thorough run; it is what gives us confidence that the PR-time shortcuts
    never let a regression through.
@@ -433,7 +440,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 
 ## Selective check decision rules
 
-* `Full tests` case is enabled when the event is PUSH **to `main`**, SCHEDULE or WORKFLOW_DISPATCH, or we
+* `Full tests` case is enabled when the event is PUSH, SCHEDULE or WORKFLOW_DISPATCH, or we
   miss commit info, or any of the important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
   etc.) changed, or the API *contract* changed (the generated OpenAPI spec or the client generator —
   plain API source/test edits that leave the committed spec
@@ -443,9 +450,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   set. Any other changed `tests_common` helper only selects the tests that import it.
   That enables all matrix combinations of variables (representative) and all possible test type. No further
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
-  `.txt`/`.md` files skips full tests, and a PUSH to a **release branch** (`v3-X-test`, i.e. not `main`)
-  runs selective tests only (it is still a `canary` run, so its *relevant* unit tests run on default
-  versions). The high-level flow and worked examples for these cases are in
+  `.txt`/`.md` files skips full tests, and a PUSH with `--selective-tests-on-push` (which `ci-amd.yml`
+  passes for pushes to release branches) is treated like a pull request — selective tests on default
+  versions, not a `canary` run. The high-level flow and worked examples for these cases are in
   [The decision pipeline](#the-decision-pipeline) and
   [Worked examples](#worked-examples-pull-requests-pushes-and-canary-runs) above.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
@@ -468,13 +475,23 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`, currently `cncf.kubernetes`), the side-effect
     provider is added to the same `Providers[...]` test type, because the two share one pytest process on
     canary and the changed tests must pass after it
+* `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
+  `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
+  files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
-  Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
+  Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
+  `airflow-e2e-tests/java-native-bundle/`), the Java e2e suite or its Docker
   files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
-  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), or the Java
-  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`) change. Like the
-  other deployed e2e suites, enabling them forces `PROD Image building`.
+  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), the Java
+  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`), or the native
+  Lang-SDK Dag parsing sources change. Those are the Dag processing files `importer_routing.py` and
+  `lang_sdk_processor.py`, `models/dagcode.py`, `serialization/serialized_objects.py`,
+  the Task SDK importers (`task-sdk/src/airflow/sdk/importers/`), the coordinator registry
+  (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`), and `coordinators/_dag_importer.py`;
+  they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
+  are left to `canary` runs. Like the other
+  deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -625,7 +642,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-exclude                                        | Which versions of Postgres to exclude for tests as JSON array                                           | []                                       |      |
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
-| providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)           | \[{}\]                                   |      |
+| providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
 | providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
@@ -640,7 +657,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
+| run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |

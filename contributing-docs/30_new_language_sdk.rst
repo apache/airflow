@@ -293,13 +293,21 @@ is a structlog-style event:
 
 .. code-block:: text
 
-    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00", "rows": 42}
+    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00Z", "rows": 42}
 
 * ``event`` is the log message.
 * ``level`` is the level **name** in lower case. The following levels are
   supported: ``critical``, ``error``, ``warning``, ``info``, ``debug``, and
   ``notset``. A line carrying any other level is dropped.
-* ``timestamp`` is an ISO-8601 timestamp.
+* ``timestamp`` is an RFC 3339 timestamp with a UTC offset, such as
+  ``2026-06-22T12:00:00Z``. Airflow assumes that a timestamp without an offset
+  is in the time zone set by ``[core] default_timezone``, which is UTC by
+  default. If the worker's time zone differs from that setting, records without
+  an offset show the wrong time and appear out of order in the task log.
+  Include the seconds even when they are zero. The supervisor cannot parse a
+  timestamp without seconds, such as ``2026-06-22T12:00``. It moves that value
+  to an ``invalid_timestamp`` field and uses the time it received the record
+  instead.
 * Any remaining keys are forwarded as structured fields on the log record.
 
 See Python documentation on logging for details on log levels. Since log level
@@ -522,7 +530,7 @@ hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its 
       |
       |  hook: update-java-sdk-readme-matrix
       |
-      +--> java-sdk/README.md            (contributor-facing)
+      +--> java-sdk/README.md            (user-facing landing page)
       +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
 
 The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails

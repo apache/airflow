@@ -1,10 +1,15 @@
 {
-  "assetSchedule": "Actualitzats {{count}} de {{total}} Assets",
+  "assetSchedule": "Actualitzats {{count, number}} de {{total, number}} Assets",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
       "warning": "Això eliminarà tota la metadada relacionada amb el Dag, incloent-hi Execucions i Tasques."
     }
+  },
+  "draining": {
+    "badgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
+    "label": "Drenant",
+    "tooltip": "Drenatge de {{dagDisplayName}} — es posarà en pausa quan acabin les execucions del DAG que estan en curs. Feu clic per reprendre'l."
   },
   "favoriteDag": "Dag favorit",
   "filters": {
@@ -42,7 +47,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No s'han trobat tasques.",
-      "title": "Tasques afectades: {{count}}"
+      "title": "Tasques afectades: {{count, number}}"
     },
     "clear": {
       "button": "Rellançar {{type}}",
@@ -108,15 +113,6 @@
   },
   "schedulingBanner": {
     "message": "Aquest DAG s'està drenant. Es posarà en pausa quan acabin les execucions del DAG que estan en curs."
-  },
-  "schedulingState": {
-    "active": "Actiu",
-    "draining": "Drenant",
-    "drainingBadgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
-    "drainingTooltip": "Drenatge de {{dagDisplayName}} — es posarà en pausa quan acabin les execucions del DAG que estan en curs. Feu clic per reprendre'l.",
-    "label": "Estat de programació",
-    "paused": "Pausat",
-    "placeholder": "Seleccionar l'estat de programació…"
   },
   "search": {
     "advanced": "Cerca avançada",

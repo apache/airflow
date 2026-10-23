@@ -243,6 +243,34 @@ the reference it was called on, so ``loaded.before(cleaned).before(notified)`` d
 Pass a value as an input when the downstream task needs it, and use ``before`` or ``after`` when it only needs
 to run in order.
 
+To label an edge the way Python's ``Label`` does, pass ``Label.of(text).on(reference)`` to ``before`` or
+``after``. The text comes before the reference. That way the text sits between the two tasks of the edge in
+the code, just as the label sits between them in the graph:
+
+.. code-block:: typescript
+
+    import { Label } from "apache-airflow-ts-sdk";
+
+    checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(notified));
+    cleaned.after(Label.of("always").on(loaded));      // loaded >> Label("always") >> cleaned
+
+``on`` also takes several references and puts the same label on the edge to or from each of them:
+
+.. code-block:: typescript
+
+    // loaded >> Label("forks") >> [reportedEmpty, notified]
+    loaded.before(Label.of("forks").on(reportedEmpty, notified));
+
+Pass the value that ``on`` returns only to ``before`` or ``after``. Calling ``before`` or ``after`` on that
+value throws an error. Redrawing an existing edge, including one an input drew, labels it. That is also how
+to label the branches of ``dag.if`` or ``dag.switch`` (see below):
+
+.. code-block:: typescript
+
+    const rowCheck = dag.if(hasRows, { total });
+    rowCheck.then(loaded).else(reportedEmpty);
+    rowCheck.before(Label.of("rows found").on(loaded), Label.of("no rows").on(reportedEmpty));
+
 Task groups
 ~~~~~~~~~~~
 
@@ -496,7 +524,7 @@ Two functions give it what it needs while it runs:
        that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
        accepts one, so the task can stop cleanly.
    * - ``getClient()``
-     - A ``TaskClient`` for Airflow Variables, Connections and XComs.
+     - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
 Both work anywhere inside the handler's call, including helper functions and code after an ``await``, and
 throw outside it. Await everything the handler starts: work still running after the handler returns runs
@@ -509,26 +537,93 @@ has retries.
 The ``TaskClient``
 ~~~~~~~~~~~~~~~~~~
 
-* ``getVariable(key)`` returns the Variable as a string, or ``null`` when it does not exist.
-  ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, like Python's ``Variable.get`` without
-  a default.
-* ``setVariable(key, value, description?)`` stores a Variable, replacing any existing value, and
-  ``deleteVariable(key)`` removes one. Values are strings, so serialize structured data, for example with
-  ``JSON.stringify``, before storing it.
-* ``getConnection(connId)`` returns a ``ConnectionResult`` with ``id`` and ``type``, plus ``host``, ``schema``,
-  ``login``, ``password``, ``port`` and ``extra``, each of which may be missing or ``null``. It returns ``null``
-  when the connection does not exist, and ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError``
-  instead, like Python's ``BaseHook.get_connection``.
-* ``getXCom<T>({ key, ... })`` reads an XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``,
-  ``taskId`` and ``mapIndex`` default to the current task; pass ``taskId`` to read an upstream task's XCom.
-  See :ref:`typescript-sdk/types` for how values map to JavaScript types.
-* ``setXCom({ key, value, ... })`` publishes an XCom value.
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Method
+     - Description
+   * - ``getVariable(key)``
+     - The Variable as a string, or ``null`` when it does not exist.
+   * - ``getVariableOrThrow(key)``
+     - Same, but throws ``VariableNotFoundError``, like Python's ``Variable.get`` without a default.
+   * - ``setVariable(key, value, description?)``
+     - Stores a Variable, replacing any existing value. Values are strings, so serialize structured data, for
+       example with ``JSON.stringify``.
+   * - ``deleteVariable(key)``
+     - Removes a Variable.
+   * - ``getConnection(connId)``
+     - A ``ConnectionResult`` with ``id`` and ``type``, plus ``host``, ``schema``, ``login``, ``password``,
+       ``port`` and ``extra``, each of which may be missing or ``null``. ``null`` when the connection does not
+       exist.
+   * - ``getConnectionOrThrow(connId)``
+     - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
+   * - ``getXCom<T>({ key, ... })``
+     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
+       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
+       :ref:`typescript-sdk/types`.
+   * - ``setXCom({ key, value, ... })``
+     - Publishes an XCom value.
+   * - ``taskStateStore``
+     - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retentionMs? })``,
+       ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
 
 .. note::
 
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the
    stored value when the Variable is read back. ``setVariable`` without a description clears the existing
    description, and ``deleteVariable`` succeeds even when the Variable does not exist.
+
+.. _typescript-sdk/task-state-store:
+
+Task state store
+----------------
+
+The task state store is a per-task-instance key/value store, scoped to ``dagId``, ``runId``, ``taskId``,
+and ``mapIndex`` (but not ``tryNumber``), so a value written by one attempt is still readable by the next.
+It survives worker crashes and task retries within the same Dag run, which makes it a good place to record
+external job IDs, checkpoints within a task, and progress metadata. See :doc:`/core-concepts/task-state-store`
+for the full concept, including the equivalent Python API.
+
+.. code-block:: typescript
+
+    import { getClient, NEVER_EXPIRE } from "apache-airflow-ts-sdk";
+
+    export async function runSparkJob() {
+      const store = getClient().taskStateStore;
+
+      let jobId = await store.get<string>("job_id");
+      if (jobId == null) {
+        jobId = await submitSparkJob();
+        await store.set("job_id", jobId, { retentionMs: NEVER_EXPIRE });
+      }
+
+      const result = await waitForSparkJob(jobId);
+      await store.delete("job_id");
+      return result;
+    }
+
+**Retention.** ``retentionMs`` is milliseconds to retain the key, counted from the time of the write:
+
+* A number retains the key for that many milliseconds from now; ``retentionMs: 0`` expires the key
+  immediately.
+* ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
+  the deployment default.
+* When ``retentionMs`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``, which
+  the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the key
+  never expires. This is not the same as ``retentionMs: 0`` above, which expires the key immediately.
+
+**Keys** must be non-empty strings of at most 512 characters; they may contain slashes. **Values** must be
+JSON-compatible (see :ref:`typescript-sdk/types`), and can never be ``null`` — ``set`` rejects a ``null``
+value. ``get`` returns ``null`` only to mean "key not found."
+
+Two behaviors to note:
+
+* ``[workers] state_store_backend`` is not used from TypeScript tasks, so values are always stored inline
+  through the Execution API. A key written by a Python task through a custom worker-side backend reads back
+  from TypeScript as that backend's reference marker string, not the original value.
+* ``[state_store] clear_on_success`` removes all of a task instance's state store keys when the task
+  succeeds, the same as for Python tasks.
 
 Logging
 -------
@@ -577,6 +672,49 @@ XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matchi
 
   JavaScript has a single ``number`` type, so integers and decimals arrive as the same type, and an integer
   larger than ``Number.MAX_SAFE_INTEGER`` (2\ :sup:`53` − 1) may lose precision.
+
+Human-in-the-loop tasks
+-----------------------
+
+``approval`` and ``hitl``, from ``apache-airflow-ts-sdk/hitl``, make a task that waits for a person, as Python's
+``ApprovalOperator`` and ``HITLOperator`` do. Pass one to ``dag.task`` in place of a handler. Options are the
+Python keyword arguments in camelCase:
+
+.. code-block:: typescript
+
+    import { approval } from "apache-airflow-ts-sdk/hitl";
+
+    const signOff = dag.task(
+      "sign_off",
+      approval({
+        subject: ({ report }: { report: { version: string } }) => `Ship ${report.version}?`,
+        responseTimeout: 4 * 60 * 60, // seconds
+        defaults: "Reject",
+        params: { replicas: { value: 3, schema: { type: "integer", minimum: 1 } } },
+      }),
+    )({ report });
+
+    signOff.before(published);
+
+The task waits in ``awaiting_input`` without holding a worker slot, and resumes once someone responds on the
+**Required Actions** page or ``responseTimeout`` passes.
+
+* ``subject`` and ``body`` (Markdown) are a string, or a function of the task's inputs.
+* ``responseTimeout`` is in seconds. When it passes, ``defaults`` is applied, or the task fails without one.
+  ``executionTimeout`` is rejected on a HITL task.
+* ``params`` adds form fields, each with a ``value`` that pre-fills it, and an optional ``description`` and
+  JSON Schema. Answers arrive as ``paramsInput``. An answer that fills in some params but not exactly the declared ones
+  fails the task, as ``HITLOperator`` does. The values are not yet checked against their schema when the task resumes,
+  so an answer given through the REST API can fall outside it.
+* ``assignedUsers`` limits who can respond.
+* The task returns ``{ chosenOptions, paramsInput, respondedAt, respondedByUser, timedout }``.
+
+On ``"Reject"``, ``approval`` succeeds and skips the tasks directly downstream, as ``ApprovalOperator`` does.
+Set ``failOnReject: true`` to fail instead, or ``ignoreDownstreamTriggerRules: true`` to skip everything
+downstream. ``hitl`` takes any ``options``, with ``multiple`` for several, and never skips or fails on the answer.
+
+A retry or a cleared task writes a fresh request. Branching on the response and notifiers are not supported yet.
+``ts-sdk/example/src/hitl.ts`` has one Dag per human-in-the-loop feature.
 
 .. _typescript-sdk/build:
 

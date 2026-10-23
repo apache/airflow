@@ -79,6 +79,10 @@ def list_asset_state_store(
             AssetStateStoreModel.last_updated_by_run_id,
             AssetStateStoreModel.last_updated_by_task_id,
             AssetStateStoreModel.last_updated_by_map_index,
+            AssetStateStoreModel.last_updated_by_task_instance_id,
+            AssetStateStoreModel.last_updated_by_region_id,
+            AssetStateStoreModel.last_updated_by_region_index,
+            AssetStateStoreModel.last_updated_by_try_number,
         )
         .where(AssetStateStoreModel.asset_id == asset_id)
         .order_by(AssetStateStoreModel.key.asc())
@@ -103,6 +107,10 @@ def list_asset_state_store(
                 run_id=r.last_updated_by_run_id,
                 task_id=r.last_updated_by_task_id,
                 map_index=r.last_updated_by_map_index,
+                task_instance_id=r.last_updated_by_task_instance_id,
+                region_id=r.last_updated_by_region_id,
+                region_index=r.last_updated_by_region_index,
+                try_number=r.last_updated_by_try_number,
             )
             if r.last_updated_by_kind is not None
             else None,
@@ -133,6 +141,10 @@ def get_asset_state_store(
             AssetStateStoreModel.last_updated_by_run_id,
             AssetStateStoreModel.last_updated_by_task_id,
             AssetStateStoreModel.last_updated_by_map_index,
+            AssetStateStoreModel.last_updated_by_task_instance_id,
+            AssetStateStoreModel.last_updated_by_region_id,
+            AssetStateStoreModel.last_updated_by_region_index,
+            AssetStateStoreModel.last_updated_by_try_number,
         ).where(
             AssetStateStoreModel.asset_id == asset_id,
             AssetStateStoreModel.key == key,
@@ -153,6 +165,10 @@ def get_asset_state_store(
             run_id=row.last_updated_by_run_id,
             task_id=row.last_updated_by_task_id,
             map_index=row.last_updated_by_map_index,
+            task_instance_id=row.last_updated_by_task_instance_id,
+            region_id=row.last_updated_by_region_id,
+            region_index=row.last_updated_by_region_index,
+            try_number=row.last_updated_by_try_number,
         )
         if row.last_updated_by_kind is not None
         else None,

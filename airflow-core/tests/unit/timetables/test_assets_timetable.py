@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from contextlib import nullcontext
 from typing import Any
 
 import pytest
@@ -36,17 +37,63 @@ from airflow.sdk import (
     AssetOrTimeSchedule as SdkAssetOrTimeSchedule,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable as SdkAssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.assets import (
+    AssetTriggeredTimetable as SdkAssetTriggeredTimetable,
+    PartitionedAssetTimetable as SdkPartitionedAssetTimetable,
+)
+from airflow.sdk.definitions.timetables.simple import NullTimetable as SdkNullTimetable
 from airflow.sdk.exceptions import AirflowTimetableInvalid
-from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
+from airflow.serialization.decoders import decode_timetable
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+)
+from airflow.serialization.encoders import encode_timetable, ensure_serialized_asset
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.timetables.assets import (
     AssetAndTimeSchedule as CoreAssetAndTimeSchedule,
     AssetOrTimeSchedule as CoreAssetOrTimeSchedule,
 )
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, PartitionedAssetTimetable
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.config import conf_vars
+
+
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+@pytest.mark.parametrize("event_count", [0, 1, 3])
+def test_group_asset_events(batch_asset_events, event_count):
+    timetable = AssetTriggeredTimetable(Asset("a"), batch_asset_events=batch_asset_events)
+    triggered_date = DateTime(2026, 10, 7, tzinfo=UTC)
+    events = [
+        AssetEvent(asset_id=1, timestamp=triggered_date.subtract(hours=index + 1))
+        for index in range(event_count)
+    ]
+
+    if batch_asset_events and events:
+        expected = [(triggered_date, events)]
+    else:
+        expected = [(event.timestamp, [event]) for event in events]
+    assert list(timetable.group_asset_events(events, triggered_date)) == expected
+
+
+def test_custom_asset_condition_requires_batching():
+    class CustomCondition(SerializedAssetBase):
+        @property
+        def requires_batching(self):
+            return True
+
+    condition = SerializedAssetAny([CustomCondition()])
+    with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+        timetable = AssetTriggeredTimetable(condition)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+    with pytest.raises(AirflowTimetableInvalid, match="batch_asset_events=True"):
+        AssetTriggeredTimetable(condition, batch_asset_events=False).validate()
 
 
 class MockTimetable(Timetable):
@@ -268,6 +315,7 @@ def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch:
     )
     serialized = _serializer.serialize_timetable(sdk_asset_timetable)
     assert serialized == {
+        "batch_asset_events": False,
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
             "__type": "asset_all",
@@ -491,6 +539,95 @@ def test_run_ordering_inheritance(core_asset_timetable) -> None:
     assert core_asset_timetable.run_ordering == AssetTriggeredTimetable.run_ordering
 
 
+@pytest.mark.parametrize("batch_asset_events", [True, False])
+@pytest.mark.parametrize(
+    "timetable_type",
+    [
+        AssetTriggeredTimetable,
+        SdkAssetTriggeredTimetable,
+        PartitionedAssetTimetable,
+        SdkPartitionedAssetTimetable,
+        CoreAssetOrTimeSchedule,
+        SdkAssetOrTimeSchedule,
+    ],
+)
+def test_batch_asset_events_roundtrip(timetable_type, batch_asset_events):
+    asset = Asset("test")
+    kwargs = {}
+    if timetable_type is CoreAssetOrTimeSchedule:
+        kwargs["timetable"] = NullTimetable()
+    elif timetable_type is SdkAssetOrTimeSchedule:
+        kwargs["timetable"] = SdkNullTimetable()
+    timetable = timetable_type(assets=asset, batch_asset_events=batch_asset_events, **kwargs)
+
+    with conf_vars({("scheduler", "batch_asset_events"): str(not batch_asset_events)}):
+        serialized = encode_timetable(timetable)
+        deserialized = decode_timetable(serialized)
+
+    assert serialized["__var"]["batch_asset_events"] is batch_asset_events
+    assert deserialized.batch_asset_events is batch_asset_events
+    assert deserialized.asset_condition == ensure_serialized_asset(asset)
+
+
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize("explicit", [None, False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, CoreAssetOrTimeSchedule]
+)
+def test_batching_configuration(configured, explicit, timetable_type):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    if explicit is not None:
+        kwargs["batch_asset_events"] = explicit
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        timetable = timetable_type(assets=Asset("test"), **kwargs)
+    assert timetable.batch_asset_events is (configured if explicit is None else explicit)
+
+
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, CoreAssetOrTimeSchedule]
+)
+def test_compound_asset_condition_requires_batching(batch_asset_events, nested, timetable_type):
+    condition = Asset("a") & Asset("b")
+    if nested:
+        condition = Asset("c") | condition
+    kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    timetable = timetable_type(assets=condition, batch_asset_events=batch_asset_events, **kwargs)
+    expected = nullcontext() if batch_asset_events else pytest.raises(AirflowTimetableInvalid, match="AND")
+    with expected:
+        timetable.validate()
+
+
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, CoreAssetOrTimeSchedule]
+)
+def test_compound_asset_condition_defaults_to_batching(configured, timetable_type):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        timetable = timetable_type(assets=Asset("a") & Asset("b"), **kwargs)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+
+def test_or_condition_can_disable_batching():
+    AssetTriggeredTimetable(assets=Asset("a") | Asset("b"), batch_asset_events=False).validate()
+
+
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, CoreAssetOrTimeSchedule]
+)
+def test_legacy_asset_timetable_defaults_to_batching(timetable_type, configured):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    serialized = encode_timetable(timetable_type(assets=Asset("test"), **kwargs))
+    del serialized["__var"]["batch_asset_events"]
+
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        assert decode_timetable(serialized).batch_asset_events is True
+
+
 @pytest.mark.db_test
 class TestAssetConditionWithTimetable:
     @pytest.fixture(autouse=True)
@@ -567,6 +704,7 @@ class TestAssetConditionWithTimetable:
 
         serialized_timetable_dict = DagSerialization.to_dict(dag)["dag"]["timetable"]["__var"]
         assert serialized_timetable_dict == {
+            "batch_asset_events": True,
             "asset_condition": {
                 "__type": "asset_any",
                 "objects": [

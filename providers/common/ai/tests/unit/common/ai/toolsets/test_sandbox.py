@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import re
 import threading
 import time
@@ -50,7 +51,7 @@ from airflow.providers.common.ai.sandbox.base import (
 from airflow.providers.common.ai.tools import ToolCallError
 from airflow.providers.common.ai.toolsets import sandbox as sandbox_module
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
-from airflow.providers.common.compat.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import DAG, ObjectStoragePath, TaskGroup
 
 from unit.common.ai.sandbox.fake_tags import InMemoryTagStore
 
@@ -796,6 +797,27 @@ class TestForRun:
         forked = await CustomToolset(_RecordingBackend()).for_run(_ctx())
 
         assert isinstance(forked, CustomToolset)
+
+
+class TestDeepCopy:
+    """Airflow deep-copies tasks and default_args together with the toolsets they hold."""
+
+    @pytest.mark.asyncio
+    async def test_a_deep_copied_toolset_runs_its_tools(self):
+        copied = copy.deepcopy(SandboxToolset(_RecordingBackend()))
+
+        async with copied:
+            result = await _call(copied, "run_command", {"command": "ls"})
+
+        assert result == "[stdout]\nout"
+
+    def test_task_group_default_args_can_hold_a_sandbox_toolset(self):
+        with DAG(dag_id="sandbox_in_task_group", schedule=None):
+            group = TaskGroup(
+                group_id="agents", default_args={"toolsets": [SandboxToolset(_RecordingBackend())]}
+            )
+
+        assert [type(toolset) for toolset in group.default_args["toolsets"]] == [SandboxToolset]
 
 
 class TestExports:

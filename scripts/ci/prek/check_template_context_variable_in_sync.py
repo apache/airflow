@@ -51,6 +51,8 @@ IGNORE = {
     # AIP-103: task_state_store/asset_state_store aren't documented in templates-ref yet. Will be done in a later PR.
     "task_state_store",
     "asset_state_store",
+    # Only available inside private loop groups.
+    "loop",
 }
 
 
