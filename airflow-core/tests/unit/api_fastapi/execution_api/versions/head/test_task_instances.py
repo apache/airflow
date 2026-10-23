@@ -47,6 +47,7 @@ from sqlalchemy.sql.selectable import Select
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -80,7 +81,6 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars

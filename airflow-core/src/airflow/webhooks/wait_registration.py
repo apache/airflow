@@ -35,6 +35,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest, evaluate
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
@@ -42,7 +43,6 @@ from airflow.models.log import Log
 from airflow.models.task_coordinates import get_public_map_index
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest, evaluate
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

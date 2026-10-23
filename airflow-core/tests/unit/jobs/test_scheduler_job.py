@@ -47,6 +47,7 @@ from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.assets.manager import AssetManager
@@ -166,7 +167,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries

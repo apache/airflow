@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.utils.state import TaskInstanceState
 from airflow.webhooks.wait_resumption import lock_current_waits
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.db import clear_db_runs
 

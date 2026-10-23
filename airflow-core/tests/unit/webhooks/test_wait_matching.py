@@ -33,6 +33,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
 from airflow.models.asset import AssetDagRunQueue, AssetEvent
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
@@ -52,7 +53,6 @@ from airflow.webhooks.wait_matching import (
     hand_to_waits_after_commit,
 )
 from airflow.webhooks.wait_registration import lock_registering_task_instance, register_wait
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.db import (
     clear_db_assets,

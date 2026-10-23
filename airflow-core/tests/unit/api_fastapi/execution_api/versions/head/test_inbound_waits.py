@@ -26,6 +26,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import select, update
 
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.routes import inbound_waits
@@ -41,7 +42,6 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 from airflow.webhooks.connections import ResolutionFailure, UnresolvedWebhook
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (

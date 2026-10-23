@@ -23,6 +23,7 @@ from uuid import UUID
 
 import pytest
 
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.managers.models.resource_details import ConnectionDetails
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -31,7 +32,6 @@ from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.utils.session import create_session
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars

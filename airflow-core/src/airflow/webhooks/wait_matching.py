@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, cast
 from sqlalchemy import func, select, true, update
 
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_covered_key_digests, evaluate
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.taskinstance import TaskInstance
@@ -46,7 +47,6 @@ from airflow.webhooks.wait_registration import (
     claim_early_delivery,
 )
 from airflow.webhooks.wait_resumption import submit_resume_event
-from airflow.webhooks.waits import compute_covered_key_digests, evaluate
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
