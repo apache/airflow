@@ -4612,7 +4612,7 @@ def test_task_instance_info_has_attempt_id_and_region_only_in_a_region(stored, i
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
-def test_stored_task_instance_in_loop_has_loop_index_and_max_iterations():
+def test_stored_task_instance_in_loop_has_its_iteration():
     with DAG("stored_loop_dag") as dag:
         _add_loop()
     ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())

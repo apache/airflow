@@ -408,6 +408,17 @@ def _check_loop_runs(groups: dict[str, list[tuple[str, dict]]]) -> list[str]:
     return problems
 
 
+def sort_by_execution(event: dict) -> tuple[int, int, int]:
+    """Order the events of a task's executions by loop iteration, map index and try, as ``event_sort_fn``."""
+    # Dag run events have no airflow facet
+    task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
+    return (
+        task_instance.get("loop", {}).get("index", -1),
+        task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
+        task_instance.get("try_number", -1),
+    )
+
+
 class OpenLineageTestOperator(BaseOperator):
     """
     This operator is added for system testing purposes.

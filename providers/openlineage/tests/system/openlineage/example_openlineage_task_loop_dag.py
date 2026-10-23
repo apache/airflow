@@ -48,9 +48,7 @@ It checks, for a plain task, tasks, a mapped task and a mapped task group in a l
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
     - every execution (iteration, map index, try) has its own `runId`, shared by its START and COMPLETE/FAIL
       (the `runId` check of OpenLineageTestOperator is enabled by default)
-    - every task event's identity: taskInstance's `id`, `dag_version_id` (Airflow 3.1+) and bundle, the absence
-      of fields that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
-      and the parent run, plus each task in the Dag's job facet
+    - every task event's identity, as `system.openlineage.expected_events` describes it, and each task in the Dag's job facet
 """
 
 from __future__ import annotations
@@ -62,19 +60,9 @@ from airflow.sdk import LoopDecision, task, task_group
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
-from system.openlineage.operator import OpenLineageTestOperator
+from system.openlineage.operator import OpenLineageTestOperator, sort_by_execution
 
 DAG_ID = "openlineage_task_loop_dag"
-
-
-def sort_by_execution(event: dict) -> tuple[int, int, int]:
-    # Dag run events have no airflow facet
-    task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
-    return (
-        task_instance.get("loop", {}).get("index", -1),
-        task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
-        task_instance.get("try_number", -1),
-    )
 
 
 with DAG(

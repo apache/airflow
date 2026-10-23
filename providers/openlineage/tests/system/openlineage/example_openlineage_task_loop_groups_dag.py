@@ -32,9 +32,7 @@ It checks:
       mapped tasks, the mapped task group's included
     - the Dag's job facet: each group's `is_mapped`, `is_loop`, `parent_group` and `parse_time_mapped_count`,
       and each task's `task_group`, `loop_group`, `is_mapped` and `parse_time_mapped_count`
-    - every task event's identity: taskInstance's `id`, `dag_version_id` and bundle, the absence of fields
-      that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
-      and the parent run
+    - every task event's identity, as `system.openlineage.expected_events` describes it
 """
 
 from __future__ import annotations
@@ -46,19 +44,9 @@ from airflow.sdk import TaskGroup, task, task_group
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
-from system.openlineage.operator import OpenLineageTestOperator
+from system.openlineage.operator import OpenLineageTestOperator, sort_by_execution
 
 DAG_ID = "openlineage_task_loop_groups_dag"
-
-
-def sort_by_execution(event: dict) -> tuple[int, int, int]:
-    # Dag run events have no airflow facet
-    task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
-    return (
-        task_instance.get("loop", {}).get("index", -1),
-        task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
-        task_instance.get("try_number", -1),
-    )
 
 
 with DAG(

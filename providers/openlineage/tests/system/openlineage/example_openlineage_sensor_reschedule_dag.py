@@ -21,9 +21,7 @@ It checks:
     - the sensor emits one START (the START of later pokes is skipped) and one COMPLETE
     - taskInstance's `try_number` stays at 1 for both, as rescheduling does not start a new try
     - START and COMPLETE share the `runId` (the `runId` check of OpenLineageTestOperator is enabled by default)
-    - every task event's identity: taskInstance's `id`, `dag_version_id` (Airflow 3.1+) and bundle, the absence
-      of fields that don't apply, task's `task_id`, `trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run,
-      and the parent run, plus each task in the Dag's job facet
+    - every task event's identity, as `system.openlineage.expected_events` describes it, and each task in the Dag's job facet
 """
 
 from __future__ import annotations
