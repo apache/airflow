@@ -240,6 +240,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     _last_stale_bundle_cleanup_time: float = attrs.field(default=0, init=False)
+
+    request_poll_interval: float = attrs.field(default=1.0, init=False)
+    """Minimum seconds between polls for callbacks and priority parsing requests."""
+    _last_request_poll_time: float = attrs.field(default=0, init=False)
+    _callback_backlog: bool = attrs.field(default=False, init=False)
+    """Whether the last callback fetch hit ``max_callbacks_per_loop``, so more may be waiting."""
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
@@ -437,6 +443,7 @@ class DagFileProcessorManager(LoggingMixin):
                 if stat.last_finish_time
             }
             self.deactivate_stale_dags(last_parsed=last_parsed)
+            self.purge_inactive_dag_warnings()
             self._last_deactivate_stale_dags_time = time.monotonic()
 
     def _cleanup_stale_bundle_versions(self):
@@ -579,7 +586,15 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._kill_timed_out_processors()
 
-            self._queue_requested_files_for_parsing()
+            # The selector wakes on every message from a parsing process, so while files are being
+            # parsed this loop goes round many times a second. Poll the DB at most once a second.
+            now = time.monotonic()
+            poll_requests = (
+                self._callback_backlog or now - self._last_request_poll_time >= self.request_poll_interval
+            )
+            if poll_requests:
+                self._last_request_poll_time = now
+                self._queue_requested_files_for_parsing()
 
             self._refresh_dag_bundles(known_files=known_files)
 
@@ -595,11 +610,13 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._collect_results()
 
-            for callback in self.fetch_callbacks():
-                self._add_callback_to_queue(callback)
+            if poll_requests:
+                callbacks = self.fetch_callbacks()
+                self._callback_backlog = len(callbacks) >= self.max_callbacks_per_loop
+                for callback in callbacks:
+                    self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
-            self.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
             self._num_run += 1
