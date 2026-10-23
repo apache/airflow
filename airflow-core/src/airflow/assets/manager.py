@@ -639,7 +639,9 @@ class AssetManager(LoggingMixin):
                 )
                 target_partition_date = None
 
-            for target_key in target_keys:
+            # Mappers can yield the same keys in different orders; acquire the pending-key
+            # unique-index entries consistently within each fan-out.
+            for target_key in sorted(target_keys):
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
                     target_partition_date=target_partition_date,
