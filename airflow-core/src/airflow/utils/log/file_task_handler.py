@@ -564,18 +564,16 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance record
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+                         can be used for streaming log reading and auto-tailing.
                          Following attributes are used:
-                         log_pos: (absolute) Char position to which the log
-                                  which was retrieved in previous calls, this
-                                  part will be skipped and only following test
-                                  returned to be added to tail.
-        :return: log message as a string and metadata.
+                         log_pos: Number of log records returned by previous calls.
+                                  These records are skipped and only the following ones are returned.
+        :return: log stream and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
                              if further calls might get more log text.
-                             This is determined by the status of the TaskInstance
-                 log_pos: (absolute) Char position to which the log is retrieved
+                             This is determined by the state and try number of the TaskInstance
+                 log_pos: Number of log records read so far. Only present when end_of_log is False.
         """
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
@@ -658,21 +656,22 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.total_lines
-            out_stream = stream_accumulator.stream
+        out_metadata: LogMetadata = {"end_of_log": end_of_log}
+        if not end_of_log:
+            # Only an unfinished read needs log_pos for the continuation token, and counting
+            # lines drains the stream eagerly, so finished reads stream straight through.
+            with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+                out_metadata["log_pos"] = stream_accumulator.total_lines
+                out_stream = stream_accumulator.stream
 
-            # skip log stream until the last position
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
+        # skip log stream until the last position
+        if metadata and "log_pos" in metadata:
+            out_stream = islice(out_stream, metadata["log_pos"], None)
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain(header, out_stream)
 
-            return out_stream, {
-                "end_of_log": end_of_log,
-                "log_pos": log_pos,
-            }
+        return out_stream, out_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
