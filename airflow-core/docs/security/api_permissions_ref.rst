@@ -187,11 +187,11 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``POST``
    * - ``DELETE``
-     - ``/api/v2/connections/{connection_id}``
+     - ``/api/v2/connections/{connection_id:path}``
      - ``Connection``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/connections/{connection_id}``
+     - ``/api/v2/connections/{connection_id:path}``
      - ``Connection``
      - ``GET``
    * - ``PATCH``
