@@ -2025,6 +2025,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
+            non_fatal=True,
         )
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
