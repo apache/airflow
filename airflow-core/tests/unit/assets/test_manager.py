@@ -2305,9 +2305,10 @@ class TestAssetPartitionDagRunPendingMarker:
         assert second.pending_partition_key == "k"
 
     def test_legacy_null_marker_row_is_reused_without_promotion(self, session, fixture):
-        """A pre-migration row has a NULL marker; batched events join it and leave it NULL.
+        """An unmarked pending row is reused without marker promotion.
 
-        Promotion is what must *not* happen — see the toggle test for why.
+        It can be an older duplicate left unmarked by migration or a later non-batched
+        insertion. See the toggle test for why promotion is unsafe.
         """
         asset, dag = fixture
         legacy = AssetPartitionDagRun(
