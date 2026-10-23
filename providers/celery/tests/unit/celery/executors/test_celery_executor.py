@@ -1327,6 +1327,48 @@ def test_execute_workload_runs_execute_task_before_airflow_3_3(execute_task_work
     assert mock_supervise.call_args.kwargs["log_path"] == "test.log"
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
+@pytest.mark.parametrize(
+    ("callback_result", "expected_error"),
+    [
+        pytest.param((True, None), None, id="callback-succeeds"),
+        pytest.param((False, "Callback failed"), "Callback failed", id="callback-fails"),
+    ],
+)
+def test_execute_workload_runs_execute_callback_before_airflow_3_3(
+    mock_celery_app, monkeypatch, callback_result, expected_error
+):
+    """The pre-3.3 fallback executes ExecuteCallback with the Airflow 3.2 callback helper."""
+    from airflow.executors import workloads
+    from airflow.executors.workloads.callback import CallbackDTO
+
+    workload = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id="00000000-0000-0000-0000-000000000003",
+            fetch_method=workloads.CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "tests.callbacks.test_callback", "kwargs": {}},
+        ),
+        dag_rel_path=Path("test_dag.py"),
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="callback.log",
+    )
+    monkeypatch.setattr(celery_executor_utils, "AIRFLOW_V_3_3_PLUS", False)
+    with mock.patch(
+        "airflow.executors.workloads.callback.execute_callback_workload",
+        create=True,
+        return_value=callback_result,
+    ) as mock_execute_callback:
+        execute = celery_executor_utils.execute_workload.__wrapped__
+        if expected_error:
+            with pytest.raises(RuntimeError, match=expected_error):
+                execute(workload.model_dump_json())
+        else:
+            execute(workload.model_dump_json())
+
+    mock_execute_callback.assert_called_once_with(workload.callback, celery_executor_utils.log)
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
 @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
 @pytest.mark.parametrize(
