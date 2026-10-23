@@ -3604,7 +3604,6 @@ def test_taskinstance_info_af3():
         "log_url": runtime_ti.log_url,
         "map_index": 2,
         "max_tries": 3,
-        "note": None,
         "rendered_map_index": None,
         "state": "up_for_retry",
         "try_number": 1,
@@ -3662,7 +3661,6 @@ def test_taskinstance_info_af2():
         "dag_version_id": None,
         "dag_bundle_name": None,
         "dag_bundle_version": None,
-        "note": None,
     }
 
     # Also tested manually that it works well on AF2, hard to test hybrid property so just mocking it here
@@ -4447,7 +4445,6 @@ def test_stored_and_runtime_task_instances_identify_an_execution_alike(dag_maker
         task=dag_maker.dag.get_task(task_id),
     )
 
-    assert stored.note is None  # Read with a query of its own, as on main, which this doesn't check
     with assert_queries_count(0):
         stored_position = get_orm_task_instance_positions([stored], session=session)[stored.id]
         stored_info = dict(
@@ -4456,7 +4453,7 @@ def test_stored_and_runtime_task_instances_identify_an_execution_alike(dag_maker
     runtime_info = dict(TaskInstanceInfo(runtime, position=get_task_instance_position(runtime)))
 
     # Only stored task instances have these, which describe the attempt's resources rather than which it is
-    left_out = {"duration", "pool", "queued_dttm", "note"}
+    left_out = {"duration", "pool", "queued_dttm"}
     # Only the worker is told these
     left_out |= {"expanded_ti_count", "loop"}
     assert {k: v for k, v in stored_info.items() if k not in left_out} == {

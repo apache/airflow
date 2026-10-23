@@ -1133,7 +1133,6 @@ class TaskInstanceInfo(InfoJsonEncodable):
     includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
-        "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
         "dag_version_id": lambda ti: (
             str(dag_version_id) if (dag_version_id := getattr(ti, "dag_version_id", None)) else None
         ),
