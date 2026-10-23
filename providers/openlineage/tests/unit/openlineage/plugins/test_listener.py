@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import threading
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
@@ -3267,3 +3269,314 @@ class TestExecuteRouting:
 
         listener.log.warning.assert_called_once()
         assert "on_running" in listener.log.warning.call_args.args
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_manual_dag_run_state_uses_thread_pool(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """API server manual dag run state changes must use ThreadPoolExecutor, never ProcessPoolExecutor."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = None
+        mock_dag_run.run_after = None
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_dag_run.dag = None
+        mock_dag_run.get_state.return_value = "success"
+
+        listener.on_dag_run_success(
+            dag_run=mock_dag_run,
+            msg="Dag Run's state was manually set to `success`.",
+        )
+
+        mock_process_executor.assert_not_called()
+        mock_thread_executor.assert_called_once()
+        mock_thread_executor.return_value.submit.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_manual_task_instance_state_uses_thread_pool(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """Manual task instance transitions in API server must use ThreadPoolExecutor, never ProcessPoolExecutor."""
+        from fastapi import FastAPI
+
+        from airflow.models.taskinstance import TaskInstance
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_ti = MagicMock(spec=TaskInstance)
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.try_number = 1
+        mock_ti.operator = "BashOperator"
+        mock_ti.task = None
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.run_after = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_ti.dag_run = mock_dag_run
+
+        with (
+            mock.patch(
+                "airflow.providers.openlineage.plugins.listener.object_session", return_value=MagicMock()
+            ),
+            mock.patch(
+                "airflow.providers.openlineage.plugins.listener.get_orm_task_instance_positions",
+                return_value={mock_ti.id: MagicMock(in_loop=False, map_index=-1)},
+            ),
+        ):
+            listener.on_task_instance_success(previous_state=None, task_instance=mock_ti)
+
+        mock_process_executor.assert_not_called()
+        mock_thread_executor.assert_called_once()
+        mock_thread_executor.return_value.submit.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    def test_api_server_thread_pool_max_workers_is_one_regardless_of_config(self, mock_thread_executor):
+        """API server ThreadPoolExecutor must have max_workers=1 even when dag_state_change_process_pool_size is 4."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): "4"}):
+            _ = listener.executor
+        mock_thread_executor.assert_called_once_with(
+            max_workers=1,
+            thread_name_prefix="openlineage-api-executor",
+        )
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_scheduler_process_pool_uses_configured_size(self, mock_process_executor):
+        """Scheduler ProcessPoolExecutor respects dag_state_change_process_pool_size=4 and sets initializer."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        listener = OpenLineageListener()
+        mock_job = MagicMock()
+        mock_job.__class__.__name__ = "SchedulerJobRunner"
+        listener.on_starting(component=mock_job)
+
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): "4"}):
+            _ = listener.executor
+        mock_process_executor.assert_called_once_with(
+            max_workers=4,
+            initializer=_executor_initializer,
+        )
+
+    def test_api_server_concurrent_submissions_serialize_adapter_access(self):
+        """Concurrent submissions serialize access to cached adapter and initialize client exactly once."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        executed_threads: set[int] = set()
+        init_counts = {"client": 0}
+
+        def mock_client_init(*args, **kwargs):
+            init_counts["client"] += 1
+            return MagicMock()
+
+        def test_worker_task(task_id: int):
+            executed_threads.add(threading.get_ident())
+            from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+            adapter = _get_process_adapter()
+            _ = adapter.get_or_create_openlineage_client()
+            return task_id
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.adapter.OpenLineageClient",
+            side_effect=mock_client_init,
+        ):
+            from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+            _get_process_adapter.cache_clear()
+            try:
+                futures = []
+                calling_threads = []
+
+                def submitter():
+                    for i in range(2):
+                        fut = listener.submit_callable(test_worker_task, i)
+                        futures.append(fut)
+
+                for _ in range(5):
+                    t = threading.Thread(target=submitter)
+                    calling_threads.append(t)
+                    t.start()
+
+                for t in calling_threads:
+                    t.join()
+
+                results = [fut.result(timeout=5) for fut in futures]
+                assert len(results) == 10
+                # All 10 tasks ran on the exact same dedicated API worker thread
+                assert len(executed_threads) == 1
+                # The single worker thread is not any of the calling threads
+                assert executed_threads.isdisjoint({t.ident for t in calling_threads})
+                # Client initialized exactly once under API executor ownership
+                assert init_counts["client"] == 1
+            finally:
+                _get_process_adapter.cache_clear()
+                listener.before_stopping(component=app)
+
+    def test_before_stopping_shuts_down_thread_pool_in_api_server(self):
+        """In API server, before_stopping shuts down ThreadPoolExecutor with wait=False and cancel_futures=True."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_thread_executor = MagicMock(spec=ThreadPoolExecutor)
+        listener._thread_executor = mock_thread_executor
+
+        listener.before_stopping(component=app)
+
+        mock_thread_executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+        assert listener._thread_executor is None
+
+    def test_fork_safety_recreates_lock_and_resets_executors(self):
+        """When PID changes (simulating fork), inherited locked mutex does not deadlock and executors reset."""
+        listener = OpenLineageListener()
+        listener._pid = 12345
+        mock_thread_executor = MagicMock()
+        mock_process_executor = MagicMock()
+        listener._thread_executor = mock_thread_executor
+        listener._executor = mock_process_executor
+
+        # Simulate parent holding the lock when fork occurred (lock is left acquired)
+        listener._lock.acquire()
+        assert listener._lock.locked()
+
+        # In child process with a new PID
+        with mock.patch("os.getpid", return_value=99999):
+            # If _check_pid does not recreate _lock, acquiring it will deadlock
+            listener._check_pid()
+            assert listener._pid == 99999
+            assert listener._thread_executor is None
+            assert listener._executor is None
+            # Lock should now be unlocked and fresh
+            assert not listener._lock.locked()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_scheduler_retains_process_pool(self, mock_process_executor, mock_thread_executor):
+        """Scheduler events must continue using ProcessPoolExecutor with initializer."""
+        listener = OpenLineageListener()
+        # on_starting with scheduler Job
+        mock_job = MagicMock()
+        mock_job.__class__.__name__ = "SchedulerJobRunner"
+        listener.on_starting(component=mock_job)
+
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = None
+        mock_dag_run.run_after = None
+        mock_dag_run.start_date = None
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_dag_run.dag = None
+
+        listener.on_dag_run_running(dag_run=mock_dag_run, msg="running")
+
+        mock_thread_executor.assert_not_called()
+        mock_process_executor.assert_called_once()
+        _, kwargs = mock_process_executor.call_args
+        assert "initializer" in kwargs
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_env_var_prevents_process_pool_fail_open(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """When _AIRFLOW_COMPONENT=api_server, listener uses ThreadPoolExecutor even if on_starting was not called."""
+        listener = OpenLineageListener()
+        # on_starting was never called, self._is_api_server_flag is False
+        assert listener._is_api_server_flag is False
+
+        with mock.patch.dict("os.environ", {"_AIRFLOW_COMPONENT": "api_server"}):
+            assert listener._is_api_server is True
+            _ = listener.executor
+            mock_process_executor.assert_not_called()
+            mock_thread_executor.assert_called_once_with(
+                max_workers=1,
+                thread_name_prefix="openlineage-api-executor",
+            )
+
+    def test_submit_callable_concurrent_runtime_errors_do_not_destroy_new_executor(self):
+        """If another thread already recreated the executor, a secondary RuntimeError does not destroy it."""
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+
+        exec_1 = MagicMock()
+        exec_1.submit.side_effect = RuntimeError("shutdown")
+        exec_2 = MagicMock()
+        listener._thread_executor = exec_1
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor", return_value=exec_2
+        ):
+            fut = listener.submit_callable(str)
+            exec_1.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+            exec_2.submit.assert_called_once()
+            exec_2.shutdown.assert_not_called()
+            assert fut == exec_2.submit.return_value
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="os.fork required")
+    def test_real_fork_resets_executor_and_adapter_cache(self):
+        """A real process fork clears inherited executor references and cached adapter."""
+        import multiprocessing
+
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+        _ = listener.executor
+        assert listener._thread_executor is not None
+
+        from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+        adapter_in_parent = _get_process_adapter()
+
+        def child_work(queue):
+            try:
+                listener._check_pid()
+                is_none = listener._thread_executor is None
+                adapter_in_child = _get_process_adapter()
+                diff_adapter = id(adapter_in_child) != id(adapter_in_parent)
+                queue.put((is_none, diff_adapter, None))
+            except Exception as e:
+                queue.put((False, False, str(e)))
+
+        ctx = multiprocessing.get_context("fork")
+        q = ctx.Queue()
+        p = ctx.Process(target=child_work, args=(q,))
+        p.start()
+        p.join(timeout=10)
+        assert p.exitcode == 0
+        is_none, diff_adapter, err = q.get(timeout=5)
+        assert err is None
+        assert is_none is True
+        assert diff_adapter is True
