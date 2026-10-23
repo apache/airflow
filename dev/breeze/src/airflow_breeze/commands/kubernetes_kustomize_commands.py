@@ -24,6 +24,7 @@ subcommands.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -56,6 +57,7 @@ from airflow_breeze.utils.kubernetes_utils import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.shared_options import get_dry_run
 
 # Allow-list of third-party container images that kustomize overlays under
 # chart/kustomize-overlays/ may declare. `breeze k8s smoke-test-overlay`
@@ -279,6 +281,93 @@ def _wait_for_verify_resource(
     return 1
 
 
+def _get_pod_health_problems(pods: list[dict[str, Any]]) -> list[str]:
+    problems = []
+    for pod in pods:
+        name = pod["metadata"]["name"]
+        status = pod.get("status", {})
+        phase = status.get("phase", "Unknown")
+        if pod["metadata"].get("deletionTimestamp"):
+            problems.append(f"{name}: terminating")
+        elif phase == "Succeeded":
+            continue
+        elif phase == "Failed" and (
+            status.get("reason") == "Evicted"
+            or any(owner.get("kind") == "Job" for owner in pod["metadata"].get("ownerReferences", []))
+        ):
+            # Failed Job attempts and evicted pods can remain after their replacements are healthy.
+            continue
+        elif phase != "Running":
+            problems.append(f"{name}: {phase}")
+        elif not any(
+            condition["type"] == "Ready" and condition["status"] == "True"
+            for condition in status.get("conditions", [])
+        ):
+            problems.append(f"{name}: not Ready")
+    return problems
+
+
+def _wait_for_airflow_pods(
+    namespace: str, release_name: str, timeout_seconds: int, env: dict[str, str]
+) -> int:
+    """Wait for the Helm release's pods to be Running/Ready or successfully completed."""
+    kubectl = str(KUBECTL_BIN_PATH)
+    scope = ["-n", namespace, "-l", f"release={release_name}"]
+    console_print(f"[info]Checking Airflow pod health for release {release_name} in {namespace}...")
+    if get_dry_run():
+        return 0
+    deadline = time.monotonic() + timeout_seconds
+    problems = ["No healthy Airflow pods observed"]
+    while time.monotonic() < deadline:
+        result = run_command(
+            [kubectl, "get", "pods", *scope, "-o", "json", "--request-timeout=10s"],
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            problems = [f"Could not list pods: {(result.stderr or '').strip()}"]
+            time.sleep(min(5, max(0, deadline - time.monotonic())))
+            continue
+        if not result.stdout.strip():
+            problems = ["Pod query returned empty output"]
+            time.sleep(min(5, max(0, deadline - time.monotonic())))
+            continue
+        pods = json.loads(result.stdout)["items"]
+        problems = _get_pod_health_problems(pods)
+        unrecoverable = [
+            f"{pod['metadata']['name']}: {reason}"
+            for pod in pods
+            if not pod["metadata"].get("deletionTimestamp")
+            and pod.get("status", {}).get("phase") not in ("Failed", "Succeeded")
+            for container in [
+                *pod.get("status", {}).get("containerStatuses", []),
+                *pod.get("status", {}).get("initContainerStatuses", []),
+            ]
+            if (reason := container.get("state", {}).get("waiting", {}).get("reason"))
+            in _TERMINAL_POD_WAITING_REASONS
+        ]
+        if unrecoverable:
+            console_print(f"[error]Airflow pods failed health check: {'; '.join(unrecoverable)}")
+            run_command([kubectl, "describe", "pods", *scope], env=env, check=False)
+            return 1
+        # Ignored failures and completed Jobs cannot establish a healthy deployment.
+        if not any(
+            pod.get("status", {}).get("phase") == "Running" and not pod["metadata"].get("deletionTimestamp")
+            for pod in pods
+        ):
+            problems.append("No active Airflow pods found")
+        if not problems:
+            console_print("[success]Airflow pods are healthy after applying the overlay.")
+            return 0
+        time.sleep(min(5, max(0, deadline - time.monotonic())))
+    console_print(f"[error]Airflow pod health timed out after {timeout_seconds}s: {'; '.join(problems)}")
+    run_command([kubectl, "get", "pods", *scope, "-o", "wide"], env=env, check=False)
+    run_command([kubectl, "describe", "pods", *scope], env=env, check=False)
+    return 1
+
+
 def _render_overlay(
     overlay_dir: Path,
     release_name: str,
@@ -481,7 +570,7 @@ def _run_overlay_pytest(
     if not test_file.exists():
         console_print(
             f"[info]No behavioural test module at {test_file.relative_to(AIRFLOW_ROOT_PATH)} — "
-            "verify-block checks are the only assertions for this overlay."
+            "Only verify-block and Airflow pod-health checks will run for this overlay."
         )
         return 0
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
@@ -539,6 +628,8 @@ def _smoke_test_overlay_impl(
                 console_print("[error]verify block failed.")
                 return 1
         console_print("\n[success]verify block passed.")
+        if _wait_for_airflow_pods(namespace, release_name, timeout, env) != 0:
+            return 1
         if not no_pytest:
             rc = _run_overlay_pytest(
                 overlay_name=overlay_name,
@@ -563,7 +654,7 @@ def _smoke_test_overlay_impl(
 @kubernetes_group.command(
     name="smoke-test-overlay",
     help="Apply a kustomize overlay to the current KinD cluster, wait for its STATUS.yaml "
-    "`verify:` resources, and run the optional per-overlay pytest module.",
+    "`verify:` resources, check Airflow pod health, and run the optional per-overlay pytest module.",
 )
 @click.argument("overlay_name", type=str)
 @option_python
@@ -595,10 +686,10 @@ def _smoke_test_overlay_impl(
     "--promote-status",
     is_flag=True,
     help=(
-        "If the run is green (verify block + per-overlay pytest both pass), rewrite the "
-        "overlay's STATUS.yaml in place to `status: tested` with chart-version from "
-        "chart/Chart.yaml and today's date as last-verified. Opt-in because it modifies "
-        "a checked-in file; review with `git diff` and commit. Refused when CI=true."
+        "Set STATUS.yaml to `status: tested` after the verify block and Airflow pod-health check pass. "
+        "The per-overlay pytest module must also pass unless skipped or absent. "
+        "Set chart-version from chart/Chart.yaml and last-verified to today's date. "
+        "Review the file with `git diff` before committing. Refused when CI=true."
     ),
 )
 @option_verbose
