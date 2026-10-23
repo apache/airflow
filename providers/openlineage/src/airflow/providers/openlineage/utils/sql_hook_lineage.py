@@ -133,7 +133,8 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         try:
             return hook.get_openlineage_database_info(_get_connection(hook_id))
         except Exception as e:
-            log.debug("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+            log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+            log.debug("OpenLineage failure details:", exc_info=True)
             return None
 
     @cache
@@ -171,7 +172,8 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                     database_info=database_info,
                 )
             except Exception as e:
-                log.debug("Failed to parse SQL for query %s: %s", query_count, e)
+                log.warning("Failed to parse SQL for query %s: %s", query_count, e)
+                log.debug("OpenLineage failure details:", exc_info=True)
 
         # If parsing SQL failed, just attach SQL text as a facet
         if query_lineage is None:

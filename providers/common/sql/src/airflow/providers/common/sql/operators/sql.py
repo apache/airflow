@@ -297,11 +297,8 @@ class BaseSQLOperator(BaseOperator):
             use_external_connection = True
 
         connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
-        try:
-            database_info = hook.get_openlineage_database_info(connection)
-        except AttributeError:
-            self.log.debug("%s has no database info provided", hook)
-            database_info = None
+        get_database_info = getattr(hook, "get_openlineage_database_info", None)
+        database_info = get_database_info(connection) if get_database_info is not None else None
 
         if database_info is None:
             self.log.debug("OpenLineage could not retrieve database information. Skipping.")
