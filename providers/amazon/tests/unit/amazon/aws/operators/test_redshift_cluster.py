@@ -42,6 +42,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
@@ -127,8 +128,9 @@ class TestRedshiftCreateClusterOperator:
         # wait_for_completion is False so check waiter is not called
         mock_conn.get_waiter.assert_not_called()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(RedshiftHook, "conn")
-    def test_create_cluster_deferrable(self, mock_conn):
+    def test_create_cluster_deferrable(self, mock_conn, wait_for_completion):
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
@@ -136,11 +138,16 @@ class TestRedshiftCreateClusterOperator:
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             redshift_operator.execute(None)
+        mock_conn.get_waiter.assert_not_called()
 
     def test_template_fields(self):
         operator = RedshiftCreateClusterOperator(
@@ -369,18 +376,25 @@ class TestRedshiftCreateClusterSnapshotOperator:
             WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(RedshiftHook, "cluster_status")
     @mock.patch.object(RedshiftHook, "create_cluster_snapshot")
-    def test_create_cluster_snapshot_deferred(self, mock_create_cluster_snapshot, mock_cluster_status):
+    def test_create_cluster_snapshot_deferred(
+        self, mock_create_cluster_snapshot, mock_cluster_status, wait_for_completion
+    ):
         mock_cluster_status.return_value = "available"
         mock_create_cluster_snapshot.return_value = True
         create_snapshot = RedshiftCreateClusterSnapshotOperator(
             task_id="test_snapshot",
             cluster_identifier="test_cluster",
             snapshot_identifier="test_snapshot",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             create_snapshot.execute(None)
         assert isinstance(exc.value.trigger, RedshiftCreateClusterSnapshotTrigger), (
             "Trigger is not a RedshiftCreateClusterSnapshotTrigger"

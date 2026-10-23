@@ -53,6 +53,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter import (
     WAITER_POLICY_NAME_MAPPING,
@@ -102,8 +103,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
         into Spark steps so the Spark job emits a ``parentRunFacet`` linking back to the Airflow task.
         Defaults to the ``openlineage.spark_inject_parent_job_info`` config value.
@@ -151,7 +153,7 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
@@ -224,15 +226,16 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         if self.openlineage_inject_parent_job_info:
             self.log.info("Injecting OpenLineage parent job information into EMR Spark steps.")
             steps = self._inject_openlineage_parent_job_information(steps, context)
+        defer = should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion)
         step_ids = self.hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=self.wait_for_completion and not defer,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
             execution_role_arn=self.execution_role_arn,
         )
-        if self.deferrable:
+        if defer:
             self.defer(
                 trigger=EmrAddStepsTrigger(
                     job_flow_id=job_flow_id,
