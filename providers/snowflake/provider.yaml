@@ -374,7 +374,7 @@ config:
           to get the execution status, start and end times, SQL text and errors of the task's queries.
           Disabling it saves one extra query per task. Events are still emitted for every query,
           using the task's state and the current time instead.
-        version_added: 6.20.0
+        version_added: 6.21.0
         type: boolean
         example: ~
         default: "True"

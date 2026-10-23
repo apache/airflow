@@ -309,9 +309,7 @@ def test_get_queries_details_from_snowflake_with_task_start_time(hook_class, run
     with mock.patch(
         f"airflow.providers.snowflake.utils.openlineage.{run_query_function}", return_value=[]
     ) as mock_run_query:
-        details = _get_queries_details_from_snowflake(
-            hook, ["ABC", "DEF"], task_start_time=task_start_time
-        )
+        details = _get_queries_details_from_snowflake(hook, ["ABC", "DEF"], task_start_time=task_start_time)
 
     # 5 minutes before the task start, as epoch seconds
     expected_query = (

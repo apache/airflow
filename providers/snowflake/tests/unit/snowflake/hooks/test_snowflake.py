@@ -1470,7 +1470,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1483,6 +1486,8 @@ class TestPytestSnowflakeHook:
             query_source_namespace="scheme://auth",
             task_instance=ti,
             query_for_extra_metadata=expected,
+            default_database="mydb",
+            default_schema="myschema",
         )
 
     @mock.patch("importlib.metadata.version", return_value="1.99.0")
