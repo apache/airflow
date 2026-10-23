@@ -190,6 +190,7 @@ from airflow.sdk.execution_time.task_runner import (
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
+    _resolve_execution_timeout,
     _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
@@ -2132,6 +2133,38 @@ def test_execution_timeout_from_run_context(
 
     with expectation:
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+
+
+@pytest.mark.parametrize(
+    ("worker_default", "task_timeout", "context_timeout", "expected", "expected_log"),
+    [
+        pytest.param("7200", timedelta(hours=2), None, 7200.0, "warning", id="worker-default-fallback"),
+        pytest.param("-1", timedelta(seconds=-1), None, 0.0, "warning", id="worker-default-elapsed"),
+        pytest.param("3600", timedelta(hours=3), None, None, None, id="task-value-is-not-worker-default"),
+        pytest.param("3600", None, None, None, None, id="task-sets-none"),
+        pytest.param("7200", timedelta(hours=2), 3600.0, 3600.0, "info", id="context-over-worker-default"),
+        pytest.param("600", timedelta(minutes=10), 600.0, 600.0, None, id="same-value"),
+        pytest.param("", None, 3600.0, 3600.0, None, id="no-worker-default"),
+    ],
+)
+def test_resolve_execution_timeout(
+    create_runtime_ti,
+    mock_supervisor_comms,
+    worker_default,
+    task_timeout,
+    context_timeout,
+    expected,
+    expected_log,
+):
+    op = PythonOperator(task_id="test_timeout", execution_timeout=task_timeout, python_callable=lambda: None)
+    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
+    ti._ti_context_from_server.execution_timeout = context_timeout
+    log = mock.MagicMock()
+
+    with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
+        assert _resolve_execution_timeout(ti, log) == expected
+    assert log.warning.called is (expected_log == "warning")
+    assert log.info.called is (expected_log == "info")
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):

@@ -1775,6 +1775,30 @@ class TestWatchedSubprocess:
         mock_kill.assert_not_called()
 
     @pytest.mark.parametrize(
+        ("context_timeout", "worker_default"),
+        [
+            pytest.param(None, "30", id="worker-default-fallback"),
+            pytest.param(30.0, "3600", id="context-over-worker-default"),
+        ],
+    )
+    def test_start_execution_timeout_with_worker_default(self, mocker, context_timeout, worker_default):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=context_timeout)
+
+        with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
+            proc._handle_request(StartExecutionTimeout(), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 34
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        monotonic.return_value += 1
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+
+    @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
         [
             pytest.param(TaskInstanceState.FAILED, None, id="terminal_state_reported"),

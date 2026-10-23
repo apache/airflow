@@ -1,0 +1,24 @@
+``[core] default_task_execution_timeout`` is taken from the Dag processor
+
+A task that does not set ``execution_timeout`` now gets its timeout from
+``[core] default_task_execution_timeout`` as configured where the Dag processor runs. This is the
+value the UI and the REST API show, and the value the task supervisor and the task runner both
+enforce. Previously the Python task runner re-read the setting on the worker, so a task could time
+out at a different point than the UI showed, or not at all.
+
+This changes behavior when the Dag processor and the workers are configured differently:
+
+* Set only on the Dag processor: tasks now time out after that value. Previously they did not time
+  out.
+* Set on both, with different values: tasks now time out after the Dag processor's value instead of
+  the worker's.
+* Set only on the workers: Python tasks still time out after the worker's value, and the task log
+  shows a deprecation warning. This fallback is deprecated and will be removed in a future release.
+  Tasks run by a language SDK do not time out in this case.
+
+Tasks that set ``execution_timeout`` themselves, directly or through ``default_args``, are not
+affected.
+
+**Migration:** set ``[core] default_task_execution_timeout`` to the same value on every component,
+or at least where the Dag processor runs. With the Helm chart, set it through ``config`` or ``env``
+rather than ``workers.celery.env``.

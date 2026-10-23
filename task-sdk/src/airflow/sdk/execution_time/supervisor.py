@@ -2152,6 +2152,12 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_start_execution_timeout(
         self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
+        # Deprecated worker-default fallback, as in the runner. The runner only sends this when it enforces a
+        # timeout, so execution_timeout=None set in the Dag is respected.
+        if self._execution_timeout_seconds is None and (
+            worker_default := conf.gettimedelta("core", "default_task_execution_timeout")
+        ):
+            self._execution_timeout_seconds = max(worker_default.total_seconds(), 0.0)
         self._arm_execution_timeout()
         return None, {}
 

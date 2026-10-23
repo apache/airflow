@@ -2319,6 +2319,37 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification via %s", notifier_description)
 
 
+def _resolve_execution_timeout(ti: RuntimeTaskInstance, log: Logger) -> float | None:
+    """
+    Return the execution timeout to enforce, in seconds.
+
+    The run context's value wins. When it has none, the worker's ``[core] default_task_execution_timeout``
+    still applies (deprecated), computed exactly as the supervisor does. It is only used when the re-parsed
+    task carries that default: the re-parsed value can also come from a Dag file changed since it was
+    serialized or from ``pre_execute``, which the supervisor cannot see.
+    """
+    from_context = ti._ti_context_from_server.execution_timeout if ti._ti_context_from_server else None
+    worker_default = conf.gettimedelta("core", "default_task_execution_timeout")
+    if not worker_default or ti.task.execution_timeout != worker_default:
+        return from_context
+    worker_seconds = max(worker_default.total_seconds(), 0.0)
+    if from_context is None:
+        log.warning(
+            "Using [core] default_task_execution_timeout from the worker. This is deprecated; "
+            "set it where the Dag processor runs.",
+            execution_timeout=worker_seconds,
+        )
+        return worker_seconds
+    if worker_seconds != from_context:
+        log.info(
+            "Using execution_timeout resolved by the Dag processor instead of the worker's "
+            "[core] default_task_execution_timeout",
+            execution_timeout=from_context,
+            worker_execution_timeout=worker_seconds,
+        )
+    return from_context
+
+
 @detail_span("task.execute")
 def _run_execute_callable(
     context: Context,
@@ -2398,7 +2429,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    execution_timeout = ti._ti_context_from_server.execution_timeout if ti._ti_context_from_server else None
+    execution_timeout = _resolve_execution_timeout(ti, log)
     result = _run_execute_callable(context, execute, task, execution_timeout=execution_timeout)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
