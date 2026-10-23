@@ -18,6 +18,7 @@
  */
 
 export { capitalize } from "./capitalize";
+export { summarizeDagStatus, type DagStatusSummary } from "./dagStatus";
 export { createErrorToaster, getApiErrorDetail, getErrorStatus } from "./errorHandling";
 export { formatNumber } from "./formatNumber";
 export { getMetaKey } from "./getMetaKey";

@@ -31,14 +31,12 @@ import type { ExpandedApiError } from "./ErrorAlert";
 import { StatusMessage } from "./StatusMessage";
 import { WarningAlert } from "./WarningAlert";
 
-/** The modal lists the page error as one more item next to the warnings, so the button count does too. */
-export const countDagWarnings = (warningsTotal: number | undefined, error: unknown): number =>
-  (warningsTotal ?? 0) + Number(Boolean(error));
-
-type ImportDAGErrorModalProps = {
+type Props = {
   /** Stated as one more warning, for a Dag that is no longer in its file. */
   readonly deactivatedMessage?: string;
   readonly error?: unknown;
+  /** Names the whole list. Derived with the chip's own label, so the two cannot disagree. */
+  readonly heading: string;
   readonly importError?: ImportErrorResponse;
   readonly onClose: () => void;
   readonly open: boolean;
@@ -48,37 +46,19 @@ type ImportDAGErrorModalProps = {
 export const DAGWarningsModal = ({
   deactivatedMessage,
   error,
+  heading,
   importError,
   onClose,
   open,
   warnings,
-}: ImportDAGErrorModalProps) => {
-  const { t: translate } = useTranslation(["components", "common", "dashboard"]);
-  const warningCount = (warnings?.length ?? 0) + Number(deactivatedMessage !== undefined);
-  // Named for the worst thing in it, since that is what the reader came for.
-  const errorHeading =
-    importError === undefined
-      ? translate("dagWarnings.error_one")
-      : translate("dashboard:importErrors.dagImportError", { count: 1 });
-  const hasError = Boolean(error) || importError !== undefined;
+}: Props) => {
+  const { t: translate } = useTranslation("common");
   const apiError = error as ExpandedApiError | undefined;
   // What the request itself said, falling back to the bare word when it carried no status or message.
   const pageErrorHeading =
-    [apiError?.status, apiError?.message].filter(Boolean).join(" ") || translate("common:error.title");
+    [apiError?.status, apiError?.message].filter(Boolean).join(" ") || translate("error.title");
   const detail = getApiErrorDetail(error);
   const errorDetail = Array.isArray(detail) ? detail.join("\n") : detail;
-  let heading = "";
-
-  if (hasError) {
-    heading =
-      warningCount > 0
-        ? translate("dagWarnings.errorAndWarning", {
-            warningText: translate("dagWarnings.warning", { count: warningCount }),
-          })
-        : errorHeading;
-  } else if (warningCount > 0) {
-    heading = translate("dagWarnings.warning", { count: warningCount });
-  }
 
   return (
     <Modal

@@ -18,16 +18,14 @@
  */
 import type { ReactNode } from "react";
 
-import { HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { FiAlertCircle, FiAlertTriangle } from "react-icons/fi";
-
-import type { StatusChipSeverity } from "src/components/StatusChip";
 
 type Props = {
   /** The detail under the heading. Omit for a status that says all it has to say in its heading. */
   readonly body?: ReactNode;
   readonly heading: string;
-  readonly severity: Exclude<StatusChipSeverity, "info">;
+  readonly severity: "error" | "warning";
 };
 
 /**
@@ -41,10 +39,14 @@ export const StatusMessage = ({ body, heading, severity }: Props) => (
       {severity === "error" ? <FiAlertCircle /> : <FiAlertTriangle />}
       <Text fontWeight="bold">{heading}</Text>
     </HStack>
-    {body === undefined ? undefined : (
+    {body === undefined ? undefined : typeof body === "string" ? (
       <Text color={`fg.${severity}`} fontSize="sm" whiteSpace="pre-wrap" wordBreak="break-word">
         {body}
       </Text>
+    ) : (
+      // Rich detail brings its own blocks, which a <p> may not contain, and its own type scale and
+      // colours: a traceback is not the same kind of text as the row naming the file it came from.
+      <Box w="100%">{body}</Box>
     )}
   </VStack>
 );

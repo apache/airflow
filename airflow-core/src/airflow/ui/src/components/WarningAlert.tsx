@@ -18,13 +18,12 @@
  */
 import { useTranslation } from "react-i18next";
 
+import type { DAGWarningResponse } from "openapi/requests/types.gen";
+
 import { StatusMessage } from "src/components/StatusMessage";
 
 type Props = {
-  readonly warning?: {
-    message: string;
-    warning_type?: string;
-  };
+  readonly warning?: DAGWarningResponse;
 };
 
 export const WarningAlert = ({ warning }: Props) => {
@@ -34,11 +33,14 @@ export const WarningAlert = ({ warning }: Props) => {
     return undefined;
   }
 
-  // The type is the warning's own short form; only a synthesised warning arrives without one.
+  // The warning's type is its short form, but it arrives as the backend's own lowercase enum value,
+  // which has no business being a heading in any language. An unmapped one falls back to the word.
   return (
     <StatusMessage
       body={warning.message}
-      heading={warning.warning_type ?? translate("dagWarnings.warning", { count: 1 })}
+      heading={translate(`dagWarnings.types.${warning.warning_type}`, {
+        defaultValue: translate("dagWarnings.warning", { count: 1 }),
+      })}
       severity="warning"
     />
   );

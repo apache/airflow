@@ -92,7 +92,6 @@
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
   "dagRunState": "Status des Dag Laufs",
-  "dagWarnings": "Dag Warnungen und Fehler",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",

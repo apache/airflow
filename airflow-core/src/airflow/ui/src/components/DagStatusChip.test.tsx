@@ -129,17 +129,15 @@ describe("DagStatusChip", () => {
 
     renderChip();
 
-    // The worst problem names the chip; the deactivation is explained by the parse error, not
-    // stated twice.
     const chip = screen.getByRole("button", { name: importErrorName() });
-
-    expect(screen.queryByRole("button", { name: deactivated() })).not.toBeInTheDocument();
 
     fireEvent.click(chip);
 
     // Both land in the one modal, the parse error ahead of the warning.
     await waitFor(() => expect(screen.getByText(/SyntaxError: invalid syntax/u)).toBeInTheDocument());
     expect(screen.getByText("duplicate task id")).toBeInTheDocument();
+    // The parse error is why the Dag went stale, so the list does not state the staleness again.
+    expect(screen.queryByText(deactivated())).not.toBeInTheDocument();
   });
 
   it("reports a page load failure as an error beside the warnings", async () => {
@@ -156,6 +154,8 @@ describe("DagStatusChip", () => {
       screen.getByRole("button", { name: i18n.t("dagWarnings.error_one", { ns: "components" }) }),
     );
 
-    await waitFor(() => expect(screen.getByText("duplicate task id")).toBeInTheDocument());
+    // The failure itself has to reach the list, not just the warnings it is listed beside.
+    await waitFor(() => expect(screen.getByText("request failed")).toBeInTheDocument());
+    expect(screen.getByText("duplicate task id")).toBeInTheDocument();
   });
 });

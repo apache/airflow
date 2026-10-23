@@ -29,6 +29,8 @@ import {
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { StatusChip } from "src/components/StatusChip";
 
+import { summarizeDagStatus } from "src/utils";
+
 /**
  * Every problem with a Dag under one marker: a parse failure, the page's own load error, a Dag that
  * has gone from its file, and its parse-time warnings. The worst of them names and colours the chip;
@@ -64,24 +66,20 @@ export const DagStatusChip = ({ dagId, error }: { readonly dagId: string; readon
     return undefined;
   }
 
-  const warningCount = warnings.length + Number(deactivatedMessage !== undefined);
-  const label = hasError
-    ? importError === undefined
-      ? translate("components:dagWarnings.error_one")
-      : translate("dashboard:importErrors.dagImportError", { count: 1 })
-    : (deactivatedMessage ?? translate("components:dagWarnings.warning", { count: warningCount }));
+  const { chipLabel, heading, severity } = summarizeDagStatus(translate, {
+    deactivatedMessage,
+    error,
+    importError,
+    warnings,
+  });
 
   return (
     <>
-      <StatusChip
-        icon={<LuFileWarning />}
-        label={label}
-        onClick={onOpen}
-        severity={hasError ? "error" : "warning"}
-      />
+      <StatusChip icon={<LuFileWarning />} label={chipLabel} onClick={onOpen} severity={severity} />
       <DAGWarningsModal
         deactivatedMessage={deactivatedMessage}
         error={error}
+        heading={heading}
         importError={importError}
         onClose={onClose}
         open={open}

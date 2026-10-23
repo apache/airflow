@@ -91,7 +91,7 @@ describe("FilterBar boolean filters", () => {
   });
 
   it("keeps the remove control out of the pill button", () => {
-    render(
+    const { container } = render(
       <FilterBar
         configs={[booleanConfig]}
         initialValues={{ needs_review: "true" }}
@@ -100,8 +100,9 @@ describe("FilterBar boolean filters", () => {
       { wrapper },
     );
 
-    // A button nested inside another button is invalid HTML and React warns about it at runtime.
-    expect(within(screen.getByTestId("needs_review-pill")).queryAllByRole("button")).toHaveLength(0);
+    // Asked of the whole pill rather than of the inner button, so putting `as="button"` back on the
+    // wrapper fails here too. A button inside a button is invalid HTML and React warns at runtime.
+    expect(container.querySelector("button button")).toBeNull();
   });
 
   it("clears the filter when the pill is clicked", async () => {
