@@ -58,9 +58,15 @@ SERDE_KWARGS_ENCODING = "serde"
 # scheduler reaping a lost callback agree on it.
 START_DEADLINE_KEY = "start_deadline"
 STARTED_AT_KEY = "started_at"
+STARTED_BY_KEY = "started_by"
 EXECUTION_TIMEOUT_KEY = "execution_timeout"
 # Holds the serialized callback request; workers read it from the Execution API, not the workload.
 CALLBACK_REQUEST_DATA_KEY = "req_data"
+
+
+def get_callback_report_window(execution_timeout: int) -> int:
+    """Return the seconds a routed callback has from its start to report its outcome: its timeout and a grace."""
+    return execution_timeout + max(60, execution_timeout // 2)
 
 
 class CallbackDTO(BaseModel):

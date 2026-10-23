@@ -124,7 +124,12 @@ class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
 
 
 class AddCallbackContextEndpoint(VersionChange):
-    """Add the endpoint a routed Dag processor callback reads its context from."""
+    """
+    Add the endpoint a routed Dag processor callback reads its context from.
+
+    A worker can also identify itself when it exchanges a callback's token, so it can repeat its own
+    exchange. Older clients send no body and keep the single-use exchange.
+    """
 
     description = __doc__
 

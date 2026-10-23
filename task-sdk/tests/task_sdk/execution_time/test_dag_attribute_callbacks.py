@@ -136,6 +136,28 @@ class TestDagCallbacks:
         assert template_context["run_id"] == "test_run"
         assert template_context["reason"] == "task_failure"
 
+    @pytest.mark.parametrize(
+        ("dag_run", "expected_tags"),
+        [
+            pytest.param(None, {"dag_id": "test_dag"}, id="no-team"),
+            pytest.param(
+                DAG_RUN.model_copy(update={"team_name": "team_a"}),
+                {"dag_id": "test_dag", "team_name": "team_a"},
+                id="team",
+            ),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.dag_attribute_callbacks.stats", autospec=True)
+    def test_failing_callbacks_are_counted(self, mock_stats, dag, dag_run, expected_tags):
+        """The Dag processor counts them in the same metric."""
+        context = DagCallbackContext(
+            type="DagCallback", dag_id="test_dag", run_id="test_run", dag_run=dag_run
+        )
+
+        _run(context, dag)
+
+        mock_stats.incr.assert_called_once_with("dag.callback_exceptions", 1, tags=expected_tags)
+
     def test_success_callbacks_run_for_a_successful_run(self, dag, calls):
         context = DagCallbackContext(
             type="DagCallback", dag_id="test_dag", run_id="test_run", is_failure_callback=False
@@ -202,6 +224,14 @@ class TestTaskCallbacks:
         assert name == expected
         assert template_context["ti"].task_id == "task"
         assert template_context["ti"].max_tries == 1
+
+    def test_runs_without_the_task_run_context(self, dag, calls):
+        context = TaskCallbackContext(type="TaskCallback", ti=TI)
+
+        assert _run(context, dag) == []
+        ((name, template_context),) = calls
+        assert name == "task_failure"
+        assert template_context["ti"].task_id == "task"
 
     def test_a_non_failure_callback_type_runs_nothing(self, dag, calls):
         context = TaskCallbackContext(
