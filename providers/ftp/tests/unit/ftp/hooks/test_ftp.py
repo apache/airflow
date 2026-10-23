@@ -17,12 +17,59 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from io import StringIO
 from unittest import mock
 
 import pytest
 
 from airflow.providers.ftp.hooks import ftp as fh
+
+
+@pytest.mark.parametrize(
+    ("hook_cls", "client_cls"), [(fh.FTPHook, ftplib.FTP), (fh.FTPSHook, ftplib.FTP_TLS)]
+)
+@pytest.mark.parametrize(
+    "error", [EOFError(), OSError("Control connection closed"), ftplib.error_temp("421 Service unavailable")]
+)
+def test_close_conn_closes_disconnected_client(hook_cls, client_cls, error):
+    hook = hook_cls()
+    client = mock.create_autospec(client_cls, instance=True)
+    client.quit.side_effect = error
+    hook.conn = client
+
+    hook.close_conn()
+    hook.close_conn()
+
+    client.quit.assert_called_once_with()
+    client.close.assert_called_once_with()
+    assert hook.conn is None
+
+
+@pytest.mark.parametrize(
+    ("hook_cls", "client_cls"), [(fh.FTPHook, ftplib.FTP), (fh.FTPSHook, ftplib.FTP_TLS)]
+)
+@pytest.mark.parametrize(
+    "error",
+    [
+        ftplib.error_temp("430 Unknown temporary reply"),
+        ftplib.error_perm("500 QUIT rejected"),
+        ftplib.error_proto("Invalid reply"),
+        RuntimeError("Unexpected client error"),
+    ],
+)
+def test_close_conn_closes_client_after_quit_error(hook_cls, client_cls, error):
+    hook = hook_cls()
+    client = mock.create_autospec(client_cls, instance=True)
+    client.quit.side_effect = error
+    hook.conn = client
+
+    with pytest.raises(type(error)) as raised:
+        hook.close_conn()
+
+    assert raised.value is error
+    client.close.assert_called_once_with()
+    assert hook.conn is None
 
 
 class TestFTPHook:
@@ -46,6 +93,8 @@ class TestFTPHook:
         ftp_hook.close_conn()
 
         self.conn_mock.quit.assert_called_once_with()
+        self.conn_mock.close.assert_called_once_with()
+        assert ftp_hook.conn is None
 
     def test_describe_directory(self):
         with fh.FTPHook() as ftp_hook:
