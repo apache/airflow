@@ -559,8 +559,9 @@ class TIRunContext(BaseModel):
     """
     The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
 
-    The supervisor and the Python task runner enforce the timeout with this value. ``None`` when no
-    timeout is set.
+    The supervisor enforces the timeout of a task run by a language SDK with this value. A Python task
+    enforces its own ``execution_timeout`` and sends that to the supervisor instead, since the server
+    cannot resolve every value, such as one mapped with ``expand()``. ``None`` when no timeout is set.
     """
 
     multi_team: bool = False

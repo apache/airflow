@@ -119,10 +119,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -2319,49 +2319,14 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification via %s", notifier_description)
 
 
-def _resolve_execution_timeout(ti: RuntimeTaskInstance, log: Logger) -> float | None:
-    """
-    Return the execution timeout to enforce, in seconds.
-
-    The run context's value wins. When it has none, the worker's ``[core] default_task_execution_timeout``
-    still applies (deprecated), computed exactly as the supervisor does. It is only used when the re-parsed
-    task carries that default: the re-parsed value can also come from a Dag file changed since it was
-    serialized or from ``pre_execute``, which the supervisor cannot see.
-    """
-    from_context = ti._ti_context_from_server.execution_timeout if ti._ti_context_from_server else None
-    worker_default = conf.gettimedelta("core", "default_task_execution_timeout")
-    if not worker_default or ti.task.execution_timeout != worker_default:
-        return from_context
-    worker_seconds = max(worker_default.total_seconds(), 0.0)
-    if from_context is None:
-        log.warning(
-            "Using [core] default_task_execution_timeout from the worker. This is deprecated; "
-            "set it where the Dag processor runs.",
-            execution_timeout=worker_seconds,
-        )
-        return worker_seconds
-    if worker_seconds != from_context:
-        log.info(
-            "Using execution_timeout resolved by the Dag processor instead of the worker's "
-            "[core] default_task_execution_timeout",
-            execution_timeout=from_context,
-            worker_execution_timeout=worker_seconds,
-        )
-    return from_context
-
-
 @detail_span("task.execute")
 def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
-    *,
-    execution_timeout: float | None,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
-
-    ``execution_timeout`` comes from the run context, so it matches the supervisor's timer.
 
     The contextvars snapshot is taken here, after the ``task.execute`` span is
     current, so spans the operator emits during ``execute`` nest under it rather
@@ -2371,17 +2336,18 @@ def _run_execute_callable(
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
-    if execution_timeout is not None:
+    if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
         # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
         try:
             # It's possible we're already timed out, so fast-fail if true
-            if execution_timeout <= 0:
+            if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(StartExecutionTimeout())
+            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
-            with timeout(execution_timeout):
+            with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             task.on_kill()
@@ -2429,8 +2395,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    execution_timeout = _resolve_execution_timeout(ti, log)
-    result = _run_execute_callable(context, execute, task, execution_timeout=execution_timeout)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)

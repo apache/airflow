@@ -1555,6 +1555,16 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
+// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
+// outside the task process.
+type SetExecutionTimeout struct {
+	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
+	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Payload for setting RTIF for a task instance.
 type SetRenderedFields struct {
 	// RenderedFields corresponds to the JSON schema field "rendered_fields".
@@ -1625,13 +1635,6 @@ type SkipDownstreamTasks struct {
 	// Tasks corresponds to the JSON schema field "tasks".
 	Tasks []string `msgpack:"tasks"`
 
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
-// Tell the supervisor to start enforcing the run context's “execution_timeout“
-// from outside the task process.
-type StartExecutionTimeout struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
