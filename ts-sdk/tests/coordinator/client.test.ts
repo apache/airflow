@@ -541,6 +541,14 @@ describe("taskStateStore.set guards", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("reports an overflowing retention in seconds", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.set("k", 1, { retention: 1e12 })).rejects.toThrow(
+      "a retention that ends 1000000000000s from now",
+    );
+    expect(sent).toHaveLength(0);
+  });
+
   it("rejects an empty key without sending a request", async () => {
     const { client: c, sent } = recordingClient();
     await expect(c.taskStateStore.set("", 1, { retention: 60 })).rejects.toThrow(RangeError);
