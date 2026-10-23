@@ -569,3 +569,105 @@ class TestWindowSerializationGate:
             "airflow.partition_mappers.window.YearWindow",
         }
         assert set(_serializer.BUILTIN_WINDOWS.values()) == expected
+
+
+class TestWindowStep:
+    @pytest.mark.parametrize(
+        ("window", "anchor", "expected"),
+        [
+            pytest.param(
+                HourWindow(step=timedelta(minutes=5)),
+                datetime(2026, 10, 6, 10),
+                [datetime(2026, 10, 6, 10, m) for m in range(0, 60, 5)],
+                id="hour-5min",
+            ),
+            pytest.param(
+                DayWindow(step=timedelta(hours=6)),
+                datetime(2026, 10, 6),
+                [datetime(2026, 10, 6, h) for h in (0, 6, 12, 18)],
+                id="day-6h",
+            ),
+            pytest.param(
+                WeekWindow(step=timedelta(days=7)),
+                datetime(2026, 10, 5),
+                [datetime(2026, 10, 5)],
+                id="week-whole-period",
+            ),
+            pytest.param(
+                HourWindow(step=timedelta(minutes=15), direction=Window.Direction.BACKWARD),
+                datetime(2026, 10, 6, 10),
+                [
+                    datetime(2026, 10, 6, 9, 15),
+                    datetime(2026, 10, 6, 9, 30),
+                    datetime(2026, 10, 6, 9, 45),
+                    datetime(2026, 10, 6, 10),
+                ],
+                id="hour-15min-backward",
+            ),
+        ],
+    )
+    def test_to_upstream_uses_step(self, window, anchor, expected):
+        assert list(window.to_upstream(anchor)) == expected
+
+    def test_day_window_with_five_minute_step_yields_288_members(self):
+        members = list(DayWindow(step=timedelta(minutes=5)).to_upstream(datetime(2026, 10, 6)))
+        assert len(members) == 288
+        assert members[-1] == datetime(2026, 10, 6, 23, 55)
+
+    @pytest.mark.parametrize(
+        ("window_cls", "step", "error", "match"),
+        [
+            pytest.param(HourWindow, timedelta(minutes=7), ValueError, "divide its period", id="not-divisor"),
+            pytest.param(
+                HourWindow, timedelta(hours=2), ValueError, "divide its period", id="longer-than-period"
+            ),
+            pytest.param(HourWindow, timedelta(0), ValueError, "positive whole number", id="zero"),
+            pytest.param(
+                HourWindow, timedelta(minutes=-5), ValueError, "positive whole number", id="negative"
+            ),
+            pytest.param(
+                HourWindow, timedelta(milliseconds=500), ValueError, "positive whole number", id="sub-second"
+            ),
+            pytest.param(HourWindow, 300, TypeError, "must be a timedelta", id="int"),
+            pytest.param(MonthWindow, timedelta(days=1), TypeError, "does not support 'step'", id="month"),
+            pytest.param(
+                QuarterWindow, timedelta(days=1), TypeError, "does not support 'step'", id="quarter"
+            ),
+            pytest.param(YearWindow, timedelta(days=1), TypeError, "does not support 'step'", id="year"),
+        ],
+    )
+    def test_invalid_step_raises(self, window_cls, step, error, match):
+        with pytest.raises(error, match=match):
+            window_cls(step=step)
+
+    def test_serialize_omits_step_when_unset(self):
+        assert "step" not in encode_window(HourWindow())[Encoding.VAR]
+
+    def test_serialize_round_trip_preserves_step(self):
+        window = HourWindow(step=timedelta(minutes=5))
+        encoded = encode_window(window)
+        assert encoded[Encoding.VAR]["step"] == 300
+        restored = decode_window(encoded)
+        assert restored.step == timedelta(minutes=5)
+        anchor = datetime(2026, 10, 6, 10)
+        assert list(restored.to_upstream(anchor)) == list(window.to_upstream(anchor))
+
+    def test_payload_without_step_decodes_to_default(self):
+        restored = decode_window(
+            {
+                Encoding.TYPE: "airflow.partition_mappers.window.HourWindow",
+                Encoding.VAR: {"direction": "forward"},
+            }
+        )
+        assert restored.step is None
+        assert len(list(restored.to_upstream(datetime(2026, 10, 6, 10)))) == 60
+
+    def test_rollup_to_upstream_with_five_minute_producer_keys(self):
+        mapper = RollupMapper(
+            upstream_mapper=StartOfHourMapper(input_format="%Y-%m-%dT%H:%M:%S"),
+            window=HourWindow(step=timedelta(minutes=5)),
+        )
+        assert mapper.to_downstream("2026-10-06T10:05:00") == "2026-10-06T10"
+        assert mapper.to_upstream("2026-10-06T10") == frozenset(
+            f"2026-10-06T10:{m:02d}:00" for m in range(0, 60, 5)
+        )
