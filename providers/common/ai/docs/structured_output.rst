@@ -87,9 +87,10 @@ task receives:
   a dict, and ``result.field`` raises ``AttributeError``.
 * In HITL review on Airflow 3.3 and later without ``serialize_output=True``,
   common.ai 1.0.0 and 1.1.0 dumped a top-level model of these output types with
-  plain ``model_dump()`` after the reviewer approved the model. The
-  ``datetime``, ``date``, ``UUID`` and ``Decimal`` values of that model now
-  arrive as strings, and its tuples and sets arrive as lists.
+  plain ``model_dump()`` after the reviewer approved the model. Values such as
+  ``datetime``, ``date``, ``timedelta``, ``UUID`` and ``Decimal`` in that model
+  now arrive as strings, for example ``"PT1M30S"`` for a ``timedelta``. Tuples
+  and sets in that model now arrive as lists.
 * Before Airflow 3.3, common.ai 1.0.0 and 1.1.0 pushed a model inside a list,
   tuple or dict as a model instance, for every ``output_type``. A downstream
   task that loaded the instance because the class was listed in

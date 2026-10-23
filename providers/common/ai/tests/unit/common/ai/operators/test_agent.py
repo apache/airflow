@@ -1376,12 +1376,12 @@ class TestAgentOperatorExecute:
     def test_execute_with_hitl_returns_the_model_instance(
         self, mock_hook_cls, mock_run_hitl, make_mock_run_result
     ):
-        """When enable_hitl_review=True and output_type is BaseModel, execute returns the model instance."""
+        """execute returns the agent's model instance, not a model parsed from run_hitl_review's text."""
         mock_result = make_mock_run_result(Summary(text="Approved summary", score=0.9))
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = '{"text": "Approved summary", "score": 0.9}'
+        mock_run_hitl.return_value = '{"text": "Edited"}'
 
         op = AgentOperator(
             task_id="test",

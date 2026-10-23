@@ -26,15 +26,15 @@ Changelog
 ---------
 
 .. note::
-  ``AgentOperator`` and ``@task.agent`` now push each model in the output as a JSON-compatible
-  dict (``model_dump(mode="json")``), including models inside a list, tuple or dict. They push
-  dicts when ``output_type`` is a list of output types such as ``[Summary, int]``, an output
-  marker such as ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a
-  ``NewType``. The worker cannot register a model class from these output types for XCom
-  deserialization. On Airflow < 3.3, the worker registers no model class at all, so a model
-  inside a list, tuple or dict is now pushed as a JSON-compatible dict for every
-  ``output_type``. A top-level model is still dumped with plain ``model_dump()`` when
-  ``serialize_output=True`` is set or on Airflow < 3.3.
+  The worker cannot register a model class for XCom deserialization when ``output_type`` is a
+  list of output types such as ``[Summary, int]``, an output marker such as
+  ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a ``NewType``. For these
+  output types, ``AgentOperator`` and ``@task.agent`` now push each model in the output as a
+  JSON-compatible dict (``model_dump(mode="json")``), including models inside a list, tuple or
+  dict. On Airflow < 3.3, the worker registers no model class at all, so a model inside a list,
+  tuple or dict is now pushed as a JSON-compatible dict for every ``output_type``. A top-level
+  model is still dumped with plain ``model_dump()`` when ``serialize_output=True`` is set or on
+  Airflow < 3.3.
 
   The new behaviour changes the type that a downstream task receives after an upgrade. Versions
   1.0.0 and 1.1.0 pushed these models as model instances. They dumped a top-level model with
@@ -43,8 +43,9 @@ Changelog
   ``[core] allowed_deserialization_classes``, or on Airflow >= 3.3 when another task in the
   same Dag declared the class as its ``output_type``. That downstream task now gets a dict and
   must read ``result["field"]`` instead of ``result.field``. In HITL review on Airflow >= 3.3
-  without ``serialize_output=True``, the ``datetime``, ``date``, ``UUID`` and ``Decimal`` values
-  of a top-level model now arrive as strings, and its tuples and sets arrive as lists. See
+  without ``serialize_output=True``, values such as ``datetime``, ``date``, ``timedelta``,
+  ``UUID`` and ``Decimal`` in a top-level model now arrive as strings, for example
+  ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
   :doc:`structured_output`.
 
 1.1.0
