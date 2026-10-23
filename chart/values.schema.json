@@ -9988,7 +9988,7 @@
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the git sync sidecar.",
+                                    "description": "Container security context definition for the git sync sidecar and init container. By default, git-sync runs as `uid`, privilege escalation is disabled, and all capabilities are dropped unless `securityContexts.disableDefaults` is enabled.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
