@@ -983,7 +983,7 @@ def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Paramet
         raise click.BadParameter(
             f"{value} has no sphinx_airflow_theme/static/_gen. It must be the `sphinx_airflow_theme` "
             "sub-folder of an airflow-site checkout (not the repository root), "
-            "after `./site.sh prepare-theme`."
+            "after `./site.sh build-landing-pages && ./site.sh prepare-theme`."
         )
     return value
 
@@ -1053,7 +1053,7 @@ def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Paramet
     callback=_validate_sphinx_airflow_theme_path,
     help="Build the docs with the `sphinx_airflow_theme` sub-folder of an airflow-site checkout "
     "(e.g. `../airflow-site/sphinx_airflow_theme`, not the repository root), after "
-    "`./site.sh prepare-theme`, instead of the published theme.",
+    "`./site.sh build-landing-pages && ./site.sh prepare-theme`, instead of the published theme.",
 )
 @option_verbose
 @option_answer
