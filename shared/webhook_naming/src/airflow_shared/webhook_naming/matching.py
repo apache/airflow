@@ -47,6 +47,10 @@ if TYPE_CHECKING:
 #: The key a failed match names when the delivery's event is not one of the condition's ``events``.
 EVENT_KEY = "event"
 
+#: The longest conf key that a ``cancel_on`` condition's ``correlation_key_conf`` may name, shared so
+#: that the Task SDK's check and the column that stores the conditions use one bound.
+MAX_CORRELATION_KEY_CONF_LENGTH = 250
+
 
 @dataclass(frozen=True, kw_only=True)
 class MatchResult:

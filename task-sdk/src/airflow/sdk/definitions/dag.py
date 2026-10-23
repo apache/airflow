@@ -52,6 +52,7 @@ from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.sdk.definitions.webhooks import coerce_cancel_on
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.webhooks import WebhookMatch
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
@@ -333,6 +335,22 @@ def _check_no_webhook_topic_lineage(dag: DAG) -> None:
             check_no_webhook_topic(_collect_from_input(objects), task_id=task.task_id, kind=kind)
 
 
+def _check_cancel_on(dag: DAG) -> None:
+    """Raise if a task, mapped or not, has ``cancel_on`` or ``cancel_state`` where they cannot apply."""
+    for task in dag.tasks:
+        if task.cancel_on and task.is_teardown:
+            raise ValueError(
+                f"Teardown task {task.task_id!r} cannot have cancel_on, as a teardown runs however its run "
+                "ends; if it comes from default_args, pass cancel_on=None to the teardown"
+            )
+        if task.cancel_state is None or task.cancel_on:
+            continue
+        # default_args reach every task, and a cancel_state there only matters to tasks with cancel_on.
+        inherited = {**dag.default_args, **(task.task_group.default_args if task.task_group else {})}
+        if inherited.get("cancel_state") != task.cancel_state:
+            raise ValueError(f"Task {task.task_id!r} has cancel_state {task.cancel_state!r} but no cancel_on")
+
+
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
 @attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only, slots=False)
 class DAG:
@@ -449,6 +467,10 @@ class DAG:
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
+    :param cancel_on: ``WebhookMatch`` conditions on inbound webhook deliveries that fail a queued or
+        running run of this Dag. A delivery that matches cancels the runs about its correlation key: runs
+        started by a webhook event with that key, and runs whose conf holds the key under the condition's
+        ``correlation_key_conf``. |experimental|
     :param dag_display_name: The display name of the Dag which appears on the UI.
     :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
         available bundle version. If False, they use the original bundle version. If None
@@ -561,6 +583,9 @@ class DAG:
     fail_fast: bool = attrs.field(default=False, converter=bool)
     allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
         default=None, converter=_convert_allowed_run_types
+    )
+    cancel_on: WebhookMatch | Collection[WebhookMatch] | None = attrs.field(
+        default=None, converter=coerce_cancel_on
     )
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
@@ -796,6 +821,7 @@ class DAG:
         self.validate_setup_teardown()
         check_expansions_over_loop_tasks(self)
         _check_no_webhook_topic_lineage(self)
+        _check_cancel_on(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1655,6 +1681,8 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_failure_callback",
     "auto_register",
     "schedule",
+    # Generic serialization would write each WebhookMatch condition with str().
+    "cancel_on",
 }
 
 if TYPE_CHECKING:
@@ -1692,6 +1720,7 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_fast: bool = False,
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
+        cancel_on: WebhookMatch | Collection[WebhookMatch] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,

@@ -30,7 +30,7 @@ import jinja2
 import pytest
 import structlog
 
-from airflow.sdk import DAG, Label, TaskGroup, task as task_decorator
+from airflow.sdk import DAG, Label, TaskGroup, TaskInstanceState, WebhookMatch, task as task_decorator
 from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
     BaseAsyncOperator,
@@ -1140,6 +1140,93 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+
+
+class TestCancelOn:
+    @pytest.mark.parametrize(
+        ("default_args", "kwargs", "expected"),
+        [
+            pytest.param({}, {}, (None, None), id="unset"),
+            pytest.param({}, {"cancel_on": CLOSED}, ([CLOSED], None), id="single"),
+            pytest.param(
+                {}, {"cancel_on": [CLOSED], "cancel_state": "skipped"}, ([CLOSED], "skipped"), id="skipped"
+            ),
+            pytest.param(
+                {"cancel_on": CLOSED, "cancel_state": TaskInstanceState.SKIPPED},
+                {},
+                ([CLOSED], "skipped"),
+                id="inherited",
+            ),
+        ],
+    )
+    def test_cancel_on_and_cancel_state(self, default_args, kwargs, expected):
+        with DAG("cancel_on", schedule=None, default_args=default_args):
+            op = BaseOperator(task_id="t", **kwargs)
+
+        assert (op.cancel_on, op.cancel_state) == expected
+
+    @pytest.mark.parametrize("create", [BaseOperator, BaseOperator.partial], ids=["init", "partial"])
+    def test_cancel_on_refuses_what_is_not_a_webhook_match(self, create):
+        with pytest.raises(TypeError, match="cancel_on takes WebhookMatch conditions, not str"):
+            create(task_id="t", cancel_on=["github"])
+
+    @pytest.mark.parametrize("create", [BaseOperator, BaseOperator.partial], ids=["init", "partial"])
+    def test_cancel_state_refuses_an_unknown_state(self, create):
+        with pytest.raises(ValueError, match="cancel_state must be 'failed' or 'skipped', got 'success'"):
+            create(task_id="t", cancel_on=CLOSED, cancel_state="success")
+
+    def test_cancel_on_is_converted_on_assignment(self):
+        op = BaseOperator(task_id="t")
+
+        op.cancel_on = CLOSED
+        op.cancel_state = TaskInstanceState.SKIPPED
+
+        assert (op.cancel_on, op.cancel_state) == ([CLOSED], "skipped")
+
+    def test_unset_cancel_on_and_cancel_state_hide_subclass_attributes_of_the_same_name(self):
+        class WithClassAttributes(BaseOperator):
+            cancel_on = [CLOSED]
+            cancel_state = "skipped"
+
+        op = WithClassAttributes(task_id="t")
+
+        assert (op.cancel_on, op.cancel_state) == (None, None)
+
+    @pytest.mark.parametrize(
+        ("default_args", "kwargs"),
+        [
+            pytest.param({}, {"cancel_on": CLOSED, "cancel_state": TaskInstanceState.SKIPPED}, id="explicit"),
+            pytest.param(
+                {"cancel_on": CLOSED, "cancel_state": TaskInstanceState.SKIPPED}, {}, id="inherited"
+            ),
+        ],
+    )
+    def test_partial_converts_cancel_on_and_cancel_state(self, default_args, kwargs):
+        with DAG("cancel_on", schedule=None, default_args=default_args):
+            mapped = MockOperator.partial(task_id="t", **kwargs).expand(arg1=["a", "b"])
+
+        assert (mapped.partial_kwargs["cancel_on"], mapped.partial_kwargs["cancel_state"]) == (
+            [CLOSED],
+            "skipped",
+        )
+        assert type(mapped.cancel_state) is str
+        assert mapped.cancel_on == [CLOSED]
+
+    @pytest.mark.parametrize(
+        ("name", "values"),
+        [
+            pytest.param("cancel_on", [[CLOSED]], id="cancel_on"),
+            pytest.param("cancel_state", ["failed", "skipped"], id="cancel_state"),
+        ],
+    )
+    def test_expand_refuses_cancel_on_and_cancel_state(self, name, values):
+        with pytest.raises(
+            ValueError, match=f"MockOperator.expand\\(\\) cannot map {name}; pass it to partial"
+        ):
+            MockOperator.partial(task_id="t").expand(arg1=["a"], **{name: values})
 
 
 @pytest.fixture

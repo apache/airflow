@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import Asset, WebhookTopic, task
+from airflow.sdk import DAG, Asset, TaskInstanceState, WebhookMatch, WebhookTopic, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -120,6 +120,62 @@ class TestExecute:
         ):
             op.execute(context={})
         assert op.inlets == []
+
+
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+
+
+class TestCancelOn:
+    def test_task_decorator_passes_cancel_on_and_cancel_state(self):
+        @task(cancel_on=CLOSED, cancel_state=TaskInstanceState.SKIPPED)
+        def cancellable(): ...
+
+        op = cancellable().operator
+
+        assert (op.cancel_on, op.cancel_state) == ([CLOSED], "skipped")
+
+    @pytest.mark.parametrize(
+        ("default_args", "kwargs"),
+        [
+            pytest.param({}, {"cancel_on": CLOSED, "cancel_state": TaskInstanceState.SKIPPED}, id="explicit"),
+            pytest.param(
+                {"cancel_on": CLOSED, "cancel_state": TaskInstanceState.SKIPPED}, {}, id="inherited"
+            ),
+        ],
+    )
+    def test_mapped_task_decorator_converts_cancel_on(self, default_args, kwargs):
+        @task(**kwargs)
+        def cancellable(x): ...
+
+        with DAG("cancel_on", schedule=None, default_args=default_args):
+            mapped = cancellable.expand(x=[1, 2]).operator
+
+        assert (mapped.cancel_on, mapped.cancel_state) == ([CLOSED], "skipped")
+        assert type(mapped.cancel_state) is str
+
+    @pytest.mark.parametrize(
+        ("kwargs", "error", "message"),
+        [
+            pytest.param(
+                {"cancel_on": ["github"]},
+                TypeError,
+                "cancel_on takes WebhookMatch conditions, not str",
+                id="cancel_on",
+            ),
+            pytest.param(
+                {"cancel_on": CLOSED, "cancel_state": "success"},
+                ValueError,
+                "cancel_state must be 'failed' or 'skipped'",
+                id="cancel_state",
+            ),
+        ],
+    )
+    def test_mapped_task_decorator_refuses_an_invalid_value(self, kwargs, error, message):
+        @task(**kwargs)
+        def cancellable(x): ...
+
+        with pytest.raises(error, match=message):
+            cancellable.expand(x=[1, 2])
 
 
 class DummyDecoratedOperator(DecoratedOperator):

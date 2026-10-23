@@ -208,6 +208,10 @@ Assets
 
 .. autoapiclass:: airflow.sdk.WebhookTopic
 
+Webhooks
+--------
+.. autoapiclass:: airflow.sdk.WebhookMatch
+
 Timetables
 ----------
 .. autoapiclass:: airflow.sdk.AssetAndTimeSchedule

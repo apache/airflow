@@ -54,6 +54,7 @@ from airflow.sdk.definitions.mappedoperator import (
     ensure_xcomarg_return_value,
     prevent_duplicates,
 )
+from airflow.sdk.definitions.webhooks import coerce_cancel_on, coerce_cancel_state
 from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
@@ -699,6 +700,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ("retry_delay", coerce_timedelta),
             ("max_retry_delay", coerce_timedelta),
             ("resources", coerce_resources),
+            ("cancel_on", coerce_cancel_on),
+            ("cancel_state", coerce_cancel_state),
         ):
             if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
                 partial_kwargs[fld] = convert(v)
