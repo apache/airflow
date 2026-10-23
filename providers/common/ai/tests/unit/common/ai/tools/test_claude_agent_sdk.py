@@ -487,6 +487,22 @@ class TestRun:
             await tools.run(_error_then_success())
 
     @pytest.mark.asyncio
+    async def test_the_first_error_turn_is_reported_when_several_turns_fail(self):
+        tools, _ = _build_tools()
+
+        async def _two_errors_then_success() -> AsyncIterator[Message]:
+            yield _result_message(is_error=True, subtype="error_during_execution", result="first turn failed")
+            yield _result_message(
+                is_error=True, subtype="error_during_execution", result="second turn failed"
+            )
+            yield _result_message()
+
+        with pytest.raises(RuntimeError, match="first turn failed") as exc_info:
+            await tools.run(_two_errors_then_success())
+
+        assert "second turn failed" not in str(exc_info.value)
+
+    @pytest.mark.asyncio
     async def test_an_error_result_message_bounds_its_free_text_fields(self):
         tools, _ = _build_tools()
 
