@@ -211,7 +211,7 @@ class TestClient:
     )
     def test_error_parsing_json_media_type_variants(self, content_type):
         responses = [
-            httpx.Response(404, json={"detail": "Not found"}, headers={"content-type": content_type})
+            httpx2.Response(404, json={"detail": "Not found"}, headers={"content-type": content_type})
         ]
         client = make_client_w_responses(responses)
 
@@ -221,11 +221,11 @@ class TestClient:
 
     def test_error_parsing_media_type_merely_prefixed_with_json(self):
         responses = [
-            httpx.Response(404, json={"detail": "Not found"}, headers={"content-type": "application/jsonp"})
+            httpx2.Response(404, json={"detail": "Not found"}, headers={"content-type": "application/jsonp"})
         ]
         client = make_client_w_responses(responses)
 
-        with pytest.raises(httpx.HTTPStatusError) as err:
+        with pytest.raises(httpx2.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
 
