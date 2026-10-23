@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
@@ -296,6 +297,12 @@ class CeleryExecutor(BaseExecutor):
     def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Stop tracking a callback settled by the scheduler, including its Celery result."""
+        self.workloads.pop(key, None)
+        self.workload_publish_retries.pop(key, None)
+        super().release_callback(key)
 
     def update_task_state(self, key: WorkloadKey, state: str, info: Any) -> None:
         """Update state of a single workload."""

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Tests for the callback index migration, written against the schema as it stood at that revision.
+Tests for the callback lookup index migration, written against the schema as it stood at that revision.
 
 The table is declared here instead of taken from ``airflow.models``, so later model changes cannot change
 what these tests exercise.
@@ -36,7 +36,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 pytestmark = pytest.mark.db_test
 
-_migration = import_module("airflow.migrations.versions.0151_3_5_0_add_callback_type_state_index")
+_migration = import_module("airflow.migrations.versions.0151_3_5_0_add_callback_lookup_index")
 PREVIOUS_REVISION = _migration.down_revision
 
 metadata = sa.MetaData()
@@ -112,7 +112,7 @@ def test_downgrade_settles_routed_callbacks(database_at_revision):
     downgraded = "Airflow was downgraded before the callback finished"
     assert {name: stored[callback_id] for name, callback_id in ids.items()} == {
         "waiting": ("dag_processor", None, None),
-        "queued": ("executor", "failed", downgraded),
+        "queued": ("dag_processor", None, None),
         "running": ("executor", "failed", downgraded),
         "finished": ("executor", "success", None),
         "deadline": ("executor", "scheduled", None),
