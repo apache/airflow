@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
-    CTE,
     Text,
     and_,
     case,
@@ -4225,19 +4224,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             exists().where(TaskOutletAssetReference.asset_id == AssetModel.id),
             exists().where(TaskInletAssetReference.asset_id == AssetModel.id),
             # An asset materialized from an ``AssetAlias`` outlet is referenced only through
-            # the alias association, not the schedule/outlet/inlet tables. Count it so it is
-            # activated (and shown in the UI) instead of being treated as orphaned. See #58058.
+            # the alias association, not the schedule/outlet/inlet tables. Treat it as referenced so it
+            # is activated (and shown in the UI) instead of being orphaned. See #58058.
             exists().where(alias_association_table.c.asset_id == AssetModel.id),
         )
-        orphan_query = select(AssetModel).where(~referenced).cte()
-        activate_query = select(AssetModel).where(referenced).cte()
+        orphan_query = select(AssetModel.name, AssetModel.uri).where(~referenced).subquery()
+        activate_query = select(AssetModel.name, AssetModel.uri).where(referenced).subquery()
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
         self._cleanup_orphaned_asset_state_store(session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: Subquery, *, session: Session) -> None:
         deleted_orphaned_assets = session.execute(
             delete(AssetActive).where(
                 exists().where(
@@ -4249,7 +4248,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
 
     @staticmethod
-    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _activate_referenced_assets(assets_query: Subquery, *, session: Session) -> None:
         active_assets_query = select(AssetActive.name, AssetActive.uri).join(
             assets_query,
             and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
