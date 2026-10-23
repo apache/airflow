@@ -238,21 +238,44 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
         with _reraise_oserror_as_manifest_error():
             manifest_ref = self._read_current_manifest_ref()
-            self._mark_version_in_use(manifest_ref.version)
-            # Lock-free fast path: a validated cache tree is immutable, so the steady state
-            # must not contend with another process's materialization of a different version.
-            # Known limitation: a concurrent corrupt-cache rebuild can move the tree aside
-            # right after this check; the affected process fails once and heals on retry.
-            if self._has_validated_cache(manifest_ref.version, manifest_ref=manifest_ref):
+            version_lock = self._acquire_version_in_use(manifest_ref.version)
+            try:
+                # Keep the previous release protected until the candidate is usable.
+                if not self._has_validated_cache(manifest_ref.version, manifest_ref=manifest_ref):
+                    with self.lock():
+                        self._materialize_cached_version(
+                            version=manifest_ref.version, manifest_ref=manifest_ref
+                        )
+                        if version_lock is not None and not self._is_version_lock_current(version_lock):
+                            replacement_lock = self._acquire_version_in_use(manifest_ref.version)
+                            version_lock.release()
+                            version_lock = replacement_lock
                 self._current_manifest_ref = manifest_ref
-                return
-            with self.lock():
-                self._materialize_cached_version(version=manifest_ref.version, manifest_ref=manifest_ref)
-                self._current_manifest_ref = manifest_ref
+            except BaseException:
+                # Another materializer may have replaced the tracking inode. Only remove
+                # our own record, and serialize the missing-cache check with cache writers.
+                with suppress(OSError), self.lock():
+                    if (
+                        version_lock is not None
+                        and not (self.versions_dir / manifest_ref.version).exists()
+                        and self._is_version_lock_current(version_lock)
+                    ):
+                        get_bundle_tracking_file(self.name, manifest_ref.version).unlink(missing_ok=True)
+                raise
+            else:
+                if version_lock is not None:
+                    previous_release = self._release_version_in_use
+                    self._release_version_in_use = weakref.finalize(self, version_lock.release)
+                    version_lock = None
+                    if previous_release is not None:
+                        previous_release()
+            finally:
+                if version_lock is not None:
+                    version_lock.release()
 
-    def _mark_version_in_use(self, version: str) -> None:
+    def _acquire_version_in_use(self, version: str) -> BundleVersionLock | None:
         """
-        Hold Airflow's in-use lock on ``version`` so stale-version cleanup keeps its cache tree.
+        Acquire a candidate lock without releasing the currently served version's lock.
 
         The unpinned tree is served from ``versions_dir``, which that cleanup prunes by when
         tasks last used each version rather than by release order, so the current release can
@@ -265,6 +288,8 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         try:
             version_lock.acquire()
         except OSError:
+            with suppress(OSError):
+                version_lock.release()
             # Like a task's lock, this must not stop the bundle from being served, e.g. when
             # another OS user owns the tracking file.
             log.warning(
@@ -274,12 +299,19 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 version,
                 exc_info=True,
             )
-            return
-        if self._release_version_in_use is not None:
-            self._release_version_in_use()
-        # Also released when this bundle is garbage collected, so short-lived bundle objects
-        # (one per callback, for instance) do not leak the lock file descriptor.
-        self._release_version_in_use = weakref.finalize(self, version_lock.release)
+            return None
+        return version_lock
+
+    @staticmethod
+    def _is_version_lock_current(version_lock: BundleVersionLock) -> bool:
+        if version_lock.lock_file is None or version_lock.lock_file_path is None:
+            return False
+        try:
+            return os.path.samestat(
+                os.fstat(version_lock.lock_file.fileno()), version_lock.lock_file_path.stat()
+            )
+        except FileNotFoundError:
+            return False
 
     def _validation_marker_path(self, version: str) -> Path:
         # A file, not a directory: the orphan sweep only matches temp snapshot directories.
@@ -311,6 +343,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 version=version,
                 manifest_ref=manifest_ref,
                 check_content=False,
+                allow_cached_bytecode=True,
             )
         except (BundleManifestError, OSError):
             log.warning(
@@ -359,6 +392,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                     version_path=cached_version_path,
                     version=version,
                     manifest_ref=manifest_ref,
+                    allow_cached_bytecode=True,
                 )
             except (BundleManifestError, OSError):
                 log.warning(
@@ -369,7 +403,14 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 )
                 self._move_cached_version_aside(cached_version_path, version=version)
             else:
-                fsync_tree(cached_version_path)
+                snapshot_manifest = self._read_local_snapshot_manifest(cached_version_path)
+                source_paths = {file_info["path"] for file_info in snapshot_manifest["files"]}
+                fsync_tree(
+                    cached_version_path,
+                    ignore_file=lambda path: _is_cached_bytecode_file(
+                        path.relative_to(cached_version_path), source_paths
+                    ),
+                )
                 fsync_directory(self.versions_dir)
                 self._record_validated_cache(version, cache_key)
                 return
@@ -444,6 +485,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         version: str,
         manifest_ref: BundleManifestRef | None,
         check_content: bool = True,
+        allow_cached_bytecode: bool = False,
     ) -> None:
         if manifest_ref:
             if manifest_ref.version != version:
@@ -451,12 +493,22 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                     f"Bundle manifest reference contains version {manifest_ref.version!r}, "
                     f"expected {version!r}"
                 )
-            self._validate_snapshot_for_ref(manifest_ref, version_path, check_content=check_content)
+            self._validate_snapshot_for_ref(
+                manifest_ref,
+                version_path,
+                check_content=check_content,
+                allow_cached_bytecode=allow_cached_bytecode,
+            )
             return
 
         snapshot_manifest = self._read_local_snapshot_manifest(version_path)
         self._validate_snapshot_manifest(snapshot_manifest, expected_version=version)
-        self._validate_snapshot_files(snapshot_manifest, version_path, check_content=check_content)
+        self._validate_snapshot_files(
+            snapshot_manifest,
+            version_path,
+            check_content=check_content,
+            allow_cached_bytecode=allow_cached_bytecode,
+        )
 
     def _ensure_current_manifest_ref(self) -> BundleManifestRef:
         # Only a cheap read of the release reference. Snapshot materialization and full
@@ -552,6 +604,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         version_path: Path,
         *,
         check_content: bool = True,
+        allow_cached_bytecode: bool = False,
     ) -> None:
         snapshot_manifest = self._read_local_snapshot_manifest(version_path)
         self._validate_snapshot_manifest(snapshot_manifest, expected_version=manifest_ref.version)
@@ -568,7 +621,12 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 f"manifest reference {expected_total_size!r}"
             )
         verify_bundle_version_manifest(snapshot_manifest, manifest_ref.manifest_sha256)
-        self._validate_snapshot_files(snapshot_manifest, version_path, check_content=check_content)
+        self._validate_snapshot_files(
+            snapshot_manifest,
+            version_path,
+            check_content=check_content,
+            allow_cached_bytecode=allow_cached_bytecode,
+        )
 
     def _validate_snapshot_manifest(self, manifest: dict[str, Any], *, expected_version: str) -> None:
         validate_bundle_version_manifest_structure(
@@ -584,12 +642,16 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         version_path: Path,
         *,
         check_content: bool = True,
+        allow_cached_bytecode: bool = False,
     ) -> None:
         # check_content=False keeps the structural checks (path safety, symlinks, file
         # types, unexpected files) but skips the per-file hashing pass.
         expected_paths = {file_info["path"] for file_info in snapshot_manifest["files"]}
         observed_paths = {
-            path.relative_to(version_path).as_posix() for path in self._iter_snapshot_files(version_path)
+            path.relative_to(version_path).as_posix()
+            for path in self._iter_snapshot_files(
+                version_path, cached_source_paths=expected_paths if allow_cached_bytecode else None
+            )
         }
         unexpected_paths = sorted(observed_paths - expected_paths)
         if unexpected_paths:
@@ -629,7 +691,9 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 )
 
     @staticmethod
-    def _iter_snapshot_files(snapshot_root: Path) -> Iterator[Path]:
+    def _iter_snapshot_files(
+        snapshot_root: Path, *, cached_source_paths: set[str] | None = None
+    ) -> Iterator[Path]:
         def raise_walk_error(error: OSError) -> None:
             raise BundleManifestError(
                 f"Bundle snapshot {snapshot_root} changed or became unreadable while validating: "
@@ -667,6 +731,9 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             for filename in sorted(filenames):
                 path = Path(dirpath) / filename
                 relative_path = path.relative_to(snapshot_root).as_posix()
+                is_cached_bytecode = cached_source_paths is not None and _is_cached_bytecode_file(
+                    Path(relative_path), cached_source_paths
+                )
                 if path.is_symlink():
                     raise BundleManifestError(
                         f"Bundle snapshot {snapshot_root} contains symlinked file "
@@ -675,6 +742,9 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 try:
                     file_stat = path.stat()
                 except FileNotFoundError as e:
+                    if is_cached_bytecode:
+                        # Python replaces its temporary bytecode file atomically.
+                        continue
                     # Not BundleManifestSourceChangedError: snapshots are immutable, so a file
                     # vanishing from one is damage or a concurrent removal, not a source edit.
                     raise BundleManifestError(
@@ -684,7 +754,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                     raise BundleManifestError(
                         f"Bundle snapshot {snapshot_root} contains non-regular file {relative_path!r}"
                     )
-                if relative_path == MANIFEST_FILE_NAME:
+                if relative_path == MANIFEST_FILE_NAME or is_cached_bytecode:
                     continue
                 yield path
 
@@ -831,6 +901,23 @@ def _publish_manifest_result(
         total_size=ref_payload["total_size"],
         created_snapshot=created_snapshot,
     )
+
+
+def _is_cached_bytecode_file(path: Path, source_paths: set[str]) -> bool:
+    """Recognize Python bytecode (including atomic-write temps) for manifest-listed sources."""
+    if path.parent.name != "__pycache__":
+        return False
+    suffix = path.suffix.removeprefix(".")
+    if suffix.isascii() and suffix.isdecimal():
+        path = path.with_suffix("")
+    if path.suffix != ".pyc":
+        return False
+    stem, separator, tag = path.stem.rpartition(".")
+    if tag.startswith("opt-"):
+        if not tag.removeprefix("opt-").isalnum():
+            return False
+        stem, separator, tag = stem.rpartition(".")
+    return bool(separator and tag) and (path.parent.parent / f"{stem}.py").as_posix() in source_paths
 
 
 def _get_marker_file_version(path: Path) -> str | None:
