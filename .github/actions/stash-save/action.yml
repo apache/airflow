@@ -112,7 +112,7 @@ runs:
           exit 1
         fi
         object="${prefix}/sha256/${digest}.tar"
-        aws s3 cp --only-show-errors "${upload}" "${object}"
+        aws s3 cp --only-show-errors --copy-props none "${upload}" "${object}"
         # Leaving the upload behind only costs storage until the bucket's lifecycle rule expires it.
         aws s3 rm --only-show-errors "${upload}" || echo "::warning::Could not remove ${upload}"
         mkdir -p "${DIGEST_DIR}"
