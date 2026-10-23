@@ -965,6 +965,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 last_log_time=last_log_time,
                 use_dns_endpoint=self.use_dns_endpoint,
                 trigger_kwargs=trigger_kwargs,
+                log_events_on_startup=self.log_events_on_startup,
             ),
             method_name="trigger_reentry",
             timeout=defer_timeout,
