@@ -803,9 +803,12 @@ class TestDeleteClusterOperator:
 
         assert mock_delete_cluster.call_count == 3
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
-    def test_delete_cluster_deferrable_mode(self, mock_delete_cluster, mock_cluster_status):
+    def test_delete_cluster_deferrable_mode(
+        self, mock_delete_cluster, mock_cluster_status, wait_for_completion
+    ):
         """When the delete is accepted, deferrable mode waits for deletion to complete."""
         mock_delete_cluster.return_value = True
         mock_cluster_status.return_value = "deleting"
@@ -813,10 +816,13 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
         )
 
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             delete_cluster.execute(context=None)
 
         assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger), (
@@ -835,19 +841,20 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=True,
         )
 
         # No TaskDeferred is raised; the operator returns normally.
         delete_cluster.execute(context=None)
         mock_delete_cluster.assert_called_once()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
     def test_delete_cluster_deferrable_mode_busy_defers_to_settle_trigger(
-        self, mock_delete_cluster, mock_conn
+        self, mock_delete_cluster, mock_conn, wait_for_completion
     ):
-        """A busy cluster (InvalidClusterStateFault) defers to the settle-wait trigger, not a sync loop."""
+        """A busy cluster defers to the settle-wait trigger, without the deprecation warning."""
         exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
         mock_conn.exceptions.InvalidClusterStateFault = type(exception)
         mock_delete_cluster.side_effect = exception
@@ -856,7 +863,7 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -879,7 +886,7 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=True,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -902,7 +909,7 @@ class TestDeleteClusterOperator:
             task_id="task_test",
             cluster_identifier="rerendered_different_value",
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=True,
         )
 
         delete_cluster._retry_delete_when_settled(
