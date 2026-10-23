@@ -1239,6 +1239,26 @@ class TestStaleVersionCleanup:
 
         assert (bundle.versions_dir / published.version / "dags/example.py").read_text() == "print('dag')"
 
+    def test_refresh_marks_the_version_in_use_before_checking_the_cache(self, tmp_path, monkeypatch):
+        bundle, _, published = _published_bundle(tmp_path)
+        bundle.refresh()
+        del bundle
+        gc.collect()
+        has_validated_cache = ManifestLocalDagBundle._has_validated_cache
+
+        def run_cleanup_after_cache_check(bundle, version, *, manifest_ref):
+            has_cache = has_validated_cache(bundle, version, manifest_ref=manifest_ref)
+            _set_tracking_timestamp(bundle, version, self.STALE)
+            self._remove_stale_versions(bundle)
+            return has_cache
+
+        monkeypatch.setattr(ManifestLocalDagBundle, "_has_validated_cache", run_cleanup_after_cache_check)
+        bundle = _make_bundle(tmp_path)
+
+        bundle.refresh()
+
+        assert (bundle.versions_dir / published.version / "dags/example.py").read_text() == "print('dag')"
+
     def test_cleanup_can_remove_a_version_no_longer_served(self, tmp_path):
         bundle, source, first = _published_bundle(tmp_path)
         bundle.refresh()
