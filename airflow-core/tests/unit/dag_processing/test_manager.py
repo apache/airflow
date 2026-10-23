@@ -1853,7 +1853,7 @@ class TestDagFileProcessorManager:
     def test_create_process_captures_callback_source_before_removing_its_requests(
         self, get_logger, start, tmp_path
     ):
-        get_logger.return_value = (MagicMock(), MagicMock())
+        get_logger.return_value = (mock.sentinel.logger, mock.sentinel.logger_filehandle)
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(
             bundle_name="testing", rel_path=Path("dag.py"), bundle_path=tmp_path, bundle_version="v1"
