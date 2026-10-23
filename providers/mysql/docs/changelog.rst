@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+.. note::
+
+   The provider now installs ``asyncmy`` for the async metadata database engine.
+   Core releases that include asyncmy selection derive ``mysql+asyncmy://`` URLs
+   when the driver is installed. Older core releases continue to use ``aiomysql``,
+   which remains installed by default for compatibility.
+
+   To explicitly select the previous driver, set ``[database] sql_alchemy_conn_async``
+   to a ``mysql+aiomysql://`` URL. The ``[aiomysql]`` extra also declares this driver
+   for installations that need it after it becomes optional.
+
 6.7.1
 .....
 
