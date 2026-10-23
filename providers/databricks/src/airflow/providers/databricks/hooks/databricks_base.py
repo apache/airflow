@@ -26,7 +26,9 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
+import json
 import platform
 import ssl
 import time
@@ -77,6 +79,12 @@ DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
 
 DEFAULT_AZURE_CREDENTIAL_SETTING_KEY = "use_default_azure_credential"
+
+GOOGLE_ID_TOKEN_SETTING_KEY = "use_google_id_token"
+DEFAULT_GCP_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+GOOGLE_IMPERSONATED_ID_TOKEN_URL = (
+    "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{service_account}:generateIdToken"
+)
 
 # Kubernetes OIDC token federation
 K8S_TOKEN_SERVICE_URL = "https://kubernetes.default.svc"
@@ -140,6 +148,9 @@ class BaseDatabricksHook(BaseHook):
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
+        GOOGLE_ID_TOKEN_SETTING_KEY,
+        "google_id_token_audience",
+        "google_impersonated_service_account",
         "proxies",
         "service_principal_oauth",
         "federated_k8s",
@@ -170,6 +181,7 @@ class BaseDatabricksHook(BaseHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.oauth_tokens: dict[str, dict] = {}
+        self.jwt_tokens: dict[str, str] = {}
         self.token_timeout_seconds = 10
         self.caller = caller
         self._metadata_cache: dict[str, Any] = {}
@@ -611,6 +623,107 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(msg)
 
         return token.token
+
+    @staticmethod
+    def _is_jwt_token_valid(token: str) -> bool:
+        """
+        Check if a JWT token hasn't expired yet.
+
+        Only the ``exp`` claim of the payload is inspected; the signature is not verified
+        here because this check only decides whether the cached token can be reused --
+        the token itself is verified by Databricks.
+
+        :param token: JWT token string
+        :return: true if the token is well-formed and expires later than the refresh
+            lead time, false otherwise
+        """
+        try:
+            payload = token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            decoded = json.loads(base64.urlsafe_b64decode(payload))
+            return int(decoded["exp"]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
+        except (IndexError, KeyError, TypeError, ValueError):
+            return False
+
+    def _get_google_id_token(self) -> str:
+        """
+        Get a Google-signed OpenID Connect ID token.
+
+        The token is issued for the audience configured in the ``google_id_token_audience``
+        connection extra. If ``google_impersonated_service_account`` is set, the default
+        credentials (e.g. from ``GOOGLE_APPLICATION_CREDENTIALS``) impersonate that service
+        account through the IAM Credentials API; otherwise the token is fetched for the
+        default credentials themselves.
+
+        :return: Google ID token, or raise an exception
+        """
+        audience = self.databricks_conn.extra_dejson.get("google_id_token_audience")
+        if not audience:
+            raise AirflowException(
+                "`google_id_token_audience` must be present in Connection extra "
+                "when `use_google_id_token` is enabled"
+            )
+        impersonated_service_account = self.databricks_conn.extra_dejson.get(
+            "google_impersonated_service_account"
+        )
+        resource = f"{audience}-{impersonated_service_account}"
+
+        google_id_token = self.jwt_tokens.get(resource)
+        if google_id_token and self._is_jwt_token_valid(google_id_token):
+            return google_id_token
+
+        self.log.info("Existing Google ID token is expired, or going to expire soon. Refreshing...")
+        try:
+            import google.auth
+            from google.auth.transport.requests import AuthorizedSession, Request
+            from google.oauth2 import id_token
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    if impersonated_service_account:
+                        credentials, _ = google.auth.default(scopes=DEFAULT_GCP_SCOPES)
+                        authed_session = AuthorizedSession(credentials)
+                        resp = authed_session.post(
+                            GOOGLE_IMPERSONATED_ID_TOKEN_URL.format(
+                                service_account=impersonated_service_account
+                            ),
+                            json={"audience": audience, "includeEmail": True},
+                            timeout=self.token_timeout_seconds,
+                        )
+                        resp.raise_for_status()
+                        google_id_token = resp.json().get("token")
+                    else:
+                        google_id_token = id_token.fetch_id_token(Request(), audience)
+                    if not google_id_token:
+                        raise AirflowException("Google ID token couldn't be obtained")
+                    self.jwt_tokens[resource] = google_id_token
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'google-auth' library is required for Google ID token authentication. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[google]'"
+            ) from e
+        except RetryError:
+            raise AirflowException(f"API requests to Google failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return google_id_token
+
+    async def _a_get_google_id_token(self) -> str:
+        """
+        Async version of `_get_google_id_token()`.
+
+        The Google auth libraries expose ID token fetching as blocking calls (their
+        async helpers are not public API), so the synchronous implementation is
+        offloaded to a worker thread -- the same approach used for supplied
+        federation subject tokens in `_a_get_federation_subject_token()`.
+
+        :return: Google ID token, or raise an exception
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._get_google_id_token)
 
     def _get_aad_headers(self) -> dict:
         """
@@ -1233,6 +1346,9 @@ class BaseDatabricksHook(BaseHook):
         if self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using default Azure Credential authentication.")
             return self._get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
+        if self.databricks_conn.extra_dejson.get(GOOGLE_ID_TOKEN_SETTING_KEY, False):
+            self.log.debug("Using Google ID Token.")
+            return self._get_google_id_token()
         if self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -1276,6 +1392,9 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AzureDefaultCredential for authentication.")
 
             return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
+        if self.databricks_conn.extra_dejson.get(GOOGLE_ID_TOKEN_SETTING_KEY, False):
+            self.log.debug("Using Google ID Token.")
+            return await self._a_get_google_id_token()
         if self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
