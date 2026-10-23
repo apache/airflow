@@ -24,14 +24,14 @@ import httpx
 import httpx2
 import jwt
 import pytest
+import svcs
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from pydantic import ValidationError
 from sqlalchemy import select
-from tenacity import wait_none
 from uuid6 import uuid7
 
-from airflow.api_fastapi.auth.tokens import key_to_jwk_dict
+from airflow.api_fastapi.auth.tokens import JWTValidator, key_to_jwk_dict
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.workload_identity import (
@@ -44,10 +44,9 @@ from airflow.dag_processing.api_client import (
     DagProcessorAPIClient,
     DagProcessorJobAlreadyRunning,
 )
-from airflow.dag_processing.credentials import FileSessionTokenProvider, WorkloadIdentitySessionTokenProvider
+from airflow.dag_processing.credentials import WorkloadIdentitySessionTokenProvider, _SessionTokenClient
 from airflow.jobs.job import Job
 from airflow.models.variable import Variable
-from airflow.sdk.api.client import Client
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs, clear_db_variables
@@ -129,10 +128,15 @@ def verifier(client, exec_app, signing_key, identity_algorithm, monkeypatch):
     jwks_client = httpx.AsyncClient(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"keys": [public_key]}))
     )
-    verifier = exec_app.state.dag_processor_identity_verifier
+    verifier = svcs.Container(exec_app.state.svcs_registry).get(DagProcessorIdentityVerifier)
     monkeypatch.setattr(verifier.validator.jwks, "client", jwks_client)
     yield verifier
     client.portal.call(jwks_client.aclose)
+
+
+def use_verifier(exec_app, verifier):
+    """Serve the exchange with another verifier until this test's API server lifespan ends."""
+    exec_app.state.svcs_registry.register_value(DagProcessorIdentityVerifier, verifier)
 
 
 @pytest.fixture
@@ -141,13 +145,15 @@ def make_processor(client, exec_app, identity_token, verifier):
     clear_db_jobs()
     processors = []
 
-    def forward(request):
-        response = client.request(
-            request.method, request.url.path, headers=request.headers, content=request.content
-        )
-        return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
+    def create(exchange_available=lambda: True):
+        def forward(request):
+            if request.url.path == URL and not exchange_available():
+                raise httpx2.ConnectError("session exchange unavailable", request=request)
+            response = client.request(
+                request.method, request.url.path, headers=request.headers, content=request.content
+            )
+            return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
 
-    def create():
         transport = httpx2.MockTransport(forward)
         provider = WorkloadIdentitySessionTokenProvider(
             base_url="https://api/execution/", identity_token=identity_token, transport=transport
@@ -212,12 +218,12 @@ def test_issues_only_configured_grants_and_caps_lifetime(
     }
 )
 def test_renewal_and_api_restart_keep_session_but_replicas_and_grants_do_not(
-    client, verifier, exec_app, identity_token, monkeypatch
+    client, verifier, exec_app, identity_token
 ):
     first = decode(exchange(client, identity_token()))
     renewed = decode(exchange(client, identity_token(exp=NOW + 900)))
     replacement = DagProcessorIdentityVerifier(verifier.config, client=verifier.validator.jwks.client)
-    monkeypatch.setattr(exec_app.state, "dag_processor_identity_verifier", replacement)
+    use_verifier(exec_app, replacement)
     restarted = decode(exchange(client, identity_token()))
     replica = decode(exchange(client, identity_token(**{"kubernetes.io": {"pod": {"uid": "pod-2"}}})))
     assert first["sub"] == renewed["sub"] == restarted["sub"]
@@ -256,11 +262,11 @@ def test_rejects_invalid_signed_claims(client, verifier, identity_token, overrid
 @pytest.mark.parametrize("leeway", [0, 3, 10])
 @pytest.mark.parametrize("claim", ["iat", "nbf"])
 def test_identity_clock_skew_uses_configured_leeway(
-    client, verifier, exec_app, identity_token, monkeypatch, leeway, claim
+    client, verifier, exec_app, identity_token, leeway, claim
 ):
     with conf_vars({("api_auth", "jwt_leeway"): str(leeway)}):
         replacement = DagProcessorIdentityVerifier(verifier.config, client=verifier.jwks.client)
-    monkeypatch.setattr(exec_app.state, "dag_processor_identity_verifier", replacement)
+    use_verifier(exec_app, replacement)
     assert exchange(client, identity_token(**{claim: NOW + leeway})).status_code == 200
     assert exchange(client, identity_token(**{claim: NOW + leeway + 1})).status_code == 401
 
@@ -269,6 +275,7 @@ def test_identity_clock_skew_uses_configured_leeway(
 def test_clock_leeway_never_issues_session_after_identity_expiry(client, verifier, identity_token, remaining):
     response = exchange(client, identity_token(exp=NOW + remaining))
     assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Bearer"
     assert "token" not in response.json()
 
 
@@ -324,8 +331,8 @@ def test_missing_bearer_is_unauthorized(client, verifier):
     assert client.post(URL).status_code == 401
 
 
-def test_disabled_exchange_is_unavailable(client, exec_app, identity_token, monkeypatch):
-    monkeypatch.setattr(exec_app.state, "dag_processor_identity_verifier", None)
+def test_disabled_exchange_is_unavailable(client, exec_app, identity_token):
+    use_verifier(exec_app, None)
     assert exchange(client, identity_token()).status_code == 404
 
 
@@ -360,7 +367,7 @@ def test_identity_expiring_during_exchange_is_rejected(
     assert exchange(client, identity_token()).status_code == 401
 
 
-@pytest.mark.parametrize("failure", ["connection", "503", "invalid-json", "invalid-keyset"])
+@pytest.mark.parametrize("failure", ["connection", "503", "invalid-json", "json-array", "invalid-keyset"])
 def test_jwks_outage_is_retryable(client, verifier, identity_token, monkeypatch, failure):
     async def unavailable(url):
         if failure == "connection":
@@ -370,6 +377,8 @@ def test_jwks_outage_is_retryable(client, verifier, identity_token, monkeypatch,
             return httpx.Response(503, request=request)
         if failure == "invalid-json":
             return httpx.Response(200, content=b"unavailable", request=request)
+        if failure == "json-array":
+            return httpx.Response(200, json=[{"kty": "OKP"}], request=request)
         return httpx.Response(200, json={"keys": []}, request=request)
 
     monkeypatch.setattr(verifier.jwks.client, "get", unavailable)
@@ -405,15 +414,19 @@ def test_registration_recovers_from_jwks_outage(clock, make_processor, verifier,
             request=httpx.Request("GET", url),
         )
 
-    def advance_retry(retry_state):
-        clock.return_value += 11
+    waits = []
+
+    def sleep(seconds):
+        waits.append(seconds)
+        clock.return_value += seconds
 
     monkeypatch.setattr(verifier.jwks.client, "get", get_keys)
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
-    monkeypatch.setattr(Client._request_with_retry.retry, "before_sleep", advance_retry)
+    # Keep the default wait policy: its backoff alone often retries inside the server's 10s cooldown.
+    monkeypatch.setattr(_SessionTokenClient._request_with_retry.retry, "sleep", sleep)
     processor = make_processor()
     assert processor.register_job() == processor.job_id
     assert processor.heartbeat() == JobState.RUNNING
+    assert waits == [10]
     assert len(attempts) == 2
 
 
@@ -433,11 +446,50 @@ def test_container_restart_waits_for_previous_job_to_become_stale(make_processor
     assert session.get(Job, replacement_job).state == JobState.RUNNING.value
 
 
-@conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
-def test_identity_grants_must_name_configured_bundles(client, verifier):
-    config = WorkloadIdentityConfig.model_validate(TRUST)
-    with pytest.raises(ValueError, match=r"dag_bundle_config_list: \['dags-folder'\]"):
-        DagProcessorIdentityVerifier(config, client=verifier.validator.jwks.client)
+def test_unconfigured_bundle_grant_refuses_only_its_subject(
+    client, verifier, exec_app, identity_token, caplog
+):
+    config = WorkloadIdentityConfig.model_validate(
+        {**TRUST, "grants": {**TRUST["grants"], "system:serviceaccount:team-b:processor": ["team-b"]}}
+    )
+    use_verifier(exec_app, DagProcessorIdentityVerifier(config, client=verifier.validator.jwks.client))
+    assert {
+        "event": "[execution_api] dag_processor_workload_identity grants Dag bundles missing from "
+        "[dag_processor] dag_bundle_config_list; these subjects cannot obtain a session",
+        "log_level": "error",
+        "unconfigured_grants": {"system:serviceaccount:team-b:processor": ["team-b"]},
+    } in caplog
+
+    assert exchange(client, identity_token()).status_code == 200
+    response = exchange(client, identity_token(sub="system:serviceaccount:team-b:processor"))
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Workload identity is granted Dag bundles this API server does not have: ['team-b']"
+    }
+
+
+@pytest.mark.parametrize("error", [TypeError("exp"), OverflowError("exp")])
+@mock.patch.object(JWTValidator, "avalidated_claims", autospec=True)
+def test_malformed_time_claims_from_older_pyjwt_are_invalid(
+    avalidated_claims, client, verifier, identity_token, error, caplog
+):
+    """PyJWT before 2.15 raises these for list or infinite time claims instead of DecodeError."""
+    avalidated_claims.side_effect = error
+    response = exchange(client, identity_token())
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid workload identity"}
+    assert {
+        "event": "Rejecting a workload identity with malformed time claims",
+        "log_level": "warning",
+    } in caplog
+
+
+@mock.patch(
+    "airflow.api_fastapi.execution_api.workload_identity.uuid5", autospec=True, side_effect=TypeError("bug")
+)
+def test_verifier_bugs_are_not_reported_as_invalid_identity(uuid5, client, verifier, identity_token):
+    with pytest.raises(TypeError, match="bug"):
+        exchange(client, identity_token())
 
 
 def test_older_version_has_no_exchange(client, verifier, identity_token):
@@ -476,81 +528,48 @@ def test_identity_and_runtime_tokens_are_not_interchangeable(client, verifier, e
     assert response.status_code == 403
 
 
-@mock.patch.object(
-    FileSessionTokenProvider, "get_token", autospec=True, side_effect=AssertionError("file used")
-)
 @mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True, return_value=0)
 @mock.patch("airflow.dag_processing.credentials.monotonic", autospec=True, return_value=0)
-def test_session_renewal_and_job_lifecycle_without_session_file(
-    credential_clock,
-    job_clock,
-    file_provider,
-    client,
-    verifier,
-    exec_app,
-    identity_token,
-    session,
-    time_machine,
+def test_session_renewal_and_job_lifecycle(
+    credential_clock, job_clock, make_processor, session, time_machine
 ):
-    clear_db_jobs()
     clear_db_variables()
-    exec_app.dependency_overrides.pop(require_auth)
     exchange_available = True
-
-    def forward(request):
-        if request.url.path == URL and not exchange_available:
-            raise httpx2.ConnectError("session exchange unavailable", request=request)
-        response = client.request(
-            request.method, request.url.path, headers=request.headers, content=request.content
-        )
-        return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
-
-    provider = WorkloadIdentitySessionTokenProvider(
-        base_url="https://api/execution/",
-        identity_token=lambda: identity_token(exp=NOW + 600),
-        transport=httpx2.MockTransport(forward),
-    )
+    processor = make_processor(exchange_available=lambda: exchange_available)
+    provider = processor._token_provider
     try:
         Variable.set("identity-test-key", "value")
-        with DagProcessorAPIClient(
-            base_url="https://api/execution/",
-            hostname="processor",
-            token_provider=provider,
-            transport=httpx2.MockTransport(forward),
-        ) as processor:
-            job_id = processor.register_job()
-            first_session = provider.get_token()
-            assert processor.heartbeat() == JobState.RUNNING
-            context = DagParseContext(
-                request=DagParseTokenBody(
-                    attempt_id=uuid7(), bundle_name="dags-folder", relative_fileloc="dag.py"
-                )
+        job_id = processor.register_job()
+        first_session = provider.get_token()
+        assert processor.heartbeat() == JobState.RUNNING
+        context = DagParseContext(
+            request=DagParseTokenBody(
+                attempt_id=uuid7(), bundle_name="dags-folder", relative_fileloc="dag.py"
             )
-            with processor.use_parse(context):
-                assert processor.variables.get("identity-test-key").value == "value"
-            time_machine.shift(240)
-            credential_clock.return_value = job_clock.return_value = 240
-            assert processor.heartbeat() == JobState.RUNNING
-            assert provider.get_token() != first_session
-            assert processor.job_id == job_id
-            assert not processor.restart_required
-            assert session.scalars(select(Job.id)).all() == [job_id]
+        )
+        with processor.use_parse(context):
+            assert processor.variables.get("identity-test-key").value == "value"
+        time_machine.shift(240)
+        credential_clock.return_value = job_clock.return_value = 240
+        assert processor.heartbeat() == JobState.RUNNING
+        assert provider.get_token() != first_session
+        assert processor.job_id == job_id
+        assert not processor.restart_required
+        assert session.scalars(select(Job.id)).all() == [job_id]
 
-            exchange_available = False
-            time_machine.shift(240)
-            credential_clock.return_value = job_clock.return_value = 480
-            assert processor.heartbeat() == JobState.RUNNING
-            time_machine.shift(61)
-            credential_clock.return_value = job_clock.return_value = 541
-            with pytest.raises(httpx2.ConnectError):
-                processor.heartbeat()
+        exchange_available = False
+        time_machine.shift(240)
+        credential_clock.return_value = job_clock.return_value = 480
+        assert processor.heartbeat() == JobState.RUNNING
+        time_machine.shift(61)
+        credential_clock.return_value = job_clock.return_value = 541
+        with pytest.raises(httpx2.ConnectError):
+            processor.heartbeat()
 
-            exchange_available = True
-            assert processor.heartbeat() == JobState.RUNNING
-            assert processor.job_id == job_id
-            processor.complete_job(TerminalJobState.SUCCESS)
-            assert session.get(Job, job_id).state == JobState.SUCCESS.value
-        file_provider.assert_not_called()
+        exchange_available = True
+        assert processor.heartbeat() == JobState.RUNNING
+        assert processor.job_id == job_id
+        processor.complete_job(TerminalJobState.SUCCESS)
+        assert session.get(Job, job_id).state == JobState.SUCCESS.value
     finally:
-        clear_db_jobs()
         clear_db_variables()

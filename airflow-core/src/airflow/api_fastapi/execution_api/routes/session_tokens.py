@@ -24,7 +24,7 @@ from typing import Annotated
 import jwt
 import svcs
 from cadwyn import VersionedAPIRouter
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 
@@ -48,10 +48,10 @@ identity_bearer = HTTPBearer(auto_error=False, scheme_name="DagProcessorWorkload
 
 
 async def require_workload_identity(
-    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(identity_bearer)],
+    services: svcs.Container = DepContainer,
 ) -> DagProcessorIdentity:
-    verifier: DagProcessorIdentityVerifier | None = request.app.state.dag_processor_identity_verifier
+    verifier: DagProcessorIdentityVerifier | None = await services.aget(DagProcessorIdentityVerifier)
     if verifier is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Workload identity provisioning is not enabled")
     if credentials is None:
@@ -66,14 +66,12 @@ async def require_workload_identity(
             "Workload identity signing keys are unavailable",
             headers={"Retry-After": str(verifier.jwks.refresh_retry_interval_secs)},
         ) from None
-    except (jwt.PyJWTError, ValidationError, TypeError, OverflowError):
+    except (jwt.PyJWTError, ValidationError):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "Invalid workload identity", headers={"WWW-Authenticate": "Bearer"}
         ) from None
-    except WorkloadIdentityNotAllowed:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "Workload identity is not granted any Dag bundles"
-        ) from None
+    except WorkloadIdentityNotAllowed as error:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from None
 
 
 @router.post(
@@ -81,7 +79,7 @@ async def require_workload_identity(
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_401_UNAUTHORIZED, "The workload identity is missing, invalid, or expired"),
-            (status.HTTP_403_FORBIDDEN, "The identity is not authorized as a Dag processor"),
+            (status.HTTP_403_FORBIDDEN, "The identity has no usable Dag bundle grant"),
             (status.HTTP_404_NOT_FOUND, "Workload identity provisioning is disabled"),
             (status.HTTP_503_SERVICE_UNAVAILABLE, "The identity provider's signing keys are unavailable"),
         ]
@@ -92,11 +90,21 @@ def exchange_session_token(
     identity: Annotated[DagProcessorIdentity, Depends(require_workload_identity)],
     services: svcs.Container = DepContainer,
 ) -> DagProcessorSessionTokenResponse:
+    """
+    Exchange an external workload identity for a Dag processor session credential.
+
+    The bearer token is an OIDC identity issued by the deployment platform, not an Airflow token. The
+    API server picks the Dag bundle grants from its own configuration, and the session cannot outlive
+    the identity. While the identity provider's signing keys cannot be fetched, the exchange returns
+    503 with ``Retry-After``.
+    """
     generator: JWTGenerator = services.get(JWTGenerator)
     try:
         lifetime = get_token_lifetime(generator, identity.expires_at, "Workload identity has expired")
     except ExpiredDagProcessorToken as error:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(error)) from None
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, str(error), headers={"WWW-Authenticate": "Bearer"}
+        ) from None
     token = generate_dag_processor_session_token(
         generator, session_id=identity.session_id, bundle_names=identity.bundle_names, valid_for=lifetime
     )

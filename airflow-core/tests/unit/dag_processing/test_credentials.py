@@ -24,15 +24,34 @@ import pytest
 from pydantic import ValidationError
 from tenacity import wait_none
 
+from airflow.api_fastapi.execution_api.datamodels.job import JobState
 from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.dag_processing.api_client import DagProcessorAPIClient
-from airflow.dag_processing.credentials import SessionTokenProvider, WorkloadIdentitySessionTokenProvider
-from airflow.sdk.api.client import API_RETRIES, API_TIMEOUT, BearerAuth, Client
+from airflow.dag_processing.credentials import (
+    SessionTokenProvider,
+    WorkloadIdentitySessionTokenProvider,
+    WorkloadIdentityUnavailableError,
+    _SessionTokenClient,
+)
+from airflow.sdk.api.client import (
+    API_RETRIES,
+    API_RETRY_WAIT_MAX,
+    API_RETRY_WAIT_MIN,
+    API_TIMEOUT,
+    BearerAuth,
+    Client,
+)
+
+
+class RefreshError(Exception):
+    """Stands in for google-auth's RefreshError, which subclasses Exception directly."""
 
 
 @pytest.fixture(autouse=True)
 def no_retry_wait(monkeypatch):
     monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
+    # The exchange keeps its own wait policy under test; only the sleeping is skipped.
+    monkeypatch.setattr(_SessionTokenClient._request_with_retry.retry, "sleep", lambda seconds: None)
 
 
 @pytest.fixture
@@ -175,6 +194,28 @@ def test_missing_identity_fails_before_request(make_provider):
     assert not requests
 
 
+def test_identity_supplier_errors_are_reported_as_unavailable(make_provider):
+    error = RefreshError("metadata server unavailable")
+    provider, requests = make_provider(identity=mock.Mock(spec=lambda: "", side_effect=error))
+    with pytest.raises(WorkloadIdentityUnavailableError) as raised:
+        provider.get_token()
+    assert raised.value.__cause__ is error
+    assert not requests
+
+
+@pytest.mark.parametrize(
+    ("retry_after", "wait"),
+    [("10", 10), ("3600", API_RETRY_WAIT_MAX), ("Wed, 21 Oct 2026 07:28:00 GMT", API_RETRY_WAIT_MIN)],
+)
+def test_exchange_retry_waits_for_retry_after(make_provider, monkeypatch, retry_after, wait):
+    waits = []
+    monkeypatch.setattr(_SessionTokenClient._request_with_retry.retry, "sleep", waits.append)
+    provider, requests = make_provider(httpx2.Response(503, headers={"Retry-After": retry_after}), issued())
+    assert provider.get_token(retry=True) == "session-1"
+    assert waits == [wait]
+    assert len(requests) == 2
+
+
 def test_redirect_does_not_forward_identity(make_provider):
     provider, requests = make_provider(httpx2.Response(307, headers={"Location": "https://other/execution/"}))
     with pytest.raises(httpx2.HTTPStatusError):
@@ -286,6 +327,34 @@ def test_optional_renewal_attempts_exchange_once_then_uses_valid_job_token(
     assert len(exchanges) == 2
     assert exchanges[-1].extensions["timeout"] == httpx2.Timeout(1).as_dict()
     assert len(requests) == 2
+    assert requests[-1].headers["Authorization"] == "Bearer job-1"
+
+
+@mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True)
+def test_failed_identity_supplier_keeps_using_valid_job_token(client_clock, make_provider, clock):
+    client_clock.return_value = 0
+    identity = mock.Mock(spec=lambda: "", side_effect=["identity-1", RefreshError("metadata server down")])
+    provider, exchanges = make_provider(issued(), identity=identity)
+    requests = []
+
+    def handle(request):
+        requests.append(request)
+        if request.url.path.endswith("/jobs"):
+            return httpx2.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
+        return httpx2.Response(200, json={"state": "running"})
+
+    with DagProcessorAPIClient(
+        base_url="https://api/execution/",
+        hostname="processor",
+        token_provider=provider,
+        transport=httpx2.MockTransport(handle),
+    ) as client:
+        client.register_job()
+        client_clock.return_value = clock.return_value = 80
+        assert client.heartbeat() == JobState.RUNNING
+
+    assert identity.call_count == 2
+    assert len(exchanges) == 1
     assert requests[-1].headers["Authorization"] == "Bearer job-1"
 
 
