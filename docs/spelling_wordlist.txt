@@ -1530,6 +1530,7 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
 RunContext
 runnable
 RunQueryOperator
