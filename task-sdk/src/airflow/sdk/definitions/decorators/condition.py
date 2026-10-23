@@ -21,6 +21,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from airflow.sdk.bases.decorator import Task, _TaskDecorator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 
 __all__ = ["run_if", "skip_if"]
 
-_T = TypeVar("_T", bound="Task[..., Any] | _TaskDecorator[..., Any, Any]")
+_T = TypeVar("_T", bound="Task[..., Any] | _TaskDecorator[..., Any, Any] | BaseOperator")
 
 
 def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
@@ -51,14 +52,24 @@ def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Call
     )
 
     def decorator(task: _T) -> _T:
-        if not isinstance(task, _TaskDecorator):
-            error_msg = "run_if can only be used with task. decorate with @task before @run_if."
+        if isinstance(task, _TaskDecorator):
+            pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
+            task.kwargs["pre_execute"] = combine_hooks(pre_execute, wrapped_condition)
+            return task  # type: ignore[return-value]
+
+        if isinstance(task, BaseOperator):
+            task._pre_execute_hook = combine_hooks(task._pre_execute_hook, wrapped_condition)
+            return task
+
+        if callable(task):
+            error_msg = (
+                "run_if can only be used with task. decorate with @task before @run_if "
+                "or apply @run_if to an operator instance."
+            )
             raise TypeError(error_msg)
 
-        pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
-        new_pre_execute = combine_hooks(pre_execute, wrapped_condition)
-        task.kwargs["pre_execute"] = new_pre_execute
-        return task  # type: ignore[return-value]
+        error_msg = "run_if can only be used with a task decorator or operator instance."
+        raise TypeError(error_msg)
 
     return decorator
 
@@ -76,14 +87,24 @@ def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Cal
     )
 
     def decorator(task: _T) -> _T:
-        if not isinstance(task, _TaskDecorator):
-            error_msg = "skip_if can only be used with task. decorate with @task before @skip_if."
+        if isinstance(task, _TaskDecorator):
+            pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
+            task.kwargs["pre_execute"] = combine_hooks(pre_execute, wrapped_condition)
+            return task  # type: ignore[return-value]
+
+        if isinstance(task, BaseOperator):
+            task._pre_execute_hook = combine_hooks(task._pre_execute_hook, wrapped_condition)
+            return task
+
+        if callable(task):
+            error_msg = (
+                "skip_if can only be used with task. decorate with @task before @skip_if "
+                "or apply @skip_if to an operator instance."
+            )
             raise TypeError(error_msg)
 
-        pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
-        new_pre_execute = combine_hooks(pre_execute, wrapped_condition)
-        task.kwargs["pre_execute"] = new_pre_execute
-        return task  # type: ignore[return-value]
+        error_msg = "skip_if can only be used with a task decorator or operator instance."
+        raise TypeError(error_msg)
 
     return decorator
 
