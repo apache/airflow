@@ -25,6 +25,7 @@ import jwt
 import pytest
 import time_machine
 from pydantic import BaseModel
+from sqlalchemy import update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -46,6 +47,7 @@ from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
+    CallbackType,
     ExecutorCallback,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -104,13 +106,30 @@ class TestRunCallback:
         assert detail["reason"] == "invalid_state"
         assert detail["previous_state"] == CallbackState.RUNNING
 
-    @pytest.mark.parametrize("state", [CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.PENDING])
+    @pytest.mark.parametrize(
+        "state",
+        [CallbackState.SCHEDULED, CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.PENDING],
+    )
     def test_run_rejects_non_queued_state(self, client, session, queued_callback, state):
         """The token can only be exchanged while the callback is QUEUED."""
         queued_callback.state = state
         session.commit()
 
         response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+    def test_run_refuses_a_callback_handed_back_to_the_dag_processor(self, client, session, queued_callback):
+        """A late delivery of a handed-back workload can't start what a Dag processor now runs."""
+        session.execute(
+            update(Callback)
+            .where(Callback.id == queued_callback.id)
+            .values(type=CallbackType.DAG_PROCESSOR, state=None)
+        )
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
         assert response.status_code == 409
         assert response.json()["detail"]["reason"] == "invalid_state"
 
@@ -270,7 +289,7 @@ class TestRunCallbackIdentityClaims:
         assert "bundle_name" not in claims
 
 
-WORKER = {"hostname": "worker-1", "pid": 4242}
+WORKER = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
 
 
 class TestRunCallbackRetriedExchange:
@@ -295,7 +314,10 @@ class TestRunCallbackRetriedExchange:
         [
             pytest.param(None, id="unidentified"),
             pytest.param({**WORKER, "hostname": "worker-2"}, id="other-host"),
-            pytest.param({**WORKER, "pid": 1}, id="other-process"),
+            pytest.param(
+                {**WORKER, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be50"},
+                id="redelivered-to-the-same-process",
+            ),
         ],
     )
     def test_any_other_exchange_of_a_started_callback_is_refused(self, client, queued_callback, retry_body):
@@ -442,6 +464,62 @@ class TestGetCallbackContext:
         assert response.json()["detail"]["reason"] == "not_found"
 
 
+class TestGetPreviousSuccessfulDagRun:
+    @pytest.fixture(autouse=True)
+    def _clean_runs(self):
+        clear_db_runs()
+        yield
+        clear_db_runs()
+
+    def test_returns_the_last_successful_run_before_the_callbacks_own(self, client, session, dag_maker):
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="test_task")
+        for day, state in ((17, DagRunState.SUCCESS), (18, DagRunState.SUCCESS), (19, DagRunState.FAILED)):
+            dag_run = dag_maker.create_dagrun(
+                run_id=f"run_{day}",
+                logical_date=timezone.datetime(2025, 1, day),
+                run_type=DagRunType.SCHEDULED,
+                state=state,
+                start_date=timezone.datetime(2025, 1, day, 0, 30),
+                session=session,
+            )
+            dag_run.end_date = timezone.datetime(2025, 1, day, 1)
+        callback = _add_routed_callback(
+            session, DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="run_19")
+        )
+        callback.data = {**callback.data, "dag_run_id": dag_run.id}
+        session.commit()
+
+        response = client.get(f"/execution/callbacks/{callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": "2025-01-18T00:00:00Z",
+            "data_interval_end": "2025-01-19T00:00:00Z",
+            "start_date": "2025-01-18T00:30:00Z",
+            "end_date": "2025-01-18T01:00:00Z",
+        }
+
+    def test_a_callback_without_a_dag_run_has_no_previous_run(self, client, queued_callback):
+        response = client.get(f"/execution/callbacks/{queued_callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
+
+    def test_returns_404_for_nonexistent(self, client):
+        response = client.get(
+            "/execution/callbacks/00000000-0000-0000-0000-000000000000/previous-successful-dagrun"
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
+
 class TestUpdateCallbackState:
     @pytest.mark.parametrize(
         ("state", "output"),
@@ -509,6 +587,7 @@ class TestUpdateCallbackState:
     ("method", "path", "body"),
     [
         pytest.param("GET", "context", None, id="context"),
+        pytest.param("GET", "previous-successful-dagrun", None, id="previous-successful-dagrun"),
         pytest.param("PATCH", "state", {"state": "success"}, id="state"),
     ],
 )

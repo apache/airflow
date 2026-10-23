@@ -428,6 +428,10 @@ class LocalExecutor(BaseExecutor):
         self._forget_workload(key)
         super().fail_connection_test(key)
 
+    def release_callback(self, key) -> None:
+        self._forget_workload(key)
+        super().release_callback(key)
+
     def revoke_task(self, *, ti: TaskInstance) -> None:
         key = self.get_task_key(ti)
         self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key, None)

@@ -33,6 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.callback import (
     EmailCallbackContext,
     TaskCallbackContext,
 )
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import PrevSuccessfulDagRunResponse
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
@@ -44,7 +45,7 @@ from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, get_call
 from airflow.models.callback import Callback
 from airflow.models.dagrun import DagRun
 from airflow.utils.helpers import prune_dict
-from airflow.utils.state import CallbackState
+from airflow.utils.state import CallbackState, DagRunState
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -101,11 +102,12 @@ def run_callback(
     """
     Exchange a single-use callback token for a short-lived execution token.
 
-    A worker that identifies itself can repeat its own exchange, as when it never got the response,
-    and gets a new execution token. Any other exchange of a callback that already started is refused.
+    An attempt that identifies itself can repeat its own exchange, as when it never got the response,
+    and gets a new execution token. Any other exchange of a callback that already started is refused,
+    including a second delivery of its workload.
     """
     callback = _get_callback(callback_id, session, for_update=True)
-    started_by = body.model_dump() if body is not None else None
+    started_by = body.model_dump(mode="json") if body is not None else None
 
     if (
         callback.state == CallbackState.RUNNING
@@ -218,6 +220,29 @@ def get_callback_context(callback_id: UUID, session: SessionDep) -> CallbackCont
     else:
         raise TypeError(f"Unknown callback request type: {type(request).__name__}")
     return CallbackContextResponse(context=context)
+
+
+@router.get(
+    "/{callback_id}/previous-successful-dagrun",
+    dependencies=[Security(require_auth, scopes=["token:execution"])],
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Callback not found")]),
+)
+def get_callback_previous_successful_dagrun(
+    callback_id: UUID, session: SessionDep
+) -> PrevSuccessfulDagRunResponse:
+    """
+    Return the last successful run of the callback's Dag before its own Dag run, for its template context.
+
+    A callback's token names the callback, not a task instance, so it can't read this from the
+    task-instance endpoint a task uses.
+    """
+    callback = _get_callback(callback_id, session)
+    previous = None
+    if (dag_run_id := callback.data.get("dag_run_id")) and (dag_run := session.get(DagRun, dag_run_id)):
+        previous = DagRun.get_previous_dagrun(dag_run, state=DagRunState.SUCCESS, session=session)
+    if previous is None:
+        return PrevSuccessfulDagRunResponse()
+    return PrevSuccessfulDagRunResponse.model_validate(previous)
 
 
 @router.patch(

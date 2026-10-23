@@ -99,7 +99,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import CallbackAlreadyStartedError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     CreateHITLDetailPayload,
@@ -1185,14 +1185,27 @@ class CallbackOperations:
 
     def run(self, callback_id: uuid.UUID) -> None:
         """Exchange the single-use callback token for an execution token."""
-        # Identifies this process, so a retry of an exchange whose response was lost is accepted.
-        body = CallbackRunPayload(hostname=get_hostname(), pid=os.getpid())
-        self.client.patch(f"callbacks/{callback_id}/run", content=body.model_dump_json())
+        # Retries of this request resend the same attempt ID, so the API server accepts a retry whose
+        # first response was lost, but not a second delivery of the callback.
+        body = CallbackRunPayload(hostname=get_hostname(), pid=os.getpid(), attempt_id=uuid.uuid4())
+        try:
+            self.client.patch(f"callbacks/{callback_id}/run", content=body.model_dump_json())
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.CONFLICT:
+                raise CallbackAlreadyStartedError(
+                    f"Callback {callback_id} already started, or can no longer start"
+                ) from e
+            raise
 
     def get_context(self, callback_id: uuid.UUID) -> CallbackContextResponse:
         """Fetch the context of a running Dag-attribute callback from the API server."""
         resp = self.client.get(f"callbacks/{callback_id}/context")
         return CallbackContextResponse.model_validate_json(resp.read())
+
+    def get_previous_successful_dagrun(self, callback_id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
+        """Fetch the last successful run of the callback's Dag before its own Dag run."""
+        resp = self.client.get(f"callbacks/{callback_id}/previous-successful-dagrun")
+        return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
     def update_state(self, callback_id: uuid.UUID, state: CallbackState, output: str | None = None) -> None:
         """Report the terminal state of a callback to the API server."""

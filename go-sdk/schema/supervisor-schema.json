@@ -1842,6 +1842,11 @@
         "context_from_server": {
           "$ref": "#/$defs/TIRunContext"
         },
+        "task_started": {
+          "default": true,
+          "title": "Task Started",
+          "type": "boolean"
+        },
         "type": {
           "const": "EmailRequest",
           "default": "EmailRequest",
@@ -4235,6 +4240,11 @@
             }
           ],
           "default": null
+        },
+        "task_started": {
+          "default": true,
+          "title": "Task Started",
+          "type": "boolean"
         },
         "type": {
           "const": "TaskCallbackRequest",

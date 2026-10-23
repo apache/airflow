@@ -27,11 +27,12 @@ MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-00000000000
     ("method", "path", "body"),
     [
         pytest.param("GET", "context", None, id="context"),
+        pytest.param("GET", "previous-successful-dagrun", None, id="previous-successful-dagrun"),
         pytest.param("PATCH", "state", {"state": "success"}, id="state"),
     ],
 )
 class TestCallbackContextAndStateEndpointVersioning:
-    """The callback context and state endpoints didn't exist before the 2027-02-28 API version."""
+    """The callback context, previous run and state endpoints didn't exist before the 2027-02-28 API version."""
 
     def test_old_version_returns_404(self, client, method, path, body):
         client.headers["Airflow-API-Version"] = "2026-10-30"
@@ -46,3 +47,38 @@ class TestCallbackContextAndStateEndpointVersioning:
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "not_found"
+
+
+@pytest.fixture
+def queued_callback(session):
+    from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
+    from airflow.sdk.definitions.callback import SyncCallback
+
+    from tests_common.test_utils.db import clear_db_callbacks
+
+    clear_db_callbacks()
+    callback = ExecutorCallback(
+        callback_def=SyncCallback(_empty_callback, kwargs={}), fetch_method=CallbackFetchMethod.IMPORT_PATH
+    )
+    callback.state = CallbackState.QUEUED
+    session.add(callback)
+    session.commit()
+    yield callback
+    clear_db_callbacks()
+
+
+def _empty_callback():
+    pass
+
+
+def test_old_version_keeps_the_single_use_exchange(client, queued_callback):
+    """The body that lets an attempt repeat its own exchange doesn't exist before 2027-02-28."""
+    client.headers["Airflow-API-Version"] = "2026-10-30"
+    url = f"/execution/callbacks/{queued_callback.id}/run"
+    body = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
+
+    first = client.patch(url, json=body)
+    repeated = client.patch(url, json=body)
+
+    assert first.status_code == 204
+    assert repeated.status_code == 409

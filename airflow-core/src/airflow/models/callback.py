@@ -134,8 +134,8 @@ class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
     __tablename__ = "callback"
-    # Every scheduler loop looks callbacks up by type and state.
-    __table_args__ = (Index("idx_callback_type_state", "type", "state"),)
+    # Every scheduler loop looks callbacks up by type and state, and routed ones by fetch method too.
+    __table_args__ = (Index("idx_callback_type_state_fetch_method", "type", "state", "fetch_method"),)
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses

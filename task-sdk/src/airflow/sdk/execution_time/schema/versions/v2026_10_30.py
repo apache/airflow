@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
+from airflow.callbacks.callback_requests import EmailRequest, TaskCallbackRequest  # noqa: SDK002
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
@@ -147,4 +148,15 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+
+class AddTaskStartedToCallbackRequests(VersionChange):
+    """Add `task_started`, whether the attempt a task callback or email is for ran on a worker."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskCallbackRequest).field("task_started").didnt_exist,
+        schema(EmailRequest).field("task_started").didnt_exist,
     )

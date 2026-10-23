@@ -41,6 +41,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, event as sa_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -175,7 +176,7 @@ from airflow.timetables.simple import (
 )
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, is_lock_not_available_error, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -17397,18 +17398,21 @@ class TestRouteDagProcessorCallbacks:
         )
         assert not self._queued_callbacks(other)
 
-    def test_stamps_a_timeout_of_zero_rather_than_leaving_it_to_the_worker(self, dag_run, session):
-        executor = self._make_executor("default_exec")
-        runner = self._make_runner([executor], **{"callbacks.routed_callback_execution_timeout": "0"})
-        callback_id = _add_waiting_callback(session, self._dag_request(dag_run))
+    @pytest.mark.parametrize(
+        ("option", "message"),
+        [
+            pytest.param("max_routed_callbacks_per_loop", "must be at least 1", id="per-loop-limit"),
+            pytest.param("routed_callback_execution_timeout", "must be at least 1 second", id="timeout"),
+        ],
+    )
+    def test_rejects_routing_settings_below_one(self, option, message):
+        with pytest.raises(ValueError, match=message):
+            self._make_runner([self._make_executor("default_exec")], **{f"callbacks.{option}": "0"})
 
-        runner._route_dag_processor_callbacks(session)
-        session.commit()
-
-        session.expunge_all()
-        assert session.get_one(Callback, callback_id).data[EXECUTION_TIMEOUT_KEY] == 0
-        (workload,) = self._queued_callbacks(executor)
-        assert workload.callback.data[EXECUTION_TIMEOUT_KEY] == 0
+        # They don't matter with routing off.
+        self._make_runner(
+            [self._make_executor("default_exec")], enabled=False, **{f"callbacks.{option}": "0"}
+        )
 
     @pytest.mark.parametrize(
         ("task_started", "expected_executor", "expected_routing"),
@@ -17569,6 +17573,39 @@ class TestRouteDagProcessorCallbacks:
         assert isinstance(session.get_one(Callback, routed_id), ExecutorCallback)
         assert [w.callback.id for w in self._queued_callbacks(executor)] == [str(routed_id)]
 
+    def test_hands_back_a_callback_its_executor_fails_to_queue(self, dag_run, session):
+        """The savepoint undoes the queued state written before the workload, so the hand-back finds it."""
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner([executor])
+        request = self._dag_request(dag_run)
+        callback_id = _add_waiting_callback(session, request)
+
+        with mock.patch.object(
+            executor, "queue_workload", autospec=True, side_effect=RuntimeError("executor refused")
+        ):
+            runner._route_dag_processor_callbacks(session)
+        session.commit()
+
+        self._assert_handed_back(session, callback_id, request)
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_skips_a_callback_another_scheduler_is_routing(self, dag_run, session):
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner([executor])
+        locked_id = _add_waiting_callback(session, self._dag_request(dag_run))
+        routed_id = _add_waiting_callback(session, self._dag_request(dag_run))
+
+        with create_session(scoped=False) as other_scheduler:
+            other_scheduler.scalar(select(Callback.id).where(Callback.id == locked_id).with_for_update())
+            runner._route_dag_processor_callbacks(session)
+            session.commit()
+
+        assert [w.callback.id for w in self._queued_callbacks(executor)] == [str(routed_id)]
+        assert self._get_states(session, [locked_id, routed_id]) == [
+            CallbackState.SCHEDULED,
+            CallbackState.QUEUED,
+        ]
+
     def test_hands_back_waiting_callbacks_once_routing_is_off(self, dag_run, session):
         executor = self._make_executor("default_exec")
         runner = self._make_runner([executor], enabled=False)
@@ -17582,28 +17619,82 @@ class TestRouteDagProcessorCallbacks:
         assert not self._queued_callbacks(executor)
 
     @pytest.mark.parametrize(
-        ("parallelism", "per_loop", "expected"),
+        ("parallelism", "per_loop", "expected_queued"),
         [
-            pytest.param("2", "20", [CallbackState.QUEUED, CallbackState.SCHEDULED], id="free-slots"),
-            pytest.param("20", "1", [CallbackState.QUEUED, CallbackState.SCHEDULED], id="per-loop-limit"),
-            pytest.param("1", "20", [CallbackState.SCHEDULED, CallbackState.SCHEDULED], id="no-free-slot"),
+            pytest.param("5", "20", 2, id="half-the-free-slots"),
+            pytest.param("2", "20", 1, id="one-while-any-is-free"),
+            pytest.param("20", "1", 1, id="per-loop-limit"),
+            pytest.param("1", "20", 0, id="no-free-slot"),
         ],
     )
-    def test_routes_only_into_free_slots_up_to_the_per_loop_limit(
-        self, dag_run, session, parallelism, per_loop, expected
+    def test_routes_into_half_the_free_slots_up_to_the_per_loop_limit(
+        self, dag_run, session, parallelism, per_loop, expected_queued
     ):
         executor = self._make_executor("default_exec")
         runner = self._make_runner(
             [executor],
             **{"core.parallelism": parallelism, "callbacks.max_routed_callbacks_per_loop": per_loop},
         )
+        # One slot is taken.
         executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = mock.MagicMock()
-        callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(2)]
+        callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(3)]
 
         runner._route_dag_processor_callbacks(session)
         session.commit()
 
-        assert self._get_states(session, callback_ids) == expected
+        states = self._get_states(session, callback_ids)
+        assert states == [CallbackState.QUEUED] * expected_queued + [CallbackState.SCHEDULED] * (
+            3 - expected_queued
+        )
+
+    def test_tasks_keep_the_free_slots_callbacks_leave(self, dag_maker, session):
+        with dag_maker("busy_dag", session=session):
+            for task_id in ("a", "b", "c"):
+                EmptyOperator(task_id=task_id)
+        busy_run = dag_maker.create_dagrun(run_id="busy_run")
+        for ti in busy_run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        session.commit()
+        executor = MockExecutor(do_update=False, parallelism=4)
+        executor.supported_workload_types = RUNS_CALLBACKS
+        runner = self._make_runner([executor], **{"core.parallelism": "4"})
+        for _ in range(5):
+            _add_waiting_callback(session, self._dag_request(busy_run))
+
+        runner._route_dag_processor_callbacks(session)
+        session.commit()
+        queued_tasks = runner._critical_section_enqueue_task_instances(session)
+
+        assert len(self._queued_callbacks(executor)) == 2
+        assert queued_tasks == 2
+
+    @pytest.mark.parametrize("occupied", [False, True])
+    def test_routes_only_into_the_target_executors_free_slots(self, dag_run, session, occupied):
+        default, other = self._make_executor("default_exec"), self._make_executor("other_exec")
+        default.parallelism = 1
+        if occupied:
+            default.running.add(TaskInstanceUuid(uuid4()))
+        runner = self._make_runner(
+            [default, other],
+            **{"core.parallelism": "8", "callbacks.max_routed_callbacks_per_loop": "2"},
+        )
+        ti = dag_run.get_task_instance("task", session=session)
+        ti.executor = "other_exec"
+        session.commit()
+        callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(2)]
+        callback_ids.append(_add_waiting_callback(session, self._task_request(dag_run, session)))
+
+        runner._route_dag_processor_callbacks(session)
+        session.commit()
+
+        assert self._get_states(session, callback_ids) == [
+            CallbackState.SCHEDULED if occupied else CallbackState.QUEUED,
+            CallbackState.SCHEDULED,
+            CallbackState.QUEUED,
+        ]
+        assert default.slots_available == 0
+        assert len(self._queued_callbacks(other)) == 1
+        assert session.get_one(Callback, callback_ids[1]).start_deadline is None
 
     def test_hands_back_without_using_up_free_slots(self, dag_run, session):
         executor = self._make_executor("default_exec")
@@ -17623,6 +17714,30 @@ class TestRouteDagProcessorCallbacks:
             CallbackState.QUEUED,
             CallbackState.SCHEDULED,
         ]
+
+    def test_hands_back_unroutable_callbacks_without_waiting_for_a_slot(self, dag_run, session):
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner(
+            [executor], **{"core.parallelism": "1", "callbacks.max_routed_callbacks_per_loop": "2"}
+        )
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = mock.MagicMock()
+        unroutable = self._dag_request(dag_run, run_id="missing_run")
+        callback_ids = [
+            _add_waiting_callback(session, self._dag_request(dag_run)),
+            _add_waiting_callback(session, self._dag_request(dag_run)),
+            _add_waiting_callback(session, unroutable),
+        ]
+
+        for _ in range(2):
+            runner._route_dag_processor_callbacks(session)
+            session.commit()
+
+        assert self._get_states(session, callback_ids) == [
+            CallbackState.SCHEDULED,
+            CallbackState.SCHEDULED,
+            None,
+        ]
+        self._assert_handed_back(session, callback_ids[2], unroutable)
 
     def test_leaves_scheduled_deadline_callbacks_alone(self, dag_run, session):
         runner = self._make_runner([self._make_executor("default_exec")])
@@ -17717,6 +17832,87 @@ class TestRoutedCallbackOutcomes:
         assert callback.state == reported
         assert callback.output is None
 
+    @pytest.mark.parametrize(
+        ("settled_class", "settled_state", "event"),
+        [
+            pytest.param(ExecutorCallback, CallbackState.SUCCESS, CallbackState.FAILED, id="api-success"),
+            pytest.param(ExecutorCallback, CallbackState.FAILED, CallbackState.SUCCESS, id="reaper-failure"),
+            pytest.param(DagProcessorCallback, None, CallbackState.FAILED, id="handed-back"),
+        ],
+    )
+    def test_executor_events_refresh_a_callback_settled_by_another_session(
+        self, session, settled_class, settled_state, event
+    ):
+        initial_state = (
+            CallbackState.QUEUED if settled_class is DagProcessorCallback else CallbackState.RUNNING
+        )
+        callback_id = self._add_routed_callback(session, state=initial_state)
+        cached_callback = session.get_one(Callback, callback_id)
+        with create_session(scoped=False) as settling_session:
+            if settled_class is DagProcessorCallback:
+                SchedulerJobRunner._hand_back_dag_processor_callback(
+                    callback_id, from_state=initial_state, session=settling_session
+                )
+            else:
+                callback = settling_session.get_one(Callback, callback_id, with_for_update=True)
+                callback.state = settled_state
+                callback.output = "authoritative outcome"
+        assert cached_callback.state == initial_state
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (event, "executor detail")
+
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+        )
+        session.commit()
+
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert type(callback) is settled_class
+        assert callback.state == settled_state
+        assert callback.output == (None if settled_class is DagProcessorCallback else "authoritative outcome")
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_executor_event_holds_the_callback_lock_until_its_outcome_is_committed(self, session):
+        callback_id = self._add_routed_callback(session, state=CallbackState.RUNNING)
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "worker died")
+
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+        )
+
+        with pytest.raises(OperationalError) as error, create_session(scoped=False) as completing_session:
+            completing_session.scalar(
+                select(Callback).where(Callback.id == callback_id).with_for_update(nowait=True)
+            )
+        assert getattr(error.value.orig, "sqlstate", None) == "55P03" or is_lock_not_available_error(
+            error.value
+        )
+        session.commit()
+        with create_session(scoped=False) as completing_session:
+            callback = completing_session.scalar(
+                select(Callback).where(Callback.id == callback_id).with_for_update(nowait=True)
+            )
+            assert callback.state == CallbackState.FAILED
+
+    @pytest.mark.backend("postgres", "mysql")
+    @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
+    def test_executor_event_takes_no_callback_lock_with_row_level_locking_off(self, session):
+        callback_id = self._add_routed_callback(session, state=CallbackState.RUNNING)
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "worker died")
+
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+        )
+
+        with create_session(scoped=False) as other_session:
+            assert other_session.scalar(
+                select(Callback.id).where(Callback.id == callback_id).with_for_update(nowait=True)
+            )
+        session.commit()
+
     def test_enqueue_fails_a_callback_its_executor_cannot_run(self, dag_maker, session):
         with dag_maker(dag_id="test_unsupported_callback_executor"):
             pass
@@ -17741,18 +17937,18 @@ class TestRoutedCallbackOutcomes:
 
     @time_machine.travel(ROUTING_NOW, tick=False)
     @pytest.mark.parametrize(
-        ("state", "data", "expected_output"),
+        ("state", "data", "expected"),
         [
             pytest.param(
                 CallbackState.QUEUED,
                 {START_DEADLINE_KEY: (ROUTING_NOW - timedelta(seconds=1)).isoformat()},
-                f"Never started: its start deadline {(ROUTING_NOW - timedelta(seconds=1)).isoformat()} passed",
-                id="queued-past-start-deadline",
+                (DagProcessorCallback, None, None),
+                id="queued-past-start-deadline-is-handed-back",
             ),
             pytest.param(
                 CallbackState.QUEUED,
                 {START_DEADLINE_KEY: (ROUTING_NOW + timedelta(seconds=1)).isoformat()},
-                None,
+                (ExecutorCallback, CallbackState.QUEUED, None),
                 id="queued-before-start-deadline",
             ),
             pytest.param(
@@ -17761,8 +17957,12 @@ class TestRoutedCallbackOutcomes:
                     EXECUTION_TIMEOUT_KEY: 300,
                     STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
                 },
-                "Its worker did not report it finished within 450s of its start",
-                id="running-past-timeout-and-grace",
+                (
+                    ExecutorCallback,
+                    CallbackState.FAILED,
+                    "Its worker did not report it finished within 450s of its start",
+                ),
+                id="running-past-timeout-and-grace-is-failed",
             ),
             pytest.param(
                 CallbackState.RUNNING,
@@ -17770,29 +17970,46 @@ class TestRoutedCallbackOutcomes:
                     EXECUTION_TIMEOUT_KEY: 300,
                     STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=449)).isoformat(),
                 },
-                None,
+                (ExecutorCallback, CallbackState.RUNNING, None),
                 id="running-within-grace",
-            ),
-            pytest.param(
-                CallbackState.RUNNING,
-                {EXECUTION_TIMEOUT_KEY: 0, STARTED_AT_KEY: (ROUTING_NOW - timedelta(days=1)).isoformat()},
-                None,
-                id="running-without-timeout",
             ),
         ],
     )
-    def test_reaper_fails_routed_callbacks_that_can_no_longer_finish(
-        self, session, state, data, expected_output
-    ):
+    def test_reaper_settles_routed_callbacks_that_can_no_longer_finish(self, session, state, data, expected):
         callback_id = self._add_routed_callback(session, state=state, **data)
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
 
         runner._reap_routed_callbacks()
 
         session.expire_all()
+        session.expunge_all()
         callback = session.get_one(Callback, callback_id)
-        assert callback.state == (state if expected_output is None else CallbackState.FAILED)
-        assert callback.output == expected_output
+        assert (type(callback), callback.state, callback.output) == expected
+
+    @time_machine.travel(ROUTING_NOW, tick=False)
+    def test_reaper_leaves_a_callback_its_worker_reported_after_the_scan(self, session):
+        """The reaper re-checks each callback under its row lock, so a report since its scan stands."""
+        callback_id = self._add_routed_callback(
+            session,
+            state=CallbackState.SUCCESS,
+            **{
+                EXECUTION_TIMEOUT_KEY: 300,
+                STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
+            },
+        )
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+
+        # Found by the scan while still running past its report window.
+        runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
+        session.commit()
+
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert (type(callback), callback.state, callback.output) == (
+            ExecutorCallback,
+            CallbackState.SUCCESS,
+            None,
+        )
 
     @time_machine.travel(ROUTING_NOW, tick=False)
     def test_reaper_works_through_batches(self, session):
@@ -17807,8 +18024,9 @@ class TestRoutedCallbackOutcomes:
             runner._reap_routed_callbacks()
 
         session.expire_all()
-        assert {session.get_one(Callback, callback_id).state for callback_id in callback_ids} == {
-            CallbackState.FAILED
+        session.expunge_all()
+        assert {type(session.get_one(Callback, callback_id)) for callback_id in callback_ids} == {
+            DagProcessorCallback
         }
 
     @time_machine.travel(ROUTING_NOW, tick=False)
@@ -17834,7 +18052,7 @@ class TestRoutedCallbackOutcomes:
         assert session.get_one(ExecutorCallback, callback.id).state == CallbackState.QUEUED
 
     @time_machine.travel(ROUTING_NOW, tick=False)
-    def test_reaper_frees_the_executor_slots_of_settled_callbacks(self, session):
+    def test_reaper_frees_the_executor_slots_of_settled_callbacks(self, dag_maker, session):
         past = (ROUTING_NOW - timedelta(seconds=1)).isoformat()
         future = (ROUTING_NOW + timedelta(seconds=1)).isoformat()
 
@@ -17843,15 +18061,66 @@ class TestRoutedCallbackOutcomes:
 
         sent_reaped = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: past})
         unsent_reaped = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: past})
-        # Failed on another scheduler, which holds no slot for it.
+        # Failed on another scheduler.
         reaped_elsewhere = add(CallbackState.FAILED)
+        # Handed back, and already claimed by a Dag processor.
+        claimed = CallbackKey(str(uuid4()))
         waiting = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: future})
+        with dag_maker(dag_id="test_reaper_slots"):
+            pass
+        deadline_callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(empty_callback_for_deadline),
+            dagrun_id=dag_maker.create_dagrun().id,
+            deadline_alert_id=None,
+        ).callback
+        deadline_callback.state = CallbackState.RUNNING
+        session.add(deadline_callback)
+        session.commit()
+        running_deadline = CallbackKey(str(deadline_callback.id))
         executor = MockExecutor(do_update=False)
-        executor.running.update({sent_reaped, reaped_elsewhere, waiting})
+        executor.running.update({sent_reaped, reaped_elsewhere, claimed, waiting, running_deadline})
         executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][unsent_reaped] = mock.MagicMock()
         runner = SchedulerJobRunner(job=Job(), executors=[executor])
 
         runner._reap_routed_callbacks()
 
-        assert executor.running == {waiting}
+        assert executor.running == {waiting, running_deadline}
         assert not executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]
+
+    def test_executor_events_leave_a_handed_back_callback_alone(self, session):
+        """A callback handed back to the Dag processor is the Dag processor's to run, whatever its worker says."""
+        callback_id = self._add_routed_callback(session, state=CallbackState.QUEUED)
+        SchedulerJobRunner._hand_back_dag_processor_callback(
+            callback_id, from_state=CallbackState.QUEUED, session=session
+        )
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "refused")
+
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+        )
+        session.commit()
+
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert isinstance(callback, DagProcessorCallback)
+        assert callback.state is None
+
+    def test_executor_failure_hands_back_a_callback_that_never_started(self, session):
+        """A callback its executor failed before any worker started it can still run in a Dag processor."""
+        callback_id = self._add_routed_callback(session, state=CallbackState.QUEUED)
+        executor = MockExecutor(do_update=False)
+        # What the Celery executor reports for a workload it could not publish.
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (TaskInstanceState.FAILED, None)
+
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+        )
+        session.commit()
+
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert isinstance(callback, DagProcessorCallback)
+        assert callback.state is None

@@ -768,6 +768,9 @@ type EmailRequest struct {
 	// Msg corresponds to the JSON schema field "msg".
 	Msg interface{} `msgpack:"msg,omitempty"`
 
+	// TaskStarted corresponds to the JSON schema field "task_started".
+	TaskStarted *bool `msgpack:"task_started,omitempty"`
+
 	// TI corresponds to the JSON schema field "ti".
 	TI TaskInstance `msgpack:"ti"`
 
@@ -1784,6 +1787,9 @@ type TaskCallbackRequest struct {
 
 	// TaskCallbackType corresponds to the JSON schema field "task_callback_type".
 	TaskCallbackType interface{} `msgpack:"task_callback_type,omitempty"`
+
+	// TaskStarted corresponds to the JSON schema field "task_started".
+	TaskStarted *bool `msgpack:"task_started,omitempty"`
 
 	// TI corresponds to the JSON schema field "ti".
 	TI TaskInstance `msgpack:"ti"`

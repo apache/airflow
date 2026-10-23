@@ -295,8 +295,8 @@ The Execution API uses the following token scopes. Each endpoint accepts only it
 **callback**
    A single-use token exchanged at ``/callbacks/{callback_id}/run`` for an ``execution``
    token when a queued callback starts. Once the callback runs, the exchange is refused, except
-   when repeated by the same worker process (by hostname and process ID), as when it never got the
-   response. The ``execution`` token lasts at least until a callback the scheduler routed must
+   when repeated by the same attempt to run it, which identifies itself with an ID it generates, as
+   when it never got the response. The ``execution`` token lasts at least until a callback the scheduler routed must
    report its outcome, since callbacks do not heartbeat. It carries the callback's Dag, Dag run, and
    Dag bundle; in multi-team mode, that makes deadline callbacks use their Dag bundle's team rather
    than no team.

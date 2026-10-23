@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add an index on the type and state of callbacks.
+Add an index for looking callbacks up by type, state, and fetch method.
 
 Revision ID: f9520b8eed39
 Revises: 5fbfa42a2d01
@@ -39,7 +39,7 @@ airflow_version = "3.5.0"
 
 def upgrade():
     """Index the columns each scheduler loop looks callbacks up by."""
-    op.create_index("idx_callback_type_state", "callback", ["type", "state"])
+    op.create_index("idx_callback_type_state_fetch_method", "callback", ["type", "state", "fetch_method"])
 
 
 def downgrade():
@@ -52,15 +52,16 @@ def downgrade():
         sa.column("output", sa.Text),
     )
     routed = sa.and_(callback.c.type == "executor", callback.c.fetch_method == "dag_attribute")
-    # Waiting to be routed: hand them back to the Dag processor, which runs them in earlier versions.
+    # Not started: hand them back to the Dag processor, which runs them in earlier versions. Their
+    # tokens can't start them then, since ``/run`` starts only queued callbacks.
     op.execute(
         callback.update()
-        .where(routed, callback.c.state == "scheduled")
+        .where(routed, callback.c.state.in_(["scheduled", "queued"]))
         .values(type="dag_processor", state=None)
     )
     op.execute(
         callback.update()
-        .where(routed, callback.c.state.in_(["queued", "running"]))
+        .where(routed, callback.c.state == "running")
         .values(state="failed", output="Airflow was downgraded before the callback finished")
     )
-    op.drop_index("idx_callback_type_state", table_name="callback")
+    op.drop_index("idx_callback_type_state_fetch_method", table_name="callback")

@@ -3697,19 +3697,18 @@ callbacks:
         Maximum time in seconds a callback routed by ``[callbacks] route_dag_processor_callbacks``
         may take on its worker, including preparing its Dag bundle and parsing its Dag file. The
         worker terminates a callback that takes longer, and the scheduler fails a routed callback
-        whose worker has not reported it finished within this time plus a grace period. 0 means no
-        timeout: the worker never terminates the callback, and a callback whose worker is lost stays
-        running until its executor reports it.
+        whose worker has not reported it finished within this time plus a grace period. Must be at
+        least 1.
       version_added: 3.5.0
       type: integer
       example: ~
       default: "300"
     max_routed_callbacks_per_loop:
       description: |
-        The maximum number of Dag processor callbacks each scheduler loop routes to executors, or
-        hands back to the Dag processor when they can't be routed. Callbacks are routed only into
-        free executor slots, ahead of tasks, so this limits how many of those slots a burst of
-        callbacks takes from tasks each loop.
+        The maximum number of Dag processor callbacks each scheduler loop routes to executors, and
+        the number it checks for handing back to the Dag processor when they can't be routed.
+        Callbacks take at most half the free executor slots each loop, but one while any is free,
+        and tasks the rest. Must be at least 1.
       version_added: 3.5.0
       type: integer
       example: ~

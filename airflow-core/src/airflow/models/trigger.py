@@ -820,6 +820,8 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                     map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
                 ),
                 task_callback_type=callback_type,
+                # Only a worker running this attempt sets it: ``defer_task`` clears one a retry inherits.
+                task_started=task_instance.last_heartbeat_at is not None,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
                 version_data=version_data,

@@ -65,7 +65,7 @@ class AssetProfile(BaseModel):
 
 class CallbackRunPayload(BaseModel):
     """
-    The worker process exchanging a callback's token, so a retry of its own exchange is recognized.
+    The attempt exchanging a callback's token, so a retry of its own exchange is recognized.
     """
 
     model_config = ConfigDict(
@@ -73,6 +73,7 @@ class CallbackRunPayload(BaseModel):
     )
     hostname: Annotated[str, Field(title="Hostname")]
     pid: Annotated[int, Field(title="Pid")]
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
 
 
 class CallbackState(str, Enum):
