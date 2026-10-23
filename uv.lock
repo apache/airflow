@@ -1046,7 +1046,7 @@ all = [
     { name = "apache-airflow-providers-anthropic" },
     { name = "apache-airflow-providers-apache-arrow" },
     { name = "apache-airflow-providers-apache-beam" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
     { name = "apache-airflow-providers-apache-flink" },
@@ -1178,7 +1178,7 @@ apache-beam = [
     { name = "apache-airflow-providers-apache-beam" },
 ]
 apache-cassandra = [
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
 ]
 apache-drill = [
     { name = "apache-airflow-providers-apache-drill" },
@@ -1637,8 +1637,8 @@ requires-dist = [
     { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'apache-arrow'", editable = "providers/apache/arrow" },
     { name = "apache-airflow-providers-apache-beam", marker = "extra == 'all'", editable = "providers/apache/beam" },
     { name = "apache-airflow-providers-apache-beam", marker = "extra == 'apache-beam'", editable = "providers/apache/beam" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'all'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'apache-drill'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-druid", marker = "extra == 'all'", editable = "providers/apache/druid" },
@@ -3517,7 +3517,7 @@ source = { editable = "providers/apache/cassandra" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "cassandra-driver", marker = "python_full_version < '3.14'" },
+    { name = "cassandra-driver" },
 ]
 
 [package.dev-dependencies]
@@ -3538,6 +3538,7 @@ requires-dist = [
     { name = "cassandra-driver", marker = "python_full_version < '3.12'", specifier = ">=3.29.1" },
     { name = "cassandra-driver", marker = "python_full_version == '3.12.*'", specifier = ">=3.29.2" },
     { name = "cassandra-driver", marker = "python_full_version == '3.13.*'", specifier = ">=3.29.3" },
+    { name = "cassandra-driver", marker = "python_full_version >= '3.14'", specifier = ">=3.30.1" },
 ]
 
 [package.metadata.requires-dev]
