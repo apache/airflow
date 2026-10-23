@@ -1654,13 +1654,12 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.close()
                 self._file_stats.pop(file, None)
 
-    @provide_session
     def handle_parsing_result(
         self,
         file: DagFileInfo,
         proc: BaseDagFileProcessorProcess,
         *,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """
         Post-process a single finished parse result.
@@ -1670,10 +1669,8 @@ class DagFileProcessorManager(LoggingMixin):
         Extracted from ``_collect_results`` to keep result handling and
         persistence separate.
 
-        Owns its own DB session via ``@provide_session`` so subclasses that
-        forward results without touching the metadata DB (e.g. AIP-92 API-backed
-        deployments) can override this method without inheriting a session
-        created by the caller.
+        API mode queues results without opening a database session. DB mode
+        creates a session only for persistence unless the caller supplies one.
 
         If persistence fails, the error is logged and the previous persisted
         DAG/import-error counts are preserved while a minimal timestamp update
@@ -1720,19 +1717,20 @@ class DagFileProcessorManager(LoggingMixin):
                         file, proc, run_duration, next_stat
                     )
                     return
-                self.persist_parsing_result(
-                    bundle_name=file.bundle_name,
-                    bundle_version=proc.parse_source.bundle_version,
-                    version_data=(
-                        dict(proc.parse_source.version_data)
-                        if proc.parse_source.version_data is not None
-                        else None
-                    ),
-                    parsing_result=proc.parsing_result,
-                    run_duration=run_duration,
-                    relative_fileloc=str(file.rel_path),
-                    session=session,
-                )
+                with create_session() if session is None else nullcontext(session) as session:
+                    self.persist_parsing_result(
+                        bundle_name=file.bundle_name,
+                        bundle_version=proc.parse_source.bundle_version,
+                        version_data=(
+                            dict(proc.parse_source.version_data)
+                            if proc.parse_source.version_data is not None
+                            else None
+                        ),
+                        parsing_result=proc.parsing_result,
+                        run_duration=run_duration,
+                        relative_fileloc=str(file.rel_path),
+                        session=session,
+                    )
             except Exception:
                 self.log.exception(
                     "Failed to persist parsing result for %s in bundle %s; "
