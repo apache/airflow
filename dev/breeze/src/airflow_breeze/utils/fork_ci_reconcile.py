@@ -1034,7 +1034,13 @@ class BypassFinder:
         return self._did_project_ci[run.id]
 
     def find_gated_runs(self, pr: PullRequestSnapshot) -> list[WorkflowRun]:
-        """Completed ci-amd.yml pull_request runs of the pull request's branch that only gated it."""
+        """
+        Completed ci-amd.yml pull_request runs of the pull request's branch that only gated it.
+
+        A commit that changes workflows could do project CI work under the gate's name within its
+        time limit, so its runs are kept as evidence, as are runs whose change set is too large
+        to check.
+        """
         if not pr.head_repo:
             return []
         return [
@@ -1045,6 +1051,7 @@ class BypassFinder:
             and run.status == "completed"
             and not self._did_run_project_ci(run)
             and is_gated_skip_run(self._get_jobs(run), self._now)
+            and self._commit_changes_workflows(run, pr.base_ref) is False
         ]
 
     def _commit_changes_workflows(self, run: WorkflowRun, base_ref: str) -> bool | None:

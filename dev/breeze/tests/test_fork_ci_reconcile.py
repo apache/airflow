@@ -1020,22 +1020,41 @@ def test_is_gated_skip_run(jobs, expected):
 
 
 @pytest.mark.parametrize(
-    ("runs", "jobs", "expected_ids"),
+    ("runs", "jobs", "compare_files", "expected_ids"),
     [
-        pytest.param([_run(7, minutes=1)], GATED_JOBS, [7], id="gated"),
-        pytest.param([_run(7, minutes=1)], TAMPERED_JOBS, [], id="project-ci-ran"),
-        pytest.param([_run(7, minutes=1, status="in_progress")], GATED_JOBS, [], id="in-progress"),
+        pytest.param([_run(7, minutes=1)], GATED_JOBS, ("README.md",), [7], id="gated"),
+        pytest.param([_run(7, minutes=1)], TAMPERED_JOBS, ("README.md",), [], id="project-ci-ran"),
+        pytest.param(
+            [_run(7, minutes=1, status="in_progress")], GATED_JOBS, ("README.md",), [], id="in-progress"
+        ),
         pytest.param(
             [_run(7, minutes=1, path=".github/workflows/codeql-analysis.yml")],
             GATED_JOBS,
+            ("README.md",),
             [],
             id="other-workflow",
         ),
-        pytest.param([_run(7, minutes=1, event="pull_request_review")], GATED_JOBS, [], id="other-event"),
+        pytest.param(
+            [_run(7, minutes=1, event="pull_request_review")],
+            GATED_JOBS,
+            ("README.md",),
+            [],
+            id="other-event",
+        ),
+        pytest.param(
+            [_run(7, minutes=1)], GATED_JOBS, (".github/workflows/ci-amd.yml",), [], id="workflows-changed"
+        ),
+        pytest.param(
+            [_run(7, minutes=1)],
+            GATED_JOBS,
+            tuple(f"f{i}.py" for i in range(300)),
+            [],
+            id="too-large-to-check",
+        ),
     ],
 )
-def test_finder_finds_gated_runs(client, runs, jobs, expected_ids):
-    finder = _finder(client, runs, jobs=jobs)
+def test_finder_finds_gated_runs(client, runs, jobs, compare_files, expected_ids):
+    finder = _finder(client, runs, jobs=jobs, compare_files=compare_files)
 
     assert [run.id for run in finder.find_gated_runs(_pr())] == expected_ids
 
@@ -1475,6 +1494,8 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
             return {"state": "active"}
         if path.endswith("jobs?filter=latest&per_page=100"):
             return GATED_JOBS
+        if "/compare/" in path:
+            return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get

@@ -698,8 +698,10 @@ runs created by GitHub Actions, so the reconciler deletes the whole run once it 
 `ci-amd.yml` `pull_request` runs of a gated pull request's branch from the tamper window in which
 the gate, `Check if the run is needed` and `CI passed (project CI not run)` succeeded and every
 other job was skipped. A run in which anything else happened, including a run the tampering check
-counts as project CI work, is kept, and nothing is deleted for a pull request in the
-`gate_bypassed` state. A dry run only reports the deletions.
+counts as project CI work, is kept, and so is a run whose commit changes `.github/workflows/` or
+whose change set is too large to check: such a commit could do project CI work under the gate's
+name within its time limit, and its run is the evidence. Nothing is deleted for a pull request in
+the `gate_bypassed` state. A dry run only reports the deletions.
 
 ### Far behind the base branch
 
