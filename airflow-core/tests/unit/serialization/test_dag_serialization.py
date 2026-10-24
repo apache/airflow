@@ -3116,7 +3116,6 @@ def test_operator_expand_serde():
                 "__type": "dict",
                 "__var": {"dict": {"__type": "dict", "__var": {"sub": "value"}}},
             },
-            "retry_delay": {"__type": "timedelta", "__var": 300.0},
         },
         "task_id": "a",
         "template_fields": ["bash_command", "env", "cwd"],
@@ -3161,9 +3160,7 @@ def test_operator_expand_xcomarg_serde():
                 },
             },
         },
-        "partial_kwargs": {
-            "retry_delay": {"__type": "timedelta", "__var": 300.0},
-        },
+        "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
         "_disallow_kwargs_override": False,
@@ -3216,9 +3213,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
                 },
             ],
         },
-        "partial_kwargs": {
-            "retry_delay": {"__type": "timedelta", "__var": 300.0},
-        },
+        "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
         "_disallow_kwargs_override": strict,
@@ -3263,9 +3258,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
                 "__var": {"task_id": "op1", "key": "return_value"},
             },
         },
-        "partial_kwargs": {
-            "retry_delay": {"__type": "timedelta", "__var": 300.0},
-        },
+        "partial_kwargs": {},
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
         "_disallow_kwargs_override": strict,
@@ -3577,9 +3570,7 @@ def test_mapped_task_with_operator_extra_links_property():
             "type": "dict-of-lists",
             "value": {"__type": "dict", "__var": {"inputs": [1, 2, 3]}},
         },
-        "partial_kwargs": {
-            "retry_delay": {"__type": "timedelta", "__var": 300.0},
-        },
+        "partial_kwargs": {},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "_operator_extra_links": {"airflow": "_link_AirflowLink2"},
@@ -4741,6 +4732,40 @@ def test_task_callback_backward_compatibility(old_callback_name, new_callback_na
 class TestClientDefaultsGeneration:
     """Test client defaults generation functionality."""
 
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize(("retry_seconds", "timeout_seconds"), [(300, None), (120, 60)])
+    def test_timedelta_defaults_round_trip(self, operator_defaults, mapped, retry_seconds, timeout_seconds):
+        defaults = {
+            "retry_delay": timedelta(seconds=retry_seconds),
+            "execution_timeout": timedelta(seconds=timeout_seconds) if timeout_seconds is not None else None,
+        }
+        overrides = {"retry_delay": timedelta(seconds=300), "execution_timeout": timedelta(seconds=90)}
+        task_values = {"inherited": defaults, "matching": defaults, "override": overrides}
+        with operator_defaults(defaults):
+            with DAG("timedelta_defaults", default_args=defaults) as dag:
+                for task_id, values in task_values.items():
+                    kwargs = {} if task_id == "inherited" else values
+                    if mapped:
+                        BashOperator.partial(task_id=task_id, **kwargs).expand(bash_command=["echo test"])
+                    else:
+                        BashOperator(task_id=task_id, bash_command="echo test", **kwargs)
+
+            serialized = DagSerialization.to_dict(dag)
+            restored = DagSerialization.from_dict(serialized)
+            for encoded_task in serialized["dag"]["tasks"]:
+                task = encoded_task["__var"]
+                task_id = task["task_id"]
+                fields = task["partial_kwargs"] if mapped else task
+                for field, value in task_values[task_id].items():
+                    if value == defaults[field]:
+                        assert field not in fields
+                    else:
+                        expected = value.total_seconds()
+                        if mapped:
+                            expected = {"__type": "timedelta", "__var": expected}
+                        assert fields[field] == expected
+                    assert getattr(restored.get_task(task_id), field) == value
+
     def test_generate_client_defaults_basic(self):
         """Test basic client defaults generation."""
         client_defaults = OperatorSerialization.generate_client_defaults()
@@ -4862,6 +4887,43 @@ class TestSchemaDefaults:
 
 class TestDeserializationDefaultsResolution:
     """Test defaults resolution during deserialization."""
+
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("use_default_args", [False, True])
+    @pytest.mark.parametrize(
+        ("field", "client_default", "override", "expected"),
+        [
+            pytest.param("retry_delay", timedelta(seconds=120), 300, timedelta(seconds=300), id="seconds"),
+            pytest.param(
+                "retry_delay", timedelta(seconds=120), 300.0, timedelta(seconds=300), id="float_seconds"
+            ),
+            pytest.param(
+                "retry_delay",
+                timedelta(seconds=120),
+                timedelta(seconds=300),
+                timedelta(seconds=300),
+                id="timedelta",
+            ),
+            pytest.param("retries", 3, 0, 0, id="retries"),
+        ],
+    )
+    def test_schema_default_override_round_trip(
+        self, operator_defaults, mapped, use_default_args, field, client_default, override, expected
+    ):
+        with operator_defaults({field: client_default}):
+            default_args = {field: override} if use_default_args else {}
+            task_kwargs = {} if use_default_args else {field: override}
+            with DAG("schema_default_override", default_args=default_args) as dag:
+                if mapped:
+                    BashOperator.partial(task_id="task", **task_kwargs).expand(bash_command=["echo test"])
+                else:
+                    BashOperator(task_id="task", bash_command="echo test", **task_kwargs)
+
+            serialized = DagSerialization.to_dict(dag)
+            task = serialized["dag"]["tasks"][0]["__var"]
+            fields = task["partial_kwargs"] if mapped else task
+            assert field in fields
+            assert getattr(DagSerialization.from_dict(serialized).get_task("task"), field) == expected
 
     def test_apply_defaults_to_encoded_op(self):
         encoded_op = {"task_id": "test_task", "task_type": "BashOperator", "retries": 10}

@@ -1458,6 +1458,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             task_defaults = cls.generate_client_defaults()
 
             # Check if this field is in client_defaults and values match
+            if isinstance(var, datetime.timedelta):
+                var = var.total_seconds()
             if attrname in task_defaults and var == task_defaults[attrname]:
                 return True
 
@@ -1490,25 +1492,29 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
-            if schema_defaults[attrname] == var:
+            comparison_value = var.total_seconds() if isinstance(var, datetime.timedelta) else var
+            if schema_defaults[attrname] == comparison_value:
                 # If it also matches client_defaults, exclude (optimization)
                 client_defaults = cls.generate_client_defaults()
                 if attrname in client_defaults:
-                    if client_defaults[attrname] == var:
+                    if client_defaults[attrname] == comparison_value:
                         return True
                     # If client_defaults differs, preserve explicit override from user
                     # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
-                    if client_defaults[attrname] != var:
-                        if op.has_dag():
-                            dag = op.dag
-                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                    if client_defaults[attrname] != comparison_value:
+                        override_sources = (
+                            op.dag.default_args if op.has_dag() and op.dag else {},
+                            getattr(op, "_BaseOperator__init_kwargs", {}),
+                            getattr(op, "partial_kwargs", {}),
+                        )
+                        for overrides in override_sources:
+                            if attrname not in overrides:
+                                continue
+                            override = overrides[attrname]
+                            if isinstance(override, datetime.timedelta):
+                                override = override.total_seconds()
+                            if override == comparison_value:
                                 return False
-                        if (
-                            hasattr(op, "_BaseOperator__init_kwargs")
-                            and attrname in op._BaseOperator__init_kwargs
-                            and op._BaseOperator__init_kwargs[attrname] == var
-                        ):
-                            return False
 
                 # If client_defaults doesn't have this field (matches schema default),
                 # exclude for optimization even if in default_args
