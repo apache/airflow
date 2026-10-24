@@ -78,6 +78,14 @@ repository:
 
 ## Publishing
 
+Release management common to every language SDK (which branch to release
+from, how the cycle follows Airflow core, and what a release candidate has
+to satisfy) lives in
+[`dev/README_RELEASE_LANG_SDKS.md`](../dev/README_RELEASE_LANG_SDKS.md).
+Read it first. This section covers only what is specific to publishing the
+Java SDK, and is the worked example the shared guide points the other SDKs
+at.
+
 The SDK is published to Maven Central via the
 [ASF Nexus staging repository](https://repository.apache.org).
 The full release process follows the
