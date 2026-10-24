@@ -2673,6 +2673,8 @@ class DagRun(Base, LoggingMixin):
         schedulable_ti_ids: list[UUID] = []
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
+        pool_open_slots: dict[str, float] = {}
+        pool_models: dict[str, Pool | None] = {}
         for ti in schedulable_tis:
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 if TYPE_CHECKING:
@@ -2683,8 +2685,30 @@ class DagRun(Base, LoggingMixin):
             # The defer_task method will check "start_trigger_args" to see whether the operator
             # start execution from triggerer. If so, we'll also check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
-            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
-            # execute it to run in the worker.
+            # If the pool includes deferred tasks and has insufficient open slots, we mark this
+            # task as SCHEDULED so the scheduler can defer it when capacity becomes available.
+            elif ti.task and getattr(ti.task, "start_from_trigger", False):
+                from airflow.models.pool import Pool
+
+                pool_name = ti.pool or (ti.task.pool if ti.task else None) or Pool.DEFAULT_POOL_NAME
+                if pool_name not in pool_models:
+                    pool_models[pool_name] = Pool.get_pool(pool_name, session=session)
+                    pool_model = pool_models[pool_name]
+                    if pool_model and pool_model.include_deferred:
+                        pool_open_slots[pool_name] = pool_model.open_slots(session=session)
+                    else:
+                        pool_open_slots[pool_name] = float("inf")
+
+                if pool_open_slots[pool_name] >= ti.pool_slots and ti.defer_task(session=session):
+                    pool_open_slots[pool_name] -= ti.pool_slots
+                else:
+                    schedulable_ti_ids.append(ti.id)
+                    if debug_try_number_check:
+                        expected_try_number_by_ti_id[ti.id] = (
+                            max(1, ti.try_number),
+                            ti.try_number,
+                            ti.state,
+                        )
             elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
                 if debug_try_number_check:

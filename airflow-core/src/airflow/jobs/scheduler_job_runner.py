@@ -736,6 +736,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.models.pool import Pool
 
         executable_tis: list[TI] = []
+        deferred_tis: list[TI] = []
+        dags_for_run: dict[tuple[str, str], SerializedDAG | None] = {}
+        pool_includes_deferred: dict[str, bool] = {}
 
         pool_to_team_name: dict[str, str | None] = {}
         if self._multi_team:
@@ -776,7 +779,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
                 max_tis,
-                excluded_ti_ids=[ti.id for ti in executable_tis],
+                excluded_ti_ids=[ti.id for ti in executable_tis] + [ti.id for ti in deferred_tis],
             )
 
             timer = stats.timer("scheduler.critical_section_query_duration")
@@ -931,6 +934,49 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     continue
 
+                # Check if the task is configured to start directly from triggerer.
+                # If so, defer the task now instead of queueing it to an executor worker.
+                if task_instance.task is not None:
+                    task = task_instance.task
+                else:
+                    if dag_run_key not in dags_for_run:
+                        dags_for_run[dag_run_key] = self.scheduler_dag_bag.get_dag_for_run(
+                            dag_run=task_instance.dag_run,
+                            session=session,
+                        )
+                    dag = dags_for_run[dag_run_key]
+                    task = (
+                        dag.get_task(task_instance.task_id)
+                        if dag and dag.has_task(task_instance.task_id)
+                        else None
+                    )
+
+                if task and getattr(task, "start_from_trigger", False):
+                    task_instance.refresh_from_task(task)
+                    if task_instance.defer_task(session=session):
+                        if pool_name not in pool_includes_deferred:
+                            pool_inc = session.scalar(
+                                select(Pool.include_deferred).where(Pool.pool == pool_name)
+                            )
+                            pool_includes_deferred[pool_name] = bool(pool_inc)
+                        if pool_includes_deferred[pool_name]:
+                            open_slots -= task_instance.pool_slots
+                            pool_stats["open"] = open_slots
+                            if open_slots <= 0:
+                                starved_pools.add(pool_name)
+                        pool_stats["deferred"] += task_instance.pool_slots
+                        concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
+                        concurrency_map.task_concurrency_map[
+                            (task_instance.dag_id, task_instance.task_id)
+                        ] += 1
+                        concurrency_map.task_dagrun_concurrency_map[
+                            (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                        ] += 1
+                        deferred_tis.append(task_instance)
+                        if len(executable_tis) + len(deferred_tis) >= max_tis:
+                            break
+                        continue
+
                 if executor_obj := self._try_to_load_executor(
                     task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
                 ):
@@ -968,7 +1014,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 pool_stats["open"] = open_slots
 
-                if len(executable_tis) >= max_tis:
+                if len(executable_tis) + len(deferred_tis) >= max_tis:
                     break
 
             # Check this to avoid accidental infinite loops
@@ -979,7 +1025,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
 
-            if len(executable_tis) >= max_tis or not found_new_filters:
+            if len(executable_tis) + len(deferred_tis) >= max_tis or not found_new_filters:
                 break
 
             if executable_tis:
