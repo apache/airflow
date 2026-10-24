@@ -19,13 +19,106 @@
 
 package org.apache.airflow.sdk
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.byteArrayFromHexString
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.util.concurrent.atomic.AtomicReference
+
+private class EtlConf {
+  @JvmField
+  var targetTable: String? = null
+
+  @JvmField
+  var limit: Int = 100
+
+  @JvmField
+  var since: LocalDate? = null
+
+  @JvmField
+  var runAt: OffsetDateTime? = null
+
+  @JvmField
+  var source: EtlSource? = null
+
+  @JvmField
+  var current: AtomicReference<EtlTable>? = null
+
+  @JvmField
+  var tables: List<EtlTable>? = null
+
+  @JvmField
+  var tableArray: Array<EtlTable>? = null
+
+  @JvmField
+  var tablesByName: Map<String, EtlTable>? = null
+
+  @JvmField
+  var options: Map<String, Any?>? = null
+}
+
+private class EtlSource {
+  @JvmField
+  var bucketName: String? = null
+}
+
+private class EtlTable {
+  @JvmField
+  var tableName: String? = null
+}
+
+private class FoldClash {
+  @JvmField
+  var targetTable: String? = null
+
+  @JvmField
+  var targettable: String? = null
+}
+
+private class UrlConf {
+  @JvmField
+  var baseUrl: String? = null
+
+  fun getBaseURL(): String? = baseUrl
+}
+
+private class SetterConf {
+  private var stored: String? = null
+
+  fun setTargetTable(value: String?) {
+    stored = value
+  }
+
+  fun stored(): String? = stored
+}
+
+// Jackson binds a Java record through its constructor, but these tests compile
+// for Java 11, which has no records. Jackson binds a class with a @JsonCreator
+// constructor the same way, so this class stands in for a record.
+private class CreatorConf
+  @JsonCreator
+  constructor(
+    @JsonProperty("targetTable") targetTable: String?,
+  ) {
+    val stored = targetTable
+  }
+
+private class GetterOnlyTables {
+  private val backingList = mutableListOf<EtlTable>()
+  private val backingMap = mutableMapOf<String, EtlTable>()
+
+  fun getTables(): MutableList<EtlTable> = backingList
+
+  fun getTablesByName(): MutableMap<String, EtlTable> = backingMap
+}
+
+private fun dagRunWithConf(conf: Map<String, Any?>) = DagRun("d", "r", null, null, null, null, null, conf)
 
 class ContextTest {
   @Test
@@ -124,5 +217,160 @@ class ContextTest {
     Assertions.assertNull(dr.logicalDate)
     Assertions.assertNull(dr.dataIntervalStart)
     Assertions.assertTrue(dr.conf.isEmpty())
+  }
+
+  @Test
+  fun getConfMatchesKeysIgnoringCaseAndUnderscores() {
+    val conf = dagRunWithConf(mapOf("target_table" to "sales", "LIMIT" to 5L)).getConf(EtlConf::class.java)
+
+    Assertions.assertEquals("sales", conf.targetTable)
+    Assertions.assertEquals(5, conf.limit)
+  }
+
+  @Test
+  fun getConfIgnoresKeysWithoutAFieldAndKeepsDefaults() {
+    val conf = dagRunWithConf(mapOf("notify_email" to "ops@example.com")).getConf(EtlConf::class.java)
+
+    Assertions.assertNull(conf.targetTable)
+    Assertions.assertEquals(100, conf.limit)
+  }
+
+  @Test
+  fun getConfPrefersAnExactKeyOverKeysThatMatchOnlyIgnoringCase() {
+    val conf =
+      dagRunWithConf(mapOf("target_table" to "folded", "targetTable" to "exact", "TARGET_TABLE" to "folded"))
+        .getConf(EtlConf::class.java)
+
+    Assertions.assertEquals("exact", conf.targetTable)
+  }
+
+  @Test
+  fun getConfMatchesKeysOfNestedObjects() {
+    val conf =
+      dagRunWithConf(
+        mapOf(
+          "source" to mapOf("bucket_name" to "raw"),
+          "current" to mapOf("table_name" to "staging"),
+          "tables" to listOf(mapOf("table_name" to "orders")),
+          "table_array" to listOf(mapOf("table_name" to "items")),
+          "tables_by_name" to mapOf("Sales_Key" to mapOf("table_name" to "sales")),
+        ),
+      ).getConf(EtlConf::class.java)
+
+    Assertions.assertEquals("raw", conf.source?.bucketName)
+    Assertions.assertEquals("staging", conf.current?.get()?.tableName)
+    Assertions.assertEquals("orders", conf.tables?.single()?.tableName)
+    Assertions.assertEquals("items", conf.tableArray?.single()?.tableName)
+    Assertions.assertEquals(setOf("Sales_Key"), conf.tablesByName?.keys)
+    Assertions.assertEquals("sales", conf.tablesByName?.get("Sales_Key")?.tableName)
+  }
+
+  @Test
+  fun getConfKeepsTheKeysOfAMapWithUntypedValues() {
+    val options = mapOf("Rows" to listOf(mapOf("Key_A" to "a")), "Inner_Map" to mapOf("Key_B" to "b"))
+
+    val conf = dagRunWithConf(mapOf("options" to options)).getConf(EtlConf::class.java)
+
+    Assertions.assertEquals(options, conf.options)
+  }
+
+  @Test
+  fun getConfReadsIsoDateStringsIntoJavaTimeFields() {
+    val conf =
+      dagRunWithConf(mapOf("since" to "2024-01-31", "run_at" to "2024-01-31T02:00:00+08:00"))
+        .getConf(EtlConf::class.java)
+
+    Assertions.assertEquals(LocalDate.of(2024, 1, 31), conf.since)
+    Assertions.assertEquals(OffsetDateTime.parse("2024-01-31T02:00:00+08:00"), conf.runAt)
+  }
+
+  @Test
+  fun getConfMatchesKeysToSettersAndConstructorParameters() {
+    val conf = dagRunWithConf(mapOf("target_table" to "sales"))
+
+    Assertions.assertEquals("sales", conf.getConf(SetterConf::class.java).stored())
+    Assertions.assertEquals("sales", conf.getConf(CreatorConf::class.java).stored)
+  }
+
+  @Test
+  fun getConfSkipsPropertiesThatOnlyHaveAGetter() {
+    val conf = dagRunWithConf(mapOf("base_url" to "https://example.com")).getConf(UrlConf::class.java)
+
+    Assertions.assertEquals("https://example.com", conf.baseUrl)
+  }
+
+  @Test
+  fun getConfFillsCollectionsAndMapsThatOnlyHaveAGetter() {
+    val conf =
+      dagRunWithConf(
+        mapOf(
+          "TABLES" to listOf(mapOf("table_name" to "orders")),
+          "tables_by_name" to mapOf("Sales_Key" to mapOf("table_name" to "sales")),
+        ),
+      ).getConf(GetterOnlyTables::class.java)
+
+    Assertions.assertEquals("orders", conf.getTables().single().tableName)
+    Assertions.assertEquals("sales", conf.getTablesByName()["Sales_Key"]?.tableName)
+  }
+
+  @Test
+  fun getConfRejectsTwoKeysThatMatchOneField() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        dagRunWithConf(mapOf("target_table" to "a", "TargetTable" to "b")).getConf(EtlConf::class.java)
+      }
+
+    Assertions.assertEquals(
+      "Dag run conf keys 'target_table' and 'TargetTable' both match field EtlConf.targetTable when case and " +
+        "underscores are ignored, so the SDK cannot tell which one to use. Name the field exactly as the key " +
+        "it should take.",
+      error.message,
+    )
+  }
+
+  @Test
+  fun getConfRejectsNullOnlyForPrimitiveFields() {
+    Assertions.assertNull(dagRunWithConf(mapOf("target_table" to null)).getConf(EtlConf::class.java).targetTable)
+
+    listOf("limit", "LIMIT").forEach { key ->
+      val error =
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+          dagRunWithConf(mapOf(key to null)).getConf(EtlConf::class.java)
+        }
+
+      Assertions.assertEquals(
+        "Dag run conf key '$key' is null, but field EtlConf.limit has a primitive type that cannot be null. " +
+          "Declare a boxed type (e.g. Integer instead of int) to receive null.",
+        error.message,
+      )
+    }
+  }
+
+  @Test
+  fun getConfRejectsFieldsThatDifferOnlyInCaseOrUnderscores() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        dagRunWithConf(emptyMap()).getConf(FoldClash::class.java)
+      }
+
+    Assertions.assertEquals(
+      "Fields FoldClash.targetTable and FoldClash.targettable differ only in case or underscores, so the SDK " +
+        "cannot tell which one a Dag run conf key should go to. Rename one of them.",
+      error.message,
+    )
+  }
+
+  @Test
+  fun getConfNamesTheTargetClassWhenAValueDoesNotConvert() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        dagRunWithConf(mapOf("limit" to "many")).getConf(EtlConf::class.java)
+      }
+
+    val message = error.message.orEmpty()
+    Assertions.assertTrue(message.startsWith("Cannot convert the Dag run conf to org.apache.airflow.sdk.EtlConf: ")) {
+      message
+    }
+    Assertions.assertInstanceOf(IllegalArgumentException::class.java, error.cause)
   }
 }

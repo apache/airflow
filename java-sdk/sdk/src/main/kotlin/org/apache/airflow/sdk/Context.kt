@@ -21,6 +21,7 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.internal.bindConf
 import java.time.OffsetDateTime
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
@@ -81,7 +82,8 @@ enum class DagRunType {
  * @property dataIntervalEnd End of the data interval.
  * @property runAfter A date-time tells the scheduler when the Dag run can be scheduled.
  * @property runType How the run was created.
- * @property conf The configuration for this run.
+ * @property conf The configuration for this run. [getConf] reads it into an
+ *    instance of a class with typed fields.
  */
 data class DagRun(
   @JvmField val dagId: String,
@@ -92,7 +94,45 @@ data class DagRun(
   @JvmField val runAfter: OffsetDateTime?,
   @JvmField val runType: DagRunType?,
   @JvmField val conf: Map<String, Any?>,
-)
+) {
+  /**
+   * Reads [conf] into a new instance of [type]. For example, [type] can be a
+   * class with one field per conf key.
+   *
+   * ```java
+   * public static class EtlConf {
+   *   public String targetTable; // set from the "target_table" key
+   *   public int limit = 100;    // stays 100 when the conf has no "limit" key
+   * }
+   *
+   * EtlConf etl = context.dagRun.getConf(EtlConf.class);
+   * ```
+   *
+   * Each key goes to the field, setter or record component whose name matches
+   * the key when case and underscores are ignored. If one key matches a name
+   * exactly, that key wins over keys that match the same name only when case
+   * and underscores are ignored. Objects nested in the conf follow the same
+   * rules, including objects in lists and objects that are map values. The keys
+   * of a map field stay as written.
+   *
+   * Keys that match no field are ignored, because other tasks in the run may
+   * read them. A field with no matching key keeps its default value. The class
+   * needs a no-argument constructor and public fields or setters. A record also
+   * works. In Kotlin, declare the fields with `@JvmField`, so that a property
+   * such as `isEnabled` keeps its name.
+   *
+   * Annotating a field with [ArgName] has no effect here. Read a key that no
+   * Java name can match, such as `target-table`, from [conf] instead.
+   *
+   * @param type Class to read the conf into.
+   * @throws IllegalArgumentException if a value cannot be converted to the type
+   *    of its field, or if a key holds null for a primitive field. It is also
+   *    thrown if two keys match the same field only when case and underscores
+   *    are ignored, or if two fields of a class differ only in case or
+   *    underscores.
+   */
+  fun <T : Any> getConf(type: Class<T>): T = bindConf(conf, type)
+}
 
 /**
  * Identifies the task instance that is currently executing.
