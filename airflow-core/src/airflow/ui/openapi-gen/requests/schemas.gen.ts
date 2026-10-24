@@ -2262,6 +2262,76 @@ export const $BulkUpdateAction_VariableBody_ = {
     title: 'BulkUpdateAction[VariableBody]'
 } as const;
 
+export const $CancelRequestStatus = {
+    type: 'string',
+    enum: ['pending', 'applied', 'failed'],
+    title: 'CancelRequestStatus',
+    description: 'Where a cancel request is, as ``WebhookCancelRequest.status`` stores it.'
+} as const;
+
+export const $CancelledRunResponse = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState',
+            description: `\`failed\`, or \`running\` or \`queued\` if a teardown still has to run first.`
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'state'],
+    title: 'CancelledRunResponse',
+    description: 'A run that a cancel request cancelled.'
+} as const;
+
+export const $CancelledTaskInstanceResponse = {
+    properties: {
+        ti_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ti Id',
+            description: "The task instance's id."
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        state: {
+            '$ref': '#/components/schemas/TaskInstanceState'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'task_id', 'map_index', 'state'],
+    title: 'CancelledTaskInstanceResponse',
+    description: 'A task instance that a cancel request ended.'
+} as const;
+
 export const $ClearPartitionsBody = {
     properties: {
         partition_key: {
@@ -3580,6 +3650,21 @@ export const $DAGDetailsResponse = {
                     type: 'null'
                 }
             ]
+        },
+        cancel_on: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/WebhookMatchResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cancel On',
+            description: "The webhook deliveries that cancel the Dag's runs about their correlation key, or null if none do."
         },
         is_backfillable: {
             type: 'boolean',
@@ -7604,6 +7689,24 @@ export const $SchedulerInstanceInfoResponse = {
     description: 'Scheduler instance info serializer for responses.'
 } as const;
 
+export const $SkippedCancelRunResponse = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        reason: {
+            type: 'string',
+            title: 'Reason',
+            description: 'Why: `dag_not_found` if its Dag version could not be loaded; `dag_has_team` if its Dag belongs to a team.'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'reason'],
+    title: 'SkippedCancelRunResponse',
+    description: "A run about a cancel request's correlation key that the scheduler left as it was."
+} as const;
+
 export const $StructuredLogMessage = {
     properties: {
         timestamp: {
@@ -9130,6 +9233,34 @@ export const $TaskResponse = {
             ],
             title: 'Is Mapped'
         },
+        cancel_on: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/WebhookMatchResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cancel On',
+            description: 'The webhook deliveries that end the task in the runs about their correlation key, or null if none do.'
+        },
+        cancel_state: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['failed', 'skipped']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cancel State',
+            description: 'The state such a delivery ends the task in, or null if the task has no `cancel_on`.'
+        },
         extra_links: {
             items: {
                 type: 'string'
@@ -9749,6 +9880,170 @@ export const $WaitStatus = {
     description: 'Where a webhook wait is, as ``InboundWait.status`` stores it.'
 } as const;
 
+export const $WebhookCancelRequestResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        targets: {
+            '$ref': '#/components/schemas/WebhookCancelTargetsResponse'
+        },
+        status: {
+            '$ref': '#/components/schemas/CancelRequestStatus',
+            description: `\`pending\` until the scheduler applies it, which it does within a second or two while it runs; then \`applied\`, or \`failed\` if applying it raised an error, which the scheduler logged.`
+        },
+        applied_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Applied At',
+            description: 'When the scheduler applied it, or failed to.'
+        },
+        result: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/WebhookCancelResultResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The runs and task instances it cancelled. A run created later from an earlier delivery is added when the scheduler cancels it as it creates it, which can happen while it is `pending`.'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'targets', 'status', 'applied_at', 'result'],
+    title: 'WebhookCancelRequestResponse',
+    description: 'A cancel request that a delivery recorded, and what the scheduler did with it.'
+} as const;
+
+export const $WebhookCancelResultResponse = {
+    properties: {
+        dag_runs: {
+            items: {
+                '$ref': '#/components/schemas/CancelledRunResponse'
+            },
+            type: 'array',
+            title: 'Dag Runs',
+            description: 'The runs it failed, if a condition of the Dag itself matched.'
+        },
+        task_instances: {
+            items: {
+                '$ref': '#/components/schemas/CancelledTaskInstanceResponse'
+            },
+            type: 'array',
+            title: 'Task Instances',
+            description: "The task instances it ended, if a task's condition matched."
+        },
+        skipped_runs: {
+            items: {
+                '$ref': '#/components/schemas/SkippedCancelRunResponse'
+            },
+            type: 'array',
+            title: 'Skipped Runs',
+            description: 'The runs about its correlation key that it left as they were.'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error',
+            description: 'The error that applying it raised, if it failed.'
+        }
+    },
+    type: 'object',
+    title: 'WebhookCancelResultResponse',
+    description: 'What the scheduler did with a cancel request.'
+} as const;
+
+export const $WebhookCancelRunTargetResponse = {
+    properties: {
+        correlation_key_confs: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Correlation Key Confs',
+            description: "The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are."
+        }
+    },
+    type: 'object',
+    required: ['correlation_key_confs'],
+    title: 'WebhookCancelRunTargetResponse',
+    description: 'The whole runs a cancel request fails.'
+} as const;
+
+export const $WebhookCancelTargetsResponse = {
+    properties: {
+        run: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/WebhookCancelRunTargetResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set if a condition of the Dag itself matched, which fails the whole run.'
+        },
+        tasks: {
+            items: {
+                '$ref': '#/components/schemas/WebhookCancelTaskTargetResponse'
+            },
+            type: 'array',
+            title: 'Tasks',
+            description: 'The tasks whose conditions matched, by task id.'
+        }
+    },
+    type: 'object',
+    required: ['run', 'tasks'],
+    title: 'WebhookCancelTargetsResponse',
+    description: 'What a cancel request cancels in each run about its correlation key.'
+} as const;
+
+export const $WebhookCancelTaskTargetResponse = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        cancel_state: {
+            type: 'string',
+            enum: ['failed', 'skipped'],
+            title: 'Cancel State'
+        },
+        correlation_key_confs: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Correlation Key Confs',
+            description: "The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are."
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'cancel_state', 'correlation_key_confs'],
+    title: 'WebhookCancelTaskTargetResponse',
+    description: 'A task that a cancel request ends in its runs, and the state it ends in.'
+} as const;
+
 export const $WebhookCollectionResponse = {
     properties: {
         webhooks: {
@@ -9907,12 +10202,71 @@ export const $WebhookDeliveryResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        cancel_requests: {
+            items: {
+                '$ref': '#/components/schemas/WebhookCancelRequestResponse'
+            },
+            type: 'array',
+            title: 'Cancel Requests',
+            description: 'The cancel requests the delivery recorded, by Dag, each with what the scheduler did with it. These records are authoritative: `actions` summarizes them, can miss one that a concurrent redelivery recorded, and still names a request whose record was removed.'
         }
     },
     type: 'object',
     required: ['id', 'webhook', 'delivery_id', 'received_at', 'source_type', 'attributes', 'correlation_key', 'outcome', 'candidates', 'actions', 'team_name'],
     title: 'WebhookDeliveryResponse',
     description: 'A delivery an inbound webhook received, without its payload.'
+} as const;
+
+export const $WebhookMatchResponse = {
+    properties: {
+        webhook: {
+            type: 'string',
+            title: 'Webhook'
+        },
+        events: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Events',
+            description: 'The delivery events it accepts, or null for any event.'
+        },
+        match: {
+            additionalProperties: {
+                items: {
+                    type: 'string'
+                },
+                type: 'array'
+            },
+            type: 'object',
+            title: 'Match',
+            description: 'The delivery attributes it requires, each with the values of which one must match.'
+        },
+        correlation_key_conf: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Correlation Key Conf',
+            description: 'The top-level conf key whose value makes a run triggered with a conf about a correlation key, or null.'
+        }
+    },
+    type: 'object',
+    required: ['webhook'],
+    title: 'WebhookMatchResponse',
+    description: "A condition on deliveries to an inbound webhook, as a Dag's or a task's ``cancel_on`` declares it."
 } as const;
 
 export const $WebhookResponse = {
@@ -10075,7 +10429,7 @@ export const $WebhookWaitResponse = {
         },
         status: {
             '$ref': '#/components/schemas/WaitStatus',
-            description: `\`registered\` until a matching delivery arrives; \`received\` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery \`early\`; the task resumes with it once it parks; \`resumed\` once a delivery resumed the task; \`timed_out\` if none arrived before the deadline; \`ended\` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps \`registered\` or \`received\` until then.`
+            description: `\`registered\` until a matching delivery arrives; \`received\` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery for waits (\`early\`, or \`cancel_requested\` if it requested a cancel); the task resumes with it once it parks; \`resumed\` once a delivery resumed the task; \`timed_out\` if none arrived before the deadline; \`ended\` if the task registered another wait, if a webhook cancel request ended its task, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps \`registered\` or \`received\` until then.`
         },
         deadline: {
             type: 'string',

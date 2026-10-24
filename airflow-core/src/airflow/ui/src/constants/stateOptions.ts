@@ -92,6 +92,11 @@ export const webhookDeliveryOutcomeOptions = createListCollection({
       value: "accepted",
     },
     {
+      explanation: "browse:webhookDeliveries.outcomeExplanations.cancel_requested",
+      label: "browse:webhookDeliveries.outcomes.cancel_requested",
+      value: "cancel_requested",
+    },
+    {
       explanation: "browse:webhookDeliveries.outcomeExplanations.dag_paused",
       label: "browse:webhookDeliveries.outcomes.dag_paused",
       value: "dag_paused",

@@ -349,7 +349,8 @@ deliveries record events on data assets, so that the Dags scheduled on them run,
 :ref:`asset routes <inbound-webhooks-asset-routes>`.
 
 For details and examples, see :doc:`webhook-topics`. A task can also wait in a running Dag run for a
-delivery, as described in :doc:`webhook-waits`.
+delivery, as described in :doc:`webhook-waits`, and a Dag or a task can declare which later deliveries
+cancel the runs about the same pull request or other subject, as described in :doc:`webhook-cancel`.
 
 Advanced asset scheduling with conditional expressions
 --------------------------------------------------------

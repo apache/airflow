@@ -288,10 +288,11 @@ delivery has a correlation key, went to no other wait and recorded no topic or a
 connection, records an event on a data asset for the deliveries that offer its topic name, so that the
 Dags scheduled on the asset run.
 
-A kept delivery's outcome is ``early``, and the first wait that matches it and is registered within
-:ref:`[webhooks] early_delivery_ttl <config:webhooks>` seconds of its receipt, 600 by default, takes it: the
-task resumes as soon as it parks, without waiting. A wait that several early deliveries match takes the
-oldest.
+A kept delivery's outcome is ``early``, or ``cancel_requested`` if it also recorded cancel requests for
+Dags whose ``cancel_on`` it matches (see :doc:`webhook-cancel`), and the first wait that matches it and is
+registered within :ref:`[webhooks] early_delivery_ttl <config:webhooks>` seconds of its receipt, 600 by
+default, takes it: the task resumes as soon as it parks, without waiting. A wait that several kept
+deliveries match takes the oldest.
 
 The correlation key says what a delivery is about, and only its source type sets it:
 
@@ -307,13 +308,17 @@ A wait does not match on the correlation key: it only decides which deliveries a
   after it never gets it, even one registered while the delivery was being recorded. Do not schedule Dags
   on the deliveries that a wait may have to get early, and have the Deployment Manager keep asset routes
   off them, since a route that records an event for such a delivery has the same effect.
-* A webhook keeps at most :ref:`[webhooks] early_delivery_max_per_webhook <config:webhooks>` early
-  deliveries received within ``early_delivery_ttl``, 1000 by default. Keeping one more marks the oldest
-  ``expired``, and drops its payload, so that no wait gets it.
+* A delivery that recorded cancel requests is kept all the same. A merge gate on a pull request therefore
+  still gets the delivery that closes the pull request when the same delivery also matches the
+  ``cancel_on`` of a Dag that deploys a preview of it, and cancels that Dag's runs.
+* A webhook keeps at most :ref:`[webhooks] early_delivery_max_per_webhook <config:webhooks>` deliveries
+  for waits, ``early`` or ``cancel_requested``, received within ``early_delivery_ttl``, 1000 by default.
+  Keeping one more marks the oldest ``expired``, and drops its payload, so that no wait gets it; the
+  cancel requests it recorded stay.
 
-The sender can deliver an ``early`` or ``expired`` delivery again, as from the **Recent Deliveries** page
-of a GitHub webhook. The repeat is processed again in full, so it goes to a wait registered since, even
-after ``early_delivery_ttl``, and a Dag that subscribed or was unpaused since receives it.
+The sender can deliver an ``early``, ``cancel_requested`` or ``expired`` delivery again, as from the **Recent
+Deliveries** page of a GitHub webhook. The repeat is processed again in full, so it goes to a wait registered
+since, even after ``early_delivery_ttl``, and a Dag that subscribed or was unpaused since receives it.
 
 Outcomes
 --------
@@ -324,15 +329,22 @@ A delivery's outcome, which its record shows, tells what it did, in this order (
 * ``resumed_wait``: it went to at least one wait, whether or not it also recorded topic or asset route
   events.
 * ``accepted``: it recorded topic or asset route events and went to no wait. It is never kept for a wait.
-* ``early``: it has a correlation key, recorded no event and went to no wait, so it is kept for a wait, as
-  described above.
-* ``expired``: it was ``early`` until the webhook kept too many newer early deliveries.
+* ``cancel_requested``: it has a correlation key, recorded no event, went to no wait, and recorded cancel
+  requests for Dags whose ``cancel_on`` it matches (see :doc:`webhook-cancel`), so it is kept for a wait,
+  as described above.
+* ``early``: it has a correlation key, recorded no event, requested no cancel and went to no wait, so it is
+  kept for a wait, as described above.
+* ``expired``: it was kept for waits, ``early`` or ``cancel_requested``, until the webhook kept too many
+  newer such deliveries. The cancel requests it recorded, if any, stay.
 * ``dag_paused`` or ``no_subscribers``: it has no correlation key, recorded no event and went to no wait.
 
-A repeat of a ``resumed_wait`` or ``accepted`` delivery is answered as a duplicate and does nothing, while
-a repeat of any other is processed again in full. A delivery with a correlation key that only paused Dags
-subscribe to is therefore ``early`` rather than ``dag_paused``, and its repeat, after the Dags are
-unpaused, starts them unless a wait has taken the delivery meanwhile.
+Whatever its outcome, a delivery's record also lists the cancel requests that it recorded.
+
+A repeat of a ``resumed_wait`` or ``accepted`` delivery is answered as a duplicate and does nothing, while a
+repeat of any other is processed again in full, without recording a second cancel request for any Dag. A
+delivery with a correlation key that only paused Dags subscribe to is therefore ``early`` rather than
+``dag_paused``, and its repeat, after the Dags are unpaused, starts them unless a wait has taken the delivery
+meanwhile.
 
 Retries, clears and waiting twice
 ---------------------------------
@@ -349,17 +361,23 @@ A wait belongs to one try of its task instance:
   has passed. Meanwhile the task instance's **Details** tab says that no delivery will resume it, and the
   ``webhooks.open_waits`` metric leaves such waits out.
 * A matching delivery ends the ``registered`` wait of a try that no longer runs or waits, and is handled as
-  if that wait did not exist: if it has a correlation key and recorded no event, it is kept ``early``, so
-  the new try's wait can take it.
+  if that wait did not exist: if it has a correlation key and recorded no event, it is kept ``early``, or
+  ``cancel_requested`` if it recorded cancel requests, so the new try's wait can take it.
 * A new try that registers a wait on the same key ends the earlier try's wait. If that wait had received a
   delivery that never resumed its task, as when the try failed between the delivery and its park, the
   delivery is taken back from it: it stays ``resumed_wait`` if other waits hold it, becomes ``accepted`` if
-  it recorded topic or asset route events, so that no wait can take it, or becomes ``early`` again if it has
-  a correlation key, so that the new try can take it within ``early_delivery_ttl`` of when it was first
-  received. A delivery with none of these keeps the ended wait.
+  it recorded topic or asset route events, so that no wait can take it, or, if it has a correlation key,
+  becomes ``cancel_requested`` again if it recorded cancel requests and ``early`` again if not, so that the
+  new try can take it within ``early_delivery_ttl`` of when it was first received. A delivery with none of
+  these keeps the ended wait.
 * A try can wait more than once, such as an operator that waits again in the method that it resumes in.
   Each registration ends the try's open wait, so a later wait never resumes with a delivery that matched
   an earlier one.
+* A webhook cancel request that ends the task, through the ``cancel_on`` of its Dag or of the task itself,
+  ends the try's open wait too, with the status ``ended``, and the task is not resumed: it ends ``failed``,
+  or in its ``cancel_state``, as described in :doc:`webhook-cancel`. A parked task has no process, so
+  neither its resume method nor its ``on_kill`` runs. A cancel of the whole run calls the Dag's
+  ``on_failure_callback`` with the reason ``cancelled``, where such cleanup can go.
 
 A delivery's record can therefore list a wait that ended before its task resumed, as when a later wait of
 the same try replaced it, or when a new try took over its key and the delivery had none of the outcomes

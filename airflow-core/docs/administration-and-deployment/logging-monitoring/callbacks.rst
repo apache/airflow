@@ -87,6 +87,13 @@ and the task selected depends on the state of a Dag:
 #. On Dag run timeout, the latest started but not finished task is passed.
 #. If tasks are deadlocked, a task that should have run next but couldn't is passed.
 #. On success, the latest succeeded task is passed.
+#. When an :doc:`inbound webhook delivery </authoring-and-scheduling/webhook-cancel>` cancels the run, the
+   latest started of the tasks that the cancel stopped is passed. If it stopped none, the context has only
+   ``dag``, ``run_id`` and ``reason``.
+
+The context of a Dag callback also has ``reason``, which says why the callback runs: ``success``,
+``task_failure``, ``timed_out``, ``all_tasks_deadlocked``, or ``cancelled`` when an inbound webhook delivery
+cancelled the run through the Dag's ``cancel_on``.
 
 It's not recommended to rely on task instance variables in Dag callbacks except for human analysis, as they reflect only partial information about the Dag's state.
 For example, a timeout may be caused by a number of stalling tasks, but only one will eventually be selected for context.

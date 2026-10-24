@@ -35,6 +35,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import WebhookMatch
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
@@ -1741,8 +1742,38 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
             "team_name": None,
+            "cancel_on": None,
         }
         assert res_json == expected
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @_ALWAYS_RESERIALIZE
+    def test_dag_details_lists_cancel_on(self, dag_maker, test_client):
+        cancel_on = [
+            WebhookMatch(
+                "github",
+                events=["pull_request"],
+                match={"repository": ["my-org/web", "my-org/shop"], "action": "closed"},
+                correlation_key_conf="pr",
+            ),
+            WebhookMatch("slack", events=None, match=None),
+        ]
+        with dag_maker("test_details_cancel_on", schedule=None, cancel_on=cancel_on):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/dags/test_details_cancel_on/details")
+
+        assert response.status_code == 200
+        assert response.json()["cancel_on"] == [
+            {
+                "webhook": "github",
+                "events": ["pull_request"],
+                "match": {"action": ["closed"], "repository": ["my-org/shop", "my-org/web"]},
+                "correlation_key_conf": "pr",
+            },
+            {"webhook": "slack", "events": None, "match": {}, "correlation_key_conf": None},
+        ]
 
     def test_dag_details_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/details")

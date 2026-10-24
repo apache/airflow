@@ -1153,7 +1153,10 @@ ARG_WEBHOOK_NAMES = Arg(
     ("names",),
     nargs="*",
     metavar="NAME",
-    help="The webhooks to check, as in /webhooks/<name> (default: every name in [webhooks] names)",
+    help=(
+        "The webhooks to check, as in /webhooks/<name> (default: every name in [webhooks] names, and every "
+        "webhook a cancel_on names)"
+    ),
 )
 ARG_WEBHOOK_NAME = Arg(("name",), help="The webhook's name, as in /webhooks/<name>")
 ARG_WEBHOOK_URL = Arg(
@@ -1795,8 +1798,10 @@ WEBHOOKS_COMMANDS = (
         help="Check that webhooks can receive deliveries (admin only)",
         description=(
             "(Experimental) Check that [webhooks] names lists each webhook, and that its connection "
-            "webhook_<name> configures a source type that an installed provider serves. Exits with 1 on "
-            "any problem."
+            "webhook_<name> configures a source type that an installed provider serves. Lists the Dags "
+            "and tasks whose cancel_on names each webhook. Exits with 1 on any problem, such as a webhook "
+            "that a cancel_on names but [webhooks] names does not list, or, with [core] multi_team on, "
+            "a cancel_on of a Dag that belongs to a team."
         ),
         func=lazy_load_command("airflow.cli.commands.webhooks_command.check"),
         args=(ARG_WEBHOOK_NAMES, ARG_VERBOSE),
@@ -1810,7 +1815,7 @@ WEBHOOKS_COMMANDS = (
             "connection webhook_<name> sets token_header, the secret is sent in that header. Options that "
             "are not given are taken from connection webhook_<name>. Redirects are not followed. Exits "
             "with 1 unless the answer is a 2xx. A test delivery is processed like any other: it records "
-            "topic events, and queues runs of the Dags scheduled on them."
+            "topic events and cancel requests, and queues runs of the Dags scheduled on them."
         ),
         func=lazy_load_command("airflow.cli.commands.webhooks_command.send_test"),
         args=(

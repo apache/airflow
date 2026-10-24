@@ -127,10 +127,14 @@ Extra (optional)
     each topic event and asset route event. Deliveries can be filtered by it in the UI, in the
     **Deliveries** tab of **Browse → Webhook Deliveries**, and through the REST API. Webhook waits use it
     to keep deliveries that arrive before their wait: a delivery with a correlation key that records no
-    topic or asset route event and goes to no wait is kept as ``early`` for
-    ``[webhooks] early_delivery_ttl`` seconds, with its payload, for a wait registered later (see
-    :ref:`apache-airflow:webhook-waits-early`). A wait matches attributes, not the key, so map the same
-    field into ``attribute_paths`` too if waits are to match it.
+    topic or asset route event and goes to no wait is kept as ``early``, or ``cancel_requested`` if it
+    recorded cancel requests, for ``[webhooks] early_delivery_ttl`` seconds, with its payload, for a wait
+    registered later (see :ref:`apache-airflow:webhook-waits-early`). A wait matches attributes, not the
+    key, so map the same field into ``attribute_paths`` too if waits are to match it.
+
+    A Dag's or a task's ``cancel_on`` acts only on deliveries that have a correlation key, and cancels the
+    runs about that key (see :ref:`apache-airflow:webhook-cancel`), so set ``correlation_key_field`` on the
+    connection of a webhook whose deliveries are to cancel runs. Without it, they request no cancel.
 
     Prefer the fields when the service puts these values in the body. The ``hmac_json`` signature
     covers the body only, and a token covers nothing, so whoever captures a delivery can send its body

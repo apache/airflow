@@ -30,10 +30,20 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Details } from "./Details";
 
-const { mockWebhookWait } = vi.hoisted(() => ({ mockWebhookWait: vi.fn<(props: unknown) => void>() }));
+const { mockCancelConditions, mockWebhookWait } = vi.hoisted(() => ({
+  mockCancelConditions: vi.fn<(props: unknown) => void>(),
+  mockWebhookWait: vi.fn<(props: unknown) => void>(),
+}));
 
 // Sibling panels each fetch their own data and are unrelated to the row under test.
 vi.mock("./BlockingDeps", () => ({ BlockingDeps: () => undefined }));
+vi.mock("./CancelConditions", () => ({
+  CancelConditions: (props: unknown) => {
+    mockCancelConditions(props);
+
+    return undefined;
+  },
+}));
 vi.mock("./ExtraLinks", () => ({ ExtraLinks: () => undefined }));
 vi.mock("./TriggererInfo", () => ({ TriggererInfo: () => undefined }));
 vi.mock("./WebhookWait", () => ({
@@ -183,5 +193,19 @@ describe("Details webhook wait", () => {
     expect(mockWebhookWait).toHaveBeenLastCalledWith(
       expect.objectContaining({ tryNumber, tryState: "failed" }),
     );
+  });
+});
+
+describe("Details cancel conditions", () => {
+  it("mounts the cancel conditions with the selected try", () => {
+    renderDetails(
+      buildTaskInstance({ dag_version: { version_number: 3 } as TaskInstanceResponse["dag_version"] }),
+      { dag_version: { version_number: 2 } as TaskInstanceHistoryResponse["dag_version"], try_number: 2 },
+      "/?try_number=2",
+    );
+
+    expect(mockCancelConditions.mock.lastCall?.[0]).toMatchObject({
+      taskInstance: { dag_version: { version_number: 2 }, try_number: 2 },
+    });
   });
 });

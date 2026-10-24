@@ -24,7 +24,7 @@ from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, WebhookMatch, task
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -37,6 +37,30 @@ from tests_common.test_utils.db import (
 )
 
 pytestmark = pytest.mark.db_test
+
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+CLOSED_JSON = {
+    "webhook": "github",
+    "events": ["pull_request"],
+    "match": {"action": ["closed"]},
+    "correlation_key_conf": None,
+}
+
+
+def _declare_decorated_task() -> None:
+    @task(cancel_on=[CLOSED], cancel_state="skipped")
+    def e2e() -> None:
+        pass
+
+    e2e()
+
+
+def _declare_mapped_task() -> None:
+    EmptyOperator.partial(task_id="e2e", cancel_on=[CLOSED])._expand(EXPAND_INPUT_EMPTY, strict=False)
+
+
+def _declare_task() -> None:
+    EmptyOperator(task_id="e2e")
 
 
 class TestTaskEndpoint:
@@ -120,6 +144,8 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "cancel_on": None,
+            "cancel_state": None,
             "doc_md": None,
         }
         response = test_client.get(
@@ -140,6 +166,8 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "is_mapped": True,
+            "cancel_on": None,
+            "cancel_state": None,
             "operator_name": "EmptyOperator",
             "owner": "airflow",
             "params": {},
@@ -205,6 +233,8 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "cancel_on": None,
+            "cancel_state": None,
             "doc_md": None,
         }
         downstream_dict = {
@@ -271,6 +301,8 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "cancel_on": None,
+            "cancel_state": None,
             "doc_md": None,
         }
         response = test_client.get(
@@ -303,6 +335,50 @@ class TestGetTask(TestTaskEndpoint):
         pinned = test_client.get(url, params={"version_number": first_version_number})
         assert pinned.status_code == 200
         assert pinned.json()["retries"] == 4
+
+    @pytest.mark.parametrize(
+        ("declare_task", "dag_kwargs", "expected_cancel_state"),
+        [
+            pytest.param(_declare_decorated_task, {}, "skipped", id="task-decorator"),
+            # A task with cancel_on and no cancel_state ends failed.
+            pytest.param(_declare_mapped_task, {}, "failed", id="partial"),
+            pytest.param(
+                _declare_task, {"default_args": {"cancel_on": [CLOSED]}}, "failed", id="default-args"
+            ),
+        ],
+    )
+    def test_should_respond_200_with_cancel_on(
+        self, test_client, declare_task, dag_kwargs, expected_cancel_state
+    ):
+        with DAG("cancellable", schedule=None, start_date=self.task1_start_date, **dag_kwargs) as dag:
+            declare_task()
+        sync_dag_to_db(dag)
+
+        response = test_client.get(f"{self.api_prefix}/cancellable/tasks/e2e")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert (body["cancel_on"], body["cancel_state"]) == ([CLOSED_JSON], expected_cancel_state)
+
+    def test_version_number_describes_cancel_on_as_it_was(self, test_client, dag_maker, session):
+        dag_id = "test_versioned_cancel_on_dag"
+
+        with dag_maker(dag_id, session=session, bundle_version="commit-one"):
+            EmptyOperator(task_id=self.task_id, cancel_on=[CLOSED], cancel_state="skipped")
+        session.commit()
+        first_version_number = DagVersion.get_version(dag_id, session=session).version_number
+
+        with dag_maker(dag_id, session=session, bundle_version="commit-two"):
+            EmptyOperator(task_id=self.task_id)
+        session.commit()
+
+        url = f"{self.api_prefix}/{dag_id}/tasks/{self.task_id}"
+
+        latest = test_client.get(url).json()
+        assert (latest["cancel_on"], latest["cancel_state"]) == (None, None)
+
+        pinned = test_client.get(url, params={"version_number": first_version_number}).json()
+        assert (pinned["cancel_on"], pinned["cancel_state"]) == ([CLOSED_JSON], "skipped")
 
     @pytest.mark.parametrize("version_number", [0, 99], ids=["zero", "never-written"])
     def test_unknown_version_number_is_not_found(self, test_client, version_number):
@@ -377,6 +453,8 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "cancel_on": None,
+                    "cancel_state": None,
                     "doc_md": None,
                 },
                 {
@@ -409,6 +487,8 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "cancel_on": None,
+                    "cancel_state": None,
                     "doc_md": None,
                 },
             ],
@@ -433,6 +513,8 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    "cancel_on": None,
+                    "cancel_state": None,
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
@@ -484,6 +566,8 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "cancel_on": None,
+                    "cancel_state": None,
                     "doc_md": None,
                 },
             ],
@@ -539,6 +623,8 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "cancel_on": None,
+                    "cancel_state": None,
                     "doc_md": None,
                 }
                 for (task_id, downstream_task_id) in downstream_dict.items()
