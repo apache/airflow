@@ -385,6 +385,8 @@ class _CredentialProvider(LoggingMixin):
                     temp_credentials_fd.name, scopes=self.scopes
                 )
 
+        if not project_id:
+            project_id = ""
         return credentials, project_id
 
     def _get_credentials_using_credential_config_file_and_token_supplier(self):
