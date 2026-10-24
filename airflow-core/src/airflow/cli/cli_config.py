@@ -817,7 +817,14 @@ ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload e
 ARG_DAG_PROCESSOR_TOKEN_FILE = Arg(
     ("--token-file",),
     help="File to write the token to; it is replaced in one step and readable only by the current user",
-    required=True,
+)
+ARG_DAG_PROCESSOR_TOKEN_KUBERNETES_SECRET = Arg(
+    ("--kubernetes-secret",),
+    help="Existing Kubernetes Secret to update at key processor.jwt, instead of writing --token-file",
+)
+ARG_DAG_PROCESSOR_TOKEN_KUBERNETES_NAMESPACE = Arg(
+    ("--kubernetes-namespace",),
+    help="Namespace of --kubernetes-secret; uses the pod's service account and cluster CA",
 )
 ARG_DAG_PROCESSOR_TOKEN_VALID_FOR = Arg(
     ("--valid-for",),
@@ -2335,16 +2342,19 @@ core_commands: list[CLICommand] = [
     ),
     ActionCommand(
         name="dag-processor-token",
-        help="Write a Dag processor session token to a file",
+        help="Write a Dag processor session token to a file or Kubernetes Secret",
         description=(
             "Issue a session token that lets a Dag processor reach the Execution API for the given "
             "bundles, without the processor holding the signing key. Run it where the signing key is "
-            "available, and give the processor read access to the token file; its mode and group are kept when "
-            "rotation replaces it."
+            "available. Choose --token-file or --kubernetes-secret with --kubernetes-namespace. "
+            "File rotation preserves mode and group. Kubernetes rotation updates processor.jwt in an existing "
+            "Secret using the pod's service account; mount that Secret as a directory on the processor."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_processor_token_command.dag_processor_token"),
         args=(
             ARG_DAG_PROCESSOR_TOKEN_FILE,
+            ARG_DAG_PROCESSOR_TOKEN_KUBERNETES_SECRET,
+            ARG_DAG_PROCESSOR_TOKEN_KUBERNETES_NAMESPACE,
             ARG_BUNDLE_NAME,
             ARG_DAG_PROCESSOR_TOKEN_VALID_FOR,
             ARG_DAG_PROCESSOR_TOKEN_ROTATE,

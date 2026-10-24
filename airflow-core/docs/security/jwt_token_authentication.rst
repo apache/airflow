@@ -692,6 +692,14 @@ without querying the database. Give each processor its own writable health file.
 manager fails liveness even while the API remains healthy; a transient API outage affects
 readiness without immediately failing liveness.
 
+For Helm, set the token-file option under ``config.dag_processor`` to select the local
+probe. The chart then replaces processor pods with the ``Recreate`` strategy, because pods
+that share a session token cannot run their Jobs side by side, and rejects more than one
+replica for the same reason. Disable the processor's migration-wait init container, provision the catalog
+separately, and remove server credentials from the pod. The Compose example selects the
+local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither the
+main chart release nor the quick-start Compose file removes shared credentials or adds
+database-denying network policies automatically; the isolated examples below do.
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
 entrypoint otherwise checks the database before starting the command. Do not set
 ``_AIRFLOW_DB_MIGRATE`` or ``_AIRFLOW_WWW_USER_CREATE`` in that container.
@@ -699,16 +707,123 @@ entrypoint otherwise checks the database before starting the command. Do not set
 Isolated deployment examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following examples run only the processor, alongside an existing trusted deployment.
+The following examples isolate the processor from an existing trusted deployment.
 Use an image containing processor API support; this feature targets Airflow 3.5.
-Synchronize the bundle catalog and run token provisioning in the trusted deployment as
-described above. Keep the token provisioner running, and mount its directory rather than
-a single file so atomic token replacement remains visible.
+Synchronize the bundle catalog in the trusted deployment before starting the processor,
+and again whenever the bundle configuration changes::
+
+    airflow dag-processor --sync-bundles-only
+
+This step needs database access and the deployment's Fernet key when signing bundle URLs.
+Token provisioning itself needs only the API's JWT signing configuration and the configured
+bundle names; it does not access the metadata database.
 
 Before starting the isolated processor, stop the trusted deployment's processor for the bundles
 being moved. If that processor must continue serving other bundles, restrict it with
 ``--bundle-name`` to those other bundles. This prevents conflicting inventory reconciliation
 and keeps Dag code for the moved bundles out of the database-credentialed processor.
+
+Kubernetes token provisioner
+""""""""""""""""""""""""""""
+
+For Kubernetes, use the :download:`processor-only Helm values <dag-processor-api/helm-values.yaml>`
+in a **separate release and namespace**. These values disable other components and built-in
+server credential injection. Do not apply them to the release running the scheduler/API server.
+
+The :download:`token provisioner manifest <dag-processor-api/kubernetes-token-provisioner.yaml>`
+automatically maintains the processor's ``dag-processor-session`` Secret. It runs
+``airflow dag-processor-token --kubernetes-secret dag-processor-session
+--kubernetes-namespace airflow-dag-processor --bundle-name dags-folder --valid-for 600 --rotate``
+in the trusted ``airflow`` namespace. Its service account can only get and patch that
+named Secret in the ``airflow-dag-processor`` namespace. The processor has neither the
+signing key nor a mounted Kubernetes API credential.
+
+Customize both files before applying them:
+
+* Set both images to an image containing this feature. The manifest assumes the trusted
+  release and namespace are named ``airflow``; update namespace references, the API
+  service address, and NetworkPolicy selectors together if yours differ.
+* Point the provisioner's ``AIRFLOW__API_AUTH__JWT_SECRET`` at the API server's signing
+  Secret. For the Helm chart's default configuration this is ``<release>-jwt-secret``,
+  key ``jwt-secret``; ``jwtSecretName`` overrides the Secret name. For asymmetric signing,
+  replace this environment variable with the matching private-key mount and
+  ``AIRFLOW__API_AUTH__JWT_PRIVATE_KEY_PATH``.
+* Copy any non-default signing algorithm, key ID, issuer, and execution API audience
+  settings from the API server. Do not copy database credentials or the entire server
+  configuration into the provisioner. Restart the provisioner when its signing
+  configuration changes, including a signing Secret supplied through environment variables.
+* Match ``--bundle-name`` and ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST`` to the
+  catalog and processor configuration. Repeat ``--bundle-name`` for additional bundles.
+  Provisioning reads their names without loading bundle classes or fetching Dag files.
+* Create the ``processor-dags`` PVC in ``airflow-dag-processor`` and populate it with
+  the local Dag files. The provisioner needs no volume for its session state: it reads
+  the current token from the Secret on startup and preserves that session across restarts.
+
+Apply the :download:`egress policy <dag-processor-api/network-policy.yaml>` in the processor
+namespace before starting its pods. It permits only DNS and the trusted API server. Adjust
+its namespace/pod selectors and ports to match the deployment. NetworkPolicy enforcement
+requires a supporting cluster network plugin; other policies selecting these pods must not
+grant broader egress. This example uses local Dag files. Remote bundles need additional,
+explicit egress to their source service.
+
+For a fresh deployment, keep the empty ``Secret`` document in the provisioner manifest.
+The Secret must exist before the command runs: the provisioner has no permission to create
+or delete Secrets.
+
+To adopt an existing processor Secret while preserving its session:
+
+* Stop the previous token publisher and prevent it from restarting.
+* Keep the existing Secret and its ``processor.jwt`` value. Match the provisioner's
+  Secret name, namespace, and bundle names to that token's current grant.
+* Remove the entire ``kind: Secret`` document from your copy of
+  ``kubernetes-token-provisioner.yaml`` before applying it, and keep it excluded from
+  subsequent applies. Do not delete the live Secret. If an earlier ``kubectl apply``
+  managed its token data, applying an empty Secret document can remove that data through
+  the last-applied configuration and cause the provisioner to create a new session.
+
+After preparing the files for a fresh deployment or adoption, start the provisioner
+and then the processor::
+
+    kubectl apply -f kubernetes-token-provisioner.yaml
+    kubectl -n airflow rollout status deployment/dag-processor-token-provisioner
+    kubectl -n airflow-dag-processor wait --for=jsonpath='{.data.processor\.jwt}' secret/dag-processor-session --timeout=120s
+    kubectl -n airflow-dag-processor apply -f network-policy.yaml
+    helm upgrade --install dag-processor apache-airflow/airflow \
+        --namespace airflow-dag-processor --values helm-values.yaml
+
+For Secrets created by this example, the manifest deliberately omits ``data`` and
+``stringData`` from the first apply, so later applies leave the provisioner's token intact.
+When adopting an existing Secret, the provisioner reads its current token and reuses the
+session for the same bundle grant. Restrict other writers to this Secret; deleting and
+recreating it or changing the authorized bundle set creates a new session. Restart the
+processor when changing sessions. Each concurrently running
+processor needs a separate provisioner and Secret. Both example Deployments use one replica and
+``Recreate``; do not scale a deployment whose replicas share a session token.
+
+The provisioner writes a token immediately and rotates it every 300 seconds, with each
+token valid for 600 seconds. It updates the Secret directly; no external ``kubectl`` loop,
+sidecar publisher, or persistent token directory is needed. Kubernetes eventually projects
+the updated Secret into the processor's mounted directory, which the processor reloads
+without restarting. Keep the directory mount in the values file: a ``subPath`` mount
+does not receive `Secret updates <https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod>`_.
+Choose a token lifetime that leaves time for your cluster's projection delay and transient outages.
+
+The ``kubectl rollout status`` check confirms that the provisioner process started;
+the Secret-key wait checks only that a token has been published at least once. Neither
+check proves that an existing token is still valid or that rotation continues successfully.
+
+Allow the trusted provisioner to reach the Kubernetes API over TLS if the trusted
+namespace restricts egress. It uses its mounted service-account token and cluster CA,
+and reloads that credential on each request. In rotation mode, Kubernetes read and update
+failures are retried with backoff, including during initial issuance. Initial signing or
+configuration errors exit the command and Kubernetes restarts it. Later rotation failures
+also retry; the previous token remains usable until it expires. An outage lasting beyond expiry
+prevents the processor from renewing its API credentials. Monitor provisioner failures
+and processor readiness, and restore Kubernetes API access or signing configuration
+before the token expires. Monitor the token's expiry without logging its value.
+
+Compose token provisioner
+"""""""""""""""""""""""""
 
 For Compose, use the :download:`standalone processor definition <dag-processor-api/docker-compose.yaml>`
 as its own project, rather than merging it with the quick-start file. It has no shared
@@ -717,7 +832,9 @@ It serves ``dags-folder`` from its own ``./dags`` directory. Disable the quick-s
 ``airflow-dag-processor`` service unless it is restricted to other bundles: processors that
 reconcile different file sets for the same bundle mark each other's missing Dags stale.
 Create its ``tokens``, ``dags``, and ``logs`` directories with permissions for the configured
-container user; provision ``tokens/processor.jwt``. Set ``AIRFLOW_IMAGE_NAME`` to the image
+container user; run the file-based token provisioner described above continuously to
+maintain ``tokens/processor.jwt``. Mount the directory rather than a single file so
+atomic token replacement remains visible. Set ``AIRFLOW_IMAGE_NAME`` to the image
 with API support. Create an internal network and attach only the API server and processor::
 
     docker network create --internal dag-processor-api
