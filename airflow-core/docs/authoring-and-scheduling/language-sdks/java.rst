@@ -719,6 +719,53 @@ The ``Client``
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the stored
    value when the Variable is read back. ``setVariable`` without a description clears the existing description.
 
+.. _java-sdk/cancellation:
+
+Stopping when Airflow asks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow asks a running task to stop when, for example, a user marks its task instance as failed. The
+supervisor, the Airflow process that started the task's JVM, then sends the JVM ``SIGTERM``. If the JVM
+is still running after a grace period, the supervisor sends ``SIGKILL``. When a user marks the task
+instance failed or success, or clears it, the grace period is
+:ref:`core.killed_task_cleanup_time <config:core__killed_task_cleanup_time>` seconds.
+
+A task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
+would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as
+soon as Airflow asks the task to stop. Once a task has called either method, the SDK catches the first
+``SIGTERM`` or ``SIGINT`` and the JVM keeps running. The task can then stop its work, such as a process
+it started, and throw. Keep checking until the task returns, because the first signal no longer stops
+the JVM:
+
+.. code-block:: java
+
+    public class ReportTask implements Task {
+      @Override
+      public void execute(Context context, Client client) throws Exception {
+        Process report = new ProcessBuilder("./build-report.sh").inheritIO().start();
+        while (!context.isCancelled()) {
+          if (report.waitFor(1, TimeUnit.SECONDS)) {
+            if (report.exitValue() != 0) {
+              throw new IllegalStateException("build-report.sh failed");
+            }
+            return;
+          }
+        }
+        report.destroy();
+        throw new IllegalStateException("Airflow asked the task to stop");
+      }
+    }
+
+Throw rather than return when the task stops early, because returning reports success for work the
+task did not finish. If a user changed the task instance's state while the task ran, for example by
+marking the task instance failed, Airflow keeps that state whatever the task reports.
+
+A task that has never checked cannot stop on its own, so for that task the JVM handles the signal as it
+does without the SDK: shutdown hooks run and the JVM exits. The JVM handles a second signal the same
+way, so sending the signal a second time stops a task that does not stop when asked. For a task that
+has checked, shutdown hooks run when the JVM exits after the task returns. The shutdown hooks do not run
+at all if the supervisor has to kill the JVM with ``SIGKILL``.
+
 .. _java-sdk/task-state-store:
 
 Task state store

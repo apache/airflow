@@ -19,8 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import java.time.Duration
 import java.time.OffsetDateTime
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
@@ -126,6 +128,54 @@ data class Context(
 ) {
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
+
+  // The value is read once, when the context is made. The server sets Cancellation.running back to
+  // null once it is done with the task, so a context that read the field on every call would stop
+  // seeing the stop request in code that runs after that, such as a JVM shutdown hook.
+  private val cancellation = Cancellation.current()
+
+  /**
+   * Whether Airflow has asked this task to stop.
+   *
+   * Airflow asks a running task to stop when, for example, a user marks its task
+   * instance as failed. The supervisor, which is the Airflow process that started
+   * the JVM, then sends the JVM SIGTERM. If the JVM is still running after a
+   * grace period, the supervisor sends SIGKILL.
+   *
+   * Once a task has called this method or [awaitCancellation], the SDK catches
+   * the first SIGTERM or SIGINT. The SDK records the stop request instead of
+   * letting the JVM exit, so the task can stop its work before SIGKILL arrives.
+   * From then on the task must keep checking until it returns.
+   *
+   * If a task has called neither method, or if a second signal arrives, the JVM
+   * handles the signal as it would without the SDK. By default the JVM runs its
+   * shutdown hooks and exits.
+   *
+   * Every context made while the task runs sees the same stop request,
+   * including a context made with `copy()`, and keeps seeing it after the task
+   * returns. A context made when the server is not running a task, for example
+   * in a unit test that calls a task directly, never sees a stop request.
+   */
+  fun isCancelled(): Boolean = cancellation.check()
+
+  /**
+   * Waits until Airflow asks this task to stop, or until [timeout] passes.
+   *
+   * Use this method in place of [Thread.sleep] in a polling loop, so the task
+   * stops waiting as soon as Airflow asks it to stop. See [isCancelled] for when
+   * Airflow asks a task to stop.
+   *
+   * A context made when the server is not running a task never sees a stop
+   * request. On such a context, this method waits for the whole [timeout] and
+   * returns false.
+   *
+   * @param timeout How long to wait at most.
+   * @return `true` if Airflow asked the task to stop, `false` if [timeout]
+   *    passed first.
+   * @throws InterruptedException if the waiting thread is interrupted.
+   */
+  @Throws(InterruptedException::class)
+  fun awaitCancellation(timeout: Duration): Boolean = cancellation.await(timeout)
 
   internal companion object {
     fun from(
