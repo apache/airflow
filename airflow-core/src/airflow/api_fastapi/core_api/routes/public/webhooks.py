@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
@@ -38,8 +40,10 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.webhooks import (
+    WebhookCancelRequestResponse,
     WebhookCollectionResponse,
     WebhookDeliveryCollectionResponse,
+    WebhookDeliveryResponse,
     WebhookResponse,
     WebhookWaitCollectionResponse,
 )
@@ -56,6 +60,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.inbound_wait import InboundWait
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.webhook_cancel_request import WebhookCancelRequest
 from airflow.webhooks.connections import CONN_ID_PREFIX
 from airflow.webhooks.registry import WEBHOOK_NAME_PATTERN, WebhookRegistry, parse_webhook_names
 from airflow.webhooks.status import get_webhook_status
@@ -74,6 +79,28 @@ def _get_listed_webhook_names() -> frozenset[str]:
         # [webhooks] is validated only where webhooks are served, so an invalid value, such as a
         # team-qualified name that only a newer Airflow accepts, must not hide recorded deliveries.
         return frozenset()
+
+
+def _get_cancel_requests(
+    deliveries: Sequence[InboundDelivery], *, session: Session
+) -> dict[UUID, list[WebhookCancelRequestResponse]]:
+    """
+    Return the cancel requests that each of ``deliveries`` recorded, by delivery record id and Dag.
+
+    The table, not a delivery's ``actions``, says what became of each request. A delivery records
+    requests only if it has a correlation key, so a page without one runs no query.
+    """
+    delivery_ids = [delivery.id for delivery in deliveries if delivery.correlation_key is not None]
+    if not delivery_ids:
+        return {}
+    requests: defaultdict[UUID, list[WebhookCancelRequestResponse]] = defaultdict(list)
+    for request in session.scalars(
+        select(WebhookCancelRequest)
+        .where(WebhookCancelRequest.inbound_delivery_id.in_(delivery_ids))
+        .order_by(WebhookCancelRequest.inbound_delivery_id, WebhookCancelRequest.dag_id)
+    ):
+        requests[request.inbound_delivery_id].append(WebhookCancelRequestResponse.model_validate(request))
+    return requests
 
 
 def get_readable_webhook_names(*, user: BaseUser, session: Session) -> set[str]:
@@ -243,8 +270,15 @@ def get_webhook_deliveries(
         session=session,
     )
 
+    deliveries = session.scalars(deliveries_select).all()
+    cancel_requests = _get_cancel_requests(deliveries, session=session)
     return WebhookDeliveryCollectionResponse(
-        deliveries=session.scalars(deliveries_select),
+        deliveries=[
+            WebhookDeliveryResponse.model_validate(delivery).model_copy(
+                update={"cancel_requests": cancel_requests.get(delivery.id, [])}
+            )
+            for delivery in deliveries
+        ],
         total_entries=total_entries,
     )
 

@@ -71,13 +71,45 @@
     "delivery_other": "Deliveries",
     "details": {
       "actions": "Actions",
+      "appliedAt": "Applied At",
       "assetEvents": "Asset Events",
       "assetRouteEvents": "Asset Route Events",
       "attributes": "Attributes",
+      "cancelError": "Error",
+      "cancelRequestStatus": "Status",
+      "cancelRequestStatusExplanations": {
+        "applied": "The scheduler applied it to the runs that are about this delivery's correlation key: those started from an event that an earlier delivery recorded, and those queued before this delivery with the key in their conf.",
+        "failed": "Applying it failed; the scheduler logged the error.",
+        "gone": "Its record is gone: airflow db clean removed it, or its Dag was deleted.",
+        "pending": "The scheduler has not applied it yet. While it runs, it looks for pending requests about once a second.",
+        "unknown": "This version of the UI has no description of this status."
+      },
+      "cancelRequestStatuses": {
+        "applied": "Applied",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "cancelRequests": "Cancel Requests",
+      "cancelScope": "Scope",
+      "cancelScopes": {
+        "run": "Whole run",
+        "task": "Tasks"
+      },
+      "cancelTasks": "Tasks",
+      "cancelledRuns": "Cancelled Runs",
+      "cancelledTaskInstances": "Cancelled Task Instances",
       "candidates": "Topic Names",
+      "failedAt": "Failed At",
       "id": "ID",
+      "noRunCancelled": "The scheduler changed nothing: no queued or running run about this delivery's correlation key had a targeted task left to end, teardowns aside. A run created later from an earlier delivery is cancelled as it is created.",
       "notFound": "No delivery with this ID is recorded for a webhook you may read.",
       "partitionKeyField": "Partition Key Field",
+      "runsNotCancelled": "Runs Not Cancelled",
+      "runsNotCancelledReasons": {
+        "dag_has_team": "Its Dag belongs to a team, and this version of Airflow cancels no runs of Dags with a team.",
+        "dag_not_found": "The scheduler could not load the Dag version of the run.",
+        "unknown": "This version of the UI has no description of this reason."
+      },
       "show": "Show Details",
       "skippedAssetRoutes": "Skipped Asset Routes",
       "title": "Delivery Details",
@@ -86,16 +118,18 @@
       "waits": "Webhook Waits"
     },
     "outcomeExplanations": {
-      "accepted": "Airflow recorded an event on each of this delivery's topic names, and on each asset that its asset routes name, that an unpaused Dag schedules on, so those Dags can run.",
+      "accepted": "Airflow recorded an event on each of this delivery's topic names, and on each asset that its asset routes name, that an unpaused Dag schedules on, so those Dags can run. The cancels it requested, if any, are listed under Cancel Requests.",
+      "cancel_requested": "This delivery has a correlation key and matched the cancel_on of the Dags listed under Cancel Requests, but recorded no event. Airflow recorded a cancel request for each Dag, which the scheduler applies within a second or two to the runs that are about that key: those started from an event that an earlier delivery recorded, including a run the scheduler creates later from such an event, and those queued before the delivery with the key in their conf. Like an early delivery, Airflow also keeps it, with what the webhook's store_payload setting keeps of its payload, for a matching webhook wait that a task registers within [webhooks] early_delivery_ttl of its receipt. If the sender delivers it again, Airflow processes it again in full and records no second request.",
       "dag_paused": "The only Dags that schedule on this delivery's topic names, or on the assets that its asset routes name, are paused, so Airflow recorded no event and unpausing one will not replay it.",
-      "early": "Nothing has acted on this delivery yet: Airflow recorded no event and no webhook wait took it. Because it has a correlation key, Airflow keeps it, with what the webhook's store_payload setting keeps of its payload, for a matching webhook wait that a task registers within [webhooks] early_delivery_ttl of its receipt. If the sender delivers it again, Airflow processes it again in full, so a Dag unpaused or subscribed since then receives it.",
-      "expired": "This delivery was early until its webhook kept [webhooks] early_delivery_max_per_webhook later early deliveries. Airflow dropped its payload, and no webhook wait registered since then gets it, unless the sender delivers it again: Airflow then processes it again in full.",
+      "early": "Nothing has acted on this delivery yet: Airflow recorded no event, requested no cancel, and no webhook wait took it. Because it has a correlation key, Airflow keeps it, with what the webhook's store_payload setting keeps of its payload, for a matching webhook wait that a task registers within [webhooks] early_delivery_ttl of its receipt. If the sender delivers it again, Airflow processes it again in full, so a Dag unpaused or subscribed since then receives it.",
+      "expired": "Airflow kept this delivery for webhook waits, as early or cancel_requested, until its webhook kept [webhooks] early_delivery_max_per_webhook later such deliveries. Airflow dropped its payload, and no webhook wait registered since then gets it, unless the sender delivers it again: Airflow then processes it again in full. The cancel requests it recorded, if any, stay.",
       "no_subscribers": "Airflow recorded no event: no Dag that an event could start schedules on this delivery's topic names, and none of its asset routes could record one. Skipped Asset Routes, when shown, says why for each route.",
-      "resumed_wait": "This delivery went to the webhook waits listed under Webhook Waits, each a task waiting for a delivery that matches it. It resumes each task at once if the task is parked, or as soon as it parks. The events it recorded, if any, are listed too.",
+      "resumed_wait": "This delivery went to the webhook waits listed under Webhook Waits, each a task waiting for a delivery that matches it. It resumes each task at once if the task is parked, or as soon as it parks. The events it recorded and the cancels it requested, if any, are listed too.",
       "unknown": "This version of the UI has no description of this outcome."
     },
     "outcomes": {
       "accepted": "Accepted",
+      "cancel_requested": "Cancel Requested",
       "dag_paused": "Dag Paused",
       "early": "Early",
       "expired": "Expired",

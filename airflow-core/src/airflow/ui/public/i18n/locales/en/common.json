@@ -45,6 +45,8 @@
   "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
+    "cancelOn": "Cancel On",
+    "cancelOnExplanation": "A delivery that matches one of these fails the queued and running runs of this Dag that are about the delivery's correlation key: those started from an event that an earlier delivery recorded, including a run the scheduler creates later from such an event, and those queued before the delivery with the key in their conf.",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
@@ -472,6 +474,10 @@
   "taskId": "Task ID",
   "taskInstance": {
     "additionalAttributes": "Additional Task Instance Attributes",
+    "cancelOn": {
+      "explanation": "A delivery that matches one of these sets this task to {{state}} in the queued and running runs of this Dag that are about the delivery's correlation key: those started from an event that an earlier delivery recorded, including a run the scheduler creates later from such an event, and those queued before the delivery with the key in their conf.",
+      "title": "Cancel On"
+    },
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
@@ -513,11 +519,10 @@
       "endedAt": "Ended At",
       "events": "Events",
       "match": "Match",
-      "oneOf": "One of {{values}}",
       "status": "Status",
       "statusExplanations": {
-        "ended": "The task registered another wait, or this try stopped running or waiting, before a matching delivery resumed it.",
-        "received": "A matching delivery arrived before the task started waiting: while the task was running, or before it registered this wait, in which case Airflow had kept it as an early delivery. The task resumes with it as soon as it starts waiting.",
+        "ended": "The task registered another wait, a webhook cancel request ended the task, or this try stopped running or waiting, before a matching delivery resumed it.",
+        "received": "A matching delivery arrived before the task started waiting: while the task was running, or before it registered this wait, in which case Airflow had kept it for webhook waits (early, or cancel_requested if it requested a cancel). The task resumes with it as soon as it starts waiting.",
         "registered": "No matching delivery has arrived yet.",
         "resumed": "A matching delivery resumed the task.",
         "timed_out": "No matching delivery arrived before the deadline, so the task resumed with a timeout."
@@ -638,6 +643,15 @@
     "mustBeValidNumber": "Must be a valid number."
   },
   "value": "Value",
+  "webhookMatch": {
+    "anyEvent": "Any event",
+    "anyMatch": "Any attributes",
+    "correlationKeyConf": "Also the runs triggered with the delivery's correlation key as {{key}} in their conf",
+    "events": "Events",
+    "match": "Match",
+    "oneOf": "One of {{values}}",
+    "webhook": "Webhook"
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",

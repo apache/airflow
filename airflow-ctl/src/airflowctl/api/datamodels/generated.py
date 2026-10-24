@@ -203,6 +203,16 @@ class BulkResponse(BaseModel):
     ] = None
 
 
+class CancelRequestStatus(str, Enum):
+    """
+    Where a cancel request is, as ``WebhookCancelRequest.status`` stores it.
+    """
+
+    PENDING = "pending"
+    APPLIED = "applied"
+    FAILED = "failed"
+
+
 class ClearPartitionsBody(BaseModel):
     """
     Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
@@ -1287,6 +1297,21 @@ class SchedulerInstanceInfoResponse(BaseModel):
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")]
 
 
+class SkippedCancelRunResponse(BaseModel):
+    """
+    A run about a cancel request's correlation key that the scheduler left as it was.
+    """
+
+    run_id: Annotated[str, Field(title="Run Id")]
+    reason: Annotated[
+        str,
+        Field(
+            description="Why: `dag_not_found` if its Dag version could not be loaded; `dag_has_team` if its Dag belongs to a team.",
+            title="Reason",
+        ),
+    ]
+
+
 class StructuredLogMessage(BaseModel):
     """
     An individual log message.
@@ -1406,6 +1431,15 @@ class TaskOutletAssetReference(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+
+
+class CancelState(str, Enum):
+    """
+    The state such a delivery ends the task in, or null if the task has no `cancel_on`.
+    """
+
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 class TaskStateStoreBody(BaseModel):
@@ -1579,6 +1613,41 @@ class WaitStatus(str, Enum):
     TIMED_OUT = "timed_out"
 
 
+class WebhookCancelRunTargetResponse(BaseModel):
+    """
+    The whole runs a cancel request fails.
+    """
+
+    correlation_key_confs: Annotated[
+        list[str],
+        Field(
+            description="The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are.",
+            title="Correlation Key Confs",
+        ),
+    ]
+
+
+class CancelState1(str, Enum):
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class WebhookCancelTaskTargetResponse(BaseModel):
+    """
+    A task that a cancel request ends in its runs, and the state it ends in.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    cancel_state: Annotated[CancelState1, Field(title="Cancel State")]
+    correlation_key_confs: Annotated[
+        list[str],
+        Field(
+            description="The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are.",
+            title="Correlation Key Confs",
+        ),
+    ]
+
+
 class WebhookConnectionStatus(str, Enum):
     """
     Whether a webhook's ``webhook_<name>`` connection configures a webhook that can be served.
@@ -1591,40 +1660,30 @@ class WebhookConnectionStatus(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
-class WebhookDeliveryResponse(BaseModel):
+class WebhookMatchResponse(BaseModel):
     """
-    A delivery an inbound webhook received, without its payload.
+    A condition on deliveries to an inbound webhook, as a Dag's or a task's ``cancel_on`` declares it.
     """
 
-    id: Annotated[UUID, Field(title="Id")]
     webhook: Annotated[str, Field(title="Webhook")]
-    delivery_id: Annotated[
-        str | None,
-        Field(description="The sender's id for the delivery, if it sends one.", title="Delivery Id"),
-    ]
-    received_at: Annotated[datetime, Field(title="Received At")]
-    source_type: Annotated[str, Field(title="Source Type")]
-    attributes: Annotated[
-        dict[str, str | int] | None,
-        Field(description="What the webhook's source type parsed from the delivery.", title="Attributes"),
-    ]
-    correlation_key: Annotated[
-        str | None,
-        Field(description="What the delivery is about, such as a pull request.", title="Correlation Key"),
-    ]
-    outcome: Annotated[
-        str,
-        Field(description="What Airflow did with the delivery, such as ``no_subscribers``.", title="Outcome"),
-    ]
-    candidates: Annotated[
+    events: Annotated[
         list[str] | None,
-        Field(description="The webhook topic names built from the delivery.", title="Candidates"),
-    ]
-    actions: Annotated[
-        dict[str, JsonValue] | None,
-        Field(description="What the delivery did, such as the topic events it recorded.", title="Actions"),
-    ]
-    team_name: Annotated[str | None, Field(title="Team Name")]
+        Field(description="The delivery events it accepts, or null for any event.", title="Events"),
+    ] = None
+    match: Annotated[
+        dict[str, list[str]] | None,
+        Field(
+            description="The delivery attributes it requires, each with the values of which one must match.",
+            title="Match",
+        ),
+    ] = None
+    correlation_key_conf: Annotated[
+        str | None,
+        Field(
+            description="The top-level conf key whose value makes a run triggered with a conf about a correlation key, or null.",
+            title="Correlation Key Conf",
+        ),
+    ] = None
 
 
 class WebhookSourceTypeStatus(str, Enum):
@@ -1658,7 +1717,7 @@ class WebhookWaitResponse(BaseModel):
     status: Annotated[
         WaitStatus,
         Field(
-            description="`registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery `early`; the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then."
+            description="`registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery for waits (`early`, or `cancel_requested` if it requested a cancel); the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, if a webhook cancel request ended its task, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then."
         ),
     ]
     deadline: Annotated[
@@ -2276,6 +2335,32 @@ class BulkUpdateActionVariableBody(BaseModel):
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
+class CancelledRunResponse(BaseModel):
+    """
+    A run that a cancel request cancelled.
+    """
+
+    run_id: Annotated[str, Field(title="Run Id")]
+    state: Annotated[
+        DagRunState,
+        Field(description="`failed`, or `running` or `queued` if a teardown still has to run first."),
+    ]
+
+
+class CancelledTaskInstanceResponse(BaseModel):
+    """
+    A task instance that a cancel request ended.
+    """
+
+    ti_id: Annotated[UUID | None, Field(description="The task instance's id.", title="Ti Id")] = None
+    run_id: Annotated[str, Field(title="Run Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    state: TaskInstanceState
+
+
 class Config(BaseModel):
     """
     List of config sections with their options.
@@ -2879,6 +2964,20 @@ class TaskResponse(BaseModel):
     params: Annotated[dict[str, Any] | None, Field(title="Params")]
     class_ref: Annotated[dict[str, Any] | None, Field(title="Class Ref")]
     is_mapped: Annotated[bool | None, Field(title="Is Mapped")]
+    cancel_on: Annotated[
+        list[WebhookMatchResponse] | None,
+        Field(
+            description="The webhook deliveries that end the task in the runs about their correlation key, or null if none do.",
+            title="Cancel On",
+        ),
+    ] = None
+    cancel_state: Annotated[
+        CancelState | None,
+        Field(
+            description="The state such a delivery ends the task in, or null if the task has no `cancel_on`.",
+            title="Cancel State",
+        ),
+    ] = None
     extra_links: Annotated[
         list[str], Field(description="Extract and return extra_links.", title="Extra Links")
     ]
@@ -2913,13 +3012,45 @@ class VariableCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class WebhookDeliveryCollectionResponse(BaseModel):
+class WebhookCancelResultResponse(BaseModel):
     """
-    Webhook delivery collection response.
+    What the scheduler did with a cancel request.
     """
 
-    deliveries: Annotated[list[WebhookDeliveryResponse], Field(title="Deliveries")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    dag_runs: Annotated[
+        list[CancelledRunResponse] | None,
+        Field(description="The runs it failed, if a condition of the Dag itself matched.", title="Dag Runs"),
+    ] = None
+    task_instances: Annotated[
+        list[CancelledTaskInstanceResponse] | None,
+        Field(
+            description="The task instances it ended, if a task's condition matched.", title="Task Instances"
+        ),
+    ] = None
+    skipped_runs: Annotated[
+        list[SkippedCancelRunResponse] | None,
+        Field(
+            description="The runs about its correlation key that it left as they were.", title="Skipped Runs"
+        ),
+    ] = None
+    error: Annotated[
+        str | None, Field(description="The error that applying it raised, if it failed.", title="Error")
+    ] = None
+
+
+class WebhookCancelTargetsResponse(BaseModel):
+    """
+    What a cancel request cancels in each run about its correlation key.
+    """
+
+    run: Annotated[
+        WebhookCancelRunTargetResponse | None,
+        Field(description="Set if a condition of the Dag itself matched, which fails the whole run."),
+    ]
+    tasks: Annotated[
+        list[WebhookCancelTaskTargetResponse],
+        Field(description="The tasks whose conditions matched, by task id.", title="Tasks"),
+    ]
 
 
 class WebhookResponse(BaseModel):
@@ -3323,6 +3454,31 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class WebhookCancelRequestResponse(BaseModel):
+    """
+    A cancel request that a delivery recorded, and what the scheduler did with it.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    targets: WebhookCancelTargetsResponse
+    status: Annotated[
+        CancelRequestStatus,
+        Field(
+            description="`pending` until the scheduler applies it, which it does within a second or two while it runs; then `applied`, or `failed` if applying it raised an error, which the scheduler logged."
+        ),
+    ]
+    applied_at: Annotated[
+        datetime | None, Field(description="When the scheduler applied it, or failed to.", title="Applied At")
+    ]
+    result: Annotated[
+        WebhookCancelResultResponse | None,
+        Field(
+            description="The runs and task instances it cancelled. A run created later from an earlier delivery is added when the scheduler cancels it as it creates it, which can happen while it is `pending`."
+        ),
+    ]
+
+
 class WebhookCollectionResponse(BaseModel):
     """
     Webhook collection response.
@@ -3330,6 +3486,49 @@ class WebhookCollectionResponse(BaseModel):
 
     webhooks: Annotated[list[WebhookResponse], Field(title="Webhooks")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class WebhookDeliveryResponse(BaseModel):
+    """
+    A delivery an inbound webhook received, without its payload.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    webhook: Annotated[str, Field(title="Webhook")]
+    delivery_id: Annotated[
+        str | None,
+        Field(description="The sender's id for the delivery, if it sends one.", title="Delivery Id"),
+    ]
+    received_at: Annotated[datetime, Field(title="Received At")]
+    source_type: Annotated[str, Field(title="Source Type")]
+    attributes: Annotated[
+        dict[str, str | int] | None,
+        Field(description="What the webhook's source type parsed from the delivery.", title="Attributes"),
+    ]
+    correlation_key: Annotated[
+        str | None,
+        Field(description="What the delivery is about, such as a pull request.", title="Correlation Key"),
+    ]
+    outcome: Annotated[
+        str,
+        Field(description="What Airflow did with the delivery, such as ``no_subscribers``.", title="Outcome"),
+    ]
+    candidates: Annotated[
+        list[str] | None,
+        Field(description="The webhook topic names built from the delivery.", title="Candidates"),
+    ]
+    actions: Annotated[
+        dict[str, JsonValue] | None,
+        Field(description="What the delivery did, such as the topic events it recorded.", title="Actions"),
+    ]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+    cancel_requests: Annotated[
+        list[WebhookCancelRequestResponse] | None,
+        Field(
+            description="The cancel requests the delivery recorded, by Dag, each with what the scheduler did with it. These records are authoritative: `actions` summarizes them, can miss one that a concurrent redelivery recorded, and still names a request whose record was removed.",
+            title="Cancel Requests",
+        ),
+    ] = None
 
 
 class BulkBodyBulkDAGBody(BaseModel):
@@ -3366,6 +3565,15 @@ class BulkBodyBulkTaskInstanceBody(BaseModel):
         ],
         Field(title="Actions"),
     ]
+
+
+class WebhookDeliveryCollectionResponse(BaseModel):
+    """
+    Webhook delivery collection response.
+    """
+
+    deliveries: Annotated[list[WebhookDeliveryResponse], Field(title="Deliveries")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class AssetExpressionAll(BaseModel):
@@ -3465,6 +3673,13 @@ class DAGDetailsResponse(BaseModel):
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     latest_dag_version: DagVersionResponse | None
+    cancel_on: Annotated[
+        list[WebhookMatchResponse] | None,
+        Field(
+            description="The webhook deliveries that cancel the Dag's runs about their correlation key, or null if none do.",
+            title="Cancel On",
+        ),
+    ] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]

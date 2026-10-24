@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, Heading, Link, Table, Text, VStack } from "@chakra-ui/react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
@@ -27,6 +26,7 @@ import type { TaskInstanceState, WebhookWaitResponse } from "openapi/requests/ty
 import Time from "src/components/Time";
 
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { formatMatchValue } from "src/utils/webhookMatch";
 
 type WebhookWaitProps = {
   readonly refetchInterval: number | false;
@@ -34,14 +34,9 @@ type WebhookWaitProps = {
   readonly tryState: TaskInstanceState | null | undefined;
 };
 
-// Nothing closes a wait when its try stops, so an open wait can outlive the try it would resume.
+// Most ways a try stops leave its wait open, so an open wait can outlive the try it would resume.
 const OPEN_STATUSES = new Set<WebhookWaitResponse["status"]>(["received", "registered"]);
 const WAITING_STATES = new Set<TaskInstanceState | null>(["awaiting_input", "running"]);
-
-const formatMatchValue = (translate: TFunction, value: WebhookWaitResponse["match"][string]) =>
-  Array.isArray(value) && value.length > 1
-    ? translate("taskInstance.webhookWait.oneOf", { values: value.join(", ") })
-    : String(value);
 
 /** The selected try's newest webhook wait, which is its open wait while it has one. */
 export const WebhookWait = ({ refetchInterval, tryNumber, tryState }: WebhookWaitProps) => {

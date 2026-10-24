@@ -17,14 +17,17 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import io
 import json
 import os
 from argparse import ArgumentParser
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from http.client import BadStatusLine, HTTPResponse, InvalidURL
+from typing import Any
 from unittest import mock
 from urllib.error import HTTPError, URLError
 from urllib.request import BaseHandler, OpenerDirector, ProxyHandler, Request, build_opener
@@ -35,11 +38,20 @@ from sqlalchemy import delete
 
 from airflow.cli.commands import webhooks_command
 from airflow.models.connection import AirflowSecretsBackendAccessDenied, Connection
+from airflow.models.dag import DagModel
+from airflow.models.dag_cancel_condition import DAG_LEVEL_TASK_ID, DagCancelCondition
+from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.team import Team
 from airflow.providers_manager import ProviderInfo, ProvidersManager
+from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.webhooks import FakeHmacSource, build_webhook_request
+from tests_common.test_utils.db import clear_db_dags, clear_db_inbound_deliveries
+from tests_common.test_utils.webhooks import (
+    FakeHmacSource,
+    build_webhook_request,
+    team_bundle as team_bundle,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -112,6 +124,40 @@ def providers(cleanup_providers_manager):
         "fake-webhooks-first": ProviderInfo(version="0.0.1", data={"webhook-sources": [dup_source]}),
         "fake-webhooks-second": ProviderInfo(version="0.0.1", data={"webhook-sources": [dup_source]}),
     }
+
+
+def add_condition(
+    session,
+    dag_id: str,
+    webhook: str,
+    *,
+    task_id: str = DAG_LEVEL_TASK_ID,
+    cancel_state: str | None = None,
+    **condition: Any,
+) -> None:
+    """Store a ``cancel_on`` condition of Dag ``dag_id``, or of its task ``task_id``, as the Dag processor would."""
+    match = SerializedWebhookMatch.build(webhook=webhook, **condition)
+    data = match.to_json()
+    session.add(
+        DagCancelCondition(
+            dag_id=dag_id,
+            task_id=task_id,
+            webhook=webhook,
+            condition_digest=match.digest,
+            events=data.get("events"),
+            match=data.get("match", {}),
+            correlation_key_conf=match.correlation_key_conf,
+            cancel_state=cancel_state,
+        )
+    )
+    session.flush()
+
+
+def build_served_line(name: str) -> str:
+    return (
+        f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps webhooks, with "
+        "source type fake, bodies of up to 2048 bytes and store_payload full"
+    )
 
 
 def run_check(parser: ArgumentParser, *names: str) -> None:
@@ -240,6 +286,192 @@ class TestCheck:
         assert capsys.readouterr().err.splitlines() == [
             "Problem with webhook demo: connection webhook_demo belongs to team analytics, and this version "
             "of Airflow serves only webhooks without a team"
+        ]
+
+    @pytest.fixture
+    def dags(self, testing_dag_bundle, session):
+        clear_db_dags()
+        session.add_all(
+            [
+                DagModel(dag_id="nightly", bundle_name="testing"),
+                DagModel(dag_id="preview_environment", bundle_name="testing"),
+            ]
+        )
+        session.commit()
+        yield
+        clear_db_dags()
+
+    @conf_vars({("webhooks", "names"): "github,demo", ("webhooks", "max_body_bytes"): "2048"})
+    @mock.patch.dict(
+        os.environ,
+        {
+            **build_connection_env("github", source_type="fake"),
+            **build_connection_env("demo", source_type="fake"),
+        },
+    )
+    def test_check_lists_the_cancel_conditions_of_each_webhook(self, parser, capsys, session, dags):
+        add_condition(
+            session,
+            "preview_environment",
+            "github",
+            events=["pull_request"],
+            match={"repository": "my-org/shop", "action": "closed"},
+            correlation_key_conf="pr",
+        )
+        add_condition(
+            session,
+            "preview_environment",
+            "github",
+            task_id="run_e2e_tests",
+            cancel_state="skipped",
+            events=["pull_request"],
+            match={"action": "synchronize", "repository": ["my-org/web", "my-org/shop"]},
+        )
+        add_condition(session, "nightly", "github", events=["push", "pull_request"])
+        add_condition(session, "nightly", "demo", task_id="report", cancel_state="failed")
+        session.commit()
+
+        run_check(parser)
+
+        out, err = capsys.readouterr()
+        assert out.splitlines() == [
+            build_served_line("demo"),
+            "Webhook demo sets task report of Dag nightly to failed on any delivery",
+            build_served_line("github"),
+            "Webhook github cancels the runs of Dag nightly on pull_request or push deliveries",
+            "Webhook github cancels the runs of Dag preview_environment on pull_request deliveries with action "
+            "closed, repository my-org/shop, and manual runs by conf key pr",
+            "Webhook github sets task run_e2e_tests of Dag preview_environment to skipped on pull_request "
+            "deliveries with action synchronize, repository one of my-org/shop, my-org/web",
+        ]
+        assert err == ""
+
+    @conf_vars({("webhooks", "names"): "demo", ("webhooks", "max_body_bytes"): "2048"})
+    @mock.patch.dict(
+        os.environ,
+        {
+            **build_connection_env("github", source_type="fake"),
+            **build_connection_env("demo", source_type="fake"),
+        },
+    )
+    def test_check_checks_unlisted_webhooks_that_cancel_conditions_name(self, parser, capsys, session, dags):
+        add_condition(session, "nightly", "github", events=["push"])
+        session.commit()
+
+        with pytest.raises(SystemExit) as exit_info:
+            run_check(parser)
+
+        out, err = capsys.readouterr()
+        assert exit_info.value.code == 1
+        assert out.splitlines() == [
+            build_served_line("demo"),
+            "Webhook github cancels the runs of Dag nightly on push deliveries",
+        ]
+        assert err.splitlines() == [
+            "Problem with webhook github: [webhooks] names does not list it, so its deliveries are answered "
+            "with 404"
+        ]
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_problems"),
+        [
+            pytest.param(
+                "True",
+                [
+                    "Problem with webhook github: Dag team_dag belongs to a team, and this version of Airflow "
+                    "records no cancel requests for Dags with a team"
+                ],
+                id="multi-team",
+            ),
+            pytest.param("False", [], id="single-team"),
+        ],
+    )
+    @conf_vars({("webhooks", "names"): "github", ("webhooks", "max_body_bytes"): "2048"})
+    @mock.patch.dict(os.environ, build_connection_env("github", source_type="fake"))
+    def test_check_fails_on_cancel_conditions_of_dags_with_a_team(
+        self, parser, capsys, session, team_bundle, dags, multi_team, expected_problems
+    ):
+        session.add(DagModel(dag_id="team_dag", bundle_name=team_bundle))
+        session.flush()
+        add_condition(session, "team_dag", "github", events=["push"])
+        add_condition(session, "nightly", "github", events=["push"])
+        session.commit()
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            pytest.raises(SystemExit) if expected_problems else contextlib.nullcontext(),
+        ):
+            run_check(parser, "github")
+
+        out, err = capsys.readouterr()
+        assert out.splitlines() == [
+            build_served_line("github"),
+            "Webhook github cancels the runs of Dag nightly on push deliveries",
+            "Webhook github cancels the runs of Dag team_dag on push deliveries",
+        ]
+        assert err.splitlines() == expected_problems
+
+    @pytest.fixture
+    def clean_deliveries(self):
+        clear_db_inbound_deliveries()
+        yield
+        clear_db_inbound_deliveries()
+
+    @pytest.mark.parametrize(
+        ("deliveries", "has_condition", "expected_note"),
+        [
+            pytest.param({}, True, None, id="no-delivery"),
+            pytest.param({"github": [None, "my-org/shop#1", None]}, True, None, id="a-keyed-delivery"),
+            pytest.param(
+                {"github": [None]},
+                True,
+                "Note: the only delivery recorded for webhook github has no correlation key, and cancel_on "
+                "acts only on deliveries that have one; a generic source sets one with correlation_key_field",
+                id="one-unkeyed-delivery",
+            ),
+            pytest.param(
+                # The keyed delivery is the oldest, beyond the two latest that are read.
+                {"github": ["my-org/shop#1", None, None], "demo": ["my-org/shop#2"]},
+                True,
+                "Note: none of the 2 latest deliveries recorded for webhook github has a correlation key, and "
+                "cancel_on acts only on deliveries that have one; a generic source sets one with "
+                "correlation_key_field",
+                id="unkeyed-latest-deliveries",
+            ),
+            pytest.param({"github": [None]}, False, None, id="unkeyed-delivery-without-a-condition"),
+        ],
+    )
+    @conf_vars({("webhooks", "names"): "github", ("webhooks", "max_body_bytes"): "2048"})
+    @mock.patch.dict(os.environ, build_connection_env("github", source_type="fake"))
+    @mock.patch.object(webhooks_command, "CORRELATION_KEY_SAMPLE_SIZE", 2)
+    def test_check_notes_deliveries_without_correlation_keys(
+        self, parser, capsys, session, dags, clean_deliveries, deliveries, has_condition, expected_note
+    ):
+        if has_condition:
+            add_condition(session, "nightly", "github", events=["push"])
+        received_at = datetime(2026, 10, 18, 12, 0, tzinfo=UTC)
+        for webhook, keys in deliveries.items():
+            for index, key in enumerate(keys):
+                session.add(
+                    InboundDelivery(
+                        webhook=webhook,
+                        delivery_id=f"{webhook}-{index}",
+                        body_digest="0" * 64,
+                        received_at=received_at + timedelta(minutes=index),
+                        retain_until=received_at + timedelta(days=7),
+                        source_type="fake",
+                        outcome="no_subscribers",
+                        correlation_key=key,
+                    )
+                )
+        session.commit()
+
+        run_check(parser, "github")
+
+        assert capsys.readouterr().out.splitlines() == [
+            build_served_line("github"),
+            *(["Webhook github cancels the runs of Dag nightly on push deliveries"] if has_condition else []),
+            *([] if expected_note is None else [expected_note]),
         ]
 
     @pytest.mark.parametrize(
