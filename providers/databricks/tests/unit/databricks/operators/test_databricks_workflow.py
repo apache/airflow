@@ -202,6 +202,7 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
     )
 
     task = MagicMock(spec=BaseOperator, task_id="task_1")
+    task.databricks_task_key = "explicit_key_1"
     task._convert_to_databricks_workflow_task = MagicMock(return_value={})
     operator.add_task(task.task_id, task)
 
@@ -211,8 +212,29 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
         "conn_id": "databricks_default",
         "job_id": 123,
         "run_id": 789,
+        "task_key_map": {"task_1": "explicit_key_1"},
     }
     mock_hook_instance.run_now.assert_called_once()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Links are stored in XCom on Airflow 3 only")
+@pytest.mark.db_test
+@patch("airflow.providers.databricks.operators.databricks_workflow.store_databricks_repair_link")
+def test_execute_stores_repair_all_link(mock_store_repair, mock_databricks_hook, context, mock_task_group):
+    operator = _CreateDatabricksWorkflowOperator(task_id="wf.launch", databricks_conn_id="databricks_default")
+    operator.task_group = mock_task_group
+    mock_hook_instance = mock_databricks_hook.return_value
+    mock_hook_instance.run_now.return_value = 789
+    mock_hook_instance.list_jobs.return_value = [{"job_id": 123}]
+    mock_hook_instance.get_run_state.return_value = MagicMock(
+        life_cycle_state=RunLifeCycleState.RUNNING.value
+    )
+
+    operator.execute(context)
+
+    mock_store_repair.assert_called_once_with(
+        context=context, launch_task_id="wf.launch", logger=operator.log
+    )
 
 
 def test_execute_invalid_task_group(context):
