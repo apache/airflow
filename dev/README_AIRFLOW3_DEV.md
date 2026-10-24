@@ -28,6 +28,7 @@
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
+  - [Auto-merge](#auto-merge)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PRs targeted for Airflow 3.X](#merging-prs-targeted-for-airflow-3x)
   - [What do we backport to `v3-2-test` branch?](#what-do-we-backport-to-v3-2-test-branch)
@@ -179,6 +180,45 @@ PRs should **never** target `v2-11-stable` directly unless explicitly instructed
 # Committers / PMCs
 
 The following sections explains the protocol for merging PRs.
+
+## Auto-merge
+
+Auto-merge is enabled for PRs targeting `main`. Instead of waiting for CI to finish, approve the PR and
+click **Enable auto-merge** (or run `gh pr merge <number> --squash --auto`). GitHub squash-merges the PR
+as soon as it has an approval, its conversations are resolved and the required checks are green. Any
+committer can cancel it with **Disable auto-merge**. A push by the PR author (or anyone else without
+write access) disables auto-merge, so the author cannot change the PR after you approved it; review the
+new commits and enable it again. Pushes by committers keep it enabled.
+
+Auto-merge is enabled for the whole repository, so every branch that PRs target requires CI. The
+"Require CI on release branches" ruleset requires **CI passed** on the release, providers, chart and
+`airflow-ctl` branches. A release branch gets the **CI passed** job only once it is backported there; until
+then, its PRs never report the check, and a committer merges them by bypassing the rule.
+
+The `main` ruleset requires two checks. **CI passed** is a job in the `Tests (AMD)` workflow that always
+runs and fails when any other CI job failed or was cancelled; jobs that selective checks skip count as
+passed, so PRs that run only part of the tests still get a result. The `check-ci-gate-needs` prek hook
+makes sure every new CI job is added to it. `Tests (ARM)`, which runs on pushes and on a schedule rather
+than on PRs, has the same job, kept identical by the `check-ci-workflows-in-sync` hook. For a PR that the
+fork CI gate (AIP-120) leaves to CI in the contributor's fork, project CI does not run, so the job reports
+as **CI passed (project CI not run)** instead, and the fork CI reconciler posts **CI passed** once the
+fork run for the PR's latest commit is green and trusted. **check-newsfragment-pr-number** runs on every
+PR too.
+
+Auto-merge does not wait for checks from other workflows: **CodeQL**, **Dependency review** and
+**Registry tests**. The last two only run when dependency or registry files change. Look at those
+checks before enabling auto-merge on a PR that triggers them.
+
+A PR that changes `.github/workflows/` runs its own version of the workflows, including the **CI passed**
+job, so review such changes before enabling auto-merge: the check only means as much as the workflow
+that produced it.
+
+When CI is red for a reason unrelated to the PR, for example a test that is broken on `main`, a
+committer can still merge by ticking **Merge without waiting for requirements to be met (bypass
+rules)**. Use it only when you are sure the failure is not caused by the PR, and say so in a comment.
+The rulesets grant the bypass to the repository's Write role, which only committers hold here, so a new
+committer gets it once ASF Infra adds them to the repository after they link their GitHub account in
+[GitBox](https://gitbox.apache.org/setup/); nothing in `.asf.yaml` needs to change.
 
 ## Merging PRs for providers and Helm chart
 

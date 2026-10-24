@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
@@ -23,6 +24,7 @@ import pytest
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import get_changed_files_since, selective_check
+from airflow_breeze.utils.fork_compare import ForkChanges
 
 PUSHED_COMMIT = "b" * 40
 BASE_COMMIT = "a" * 40
@@ -112,3 +114,53 @@ def test_push_without_selective_tests_on_push_uses_the_pushed_commit(
     mock_get_changed_files_since.assert_not_called()
     mock_get_changed_files.assert_called_once_with(commit_ref=PUSHED_COMMIT)
     assert mock_selective_checks.call_args.kwargs["files"] == ("a.py",)
+
+
+def _invoke_fork_selective_check(repository: str):
+    return _invoke_selective_check(
+        "--github-repository",
+        repository,
+        "--github-context",
+        json.dumps({"ref_name": "backport-abc-v3-1-test"}),
+        "--default-branch",
+        "v3-1-test",
+    )
+
+
+@patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
+@patch("airflow_breeze.commands.ci_commands.get_changed_files", autospec=True)
+@patch("airflow_breeze.commands.ci_commands.get_fork_changes", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.SelectiveChecks", autospec=True)
+def test_fork_push_takes_changed_files_from_compare(
+    mock_selective_checks, mock_fork_changes, mock_changed_files, mock_labels
+):
+    mock_fork_changes.return_value = ForkChanges(files=("README.md",), truncated=True, merge_base="base-sha")
+    mock_labels.return_value = ("full tests needed",)
+
+    _invoke_fork_selective_check("someone/airflow")
+
+    mock_fork_changes.assert_called_once_with(fork_owner="someone", sha=PUSHED_COMMIT, base="v3-1-test")
+    mock_changed_files.assert_not_called()
+    mock_labels.assert_called_once_with(
+        fork_owner="someone", branch="backport-abc-v3-1-test", base="v3-1-test"
+    )
+    kwargs = mock_selective_checks.call_args.kwargs
+    assert kwargs["files"] == ("README.md",)
+    assert kwargs["fork_push"] is True
+    assert kwargs["fork_changes_truncated"] is True
+    assert kwargs["fork_merge_base"] == "base-sha"
+    assert kwargs["pr_labels"] == ("full tests needed",)
+
+
+@patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
+@patch("airflow_breeze.commands.ci_commands.get_changed_files", autospec=True, return_value=("README.md",))
+@patch("airflow_breeze.commands.ci_commands.get_fork_changes", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.SelectiveChecks", autospec=True)
+def test_upstream_push_uses_git_diff(
+    mock_selective_checks, mock_fork_changes, mock_changed_files, mock_labels
+):
+    _invoke_fork_selective_check("apache/airflow")
+
+    mock_fork_changes.assert_not_called()
+    mock_labels.assert_not_called()
+    assert mock_selective_checks.call_args.kwargs["fork_push"] is False
