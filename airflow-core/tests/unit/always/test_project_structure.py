@@ -45,12 +45,18 @@ class TestProjectStructure:
                 self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: pathlib.Path, pattern: str):
-        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+        with (
+            open(filename, "rb", 0) as file,
+            mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content,
+        ):
             if content.find(bytes(pattern, "utf-8")) != -1:
                 pytest.fail(f"File {filename} not contains pattern - {pattern}")
 
     def assert_file_contains(self, filename: pathlib.Path, pattern: str):
-        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+        with (
+            open(filename, "rb", 0) as file,
+            mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content,
+        ):
             if content.find(bytes(pattern, "utf-8")) == -1:
                 pytest.fail(f"File {filename} contains illegal pattern - {pattern}")
 
@@ -62,8 +68,6 @@ class TestProjectStructure:
         # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
@@ -150,16 +154,24 @@ class TestProjectStructure:
         # Exclude versions file
         modules_files = (f for f in modules_files if "versions" not in f.parts)
         # Exclude get_provider_info files
-        modules_files = (f for f in modules_files if "get_provider_info.py" not in f.parts)
+        modules_files = (
+            f for f in modules_files if "get_provider_info.py" not in f.parts
+        )
         # Make path relative
         modules_files = list(f.relative_to(AIRFLOW_ROOT_PATH) for f in modules_files)
         current_test_files = list(AIRFLOW_PROVIDERS_ROOT_PATH.rglob("**/tests/**/*.py"))
         # Make path relative
-        current_test_files = list(f.relative_to(AIRFLOW_ROOT_PATH) for f in current_test_files)
+        current_test_files = list(
+            f.relative_to(AIRFLOW_ROOT_PATH) for f in current_test_files
+        )
         # Exclude __init__.py
-        current_test_files = set(f for f in current_test_files if not f.name == "__init__.py")
+        current_test_files = set(
+            f for f in current_test_files if not f.name == "__init__.py"
+        )
         # Exclude node_modules
-        current_test_files = set(f for f in current_test_files if "node_modules" not in f.parts)
+        current_test_files = set(
+            f for f in current_test_files if "node_modules" not in f.parts
+        )
         # Exclude version_compat.py
         modules_files = filter(lambda f: f.name != "version_compat.py", modules_files)
 
@@ -174,7 +186,9 @@ class TestProjectStructure:
                 for f in modules_files_set
             ]
         )
-        overlooked_test_files = {pathlib.Path(test_file) for test_file in OVERLOOKED_TESTS}
+        overlooked_test_files = {
+            pathlib.Path(test_file) for test_file in OVERLOOKED_TESTS
+        }
         exempted_test_files = {pathlib.Path(test_file) for test_file in EXEMPTED_TESTS}
         stale_overlooked_tests = overlooked_test_files - expected_test_files
         assert not stale_overlooked_tests, (
@@ -190,10 +204,15 @@ class TestProjectStructure:
 
         missing_tests_files = [
             file.as_posix()
-            for file in sorted(expected_test_files - expected_test_files.intersection(current_test_files))
+            for file in sorted(
+                expected_test_files
+                - expected_test_files.intersection(current_test_files)
+            )
         ]
 
-        assert missing_tests_files == [], "Detect missing tests in providers module - please add tests"
+        assert missing_tests_files == [], (
+            "Detect missing tests in providers module - please add tests"
+        )
 
         added_test_files = current_test_files.intersection(overlooked_test_files)
         assert set() == added_test_files, (
@@ -234,7 +253,9 @@ class ProjectStructureTest:
     def list_of_classes(self):
         classes = {}
         for file in self.new_class_paths():
-            operators_paths = self.get_classes_from_file(file, AIRFLOW_PROVIDERS_ROOT_PATH)
+            operators_paths = self.get_classes_from_file(
+                file, AIRFLOW_PROVIDERS_ROOT_PATH
+            )
             classes.update(operators_paths)
         return classes
 
@@ -290,7 +311,9 @@ class ExampleCoverageTest(ProjectStructureTest):
         are used in any of the example dags
         """
         classes = self.list_of_classes()
-        assert len(classes) != 0, "Failed to retrieve operators, override class_paths if needed"
+        assert len(classes) != 0, (
+            "Failed to retrieve operators, override class_paths if needed"
+        )
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
@@ -298,7 +321,9 @@ class ExampleCoverageTest(ProjectStructureTest):
         classes -= self.MISSING_EXAMPLES_FOR_CLASSES
         classes -= self.DEPRECATED_CLASSES
         classes -= self.BASE_CLASSES
-        classes = set(class_name for class_name in classes if not class_name.startswith("Test"))
+        classes = set(
+            class_name for class_name in classes if not class_name.startswith("Test")
+        )
         if set() != classes:
             print("Classes with missing examples:")
             print_sorted(classes)
@@ -309,7 +334,9 @@ class ExampleCoverageTest(ProjectStructureTest):
         if set() != covered_but_omitted:
             print("Covered classes that are listed as missing:")
             print_sorted(covered_but_omitted)
-            pytest.fail("Operator listed in missing examples but is used in example dag")
+            pytest.fail(
+                "Operator listed in missing examples but is used in example dag"
+            )
 
 
 class AssetsCoverageTest(ProjectStructureTest):
@@ -554,7 +581,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "cncf/kubernetes"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
-    BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
+    BASE_CLASSES = {
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"
+    }
 
 
 class TestSlackProviderProjectStructure(ExampleCoverageTest):
@@ -579,7 +608,10 @@ class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
         files = itertools.chain.from_iterable(
-            glob.glob(f"{AIRFLOW_ROOT_PATH}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            glob.glob(
+                f"{AIRFLOW_ROOT_PATH}/{part}/providers/**/{resource_type}/*.py",
+                recursive=True,
+            )
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
             for part in ["airflow", "tests"]
         )
