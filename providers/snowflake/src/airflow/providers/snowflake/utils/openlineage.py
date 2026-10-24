@@ -32,6 +32,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Maximum value allowed by Snowflake; the END_TIME_RANGE_START filter keeps the number of scanned rows small
+_QUERY_HISTORY_RESULT_LIMIT = 10000
+
 
 def fix_account_name(name: str) -> str:
     """Fix account name to have the following format: <account_id>.<region>.<cloud>."""
@@ -146,21 +149,24 @@ def _get_queries_details_from_snowflake(
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
-    # Bound the default 7-day QUERY_HISTORY() scan to the task's execution window, with a skew buffer.
+    # Bound the default 7-day query history scan to the task's execution window, with a skew buffer.
     range_start = (task_start_time or timezone.utcnow()) - datetime.timedelta(minutes=5)
     # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
     # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
     # https://docs.snowflake.com/en/sql-reference/functions/query_history
-    # SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY() function seems the most suitable function for the job,
-    # we get history of queries executed by the user, and we're using the same credentials.
+    # QUERY_HISTORY_BY_USER() only scans queries of the current user (we're using the same credentials),
+    # while QUERY_HISTORY() applies RESULT_LIMIT (100 by default) to all queries visible to the role
+    # before our WHERE filter, so for roles with wide visibility it can miss queries that just ran.
+    # Epoch seconds do not depend on the session's TIMESTAMP_INPUT_FORMAT or timezone.
+    history_args = (
+        f"END_TIME_RANGE_START => TO_TIMESTAMP_LTZ({int(range_start.timestamp())}), "
+        f"RESULT_LIMIT => {_QUERY_HISTORY_RESULT_LIMIT}"
+    )
     query = (
         "SELECT "
         "QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
         "FROM "
-        "table(snowflake.information_schema.query_history("
-        f"end_time_range_start=>to_timestamp_tz('{range_start.isoformat()}'), "
-        "result_limit=>10000"
-        ")) "
+        f"table(snowflake.information_schema.query_history_by_user({history_args})) "
         f"WHERE "
         f"QUERY_ID {query_condition}"
         f";"
