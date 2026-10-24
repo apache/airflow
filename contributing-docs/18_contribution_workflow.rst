@@ -128,7 +128,7 @@ to make them immediately visible in the environment.
    as the project's default virtual environment in your IDE.
 
 CI in your fork
-...............
+~~~~~~~~~~~~~~~
 
 Pull requests from contributors who are not committers or collaborators are moving to running
 their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
@@ -167,10 +167,10 @@ Set up your checkout and fork once:
 When fork CI applies to your pull request, it is labelled ``fork ci required`` and kept in draft
 until the ``Tests (AMD)`` run in your fork for its latest commit is green. A
 ``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
-request explains the current state. Once the run is green the pull request is labelled
-``ready for maintainer review``, and marked ready for review if the monitor drafted it; a pull
-request you drafted yourself stays a draft until you mark it ready. A pull request whose fork CI does not run for 7 days is
-closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
+request explains the current state. Once the run is green, a pull request the monitor drafted is
+marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
+yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
+does not run for 7 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
 files that define what CI runs, such as ``.github/``, ``dev/breeze/`` or ``scripts/ci/``, a green
 fork run is not enough: a maintainer reviews the change and runs project CI for it.
 
@@ -181,7 +181,7 @@ at 00:00 UTC:
 .. code-block:: toml
 
    [pilot]
-   "your-login" = 2026-10-20T00:00:00Z
+   "your-login" = YYYY-MM-DDT00:00:00Z
 
 Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
 CI. To leave the pilot, open a pull request that removes the line. A pilot entry gates your pull

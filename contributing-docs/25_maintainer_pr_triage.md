@@ -254,8 +254,9 @@ for them, and the triage skill must treat those pull requests as out of scope fo
 
 - **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
   latest commit is green, and undrafts only what it drafted.
-- **`ready for maintainer review`.** The reconciler adds it when the fork run is green and removes
-  it when a new push starts a new run.
+- **`ready for maintainer review`.** The reconciler adds it when the fork run is green and the
+  pull request is not a draft the author made (it adds it once the author marks it ready), and
+  removes it when a new push starts a new run.
 - **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
   changes CI-defining files, and removes it once the state is anything else. These pull requests
   stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
