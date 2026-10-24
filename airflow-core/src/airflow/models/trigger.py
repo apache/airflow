@@ -37,9 +37,8 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -154,12 +153,16 @@ class Trigger(Base):
     @staticmethod
     def encrypt_kwargs(kwargs: dict[str, Any]) -> str:
         """Encrypt the kwargs of the trigger."""
+        from airflow.sdk.serde import serialize
+
+        return Trigger._encrypt_serialized_kwargs(serialize(stringify_encoding_keys(kwargs)))
+
+    @staticmethod
+    def _encrypt_serialized_kwargs(serialized_kwargs: dict[str, Any]) -> str:
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -204,6 +207,20 @@ class Trigger(Base):
         return cls(classpath=classpath, kwargs=kwargs, queue=trigger.queue)
 
     @classmethod
+    def from_serialized_kwargs(
+        cls, classpath: str, serialized_kwargs: dict[str, Any], queue: str | None = None
+    ) -> Trigger:
+        """
+        Create a trigger row from kwargs that are already in their serde-encoded form.
+
+        The kwargs are stored exactly as given and decoded by the triggerer when it creates
+        the trigger, the same as kwargs stored by :meth:`from_object`.
+        """
+        trigger = cls(classpath=classpath, kwargs={}, queue=queue)
+        trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
+        return trigger
+
+    @classmethod
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], *, session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
@@ -234,39 +251,42 @@ class Trigger(Base):
     @provide_session
     def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
         """
-        Delete all triggers that have no tasks dependent on them and are not associated to an asset.
+        Delete up to one batch of triggers that have no dependent tasks, assets, or callbacks.
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
-        Afterward we can drop the triggers not referenced by anyone.
-        """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        for attempt in run_with_db_retries():
-            with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
-                    )
-                    .values(trigger_id=None)
-                )
+        Afterward we can drop unreferenced triggers; later triggerer loops drain any remaining batches.
 
-        # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
-        ids = select(cls.id).where(
-            ~cls.assets.any(),
-            ~cls.callback.has(),
-            ~cls.task_instance.has(),
+        Database errors are not retried; to retry, run the call again in a new transaction.
+        """
+        batch_size = conf.getint("triggerer", "unreferenced_triggers_cleanup_batch_size", fallback=500)
+        if batch_size <= 0:
+            raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
+
+        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.state != TaskInstanceState.DEFERRED,
+                TaskInstance.trigger_id.is_not(None),
+            )
+            .values(trigger_id=None)
         )
+        cls._delete_unused_batch(batch_size, session=session)
+
+    @classmethod
+    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
+        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
+        ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
-        if get_dialect_name(session) == "mysql":
-            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids_list = list(session.scalars(ids).all())
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
-            )
-        else:
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-            )
+        ids_list = list(session.scalars(ids))
+        if not ids_list:
+            return
+
+        session.execute(
+            delete(cls)
+            .where(cls.id.in_(ids_list), *unreferenced)
+            .execution_options(synchronize_session=False)
+        )
 
     @classmethod
     @provide_session
@@ -305,9 +325,14 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
+    def submit_failure(
+        cls, trigger_id, exc=None, *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+    ) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
+
+        With ``triggerer_id``, only act while that triggerer still owns the trigger: a reassigned
+        trigger is being run elsewhere, so a failure from its previous owner must not fail the task.
 
         Notably, we have to actually run the failure code from a worker as it may
         have linked callbacks, so hilariously we have to re-schedule the task
@@ -317,11 +342,12 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        query = select(TaskInstance).where(
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        )
+        if triggerer_id is not None:
+            query = query.join(cls, cls.id == TaskInstance.trigger_id).where(cls.triggerer_id == triggerer_id)
+        for task_instance in session.scalars(query):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)
@@ -367,6 +393,15 @@ class Trigger(Base):
                 query = query.filter(cls.team_name.is_(None))
 
         return list(session.scalars(query).all())
+
+    @classmethod
+    @provide_session
+    def fetch_assignments(
+        cls, ids: Iterable[int], *, session: Session = NEW_SESSION
+    ) -> dict[int, int | None]:
+        """Map each of ``ids`` that still has a trigger row to its current ``triggerer_id``."""
+        rows = session.execute(select(cls.id, cls.triggerer_id).where(cls.id.in_(ids)))
+        return {trigger_id: triggerer_id for trigger_id, triggerer_id in rows}
 
     @classmethod
     @provide_session
@@ -453,6 +488,7 @@ class Trigger(Base):
             # Callback triggers
             select(cls.id)
             .join(Callback, isouter=False)
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
@@ -501,32 +537,36 @@ class Trigger(Base):
         return result
 
 
-def _decode_next_kwargs(next_kwargs_raw: Any) -> dict[str, Any]:
+def _split_stored_next_kwargs(next_kwargs_raw: Any) -> tuple[dict[str, Any], bool]:
     """
-    Decode the stored ``next_kwargs`` of a task instance into a plain dict.
+    Return the top-level mapping of the stored ``next_kwargs``, with its values still encoded.
 
-    Deserialize with serde first to provide a compat layer if there are mixed serialized
-    (BaseSerialisation and serde) data, which can happen if a deferred task resumes after upgrade.
+    The values are deliberately left encoded. Only the worker resuming the task needs them as
+    objects; decoding them here would reconstruct task-supplied values in the scheduler, the
+    triggerer and the API server for nothing, since all the caller does is add the event.
 
-    The result is checked here rather than assumed, so callers never have to trust the shape of
-    what comes back out of the stored payload.
+    Two encodings are accepted: serde, which stores a dict as a plain dict of encoded values, and
+    the legacy ``{"__type": "dict", "__var": {...}}`` form of rows written before the switch to
+    serde, which a deferred task may still carry across an upgrade.
 
-    :raise ValueError: The payload did not decode to a dict.
-    :raise Exception: Whatever the two decoders raise on a payload they cannot read -- the stored
-        blob is arbitrary, so the set is open and callers have to treat it as such.
+    :return: The encoded mapping, and whether it came from the legacy form.
+    :raise ValueError: The stored payload is not an encoded dict.
     """
-    from airflow.sdk.serde import deserialize
+    from airflow._shared.serialization import CLASSNAME, OLD_DATA, OLD_DICT, OLD_TYPE, SCHEMA_ID
 
-    try:
-        next_kwargs = deserialize(next_kwargs_raw)
-    except (ImportError, KeyError, AttributeError, TypeError):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
-
-    if not isinstance(next_kwargs, dict):
-        raise ValueError(f"next_kwargs decoded to {type(next_kwargs).__name__}, expected a dict")
-    return next_kwargs
+    if not isinstance(next_kwargs_raw, dict):
+        raise ValueError(f"next_kwargs is stored as {type(next_kwargs_raw).__name__}, expected a dict")
+    if OLD_TYPE in next_kwargs_raw and OLD_DATA in next_kwargs_raw:
+        if next_kwargs_raw[OLD_TYPE] != OLD_DICT or not isinstance(next_kwargs_raw[OLD_DATA], dict):
+            raise ValueError(
+                f"next_kwargs is stored as a legacy {next_kwargs_raw[OLD_TYPE]!r}, expected a dict"
+            )
+        return next_kwargs_raw[OLD_DATA], True
+    if CLASSNAME in next_kwargs_raw or SCHEMA_ID in next_kwargs_raw:
+        raise ValueError(
+            f"next_kwargs is stored as an encoded {next_kwargs_raw.get(CLASSNAME)!r}, expected a dict"
+        )
+    return next_kwargs_raw, False
 
 
 def _fail_unresumable_task_instance(
@@ -581,7 +621,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     # stored kwargs for a payload the trigger just yielded would point the author at DB state that
     # was never the problem.
     try:
-        next_kwargs = _decode_next_kwargs(next_kwargs_raw)
+        stored_kwargs, is_legacy = _split_stored_next_kwargs(next_kwargs_raw)
     except Exception as exc:
         log.exception(
             "Could not decode the stored next_kwargs of %s; failing it instead of resuming it",
@@ -596,14 +636,20 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
         )
         return
 
-    # Add event to the plain dict, then serialize everything together so nested
-    # non-primitive values get proper serde encoding.
-    next_kwargs["event"] = event.payload
+    # Encode only the event and add it next to the stored values, keeping the stored encoding. The
+    # Execution API version converter (ModifyDeferredTaskKwargsToJsonValue) handles converting
+    # serde to BaseSerialization format when serving old workers.
     try:
-        # Re-serialize using serde. The Execution API version converter
-        # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
-        # BaseSerialization format when serving old workers.
-        serialized_next_kwargs = serialize(next_kwargs)
+        if is_legacy:
+            from airflow._shared.serialization import OLD_DATA
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            serialized_next_kwargs = {
+                **next_kwargs_raw,
+                OLD_DATA: {**stored_kwargs, "event": BaseSerialization.serialize(event.payload, strict=True)},
+            }
+        else:
+            serialized_next_kwargs = {**stored_kwargs, "event": serialize(event.payload)}
     except Exception as exc:
         log.exception(
             "Could not serialize the event payload for %s; failing it instead of resuming it",
@@ -639,22 +685,24 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     :param task_instance: The task instance to be submitted.
     :param session: The session to be used for the database callback sink.
     """
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        TaskInstance as TIDataModel,
+        task_instance_to_runtime,
+    )
     from airflow.callbacks.callback_requests import TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.utils.state import TaskInstanceState
-
-    # Prevent the task from resuming on a worker.
-    task_instance.trigger_id = None
 
     callback_type = event.task_instance_state
     should_retry = False
+    dag_bag = DBDagBag()
 
     if event.task_instance_state == TaskInstanceState.FAILED:
         # Load the serialized task so retry eligibility matches the normal task path.
         try:
-            from airflow.models.dagbag import DBDagBag
-
-            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
@@ -674,27 +722,16 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         ):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
-            from airflow.models.dag_version import _resolve_version_data
+            from airflow.models.dag_version import _resolve_ti_callback_bundle_info
 
-            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
-            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
-            # version_data always describe the same version.
-            bundle_name = (
-                task_instance.dag_version.bundle_name
-                if task_instance.dag_version
-                else task_instance.dag_model.bundle_name
-            )
-            bundle_version = (
-                task_instance.dag_version.bundle_version
-                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
-                else task_instance.dag_run.bundle_version
-            )
-            version_data = _resolve_version_data(
-                task_instance.dag_version, task_instance.dag_run.bundle_version
-            )
+            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(task_instance)
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
-                ti=task_instance,
+                ti=task_instance_to_runtime(
+                    task_instance,
+                    model=TIDataModel,
+                    map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
+                ),
                 task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
@@ -720,9 +757,10 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance.end_date = timezone.utcnow()
         task_instance.set_duration()
         task_instance.clear_next_method_args()
-        task_instance.prepare_db_for_next_try(session)
+        task_instance = task_instance.prepare_db_for_next_try(session)
         task_instance.state = TaskInstanceState.UP_FOR_RETRY
     else:
+        task_instance.trigger_id = None
         task_instance.set_state(event.task_instance_state, session=session)
 
     _push_xcoms_if_necessary()

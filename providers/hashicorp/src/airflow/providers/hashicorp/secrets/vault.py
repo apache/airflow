@@ -242,6 +242,35 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
+    def _names_a_team_namespace(self, key: str, team_name: str | None) -> bool:
+        """
+        Whether a lookup of ``key`` with no team could resolve a team's secret.
+
+        In multi-team mode with team-scoped paths, a team's secrets sit under
+        ``{base_path}/{team_name}/{key}`` while a caller with no team reads ``{base_path}/{key}``.
+        A key whose path part itself contains ``/`` therefore reaches into a team's namespace: the
+        key ``team1/db_password`` read with no team resolves ``{base_path}/team1/db_password``. Such a
+        key is refused for a caller with no team.
+
+        A caller with a team never reaches outside ``{base_path}/{team_name}``, and outside
+        multi-team mode, or with ``use_team_secrets_path=False``, there are no team namespaces to
+        reach. The key is never parsed to work out *which* team it names, because it cannot be:
+        nothing distinguishes a nested key in the shared namespace from one naming a team.
+        """
+        if team_name is not None or not self.use_team_secrets_path:
+            return False
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
+        _, key_part = self._parse_path(key)
+        if key_part is None or "/" not in key_part:
+            return False
+        self.log.warning(
+            "Secret id %r contains '/' and is looked up with no team. In multi-team mode it can "
+            "resolve a team's secret under the base path, so it is not looked up. Returning None.",
+            key,
+        )
+        return True
+
     def _get_secret(self, base_paths: list[str] | None, team_name: str | None, key: str):
         """
         Get a secret, trying each of ``base_paths`` in order until one yields a value.
@@ -253,7 +282,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the secret (if any).
         :param key: Secret key.
         """
-        if not base_paths:
+        if not base_paths or self._names_a_team_namespace(key, team_name):
             return None
         multi_team_enabled = conf.getboolean("core", "multi_team", fallback=False)
         for base_path in base_paths:

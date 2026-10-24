@@ -74,6 +74,43 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
     k.dry_run()
 
+Pod events in the task log
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While the operator waits for the pod to leave the ``Pending`` phase, it reads the Kubernetes events of the pod
+(polling every ``startup_check_interval_seconds`` in synchronous mode) and writes them to the task log
+(scheduling, image pull, container start, and warnings such as ``FailedScheduling``). This logging is
+best-effort: if the events API fails, the operator logs one warning, stops reading events, and the task
+continues.
+
+In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector. Deferrable
+mode keeps a watch open instead, which costs less but still makes the API server read the namespace
+events each time the watch (re)starts before the first event was seen. The Kubernetes API server
+disables its watch cache for ``Event`` objects by default, so every list is an ``etcd`` read of all
+events in the namespace that is filtered afterwards. On clusters that run thousands of short-lived
+pods in one namespace this adds noticeable API server load.
+Keeping unrelated high-churn pods (for example Spark executors) in a separate namespace reduces the cost.
+
+To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
+``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``. In deferrable mode the opt-out
+is sent to the trigger, so the triggerer needs a provider version that knows the parameter. ``GKEStartPodOperator`` and
+``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive
+it yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a
+failure.
+
+.. Forwarding the parameter to the GKE and EKS triggers is tracked at
+   https://github.com/apache/airflow/issues/75014
+
+.. code-block:: python
+
+    KubernetesPodOperator(
+        task_id="no_startup_events",
+        name="no-startup-events",
+        namespace="default",
+        image="debian",
+        log_events_on_startup=False,
+    )
+
 Argument precedence
 ^^^^^^^^^^^^^^^^^^^
 
@@ -222,14 +259,15 @@ ignored either way. The deprecated ``reattach_on_restart`` parameter (default ``
 only lever there, and it falls back to the same label-search reattach behavior this operator has
 always used -- unchanged from before this feature existed.
 
-The pod identity persisted in task state store isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
-pod identity won't be there for the next retry, and the operator falls back to the label-search
-bootstrap path instead of reconnecting directly. This isn't necessarily a duplicate, the label
-search can often still find the same pod, but it loses the unambiguous reconnect and reopens
-exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate pod exists by then. Avoid
-running cleanup on a schedule shorter than your longest ``retry_delay``.
+The persisted pod identity is only removed by ``airflow state-store clean`` (retention-based) or,
+when ``[state_store] clear_on_success`` is enabled (``False`` by default), automatically as soon as
+the task instance succeeds -- see the :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+docs. If a task's ``retry_delay`` is longer than ``[state_store] default_retention_days`` (30 days by
+default) and cleanup runs in between, the pod identity won't be there for the next retry, and the
+operator falls back to the label-search bootstrap path instead of reconnecting directly. This isn't
+necessarily a duplicate, the label search can often still find the same pod, but it loses the
+unambiguous reconnect and reopens exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate
+pod exists by then. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
 ``durable`` supersedes the deprecated ``reattach_on_restart`` parameter on Airflow 3.3+, where
 passing ``reattach_on_restart`` still works and maps its value onto ``durable``. Below 3.3,

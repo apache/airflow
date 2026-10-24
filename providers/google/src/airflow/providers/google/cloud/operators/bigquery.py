@@ -34,7 +34,12 @@ from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    ResumableJobMixin,
+    conf,
+)
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -71,39 +76,6 @@ except ImportError:
 
     def is_arg_set(value):  # type: ignore[misc,no-redef]
         return value is not NOTSET
-
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "bigquery_job_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
 
 
 if TYPE_CHECKING:
@@ -278,6 +250,7 @@ class BigQueryCheckOperator(
         "impersonation_chain",
         "labels",
         "query_params",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -434,6 +407,7 @@ class BigQueryValueCheckOperator(
         "pass_value",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -602,6 +576,7 @@ class BigQueryIntervalCheckOperator(
         "sql2",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     ui_color = BigQueryUIColors.CHECK.value
     conn_id_field = "gcp_conn_id"
@@ -1331,6 +1306,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "gcs_schema_object",
         "gcp_conn_id",
         "impersonation_chain",
+        "google_cloud_storage_conn_id",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2704,10 +2680,8 @@ class BigQueryInsertJobOperator(
         return self.job_id
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.project_id, location=self.location
-            )
+        if self.hook and self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 

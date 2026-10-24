@@ -111,7 +111,7 @@ class AnthropicAgentSessionOperator(BaseOperator):
         ``budget`` here as well as via the ``budget`` argument is rejected.
     """
 
-    template_fields: Sequence[str] = ("agent_id", "environment_id", "message", "outcome", "budget")
+    template_fields: Sequence[str] = ("agent_id", "environment_id", "message", "outcome", "budget", "conn_id")
 
     def __init__(
         self,

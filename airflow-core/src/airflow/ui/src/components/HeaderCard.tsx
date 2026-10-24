@@ -25,24 +25,23 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { StateBadge } from "src/components/StateBadge";
 
-import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
-
 type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
   readonly state?: TaskInstanceState | null;
   readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
+  /** Status for the object in view, rendered beside its name. */
+  readonly statusBadge?: ReactNode;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
-  readonly type: "asset" | "dag" | "dagRun" | "task" | "taskGroup" | "taskInstance";
+  readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
 };
 
-export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type }: Props) => {
+export const HeaderCard = ({ actions, icon, state, stats, statusBadge, subTitle, title, type }: Props) => {
   const { t: translate } = useTranslation();
 
   return (
     <Box bg="bg.muted" borderRadius="md" data-testid="header-card" flexShrink={0} overflow="hidden" px={3}>
-      <DagDeactivatedBanner />
       <div>
         <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" my={2}>
           <Flex alignItems="center" flexWrap="wrap" gap={2}>
@@ -68,6 +67,7 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type 
                 {title}
               </Heading>
             </div>
+            {statusBadge}
             {subTitle === undefined ? null : <Box fontSize="md">{subTitle}</Box>}
             {state === undefined ? undefined : (
               <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>

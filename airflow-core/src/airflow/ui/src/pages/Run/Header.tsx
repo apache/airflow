@@ -19,6 +19,7 @@
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -34,21 +35,27 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { NotePreview } from "src/components/NotePreview";
+import { PluginActions } from "src/components/PluginActions";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useDagRunNote } from "src/queries/useDagRunNote";
-import { getDuration } from "src/utils";
+import { hasDagRunConfig, useDurationFormat } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
+  const pluginActions = usePluginActions("dag_run");
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
   const showTeam = useShowTeam(dagRun.team_name);
+  const navigate = useNavigate();
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -61,10 +68,15 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
-            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
+            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} variant="chip" />
             <ClearRunButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
             <MarkRunAsButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
             <DeleteRunButton bg="bg" dagRun={dagRun} variant="outline" />
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ dagRun, destination: "dag_run" }}
+            />
           </>
         }
         icon={<FiBarChart />}
@@ -97,7 +109,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
           },
           { label: translate("startDate"), value: <Time datetime={dagRun.start_date} /> },
           { label: translate("endDate"), value: <Time datetime={dagRun.end_date} /> },
-          { label: translate("duration"), value: getDuration(dagRun.start_date, dagRun.end_date) },
+          { label: translate("duration"), value: formatElapsed(dagRun.start_date, dagRun.end_date) },
           ...(dagRun.triggering_user_name === null
             ? []
             : [
@@ -131,6 +143,20 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
               />
             ),
           },
+          ...(hasDagRunConfig(dagRun.conf)
+            ? [
+                {
+                  label: translate("dagRun.conf"),
+                  value: (
+                    <RenderedJsonField
+                      collapsed
+                      content={dagRun.conf}
+                      onExpand={() => void navigate("details")}
+                    />
+                  ),
+                },
+              ]
+            : []),
           ...(hasDeadlineAlerts
             ? [
                 {

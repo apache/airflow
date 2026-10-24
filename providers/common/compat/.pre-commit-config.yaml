@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: check-common-compat-sdk-imports-in-sync
         name: Check common.compat sdk TYPE_CHECKING matches runtime maps
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         files: ^src/airflow/providers/common/compat/sdk\.py$
         pass_filenames: false

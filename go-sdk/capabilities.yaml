@@ -1,0 +1,208 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+sdk: go
+
+min_airflow_version: "3.4.0"
+
+# Keep in sync with SupervisorSchemaVersion in pkg/execution/messages.go, which is embedded in
+# bundle metadata. The render hook fails if the two disagree.
+supervisor_schema_version: "2026-10-30"
+
+# The task runner terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); only
+# an airflow.TriggerDagRun task emits TaskState skipped or DeferTask. It does not emit RescheduleTask
+# or AwaitInputTask.
+states:
+  success:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  failed:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  up_for_retry:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "RetryTask"
+  skipped:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "airflow.TriggerDagRun with SkipWhenAlreadyExists only"
+  deferred:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime"
+  up_for_reschedule:
+    supported: false
+    note: "runtime does not emit RescheduleTask yet"
+  awaiting_input:
+    supported: false
+    note: "runtime does not emit AwaitInputTask yet"
+  removed:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+
+# Runtime capabilities apply to a task body in both authoring modes.
+capabilities:
+  task-logging:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "slog records streamed over the logs socket"
+  xcom-read-write:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "PushXCom / GetXCom"
+  connection-read:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "GetConnection"
+  variable-read-write:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  self-contained-bundle:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "AFBNDL01 native binary via airflow-go-pack"
+  retry-policy:
+    supported: false
+    note: "no task-facing retry-policy API yet"
+  task-state-store:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  asset-state-store:
+    supported: false
+    note: "no task-facing asset state-store API yet"
+  asset-event-emit:
+    supported: false
+    note: "runtime does not emit asset events yet"
+  asset-event-read:
+    supported: false
+    note: "no task-facing asset-event API yet"
+  object-store:
+    supported: false
+    note: "no object-storage API yet"
+  listeners:
+    supported: false
+    note: "no hook into the Python listener API, so a task emits no OpenLineage facets of its own"
+  # Dag definition: the whole Dag is declared in the SDK's language.
+  dag-definition-authoring:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "airflow.Dag"
+  dag-args:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  task-args:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  dag-params:
+    supported: false
+  dag-callbacks:
+    supported: false
+  explicit-dependencies:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "Before / After"
+  edge-labels:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "airflow.Label(text).On(task)"
+  taskflow-dependencies:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  task-group:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "DagRef.TaskGroup"
+  task-loops:
+    supported: false
+  if-else-branching:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "DagRef.If"
+  switch-case-branching:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "DagRef.Switch"
+  trigger-dag-run:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "airflow.TriggerDagRun"
+  dynamic-dag-generation:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  human-in-the-loop:
+    supported: false
+  dag-test:
+    supported: false
+  asset-definition:
+    supported: false
+  asset-scheduling:
+    supported: false
+  # Python Dag with stub TaskHandler.
+  mixed-lang-stub-target:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "@task.stub"
+  taskflow-binding:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "mapped stubs excluded"
+  # Shared by both authoring modes, so declared once per mode.
+  mapped-tasks:
+    dag-definition:
+      supported: false
+    stub-task-handler:
+      supported: false
+      note: "Airflow does not bind arguments to mapped stubs yet"
+  asset-inlets-outlets:
+    dag-definition:
+      supported: false
+    stub-task-handler:
+      supported: false
+      note: "runtime does not report task outlets yet"
+  task-callbacks:
+    dag-definition:
+      supported: false
+      note: "no SDK-defined task callbacks"
+    stub-task-handler:
+      supported: false
+      note: "a Python-declared task callback does not run for a stub task"

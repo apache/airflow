@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Gerekli işlem",
   "requiredAction_other": "Gerekli işlemler",
-  "requiredActionCount_one": "Gerekli işlem ({{count}})",
-  "requiredActionCount_other": "Gerekli işlemler ({{count}})",
+  "requiredActionCount_one": "Gerekli işlem ({{count, number}})",
+  "requiredActionCount_other": "Gerekli işlemler ({{count, number}})",
   "requiredActionState": "Gerekli işlemin durumu",
   "response": {
     "created": "Yanıt oluşturulma zamanı ",

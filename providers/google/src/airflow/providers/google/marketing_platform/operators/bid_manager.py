@@ -66,6 +66,7 @@ class GoogleBidManagerCreateQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "body",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
 
@@ -135,6 +136,7 @@ class GoogleBidManagerRunQueryOperator(BaseOperator):
         "query_id",
         "parameters",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -199,6 +201,7 @@ class GoogleBidManagerDeleteQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "query_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -263,6 +266,7 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
         "bucket_name",
         "report_name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,7 +27,7 @@ import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { GridTI } from "./GridTI";
-import { SELECTED_TASK_OUTLINE_COLOR } from "./constants";
+import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
 
 const colorModeMock = vi.fn<() => { colorMode: "dark" | "light" | undefined }>();
 
@@ -47,15 +47,28 @@ const taskInstance: LightGridTaskInstanceSummary = {
 
 const SELECTED_RUN_ID = "manual__2026-04-21T00:00:00+00:00";
 
+const buildStackShadow = (backCardState: string) =>
+  `0.5px 0.5px 0 0 var(--chakra-colors-bg), 2.5px 2.5px 0 0 var(--chakra-colors-${backCardState}-solid)`;
+
 type RenderGridTIOptions = {
+  readonly hasNote?: boolean;
   readonly instance?: LightGridTaskInstanceSummary;
+  readonly isGroup?: boolean;
+  readonly isMapped?: boolean;
   readonly runId?: string;
   readonly taskId?: string;
 };
 
 const renderGridTI = (
   route: string,
-  { instance = taskInstance, runId = SELECTED_RUN_ID, taskId = "selected_task" }: RenderGridTIOptions = {},
+  {
+    hasNote,
+    instance = taskInstance,
+    isGroup,
+    isMapped,
+    runId = SELECTED_RUN_ID,
+    taskId = "selected_task",
+  }: RenderGridTIOptions = {},
 ) =>
   render(
     <BaseWrapper>
@@ -66,7 +79,10 @@ const renderGridTI = (
               element={
                 <GridTI
                   dagId="example_dag"
+                  hasNote={hasNote}
                   instance={{ ...instance, task_id: taskId }}
+                  isGroup={isGroup}
+                  isMapped={isMapped}
                   label={taskId}
                   runId={runId}
                   taskId={taskId}
@@ -81,6 +97,114 @@ const renderGridTI = (
   );
 
 describe("GridTI", () => {
+  it.each<{
+    childStates: Record<string, number>;
+    primaryState: LightGridTaskInstanceSummary["state"];
+    secondaryState: string;
+  }>([
+    { childStates: { skipped: 2, success: 1 }, primaryState: "success", secondaryState: "skipped" },
+    {
+      childStates: { failed: 1, skipped: 3, success: 2 },
+      primaryState: "failed",
+      secondaryState: "success",
+    },
+    {
+      childStates: { running: 1, scheduled: 2, success: 3 },
+      primaryState: "running",
+      secondaryState: "scheduled",
+    },
+    { childStates: { none: 2, success: 1 }, primaryState: null, secondaryState: "success" },
+  ])(
+    "shows the highest-priority secondary state when mapped instances have different states",
+    ({ childStates, primaryState, secondaryState }) => {
+      renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+        instance: { ...taskInstance, child_states: childStates, state: primaryState },
+        isMapped: true,
+      });
+
+      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(buildStackShadow(secondaryState));
+    },
+  );
+
+  it.each<{
+    childStates: Record<string, number> | null;
+    primaryState: LightGridTaskInstanceSummary["state"];
+  }>([
+    { childStates: null, primaryState: "success" },
+    { childStates: {}, primaryState: "success" },
+    { childStates: { success: 3 }, primaryState: "success" },
+    { childStates: { skipped: 0, success: 3 }, primaryState: "success" },
+    { childStates: { none: 2 }, primaryState: null },
+  ])(
+    "colors the back card with the primary state when mapped instances share one state",
+    ({ childStates, primaryState }) => {
+      renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+        instance: { ...taskInstance, child_states: childStates, state: primaryState },
+        isMapped: true,
+      });
+
+      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
+        buildStackShadow(primaryState ?? "none"),
+      );
+    },
+  );
+
+  it.each<{
+    backCardState: string;
+    childStates: Record<string, number>;
+    primaryState: LightGridTaskInstanceSummary["state"];
+  }>([
+    { backCardState: "skipped", childStates: { skipped: 2, success: 1 }, primaryState: "success" },
+    { backCardState: "success", childStates: { success: 3 }, primaryState: "success" },
+    {
+      backCardState: "upstream_failed",
+      childStates: { failed: 1, success: 1, upstream_failed: 2 },
+      primaryState: "failed",
+    },
+    { backCardState: "success", childStates: { failed: 2, success: 3 }, primaryState: "failed" },
+  ])("stacks task group cells like mapped tasks", ({ backCardState, childStates, primaryState }) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, child_states: childStates, state: primaryState },
+      isGroup: true,
+    });
+
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(buildStackShadow(backCardState));
+  });
+
+  it("shows a single card for unmapped tasks", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, child_states: { skipped: 2, success: 1 } },
+      isMapped: false,
+    });
+
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe("");
+  });
+
+  it.each([true, false])("preserves note markers and selection highlighting on task cells", (isMapped) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      hasNote: true,
+      instance: { ...taskInstance, child_states: { skipped: 2, success: 1 } },
+      isMapped,
+    });
+
+    expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
+    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(NOTE_GRADIENT);
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
+      isMapped ? buildStackShadow("skipped") : "",
+    );
+  });
+
+  it("drops another execution's exact region when following an aggregate cell", () => {
+    renderGridTI(
+      `/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task?region_id=11111111-1111-4111-8111-111111111111&region_index=3&try_number=2&log_level=error`,
+      { taskId: "other_task" },
+    );
+    const link = screen.getByRole("link");
+
+    expect(link).toHaveAttribute("href", expect.stringContaining("log_level=error"));
+    expect(link).not.toHaveAttribute("href", expect.stringContaining("region_"));
+    expect(link).not.toHaveAttribute("href", expect.stringContaining("try_number="));
+  });
   beforeEach(() => {
     colorModeMock.mockReturnValue({ colorMode: "light" });
   });

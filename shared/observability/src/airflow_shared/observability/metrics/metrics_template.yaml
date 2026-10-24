@@ -124,14 +124,15 @@ metrics:
 
   - name: "dag_processing.processes"
     description: "Relative number of currently running Dag parsing processes (ie this delta is negative when,
-    since the last metric was sent, processes have completed). Metric with file_path and action tagging."
+    since the last metric was sent, processes have completed). Metric with file_path, bundle_name, and action
+    tagging, and team_name tagging in multi-team mode."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "dag_processing.processor_timeouts"
     description: "Number of file processors that have been killed due to taking too long.
-    Metric with file_path tagging."
+    Metric with file_path and bundle_name tagging, and team_name tagging in multi-team mode."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -202,6 +203,14 @@ metrics:
   - name: "scheduler.critical_section_busy"
     description: "Count of times a scheduler process tried to get a lock on the critical
     section (needed to send tasks to the executor) and found it locked by another process."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.critical_section_refill_limit_reached"
+    description: "Count of times the scheduler stopped querying for more task instances to fill
+    its batch because it reached the per-loop limit of refill queries. The remaining runnable
+    task instances are considered in the next scheduler loop."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -325,6 +334,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_creation_failed"
+    description: "Number of deadline alerts skipped because their deadline could not be created"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_missed"
     description: "Number of deadline alerts that fired because a Dag run missed its deadline"
     type: "counter"
@@ -399,21 +414,34 @@ metrics:
     name_variables: []
 
   - name: "managed_agent.failover"
-    description: "Number of failover transitions inside a ``FailoverManagedAgentToolset`` group,
-    emitted once each time a member fails and the next one is tried.
-    Metric with tool, from_platform and to_platform tagging."
+    description: "Number of failover transitions inside a ``FailoverManagedAgentClient`` group,
+    emitted once each time a member fails and the next one is tried. Metric with from_platform
+    and to_platform tagging; a platform reads ``unknown`` when that member's identity could not
+    be resolved."
     type: "counter"
     legacy_name: "-"
-    name_variables: ["tool", "from_platform", "to_platform"]
+    name_variables: ["from_platform", "to_platform"]
 
   - name: "managed_agent.served"
-    description: "Number of managed agent invocations answered inside a
-    ``FailoverManagedAgentToolset`` group, emitted once per answer. Metric with tool,
-    platform, role (``primary`` or ``standby``) and position tagging, where position is
-    the zero-based index of the member that answered."
+    description: "Number of managed agent invocations answered through a managed-agent toolset,
+    emitted once per answer. Metric with tool and platform tagging; a toolset over a failover
+    group reports the platform as ``failover``, and platform is the literal string ``unknown``
+    when the agent's identity fails to resolve -- a connection lookup failing, or a bug in the
+    subclass's own ``agent_ref`` implementation -- a case in which the call still proceeds after
+    logging a warning. Read next to ``managed_agent.failover``, which records each transition by
+    platform."
     type: "counter"
     legacy_name: "-"
-    name_variables: ["tool", "platform", "role", "position"]
+    name_variables: ["tool", "platform"]
+
+  - name: "common_ai.tool_calls"
+    description: "Number of calls to a toolset of the common.ai provider. Metric with toolset
+    (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain``,
+    ``anthropic``, ``openai_agents`` or ``none``) and outcome (``executed``, ``failed`` or
+    ``replayed``) tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["toolset", "framework", "outcome"]
 
   # ==========
   # Gauges
@@ -495,10 +523,18 @@ metrics:
     name_variables: []
 
   - name: "scheduler.dagruns.running"
-    description: "Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state"
+    description: "Number of DagRuns currently in the ``RUNNING`` state. Emitted as a single aggregate
+    value by default; tagged by dag_id instead when ``[scheduler] dagrun_metrics_per_dag_id`` is enabled."
     type: "gauge"
-    legacy_name: "-"
-    name_variables: []
+    legacy_name: "scheduler.dagruns.running.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "scheduler.dagruns.queued"
+    description: "Number of DagRuns currently in the ``QUEUED`` state. Emitted as a single aggregate
+    value by default; tagged by dag_id instead when ``[scheduler] dagrun_metrics_per_dag_id`` is enabled."
+    type: "gauge"
+    legacy_name: "scheduler.dagruns.queued.{dag_id}"
+    name_variables: ["dag_id"]
 
   - name: "executor.open_slots"
     description: "Number of open slots on executor. Legacy metric only emitted
@@ -682,9 +718,27 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
+  - name: "http_requests_total"
+    description: "Number of completed REST API requests, tagged by method, route, and status_family.
+    Breaking the total down by those tags needs a backend that carries them (``otel_on``,
+    ``statsd_influxdb_enabled`` or ``statsd_datadog_enabled``); classic StatsD drops the tags and
+    reports only the overall request count."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Timers
   # ==========
+  - name: "http_request_duration_milliseconds"
+    description: "Milliseconds taken to complete a REST API request, tagged by method, route,
+    and status_family. Breaking the timings down by those tags needs a backend that carries them
+    (``otel_on``, ``statsd_influxdb_enabled`` or ``statsd_datadog_enabled``); classic StatsD drops
+    the tags and reports only the overall request duration."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.dependency-check"
     description: "Milliseconds taken to check Dag dependencies"
     type: "timer"

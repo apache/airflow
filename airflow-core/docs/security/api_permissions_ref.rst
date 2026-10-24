@@ -16,7 +16,7 @@
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
@@ -86,10 +86,6 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
      - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - ``DAG``
-     - ``PUT``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
@@ -103,15 +99,15 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Asset``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+     - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - ``Asset``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+     - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - ``Asset``
      - ``GET``
    * - ``PUT``
-     - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+     - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - ``Asset``
      - ``PUT``
    * - ``GET``
@@ -130,8 +126,28 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/backfills``
      - ``DAG.RUN``
      - ``POST``
+   * - ``POST``
+     - ``/api/v2/backfills/dry_run``
+     - ``DAG.RUN``
+     - ``POST``
+   * - ``GET``
+     - ``/api/v2/backfills/{backfill_id}``
+     - ``DAG.RUN``
+     - ``GET``
    * - ``PUT``
-     - ``/api/v2/backfills``
+     - ``/api/v2/backfills/{backfill_id}/cancel``
+     - ``DAG.RUN``
+     - ``PUT``
+   * - ``GET``
+     - ``/api/v2/backfills/{backfill_id}/dag_runs``
+     - ``DAG.RUN``
+     - ``GET``
+   * - ``PUT``
+     - ``/api/v2/backfills/{backfill_id}/pause``
+     - ``DAG.RUN``
+     - ``PUT``
+   * - ``PUT``
+     - ``/api/v2/backfills/{backfill_id}/unpause``
      - ``DAG.RUN``
      - ``PUT``
    * - ``GET``
@@ -183,6 +199,18 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/dagBundles``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}/files``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
      - ``GET``
@@ -206,6 +234,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/bulk``
+     - ``DAG``
+     - ``multi``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``
@@ -363,19 +395,19 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.TASK_INSTANCE``
      - ``GET``
    * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - ``DAG.TASK_INSTANCE``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - ``DAG.TASK_INSTANCE``
      - ``GET``
    * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - ``DAG.TASK_INSTANCE``
      - ``PUT``
    * - ``PUT``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - ``DAG.TASK_INSTANCE``
      - ``PUT``
    * - ``GET``
@@ -395,15 +427,15 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.XCOM``
      - ``POST``
    * - ``DELETE``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - ``DAG.XCOM``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - ``DAG.XCOM``
      - ``GET``
    * - ``PATCH``
-     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - ``DAG.XCOM``
      - ``PUT``
    * - ``GET``
@@ -456,6 +488,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagVersions``
+     - ``DAG.VERSION``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagVersions/diff``
      - ``DAG.VERSION``
      - ``GET``
    * - ``GET``
@@ -531,15 +567,15 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Pool``
      - ``POST``
    * - ``DELETE``
-     - ``/api/v2/pools/{pool_name:path}``
+     - ``/api/v2/pools/{pool_name}``
      - ``Pool``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/pools/{pool_name:path}``
+     - ``/api/v2/pools/{pool_name}``
      - ``Pool``
      - ``GET``
    * - ``PATCH``
-     - ``/api/v2/pools/{pool_name:path}``
+     - ``/api/v2/pools/{pool_name}``
      - ``Pool``
      - ``PUT``
    * - ``GET``
@@ -559,15 +595,15 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Variable``
      - ``POST``
    * - ``DELETE``
-     - ``/api/v2/variables/{variable_key:path}``
+     - ``/api/v2/variables/{variable_key}``
      - ``Variable``
      - ``DELETE``
    * - ``GET``
-     - ``/api/v2/variables/{variable_key:path}``
+     - ``/api/v2/variables/{variable_key}``
      - ``Variable``
      - ``GET``
    * - ``PATCH``
-     - ``/api/v2/variables/{variable_key:path}``
+     - ``/api/v2/variables/{variable_key}``
      - ``Variable``
      - ``PUT``
    * - ``GET``

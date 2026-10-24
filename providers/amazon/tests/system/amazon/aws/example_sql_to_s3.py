@@ -47,7 +47,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 
 DAG_ID = "example_sql_to_s3"
 
@@ -81,11 +81,9 @@ SQL_INSERT_DATA = f"INSERT INTO {REDSHIFT_TABLE} VALUES ( 1, 'Banana', 'Yellow')
 def create_connection(conn_id_name: str, cluster_id: str):
     redshift_hook = RedshiftHook()
     cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    make_authenticated_rest_api_request(
-        path="/api/v2/connections",
-        method="POST",
-        body={
-            "connection_id": conn_id_name,
+    create_airflow_connection(
+        connection_id=conn_id_name,
+        connection_conf={
             "conn_type": "redshift",
             "host": cluster_endpoint["Endpoint"]["Address"],
             "login": DB_LOGIN,

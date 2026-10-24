@@ -17,62 +17,82 @@
  under the License.
  -->
 
-# TypeScript Coordinator Runtime Example
+# TypeScript SDK examples
 
-This example shows the coordinator-mode shape for TypeScript task handlers:
+Example Dags for the Apache Airflow TypeScript SDK. See the [TypeScript SDK guide][guide] for the full documentation.
 
-- `dags/typescript_example.py` declares the Airflow Dag and stub tasks.
-- `src/main.ts` registers TypeScript handlers for the same Dag/task IDs and
-  starts the coordinator runtime.
-- `dist/bundle.mjs` is the generated Node.js bundle that Airflow launches.
-
-The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
-with esbuild and embeds the Airflow metadata generated from the bundle's
-registered tasks, producing a single deployable file.
+[guide]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html
 
 ## Build
 
-Build the SDK first so the example can import the local package:
+Build the SDK, then the example bundles into `dist/`:
 
 ```bash
 cd ts-sdk
 pnpm install
 pnpm run build
-```
 
-Build the example bundle and its metadata:
-
-```bash
-cd ts-sdk/example
+cd example
 pnpm install
-pnpm run build
+pnpm run build               # dist/bundle.min.mjs
+pnpm run build:hitl          # dist/hitl.min.mjs
+pnpm run build:ai-approval   # dist/ai-approval.min.mjs
 ```
 
-The coordinator expects this layout:
+## Configure Airflow
 
-```text
-ts-sdk/example/dist/
-  bundle.mjs
-```
-
-## Airflow Configuration
-
-Configure Airflow to route the `typescript` queue to the Node coordinator and
-point it at the example bundle directory:
+Register `dist/` as a Dag bundle, and route the `typescript` queue to the Node.js coordinator:
 
 ```bash
+export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+  {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+  {
+    "name": "ts-task-handlers",
+    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+    "kwargs": {"path": "/absolute/path/to/airflow/ts-sdk/example/dist"}
+  }
+]'
 export AIRFLOW__SDK__COORDINATORS='{
   "ts": {
     "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-    "kwargs": {"bundles_root": ["/absolute/path/to/airflow/ts-sdk/example/dist"]}
+    "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}
   }
 }'
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
-Copy `dags/typescript_example.py` into your Airflow Dags folder.
+The workers and the Dag processor need Node.js 22 or later on `PATH`.
 
-The example also uses one Variable and one Connection:
+## Dag definition
+
+These Dags are declared entirely in TypeScript:
+
+| Dag                         | Source               | Shows                                                                                  |
+| --------------------------- | -------------------- | -------------------------------------------------------------------------------------- |
+| `typescript_native_example` | `src/native.ts`      | Task inputs, a task group, `dag.if`, `dag.switch`, and `triggerDagRun`                 |
+| `ts_hitl_*`                 | `src/hitl.ts`        | One Dag per human-in-the-loop feature, such as approvals, options, timeouts, and forms |
+| `ts_hitl_ai_approval`       | `src/ai-approval.ts` | An agent that asks a person to review its tool call before it acts                     |
+
+`typescript_native_example` triggers `typescript_example`, so set up the [Python Dags](#python-dag-with-stub-taskhandler) too.
+Set the `typescript_native_cadence` Variable to `weekly` to take the other branch of `dag.switch`.
+
+```bash
+airflow dags trigger typescript_native_example
+```
+
+Answer the human-in-the-loop requests on the **Required Actions** page.
+
+## Python Dag with stub TaskHandler
+
+These Dags are declared in Python, and their stub tasks are implemented in TypeScript:
+
+| Dag                           | Source                                                   | Shows                                                        |
+| ----------------------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
+| `typescript_example`          | `dags/typescript_example.py`, `src/main.ts`              | Variables, Connections, XComs, and the task state store      |
+| `typescript_taskflow_example` | `dags/typescript_taskflow_example.py`, `src/taskflow.ts` | TaskFlow arguments passed from Python to TypeScript handlers |
+
+Copy both files in `dags/` into your Airflow Dags folder, and create the Variable and Connection
+`typescript_example` reads:
 
 ```bash
 airflow variables set typescript_example_greeting "hello from Airflow"
@@ -83,8 +103,7 @@ airflow connections add typescript_example_http \
   --conn-password pass
 ```
 
-Then start Airflow and trigger the Dag:
-
 ```bash
 airflow dags trigger typescript_example
+airflow dags trigger typescript_taskflow_example
 ```

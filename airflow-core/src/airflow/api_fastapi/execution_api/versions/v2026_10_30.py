@@ -23,10 +23,59 @@ from cadwyn import (
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
     endpoint,
+    enum,
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    PreviousTIResponse,
+    TaskInstance,
+    TerminalStateNonSuccess,
+    TIRunContext,
+    TISuccessStatePayload,
+    TITerminalStatePayload,
+)
+
+
+class AddLoopContext(VersionChange):
+    """Provide the pinned loop definition and enclosing iteration, numbered from one, at task startup."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("loop").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_loop_context(response: ResponseInfo) -> None:
+        response.body.pop("loop", None)
+
+
+class AddTaskInstanceRegionCoordinates(VersionChange):
+    """Carry task execution coordinates independently of public mapped position, omitting them outside a region."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("region_id").didnt_exist,
+        schema(TaskInstance).field("region_index").didnt_exist,
+        schema(PreviousTIResponse).field("region_id").didnt_exist,
+        schema(PreviousTIResponse).field("region_index").didnt_exist,
+    )
+
+
+class AddStoppedTaskReport(VersionChange):
+    """Allow supervisors to report server-requested termination after the child exits."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        enum(TerminalStateNonSuccess).didnt_have("SERVER_TERMINATED"),
+        schema(TITerminalStatePayload).field("hostname").didnt_exist,
+        schema(TITerminalStatePayload).field("pid").didnt_exist,
+    )
+
+
+class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
+    """Reject every mutation from an archived attempt with 410; older clients keep each endpoint's own response."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = ()
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
@@ -39,9 +88,23 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_arg_bindings_field(response: ResponseInfo) -> None:
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
+
+
+class AddExecutionTimeoutToTIRunContext(VersionChange):
+    """Add ``execution_timeout`` so the supervisor can enforce it."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``execution_timeout`` from the run context for older clients."""
+        response.body.pop("execution_timeout", None)
 
 
 class AddCallbackRunEndpoint(VersionChange):
@@ -51,4 +114,72 @@ class AddCallbackRunEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddDagRunNoteUpdateEndpoint(VersionChange):
+    """Add endpoint for updating a DagRun note from task runtime code."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/task-instances/{task_instance_id}/dag-run-note", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddTerminalStateRetryReasonField(VersionChange):
+    """Add the `retry_reason` field to TITerminalStatePayload for failed retry-policy decisions."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TITerminalStatePayload).field("retry_reason").didnt_exist,
+    )
+
+
+class AddLoopDecisionField(VersionChange):
+    """Add the `loop_decision` field a loop gate reports with its terminal state."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("loop_decision").didnt_exist,
+        schema(TITerminalStatePayload).field("loop_decision").didnt_exist,
+    )
+
+
+class AddMultiTeamToTIRunContext(VersionChange):
+    """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_multi_team_field(response: ResponseInfo) -> None:
+        """Strip ``multi_team`` from the run context for older clients."""
+        response.body.pop("multi_team", None)
+
+
+class AddExpandedTICountToTIRunContext(VersionChange):
+    """Add ``expanded_ti_count``, the size of the mapped expansion a task instance belongs to."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("expanded_ti_count").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_expanded_ti_count(response: ResponseInfo) -> None:  # type: ignore[misc]
+        response.body.pop("expanded_ti_count", None)
+
+
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add the ``first_task_reschedule_start_date`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )

@@ -70,6 +70,7 @@ from airflow.sdk.definitions.decorators import (
 )
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
+from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
@@ -102,6 +103,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
@@ -111,7 +113,9 @@ from airflow.sdk.definitions.retry_policy import (
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
+    AssetAndTimeSchedule,
     AssetOrTimeSchedule,
+    AssetTriggeredTimetable,
     PartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
@@ -142,8 +146,10 @@ __all__ = [
     "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
+    "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -156,6 +162,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -176,6 +183,7 @@ __all__ = [
     "HourWindow",
     "IdentityMapper",
     "Label",
+    "LoopDecision",
     "Metadata",
     "MinimumCount",
     "MonthWindow",

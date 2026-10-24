@@ -2,9 +2,9 @@
   "alerts": {
     "seeLessContext": "Voir moins",
     "seeMoreContext": "Voir plus",
-    "showMoreAlerts_many": "+{{count}} alertes supplémentaires",
-    "showMoreAlerts_one": "+{{count}} alerte supplémentaire",
-    "showMoreAlerts_other": "+{{count}} alertes supplémentaires"
+    "showMoreAlerts_many": "+{{count, number}} alertes supplémentaires",
+    "showMoreAlerts_one": "+{{count, number}} alerte supplémentaire",
+    "showMoreAlerts_other": "+{{count, number}} alertes supplémentaires"
   },
   "deadlines": {
     "pending": {
@@ -18,26 +18,42 @@
     "showMore": "Voir plus",
     "title": "Échéances"
   },
-  "deferredSlotsNotCounted": "Différées non comptées dans les slots : {{count}}",
+  "deferredSlotsNotCounted": "Différées non comptées dans les slots : {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Les tâches différées affichées dans la barre sont comptées dans les slots des Pools. Les tâches différées affichées sous la barre proviennent de Pools qui ne comptent pas les tâches différées dans les slots.",
   "favorite": {
-    "favoriteDags_many": "{{count}} premiers Dags favoris",
-    "favoriteDags_one": "{{count}} premier Dag favori",
-    "favoriteDags_other": "{{count}} premiers Dags favoris",
+    "favoriteDags_many": "{{count, number}} premiers Dags favoris",
+    "favoriteDags_one": "{{count, number}} premier Dag favori",
+    "favoriteDags_other": "{{count, number}} premiers Dags favoris",
     "noDagRuns": "Il n'y a pas encore d'exécution pour ce Dag.",
     "noFavoriteDags": "Aucun favori pour le moment. Cliquez sur l'icône étoile à côté d'un Dag dans la liste pour l'ajouter à vos favoris."
   },
   "group": "Groupe",
   "health": {
     "dagProcessor": "Dag Processeur",
+    "degraded": "Dégradé",
+    "degradedHint": {
+      "dagProcessor": "Certains Dag Bundles configurés n'ont pas d'Analyseur de Dag qui les analyse.",
+      "triggerer": "Certaines équipes n'ont pas de Déclencheur exécutant des tâches différées pour elles."
+    },
+    "down": "Hors service",
     "health": "État de santé",
     "healthy": "Sain",
+    "instances": {
+      "bundles": "Bundles",
+      "hostname": "Hôte",
+      "team": "Équipe",
+      "title_many": "{{title}} — {{status}} ({{count, number}} instances)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instance)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instances)",
+      "unknownHostname": "Hôte inconnu"
+    },
     "lastHeartbeat": "Dernier Heartbeat",
     "metaDatabase": "Metadata Database",
     "scheduler": "Scheduler",
     "status": "Statut",
     "triggerer": "Triggerer",
-    "unhealthy": "Non sain"
+    "unhealthy": "Non sain",
+    "unknownStatus": "Inconnu"
   },
   "history": "Historique",
   "importErrors": {

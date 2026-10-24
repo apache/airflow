@@ -76,14 +76,15 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
             ["pipx", "install", "-e", breeze_sources.as_posix(), "--force"], stderr=subprocess.STDOUT
         )
     else:
-        # Recommended setup: breeze is invoked via the `uvx`-based shell function
-        # (see ADR 0017). There is no global install to reinstall — uvx will
-        # rebuild the cached env on next call when pyproject.toml / uv.lock change.
+        # Recommended setup: breeze is invoked through the shim (see ADR 0017), which runs
+        # `uv run --locked` against the worktree. There is no global install to reinstall —
+        # the next call re-syncs the environment whenever pyproject.toml / uv.lock change.
         console_print(
             "[info]No global breeze install detected (uv tool / pipx). "
-            "Assuming the recommended uvx-based setup — nothing to reinstall.[/]\n"
-            "[info]If you suspect a stale cached env, clear it with:[/]\n"
-            "    uv cache clean apache-airflow-breeze\n"
+            "Assuming the recommended shim-based setup — nothing to reinstall.[/]\n"
+            "[info]If you suspect a broken environment, remove it and let the next call "
+            "rebuild it:[/]\n"
+            "    rm -rf dev/breeze/.venv\n"
         )
 
     if re_run:

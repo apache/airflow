@@ -50,6 +50,7 @@ RESOURCE_PERMISSION = "Permission Views"  # Refers to a Perm <-> View mapping, n
 RESOURCE_PLUGIN = "Plugins"
 RESOURCE_POOL = "Pools"
 RESOURCE_PROVIDER = "Providers"
+RESOURCE_REPARSE_ALL = "All Reparses"
 RESOURCE_RESOURCE = "View Menus"
 RESOURCE_ROLE = "Roles"
 RESOURCE_SLA_MISS = "SLA Misses"

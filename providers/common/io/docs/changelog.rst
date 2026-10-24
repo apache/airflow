@@ -25,6 +25,94 @@
 Changelog
 ---------
 
+1.11.0
+......
+
+.. note::
+    On Airflow 3.4 and later, ``XComObjectStorageBackend`` implements ``store_value``, which Dags that use
+    task loops require, and writes objects to
+    ``<dag_id>/<run_id>/<task_id>/ti-<task instance id>/<quoted key>.json`` instead of a random file name, or to
+    ``.../write-<uuid>/<quoted key>.json`` for an XCom written for another task. ``dag_id``, ``run_id`` and
+    ``task_id`` are shortened only when the path would exceed 1,024 bytes. The quoted key is replaced by its
+    SHA-256 digest when it is longer than 200 characters, and a compression suffix is appended when
+    compression is configured. A subclass that overrides ``serialize_value`` keeps it, but cannot be used
+    with task loops until it implements ``store_value`` as well.
+
+Features
+~~~~~~~~
+
+* ``Let XCom backends tell loop iterations apart through store_value (#74858)``
+* ``Separate object storage task state by dynamic region on Airflow 3.4 (#74275)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document region_index in task state storage paths (#74346)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+
+1.10.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Misc
+~~~~
+
+* ``Import the state store types from the public 'airflow.sdk.state' module (#73600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the BaseXCom class reference in the XCom backend guide (#73360)``
+* ``Fix docs referring to a non-existent MetastoreStateBackend class (#73080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-22``
+
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement async state store methods for object storage backend (#72131)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix duplicated and incorrect words in documentation (#70868)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+
 1.8.0
 .....
 

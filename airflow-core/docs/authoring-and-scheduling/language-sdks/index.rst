@@ -22,31 +22,40 @@ Non-Python Task SDKs
 
 |experimental|
 
-Airflow Dags are always defined in Python, but individual task *implementations* can be written in other
-languages. When a task runs, Airflow's worker calls out the target language to execute the task logic, which
-communicates the result back. The Dag author uses a lightweight Python *stub* to declare where the task lives;
-everything else, including the actual business logic, Airflow API calls, and any library dependencies, lives
-in a non-Python implementation.
+Airflow Dags and tasks can be written in languages other than Python. A language SDK is used in one of two
+ways:
+
+* **Dag definition.** The whole Dag, with its schedule, tasks and dependencies, is defined in the SDK's language.
+  See :ref:`language-sdks/dag-definition`.
+* **Python Dag with stub TaskHandler.** A Python Dag declares the tasks and their dependencies, and a
+  TaskHandler in the SDK's language implements each stub task. See :ref:`language-sdks/stub-taskhandler`.
+
+Either way, a task runs on a *coordinator*, which starts the language's runtime for the task and relays
+messages between it and Airflow. See :ref:`language-sdks/coordinator-config`.
 
 .. list-table:: Available language SDKs
    :header-rows: 1
-   :widths: 15 40 15 30
+   :widths: 15 35 15 15 20
 
    * - Language
      - Coordinator class
      - Min. runtime
+     - Dag definition
      - Guide
    * - JVM languages (e.g. Java)
      - :class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator`
      - JRE 17
+     - Yes
      - :doc:`java`
    * - Go
      - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
      - None (native binary)
+     - Yes
      - :doc:`go`
    * - TypeScript
      - :class:`task-sdk:airflow.sdk.coordinators.node.NodeCoordinator`
      - Node.js 22
+     - Yes
      - :doc:`typescript`
 
 .. toctree::
@@ -56,36 +65,38 @@ in a non-Python implementation.
    go
    typescript
 
-How it works
-------------
+.. _language-sdks/dag-definition:
 
-The execution model has three moving parts.
+Dag definition
+--------------
 
-**Stub tasks in the Dag**
-   The Dag file declares tasks using :func:`@task.stub <airflow.sdk.task.stub>`. A stub is a normal Airflow
-   task from the scheduler's perspective. It participates in dependencies, retries, pools, and all other
-   task-level features exactly like other ``@task``-decorated Python functions. The only difference is that
-   the worker does not execute the Python code inside the function definition; instead it delegates execution
-   to a *coordinator*.
+The whole Dag is declared in the SDK's language: its schedule, its tasks, their options and the dependencies
+between them. No Python file is involved.
 
-**Coordinators**
-   A coordinator is a Python object registered in the ``[sdk] coordinators`` configuration. This is considered
-   a part of an Airflow worker. When the worker picks up a stub task, it looks up the coordinator mapped to
-   that task's specified ``queue``, and uses the coordinator to execute the task. The coordinator is
-   responsible for managing the target language's runtime, forwarding messages from, and relaying results back
-   to Airflow. All coordinators extend
-   :class:`task-sdk:airflow.sdk.execution_time.coordinator.BaseCoordinator`.
+The SDK builds the Dag into an artifact, and the artifact goes into a Dag bundle like any other Dag file. The
+Dag processor runs the artifact with the language's runtime to read its Dags, so the Dag processor needs that
+runtime and the ``[sdk]`` coordinator configuration. From there, Airflow treats the Dag like any Python Dag:
+the scheduler plans its runs, it shows up in the UI, and each task runs on the coordinator its queue maps to,
+from the same Dag bundle.
 
-**Language runtime**
-   The coordinator calls out one short-lived runtime per task instance. In most cases, this would be a
-   subprocess of an executable implemented in a non-Python language. The runtime receives messages from the
-   worker to identify the workload, executes the task, and communicates through the coordinator as a proxy
-   back to the worker process.
+The **Code** view in the Airflow UI shows the source the SDK embeds in the artifact.
+
+For TypeScript, see :ref:`typescript-sdk/dag-definition`.
+
+.. _language-sdks/stub-taskhandler:
+
+Python Dag with stub TaskHandler
+--------------------------------
+
+A Python Dag declares a task that another language implements as a *stub task*. The scheduler sees a normal
+task: it takes part in dependencies, retries, pools and every other task-level feature like any other
+``@task`` function. When a worker picks it up, the worker does not run the Python function body; it hands the
+task to the coordinator its queue maps to, which runs the implementation in the target language.
 
 .. _language-sdks/stub-tasks:
 
 Stub tasks
-----------
+~~~~~~~~~~
 
 A stub task is declared with the :func:`@task.stub <airflow.sdk.task.stub>` decorator. Since it is still a
 Python task declaration, every parameter available on a normal Dag or task applies. Task dependencies are also
@@ -129,15 +140,21 @@ documentation on how to do this correctly.
 
 .. note::
 
-    For a Dag containing stub tasks, the **Code** view in the Airflow UI shows only the Python Dag
-    file — including the stub declarations — as the Dag's source. The non-Python implementation source
-    is not displayed anywhere in the UI; consult your project repository or the build artifact shipped
-    in the bundle to inspect it. This is an intentional architecture decision, not a bug.
+    For a Dag containing stub tasks, the **Code** view in the Airflow UI shows only the Python Dag file,
+    including the stub declarations, as the Dag's source. The non-Python implementation source is not
+    displayed anywhere in the UI; consult your project repository or the build artifact shipped in the bundle
+    to inspect it. This is an intentional architecture decision, not a bug.
 
 .. _language-sdks/coordinator-config:
 
 Coordinator configuration
 -------------------------
+
+A coordinator is a Python object registered in the ``[sdk] coordinators`` configuration, and runs as part of an
+Airflow worker. When the worker picks up a task, it looks up the coordinator mapped to the task's ``queue``,
+and uses it to run the task. The coordinator starts one short-lived runtime per task instance, usually a
+subprocess of an executable written in the target language, and relays messages between that runtime and the
+worker. All coordinators extend :class:`task-sdk:airflow.sdk.execution_time.coordinator.BaseCoordinator`.
 
 Coordinators are registered in ``airflow.cfg`` (or via environment variables) under ``[sdk]``.
 
@@ -155,9 +172,9 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
             }
         }
 
-    The ``classpath`` value must be importable by the worker.  The ``kwargs`` are passed directly
-    to the coordinator's constructor.  See the language-specific guide for the accepted kwargs
-    of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
+    The ``classpath`` value must be importable by the worker and the Dag processor.  The ``kwargs``
+    are passed directly to the coordinator's constructor.  See the language-specific guide for the
+    accepted kwargs of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
     :class:`~airflow.sdk.coordinators.java.JavaCoordinator`).
 
     ``extra`` is an optional object for any additional information you want to associate with a
@@ -186,6 +203,257 @@ Both settings can be supplied as environment variables using the standard Airflo
 
     AIRFLOW__SDK__COORDINATORS='{"my-coordinator": {...}}'
     AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"jdk17": "my-coordinator"}'
+
+Compatibility matrix
+--------------------
+
+Language SDKs mature independently, so they do not all support the same features yet. The tables below show
+what each Language SDK supports: the features common to both authoring modes, the features of a
+:ref:`Dag definition <language-sdks/dag-definition>`, and the features of a
+:ref:`Python Dag with stub TaskHandler <language-sdks/stub-taskhandler>`. A supported feature shows the SDK
+release that shipped it. See the legend below the tables for what each mark means.
+
+.. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
+
+.. list-table:: Language SDK versions
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Version
+     - Go
+     - Java
+     - TypeScript
+   * - Min. Airflow version
+     - 3.4.0
+     - 3.4.0
+     - 3.4.0
+   * - Current Supervisor Schema Version
+     - 2026-10-30
+     - 2026-10-30
+     - 2026-10-30
+
+.. list-table:: Common to both authoring modes
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - **TaskInstance states**
+     -
+     -
+     -
+   * - ``success`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``failed`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``up_for_retry`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``skipped`` (SHOULD)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``deferred`` (MAY)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``up_for_reschedule`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``awaiting_input`` (MAY)
+     - ✗
+     - ✗
+     - ✓ 1.0.0
+   * - ``removed`` (MAY)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - **Task runtime**
+     -
+     -
+     -
+   * - ``task-logging`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``xcom-read-write`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``connection-read`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``variable-read-write`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``self-contained-bundle`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``retry-policy`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-state-store`` (MAY)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``asset-state-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-emit`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-read`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``object-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``listeners`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+
+.. list-table:: Dag definition
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - ``dag-definition-authoring`` (SHOULD)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dag-args`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``task-args`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dag-params`` (MUST †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``dag-callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``explicit-dependencies`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``edge-labels`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``taskflow-dependencies`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``task-group`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``task-loops`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``if-else-branching`` (SHOULD †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``switch-case-branching`` (SHOULD †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``trigger-dag-run`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dynamic-dag-generation`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``human-in-the-loop`` (MAY †)
+     - ✗
+     - ✗
+     - ✓ 1.0.0
+   * - ``dag-test`` (SHOULD †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-definition`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-scheduling`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``mapped-tasks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-inlets-outlets`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+
+.. list-table:: Python Dag with stub TaskHandler
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - ``mixed-lang-stub-target`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``taskflow-binding`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``mapped-tasks`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-inlets-outlets`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-callbacks`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+
+*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
+
+.. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
 
 .. _language-sdks/bundle-spec:
 

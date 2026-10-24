@@ -16,26 +16,32 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import warnings
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from jwt import InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
     TeamDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
 from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.models.pool import Pool
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -44,7 +50,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -332,6 +337,33 @@ class TestBaseAuthManager:
             await auth_manager.get_user_from_token(token)
 
         mock_is_revoked.assert_called_once_with("some-jti")
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_checks_revocation_off_the_event_loop(
+        self, mock_deserialize_user, mock__get_token_validator, auth_manager
+    ):
+        """The revocation lookup is a synchronous DB query, so it must not block the event loop."""
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = {"jti": "some-jti"}
+        mock__get_token_validator.return_value = signer
+        lookup_threads = []
+
+        def is_revoked(jti):
+            lookup_threads.append(threading.get_ident())
+            return False
+
+        with patch(
+            "airflow.models.revoked_token.RevokedToken.is_revoked", autospec=True, side_effect=is_revoked
+        ):
+            await auth_manager.get_user_from_token("token")
+
+        assert lookup_threads
+        assert lookup_threads != [threading.get_ident()]
 
     @patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
@@ -798,6 +830,91 @@ class TestBaseAuthManager:
         result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected
 
+    @pytest.mark.db_test
+    def test_get_authorized_pools_skips_null_names(self, auth_manager, session):
+        session.add_all(
+            [
+                Pool(pool=None, slots=1, include_deferred=False),
+                Pool(pool="authorized_pool", slots=1, include_deferred=False),
+            ]
+        )
+        session.flush()
+        auth_manager.is_authorized_pool = create_autospec(auth_manager.is_authorized_pool, return_value=True)
+
+        result = auth_manager.get_authorized_pools(user=Mock(spec=BaseAuthManagerUserTest), session=session)
+
+        assert None not in result
+        assert "authorized_pool" in result
+
+    @pytest.mark.parametrize(
+        ("authorized_uri_prefix", "rows", "expected"),
+        [
+            pytest.param(None, [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b")], set(), id="no-access"),
+            pytest.param(
+                "s3://team-a/",
+                [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b"), (3, "c", "s3://team-a/c")],
+                {1, 3},
+                id="access-by-uri-prefix",
+            ),
+        ],
+    )
+    def test_get_authorized_assets(self, auth_manager, authorized_uri_prefix, rows: list, expected: set):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: AssetDetails | None = None,
+        ):
+            if not details or not details.uri or authorized_uri_prefix is None:
+                return False
+            return details.uri.startswith(authorized_uri_prefix)
+
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=side_effect_func
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_assets(user=user, session=session)
+        assert result == expected
+
+    def test_get_authorized_assets_passes_id_name_and_uri_to_filter(self, auth_manager):
+        auth_manager.filter_authorized_assets = create_autospec(
+            auth_manager.filter_authorized_assets, return_value={"2"}
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = [(1, "a", "s3://a"), (2, "b", "s3://b")]
+
+        result = auth_manager.get_authorized_assets(user=user, method="PUT", session=session)
+
+        auth_manager.filter_authorized_assets.assert_called_once_with(
+            assets=[
+                AssetDetails(id="1", name="a", uri="s3://a"),
+                AssetDetails(id="2", name="b", uri="s3://b"),
+            ],
+            user=user,
+            method="PUT",
+        )
+        assert result == {2}
+
+    def test_filter_authorized_assets(self, auth_manager):
+        assets = [
+            AssetDetails(id="1", name="a", uri="s3://a"),
+            AssetDetails(id="2", name="b", uri="s3://b"),
+            AssetDetails(name="no-id", uri="s3://no-id"),
+        ]
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=lambda *, method, user, details: details.id != "2"
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="DELETE")
+
+        assert result == {"1"}
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[0], user=user)
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[1], user=user)
+
     @pytest.mark.parametrize(
         ("user_id", "assigned_users", "expected"),
         [
@@ -817,3 +934,11 @@ class TestBaseAuthManager:
         user = BaseAuthManagerUserTest(name=user_id)
         result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected
+
+    def test_get_jwt_refresh_middleware(self, auth_manager):
+        assert auth_manager.get_jwt_refresh_middleware() == [
+            (JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})
+        ]
+
+    def test_get_fastapi_middlewares(self, auth_manager):
+        assert auth_manager.get_fastapi_middlewares() == []

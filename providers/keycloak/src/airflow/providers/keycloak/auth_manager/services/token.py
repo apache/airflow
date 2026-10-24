@@ -18,18 +18,30 @@
 from __future__ import annotations
 
 import json
+from functools import cache
 
+import jwt
 from fastapi import HTTPException, status
-from keycloak import KeycloakAuthenticationError
+from jwt import PyJWKClient
+from keycloak import KeycloakAuthenticationError, KeycloakError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
+    CONF_JWT_FEDERATED_CLIENT_IDS_KEY,
+    CONF_REALM_KEY,
     CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+
+
+@cache
+def _get_jwks_client(issuer: str) -> PyJWKClient:
+    """Return the cached JWK client for a Keycloak realm issuer."""
+    return PyJWKClient(f"{issuer}/protocol/openid-connect/certs")
 
 
 def create_token_for(
@@ -56,6 +68,85 @@ def create_token_for(
         name=userinfo["preferred_username"],
         access_token=tokens["access_token"],
         refresh_token=tokens["refresh_token"],
+    )
+
+    return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+
+
+def create_jwt_federated_token(
+    assertion: str,
+    expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
+) -> str:
+    """
+    Create a token from a Keycloak access token obtained outside of Airflow.
+
+    This authentication flow accepts an access token issued by Keycloak through any
+    Keycloak-native mechanism (e.g. a "Signed JWT - Federated" client bound to an
+    external OIDC identity provider such as a Kubernetes ServiceAccount issuer, or AWS
+    IAM outbound identity federation). Airflow does not obtain the token on the caller's
+    behalf, the caller must obtain it directly from Keycloak's token endpoint. Airflow
+    verifies the token and calls Keycloak's UserInfo endpoint to validate it and retrieve
+    user information.
+
+    The token's signature, issuer, and audience are verified against this realm's JWKS.
+    The ``aud`` claim (a string or a list) must include this Airflow client's id, which
+    requires an Audience mapper on the federated client's scope in Keycloak. The calling
+    client (``azp``) must also appear in the ``jwt_federated_client_ids`` allow-list
+    below -- an ``aud`` match alone only proves the token was meant for Airflow, not
+    that the issuing client has been vetted for machine auth. Any Keycloak validation
+    error is returned as a generic ``403 Invalid Keycloak assertion`` response.
+    """
+    realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+    server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+    client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+    issuer = f"{server_url.rstrip('/')}/realms/{realm}"
+
+    try:
+        jwks_client = _get_jwks_client(issuer)
+        signing_key = jwks_client.get_signing_key_from_jwt(assertion)
+        claims = jwt.decode(
+            assertion,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=client_id,
+            issuer=issuer,
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid Keycloak assertion",
+        )
+
+    allowed_client_ids = {
+        allowed.strip()
+        for allowed in conf.get(CONF_SECTION_NAME, CONF_JWT_FEDERATED_CLIENT_IDS_KEY, fallback="").split(",")
+        if allowed.strip()
+    }
+    federated_client_id = claims.get("azp") or claims.get("client_id")
+    if not federated_client_id or federated_client_id not in allowed_client_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid Keycloak assertion",
+        )
+
+    # Confirm the assertion is still live (not revoked) and fetch the same shape of
+    # user info create_client_credentials_token uses, rather than trusting the JWT's
+    # own claims alone.
+    client = KeycloakAuthManager.get_keycloak_client()
+    try:
+        userinfo_raw: dict | bytes = client.userinfo(assertion)
+    except KeycloakError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid Keycloak assertion",
+        )
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
+    user = KeycloakAuthManagerUser(
+        user_id=userinfo["sub"],
+        name=userinfo.get("preferred_username", userinfo.get("clientId", "service-account")),
+        access_token=assertion,
+        refresh_token=None,
     )
 
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)

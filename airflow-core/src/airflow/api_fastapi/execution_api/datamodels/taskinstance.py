@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
@@ -29,15 +29,19 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex, _drop_null_default
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_MAX_BYTES
 from airflow.utils.state import (
     DagRunState,
     IntermediateTIState,
@@ -45,6 +49,9 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -67,6 +74,12 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+class DagRunNoteUpdatePayload(StrictBaseModel):
+    """Schema for updating the DagRun note associated with a task instance."""
+
+    note: str | None = Field(None, max_length=1000)
+
+
 # Create an enum to give a nice name in the generated datamodels
 class TerminalStateNonSuccess(str, Enum):
     """TaskInstance states that can be reported without extra information."""
@@ -75,16 +88,38 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED
+    SERVER_TERMINATED = "server_terminated"
+
+
+class LoopDecisionPayload(StrictBaseModel):
+    """A loop gate's evaluation of its ``until`` callable."""
+
+    stop: bool
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def _check_reason(cls, reason: str | None) -> str | None:
+        if reason is not None:
+            if len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
+                raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+            if "\x00" in reason:
+                raise ValueError("cannot contain NUL bytes")
+        return reason
 
 
 class TITerminalStatePayload(StrictBaseModel):
-    """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
+    """Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination."""
 
     state: TerminalStateNonSuccess
 
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -108,6 +143,7 @@ class TISuccessStatePayload(StrictBaseModel):
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -238,7 +274,7 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 
     if state == TIState.SUCCESS:
         return "success"
-    if state in set(TerminalTIState):
+    if state in set(TerminalTIState) or state == TerminalStateNonSuccess.SERVER_TERMINATED:
         return "_terminal_"
     if state == TIState.DEFERRED:
         return "deferred"
@@ -274,7 +310,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(BaseModel):
+class TaskInstance(OmitsMissingRegion, BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
@@ -285,12 +321,27 @@ class TaskInstance(BaseModel):
     try_number: int
     dag_version_id: uuid.UUID
     map_index: int = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     hostname: str | None = None
     context_carrier: dict | None = None
     # The supervisor routes tasks to a coordinator by queue. The default keeps
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
     queue: str = "default"
+
+
+_RuntimeTI = TypeVar("_RuntimeTI", bound=TaskInstance)
+
+
+def task_instance_to_runtime(ti: TaskInstanceModel, *, model: type[_RuntimeTI], map_index: int) -> _RuntimeTI:
+    """Build a runtime identity with a prepared public map index and the region a client sees."""
+    from airflow.models.task_coordinates import get_public_region
+
+    region_id, region_index = get_public_region(ti.region_id, ti.region_index)
+    return model.model_validate(ti, from_attributes=True).model_copy(
+        update={"map_index": map_index, "region_id": region_id, "region_index": region_index}
+    )
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
@@ -398,14 +449,71 @@ class DagRun(StrictBaseModel):
         return values
 
 
+class LoopContext(BaseModel):
+    """Pinned loop definition and enclosing iteration for a task execution."""
+
+    node_id: str
+    index: int = Field(ge=1)
+    max_iterations: int = Field(gt=0)
+    terminal_task_id: str
+    terminal_is_mapped: bool
+
+    region_id: uuid.UUID
+    """
+    The loop region holding this iteration, which identifies the trajectory it runs in.
+
+    A mapped task's own ``region_id`` is its expansion's, so this is how its instances are tied to the
+    unmapped tasks of the same iteration.
+    """
+
+    trajectory: int = Field(ge=1)
+    """
+    The number of ``region_id`` in the loop's chain of regions: 1 for the original, n + 1 for its n-th fork.
+
+    Clearing a loop gate with the later iterations forks the newest loop region, and the iterations from
+    ``resumes_from_index`` on run again in the fork.
+    """
+
+    forked_from_region_id: Annotated[
+        SkipJsonSchema[None] | uuid.UUID, Field(json_schema_extra=_drop_null_default)
+    ] = None
+    """
+    The region ``region_id`` was forked from, the previous one in the chain. Absent for the original region.
+
+    The fork replaces the iterations from ``resumes_from_index`` on, which can be held by earlier regions of
+    the chain too.
+    """
+
+    resumes_from_index: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 1."""
+
+
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
     """DAG run information for the task instance."""
 
+    loop: LoopContext | None = None
+
+    expanded_ti_count: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """
+    Number of live, non-removed instances in the mapped task's expansion this instance belongs to.
+
+    ``None`` for a task that isn't mapped. Inside a loop, it counts the instances of this iteration only.
+    """
+
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
+
+    first_task_reschedule_start_date: UtcDateTime | None = None
+    """The first reschedule start date for the task instance, if it has been rescheduled."""
 
     max_tries: int
     """Maximum number of tries for the task instance (from DB)."""
@@ -447,6 +555,24 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    execution_timeout: float | None = None
+    """
+    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
+
+    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
+    """
+
+    multi_team: bool = False
+    """
+    Whether the deployment runs in multi-team mode.
+
+    Sent explicitly because a worker cannot read ``core.multi_team`` itself: its config is
+    not guaranteed to match the scheduler's, and reading it as disabled while it is in fact
+    enabled would drop team scoping and apply a team's plugins to every task. ``team_name``
+    cannot stand in for this, being ``None`` both for a teamless task and for every task
+    when multi-team is off.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
@@ -457,7 +583,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class PreviousTIResponse(BaseModel):
+class PreviousTIResponse(OmitsMissingRegion, BaseModel):
     """Schema for response with previous TaskInstance information."""
 
     task_id: str
@@ -469,6 +595,8 @@ class PreviousTIResponse(BaseModel):
     state: str | None = None
     try_number: int
     map_index: int | None = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     duration: float | None = None
 
 

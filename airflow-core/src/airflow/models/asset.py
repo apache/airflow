@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -32,15 +33,17 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    UniqueConstraint,
     delete,
     select,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -394,6 +397,13 @@ class AssetModel(Base):
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))
+
+    @staticmethod
+    @provide_session
+    def get_name_and_uri(asset_id: int, *, session: Session = NEW_SESSION) -> tuple[str, str] | None:
+        stmt = select(AssetModel.name, AssetModel.uri).where(AssetModel.id == asset_id)
+        row = session.execute(stmt).one_or_none()
+        return (row.name, row.uri) if row is not None else None
 
 
 class AssetActive(Base):
@@ -846,6 +856,7 @@ class AssetEvent(Base):
     source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    source_task_instance_id: Mapped[UUID | None] = mapped_column(sa.Uuid(), nullable=True)
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
@@ -853,6 +864,7 @@ class AssetEvent(Base):
     __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_asset_id_timestamp", asset_id, timestamp),
+        Index("idx_asset_event_source_ti", source_task_instance_id),
         Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
@@ -871,12 +883,7 @@ class AssetEvent(Base):
 
     source_task_instance = relationship(
         "TaskInstance",
-        primaryjoin="""and_(
-            AssetEvent.source_dag_id == foreign(TaskInstance.dag_id),
-            AssetEvent.source_run_id == foreign(TaskInstance.run_id),
-            AssetEvent.source_task_id == foreign(TaskInstance.task_id),
-            AssetEvent.source_map_index == foreign(TaskInstance.map_index),
-        )""",
+        primaryjoin="foreign(AssetEvent.source_task_instance_id) == TaskInstance.id",
         viewonly=True,
         lazy="select",
         uselist=False,
@@ -943,17 +950,27 @@ class AssetPartitionDagRun(Base):
     target_dag_id / partition_key are expected in general; each dag run that
     gets created leaves its APDR record behind.
 
-    Where created_dag_run_id is null, the dag run has not yet been created.
-    We should not allow more than one row with the same target_dag_id /
-    partition_key where created_dag_run_id is null, and this is what the
-    `_lock_asset_model` mutex control is for. In case a duplicate somehow
-    gets created, we always work on the latest matching APDR record.
+    Where created_dag_run_id is null, the Dag run has not yet been created.
+    With batching disabled, each event creates its own row, so multiple pending
+    rows for the same pair are expected. With event batching enabled, events
+    accumulate on one pending row per target_dag_id / partition_key, and a
+    unique constraint on (target_dag_id, pending_partition_key) keeps
+    concurrent writers from creating a second one.
+
+    pending_partition_key mirrors partition_key on a pending row created with
+    batching enabled, and is null otherwise; the `_sync_pending_partition_key`
+    validator clears it once the Dag run is created. A unique index treats null
+    as distinct from every value on all three supported backends, so it only
+    compares batched pending rows. It stands in for a partial unique index on
+    (target_dag_id, partition_key) WHERE created_dag_run_id IS NULL, which
+    MySQL does not support.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    pending_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Serialized snapshot of the rollup definition (mapper + window for every
     # partitioned asset in the timetable) at the time this APDR was created.
@@ -978,7 +995,19 @@ class AssetPartitionDagRun(Base):
             name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
+        UniqueConstraint(
+            "target_dag_id",
+            "pending_partition_key",
+            name="apdr_target_dag_id_pending_partition_key_uq",
+        ),
     )
+
+    @validates("created_dag_run_id")
+    def _sync_pending_partition_key(self, key: str, value: int | None) -> int | None:
+        """Clear pending_partition_key once a Dag run is created for this row."""
+        if value is not None:
+            self.pending_partition_key = None
+        return value
 
 
 class PartitionedAssetKeyLog(Base):

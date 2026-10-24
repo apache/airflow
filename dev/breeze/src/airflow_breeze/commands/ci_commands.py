@@ -194,6 +194,26 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     return changed_files
 
 
+def get_changed_files_since(base_ref: str, commit_ref: str) -> tuple[str, ...] | None:
+    """Return the files changed between two commits, or None when they cannot be computed."""
+    # `--no-renames`, as `diff-tree` in `get_changed_files`: a rename counts as a delete plus an add,
+    # so that the tests of the old path are selected too.
+    result = run_command(
+        ["git", "diff", "--name-only", "--no-renames", base_ref, commit_ref],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning] Error when running diff command [/]\n{result.stdout}\n{result.stderr}")
+        return None
+    changed_files = tuple(result.stdout.splitlines()) if result.stdout else ()
+    console_print(f"\n[info]Changed files since {base_ref}:[/]\n")
+    console_print(changed_files)
+    console_print()
+    return changed_files
+
+
 @ci_group.command(
     name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
 )
@@ -249,6 +269,20 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     show_default=True,
 )
 @click.option(
+    "--selective-tests-on-push",
+    help="Select tests for a push event from the changed files, as for a pull request, "
+    "instead of running all tests.",
+    is_flag=True,
+    envvar="SELECTIVE_TESTS_ON_PUSH",
+)
+@click.option(
+    "--push-base-commit",
+    help="With --selective-tests-on-push: select tests from the files changed since this commit. "
+    "Without it, a push runs all tests.",
+    envvar="PUSH_BASE_COMMIT",
+    default="",
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -275,6 +309,8 @@ def selective_check(
     github_context: str,
     github_context_input: StringIO | None,
     ci_platform: str,
+    selective_tests_on_push: bool,
+    push_base_commit: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -286,10 +322,23 @@ def selective_check(
             github_context = github_context_input.read()
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
-        if commit_ref is not None:
+        changed_files: tuple[str, ...] = ()
+        if commit_ref is not None and selective_tests_on_push and github_event == GithubEvents.PUSH:
+            # The base is the last successful run of the branch, so this run also covers the commits
+            # whose push runs failed or were cancelled by a newer push. Without one, nothing after the
+            # branch point is known to pass, so everything runs.
+            pushed_files = (
+                get_changed_files_since(base_ref=push_base_commit, commit_ref=commit_ref)
+                if push_base_commit
+                else None
+            )
+            if pushed_files is None:
+                console_print("[warning]No tested base commit for the push, running all tests[/]")
+                commit_ref = None
+            else:
+                changed_files = pushed_files
+        elif commit_ref is not None:
             changed_files = get_changed_files(commit_ref=commit_ref)
-        else:
-            changed_files = ()
         sc = SelectiveChecks(
             commit_ref=commit_ref,
             files=changed_files,
@@ -301,6 +350,7 @@ def selective_check(
             github_actor=github_actor,
             github_context_dict=github_context_dict,
             platform=ci_platform,
+            selective_tests_on_push=selective_tests_on_push,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -346,10 +396,12 @@ class WorkflowInfo(NamedTuple):
         return PUBLIC_AMD_RUNNERS
 
     def is_canary_run(self) -> str:
+        # A push is never a canary: the CI workflows build on push only to run the selective tests
+        # of the pushed commit, and full runs of release branches are dispatched by
+        # `release-branch-ci.yml`.
         if (
             self.event_name
             in [
-                GithubEvents.PUSH.value,
                 GithubEvents.WORKFLOW_DISPATCH.value,
                 GithubEvents.SCHEDULE.value,
             ]
@@ -549,6 +601,130 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     run_command(cmd, check=False, env=command_env)
 
 
+def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> None:
+    """Drop any ``backport-to-*`` label boring-cyborg put on the upgrade PR.
+
+    The CI environment is upgraded on each maintenance branch by that branch's own scheduled
+    run, so backporting main's upgrade would race it with a change that conflicts on the very
+    files it regenerates. boring-cyborg labels by path and cannot tell this PR apart from a
+    hand-written one touching ``dev/`` or ``.github/``, so the label is removed here instead.
+
+    Labelling happens on a webhook and may land after this runs; ``upgrade-check.yml`` sweeps
+    again once the PR has settled, so a miss here is not the last word.
+    """
+    labels_result = run_command(
+        [
+            "gh",
+            "pr",
+            "view",
+            branch_name,
+            "--repo",
+            "apache/airflow",
+            "--json",
+            "labels",
+            "--jq",
+            '[.labels[].name | select(startswith("backport-to-"))] | join(",")',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=command_env,
+    )
+    if labels_result.returncode != 0:
+        console_print("[warning]Could not read PR labels - leaving any backport labels in place.[/]")
+        return
+    labels = [label for label in labels_result.stdout.strip().split(",") if label]
+    if not labels:
+        return
+    remove_cmd = ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow"]
+    for label in labels:
+        remove_cmd.extend(["--remove-label", label])
+    if run_command(remove_cmd, capture_output=True, text=True, check=False, env=command_env).returncode:
+        console_print(f"[warning]Could not remove backport labels: {', '.join(labels)}[/]")
+    else:
+        console_print(f"[success]Removed backport labels: {', '.join(labels)}.[/]")
+
+
+# All upgrade commands run locally with check=False to continue on errors.
+# The uv lock --upgrade step must run after the steps that change dependencies, so it can
+# incorporate them -- and before the steps that regenerate code from the resolved versions.
+UPGRADE_COMMANDS: list[tuple[str, str]] = [
+    ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
+    (
+        "update-chart-dependencies",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
+    ),
+    (
+        "upgrade-important-versions",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
+    ),
+    (
+        "upgrade-dependency-floors",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-dependency-floors",
+    ),
+    (
+        # Raised floors change provider pyproject.toml files, but the requirement tables rendered
+        # from them into README.rst and docs/index.rst are only refreshed by these hooks, and the
+        # upgrade commit is not made with prek hooks installed, so CI's --all-files run goes red.
+        "regenerate-provider-requirement-tables",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "update-providers-build-files sync-provider-readme",
+    ),
+    (
+        "update-uv-lock",
+        "uv lock --upgrade",
+    ),
+    (
+        # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+        # generated files' header. These hooks only watch the API sources, which an upgrade run
+        # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+        "regenerate-datamodels",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+    ),
+]
+
+
+DEPENDENCY_FLOORS_REPORT_ENV = "DEPENDENCY_FLOORS_REPORT"
+UPGRADE_PR_BODY = "This PR upgrades important dependencies of the CI environment."
+
+
+def build_upgrade_pr_body(floors_report: str | None) -> str:
+    if not floors_report:
+        return UPGRADE_PR_BODY
+    return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
+
+
+def get_step_enabled(
+    *,
+    autoupdate: bool,
+    update_chart_dependencies: bool,
+    upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
+    update_uv_lock: bool,
+) -> dict[str, bool]:
+    return {
+        "autoupdate": autoupdate,
+        "update-chart-dependencies": update_chart_dependencies,
+        "upgrade-important-versions": upgrade_important_versions,
+        "upgrade-dependency-floors": upgrade_dependency_floors,
+        "regenerate-provider-requirement-tables": upgrade_dependency_floors,
+        "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
+    }
+
+
+def read_floors_report(report_path: Path) -> str | None:
+    """Return the report the floors step wrote, if any, and remove its temporary directory."""
+    report = report_path.read_text() if report_path.exists() else None
+    shutil.rmtree(report_path.parent, ignore_errors=True)
+    return report
+
+
+def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
+    return ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow", "--body", pr_body]
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -610,6 +786,12 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run upgrade-important-versions to bump key dependency versions",
 )
 @click.option(
+    "--upgrade-dependency-floors/--no-upgrade-dependency-floors",
+    default=True,
+    show_default=True,
+    help="Raise the floors of the curated dependencies in [tool.airflow.dependency-floors]",
+)
+@click.option(
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
@@ -621,6 +803,12 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     default=True,
     show_default=True,
     help="Sync K8s JSON schemas to airflow-site",
+)
+@click.option(
+    "--latest-package-managers/--no-latest-package-managers",
+    default=False,
+    show_default=True,
+    help="Bypass cooldown when upgrading package managers (pip and uv) to use their latest versions",
 )
 @option_github_token
 @option_answer
@@ -636,8 +824,10 @@ def upgrade(
     autoupdate: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
+    latest_package_managers: bool,
     github_token: str | None,
 ):
     # Validate target_branch pattern
@@ -800,6 +990,10 @@ def upgrade(
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
 
+    if latest_package_managers:
+        command_env["LATEST_PACKAGE_MANAGERS"] = "true"
+        command_env["UPGRADE_LATEST_PACKAGE_MANAGERS"] = "true"
+
     if github_token:
         command_env["GITHUB_TOKEN"] = github_token
         console_print("[success]GitHub token set in environment.[/]")
@@ -810,47 +1004,24 @@ def upgrade(
             f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
-    # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
-    # incorporate them -- and before the steps that regenerate code from the resolved versions.
-    upgrade_commands: list[tuple[str, str]] = [
-        ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        (
-            "update-chart-dependencies",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
-        ),
-        (
-            "upgrade-important-versions",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
-        ),
-        (
-            "update-uv-lock",
-            "uv lock --upgrade",
-        ),
-        (
-            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
-            # generated files' header. These hooks only watch the API sources, which an upgrade run
-            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
-            "regenerate-datamodels",
-            "prek --all-files --show-diff-on-failure --color always --verbose "
-            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
-        ),
-    ]
+    floors_report_path = Path(tempfile.mkdtemp()) / "dependency-floors.md"
+    command_env[DEPENDENCY_FLOORS_REPORT_ENV] = str(floors_report_path)
 
-    step_enabled = {
-        "autoupdate": autoupdate,
-        "update-chart-dependencies": update_chart_dependencies,
-        "upgrade-important-versions": upgrade_important_versions,
-        "update-uv-lock": update_uv_lock,
-        "regenerate-datamodels": update_uv_lock,
-    }
+    step_enabled = get_step_enabled(
+        autoupdate=autoupdate,
+        update_chart_dependencies=update_chart_dependencies,
+        upgrade_important_versions=upgrade_important_versions,
+        upgrade_dependency_floors=upgrade_dependency_floors,
+        update_uv_lock=update_uv_lock,
+    )
 
     # Execute upgrade commands
-    for step_name, command in upgrade_commands:
+    for step_name, command in UPGRADE_COMMANDS:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)
         else:
             console_print(f"[info]Skipping {step_name} (disabled).[/]")
+    floors_report = read_floors_report(floors_report_path)
 
     # Sync K8s schemas to airflow-site
     if k8s_schema_sync:
@@ -930,7 +1101,7 @@ def upgrade(
             console_print("[warning]Could not determine fork repository. Using branch name only.[/]")
 
         pr_title = f"[{target_branch}] Upgrade important CI environment"
-        pr_body = "This PR upgrades important dependencies of the CI environment."
+        pr_body = build_upgrade_pr_body(floors_report)
 
         # Check if there's already an open PR for this branch.
         # gh pr list / gh pr ready filter by the bare head-branch name, not the
@@ -963,6 +1134,14 @@ def upgrade(
 
         if existing_pr and existing_pr != "null" and existing_pr != "":
             console_print(f"[success]Existing PR found and updated with force push: {existing_pr}[/]")
+            # The body carries this run's dependency-floors report, so it must follow the pushed diff.
+            run_command(
+                build_update_pr_body_command(branch_name, pr_body),
+                capture_output=True,
+                text=True,
+                check=False,
+                env=command_env,
+            )
             if draft:
                 # Convert back to draft so a human must undraft to trigger CI
                 run_command(
@@ -1018,6 +1197,8 @@ def upgrade(
                     sys.exit(1)
             else:
                 console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
+
+        remove_backport_labels(branch_name=branch_name, command_env=command_env)
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")

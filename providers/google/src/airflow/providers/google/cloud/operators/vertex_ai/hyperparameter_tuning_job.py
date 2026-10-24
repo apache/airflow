@@ -123,7 +123,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         [Tensorboard][google.cloud.aiplatform.v1beta1.Tensorboard] resource to which this CustomJob will
         upload Tensorboard logs. Format:
         ``projects/{project}/locations/{location}/tensorboards/{tensorboard}`` The training script should
-        write Tensorboard to following Vertex AI environment variable: AIP_TENSORBOARD_LOG_DIR
+        write Tensorboard to the following Vertex AI environment variable: AIP_TENSORBOARD_LOG_DIR
         `service_account` is required with provided `tensorboard`. For more information on configuring
         your service account please visit:
         https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
@@ -145,6 +145,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
         "display_name",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAITrainingLink(),)
 
@@ -310,7 +311,13 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "hyperparameter_tuning_job_id", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "region",
+        "hyperparameter_tuning_job_id",
+        "project_id",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
     operator_extra_links = (VertexAITrainingLink(),)
 
     def __init__(
@@ -374,7 +381,13 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param metadata: Strings which should be sent along with the request as metadata.
     """
 
-    template_fields = ("region", "project_id", "hyperparameter_tuning_job_id", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "region",
+        "project_id",
+        "hyperparameter_tuning_job_id",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -450,6 +463,7 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAIHyperparameterTuningJobListLink(),)
 

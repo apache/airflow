@@ -27,8 +27,11 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from starlette.middleware import Middleware
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -38,9 +41,12 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.observability.metrics import stats_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from fastapi import Request
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
 API_BASE_URL = conf.get("api", "base_url", fallback="")
@@ -59,6 +65,22 @@ def get_cookie_path() -> str:
     Falls back to ``"/"`` when no ``base_url`` is configured.
     """
     return API_ROOT_PATH or "/"
+
+
+def request_cookie_is_secure(request: Request) -> bool:
+    """
+    Return whether a FastAPI request cookie should be tagged as HTTP secure.
+
+    :param request: FastAPI Request object
+
+    usage:
+    ```python
+    secure = request_cookie_is_secure(request)
+
+    response.set_cookie("mycookie", "myvalue", path=get_cookie_path(), secure=secure, httponly=True)
+    ```
+    """
+    return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
 
 
 # Fast API apps mounted under these prefixes are not allowed
@@ -99,6 +121,7 @@ def _initialize_api_server_stats() -> None:
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
+        stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
                 await stack.enter_async_context(
@@ -139,8 +162,7 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "all" in apps_list or "execution" in apps_list:
-        task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
+        task_exec_api_app = create_task_execution_api_app(dag_bag=dag_bag)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
@@ -151,6 +173,9 @@ def create_app(apps: str = "all") -> FastAPI:
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
+
+    init_api_metrics(app)
+    init_access_logging(app)
 
     init_config(app)
 
@@ -217,6 +242,18 @@ def get_auth_manager() -> BaseAuthManager:
             "The `init_auth_manager` method needs to be called first."
         )
     return _AuthManagerState.instance
+
+
+def init_access_logging(app: FastAPI) -> None:
+    """Install the access log middleware, the only producer of access records."""
+    app.add_middleware(HttpAccessLogMiddleware)
+
+
+def init_api_metrics(app: FastAPI) -> None:
+    """Install the API metrics middleware, the only producer of API request metrics."""
+    if not stats_utils.is_metrics_enabled():
+        return
+    app.add_middleware(HttpMetricsMiddleware)
 
 
 def init_plugins(app: FastAPI) -> None:

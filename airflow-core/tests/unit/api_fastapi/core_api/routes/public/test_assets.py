@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from datetime import timedelta
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import time_machine
@@ -26,7 +27,11 @@ from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
+    DagAccessEntity,
+    DagDetails,
+)
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -37,6 +42,7 @@ from airflow.models.asset import (
     AssetModel,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
@@ -50,7 +56,7 @@ from airflow.sdk import Asset
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -161,6 +167,35 @@ def _create_assets_with_team_references(session, num: int = 2, refs_per_asset: i
             )
     session.commit()
     return assets
+
+
+def _create_asset_referenced_by_two_dags(session) -> AssetModel:
+    """Create one asset that is scheduling, produced by and consumed by both ``dag_a`` and ``dag_b``."""
+    _ensure_dags(session, "dag_a", "dag_b")
+    asset = AssetModel(id=1, name="shared", uri="s3://bucket/shared", group="asset")
+    session.add(asset)
+    session.add(AssetActive.for_asset(asset))
+    session.flush()
+    for dag_id in ("dag_a", "dag_b"):
+        session.add_all(
+            [
+                DagScheduleAssetReference(dag_id=dag_id, asset=asset),
+                TaskOutletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_producer", asset=asset),
+                TaskInletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_consumer", asset=asset),
+            ]
+        )
+    session.commit()
+    return asset
+
+
+def _assert_references_scoped_to_dag_a(asset: dict) -> None:
+    assert [ref["dag_id"] for ref in asset["scheduled_dags"]] == ["dag_a"]
+    assert [(ref["dag_id"], ref["task_id"]) for ref in asset["producing_tasks"]] == [
+        ("dag_a", "dag_a_producer")
+    ]
+    assert [(ref["dag_id"], ref["task_id"]) for ref in asset["consuming_tasks"]] == [
+        ("dag_a", "dag_a_consumer")
+    ]
 
 
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
@@ -369,7 +404,10 @@ class TestGetAssets(TestAssets):
         assert len(session.scalars(select(AssetModel)).all()) == 3
         assert len(session.scalars(select(AssetActive)).all()) == 2
 
-        with assert_queries_count(7):
+        # 9 rather than 7: resolving the caller's readable assets, so the list can be scoped
+        # to them, and the caller's readable Dags, so the nested Dag and task references can
+        # be scoped to them, each cost one additional query.
+        with assert_queries_count(9):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -411,6 +449,49 @@ class TestGetAssets(TestAssets):
             ],
             "total_entries": 2,
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        self.create_assets(session=session, num=3)
+        mock_get_authorized_assets.return_value = {1, 3}
+
+        response = test_client.get("/assets")
+
+        mock_get_authorized_assets.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert [asset["id"] for asset in body["assets"]] == [1, 3]
+        # The count must be scoped too, so the existence of hidden assets does not leak.
+        assert body["total_entries"] == 2
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        _assert_references_scoped_to_dag_a(body["assets"][0])
+
+    def test_should_return_all_references_when_all_dags_are_readable(self, test_client, session):
+        _create_asset_referenced_by_two_dags(session)
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        asset = response.json()["assets"][0]
+        assert {ref["dag_id"] for ref in asset["scheduled_dags"]} == {"dag_a", "dag_b"}
+        assert {ref["dag_id"] for ref in asset["producing_tasks"]} == {"dag_a", "dag_b"}
+        assert {ref["dag_id"] for ref in asset["consuming_tasks"]} == {"dag_a", "dag_b"}
 
     def test_should_respond_200_with_watchers(self, test_client, session):
         """Test that assets with watchers return the watcher information in the API response."""
@@ -587,7 +668,7 @@ class TestGetAssets(TestAssets):
         """
         _create_assets_with_team_references(session, num=5)
 
-        with assert_queries_count(9):
+        with assert_queries_count(11):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -996,8 +1077,94 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         # The count must be scoped too, so the existence of hidden events does not leak.
         assert body["total_entries"] == len(expected_ids)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_endpoint_returns_only_events_of_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        """An event of an asset the caller cannot read is hidden even when its source Dag is readable.
+
+        An event whose asset has since been deleted has no name or uri left to authorize on and
+        stays visible, like an event with no source Dag.
+        """
+        mock_get_authorized_assets.return_value = {2}
+        self.create_assets(session=session, num=2)
+        session.add_all(
+            [
+                AssetEvent(id=1, asset_id=1, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE),
+                AssetEvent(id=2, asset_id=2, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE),
+                AssetEvent(id=3, asset_id=1, extra={}, timestamp=DEFAULT_DATE),
+                # Asset 99 does not exist any more.
+                AssetEvent(
+                    id=4, asset_id=99, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == [2, 4]
+        assert body["total_entries"] == 2
+
 
 class TestGetAssetEvents(TestAssets):
+    @pytest.mark.parametrize("unknown", [False, True])
+    def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
+        assets = _create_assets(session)
+        selected = uuid4()
+        events = [
+            AssetEvent(
+                asset_id=assets[0].id,
+                source_dag_id="source_dag_id",
+                source_run_id="same_run",
+                source_task_id="same_task",
+                source_map_index=-1,
+                source_task_instance_id=identity,
+                timestamp=DEFAULT_DATE + timedelta(seconds=index),
+            )
+            for index, identity in enumerate((selected, selected, uuid4(), None))
+        ]
+        session.add_all(events)
+        session.commit()
+        response = test_client.get(
+            "/assets/events",
+            params={
+                "source_task_instance_id": str(uuid4() if unknown else selected),
+                "limit": 1,
+                "offset": 1,
+                "order_by": "timestamp",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == (0 if unknown else 2)
+        assert [row["id"] for row in response.json()["asset_events"]] == ([] if unknown else [events[1].id])
+        assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == (
+            [] if unknown else [str(selected)]
+        )
+
+    def test_unattributed_event_has_no_source_task_instance_id(self, test_client, session):
+        assets = _create_assets(session)
+        session.add(
+            AssetEvent(
+                asset_id=assets[0].id,
+                source_dag_id="source_dag_id",
+                source_run_id="run",
+                source_task_id="task",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200, response.text
+        assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == [None]
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)
@@ -1007,9 +1174,9 @@ class TestGetAssetEvents(TestAssets):
         session.commit()
         assert len(assets) == 2
 
-        # 5 rather than 4: resolving the caller's readable Dags, so events can be scoped
-        # to them, costs one additional query — the same cost the queued-events routes pay.
-        with assert_queries_count(5):
+        # 6 rather than 4: resolving the caller's readable Dags and readable assets, so events
+        # can be scoped to them, costs one additional query each.
+        with assert_queries_count(6):
             response = test_client.get("/assets/events")
 
         assert response.status_code == 200
@@ -1027,6 +1194,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1055,6 +1223,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1272,6 +1441,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1300,6 +1470,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1632,7 +1803,9 @@ class TestGetAssetEndpoint(TestAssets):
         self.create_assets(num=1)
         assert session.scalars(select(func.count(AssetModel.id))).one() == 1
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
-        with assert_queries_count(6):
+        # 7 rather than 6: resolving the asset's name and uri for the authorization check costs
+        # one additional query.
+        with assert_queries_count(7):
             response = test_client.get("/assets/1")
         assert response.status_code == 200
         assert response.json() == {
@@ -1650,6 +1823,50 @@ class TestGetAssetEndpoint(TestAssets):
             "watchers": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset"
+    )
+    def test_should_authorize_with_asset_name_and_uri(self, mock_is_authorized_asset, test_client):
+        """The auth manager receives the name and uri so it can authorize on more than the id."""
+        self.create_assets(num=1)
+        mock_is_authorized_asset.return_value = True
+
+        response = test_client.get("/assets/1")
+
+        assert response.status_code == 200
+        mock_is_authorized_asset.assert_called_once_with(
+            method="GET",
+            details=AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        asset = _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        _assert_references_scoped_to_dag_a(response.json())
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_no_references_without_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        asset = _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = set()
+
+        response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["scheduled_dags"] == []
+        assert body["producing_tasks"] == []
+        assert body["consuming_tasks"] == []
 
     @provide_session
     def test_should_respond_200_with_watchers(self, test_client, *, session):
@@ -1694,7 +1911,7 @@ class TestGetAssetEndpoint(TestAssets):
         """
         asset = _create_assets_with_team_references(session, num=1, refs_per_asset=5)[0]
 
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             response = test_client.get(f"/assets/{asset.id}")
 
         assert response.status_code == 200
@@ -1851,7 +2068,6 @@ class TestQueuedEventsDagAxisAuthorization:
     @pytest.mark.parametrize(
         "path",
         [
-            "/assets/{asset_id}/queuedEvents",
             "/dags/{dag_id}/assets/queuedEvents",
             "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         ],
@@ -1878,6 +2094,24 @@ class TestQueuedEventsDagAxisAuthorization:
         assert matches, f"no GET route registered for {path}"
         for route in matches:
             assert self._dag_axis_methods(route) == ["GET"]
+
+    @pytest.mark.parametrize("method", ["GET", "DELETE"])
+    def test_asset_wide_queued_events_do_not_gate_on_a_request_dag_id(self, routes_by_path, method):
+        """The asset-wide routes have no Dag in the path; they scope rows to permitted Dags instead.
+
+        A Dag check there would be made against whatever ``?dag_id=`` the caller sends, which says
+        nothing about the Dags whose rows the route returns or deletes.
+        """
+        path = "/assets/{asset_id}/queuedEvents"
+        # Exclude the per-Dag routes, whose paths end with the same suffix.
+        matches = [
+            r
+            for (p, methods), r in routes_by_path.items()
+            if p.endswith(path) and "/dags/" not in p and method in methods
+        ]
+        assert matches, f"no {method} route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == []
 
 
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -1951,18 +2185,56 @@ class TestPostAssetEvents(TestAssets):
             "source_dag_id": None,
             "source_run_id": None,
             "source_map_index": -1,
+            "source_task_instance_id": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_authorize_on_the_asset_named_in_the_body(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        """The asset id lives in the body, so the route must resolve it and authorize on the full asset."""
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = True
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 200
+        mock_is_authorized_asset.assert_called_once_with(
+            mock.ANY,
+            method="POST",
+            details=AssetDetails(id=str(asset.id), name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_respond_403_when_not_authorized_on_the_asset(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = False
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 403
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
         assert response.status_code == 401
 
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
+    def test_should_respond_403(self, unauthorized_test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        response = unauthorized_test_client.post("/assets/events", json={"asset_id": asset.id})
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
@@ -2013,6 +2285,7 @@ class TestPostAssetEvents(TestAssets):
             "source_dag_id": None,
             "source_run_id": None,
             "source_map_index": -1,
+            "source_task_instance_id": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2064,6 +2337,7 @@ class TestPostAssetEventsTeamResolution(TestAssets):
             group=asset.group,
             extra={"from_rest_api": True},
             source_map_index=-1,
+            source_task_instance_id=None,
             timestamp=DEFAULT_DATE,
             source_task_id=None,
             source_dag_id=None,
@@ -2196,13 +2470,13 @@ class TestPostAssetMaterialize(TestAssets):
         return_value="Jane Doe",
     )
     def test_materialize_records_triggering_user_display_name(self, mock_display_name, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json()["triggering_user_name"] == "Jane Doe"
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json() == {
             "bundle_version": None,
@@ -2229,6 +2503,77 @@ class TestPostAssetMaterialize(TestAssets):
             "note": None,
             "team_name": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("headers", "content"),
+        [
+            pytest.param(None, None, id="no-body"),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"}, b"", id="empty-urlencoded-form"
+            ),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"},
+                b"partition_key=x",
+                id="urlencoded-form-with-field",
+            ),
+            pytest.param({"content-type": "multipart/form-data; boundary=x"}, b"", id="empty-multipart-form"),
+            pytest.param({"content-type": "text/plain"}, b"", id="empty-text-plain"),
+        ],
+    )
+    def test_should_reject_missing_or_non_json_body(self, test_client, session, headers, content):
+        # The request body is required and must be JSON, like the other mutating endpoints. A bodyless
+        # request and a browser HTML form submission (url-encoded/multipart/text, which is all a plain
+        # cross-origin <form> can send) are both rejected without queuing a Dag run.
+        response = test_client.post("/assets/1/materialize", content=content, headers=headers)
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_materialize_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json={"drain_dag": drain_dag})
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, request_fields, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json=request_fields)
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if expected_status == 403:
+            assert (
+                response.json()["detail"] == f"Draining requires permission to edit Dag: {self.DAG_ASSET1_ID}"
+            )
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 1
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):
@@ -2259,6 +2604,21 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["note"] == "created from asset page"
         assert response.json()["partition_key"] == "2026-03-23"
         assert response.json()["run_type"] == "asset_materialization"
+
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_should_respond_422_for_reserved_conf_keys(self, test_client, session, key, conf):
+        response = test_client.post("/assets/1/materialize", json={"conf": conf})
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_trigger_fields_without_dag_run_id(self, test_client):
@@ -2292,12 +2652,12 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 403
 
     def test_should_respond_409_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/2/materialize")
+        response = test_client.post("/assets/2/materialize", json={})
         assert response.status_code == 409
         assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/3/materialize")
+        response = test_client.post("/assets/3/materialize", json={})
         assert response.status_code == 404
         assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
@@ -2313,7 +2673,7 @@ class TestPostAssetMaterialize(TestAssets):
             .values(_data=data)
         )
         session.commit()
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2350,7 +2710,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["bundle_version"] == "v1"
 
         # Without bundle_version the latest (v2) governs and rejects the run.
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2365,7 +2725,7 @@ class TestPostAssetMaterialize(TestAssets):
         ) as mock_get_auth_manager:
             mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
 
-            response = test_client.post("/assets/1/materialize")
+            response = test_client.post("/assets/1/materialize", json={})
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
@@ -2494,7 +2854,7 @@ class TestPostAssetMaterialize(TestAssets):
                 DagModel, "get_team_name", return_value=team_name, autospec=True
             ) as mock_get_team_name,
         ):
-            test_client.post("/assets/1/materialize")
+            test_client.post("/assets/1/materialize", json={})
 
         assert len(recorded) == 1, "expected exactly one authorization check"
         details = recorded[0]["details"]
@@ -2512,7 +2872,9 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        with assert_queries_count(3):
+        # 4 rather than 3: resolving the asset's name and uri for the authorization check costs
+        # one additional query.
+        with assert_queries_count(4):
             response = test_client.get(f"/assets/{asset.id}/queuedEvents")
 
         assert response.status_code == 200
@@ -2568,6 +2930,56 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         response = test_client.delete("/assets/1/queuedEvents")
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
+
+    def _create_queued_events_for_dags(self, session, dag_ids: list[str]) -> AssetModel:
+        (asset,) = self.create_assets(session=session, num=1)
+        _ensure_dags(session, *dag_ids)
+        for dag_id in dag_ids:
+            event = AssetEvent(asset_id=asset.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset.id, asset_event_id=event.id))
+        session.commit()
+        return asset
+
+    @staticmethod
+    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
+        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
+            return set(editable) if method == "PUT" else set(readable)
+
+        return get_authorized_dag_ids
+
+    @pytest.mark.parametrize("query_string", ["", "?dag_id=dag_a"], ids=["no-dag-id", "editable-dag-id"])
+    def test_deletes_only_queued_events_of_editable_dags(self, test_client, session, query_string):
+        """A user who may edit dag_a but only read dag_b must leave dag_b's queued events in place."""
+        asset = self._create_queued_events_for_dags(session, ["dag_a", "dag_b"])
+
+        with mock.patch.object(
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(readable={"dag_a", "dag_b"}, editable={"dag_a"}),
+        ):
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents{query_string}")
+
+        assert response.status_code == 204
+        session.expire_all()
+        remaining = session.scalars(select(AssetDagRunQueue.target_dag_id)).all()
+        assert remaining == ["dag_b"]
+
+    def test_responds_404_when_only_readable_dags_have_queued_events(self, test_client, session):
+        """Naming an editable Dag in the query string does not widen the delete to readable Dags."""
+        asset = self._create_queued_events_for_dags(session, ["dag_b"])
+
+        with mock.patch.object(
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(readable={"dag_a", "dag_b"}, editable={"dag_a"}),
+        ):
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents?dag_id=dag_a")
+
+        assert response.status_code == 404
+        session.expire_all()
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["dag_b"]
 
     def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
         from sqlalchemy import event

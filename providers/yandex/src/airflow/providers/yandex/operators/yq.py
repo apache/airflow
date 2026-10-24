@@ -39,7 +39,10 @@ class YQExecuteQueryOperator(BaseOperator):
     """
 
     operator_extra_links = (YQLink(),)
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = (
+        "sql",
+        "yandex_conn_id",
+    )
     template_fields_renderers = {"sql": "sql"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"

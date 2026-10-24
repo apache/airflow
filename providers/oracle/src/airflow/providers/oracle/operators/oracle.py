@@ -46,6 +46,7 @@ class OracleStoredProcedureOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "parameters",
         "procedure",
+        "oracle_conn_id",
     )
     ui_color = "#ededed"
 

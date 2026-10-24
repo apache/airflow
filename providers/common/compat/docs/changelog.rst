@@ -25,6 +25,107 @@
 Changelog
 ---------
 
+1.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Export 'ResumableJobMixin' with a fallback for Airflow versions below 3.3 (#74673)``
+* ``Let retry policies reschedule a task without using a retry (#74719)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Resolve async connections off the event loop before Airflow 3.3.2 (#74766)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+
+1.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'mask_secret' to the common.compat SDK helpers (#70766)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Add get_async_extra_dejson to the common.compat connection helpers (#74147)``
+* ``Support Airflow 2.11 in the Common AI provider (#73991)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Persist 'retry_reason' not just for retries but even when a task fails (#73027)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Test get_async_extra_dejson against the real supervisor comms (#74166)``
+   * ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+1.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ChainRetryPolicy to common.compat for Airflow 3.3 (#73553)``
+* ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseBranchOperator import on Airflow 2 without standard provider (#73140)``
+
+Misc
+~~~~
+
+* ``Add missing tests for common.compat.standard operators and triggers (#73262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add common.compat alias for BaseEventTrigger (#72140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix lineage entities sharing mutable defaults across instances (#72509)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing unit tests for common.compat lineage entities (#72506)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 1.18.0
 ......
 

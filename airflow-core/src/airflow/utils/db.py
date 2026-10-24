@@ -117,7 +117,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "f8c2a1d94e03",
+    "3.4.0": "ee86eed19e24",
+    "3.5.0": "c71065a1b14f",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1019,7 +1020,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     from airflow.models.tasklog import LogTemplate
 
     metadata = reflect_tables([LogTemplate], session)
-    log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
+    log_template_table: Table | None = metadata.tables.get(LogTemplate.__table__.key)
 
     if log_template_table is None:
         log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
@@ -1080,7 +1081,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, schema: str | None = None):
+def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, schema: str | None = None):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1104,11 +1105,15 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, sche
     else:
         for tbl in tables:
             try:
-                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
                 tbl_schema: str | None
-                tbl_schema, sep, name = table_name.partition(".")
-                if not sep:
-                    tbl_schema, name = None, table_name
+                if isinstance(tbl, str):
+                    tbl_schema, sep, name = tbl.partition(".")
+                    if not sep:
+                        tbl_schema, name = None, tbl
+                else:
+                    # Preserve the mapped class's own configured schema; see PR #70793.
+                    name = tbl.__tablename__
+                    tbl_schema = inspect(tbl, raiseerr=True).local_table.schema
                 metadata.reflect(
                     bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
                 )
@@ -1517,7 +1522,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
     except ImportError:
         raise RuntimeError(
-            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "Import error occurred while importing FABDBManager. The apache-airflow-providers-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
 
@@ -1760,6 +1765,9 @@ def _normalize_mysql_server_default(default: Any) -> str | None:
         return None
 
     normalized = str(default).strip().strip("'\"").lower()
+    # MySQL reflects expression defaults with escaped quotes and a charset introducer,
+    # e.g. unhex(_utf8mb4\'00ff\') for a model default of UNHEX('00ff').
+    normalized = re.sub(r"\b_[a-z0-9]+(?=')", "", normalized.replace("\\'", "'"))
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
     normalized = normalized.replace(" ", "")

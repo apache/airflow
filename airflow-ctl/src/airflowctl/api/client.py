@@ -35,7 +35,7 @@ import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
 from tenacity import (
-    before_log,
+    before_sleep_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -229,10 +229,12 @@ class Credentials:
                 for candidate in candidates:
                     if hasattr(candidate, "_get_new_password"):
                         candidate._get_new_password = _bounded_get_new_password
+                if self.api_token is None:
+                    raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.")
                 keyring.set_password(
                     "airflowctl",
                     self.token_key_for_environment(self.api_environment),
-                    self.api_token,  # type: ignore[arg-type]
+                    self.api_token,
                 )
         except (NoKeyringError, NotImplementedError) as e:
             log.error(e)
@@ -243,10 +245,6 @@ class Credentials:
                 "the --api-token flag to any command.\n"
                 "Use `airflowctl auth login --skip-keyring ...` to dismiss this error."
             ) from e
-        except TypeError as e:
-            # This happens when the token is None, which is not allowed by keyring
-            if self.api_token is None and self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -400,7 +398,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def request(self, *args, **kwargs):

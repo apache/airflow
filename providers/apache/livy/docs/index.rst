@@ -76,7 +76,7 @@ apache-airflow-providers-apache-livy package
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 4.6.1
+Release: 4.6.4
 
 Provider package
 ----------------
@@ -101,7 +101,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-http``           ``>=6.0.1``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``aiohttp``                                 ``>=3.14.0``
 ==========================================  ==================
 
@@ -111,5 +111,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-livy 4.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-livy 4.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.6.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.6.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.6.4-py3-none-any.whl.sha512>`__)

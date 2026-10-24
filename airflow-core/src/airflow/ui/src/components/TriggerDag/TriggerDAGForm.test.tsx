@@ -16,10 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as OpenapiQueries from "openapi/queries";
+
+import { MOCK_DAG } from "src/mocks/handlers/dag";
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -41,10 +46,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
     // eslint-disable-next-line id-length
-    t: (translationKey: string) =>
-      ({
-        "configForm.advancedOptions": "Advanced Options",
-      })[translationKey] ?? translationKey,
+    t: (translationKey: string) => translationKey,
   }),
 }));
 
@@ -54,11 +56,33 @@ vi.mock("src/queries/useDagParams", () => ({
   useDagParams: useDagParamsMock,
 }));
 
+const togglePauseMock = vi.hoisted(() => vi.fn());
+
 vi.mock("src/queries/useTogglePause", () => ({
   useTogglePause: () => ({
-    mutate: vi.fn(),
+    mutate: togglePauseMock,
   }),
 }));
+
+vi.mock("openapi/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof OpenapiQueries>();
+
+  return {
+    ...actual,
+    useDagRunServiceGetDagRuns: vi.fn(() => ({
+      data: {
+        dag_runs: [
+          {
+            conf: { message: "From recent" },
+            dag_run_id: "run_recent",
+            run_after: "2025-01-01T00:00:00Z",
+          },
+        ],
+      },
+      isLoading: false,
+    })),
+  };
+});
 
 vi.mock("../DateTimeInput", () => ({
   DateTimeInput: ({ value = "" }: { readonly value?: string }) => (
@@ -88,14 +112,118 @@ vi.mock("../JsonEditor", () => ({
 describe("TriggerDAGForm", () => {
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
+    togglePauseMock.mockClear();
   });
+
+  it.each([
+    { action: undefined, drainDag: false, unpauses: true },
+    { action: "pausedDag.drain", drainDag: true, unpauses: false },
+    { action: "pausedDag.keepPaused", drainDag: false, unpauses: false },
+  ])(
+    "submits a paused Dag with drainDag=$drainDag when choosing $action",
+    async ({ action, drainDag, unpauses }) => {
+      const onSubmitTrigger = vi.fn();
+
+      render(
+        <TriggerDAGForm
+          dagId="paused_dag"
+          error={undefined}
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused
+          isPending={false}
+          onSubmitTrigger={onSubmitTrigger}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      if (action !== undefined) {
+        fireEvent.click(screen.getByText(action));
+        await waitFor(() => expect(screen.getByRole("radio", { name: action })).toBeChecked());
+      }
+      fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+      await waitFor(() =>
+        expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ drainDag })),
+      );
+      if (unpauses) {
+        expect(togglePauseMock).toHaveBeenCalledWith({
+          dagId: "paused_dag",
+          requestBody: { is_paused: false },
+        });
+      } else {
+        expect(togglePauseMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("does not offer the paused Dag choices for an active Dag", () => {
+    render(
+      <TriggerDAGForm
+        dagId="active_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.queryByText("pausedDag.drain")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      dates: { end_date: null, start_date: "2000-01-01T00:00:00Z" },
+      scenario: "within the Dag's dates",
+      text: "components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: null, start_date: "2999-01-01T00:00:00Z" },
+      scenario: "before the Dag's start date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: "2000-01-01T00:00:00Z", start_date: "1999-01-01T00:00:00Z" },
+      scenario: "after the Dag's end date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.both",
+    },
+  ])(
+    "shows the Dag start and end dates when the default logical date is $scenario",
+    async ({ dates, text }) => {
+      server.use(
+        http.get("/api/v2/dags/dated_dag/details", () =>
+          HttpResponse.json({ ...MOCK_DAG, ...dates, dag_id: "dated_dag" }),
+        ),
+      );
+
+      render(
+        <TriggerDAGForm
+          dagId="dated_dag"
+          error={undefined}
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused={false}
+          isPending={false}
+          onSubmitTrigger={vi.fn()}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      expect(await screen.findByText(text)).toBeInTheDocument();
+    },
+  );
 
   it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
     useDagParamsMock.mockReturnValue({ paramsDict: {} });
 
     render(
       <TriggerDAGForm
-        dagDisplayName="No Params Dag"
         dagId="example_no_params"
         error={undefined}
         hasSchedule={false}
@@ -113,8 +241,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
 
@@ -126,10 +252,9 @@ describe("TriggerDAGForm", () => {
     });
   });
 
-  it("syncs Advanced Options JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
+  it("syncs the Configuration JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
@@ -159,7 +284,6 @@ describe("TriggerDAGForm", () => {
     }
 
     fireEvent.change(messageField, { target: { value: "Updated message" } });
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
@@ -175,7 +299,6 @@ describe("TriggerDAGForm", () => {
   it("hides the partition key field for non-partitioned Dags", async () => {
     render(
       <TriggerDAGForm
-        dagDisplayName="Non Partitioned Dag"
         dagId="example_non_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -188,8 +311,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => expect(screen.getByText("runId")).toBeInTheDocument());
     expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
   });
@@ -197,7 +318,6 @@ describe("TriggerDAGForm", () => {
   it("shows the partition key field for partitioned Dags", async () => {
     render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -210,9 +330,108 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
+
+  it("prefills the form when a recent configuration is selected from the dropdown", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"From recent"');
+    });
+  });
+
+  it("keeps user-entered run id and note when a recent configuration is selected", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const runIdInput = await screen.findByLabelText("runId");
+
+    fireEvent.change(runIdInput, { target: { value: "my_custom_run" } });
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+    expect(screen.getByLabelText("runId")).toHaveValue("my_custom_run");
+  });
+
+  it("hides the recent configuration dropdown when re-triggering with a prior run's config", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={{
+          conf: { message: "Original message" },
+          logicalDate: undefined,
+          runId: "manual__test",
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "Original message",
+      ),
+    );
+    expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
   });
 });

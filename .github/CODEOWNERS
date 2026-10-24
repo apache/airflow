@@ -18,7 +18,7 @@
 # API
 /airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
 /airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93 @shubhamraj-git @choo121600 @henry3260
-/airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
+/airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @amoghrajesh
 
 # Airflow CTL
 /airflow-ctl/ @bugraoz93 @potiuk @dheerajturaga @henry3260
@@ -95,6 +95,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/common/messaging/ @vincbeck
 /providers/common/ai/ @gopidesupavan @kaxil @Lee-W @ashb
 /providers/dbt/cloud/ @josh-fell
+/providers/duckdb/ @o-nikolas @vincbeck
 /providers/edge3/ @jscheffl @dheerajturaga @shubhamraj-git
 /providers/fab/ @vincbeck
 /providers/google/ @shahar1
@@ -105,6 +106,8 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/microsoft/azure/docs/**/msgraph.rst @dabla
 /providers/microsoft/azure/src/**/msgraph.py @dabla
 /providers/microsoft/azure/tests/**/*msgraph.py @dabla
+/providers/modal/ @kaxil
+/providers/openai/ @kaxil
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
@@ -136,7 +139,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 
 # Task SDK integration tests
-/task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @kaxil @jason810496
+/task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @jason810496
 
 # airflowctl integration tests
 /airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @jason810496 @henry3260
@@ -161,7 +164,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 
 # AIP-72 - Task SDK
 # Python SDK
-/task-sdk/ @ashb @kaxil @amoghrajesh
+/task-sdk/ @ashb @amoghrajesh
 
 # AIP-108 - Coordinators
 /task-sdk/src/airflow/sdk/coordinators/ @jason810496 @uranusjr
@@ -179,12 +182,12 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /shared/ @ashb @amoghrajesh @potiuk
 
 # Agentic instructions
-/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
-/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
-/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
-/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
-/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
-/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/AGENTS.md @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/instructions/ @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/providers/AGENTS.md @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/skills/ @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.claude/skills/ @potiuk @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

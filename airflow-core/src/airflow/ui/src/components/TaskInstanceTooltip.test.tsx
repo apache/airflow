@@ -16,15 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
+}));
 
 describe("TaskInstanceTooltip", () => {
   it("renders children directly when both taskInstance and tooltip are undefined", () => {
@@ -77,6 +85,7 @@ describe("TaskInstanceTooltip", () => {
       executor_config: "{}",
       hostname: null,
       id: "test_my_task",
+      in_loop: false,
       logical_date: null,
       map_index: 0,
       max_tries: 3,
@@ -112,10 +121,9 @@ describe("TaskInstanceTooltip", () => {
 
     const durationText = screen.getByText(/duration/iu).parentElement?.textContent;
 
-    // The calculated duration should be around 2 hours (e.g., "02:00:00" or similar)
-    // It should definitely NOT be "00:00:50.000" which is what `renderDuration(50)` gives
-    expect(durationText).not.toContain("00:00:50");
-    expect(durationText).toContain("02:00:");
+    // The live start_date is two hours old; the stale `duration: 50` field must not win.
+    expect(durationText).not.toContain("50s");
+    expect(durationText).toContain("2h");
   });
 
   it("shows only start date when max_end_date is null", () => {
@@ -218,6 +226,26 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getByText(/1\s+common:states\.success/iu)).toBeInTheDocument();
   });
 
+  it("groups thousands in the child state breakdown", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: { success: 1234 },
+      max_end_date: null,
+      min_start_date: null,
+      state: "success",
+      task_display_name: "Mapped Task",
+      task_id: "mapped_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/1,234\s+common:states\.success/iu)).toBeInTheDocument();
+  });
+
   it("shows run ID when provided explicitly for grid summaries", () => {
     const taskInstance: LightGridTaskInstanceSummary = {
       child_states: null,
@@ -237,5 +265,30 @@ describe("TaskInstanceTooltip", () => {
 
     expect(screen.getByText(/runId/iu)).toBeInTheDocument();
     expect(screen.getByText(/manual__2025-01-01T00:00:00\+00:00/iu)).toBeInTheDocument();
+  });
+
+  it("names the try even on a first attempt", () => {
+    render(
+      <TaskInstanceTooltip
+        open
+        taskInstance={{
+          child_states: null,
+          loop_iteration: { iteration: 1, loop_id: "process_batch" },
+          max_end_date: null,
+          min_start_date: null,
+          state: "success",
+          task_display_name: "batch_ready",
+          task_id: "process_batch.batch_ready",
+          try_number: 1,
+        }}
+      >
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    // Clearing a pass regenerates the later ones as fresh executions that start at try 1, so
+    // two neighbouring bars can both be a first try and the number is what tells them apart.
+    expect(screen.getByText(/tryNumber/iu).textContent).toContain("1");
   });
 });

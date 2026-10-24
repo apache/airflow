@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 from collections.abc import Iterator
-from datetime import datetime as std_datetime, timedelta, timezone as std_timezone
+from datetime import UTC, datetime as std_datetime, timedelta
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -1171,7 +1171,7 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @mock.patch.object(S3Hook, "_list_keys_async", autospec=True)
     async def test_s3_key_hook_is_keys_unchanged_success_async(self, mock_list_keys, time_machine):
-        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=std_timezone.utc)
+        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         mock_list_keys.return_value = ["test"]
 
@@ -1293,7 +1293,7 @@ class TestAwsS3Hook:
             previous_objects=set(),
             inactivity_seconds=0,
             allow_delete=False,
-            last_activity_time=std_datetime.now(std_timezone.utc),
+            last_activity_time=std_datetime.now(UTC),
         )
         assert response.get("status") == "pending"
 
@@ -1309,6 +1309,83 @@ class TestAwsS3Hook:
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
         assert response["Grants"][1]["Permission"] == "READ"
         assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
+
+    @staticmethod
+    def _mock_async_conn(mock_get_async_conn, head_object=None):
+        """Make ``get_async_conn()`` yield an aiobotocore client mock, as ``async with await`` uses it."""
+
+        class S3Client:
+            """The aiobotocore S3 client methods aload_bytes calls."""
+
+            async def head_object(self, **kwargs): ...
+
+            async def put_object(self, **kwargs): ...
+
+        client = AsyncMock(spec=S3Client)
+        client.head_object.return_value = head_object
+
+        class AsyncConn:
+            async def __aenter__(self):
+                return client
+
+            async def __aexit__(self, *exc_info):
+                return None
+
+        mock_get_async_conn.return_value = AsyncConn()
+        return client
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_async_conn", autospec=True)
+    async def test_aload_bytes(self, mock_get_async_conn, hook_lineage_collector):
+        client = self._mock_async_conn(mock_get_async_conn)
+        hook = S3Hook(aws_conn_id=None)
+
+        await hook.aload_bytes(b"Content", "my_key", "my_bucket")
+
+        client.head_object.assert_awaited_once_with(Bucket="my_bucket", Key="my_key")
+        client.put_object.assert_awaited_once_with(Bucket="my_bucket", Key="my_key", Body=b"Content")
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(uri="s3://my_bucket/my_key")
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_async_conn", autospec=True)
+    async def test_aload_bytes_takes_the_bucket_from_an_s3_url(self, mock_get_async_conn):
+        client = self._mock_async_conn(mock_get_async_conn)
+
+        await S3Hook(aws_conn_id=None).aload_bytes(b"Content", "s3://my_bucket/dir/my_key", replace=True)
+
+        client.head_object.assert_not_called()
+        client.put_object.assert_awaited_once_with(Bucket="my_bucket", Key="dir/my_key", Body=b"Content")
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_async_conn", autospec=True)
+    async def test_aload_bytes_refuses_an_existing_key_without_replace(self, mock_get_async_conn):
+        client = self._mock_async_conn(mock_get_async_conn, head_object={"ContentLength": 7})
+
+        with pytest.raises(ValueError, match="The key my_key already exists."):
+            await S3Hook(aws_conn_id=None).aload_bytes(b"Content", "my_key", "my_bucket")
+        client.put_object.assert_not_called()
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_async_conn", autospec=True)
+    async def test_aload_bytes_extra_args_do_not_leak_into_the_hook(self, mock_get_async_conn):
+        client = self._mock_async_conn(mock_get_async_conn)
+        hook = S3Hook(aws_conn_id=None, extra_args={"ContentType": "text/plain"}, requester_pays=True)
+
+        await hook.aload_bytes(
+            b"Content", "my_key", "my_bucket", replace=True, encrypt=True, acl_policy="public-read"
+        )
+
+        client.put_object.assert_awaited_once_with(
+            Bucket="my_bucket",
+            Key="my_key",
+            Body=b"Content",
+            ContentType="text/plain",
+            ServerSideEncryption="AES256",
+            ACL="public-read",
+            RequestPayer="requester",
+        )
+        assert hook.extra_args == {"ContentType": "text/plain"}
 
     def test_load_fileobj(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -1490,6 +1567,25 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError) as ctx:
             assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
+
+    @mock_aws
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.time.sleep")
+    def test_delete_bucket_force_delete_retries_after_late_write(self, mock_sleep, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("data", key="key", bucket_name=s3_bucket)
+        late_writes = []
+
+        def put_late_object(**kwargs):
+            if not late_writes:
+                late_writes.append("late_key")
+                hook.conn.put_object(Bucket=s3_bucket, Key="late_key", Body=b"late")
+
+        hook.conn.meta.events.register("before-call.s3.DeleteBucket", put_late_object)
+        hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+
+        assert late_writes == ["late_key"]
+        assert not hook.check_for_bucket(s3_bucket)
+        mock_sleep.assert_called_once_with(500)
 
     def test_provide_bucket_name(self):
         with mock.patch.object(
@@ -2051,6 +2147,57 @@ class TestAwsS3Hook:
         assert "S3 object last modified" in logs_string
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
+
+    @pytest.mark.parametrize(
+        ("prefix", "key"),
+        [
+            pytest.param("dags/", "dags/.", id="prefix-dot"),
+            pytest.param("dags/", "dags/./.", id="repeated-dot"),
+            pytest.param("dags/", "dags/../s3_sync_dir", id="parent-directory"),
+            pytest.param("", ".", id="bucket-root-dot"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_root(self, s3_bucket, s3_client, tmp_path, prefix, key):
+        s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}nested/dag.py", Body=b"dag content")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}.airflowignore", Body=b"ignore content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+        stale_file = sync_local_dir / "stale.py"
+        stale_file.write_bytes(b"stale")
+
+        S3Hook().sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix=prefix)
+
+        assert sync_local_dir.is_dir()
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+        assert (sync_local_dir / ".airflowignore").read_bytes() == b"ignore content"
+        assert not stale_file.exists()
+        assert s3_client.get_object(Bucket=s3_bucket, Key=key)["Body"].read() == b"directory key"
+
+    @pytest.mark.parametrize(
+        ("key", "when_added"),
+        [
+            pytest.param("dags/nested/.", "before", id="fresh_sync_dot"),
+            pytest.param("dags/nested/deep/..", "after", id="refresh_parent"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_nested_directory(
+        self, s3_bucket, s3_client, tmp_path, key, when_added
+    ):
+        if when_added == "before":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/nested/dag.py", Body=b"dag content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+
+        hook = S3Hook()
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+
+        if when_added == "after":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
 
     def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
         s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")

@@ -18,31 +18,97 @@
  */
 import { useState } from "react";
 
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
 
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
+import { PluginActions } from "src/components/PluginActions";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useLoopSummary } from "src/queries/useLoopSummary";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
-import { getDuration, renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils";
+
+import { stateReasonDisplay } from "./stateReason";
+
+export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskInstanceHistoryResponse }) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <Box display="flex" flexDirection="column" gap={3}>
+      <HeaderCard
+        icon={<MdOutlineTask />}
+        state={taskInstance.state}
+        stats={[
+          { label: translate("tryNumber"), value: taskInstance.try_number },
+          { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
+          { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
+        ]}
+        title={`${taskInstance.task_display_name}${taskInstance.map_index >= 0 ? ` [${taskInstance.map_index}]` : ""}`}
+        type="taskInstance"
+      />
+      <ReactMarkdown>{taskInstance.note ?? ""}</ReactMarkdown>
+    </Box>
+  );
+};
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed, renderDuration } = useDurationFormat();
+  const pluginActions = usePluginActions("task_instance");
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
+  const loopIteration = taskInstance.loop_iteration;
+  const { data: loopSummary } = useLoopSummary({
+    dagId: taskInstance.dag_id,
+    groupId: loopIteration?.loop_id ?? "",
+    runId: taskInstance.dag_run_id,
+  });
+  const decisionReason = loopSummary?.iterations.find(
+    (iteration) => iteration.index === loopIteration?.iteration,
+  )?.decision_reason;
+
+  // On the header, not the details tab, so it shows on every tab without duplicating the row.
+  const stateReasonDisplayed = stateReasonDisplay(taskInstance.state);
+  const stateReason = taskInstance.state_reason;
 
   const stats = [
+    // First, and a stat rather than a banner: it reports why this instance is in the state the
+    // header already shows, so it belongs with the rest of that instance's facts.
+    ...(stateReasonDisplayed === undefined || stateReason === null || stateReason === undefined
+      ? []
+      : [
+          {
+            label: translate(`taskInstance.stateReasonSummary.${stateReasonDisplayed.titleKey}`, {
+              totalTries: taskInstance.max_tries + 1,
+              tryNumber: taskInstance.try_number,
+            }),
+            value: (
+              // A reason can run to a whole traceback, so the stat shows its first line and the
+              // tooltip carries the rest.
+              <Tooltip content={stateReason}>
+                <Text data-testid="state-reason-stat" maxW="320px" truncate>
+                  {stateReason}
+                </Text>
+              </Tooltip>
+            ),
+          },
+        ]),
     { label: translate("task.operator"), value: taskInstance.operator_name },
     ...(taskInstance.map_index > -1
       ? [{ label: translate("mapIndex"), value: taskInstance.rendered_map_index }]
@@ -50,6 +116,22 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     ...(taskInstance.try_number > 1
       ? [{ label: translate("tryNumber"), value: taskInstance.try_number }]
       : []),
+    ...(loopIteration === null || loopIteration === undefined
+      ? []
+      : [
+          {
+            label: translate("common:filters.iteration"),
+            value: `${loopIteration.iteration}/${loopSummary?.iterations_ran ?? loopIteration.iteration}`,
+          },
+        ]),
+    ...(decisionReason === undefined
+      ? []
+      : [
+          {
+            label: translate("taskInstance.loopDecision"),
+            value: <LoopDecisionReason reason={decisionReason} />,
+          },
+        ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
@@ -58,7 +140,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             label: translate("duration"),
             value: Boolean(taskInstance.duration)
               ? renderDuration(taskInstance.duration)
-              : getDuration(taskInstance.start_date, taskInstance.end_date),
+              : formatElapsed(taskInstance.start_date, taskInstance.end_date),
           },
         ]
       : []),
@@ -92,6 +174,11 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               variant="outline"
             />
             <MarkTaskInstanceAsButton bg="bg" isHotkeyEnabled taskInstance={taskInstance} variant="outline" />
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ destination: "task_instance", taskInstance }}
+            />
           </>
         }
         icon={<MdOutlineTask />}

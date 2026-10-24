@@ -1,0 +1,193 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+.. _howto/troubleshooting:
+
+Troubleshooting
+===============
+
+The errors below are the ones a first Dag most often hits. Each names the message you
+see, the cause, and the fix.
+
+Model and connection errors
+---------------------------
+
+``No model specified for connection '...'``
+    The connection has no ``model`` in its extra and the operator did not pass
+    ``model_id``. Set the **Model** field on the connection (``provider:model`` form) or
+    pass ``model_id`` to the operator. See :doc:`connections/pydantic_ai`.
+
+``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
+    The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
+    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, or use a
+    vendor connection type (:doc:`connections/pydantic_ai_azure`,
+    :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
+    supply their own platform.
+
+``'...' is not a provider pydantic-ai recognizes``
+    The text before the first ``:`` in the model name is not a pydantic-ai provider.
+    Check it for a typo. If the vendor's own model id contains a ``:`` (Bedrock-style
+    version suffixes, for example), use the matching vendor connection type instead of
+    the generic one.
+
+An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pydantic_ai_harness``
+    The provider is installed without the extra for that vendor, or without ``code-mode``
+    for ``pydantic_ai_harness``. Install it, quoting the
+    package name so the brackets survive the shell:
+
+    .. code-block:: bash
+
+        pip install "apache-airflow-providers-common-ai[openai]"
+
+    :doc:`installation` lists the extras.
+
+``A fallback chain is configured for '...' but no model is set``
+    ``fallback_conn_ids`` on the connection needs an explicit primary model. Set the
+    **Model** field on the primary connection or ``model_id`` on the operator. A model
+    taken from an agent spec file cannot be wrapped in a fallback chain. See
+    :doc:`provider_fallback`.
+
+``Fallback connection '...' resolves to ..., which is not a PydanticAIHook``
+    Every entry in ``fallback_conn_ids`` must be one of the ``pydanticai`` connection
+    types. Chains are also not resolved recursively, so a fallback connection may not
+    declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
+
+``Connection '...' has type '...', but a Pydantic AI hook needs one of [...]``
+    The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
+    is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
+    provider is installed. Change the connection type to ``pydanticai``, put the API key
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
+    ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
+
+.. _troubleshooting-conn-type-rename:
+
+A connection of type ``pydanticai-azure``, ``pydanticai-bedrock`` or ``pydanticai-vertex`` no longer resolves
+    These connection types are spelled with an underscore: ``pydanticai_azure``,
+    ``pydanticai_bedrock`` and ``pydanticai_vertex``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is encoded
+    in a URI scheme, so the hyphenated form is decoded to the underscore form on read.
+    That covers ``AIRFLOW_CONN_*`` environment variables and secrets backends such as
+    HashiCorp Vault, AWS Secrets Manager and GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the hyphen is
+    preserved and no longer matches a registered hook. That means rows in the metadata
+    database, including any created through the UI, and connections imported in object
+    form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-azure'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_azure ...
+
+    In the UI, edit the connection and re-pick its type.
+
+Operator construction errors
+----------------------------
+
+These raise while the Dag file is parsed, so the whole file fails to import. A mapped
+task (``.expand()``) is constructed at run time instead, so there the same error surfaces
+as a task failure.
+
+``require_approval=True needs Airflow 3.1+`` / ``DecisionPolicy(on_uncertain='review') needs Airflow 3.1+`` / ``approval_assigned_users needs Airflow 3.1+`` / ``Human in the loop functionality needs Airflow 3.1+``
+    Human-in-the-loop review, whether through ``require_approval``,
+    ``DecisionPolicy(on_uncertain="review")`` or ``enable_hitl_review``, needs Airflow 3.1
+    or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
+    on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
+
+``durable=True and enable_hitl_review=True cannot be used together``
+    Durable replay matches each step to the one at the same position in the previous
+    attempt, which a human review loop's regenerations do not keep. Pick one. See
+    :doc:`durable_execution`.
+
+``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
+    Durable replay records each tool call under its toolset's id, so a
+    ``FunctionToolset``, ``MCPToolset`` or ``DynamicToolset`` without one is refused when
+    the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
+    around it does not reach it. See :doc:`durable_execution`.
+
+``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+    Two different toolset objects share an id, so durable replay could not tell their
+    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
+
+``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
+    ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
+    ``capabilities`` would record every step twice. Drop one of them.
+
+``message_history and enable_hitl_review=True cannot be used together`` and ``emit_message_history and enable_hitl_review=True cannot be used together``
+    The post-review transcript is not recoverable today, so the operator refuses rather
+    than silently dropping the reviewed turns. See :doc:`message_history`.
+
+``... does not support decision_policy yet``
+    Only ``LLMOperator`` and ``LLMBranchOperator`` honor a ``DecisionPolicy`` with a
+    confidence bar. The SQL, schema-compare and file-analysis operators run their own
+    ``execute`` and reject one at construction; use ``require_approval=True`` there for an
+    unconditional review.
+
+``on_approval_timeout=... needs a review path ... and a positive approval_timeout to fire``
+    ``on_approval_timeout`` other than ``"fail"`` only makes sense when a review can open
+    (``require_approval=True`` or a reviewing ``decision_policy``) **and**
+    ``approval_timeout`` is set to a positive ``timedelta``. Set both or leave the default.
+
+Run-time errors
+---------------
+
+``An agent needs to have a model in order to be used with Airflow, it cannot be set at agent run time.``
+    The agent was built without a model, usually because the connection has no
+    ``model`` and no ``model_id`` was passed. Durable execution needs the model resolved
+    up front so that replayed steps can be matched against their fingerprints. Fix the
+    connection as described above.
+
+``DurableJournalError: durable execution could not record a step's result, because it is not JSON-serializable``
+    A tool returned a value that cannot be encoded as JSON. The model could not have read
+    it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
+    Pydantic model. See :doc:`durable_execution`.
+
+``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
+    On Airflow versions older than 3.3 the step cache lives in object storage and
+    ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
+    is used and the option is ignored. See :doc:`durable_execution`.
+
+A structured ``output_type`` arrives downstream as a string or fails to deserialize
+    The Pydantic class must be defined at module scope under its own ``__name__`` so the
+    worker can register it for XCom deserialization, and a consumer in a *different* Dag
+    needs the class added to ``[core] allowed_deserialization_classes``. Pass
+    ``serialize_output=True`` to receive a plain ``dict`` instead. See
+    :doc:`structured_output`.
+
+A review task waits for a long time
+    That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
+    releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
+    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
+    worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
+    review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
+
+The provider returns a rate limit or is down
+    Three features answer this at different layers. Airflow's own ``retries`` re-run the
+    task. :doc:`provider_fallback` fails over to another vendor inside one attempt.
+    :doc:`retry_policies` lets a model classify the failure and decide whether a retry is
+    worth it. They compose; each page says where it sits among the others.
+
+Still stuck
+-----------
+
+Every operator logs a post-run summary with the model name, token usage and the tool
+call sequence, and ``AgentOperator`` logs each tool call as it happens. Turn the task
+log level to ``DEBUG`` to see tool arguments and the model output. :doc:`observability`
+covers exporting the same information as OpenTelemetry traces.

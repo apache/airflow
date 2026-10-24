@@ -35,37 +35,50 @@ from airflow_breeze.utils.run_utils import assert_prek_installed, run_compile_ui
 LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 
 
+# natural-compare's sort order of ASCII: NUL-"," keep their ASCII order, then "." "/",
+# the remaining punctuation, "-" (just before digits), digits, uppercase, lowercase.
+# A character's position in this string is its natural-compare sort code.
+_NATURAL_CHAR_ORDER = (
+    "".join(chr(code) for code in range(32))  # control characters
+    + " !\"#$%&'()*+,"
+    + "./"
+    + ":;<=>?@"
+    + "[\\]^_`"
+    + "{|}~\x7f"
+    + "-"
+    + "0123456789"
+    + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    + "abcdefghijklmnopqrstuvwxyz"
+)
+_CHAR_CODES = {char: code for code, char in enumerate(_NATURAL_CHAR_ORDER)}
+
+
+def _get_char_code(char: str) -> int:
+    """Return natural-compare's sort code for a character; non-ASCII by code point."""
+    return _CHAR_CODES.get(char, ord(char))
+
+
 def natural_sort_key(text: str) -> tuple:
+    """Create a sort key matching eslint-plugin-jsonc with natural: true.
+
+    natural-compare, the comparator behind the UI's ``jsonc/sort-keys`` rule, compares
+    digit runs numerically and other characters by ``_get_char_code``. Each token also
+    carries a bucket so numbers sort between characters below "0" and above "9".
     """
-    Create a sort key that matches eslint-plugin-jsonc behavior with natural: true.
-
-    This mimics JavaScript's localeCompare with numeric: true, which:
-    1. Does case-insensitive comparison character-by-character
-    2. Uses original case as tiebreaker when characters are equal (ignoring case)
-    3. Handles numbers naturally (2 < 10)
-
-    For each character position, we create a tuple: (lowercase_char, original_char)
-    This ensures case-insensitive primary sort with case-sensitive tiebreaker.
-    """
-
-    def char_key(c: str) -> tuple:
-        if c.isdigit():
-            return 0, int(c), c  # Numbers sort before letters
-        return 1, c.lower(), c  # Lowercase for primary, original for tiebreaker
-
-    # Split on numbers to handle natural number ordering
-    parts: list[tuple[int, tuple[tuple[Any, ...], ...] | int]] = []
-    for part in re.split(r"(\d+)", text):
-        if not part:
-            continue
-        if part.isdigit():
-            # For numeric parts, use integer value
-            parts.append((0, int(part)))
+    tokens: list[tuple] = []
+    for part in re.split(r"([0-9]+)", text):
+        if part.isascii() and part.isdigit():
+            digits = part.lstrip("0")
+            # natural-compare treats a leading "0" as a plain character and only the
+            # rest of the run as a number.
+            tokens.extend([(0, _get_char_code("0"))] * (len(part) - len(digits)))
+            if digits:
+                tokens.append((1, int(digits)))
         else:
-            # For text parts, convert each character
-            parts.append((1, tuple(char_key(c) for c in part)))
-
-    return tuple(parts)
+            for char in part:
+                code = _get_char_code(char)
+                tokens.append((0, code) if code < 66 else (2, code))
+    return tuple(tokens)
 
 
 MOST_COMMON_PLURAL_SUFFIXES = ["_one", "_other"]
@@ -89,7 +102,7 @@ PLURAL_SUFFIXES = {
     "nl": MOST_COMMON_PLURAL_SUFFIXES,
     "pl": ["_one", "_few", "_many", "_other"],
     "pt": ["_zero", "_one", "_many", "_other"],
-    "ru": ["_one", "_few", "_other"],
+    "ru": ["_one", "_few", "_many", "_other"],
     "th": ["_other"],
     "tr": MOST_COMMON_PLURAL_SUFFIXES,
     "zh-CN": ["_other"],
@@ -143,7 +156,7 @@ def get_plural_base(key: str, suffixes: list[str]) -> str | None:
     return None
 
 
-COUNT_PLACEHOLDER = "{{count}}"
+COUNT_PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*count\s*(,[^}]*)?\}\}")
 
 
 def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str] | None = None) -> set[str]:
@@ -151,7 +164,7 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
     For a set of keys, expand plural bases to include required suffixes for the language.
 
     When en_key_to_value is provided, expand a plural base if either:
-    - one of the English values for that base contains {{count}}, or
+    - one of the English values for that base interpolates count ({{count}} or {{count, number}}), or
     - English defines multiple plural forms for that base (for example *_one and *_other).
 
     This prevents falsely marking locale-specific plural keys as unused when count drives
@@ -175,7 +188,9 @@ def expand_plural_keys(keys: set[str], lang: str, en_key_to_value: dict[str, str
     for base in base_to_suffixes.keys():
         if en_key_to_value is not None:
             en_keys_for_base = [k for k in keys if get_plural_base(k, suffixes) == base]
-            any_has_count = any(COUNT_PLACEHOLDER in en_key_to_value.get(k, "") for k in en_keys_for_base)
+            any_has_count = any(
+                COUNT_PLACEHOLDER_PATTERN.search(en_key_to_value.get(k, "")) for k in en_keys_for_base
+            )
             has_multiple_en_plural_forms = len(en_keys_for_base) > 1
 
             if not any_has_count and not has_multiple_en_plural_forms:

@@ -28,6 +28,19 @@ from airflow.providers.common.compat.sdk import BaseHook
 logger = logging.getLogger(__name__)
 
 
+def _get_passive_mode(extra: dict[str, Any]) -> bool:
+    """
+    Read the ``passive`` connection extra as a boolean.
+
+    Extras parsed from a connection URI (e.g. ``ftp://host?passive=false``) are strings,
+    and a non-empty string such as ``"false"`` is truthy.
+    """
+    passive = extra.get("passive", True)
+    if isinstance(passive, str):
+        return passive.strip().lower() not in ("false", "0", "no", "off")
+    return bool(passive)
+
+
 class FTPHook(BaseHook):
     """
     Interact with FTP.
@@ -63,7 +76,7 @@ class FTPHook(BaseHook):
         """Return an FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
             if encoding:
@@ -301,7 +314,7 @@ class FTPSHook(FTPHook):
 
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
 
