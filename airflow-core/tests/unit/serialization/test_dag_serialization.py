@@ -5413,6 +5413,88 @@ class TestValidateSerializedDag:
 
         assert DagSerialization.validate_serialized_dag(DagSerialization.to_dict(dag)).catchup is True
 
+    def test_accepts_the_ids_the_sdk_accepts(self):
+        with DAG(dag_id="checked.dag-2", schedule=None) as dag:
+            with TaskGroup("trans_form-1"):
+                BaseOperator(task_id="ex_tract.v2-x")
+        data = DagSerialization.to_dict(dag)
+
+        assert DagSerialization.validate_serialized_dag(data).dag_id == "checked.dag-2"
+
+    @pytest.mark.parametrize(
+        ("dag_id", "error"),
+        [
+            pytest.param(
+                "d" * 251,
+                f"Dag id {'d' * 251!r} is 251 characters long; at most 250 are allowed",
+                id="too-long",
+            ),
+            pytest.param(
+                "has space",
+                "Dag id 'has space' has to be made of alphanumeric characters, dashes, dots and "
+                "underscores exclusively",
+                id="other-characters",
+            ),
+        ],
+    )
+    def test_rejects_a_dag_id_the_sdk_rejects(self, dag_id, error):
+        data = self._serialize()
+        data["dag"]["dag_id"] = dag_id
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        ("task_id", "error"),
+        [
+            pytest.param(
+                "t" * 251,
+                f"Dag 'checked_dag' task id {'t' * 251!r} is 251 characters long; at most 250 are allowed",
+                id="too-long",
+            ),
+            pytest.param(
+                "has space",
+                "Dag 'checked_dag' task id 'has space' has to be made of alphanumeric characters, dashes, "
+                "dots and underscores exclusively",
+                id="other-characters",
+            ),
+        ],
+    )
+    def test_rejects_a_task_id_the_sdk_rejects(self, task_id, error):
+        data = self._serialize()
+        data["dag"]["tasks"][0]["__var"]["task_id"] = task_id
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        ("group_id", "error"),
+        [
+            pytest.param(
+                "g" * 201,
+                f"Dag 'checked_dag' task group id {'g' * 201!r} is 201 characters long; "
+                "at most 200 are allowed",
+                id="too-long",
+            ),
+            pytest.param(
+                "with.dot",
+                "Dag 'checked_dag' task group id 'with.dot' has to be made of alphanumeric characters, "
+                "dashes and underscores exclusively",
+                id="other-characters",
+            ),
+        ],
+    )
+    def test_rejects_a_task_group_id_the_sdk_rejects(self, group_id, error):
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            with TaskGroup("transform"):
+                BaseOperator(task_id="clean")
+        data = DagSerialization.to_dict(dag)
+        # A nested group is serialized as a ["taskgroup", {...}] pair under its label.
+        data["dag"]["task_group"]["children"]["transform"][1]["_group_id"] = group_id
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
 
 class TestFillConfigDefaults:
     CONFIG = {
