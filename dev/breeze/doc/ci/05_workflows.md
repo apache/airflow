@@ -111,7 +111,11 @@ matrix there. The fork CI reconciler reads the result of these runs and reports 
 request as the `Fork CI / Tests (AMD)` status.
 
 In `apache/airflow` itself, pushes still only run CI for the release-prep and providers branches
-listed in `ci-arm.yml`; a push to any other branch produces a run in which only the gate executes.
+(`CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`, the branches `release-branch-ci.yml` starts
+full runs for), and they test only the changes since the last successful run of the branch. That
+incremental base is looked up only in `apache/airflow`: a fork's push is always compared with
+`apache/airflow` as described above. A push to any other branch produces a run in which only the
+gate executes.
 
 ## Canary run
 
