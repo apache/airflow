@@ -634,10 +634,11 @@ request. A run counts as a bypass when both signals hold:
    and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a started job that
    was not skipped, other than `Fork CI gate` and the jobs that run in every gated run
    (`Check if the run is needed`, which has no steps for pull requests, and the `CI passed` job,
-   named `CI passed (project CI not run)` when project CI was skipped and `CI passed` when a
-   newer push cancelled the run before `Build info` started), a missing or duplicated gate job,
-   one of those jobs appearing twice (either `CI passed` name counts as the same job), or one of
-   them running for more than 5 minutes. The last two cases catch project CI work done in jobs
+   named `CI passed (project CI not run)` when project CI was skipped and, when a newer push
+   cancelled the run before `Build info` started, `CI passed (run cancelled)` -- or `CI passed`
+   from a `ci-amd.yml` that does not use that name yet), a missing or duplicated gate job, one
+   of those jobs appearing twice (every `CI passed` name counts as the same job), or one of them
+   running for more than 5 minutes. The last two cases catch project CI work done in jobs
    renamed to one of their names. A job counts as started only when a runner picked it up (a
    non-zero `runner_id`, or steps): a queued job reports its creation as `started_at`, and a run
    cancelled by a newer push marks its never-started jobs `completed` and `cancelled`, so a gate
