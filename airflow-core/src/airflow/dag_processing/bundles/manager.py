@@ -22,6 +22,7 @@ import logging
 import os
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
@@ -40,7 +41,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Collection, Iterable
+    from contextlib import AbstractContextManager
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -312,8 +314,16 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        bundle_names: Collection[str] | None = None,
+        bundle_context: Callable[[str], AbstractContextManager] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self._bundle_names = bundle_names
+        self._bundle_context = bundle_context or (lambda _: nullcontext())
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
         self.parse_config()
 
@@ -333,6 +343,8 @@ class DagBundlesManager(LoggingMixin):
             return
 
         for bundle_config in bundle_config_list:
+            if self._bundle_names is not None and bundle_config.name not in self._bundle_names:
+                continue
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
                 raise AirflowConfigException(
                     "Section `dag_processor` key `dag_bundle_config_list` "
@@ -401,7 +413,8 @@ class DagBundlesManager(LoggingMixin):
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
             try:
-                new_template, new_params = _extract_and_sign_template(name)
+                with self._bundle_context(name):
+                    new_template, new_params = _extract_and_sign_template(name)
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 continue
@@ -694,9 +707,10 @@ class DagBundlesManager(LoggingMixin):
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(
-            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
-        )
+        with self._bundle_context(name):
+            return cfg_bundle.bundle_class(
+                name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+            )
 
     @classmethod
     def is_bundle_configured(cls, name: str) -> bool:
@@ -716,7 +730,9 @@ class DagBundlesManager(LoggingMixin):
         """
         for name, cfg in self._bundle_config.items():
             try:
-                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                with self._bundle_context(name):
+                    bundle = cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                yield bundle
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 # Skip this bundle and continue with others

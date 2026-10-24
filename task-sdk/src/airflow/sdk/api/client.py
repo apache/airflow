@@ -1446,7 +1446,8 @@ class ServerResponseError(httpx2.HTTPStatusError):
         if not (400 <= response.status_code < 600):
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
             return None
 
         detail: list[RemoteValidationError] | dict[str, Any] | None = None
