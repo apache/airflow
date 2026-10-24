@@ -106,7 +106,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import TriggerAssetStateStoreAccessors
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
@@ -1529,7 +1529,7 @@ class TriggerRunner:
             trigger_instance.timeout_after = workload.timeout_after
 
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
-                trigger_instance.asset_state_store = AssetStateStoreAccessors(
+                trigger_instance.asset_state_store = TriggerAssetStateStoreAccessors(
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
             if workload.queued_at is not None:

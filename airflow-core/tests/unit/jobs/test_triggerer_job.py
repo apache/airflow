@@ -1237,6 +1237,43 @@ async def test_create_triggers_asset_state_store_accessor_reads_and_writes(
     await runner.cleanup_finished_triggers()
 
 
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_asset_state_store_shared_by_several_assets(
+    mock_get_classpath, session, mock_supervisor_comms, make_watcher_trigger
+):
+    """A trigger shared by several assets can get and set state without picking an asset."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=15,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"asset_a": "s3://bucket/a", "asset_b": "s3://bucket/a"},
+        )
+    )
+
+    await runner.create_triggers()
+    state_store = injected_instances[0].asset_state_store
+
+    mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="etag-1")
+    assert state_store.get("etag") == "etag-1"
+
+    mock_supervisor_comms.send.reset_mock()
+    state_store.set("etag", "etag-2")
+    assert mock_supervisor_comms.send.call_args_list == [
+        mock.call(SetAssetStateStoreByName(name="asset_a", key="etag", value="etag-2")),
+        mock.call(SetAssetStateStoreByName(name="asset_b", key="etag", value="etag-2")),
+    ]
+
+    runner.triggers[15]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
 class TestTriggerSupervisorAssetStateStore:
     """Supervisor side of the asset-state-store round trip.
 
