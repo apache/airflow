@@ -196,10 +196,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                 )
             )
             return result
-        finally:
-            # Reset on failure too: DagContext.pop() looks this name up in sys.modules, which
-            # no longer holds a module that failed to load.
-            DagContext.current_autoregister_module_name = None
 
         for warn_msg in captured_warnings:
             category = warn_msg.category.__name__
@@ -254,10 +250,9 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        DagContext.current_autoregister_module_name = mod_name
-
         def parse() -> list[types.ModuleType]:
             try:
+                DagContext.current_autoregister_module_name = mod_name
                 with definition.import_context():
                     loader: importlib.abc.Loader
                     if get_file_suffix(definition) == ".pyc":
@@ -289,6 +284,10 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                     )
                 )
                 return []
+            finally:
+                # Reset on every exit: DagContext.pop() looks this name up in sys.modules, which may not
+                # hold it if the load did not complete.
+                DagContext.current_autoregister_module_name = None
 
         dagbag_import_timeout: float
         try:

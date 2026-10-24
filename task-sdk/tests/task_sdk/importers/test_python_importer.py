@@ -361,9 +361,15 @@ class TestPythonDagImporter:
                 contextlib.nullcontext(),
                 id="error-reported",
             ),
+            pytest.param(
+                {"return_value": 0},
+                pytest.raises(KeyboardInterrupt),
+                id="keyboard-interrupt-propagates",
+            ),
         ],
     )
     def test_failed_load_does_not_break_later_dags(self, mock_bundle, timeout_policy, expectation):
+        (mock_bundle.path / "dag.py").write_text("raise KeyboardInterrupt\n")
         mock_settings = mock.MagicMock(spec=["get_dagbag_import_timeout"])
         mock_settings.get_dagbag_import_timeout.configure_mock(**timeout_policy)
         mock_airflow = mock.MagicMock(spec=["settings"], settings=mock_settings)
