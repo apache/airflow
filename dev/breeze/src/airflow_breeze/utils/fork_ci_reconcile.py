@@ -76,6 +76,11 @@ CI_WORKFLOW_FILE = "ci-amd.yml"
 GATE_CONFIG_PATH = ".github/fork-ci-gate.toml"
 GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
 GATE_JOB_NAME = "Fork CI gate"
+# Jobs that also run, without needing the gate, in a run the gate left to fork CI: main's
+# check-run-needed (no steps outside schedule and push runs) and the "CI passed" gate job of the
+# merge ruleset, which reports under this name when project CI did not run. Like the gate, each
+# must finish within GATE_MAX_DURATION, so project CI work moved under one of these names counts.
+GATED_RUN_JOB_NAMES = frozenset({"Check if the run is needed", "CI passed (project CI not run)"})
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
@@ -264,24 +269,26 @@ def jobs_show_project_ci(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
     """
     Whether the jobs of a ci-amd.yml run show more than the gate deciding to skip.
 
-    Any started job other than the gate that was not skipped counts, and so does a gate job that
-    is missing, duplicated or ran for longer than the gate ever needs, which is how a renamed job
-    doing project CI work under the gate's name shows up. Jobs that have not started do not
-    count: a queued job reports its creation as ``started_at``, so waiting for a runner would
-    look like work.
+    Any started job other than the gate and the ``GATED_RUN_JOB_NAMES`` jobs that was not skipped
+    counts, and so does a gate job that is missing or duplicated, or one of those jobs running for
+    longer than they ever need, which is how a renamed job doing project CI work under their name
+    shows up. Jobs that have not started do not count: a queued job reports its creation as
+    ``started_at``, so waiting for a runner would look like work.
     """
     jobs = list(jobs)
     gate_jobs = [job for job in jobs if job["name"] == GATE_JOB_NAME]
     if len(gate_jobs) != 1:
         return True
-    gate = gate_jobs[0]
-    if gate.get("status") in STARTED_JOB_STATUSES:
-        started = parse_github_datetime(gate.get("started_at") or "")
-        completed = parse_github_datetime(gate.get("completed_at") or "") or now
+    expected_names = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME}
+    for job in jobs:
+        if job["name"] not in expected_names or job.get("status") not in STARTED_JOB_STATUSES:
+            continue
+        started = parse_github_datetime(job.get("started_at") or "")
+        completed = parse_github_datetime(job.get("completed_at") or "") or now
         if started is not None and completed - started > GATE_MAX_DURATION:
             return True
     return any(
-        job["name"] != GATE_JOB_NAME
+        job["name"] not in expected_names
         and job.get("status") in STARTED_JOB_STATUSES
         and job.get("conclusion") != "skipped"
         for job in jobs

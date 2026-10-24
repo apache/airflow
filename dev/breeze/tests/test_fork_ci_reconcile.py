@@ -673,6 +673,26 @@ def _job(
             [_job("Fork CI gate", "success"), _job("Fork CI gate", "success")], True, id="gate-twice"
         ),
         pytest.param([_job("Fork CI gate", "success", minutes=30)], True, id="work-under-gate-name"),
+        pytest.param(
+            [
+                _job("Check if the run is needed", "success"),
+                _job("Fork CI gate", "success"),
+                _job("Build info"),
+                _job("CI passed (project CI not run)", "success"),
+            ],
+            False,
+            id="gated-run-with-every-job-it-runs",
+        ),
+        pytest.param(
+            [_job("Fork CI gate", "success"), _job("Check if the run is needed", "success", minutes=30)],
+            True,
+            id="work-under-check-run-needed-name",
+        ),
+        pytest.param(
+            [_job("Fork CI gate", "success"), _job("CI passed (project CI not run)", "success", minutes=30)],
+            True,
+            id="work-under-ci-passed-name",
+        ),
     ],
 )
 def test_jobs_show_project_ci(jobs, expected):
