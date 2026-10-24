@@ -631,6 +631,22 @@ repos:
           ^task-sdk/src/airflow/sdk/definitions/partition_mappers/fixed_key\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-task-decorator-arguments
+        name: Check registered task decorator coverage and argument declarations
+        entry: ./scripts/ci/prek/check_task_decorator_arguments.py
+        language: python
+        # Deleted files are filtered from hook inputs; still enforce the registration inventory.
+        always_run: true
+        types: [file]
+        files: >
+          (?x)
+          ^providers/.*/provider\.yaml$|
+          ^providers/.*/src/.*\.py$|
+          ^task-sdk/src/airflow/sdk/.*\.pyi?$|
+          ^scripts/ci/prek/check_task_decorator_arguments\.py$|
+          ^scripts/tests/ci/prek/test_check_task_decorator_arguments\.py$|
+          ^\.pre-commit-config\.yaml$
+        pass_filenames: false
       - id: check-window-in-sync
         name: Check Window definitions stay in sync (core/SDK)
         env:
