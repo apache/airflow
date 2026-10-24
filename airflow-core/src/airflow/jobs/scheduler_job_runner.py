@@ -3220,6 +3220,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Make scheduling decisions for all `dag_runs` and return the callbacks to send."""
         callback_tuples: list[tuple[DagRun, DagCallbackRequest]] = []
         for run in dag_runs:
+            run_id, dag_id = run.run_id, run.dag_id
             try:
                 callback = self._schedule_dag_run(run, session=session)
                 if callback is not None:
@@ -3227,7 +3228,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             except DBAPIError:
                 raise  # let @retry_db_transaction handle DB errors
             except Exception:
-                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
+                self.log.exception("Error scheduling DAG run %s of %s", run_id, dag_id)
         guard.commit()
         return callback_tuples
 
