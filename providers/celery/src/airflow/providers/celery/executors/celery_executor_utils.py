@@ -311,6 +311,16 @@ def _execute_workload_pre_3_3(input: str) -> None:
                 log_path=workload.log_path,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             )
+        elif AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            # Airflow 3.3 runs callbacks in BaseExecutor.run_workload(). Airflow 3.2 still
+            # queues deadline alerts as ExecuteCallback and provides execute_callback_workload.
+            execute_callback_workload = getattr(
+                import_module("airflow.executors.workloads.callback"),
+                "execute_callback_workload",
+            )
+            success, error_msg = execute_callback_workload(workload.callback, log)
+            if not success:
+                raise RuntimeError(error_msg or "Callback execution failed")
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
     except Exception as e:
