@@ -2629,6 +2629,17 @@ webhooks:
       type: integer
       example: "10000"
       default: "1000"
+    cancel_requests_per_loop:
+      description: |
+        .. note:: |experimental|
+
+        Largest number of webhook cancel requests the scheduler applies each time it looks for them,
+        about once a second. Each request is applied and committed on its own, and the rest wait for
+        the next time. At least 1.
+      version_added: 3.6.0
+      type: integer
+      example: "50"
+      default: "20"
 lineage:
   description: ~
   options:

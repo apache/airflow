@@ -20,11 +20,12 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from sqlalchemy import select
 
 from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.utils.state import TaskInstanceState
-from airflow.webhooks.wait_resumption import lock_current_waits
+from airflow.webhooks.wait_resumption import end_open_waits, lock_current_waits
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -80,3 +81,34 @@ class TestLockCurrentWaits:
         current = lock_current_waits([with_two_open.id, with_closed.id, without_wait.id], session=session)
 
         assert {ti_id: wait.id for ti_id, wait in current.items()} == {with_two_open.id: latest.id}
+
+
+class TestEndOpenWaits:
+    def test_ends_the_open_waits_of_the_given_task_instances_only(
+        self, create_task_instance, session, time_machine
+    ):
+        time_machine.move_to(NOW, tick=False)
+        cancelled = create_task_instance(dag_id="cancelled", state=TaskInstanceState.FAILED)
+        other = create_task_instance(dag_id="other", state=TaskInstanceState.AWAITING_INPUT)
+        session.commit()
+        ended_at = NOW - timedelta(minutes=1)
+        closed = add_wait(
+            session, cancelled.id, number=1, is_open=False, status=WaitStatus.RESUMED, ended_at=ended_at
+        )
+        registered = add_wait(session, cancelled.id, number=2)
+        received = add_wait(session, cancelled.id, number=3, status=WaitStatus.RECEIVED)
+        of_other = add_wait(session, other.id, number=4)
+
+        end_open_waits([cancelled.id], session=session)
+        end_open_waits([], session=session)
+        session.commit()
+
+        session.expire_all()
+        assert {
+            wait.id: (wait.open, wait.status, wait.ended_at) for wait in session.scalars(select(InboundWait))
+        } == {
+            closed.id: (None, WaitStatus.RESUMED, ended_at),
+            registered.id: (None, WaitStatus.ENDED, NOW),
+            received.id: (None, WaitStatus.ENDED, NOW),
+            of_other.id: (True, WaitStatus.REGISTERED, None),
+        }

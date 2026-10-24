@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.models.inbound_delivery import InboundDelivery
@@ -77,6 +77,23 @@ def lock_current_wait(ti_id: UUID, *, session: Session) -> InboundWait | None:
     See ``lock_current_waits``.
     """
     return lock_current_waits((ti_id,), session=session).get(ti_id)
+
+
+def end_open_waits(ti_ids: Collection[UUID], *, session: Session) -> None:
+    """
+    Mark the open waits of task instances ``ended``, as their task instances no longer run or park.
+
+    The caller holds the task instances' row locks, so no delivery or registration changes the waits
+    meanwhile.
+    """
+    if not ti_ids:
+        return
+    session.execute(
+        update(InboundWait)
+        .where(InboundWait.ti_id.in_(ti_ids), InboundWait.open.is_(True))
+        .values(open=None, status=WaitStatus.ENDED, ended_at=timezone.utcnow())
+        .execution_options(synchronize_session=False)
+    )
 
 
 def find_received_delivery(wait: InboundWait, *, session: Session) -> InboundDelivery | None:

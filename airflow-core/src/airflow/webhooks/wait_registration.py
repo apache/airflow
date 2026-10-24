@@ -36,11 +36,10 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
 from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest, evaluate
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.inbound_delivery import CLAIMABLE_OUTCOMES, DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log
-from airflow.models.task_coordinates import get_public_map_index
+from airflow.models.task_coordinates import build_task_instance_coordinates
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 
@@ -90,20 +89,9 @@ def build_wait_action(wait_id: UUID, ti: TaskInstance, *, session: Session) -> d
     """
     Return what a delivery's ``actions["waits"]`` records of a wait that the delivery went to.
 
-    The task instance is recorded by the coordinates the public API and the UI address it with: its public
-    map index, and its region and index within the region if it is in a dynamic region, such as a loop.
+    The task instance is recorded by the coordinates the public API and the UI address it with.
     """
-    action: dict[str, Any] = {
-        "wait_id": str(wait_id),
-        "ti_id": str(ti.id),
-        "dag_id": ti.dag_id,
-        "run_id": ti.run_id,
-        "task_id": ti.task_id,
-        "map_index": get_public_map_index(ti, session=session),
-    }
-    if ti.region_id != SENTINEL_REGION_ID:
-        action.update(region_id=str(ti.region_id), region_index=ti.region_index)
-    return action
+    return {"wait_id": str(wait_id), **build_task_instance_coordinates(ti, session=session)}
 
 
 def build_wait_audit_log(webhook: str, wait_id: UUID, ti: TaskInstance, *, delivery_id: str | None) -> Log:
