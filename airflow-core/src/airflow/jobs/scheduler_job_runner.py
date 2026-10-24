@@ -1706,7 +1706,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.handle_failure(error=msg, session=session)
                         continue
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state)
+                    ti.set_state(state, session=session)
                     continue
                 ti.task = task
                 if task.has_on_retry_callback or task.has_on_failure_callback:
@@ -2178,8 +2178,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run)
             if dag:
-                # Sending callbacks to the database, so it must be done outside of prohibit_commit.
                 self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                # The sink only adds the request to this session. Commit each one so a later Dag
+                # lookup error, or the critical section below rolling back, can't lose it.
+                session.commit()
             else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
 
