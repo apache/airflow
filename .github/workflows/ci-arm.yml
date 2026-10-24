@@ -1424,6 +1424,8 @@ jobs:
     needs:
       - build-info
       - check-run-needed
+      # Waits for the gate job, which is the only failed job when a CI job timed out.
+      - ci-passed
       - finalize-tests
       - tests-agent-frameworks
     # A no-op canary (`run-needed` is 'false') does not post; a failed check does. A failing gate
