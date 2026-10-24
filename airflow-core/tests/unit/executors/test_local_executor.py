@@ -148,6 +148,11 @@ def _run_blocking_worker(**kwargs):
         _run_worker(**kwargs)
 
 
+def _run_instant_worker(**kwargs):
+    with mock.patch.object(BaseExecutor, "run_workload", autospec=True):
+        _run_worker(**kwargs)
+
+
 def _add_mock_worker(executor, mocker, pid):
     proc = mocker.create_autospec(multiprocessing.Process, instance=True)
     proc.pid = pid
@@ -389,6 +394,23 @@ class TestLocalExecutor:
         proc.close.assert_called_once()
         executor.activity_queue.close.assert_called_once()
         executor.result_queue.close.assert_called_once()
+
+    def test_end_kills_retired_worker_instead_of_sending_it_shutdown_message(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.return_value = True
+        proc.kill.side_effect = lambda: setattr(proc.is_alive, "return_value", False)
+        executor.workers = {1: proc}
+        executor._retired_workers.add(1)
+
+        with mock.patch.object(executor, "_read_results"):
+            executor.end()
+
+        executor.activity_queue.put.assert_not_called()
+        proc.kill.assert_called_once_with()
+        proc.close.assert_called_once()
 
     def test_terminate_joins_worker_after_sigterm(self):
         executor = LocalExecutor(parallelism=1)
@@ -825,6 +847,58 @@ class TestLocalExecutorBookkeeping:
         assert executor.event_buffer == {}
         assert executor.slots_available == 1
 
+    def test_idle_worker_death_requeues_unstarted_workloads_on_new_activity_queue(
+        self, local_executor_with_mock_worker, mocker
+    ):
+        executor, idle = local_executor_with_mock_worker
+        busy = _add_mock_worker(executor, mocker, 54321)
+        busy.kill.side_effect = lambda: setattr(busy.is_alive, "return_value", False)
+        started, unstarted = _make_task_workload(), _make_task_workload()
+        started_key, unstarted_key = executor.get_task_key(started.ti), executor.get_task_key(unstarted.ti)
+        session = mock.create_autospec(Session, instance=True)
+        executor.queue_workload(started, session=session)
+        executor.queue_workload(unstarted, session=session)
+        executor._process_workloads([started, unstarted])
+        old_queue = executor.activity_queue
+        old_queue.get()
+        old_queue.get()
+        executor._unread_messages.value = 0
+        executor.result_queue.put((busy.pid, started_key, None, None))
+        idle.is_alive.return_value = False
+
+        executor.sync()
+
+        new_queue = executor.activity_queue
+        assert new_queue is not old_queue
+        assert executor.get_workload_key(new_queue.get()) == unstarted_key
+        assert executor._unread_messages.value == 1
+        assert executor.workers == {busy.pid: busy}
+        assert executor._worker_tasks == {busy.pid: started_key}
+        busy.kill.assert_not_called()
+        executor.result_queue.put((busy.pid, started_key, started.success_state, None))
+        executor.sync()
+        assert executor.event_buffer[started_key] == (started.success_state, None)
+        busy.kill.assert_called_once_with()
+        assert not executor.workers
+        assert executor.activity_queue is new_queue
+        assert unstarted_key in executor.running
+
+    def test_death_of_worker_terminated_by_revoke_keeps_activity_queue(self, local_executor_with_mock_worker):
+        executor, proc = local_executor_with_mock_worker
+        workload = _make_task_workload()
+        executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+        executor.heartbeat()
+        executor.result_queue.put((proc.pid, executor.get_task_key(workload.ti), None, None))
+        executor.sync()
+        activity_queue = executor.activity_queue
+
+        executor.revoke_task(ti=workload.ti)
+        proc.is_alive.return_value = False
+        executor.sync()
+
+        assert executor.activity_queue is activity_queue
+        assert not executor.workers
+
     @pytest.mark.parametrize(
         ("stage", "worker_terminated"),
         [("queued", False), ("dispatched", False), ("started", True)],
@@ -1063,6 +1137,54 @@ class TestLocalExecutorBookkeeping:
             executor.result_queue.put((pid, key, workload.success_state, None))
             executor.sync()
             assert executor.event_buffer[key] == (workload.failure_state, None)
+        finally:
+            executor.terminate()
+            executor.end()
+
+    @pytest.mark.parametrize("start_method", ["fork", "spawn"])
+    @pytest.mark.execution_timeout(60)
+    def test_killing_idle_worker_that_holds_read_lock_does_not_block_later_workloads(
+        self, start_method, mocker
+    ):
+        ctx = multiprocessing.get_context(start_method)
+        mocker.patch.object(
+            local_executor_module.multiprocessing,
+            "get_start_method",
+            autospec=True,
+            return_value=start_method,
+        )
+        mocker.patch.object(local_executor_module.multiprocessing, "Process", new=ctx.Process)
+        mocker.patch.object(local_executor_module.multiprocessing, "Value", new=ctx.Value)
+        mocker.patch.object(local_executor_module, "SimpleQueue", new=ctx.SimpleQueue)
+        mocker.patch.object(local_executor_module, "_run_worker", new=_run_instant_worker)
+        executor = LocalExecutor(parallelism=1)
+        executor.start()
+        try:
+            if not executor.workers:
+                executor._spawn_worker()
+            (proc,) = executor.workers.values()
+            # Spawned workers re-import the airflow stack before reading; ~10s observed on loaded CI runners.
+            timeout = 30
+            deadline = time.monotonic() + timeout
+            while executor.activity_queue._rlock.acquire(block=False):
+                executor.activity_queue._rlock.release()
+                assert time.monotonic() < deadline, f"Worker did not wait on the queue within {timeout}s"
+                time.sleep(0.01)
+            proc.kill()
+            proc.join(timeout=5)
+            assert not proc.is_alive(), "Worker did not exit after being killed"
+            workload = _make_task_workload()
+            key = executor.get_task_key(workload.ti)
+            executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+
+            executor.heartbeat()
+
+            deadline = time.monotonic() + timeout
+            while key in executor.running:
+                assert time.monotonic() < deadline, f"Workload was not run within {timeout}s"
+                executor.sync()
+                time.sleep(0.01)
+            assert executor.event_buffer[key] == (workload.success_state, None)
         finally:
             executor.terminate()
             executor.end()
