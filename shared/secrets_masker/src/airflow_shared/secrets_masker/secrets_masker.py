@@ -714,9 +714,14 @@ class RedactedIO(TextIO):
     def writable(self) -> bool:
         return self.target.writable()
 
-    def write(self, s: str) -> int:
-        s = str(redact(s))
-        return self.target.write(s)
+    @staticmethod
+    def _redact_value(val: Any) -> str:
+        if isinstance(val, (bytes, bytearray)):
+            val = val.decode("utf-8", errors="replace")
+        return str(redact(val))
 
-    def writelines(self, lines) -> None:
-        self.target.writelines(str(redact(line)) for line in lines)
+    def write(self, s: str | bytes | bytearray) -> int:
+        return self.target.write(self._redact_value(s))
+
+    def writelines(self, lines: Iterable[Any]) -> None:
+        self.target.writelines(self._redact_value(line) for line in lines)

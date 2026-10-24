@@ -973,8 +973,49 @@ class TestRedactedIO:
         stdout = capsys.readouterr().out
         assert stdout == "***"
 
+    def test_write_bytes(self, capsys):
+        RedactedIO().write(PASSWORD.encode())
+        stdout = capsys.readouterr().out
+        assert stdout == "***"
+        assert PASSWORD not in stdout
+
+    def test_write_bytearray(self, capsys):
+        RedactedIO().write(bytearray(f"key={PASSWORD}".encode()))
+        stdout = capsys.readouterr().out
+        assert stdout == "key=***"
+        assert PASSWORD not in stdout
+
+    def test_write_invalid_utf8_bytes(self, capsys):
+        RedactedIO().write(b"\xff\xfe " + PASSWORD.encode())
+        stdout = capsys.readouterr().out
+        assert PASSWORD not in stdout
+        assert "***" in stdout
+
+    def test_write_non_string_types(self, capsys):
+        RedactedIO().write(42)
+        stdout = capsys.readouterr().out
+        assert stdout == "42"
+
     def test_writelines(self, capsys):
         RedactedIO().writelines([f"{PASSWORD}\n", f"and {PASSWORD}\n"])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
+
+    def test_writelines_bytes(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n".encode(), f"and {PASSWORD}\n".encode()])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
+
+    def test_writelines_bytearray(self, capsys):
+        RedactedIO().writelines([bytearray(f"{PASSWORD}\n".encode())])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\n"
+        assert PASSWORD not in stdout
+
+    def test_writelines_mixed(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n", f"and {PASSWORD}\n".encode()])
         stdout = capsys.readouterr().out
         assert stdout == "***\nand ***\n"
         assert PASSWORD not in stdout
