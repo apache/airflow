@@ -141,7 +141,11 @@ high-blast-radius signals:
 
 ```mermaid
 flowchart TD
-    A([_should_run_all_tests_and_versions]) --> B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
+    A([_should_run_all_tests_and_versions]) --> T{fork push with<br/>truncated change set?}
+    T -->|yes| YES0[True<br/>run everything]
+    T -->|no| FP{fork push?}
+    FP -->|yes - treated as a pull request| E
+    FP -->|no| B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
     B -->|yes| C{PUSH and only<br/>.txt/.md files changed?}
     C -->|yes| NO1[False<br/>skip full tests]
     C -->|no| D{PUSH with<br/>--selective-tests-on-push?}
@@ -332,6 +336,23 @@ flowchart TD
 6. **Scheduled nightly canary** (SCHEDULE on `apache/airflow`). Full matrix on all versions, every
    canary-only job. The most thorough run; it is what gives us confidence that the PR-time shortcuts
    never let a regression through.
+7. **Push in a contributor fork** (AIP-120, see
+   [Fork CI for external contributors](08_fork_ci_for_external_contributors.md)). The changed files
+   come from the cross-repository compare API against `apache/airflow`'s branch line of the pushed
+   code (breeze's default branch at that commit: `main`, or the release branch it was cut from),
+   not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
+   exactly like a pull request with those files. `is_committer_build` is always `False` because
+   forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
+   or the compare fails, everything runs, including the UI E2E tests, which otherwise only follow
+   matching files or the `full tests needed` label. Checks that compare a file with its previous version
+   (`pyproject.toml` and the provider dependency bump check) read the previous version at the
+   compare's merge base in `apache/airflow`, not at the pushed commit's parent, which after a
+   merge of upstream `main` is the contributor's own previous tip. A file missing at the merge
+   base counts as new; any other failure to read it fails the selective checks instead of
+   skipping the check. The labels come from the open
+   `apache/airflow` pull request of the pushed branch, so `full tests needed`,
+   `allow provider dependency bump` and the other labels work as on a pull request; a label
+   added later takes effect on the next fork run.
 
 ## Troubleshooting: my CI run does too much
 
@@ -452,7 +473,11 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
   `.txt`/`.md` files skips full tests, and a PUSH with `--selective-tests-on-push` (which `ci-amd.yml`
   passes for pushes to release branches) is treated like a pull request — selective tests on default
-  versions, not a `canary` run. The high-level flow and worked examples for these cases are in
+  versions, not a `canary` run. A PUSH in a contributor fork is not a PUSH for this rule either: it is
+  selected like a pull request against `apache/airflow`, and runs everything only when its change set
+  reaches the compare API's 300-file cap (a list of 300 may be missing files) or the compare fails. The
+  incremental base of a release-branch push (the last successful run of the branch) is only looked up in
+  `apache/airflow`. The high-level flow and worked examples for these cases are in
   [The decision pipeline](#the-decision-pipeline) and
   [Worked examples](#worked-examples-pull-requests-pushes-and-canary-runs) above.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
@@ -682,6 +707,9 @@ Currently there is no difference because we are not using `self-hosted` runners 
 Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
 while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
 `use public runners` label in the PR.
+
+Pushes in a contributor fork are never committer builds, whoever pushes, because forks have no
+self-hosted runners.
 
 ## Changing behaviours of the CI runs by setting labels
 

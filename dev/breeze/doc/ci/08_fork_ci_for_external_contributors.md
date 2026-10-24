@@ -358,9 +358,22 @@ upstream yields no changed files, so such a run performs basic checks only.
 - **Changed files** come from the cross-repository compare API,
   `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, three-dot semantics, so
   the set equals what a pull request against upstream would show. The fork's `main` is never
-  used as a base, so a stale fork does not inflate the change set. `<base>` is `main` unless
-  the pushed branch name starts with a canonical release branch prefix. The API caps the file
-  list at 300; at the cap the run falls back to "run everything".
+  used as a base, so a stale fork does not inflate the change set. `<base>` is the branch line
+  of the pushed code, breeze's default branch at that commit (`main`, or the release branch it
+  was cut from), because a branch name such as `backport-<sha>-v3-1-test` cannot be trusted to
+  tell. A renamed file counts under both paths. The API caps the file list at 300; at the cap,
+  and when the compare fails, the run falls back to "run everything", UI E2E tests included,
+  rather than failing.
+- **Previous versions** of changed files, for the `pyproject.toml` and provider dependency
+  bump checks, are read at the compare's merge base in `apache/airflow`
+  (`GET /repos/apache/airflow/contents/<path>?ref=<merge-base>`). The pushed commit's parent
+  would be the contributor's own previous tip after they merge upstream `main`, so a release
+  manager's bump from `main` would count as theirs. A file missing at the merge base is new; any
+  other read failure fails the run rather than letting the check pass unseen.
+- **Labels** come from the open `apache/airflow` pull request whose head is
+  `<fork-owner>:<branch>`, since a push event carries none. `full tests needed`,
+  `allow provider dependency bump`, `skip common compat check` and the other labels work as on
+  a pull request; a label added later takes effect on the next fork run.
 - `_should_run_all_tests_and_versions` treats a fork push like a pull request. Today any
   `push` runs the full matrix, which would cost a contributor ~220 minutes per push.
 - `is_committer_build` is always false. Forks have no self-hosted runners; a committer pushing
