@@ -1254,6 +1254,67 @@ class TestClearTasks:
             for ti in dr.task_instances:
                 assert ti.dag_version_id == old_dag_version.id
 
+    def test_clear_task_instances_caches_latest_dag_lookups(self, dag_maker, session):
+        """Latest-version lookups happen once per dag, not once per cleared task instance.
+
+        get_latest_version_of_dag deserializes the whole Dag, so calling it per
+        task instance makes clearing O(n) full-Dag loads -- prohibitive on large
+        Dags (~1.6s per task instance on a Dag with thousands of tasks).
+        """
+        from airflow.models.dagbag import DBDagBag
+
+        with dag_maker(
+            "test_clear_caches_latest_lookups",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+            bundle_version="v1",
+        ):
+            for i in range(4):
+                EmptyOperator(task_id=str(i))
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        with dag_maker(
+            "test_clear_caches_latest_lookups",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+            bundle_version="v2",
+        ):
+            for i in range(4):
+                EmptyOperator(task_id=str(i))
+        new_dag_version = DagVersion.get_latest_version(dr.dag_id)
+
+        qry = session.scalars(select(TI).where(TI.dag_id == dr.dag_id).order_by(TI.task_id)).all()
+        assert len(qry) == 4
+        with (
+            mock.patch.object(
+                DBDagBag,
+                "get_latest_version_of_dag",
+                autospec=True,
+                side_effect=DBDagBag.get_latest_version_of_dag,
+            ) as mock_latest_dag,
+            mock.patch.object(
+                DagVersion,
+                "get_latest_version",
+                wraps=DagVersion.get_latest_version,
+            ) as mock_latest_version,
+        ):
+            clear_task_instances(qry, session, run_on_latest_version=True)
+        session.commit()
+
+        # One Dag lookup for the whole task-instance loop plus one for the dag-run
+        # update, and one DagVersion lookup shared by both -- not one per task instance.
+        assert mock_latest_dag.call_count == 2
+        assert mock_latest_version.call_count == 1
+        cleared_tis = session.scalars(select(TI).where(TI.dag_id == dr.dag_id)).all()
+        assert len(cleared_tis) == 4
+        for ti in cleared_tis:
+            assert ti.dag_version_id == new_dag_version.id
+
     def test_clear_task_instances_without_dag_version_forces_latest(self, dag_maker, session):
         """A Dag run carried over from Airflow 2 has no version, so clearing must pin it to the latest."""
         dag_id = "test_clear_no_dag_version"

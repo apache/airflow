@@ -495,6 +495,12 @@ def clear_task_instances(
         session.flush()
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
+    # Cache per-dag lookups of the latest serialized Dag and DagVersion:
+    # get_latest_version_of_dag deserializes the whole Dag on every call, so
+    # calling it per task instance makes clearing O(n) full-Dag loads. One
+    # lookup per dag_id also keeps the clear consistent if a new version is
+    # serialized while it runs.
+    latest_dags: dict[str, SerializedDAG | None] = {}
     latest_dag_versions: dict[str, DagVersion | None] = {}
 
     def get_cached_latest_dag_version(dag_id: str) -> DagVersion | None:
@@ -534,7 +540,11 @@ def clear_task_instances(
             # run loop below moves it there.
             use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if use_latest_version:
-                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+                if ti.dag_id not in latest_dags:
+                    latest_dags[ti.dag_id] = scheduler_dagbag.get_latest_version_of_dag(
+                        ti.dag_id, session=session
+                    )
+                ti_dag = latest_dags[ti.dag_id]
             else:
                 ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
             if not ti_dag:
