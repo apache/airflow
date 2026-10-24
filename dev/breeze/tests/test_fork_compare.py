@@ -104,9 +104,10 @@ def test_get_fork_changes_returns_the_merge_base(mock_gh):
 def test_get_fork_pull_request_labels(mock_gh, returncode, stdout, expected):
     mock_gh.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
 
-    assert get_fork_pull_request_labels(fork_owner="someone", branch="fix") == expected
+    assert get_fork_pull_request_labels(fork_owner="someone", branch="fix", base="v3-1-test") == expected
 
     assert "head=someone:fix" in mock_gh.call_args.args[0]
+    assert "base=v3-1-test" in mock_gh.call_args.args[0]
 
 
 @mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)

@@ -82,13 +82,15 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
     )
 
 
-def get_fork_pull_request_labels(*, fork_owner: str, branch: str) -> tuple[str, ...]:
+def get_fork_pull_request_labels(*, fork_owner: str, branch: str, base: str) -> tuple[str, ...]:
     """
-    Labels of the open apache/airflow pull request from ``fork_owner:branch``.
+    Labels of the open apache/airflow pull request from ``fork_owner:branch`` into ``base``.
 
     A fork push carries no pull request, so labels such as ``full tests needed`` or
     ``allow provider dependency bump`` are read here. A label added later takes effect on the
-    next fork run. No pull request, or a failed call, means no labels.
+    next fork run. One head branch can have open pull requests into several bases, so ``base`` is
+    the same branch line the changes are compared against. No pull request, or a failed call,
+    means no labels.
     """
     result = run_gh_command(
         [
@@ -99,6 +101,8 @@ def get_fork_pull_request_labels(*, fork_owner: str, branch: str) -> tuple[str, 
             f"repos/{APACHE_AIRFLOW_GITHUB_REPOSITORY}/pulls",
             "-f",
             f"head={fork_owner}:{branch}",
+            "-f",
+            f"base={base}",
             "-f",
             "state=open",
             "--jq",
