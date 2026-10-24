@@ -325,10 +325,13 @@ other job already depends on `build-info`, so a gated pull request produces a ru
 gate job succeeds in seconds and everything else is skipped. No red status is attached to the
 pull request; the reconciler's comment explains what to do.
 
-`ci-arm.yml` keeps its triggers: it has no `pull_request` trigger and never runs in forks. Its
-`push.branches` list is the source of `CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`
-(compiled with GitHub's filter semantics, where `*` is any characters except `/`), and its
-`notify-slack` condition matches `ci-amd.yml`'s.
+`ci-arm.yml` keeps its triggers: `schedule` and `workflow_dispatch`, with no `pull_request`
+or `push` trigger. A fork that enables Actions gets its cron too, so the `check-run-needed` step
+shared by both workflows reports `run-needed=false` for a scheduled run outside apache/airflow
+and the fork's canary skips everything. Its `notify-slack` condition matches `ci-amd.yml`'s.
+`CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py` are the `pull_request` branch filters of
+`ci-amd.yml` without `main` and the `-stable` branches (compiled with GitHub's filter semantics,
+where `*` is any characters except `/`).
 The `check-ci-workflows-in-sync` prek hook allowlist is extended to permit the `gate` job and
 the `build-info` dependency to exist only in the AMD workflow.
 

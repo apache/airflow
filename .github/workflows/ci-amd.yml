@@ -132,6 +132,13 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          # A fork that enables Actions for fork CI also gets this cron; its canary would only use
+          # the contributor's runners. `ci-amd.yml`'s gate skips it too (`fork_schedule`).
+          if [[ "${REPOSITORY}" != "apache/airflow" ]]; then
+            echo "run-needed=false" >> "${GITHUB_OUTPUT}"
+            echo "Scheduled canaries run only in apache/airflow." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           workflow_path="${WORKFLOW_REF%@*}"
           workflow="${workflow_path##*/}"
           # Full runs are the scheduled canaries and manual `workflow_dispatch` runs; this run is

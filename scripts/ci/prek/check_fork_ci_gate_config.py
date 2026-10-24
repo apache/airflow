@@ -33,13 +33,15 @@ import os
 import subprocess
 import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from types import ModuleType
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from common_prek_utils import AIRFLOW_ROOT_PATH
+
 CONFIG_PATH = ".github/fork-ci-gate.toml"
 UPSTREAM_URL = "https://github.com/apache/airflow.git"
-GATE_MODULE_PATH = REPO_ROOT / "dev" / "breeze" / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
+GATE_MODULE_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
+)
 
 
 def load_gate_module() -> ModuleType:
@@ -96,7 +98,9 @@ def find_violations(base_text: str | None, new_text: str, *, now: datetime) -> l
 
 
 def _git(*args: str) -> str | None:
-    result = subprocess.run(["git", "-C", str(REPO_ROOT), *args], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        ["git", "-C", str(AIRFLOW_ROOT_PATH), *args], capture_output=True, text=True, check=False
+    )
     return result.stdout if result.returncode == 0 else None
 
 
@@ -125,7 +129,7 @@ def resolve_base_ref() -> str | None:
 
 
 def main() -> int:
-    new_text = (REPO_ROOT / CONFIG_PATH).read_text()
+    new_text = (AIRFLOW_ROOT_PATH / CONFIG_PATH).read_text()
     base_ref = resolve_base_ref()
     if base_ref is None:
         # Comparing with the change itself would accept any new past instant, so fail instead.

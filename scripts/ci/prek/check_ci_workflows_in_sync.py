@@ -49,8 +49,8 @@ Documented divergences:
    platform on the same branch
 9. ``gate`` job, the ``needs: [gate]`` / ``if:`` lines of ``build-info``
    and ``gate`` in the needs of ``ci-passed`` — AMD only. The fork CI gate (AIP-120) decides whether project CI runs
-   for pull requests; ARM has no pull_request trigger and never runs in
-   forks.
+   for pull requests; ARM has no pull_request or push trigger, and the
+   ``check-run-needed`` step both share skips a fork's scheduled run.
 
 Anything else differing between the two files is a drift bug. To
 intentionally introduce a new divergence, update the rules in this script
