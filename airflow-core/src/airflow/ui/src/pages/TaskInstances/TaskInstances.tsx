@@ -85,6 +85,8 @@ const {
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -339,6 +341,8 @@ export const TaskInstances = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const loopFilter = searchParams.get(SearchParamsKeys.LOOP_ID);
@@ -423,6 +427,8 @@ export const TaskInstances = () => {
       logicalDateLte: logicalDateLte ?? undefined,
       loopId: loopInScope ? loopFilter : undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       ...operatorNameArg,
       orderBy,
       ...poolNameArg,
