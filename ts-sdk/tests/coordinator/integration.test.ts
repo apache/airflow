@@ -286,6 +286,7 @@ describe("coordinator runtime integration", () => {
       runId: "r1",
       tryNumber: 1,
       mapIndex: -1,
+      conf: {},
     });
     expect(result.logRecords.some((r) => r["event"] === "[ts-sdk.runtime] Task succeeded")).toBe(
       true,
@@ -300,6 +301,21 @@ describe("coordinator runtime integration", () => {
     for (const l of loggers) {
       expect(l).toMatch(/^ts-sdk(\.|$)/);
     }
+  });
+
+  it("hands a handler the Dag run conf", async () => {
+    let observedConf: unknown = null;
+    testDag.task("read_conf", async () => {
+      observedConf = getContext<{ date: string; regions: string[] }>().conf;
+    })();
+
+    const conf = { date: "2026-01-01", regions: ["eu", "us"] };
+    const result = await driveSupervisor(
+      makeStartupDetails("read_conf", "test_dag", "r1", { dag_run: { conf } }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedConf).toEqual(conf);
   });
 
   it("times out when the terminal task response cannot be written", async () => {
