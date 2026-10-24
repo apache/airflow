@@ -1,0 +1,1 @@
+A ``TriggerDagRunOperator`` or ``ExternalTaskSensor`` inside an expanded task group no longer breaks serialization of its dag. The dag id such a task takes from the group is only known once the task expands, so no dag dependency is recorded for it instead of failing with ``unhashable type: 'MappedArgument'``.
