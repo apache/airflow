@@ -402,3 +402,45 @@ class TestGoogleCloudStorageToSambaOperator:
         )
         resolved = operator._resolve_destination_path("dir/file.txt")
         assert resolved == os.path.join(DESTINATION_SMB, "dir/file.txt")
+
+    @pytest.mark.parametrize(
+        ("destination_path", "expected"),
+        [
+            ("/", "/dir/file.txt"),
+            ("", "dir/file.txt"),
+            (".", "dir/file.txt"),
+        ],
+    )
+    def test_resolve_destination_path_allows_share_root(self, destination_path, expected):
+        operator = GCSToSambaOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="dir/file.txt",
+            destination_path=destination_path,
+            gcp_conn_id=GCP_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
+        )
+        assert operator._resolve_destination_path("dir/file.txt") == expected
+
+    @pytest.mark.parametrize(
+        ("destination_path", "source_object"),
+        [
+            ("", "../escape"),
+            (".", "../escape"),
+            ("", "/etc/escape"),
+            (".", "/etc/escape"),
+        ],
+    )
+    def test_resolve_destination_path_rejects_traversal_from_share_root(
+        self, destination_path, source_object
+    ):
+        operator = GCSToSambaOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_path=destination_path,
+            gcp_conn_id=GCP_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
+        )
+        with pytest.raises(ValueError, match="outside the configured"):
+            operator._resolve_destination_path(source_object)
