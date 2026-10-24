@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -474,6 +475,36 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert with_pending.json()["total_entries"] == 0
         assert without_pending.status_code == 200
         assert without_pending.json()["total_entries"] == 3
+
+    @pytest.mark.parametrize(
+        ("start_date_offset", "next_method", "expected_pending_count"),
+        [
+            pytest.param(timedelta(seconds=-5), None, 3, id="checking-for-the-answer"),
+            pytest.param(timedelta(seconds=5), None, 0, id="new-attempt-has-not-asked-yet"),
+            pytest.param(timedelta(seconds=-5), "execute_complete", 0, id="resumed-run"),
+        ],
+    )
+    def test_pending_actions_count_a_running_task_only_while_it_waits(
+        self,
+        test_client: TestClient,
+        setup_hitl_data,
+        session: Session,
+        start_date_offset: timedelta,
+        next_method: str | None,
+        expected_pending_count: int,
+    ):
+        for detail in session.scalars(select(HITLDetail).where(HITLDetail.responded_at.is_(None))):
+            detail.task_instance.state = TaskInstanceState.RUNNING
+            detail.task_instance.start_date = detail.created_at + start_date_offset
+            detail.task_instance.next_method = next_method
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_pending_actions": True})
+
+        assert response.status_code == 200
+        pending_actions = [action for dag in response.json()["dags"] for action in dag["pending_actions"]]
+        assert len(pending_actions) == expected_pending_count
+        assert response.json()["total_entries"] == (1 if expected_pending_count else 0)
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})

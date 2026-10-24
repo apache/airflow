@@ -105,6 +105,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -120,6 +121,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
+    HITLDetailResponseResult,
     InactiveAssetsResult,
     MaskSecret,
     OKResponse,
@@ -2301,6 +2303,12 @@ class ActivitySubprocess(WatchedSubprocess):
         )
         return HITLDetailRequestResult.from_api_response(hitl_detail_request), {"exclude_unset": True}
 
+    def _handle_get_hitl_detail_response(
+        self, msg: GetHITLDetailResponse, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        hitl_detail_response = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
+        return HITLDetailResponseResult.from_api_response(hitl_detail_response), {}
+
     def _handle_get_dag(self, msg: GetDag, log: FilteringBoundLogger, req_id: int) -> RequestResult:
         dag = self.client.dags.get(
             dag_id=msg.dag_id,
@@ -2448,6 +2456,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(GetAssetStateStoreByUri, _handle_get_asset_state_store_by_uri),
                 register_request_method(GetDag, _handle_get_dag),
                 register_request_method(GetDagRun, _handle_get_dag_run),
+                register_request_method(GetHITLDetailResponse, _handle_get_hitl_detail_response),
                 register_request_method(GetTaskBreadcrumbs, _handle_get_task_breadcrumbs),
                 register_request_method(GetTaskRescheduleStartDate, _handle_get_task_reschedule_start_date),
                 register_request_method(GetTaskStateStore, _handle_get_task_state_store),
