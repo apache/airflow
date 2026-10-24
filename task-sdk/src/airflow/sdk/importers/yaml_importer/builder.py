@@ -64,7 +64,7 @@ from airflow.sdk.importers.yaml_importer.models import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.importers.base import DagDefinition
@@ -105,10 +105,45 @@ class DagBuilder:
             for task in doc.tasks:
                 for upstream in sorted(task.get_dependency_ids()):
                     self._operators[upstream] >> self._operators[task.id_]
+        self._validate_stub_handlers(doc)
         dag.bundle_name = self._bundle.name
         dag.fileloc = repr(self._definition)
         dag.relative_fileloc = self._definition.get_relative_loc(self._bundle.path)
         return dag
+
+    def _validate_stub_handlers(self, doc: DagDocument) -> None:
+        """
+        Check each ``run:`` task's arguments against its handler.
+
+        This implements the interface defined in AIP-108 and Language SDK
+        ADR-0011. The routed coordinator is queried to obtain the handler's
+        signature and compared against the ``run:`` arguments. Mismatches are
+        collected and raised together as a :class:`YamlDagBuildError`,
+        eventually recorded as an import error.
+
+        Validation is skipped when no declaration is available, e.g. no handler
+        bundle or an unregistered handler. This does not fail parsing, so
+        building a Dag never depends on handler availability. Errors may happen
+        at execution time if the signatures are incompatible.
+        """
+        if not (stub_tasks := [task for task in doc.tasks if self._operators[task.id_].is_stub]):
+            return
+        if problems := "; ".join(self._iter_stub_handler_collect_problems(doc, stub_tasks)):
+            raise YamlDagBuildError(problems)
+
+    def _iter_stub_handler_collect_problems(self, doc: DagDocument, stub_tasks: list[Task]) -> Iterator[str]:
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+
+        manager = get_coordinator_manager()
+        for task in stub_tasks:
+            coordinator = manager.for_queue(self._operators[task.id_].queue)
+            if (declaration := coordinator.describe_task_handler(doc.dag_id, task.id_)) is None:
+                continue  # Best-effort: If nothing can be matched, allow the stub to exist.
+            run_names = set(task.run) if task.run else set()
+            if missing := sorted({p.name for p in declaration.params if p.required} - run_names):
+                yield f"task {task.id_!r}: missing required handler argument(s) {missing}"
+            if unknown := sorted(run_names - {p.name for p in declaration.params}):
+                yield f"task {task.id_!r}: run argument(s) {unknown} are not parameters of its task handler"
 
     def _build_stub_task(self, task: Task, args: dict[str, Value]) -> BaseOperator:
         """
