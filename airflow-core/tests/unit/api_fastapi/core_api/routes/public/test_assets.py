@@ -1336,6 +1336,16 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
 
+    def test_name_prefix_match_all_returns_each_event_once(self, test_client, session):
+        self.create_assets(session=session)
+        self.create_assets_events(session=session)
+
+        response = test_client.get("/assets/events", params={"name_prefix_pattern": "~"})
+
+        assert response.status_code == 200
+        assert [event["id"] for event in response.json()["asset_events"]] == [1, 2]
+        assert response.json()["total_entries"] == 2
+
     @pytest.mark.parametrize(
         ("params", "expected_ids"),
         [
