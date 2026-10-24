@@ -69,3 +69,30 @@ same-as-pattern = '(?:JavaLanguageVersion\.of\(|JavaVersion\.VERSION_|JvmTarget\
 target = '{scripts/docker/install_os_dependencies.sh,Dockerfile,Dockerfile.ci}'
 same-as = '.github/workflows/ci-amd.yml:java-version'
 same-as-pattern = '^(?:TEMURIN_VERSION=\$\{TEMURIN_VERSION:-|ENV TEMURIN_VERSION=")(?P<value>\d+)'
+
+# Node for the TypeScript SDK: the build job of ts-sdk-release.yml is the source of truth.
+[[block]]
+target = '.github/workflows/ts-sdk-release.yml#/jobs/build/steps/~[name=Set up Node.js]/with/node-version'
+name = 'node-version'
+
+[[block]]
+target = '.github/workflows/ts-sdk-release.yml#/jobs/publish/steps/~[name=Set up Node.js]/with/node-version'
+same-as = '.github/workflows/ts-sdk-release.yml:node-version'
+
+[[block]]
+target = '.github/workflows/{ci-amd,ci-arm}.yml#/jobs/tests-ts-sdk/steps/~[name=Setup node]/with/node-version'
+same-as = '.github/workflows/ts-sdk-release.yml:node-version'
+
+# pnpm: every pin must be the version the CI and PROD images install. The Dockerfiles are compared
+# as whole files, because the Java rule above already targets them. A `**/package.json` glob would
+# also match packages that don't pin pnpm, so a new package that pins it has to be added here.
+[[block]]
+target = '{ts-sdk,kubernetes-tests/lang_sdk/ts_example,dev/react-plugin-tools/react_plugin_template,airflow-core/src/airflow/ui,airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui,providers/fab/src/airflow/providers/fab/www,providers/edge3/src/airflow/providers/edge3/plugins/www,providers/common/ai/src/airflow/providers/common/ai/plugins/www}/package.json#/packageManager'
+same-as = 'Dockerfile.ci,Dockerfile,scripts/docker/install_os_dependencies.sh'
+same-as-pattern = '(?:pnpm@|ENV PNPM_VERSION="|^PNPM_VERSION=\$\{PNPM_VERSION:-)(?P<value>\d+\.\d+\.\d+)'
+
+# The pnpm that prek installs for the UI hooks, in `additional_dependencies`.
+[[block]]
+target = '{,airflow-core/,providers/common/ai/,providers/edge3/,providers/fab/,ts-sdk/}.pre-commit-config.yaml'
+same-as = 'Dockerfile.ci,Dockerfile,scripts/docker/install_os_dependencies.sh'
+same-as-pattern = '(?:pnpm@|ENV PNPM_VERSION="|^PNPM_VERSION=\$\{PNPM_VERSION:-)(?P<value>\d+\.\d+\.\d+)'

@@ -24,15 +24,17 @@
 
 const { collectExternalServices } = require("./providerExternalServices");
 
-// Kept in sync by hand with normalize() in src/js/search.js and
+// Kept in sync with normalize() in src/js/search.js and
 // src/js/provider-filters.js (both browser IIFEs; this file runs at build
 // time under CommonJS). Collapse runs of "-_\s" to a space rather than
 // strip: stripping "Microsoft Power BI" would turn it into
 // "microsoftpowerbi", which contains "ftp" and would falsely match
 // the orchestration category.
+// <block name="normalize">
 function normalize(text) {
   return text.toLowerCase().replace(/[-_\s]+/g, ' ');
 }
+// </block>
 
 // A value "matches" a keyword if the value contains the keyword,
 // case-insensitively, after collapsing runs of "-_\s" to a single

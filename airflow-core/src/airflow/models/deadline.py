@@ -363,7 +363,9 @@ class ReferenceModels:
     to the user interface in airflow.sdk.definitions.deadline.DeadlineReference
     """
 
+    # <block same-as="task-sdk/src/airflow/sdk/definitions/deadline.py:reference-type-field">
     REFERENCE_TYPE_FIELD = "reference_type"
+    # </block>
 
     @classmethod
     def get_reference_class(cls, reference_name: str) -> type[BaseDeadlineReference]:

@@ -30,7 +30,9 @@ import { NavButton } from "./NavButton";
 import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
+// Each title must be a MenuItem value: the filter below matches on this string.
 const links = [
+  // <block same-as="airflow-core/src/airflow/api_fastapi/common/types.py:menu-items" same-as-pattern='title: "(?P<value>[^"]+)"' same-as-mode="subset">
   {
     href: "/events",
     key: "auditLog",
@@ -39,7 +41,6 @@ const links = [
   {
     href: "/dag_bundles",
     key: "dagBundles",
-    // Must stay byte-identical to MenuItem.DAG_BUNDLES: the filter below matches on this string.
     title: "Dag Bundles",
   },
   {
@@ -76,6 +77,7 @@ const links = [
     key: "requiredActions",
     title: "Required Actions",
   },
+  // </block>
 ];
 
 export const BrowseButton = ({
