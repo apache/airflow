@@ -24,9 +24,10 @@ The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
 for Bedrock's AWS-style credentials (IAM keys, a bearer token, or the default
-credential chain), none of which fit the plain ``api_key`` + ``base_url`` shape
-that the generic :doc:`pydantic_ai` connection assumes. All fields live in
-``extra``; the ``password`` and ``host`` fields are hidden in the connection form.
+credential chain). The hook picks the credential mapping from the model prefix,
+so a generic :doc:`pydantic_ai` connection with a ``bedrock:`` model reads the
+same ``extra`` keys. This connection type gives those keys their own form inputs
+and hides the ``password`` and ``host`` fields, which Bedrock models ignore.
 
 .. note::
 
@@ -54,6 +55,11 @@ Model
     as an existing platform prefix, and the whole bare id still gets ``bedrock:``
     prepended (``bedrock:us.anthropic.claude-opus-4-6-v1:0``). Writing the
     ``bedrock:`` prefix yourself has the same effect and is still accepted.
+
+Embedding Model
+    Bedrock embedding model identifier (e.g. ``bedrock:amazon.titan-embed-text-v2:0``).
+    This field stores its value in ``extra["embed_model"]``. Unlike Model, a bare
+    name is not qualified, so always write the ``bedrock:`` prefix.
 
 AWS Region
     AWS region (e.g. ``us-east-1``). Falls back to the ``AWS_DEFAULT_REGION``
