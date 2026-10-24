@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Textarea, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceUpdateWorkerMaintenance } from "openapi/queries";
+import { useUpdateWorkerMaintenance } from "openapi/queries";
 import { useState } from "react";
 import { FiEdit } from "react-icons/fi";
 
@@ -33,7 +33,7 @@ export const MaintenanceEditCommentButton = ({
   const { onClose, onOpen, open } = useDisclosure();
   const [comment, setComment] = useState("");
 
-  const editCommentMutation = useUiServiceUpdateWorkerMaintenance({
+  const editCommentMutation = useUpdateWorkerMaintenance(undefined, {
     onError: (error) => {
       onEditComment({
         description: `Unable to update comments for worker ${workerName}: ${error}`,
@@ -52,7 +52,7 @@ export const MaintenanceEditCommentButton = ({
   });
 
   const editComment = () => {
-    editCommentMutation.mutate({ requestBody: { maintenance_comment: comment }, workerName });
+    editCommentMutation.mutate({ body: { maintenance_comment: comment }, path: { worker_name: workerName } });
   };
 
   return (
