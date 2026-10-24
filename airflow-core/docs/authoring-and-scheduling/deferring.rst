@@ -441,7 +441,7 @@ Triggers can have two options: they can either send execution back to the worker
             )
 
 
-``TaskSuccessEvent`` and ``TaskFailureEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
+``TaskSuccessEvent``, ``TaskFailedEvent`` and ``TaskSkippedEvent`` are the events that can be used to end the task instance directly. They mark the task with the state ``task_instance_state``, or ``up_for_retry`` when a failed task has retries left, and optionally push xcom if applicable. Here's an example of how to use these events:
 
 .. code-block:: python
 
