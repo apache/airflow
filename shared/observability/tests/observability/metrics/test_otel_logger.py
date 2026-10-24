@@ -459,6 +459,19 @@ class TestOtelMetrics:
                 id="type_specific_vars_take_precedence",
             ),
             pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": (
+                        "http://victoriametrics:8428/opentelemetry/api/v1/push"
+                    ),
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                },
+                None,
+                None,
+                "http://victoriametrics:8428/opentelemetry/api/v1/push",
+                "http",
+                id="metrics_endpoint_preserves_custom_path",
+            ),
+            pytest.param(
                 {},
                 "::1",
                 "4318",
