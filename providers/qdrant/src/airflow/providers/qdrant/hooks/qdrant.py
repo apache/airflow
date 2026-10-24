@@ -99,7 +99,9 @@ class QdrantHook(BaseHook):
         extra = connection.extra_dejson
         url = extra.get("url", None)
         grpc_port = extra.get("grpc_port", 6334)
-        prefer_gprc = extra.get("prefer_gprc", False)
+        # The connection form saves this flag under the misspelled "prefer_gprc" key, so keep reading it
+        # for existing connections, but let QdrantClient's own "prefer_grpc" spelling take precedence.
+        prefer_grpc = extra.get("prefer_grpc", extra.get("prefer_gprc", False))
         https = extra.get("https", None)
         prefix = extra.get("prefix", None)
 
@@ -109,7 +111,7 @@ class QdrantHook(BaseHook):
             url=url,
             api_key=api_key,
             grpc_port=grpc_port,
-            prefer_grpc=prefer_gprc,
+            prefer_grpc=prefer_grpc,
             https=https,
             prefix=prefix,
         )
