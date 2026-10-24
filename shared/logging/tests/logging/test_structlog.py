@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import os
+import re
 import sys
 import textwrap
 from datetime import UTC, datetime
@@ -841,3 +842,16 @@ class TestParseNamespaceLogLevels:
             result = parse_namespace_log_levels("sqlalchemy=VERBOSE")
         assert result == {}
         assert "VERBOSE" in caplog.text
+
+
+@mock.patch.object(structlog_module, "JWT_PATTERN", spec=re.Pattern)
+def test_redact_jwt_only_runs_the_pattern_on_candidate_values(pattern):
+    """The redactor runs on every string value of every log line; only values containing ``eyJ`` can match."""
+    pattern.sub.return_value = "Bearer eyJ***"
+
+    result = structlog_module.redact_jwt(
+        None, "info", {"event": "plain message", "token": "Bearer eyJhbGciOiJIUzI1NiJ9.c2ln", "count": 3}
+    )
+
+    pattern.sub.assert_called_once()
+    assert result == {"event": "plain message", "token": "Bearer eyJ***", "count": 3}
