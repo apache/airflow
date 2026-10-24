@@ -23,6 +23,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     text,
 )
 from sqlalchemy.dialects import mysql
@@ -85,7 +86,7 @@ class EdgeJobModel(Base, LoggingMixin):
     queue: Mapped[str] = mapped_column(String(256))
     concurrency_slots: Mapped[int] = mapped_column(Integer)
     priority_weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
-    command: Mapped[str] = mapped_column(String(2048))
+    command: Mapped[str] = mapped_column(Text)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime)
     edge_worker: Mapped[str | None] = mapped_column(String(64))
     last_update: Mapped[datetime | None] = mapped_column(UtcDateTime)
