@@ -1433,6 +1433,19 @@ class TestDbtCloudHook:
         assert "proxies" in extra_options
         assert extra_options["proxies"] == EXTRA_PROXIES["proxies"]
 
+    def test_timeout_and_proxies_reach_the_request(self, requests_mock):
+        """timeout_seconds and connection proxies are applied to the sent request."""
+        requests_mock.get(
+            f"{SINGLE_TENANT_URL}api/v2/accounts/{DEFAULT_ACCOUNT_ID}/jobs/{JOB_ID}",
+            json={"data": {"id": JOB_ID}},
+        )
+        hook = DbtCloudHook(PROXY_CONN, timeout_seconds=60)
+
+        hook.get_job(job_id=JOB_ID, account_id=DEFAULT_ACCOUNT_ID)
+
+        assert requests_mock.last_request.timeout == 60
+        assert requests_mock.last_request.proxies.get("https") == EXTRA_PROXIES["proxies"]["https"]
+
     @pytest.mark.parametrize(
         argnames=("exception", "expected"),
         argvalues=[
