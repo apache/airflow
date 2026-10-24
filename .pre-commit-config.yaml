@@ -1170,6 +1170,8 @@ repos:
         files: \.py$
       - id: check-ci-gate-needs
         name: Check the CI passed gate job needs every CI job
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Auto-merge waits for "CI passed"; a job missing from its needs could fail without stopping a merge
         entry: ./scripts/ci/prek/check_ci_gate_needs.py
         language: python
