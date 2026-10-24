@@ -37,7 +37,7 @@ from sqlalchemy.exc import IntegrityError
 from airflow._shared.timezones import timezone
 from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest, evaluate
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
-from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
+from airflow.models.inbound_delivery import CLAIMABLE_OUTCOMES, DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log
 from airflow.models.task_coordinates import get_public_map_index
@@ -130,9 +130,10 @@ def claim_early_delivery(
     """
     Claim an early delivery received after ``cutoff`` for the waits that ``wait_actions`` record.
 
-    The claim is a compare-and-set on the delivery's outcome, so each early delivery is claimed once,
-    however many registrations and deliveries look at it. The waits are added to the delivery's actions
-    once the claim holds its row, so that the skipped asset routes they list are kept.
+    A delivery that requested cancels is kept for waits as an early one is, and claimed the same way. The
+    claim is a compare-and-set on the delivery's outcome, so each such delivery is claimed once, however
+    many registrations and deliveries look at it. The waits are added to the delivery's actions once the
+    claim holds its row, so that the skipped asset routes and cancel requests they list are kept.
 
     :return: Whether the delivery was claimed.
     """
@@ -140,7 +141,7 @@ def claim_early_delivery(
         update(InboundDelivery)
         .where(
             InboundDelivery.id == record_id,
-            InboundDelivery.outcome == DeliveryOutcome.EARLY,
+            InboundDelivery.outcome.in_(CLAIMABLE_OUTCOMES),
             InboundDelivery.received_at > cutoff,
         )
         .values(outcome=DeliveryOutcome.RESUMED_WAIT)
@@ -245,9 +246,10 @@ def _take_back_delivery(record_id: UUID, wait_id: UUID, *, session: Session) -> 
 
     A delivery that other waits hold stays theirs. One that no other wait holds gets the outcome it would
     have had if the wait had never existed: ``accepted`` if it recorded events, since such a delivery is
-    never kept early, or else ``early`` again if it has a correlation key, so that a new wait can claim
-    it. One that has neither keeps the wait, as its record says nothing of whether it would have been
-    ``no_subscribers`` or ``dag_paused``.
+    never kept early, or else, if it has a correlation key, ``cancel_requested`` again if it recorded
+    cancel requests and ``early`` again if not, so that a new wait can claim it. One that has neither
+    keeps the wait, as its record says nothing of whether it would have been ``no_subscribers`` or
+    ``dag_paused``.
     """
     record = session.execute(
         select(InboundDelivery.actions, InboundDelivery.correlation_key)
@@ -267,7 +269,10 @@ def _take_back_delivery(record_id: UUID, wait_id: UUID, *, session: Session) -> 
     elif actions.get("asset_events") or actions.get("asset_routes"):
         values = {"outcome": DeliveryOutcome.ACCEPTED, "actions": actions}
     elif record.correlation_key is not None:
-        values = {"outcome": DeliveryOutcome.EARLY, "actions": actions or None}
+        outcome = (
+            DeliveryOutcome.CANCEL_REQUESTED if actions.get("cancel_requests") else DeliveryOutcome.EARLY
+        )
+        values = {"outcome": outcome, "actions": actions or None}
     else:
         return
     session.execute(
@@ -281,12 +286,16 @@ def _take_back_delivery(record_id: UUID, wait_id: UUID, *, session: Session) -> 
 def _find_matching_early_deliveries(
     wait: InboundWait, *, cutoff: datetime, session: Session
 ) -> list[Row[tuple[UUID, str | None, dict[str, Any] | None]]]:
-    """Return the wait's webhook's early deliveries received after ``cutoff`` that match it, oldest first."""
+    """
+    Return the wait's webhook's claimable deliveries received after ``cutoff`` that match it, oldest first.
+
+    Early deliveries are claimable, and so are deliveries that requested cancels and did nothing else.
+    """
     candidates = session.execute(
         select(InboundDelivery.id, InboundDelivery.delivery_id, InboundDelivery.attributes)
         .where(
             InboundDelivery.webhook == wait.webhook,
-            InboundDelivery.outcome == DeliveryOutcome.EARLY,
+            InboundDelivery.outcome.in_(CLAIMABLE_OUTCOMES),
             InboundDelivery.received_at > cutoff,
         )
         .order_by(InboundDelivery.received_at, InboundDelivery.id)

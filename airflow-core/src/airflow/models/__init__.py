@@ -79,6 +79,7 @@ def import_all_models():
     import airflow.models.task_state_store
     import airflow.models.tasklog
     import airflow.models.team
+    import airflow.models.webhook_cancel_request
     import airflow.models.xcom
 
 

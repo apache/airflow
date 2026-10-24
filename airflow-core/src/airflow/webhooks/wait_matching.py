@@ -34,7 +34,7 @@ from sqlalchemy import func, select, true, update
 
 from airflow._shared.timezones import timezone
 from airflow._shared.webhook_naming.matching import compute_covered_key_digests, evaluate
-from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
+from airflow.models.inbound_delivery import CLAIMABLE_OUTCOMES, DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.sqlalchemy import with_row_locks
@@ -196,16 +196,17 @@ def expire_oldest_early_deliveries(
     """
     Make room for one more early delivery to ``webhook`` if it keeps ``max_per_webhook`` of them.
 
-    Its oldest early deliveries received after ``cutoff`` are marked ``expired`` and their payloads
-    dropped, so that no wait can claim them: as many as leave one fewer than ``max_per_webhook``, which
-    also expires the excess that concurrent deliveries leave when each counts before the others commit.
-    Rows that another transaction holds are skipped, so that concurrent deliveries expire different
-    rows, and the update is a compare-and-set on the outcome, as a claim is, so that a delivery a wait
-    claims meanwhile stays claimed.
+    Deliveries that requested cancels and did nothing else are kept for waits too, and count as early
+    here. Its oldest early deliveries received after ``cutoff`` are marked ``expired`` and their payloads
+    dropped, so that no wait can claim them, while their cancel requests stay: as many as leave one fewer
+    than ``max_per_webhook``, which also expires the excess that concurrent deliveries leave when each
+    counts before the others commit. Rows that another transaction holds are skipped, so that concurrent
+    deliveries expire different rows, and the update is a compare-and-set on the outcome, as a claim is,
+    so that a delivery a wait claims meanwhile stays claimed.
     """
     live_early = (
         InboundDelivery.webhook == webhook,
-        InboundDelivery.outcome == DeliveryOutcome.EARLY,
+        InboundDelivery.outcome.in_(CLAIMABLE_OUTCOMES),
         InboundDelivery.received_at > cutoff,
     )
     count = session.execute(select(func.count()).select_from(InboundDelivery).where(*live_early)).scalar_one()
@@ -228,7 +229,7 @@ def expire_oldest_early_deliveries(
         return
     session.execute(
         update(InboundDelivery)
-        .where(InboundDelivery.id.in_(oldest), InboundDelivery.outcome == DeliveryOutcome.EARLY)
+        .where(InboundDelivery.id.in_(oldest), InboundDelivery.outcome.in_(CLAIMABLE_OUTCOMES))
         .values(outcome=DeliveryOutcome.EXPIRED, payload=None)
         .execution_options(synchronize_session=False)
     )
@@ -236,7 +237,7 @@ def expire_oldest_early_deliveries(
 
 def hand_to_waits_after_commit(record_id: UUID, *, cutoff: datetime, session: Session) -> bool:
     """
-    Look again, after an early delivery committed, for open waits that it matches.
+    Look again, after a delivery kept for waits committed, early or with cancel requests, for open waits.
 
     A wait registered while the delivery was recorded was not seen by the delivery, and its registration
     did not see the delivery. Each side looks again after its own commit, and claims are compare-and-set,
@@ -245,13 +246,13 @@ def hand_to_waits_after_commit(record_id: UUID, *, cutoff: datetime, session: Se
     delivery.
 
     :param cutoff: Early deliveries received before this can no longer be claimed.
-    :return: Whether waits took the delivery; False if none could, or if the delivery is no longer early
-        and received after ``cutoff``, as when the wait's registration claimed it first.
+    :return: Whether waits took the delivery; False if none could, or if the delivery is no longer kept
+        for waits and received after ``cutoff``, as when the wait's registration claimed it first.
     :raises EarlyDeliveryClaimedMeanwhile: if a registering wait claimed the delivery after the waits took
         it; rolling back undoes what they recorded.
     """
     record = session.get(InboundDelivery, record_id)
-    if record is None or record.outcome != DeliveryOutcome.EARLY or record.received_at <= cutoff:
+    if record is None or record.outcome not in CLAIMABLE_OUTCOMES or record.received_at <= cutoff:
         return False
     candidates = find_matching_waits(record.webhook, record.attributes, session=session)
     if not (actions := hand_to_waits(candidates, record, session=session)):

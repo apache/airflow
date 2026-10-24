@@ -547,6 +547,14 @@ def clear_db_inbound_deliveries():
 
 
 @_retry_db
+def clear_db_webhook_cancel_requests():
+    with create_session() as session:
+        from airflow.models.webhook_cancel_request import WebhookCancelRequest
+
+        session.execute(delete(WebhookCancelRequest))
+
+
+@_retry_db
 def clear_dag_specific_permissions():
     if "FabAuthManager" not in conf.get("core", "auth_manager"):
         return

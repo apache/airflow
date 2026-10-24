@@ -173,6 +173,7 @@ def add_early_delivery(
     attributes: dict[str, Any] | None = None,
     outcome: DeliveryOutcome = DeliveryOutcome.EARLY,
     correlation_key: str | None = "my-org/configs#42",
+    actions: dict[str, Any] | None = None,
 ) -> UUID:
     record = InboundDelivery(
         webhook=webhook,
@@ -185,6 +186,7 @@ def add_early_delivery(
         correlation_key=correlation_key,
         payload={"pull_request": {"merged": True}},
         outcome=outcome,
+        actions=actions,
     )
     session.add(record)
     session.commit()
@@ -512,8 +514,19 @@ class TestLatestWaitWins:
 
 
 class TestClaimEarlyDeliveries:
-    def test_claims_a_matching_early_delivery(self, client, session, running_ti):
-        record_id = add_early_delivery(session)
+    @pytest.mark.parametrize(
+        ("outcome", "actions"),
+        [
+            pytest.param(DeliveryOutcome.EARLY, None, id="early"),
+            pytest.param(
+                DeliveryOutcome.CANCEL_REQUESTED,
+                {"cancel_requests": [{"request_id": "a-request", "dag_id": "cancellable", "scope": "run"}]},
+                id="cancel-requested",
+            ),
+        ],
+    )
+    def test_claims_a_matching_early_delivery(self, client, session, running_ti, outcome, actions):
+        record_id = add_early_delivery(session, outcome=outcome, actions=actions)
 
         response = register(client, running_ti.id)
 
@@ -524,6 +537,7 @@ class TestClaimEarlyDeliveries:
         record = read_delivery(session, record_id)
         assert record.outcome == DeliveryOutcome.RESUMED_WAIT
         assert record.actions == {
+            **(actions or {}),
             "waits": [
                 {
                     "wait_id": str(wait.id),
@@ -533,7 +547,7 @@ class TestClaimEarlyDeliveries:
                     "task_id": running_ti.task_id,
                     "map_index": running_ti.map_index,
                 }
-            ]
+            ],
         }
         (audit,) = session.scalars(select(Log).where(Log.event == "webhook_delivery"))
         assert (audit.owner, audit.owner_display_name, audit.task_instance_id) == (

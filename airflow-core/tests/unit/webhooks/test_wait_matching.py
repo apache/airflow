@@ -36,12 +36,12 @@ from airflow._shared.timezones import timezone
 from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
 from airflow.models.asset import AssetDagRunQueue, AssetEvent
-from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
+from airflow.models.inbound_delivery import CLAIMABLE_OUTCOMES, DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
-from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.webhook_cancel_request import WebhookCancelRequest
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk import Asset
+from airflow.sdk import Asset, WebhookMatch
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 from airflow.webhooks import pipeline, wait_matching
@@ -60,7 +60,14 @@ from tests_common.test_utils.db import (
     clear_db_logs,
     clear_db_runs,
 )
-from tests_common.test_utils.webhooks import FakeWaitSource, build_conn_env, post_signed_delivery
+from tests_common.test_utils.webhooks import (
+    FakeWaitSource,
+    build_conn_env,
+    get_audit_logs,
+    get_deliveries,
+    post_signed_delivery,
+    read,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -91,6 +98,8 @@ MATCH = {"repository": "my-org/configs", "number": 42}
 PAYLOAD = {"path": "my-org/configs", "repository": "my-org/configs", "number": 42, "merged": True}
 #: The attributes FakeWaitSource parses from a pull_request delivery of PAYLOAD.
 ATTRIBUTES = {"event": "pull_request", "repository": "my-org/configs", "number": 42}
+#: The actions of a delivery that requested a cancel, as cancel_requested or once a wait claimed it.
+CANCEL_ACTIONS = {"cancel_requests": [{"request_id": "a-request", "dag_id": "cancellable", "scope": "run"}]}
 RESUME_EVENT = {
     "webhook": "fake",
     "event": "pull_request",
@@ -262,22 +271,14 @@ def subscribe(dag_maker, events: str = "topic", *, is_paused: bool = False) -> N
         dag_maker.session.commit()
 
 
+def declare_cancel_on(dag_maker) -> None:
+    """Add a Dag whose ``cancel_on`` the pull_request deliveries of PAYLOAD match, so they request a cancel."""
+    with dag_maker("cancellable", schedule=None, cancel_on=[WebhookMatch("fake", events=EVENTS)]):
+        pass
+
+
 def count_asset_events(session: Session) -> int:
     return len(session.scalars(select(AssetEvent.id)).all())
-
-
-def read(session: Session, model: type, row_id):
-    session.expire_all()
-    return session.get_one(model, row_id)
-
-
-def get_deliveries(session: Session) -> list[InboundDelivery]:
-    session.expire_all()
-    return list(session.scalars(select(InboundDelivery).order_by(InboundDelivery.received_at)))
-
-
-def get_audit_logs(session: Session) -> list[Log]:
-    return list(session.scalars(select(Log).where(Log.event == "webhook_delivery").order_by(Log.id)))
 
 
 def build_wait_action(wait: InboundWait, ti: TaskInstance) -> dict[str, Any]:
@@ -504,6 +505,40 @@ class TestHandToWaits:
         )
         other_wait = read(session, InboundWait, other_wait.id)
         assert (other_wait.status, other_wait.delivery_id) == (WaitStatus.RECEIVED, record.id)
+
+    @pytest.mark.parametrize(
+        ("registered_after", "expected_outcome"),
+        [
+            pytest.param(timedelta(minutes=1), DeliveryOutcome.RESUMED_WAIT, id="claimed-by-the-new-try"),
+            pytest.param(EARLY_DELIVERY_TTL, DeliveryOutcome.CANCEL_REQUESTED, id="past-ttl"),
+        ],
+    )
+    def test_a_new_try_takes_back_a_delivery_that_requested_a_cancel_as_cancel_requested(
+        self, client, session, make_ti, dag_maker, time_machine, registered_after, expected_outcome
+    ):
+        """It can be claimed again, by the new try's wait if it is still within its TTL."""
+        declare_cancel_on(dag_maker)
+        earlier = make_ti(TaskInstanceState.RUNNING)
+        add_wait(session, earlier.id)
+        assert post(client).json()["outcome"] == "resumed_wait"
+        (record,) = get_deliveries(session)
+        cancel_requests = record.actions["cancel_requests"]
+        retry = earlier.prepare_db_for_next_try(session)
+        retry.state = TaskInstanceState.RUNNING
+        session.commit()
+        time_machine.move_to(NOW + registered_after, tick=False)
+
+        wait = register(session, retry.id)
+
+        record = read(session, InboundDelivery, record.id)
+        claimed = expected_outcome == DeliveryOutcome.RESUMED_WAIT
+        assert (record.outcome, record.actions) == (
+            expected_outcome,
+            {
+                "cancel_requests": cancel_requests,
+                **({"waits": [build_wait_action(wait, retry)]} if claimed else {}),
+            },
+        )
 
     def test_a_retry_of_a_delivery_that_went_to_a_wait_is_a_duplicate(self, client, session, make_ti):
         ti = make_ti()
@@ -794,11 +829,16 @@ class TestEarlyDeliveries:
         assert [record.outcome for record in get_deliveries(session)] == expected_outcomes
 
     @pytest.mark.backend("postgres", "mysql")
-    def test_at_the_cap_a_delivery_expires_the_oldest_early_delivery_that_no_other_holds(self, session):
+    @pytest.mark.parametrize("outcome", CLAIMABLE_OUTCOMES)
+    def test_at_the_cap_a_delivery_expires_the_oldest_early_delivery_that_no_other_holds(
+        self, session, outcome
+    ):
         """Concurrent deliveries at the cap expire different early deliveries."""
         client = TestClient(create_webhooks_app(replace(REGISTRY, early_delivery_max_per_webhook=2)))
-        oldest = add_early_delivery(session, received_at=NOW - timedelta(minutes=2), delivery_id="oldest")
-        add_early_delivery(session, delivery_id="next-oldest")
+        oldest = add_early_delivery(
+            session, received_at=NOW - timedelta(minutes=2), delivery_id="oldest", outcome=outcome
+        )
+        add_early_delivery(session, delivery_id="next-oldest", outcome=outcome)
 
         with create_session(scoped=False) as other_session:
             other_session.execute(
@@ -807,7 +847,7 @@ class TestEarlyDeliveries:
             assert post(client).json()["outcome"] == "early"
 
         assert [(record.delivery_id, record.outcome) for record in get_deliveries(session)] == [
-            ("oldest", "early"),
+            ("oldest", outcome),
             ("next-oldest", "expired"),
             ("delivery-1", "early"),
         ]
@@ -883,6 +923,12 @@ class TestEarlyDeliveries:
             pytest.param(DeliveryOutcome.EXPIRED, NOW - EARLY_DELIVERY_TTL, "early", id="expired-past-ttl"),
             pytest.param(
                 DeliveryOutcome.EXPIRED, NOW - timedelta(minutes=1), "expired", id="expired-within-ttl"
+            ),
+            pytest.param(
+                DeliveryOutcome.CANCEL_REQUESTED,
+                NOW - timedelta(minutes=1),
+                "early",
+                id="kept-for-waits-with-a-cancel-request",
             ),
         ],
     )
@@ -961,10 +1007,13 @@ class TestEarlyDeliveries:
         assert post(client).json()["outcome"] == "resumed_wait"
         assert read(session, InboundWait, wait.id).delivery_id == record.id
 
+    @pytest.mark.parametrize("requested_cancel", [False, True], ids=["early", "cancel-requested"])
     @mock.patch.object(pipeline, "find_matching_waits", autospec=True, return_value=[])
     def test_an_early_delivery_goes_to_a_wait_registered_while_it_was_recorded(
-        self, _, client, session, make_ti
+        self, _, client, session, make_ti, dag_maker, requested_cancel
     ):
+        if requested_cancel:
+            declare_cancel_on(dag_maker)
         ti = make_ti(TaskInstanceState.RUNNING)
         wait = add_wait(session, ti.id)
 
@@ -972,19 +1021,27 @@ class TestEarlyDeliveries:
 
         assert response.json()["outcome"] == "resumed_wait"
         (record,) = get_deliveries(session)
-        assert (record.outcome, record.payload, record.actions) == (
-            "resumed_wait",
-            PAYLOAD,
-            {"waits": [build_wait_action(wait, ti)]},
-        )
+        expected_actions: dict[str, Any] = {"waits": [build_wait_action(wait, ti)]}
+        if requested_cancel:
+            (request,) = session.scalars(select(WebhookCancelRequest))
+            expected_actions["cancel_requests"] = [
+                {"request_id": str(request.id), "dag_id": "cancellable", "scope": "run"}
+            ]
+        assert (record.outcome, record.payload, record.actions) == ("resumed_wait", PAYLOAD, expected_actions)
         wait = read(session, InboundWait, wait.id)
         assert (wait.status, wait.delivery_id) == (WaitStatus.RECEIVED, record.id)
-        assert len(get_audit_logs(session)) == 1
+        # The delivery's own entry for its request, and the wait's.
+        assert len(get_audit_logs(session)) == (2 if requested_cancel else 1)
 
 
 class TestHandToWaitsAfterCommit:
-    def test_hands_the_delivery_to_each_wait_that_can_take_it(self, session, make_ti):
-        record = add_early_delivery(session)
+    @pytest.mark.parametrize(
+        ("outcome", "actions"),
+        [(DeliveryOutcome.EARLY, None), (DeliveryOutcome.CANCEL_REQUESTED, CANCEL_ACTIONS)],
+        ids=["early", "cancel-requested"],
+    )
+    def test_hands_the_delivery_to_each_wait_that_can_take_it(self, session, make_ti, outcome, actions):
+        record = add_early_delivery(session, outcome=outcome, actions=actions)
         parked = make_ti(dag_id="parked")
         running = make_ti(TaskInstanceState.RUNNING, dag_id="running")
         waits = {parked.id: add_wait(session, parked.id), running.id: add_wait(session, running.id, match={})}
@@ -996,7 +1053,7 @@ class TestHandToWaitsAfterCommit:
         record = read(session, InboundDelivery, record.id)
         assert (record.outcome, record.actions) == (
             DeliveryOutcome.RESUMED_WAIT,
-            {"waits": [build_wait_action(waits[ti.id], ti) for ti in tis]},
+            {**(actions or {}), "waits": [build_wait_action(waits[ti.id], ti) for ti in tis]},
         )
         assert read(session, InboundWait, waits[parked.id].id).status == WaitStatus.RESUMED
         assert read(session, InboundWait, waits[running.id].id).status == WaitStatus.RECEIVED
