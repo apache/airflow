@@ -36,8 +36,10 @@ from airflow.api_fastapi.common.parameters import (
     RangeFilter,
     SortParam,
     _DagIdTeamsFilter,
+    _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
+    search_param_factory,
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -182,9 +184,9 @@ def get_dag_deadline_alerts(
     dag_id: str,
     session: SessionDep,
     limit: QueryLimit,
-    name: Annotated[
-        FilterParam[str | None],
-        Depends(filter_param_factory(DeadlineAlert.name, str | None)),
+    name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(DeadlineAlert.name, "name_pattern")),
     ],
     offset: QueryOffset,
     order_by: Annotated[
@@ -198,7 +200,7 @@ def get_dag_deadline_alerts(
     ],
     version_number: int | None = None,
 ) -> DeadlineAlertCollectionResponse:
-    """Get all deadline alerts defined on a Dag."""
+    """Get deadline alerts defined on a Dag, optionally filtered by name pattern."""
     serialized_dag_select = (
         select(SerializedDagModel.id)
         .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
@@ -225,7 +227,7 @@ def get_dag_deadline_alerts(
 
     alerts_select, total_entries = paginated_select(
         statement=query,
-        filters=[name],
+        filters=[name_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,

@@ -5533,12 +5533,12 @@ export class DeadlinesService {
     
     /**
      * Get Dag Deadline Alerts
-     * Get all deadline alerts defined on a Dag.
+     * Get deadline alerts defined on a Dag, optionally filtered by name pattern.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.versionNumber
      * @param data.limit
-     * @param data.name
+     * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      * @returns DeadlineAlertCollectionResponse Successful Response
@@ -5554,7 +5554,7 @@ export class DeadlinesService {
             query: {
                 version_number: data.versionNumber,
                 limit: data.limit,
-                name: data.name,
+                name_pattern: data.namePattern,
                 offset: data.offset,
                 order_by: data.orderBy
             },

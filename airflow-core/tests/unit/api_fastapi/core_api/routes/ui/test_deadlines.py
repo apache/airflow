@@ -566,7 +566,7 @@ class TestGetDagDeadlineAlerts:
                 limit=100,
                 offset=0,
                 order_by=Mock(),
-                name=None,
+                name_pattern=None,
             )
 
         statement = session.scalar.call_args.args[0]
@@ -599,19 +599,29 @@ class TestGetDagDeadlineAlerts:
         ("params", "expected_alerts"),
         [
             pytest.param(
-                {"name": ALERT_NAME},
+                {"name_pattern": ALERT_NAME},
                 [ALERT_NAME],
                 id="matching_name",
             ),
             pytest.param(
-                {"name": "does-not-exist"},
+                {"name_pattern": "Another"},
+                ["Another Alert"],
+                id="matching_substring",
+            ),
+            pytest.param(
+                {"name_pattern": "Alert"},
+                [ALERT_NAME, "Another Alert"],
+                id="matching_multiple_alerts",
+            ),
+            pytest.param(
+                {"name_pattern": "does-not-exist"},
                 [],
                 id="no_match",
             ),
         ],
     )
-    def test_filter_by_name(self, test_client, params, expected_alerts):
-        """Filtering by name returns only matching DeadlineAlerts."""
+    def test_filter_by_name_pattern(self, test_client, params, expected_alerts):
+        """Filtering by name pattern returns matching DeadlineAlerts."""
         response = test_client.get(
             f"/dags/{DAG_ID}/deadlineAlerts",
             params=params,
@@ -622,7 +632,7 @@ class TestGetDagDeadlineAlerts:
         data = response.json()
 
         assert data["total_entries"] == len(expected_alerts)
-        assert [alert["name"] for alert in data["deadline_alerts"]] == expected_alerts
+        assert sorted(alert["name"] for alert in data["deadline_alerts"]) == sorted(expected_alerts)
 
     def test_dag_with_no_alerts_returns_empty_list(self, test_client, dag_maker, session):
         """A DAG with no deadline alerts returns an empty list."""
@@ -678,12 +688,12 @@ class TestGetDagDeadlineAlerts:
             pytest.param({"version_number": 1}, ["v1_alert"], id="older_version"),
             pytest.param({"version_number": 2}, ["v2_alert"], id="latest_version"),
             pytest.param(
-                {"version_number": 1, "name": "v1_alert"},
+                {"version_number": 1, "name_pattern": "v1_alert"},
                 ["v1_alert"],
                 id="version_1_matching_name",
             ),
             pytest.param(
-                {"version_number": 1, "name": "v2_alert"},
+                {"version_number": 1, "name_pattern": "v2_alert"},
                 [],
                 id="version_1_non_matching_name",
             ),
