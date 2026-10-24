@@ -87,13 +87,14 @@ export const GridTI = ({
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
+  const isStacked = Boolean(isMapped) || Boolean(isGroup);
   const frontCardState = instance.state ?? "none";
-  const backCardState = isMapped
+  const backCardState = isStacked
     ? (sortStateEntries(instance.child_states).find(([state]) => state !== frontCardState)?.[0] ??
       frontCardState)
     : undefined;
-  const badgeSize = `${isMapped ? TASK_BAR_HEIGHT_PX - 1 : TASK_BAR_HEIGHT_PX}px`;
-  const stackPadding = isMapped ? `${BACK_CARD_OFFSET_PX}px` : undefined;
+  const badgeSize = `${isStacked ? TASK_BAR_HEIGHT_PX - 1 : TASK_BAR_HEIGHT_PX}px`;
+  const stackPadding = isStacked ? `${BACK_CARD_OFFSET_PX}px` : undefined;
 
   return (
     <Flex
@@ -123,7 +124,7 @@ export const GridTI = ({
           borderRadius={4}
           display="flex"
           outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
-          outlineOffset={isMapped ? "0px" : "1px"}
+          outlineOffset={isStacked ? "0px" : "1px"}
           outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
           outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
           pb={stackPadding}
