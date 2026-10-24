@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from tests_common.test_utils.otel_utils import (
     clean_task_lines,
     extract_metrics_from_output,
@@ -23,6 +25,7 @@ from tests_common.test_utils.otel_utils import (
     get_child_list_for_non_root,
     get_id_for_a_given_name,
     get_parent_child_dict,
+    process_collector_metrics,
 )
 
 
@@ -968,3 +971,48 @@ From task sub_span3.
         assert cleaned_lines == self.example_task_output_after_processing.splitlines(), (
             "Cleaned task lines do not match the expected output after processing."
         )
+
+    @pytest.mark.parametrize(
+        ("collector_metrics", "expected_dict"),
+        [
+            pytest.param(
+                'airflow_ti_successes_total{dag_id="dag_a",job="run-1"} 2\n'
+                'airflow_ti_successes_total{dag_id="dag_b",job="run-1"} 1\n',
+                {"airflow_ti_successes_total": [2.0, 1.0]},
+                id="one_value_per_series",
+            ),
+            pytest.param(
+                'airflow_ti_successes_total{dag_id="dag_a",job="run-1"} 2\n'
+                'airflow_ti_successes_total{dag_id="dag_a",job="run-0"} 5\n',
+                {"airflow_ti_successes_total": [2.0]},
+                id="other_services_are_excluded",
+            ),
+            pytest.param(
+                "# TYPE airflow_task_duration_milliseconds histogram\n"
+                'airflow_task_duration_milliseconds_bucket{dag_id="dag_a",job="run-1",le="+Inf"} 2\n'
+                'airflow_task_duration_milliseconds_sum{dag_id="dag_a",job="run-1"} 121.851\n'
+                'airflow_task_duration_milliseconds_count{dag_id="dag_a",job="run-1"} 2\n',
+                {
+                    "airflow_task_duration_milliseconds_bucket": [2.0],
+                    "airflow_task_duration_milliseconds_sum": [121.851],
+                    "airflow_task_duration_milliseconds_count": [2.0],
+                },
+                id="histogram_parts_are_separate_names",
+            ),
+            pytest.param(
+                "# HELP airflow_executor_open_slots\n"
+                "# TYPE airflow_executor_open_slots gauge\n"
+                'airflow_executor_open_slots{job="run-1"} 32\n'
+                "unlabelled_metric 7\n",
+                {"airflow_executor_open_slots": [32.0]},
+                id="comments_and_lines_without_attributes_are_skipped",
+            ),
+            pytest.param(
+                '    airflow_ti_successes_total{job="run-1"} 2\n',
+                {"airflow_ti_successes_total": [2.0]},
+                id="leading_whitespace_is_stripped",
+            ),
+        ],
+    )
+    def test_process_collector_metrics(self, collector_metrics: str, expected_dict: dict):
+        assert process_collector_metrics(collector_metrics, service_name="run-1") == expected_dict
