@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from airflow.partition_mappers.base import PartitionMapper
+from airflow.partition_mappers.identity import IdentityMapper
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -66,8 +67,18 @@ class ChainMapper(PartitionMapper):
         return keys[0] if len(keys) == 1 else keys
 
     def to_partition_date(self, downstream_key: str) -> datetime | None:
-        # The last mapper in the chain formats the final downstream key, so it owns the anchor.
-        return self.mappers[-1].to_partition_date(downstream_key)
+        # A trailing IdentityMapper preserves the key, so the previous mapper still owns the anchor.
+        mapper = self.mappers[-1]
+        index = len(self.mappers) - 1
+        while isinstance(mapper, IdentityMapper) and index > 0:
+            index -= 1
+            mapper = self.mappers[index]
+        try:
+            return mapper.to_partition_date(downstream_key)
+        except ValueError:
+            # An identity mapper accepts arbitrary keys, even when the preceding mapper's
+            # temporal format cannot decode them.
+            return None
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
