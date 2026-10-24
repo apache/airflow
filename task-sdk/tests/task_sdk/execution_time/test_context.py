@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -2002,7 +2004,7 @@ class TestTaskStateStoreAccessor:
         )
 
         backend = MagicMock(spec=BaseStoreBackend)
-        backend.deserialize_task_state_store_from_ref.return_value = {"rows": 123}
+        backend.adeserialize_task_state_store_from_ref.return_value = {"rows": 123}
 
         with patch(
             "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
@@ -2010,7 +2012,7 @@ class TestTaskStateStoreAccessor:
             result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
 
         assert result == {"rows": 123}
-        backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
+        backend.adeserialize_task_state_store_from_ref.assert_awaited_once_with("s3://bucket/ti_123/job_id")
 
     @pytest.mark.asyncio
     async def test_aset_with_global_retention(self, mock_supervisor_comms, time_machine):
@@ -2330,7 +2332,7 @@ class TestAssetStateStoreAccessor:
         )
 
         backend = MagicMock(spec=BaseStoreBackend)
-        backend.deserialize_asset_state_store_from_ref.return_value = "2026-05-01"
+        backend.adeserialize_asset_state_store_from_ref.return_value = "2026-05-01"
 
         with patch(
             "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
@@ -2338,7 +2340,7 @@ class TestAssetStateStoreAccessor:
             result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
 
         assert result == "2026-05-01"
-        backend.deserialize_asset_state_store_from_ref.assert_called_once_with(
+        backend.adeserialize_asset_state_store_from_ref.assert_awaited_once_with(
             "s3://bucket/assets/orders/watermark"
         )
 
@@ -2960,3 +2962,46 @@ class TestMacrosAccessorTeamScoping:
 
         assert accessor.team_a_macros.team_a_macro() == "team-a"
         assert accessor.global_macros.shared_macro() == "shared"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope_kind", ["task", "asset"])
+async def test_async_state_store_uses_native_ref_hook(scope_kind, mock_supervisor_comms):
+    class NativeBackend(InMemoryStoreBackend):
+        def __init__(self, owner):
+            super().__init__()
+            self.owner = owner
+
+    backend = NativeBackend("configured-owner")
+    accessor = (
+        TaskStateStoreAccessor(
+            ti_id=UUID("01900000-0000-0000-0000-000000000002"),
+            scope=TaskScope(dag_id="dag", run_id="run", task_id="task"),
+        )
+        if scope_kind == "task"
+        else AssetStateStoreAccessor(name="asset")
+    )
+    result_class = TaskStateStoreResult if scope_kind == "task" else AssetStateStoreResult
+    hook = f"deserialize_{scope_kind}_state_store_from_ref"
+    loop_thread = threading.get_ident()
+
+    async def native(self, stored):
+        assert self is backend
+        assert threading.get_ident() == loop_thread
+        assert stored == "mem://scope/checkpoint"
+        progressed = asyncio.Event()
+        asyncio.get_running_loop().call_soon(progressed.set)
+        await progressed.wait()
+        return self.owner
+
+    setattr(NativeBackend, "a" + hook, native)
+    mock_supervisor_comms.asend.return_value = result_class(
+        value=_wrap_external_ref("mem://scope/checkpoint")
+    )
+    with (
+        mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ),
+        mock.patch.object(backend, hook, side_effect=AssertionError("sync hook called"), autospec=True),
+    ):
+        assert await accessor.aget("checkpoint") == "configured-owner"

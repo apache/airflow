@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import threading
+from contextvars import ContextVar
 from uuid import UUID, uuid4
 
 import pytest
@@ -98,6 +100,35 @@ class TestBaseStoreBackend:
                 self.calls.append("aclear")
 
         return ConcreteBackend()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["task", "asset"])
+    async def test_async_ref_fallback_preserves_calling_context(self, backend, monkeypatch, kind):
+        owner = threading.get_ident()
+        local = threading.local()
+        local.value = "owner"
+        variable = ContextVar("owner", default="outside")
+        instances = [backend, type(backend)()]
+        name = f"deserialize_{kind}_state_store_from_ref"
+        for instance in instances:
+            original = getattr(instance, name)
+
+            def observe(stored, original=original, instance=instance):
+                assert threading.get_ident() == owner
+                assert local.value == "owner"
+                instance.calls.append(variable.get())
+                return original(stored)
+
+            monkeypatch.setattr(instance, name, observe)
+        for instance, label in [(instances[0], "A"), (instances[1], "B"), (instances[0], "A")]:
+            token = variable.set(label)
+            try:
+                assert await getattr(instance, "a" + name)('{"v": "' + label + '"}') == {"v": label}
+            finally:
+                variable.reset(token)
+        assert instances[0].calls == ["A", "A"]
+        assert instances[1].calls == ["B"]
+        assert variable.get() == "outside"
 
     def test_incomplete_subclass_raises_type_error(self):
         """A subclass that omits any abstract method cannot be instantiated."""
