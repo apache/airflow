@@ -720,6 +720,16 @@ def _job(
             id="cancelled-before-the-gate-started",
         ),
         pytest.param(
+            [
+                _job("Check if the run is needed", "cancelled", started=False),
+                _job("Fork CI gate", "cancelled", started=False),
+                _job("Build info", "cancelled", started=False),
+                _job("CI passed (run cancelled)", "success"),
+            ],
+            False,
+            id="cancelled-run-reporting-ci-passed-run-cancelled",
+        ),
+        pytest.param(
             [_job("Fork CI gate", "cancelled", minutes=30, started=False)],
             False,
             id="gate-cancelled-after-queueing-for-30-minutes",

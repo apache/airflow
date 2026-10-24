@@ -79,12 +79,13 @@ GATE_JOB_NAME = "Fork CI gate"
 # Jobs that also run, without needing the gate, in a run the gate left to fork CI: main's
 # check-run-needed (no steps outside schedule and push runs) and the "CI passed" gate job of the
 # merge ruleset, which reports as "CI passed (project CI not run)" when project CI was skipped and
-# as "CI passed" when a newer push cancelled the run before build-info started. Like the gate, each
-# must finish within GATE_MAX_DURATION, so project CI work moved under one of these names counts.
-# Each runs once, so the names of one job are grouped: repeating short jobs under them counts too.
+# as "CI passed (run cancelled)" when a newer push cancelled the run before build-info started --
+# "CI passed" in a workflow from before that name. Like the gate, each must finish within
+# GATE_MAX_DURATION, so project CI work moved under one of these names counts. Each runs once, so
+# the names of one job are grouped: repeating short jobs under them counts too.
 GATED_RUN_JOBS = (
     frozenset({"Check if the run is needed"}),
-    frozenset({"CI passed (project CI not run)", "CI passed"}),
+    frozenset({"CI passed (project CI not run)", "CI passed (run cancelled)", "CI passed"}),
 )
 GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
