@@ -1416,6 +1416,92 @@ class TestResolveArtifactBundle:
             coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
 
 
+class _MissingArtifactCoordinator(_StubSubprocessCoordinator):
+    def _build_execute_task_command(self, *, what):
+        raise FileNotFoundError("cannot find a JAR with Main-Class metadata in /bundle")
+
+
+class TestExecuteTaskLaunchFailure:
+    """A task whose runtime cannot be launched fails with TaskLaunchError, so the supervisor reports it."""
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_with_a_retry_when_the_artifact_cannot_be_found(self, mock_client):
+        coordinator = _MissingArtifactCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="cannot find a JAR with Main-Class metadata") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert isinstance(raised.value.__cause__, FileNotFoundError)
+
+    @patch.object(
+        SubprocessCoordinator,
+        "_resolve_artifact_bundle",
+        autospec=True,
+        side_effect=FileNotFoundError("Dag bundle 'artifacts' resolved to /nope, which does not exist."),
+    )
+    def test_fails_with_a_retry_when_the_artifact_bundle_cannot_be_read(self, _, mock_client):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], task_handler_bundle_name="artifacts")
+
+        with pytest.raises(TaskLaunchError, match="resolved to /nope, which does not exist") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert coordinator.recorded_roots == []
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @pytest.mark.parametrize(
+        ("script", "startup_timeout", "reason", "output"),
+        [
+            pytest.param(
+                "echo 'cannot load main class' >&2; exit 3",
+                10.0,
+                "exited with 3",
+                "cannot load main class",
+                id="exits",
+            ),
+            pytest.param(
+                "echo 'still starting' >&2; sleep 30",
+                0.5,
+                "did not connect",
+                "still starting",
+                id="times-out",
+            ),
+        ],
+    )
+    def test_fails_with_a_retry_and_the_runtime_output_when_the_runtime_does_not_connect(
+        self, mock_client, script, startup_timeout, reason, output
+    ):
+        coordinator = _StubSubprocessCoordinator(
+            command=["sh", "-c", script], task_startup_timeout=startup_timeout
+        )
+
+        with pytest.raises(TaskLaunchError, match=reason) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert output in str(raised.value)
+        mock_client.task_instances.start.assert_not_called()
+
+
 class TestExecuteTaskBundleWiring:
     """execute_task passes the task bundle, forwards resolved roots, and holds the version lock."""
 
