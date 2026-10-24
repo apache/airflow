@@ -1331,7 +1331,8 @@ jobs:
     # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
     # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
     # "CI passed" then would let it merge on no CI, so the job reports under another name and
-    # the fork CI reconciler posts "CI passed" from the fork run instead.
+    # the fork CI reconciler posts "CI passed" from the fork run instead. Until the gate lands,
+    # build-info has no condition and this always reports "CI passed".
     name: >-
       ${{ needs.build-info.result == 'skipped' && 'CI passed (project CI not run)' || 'CI passed' }}
     # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
