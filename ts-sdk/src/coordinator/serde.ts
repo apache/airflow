@@ -223,11 +223,11 @@ export function serializeDag(
 }
 
 /**
- * The task's spec with the Dag's queue filled in, when the task named none.
+ * The task's spec with the Dag's queue filled in when the task names none.
  *
- * Merged before the fields are written rather than after, so a queue that
- * happens to equal the schema default is omitted the way any other defaulted
- * field is.
+ * Merged before the fields are written so a task-level queue takes precedence.
+ * A Dag-level queue is preserved even when it equals the schema default, just
+ * like any other task field the author explicitly set.
  */
 function withDagQueue(spec: object, dagQueue: string | undefined): object {
   if (dagQueue === undefined || "queue" in spec) return spec;
@@ -451,8 +451,7 @@ function simpleTimetable(type: string): SerializedValue {
 }
 
 /**
- * Write the fields a spec set onto `data`, skipping any left at its schema
- * default — Python's serializer omits what the scheduler re-derives.
+ * Write the fields a spec set onto `data`.
  */
 function applySchemaFields(
   data: Record<string, SerializedValue>,
@@ -466,7 +465,7 @@ function applySchemaFields(
     // `schedule` becomes `timetable`.
     if (field.virtual || rules.omitted.has(field.key)) continue;
     const value = values[name];
-    if (value === undefined || value === field.default) continue;
+    if (value === undefined) continue;
     const encoded = encodeField(field, value, `${name} for ${label}`);
     data[field.key] = rules.decorated.has(field.key) ? encoded : unwrapTypeEncoding(encoded);
   }
