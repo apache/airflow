@@ -302,7 +302,6 @@
     "title": "任務儲存區"
   },
   "versions": {
-    "aboutThisComparison": "關於此比較",
     "base": "比較起點",
     "categories": {
       "asset": "資源",
@@ -342,7 +341,6 @@
     "maxChanges": "變更數上限",
     "maxChangesDefault": "預設",
     "noChanges": "這些版本的狀態相同。",
-    "observedStateBoundary": "比較的是目前儲存的狀態，而非建立當時的證據。歷史版本無法比較原始碼；請使用「程式碼」分頁比較原始碼。",
     "operations": {
       "added": "新增",
       "changed": "變更",
