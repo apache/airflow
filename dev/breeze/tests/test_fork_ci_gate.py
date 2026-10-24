@@ -280,12 +280,15 @@ def test_decide(event: GateEvent, config_overrides: dict, expected: Decision):
     assert decide(event, _config(**config_overrides)) == expected
 
 
-def test_canonical_branch_filters_match_arm_push_trigger():
-    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-arm.yml").read_text())
+def test_canonical_branch_filters_match_pull_request_release_branches():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
     # PyYAML parses the bare `on:` key as boolean True.
-    arm_branches = workflow[True]["push"]["branches"]
+    pull_request_branches = workflow[True]["pull_request"]["branches"]
+    release_prep_branches = [
+        branch for branch in pull_request_branches if branch != "main" and not branch.endswith("-stable")
+    ]
 
-    assert list(CANONICAL_PUSH_BRANCH_FILTERS) == arm_branches
+    assert list(CANONICAL_PUSH_BRANCH_FILTERS) == release_prep_branches
 
 
 @pytest.mark.parametrize(

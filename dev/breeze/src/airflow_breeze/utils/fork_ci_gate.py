@@ -49,9 +49,10 @@ LABEL_READY_FOR_REVIEW = "ready for maintainer review"
 DEFAULT_CLOSE_AFTER_DAYS = 7
 DEFAULT_ENABLED_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 
-# The push branch filters ci-amd.yml used before its push trigger became '**', as written in
-# ci-arm.yml. They are GitHub filter patterns, not regular expressions: see
-# `compile_branch_filter` for the difference.
+# The release-prep / providers branches whose pushes run project CI in apache/airflow: the
+# `pull_request` branch filters of ci-amd.yml without `main` and the `-stable` branches, the same
+# set release-branch-ci.yml starts full runs for. They are GitHub filter patterns, not regular
+# expressions: see `compile_branch_filter` for the difference.
 CANONICAL_PUSH_BRANCH_FILTERS = (
     "v[0-9]+-[0-9]+-test",
     "providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+",
