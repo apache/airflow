@@ -73,6 +73,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
         Deprecated - use `on_finish_action` instead.
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     """
 
     def __init__(
@@ -135,30 +136,33 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self._ssl_ca_cert = ssl_ca_cert
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
+        kwargs: dict[str, Any] = {
+            "pod_name": self.pod_name,
+            "pod_namespace": self.pod_namespace,
+            "cluster_url": self._cluster_url,
+            "ssl_ca_cert": self._ssl_ca_cert,
+            "poll_interval": self.poll_interval,
+            "cluster_context": self.cluster_context,
+            "in_cluster": self.in_cluster,
+            "use_dns_endpoint": self.use_dns_endpoint,
+            "get_logs": self.get_logs,
+            "startup_timeout": self.startup_timeout,
+            "schedule_timeout": self.schedule_timeout,
+            "trigger_start_time": self.trigger_start_time,
+            "base_container_name": self.base_container_name,
+            "should_delete_pod": None,
+            "on_finish_action": self.on_finish_action.value,
+            "gcp_conn_id": self.gcp_conn_id,
+            "impersonation_chain": self.impersonation_chain,
+            "logging_interval": self.logging_interval,
+            "last_log_time": self.last_log_time,
+            "trigger_kwargs": self.trigger_kwargs,
+        }
+        if not self.log_events_on_startup:
+            kwargs["log_events_on_startup"] = False
         return (
             "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger",
-            {
-                "pod_name": self.pod_name,
-                "pod_namespace": self.pod_namespace,
-                "cluster_url": self._cluster_url,
-                "ssl_ca_cert": self._ssl_ca_cert,
-                "poll_interval": self.poll_interval,
-                "cluster_context": self.cluster_context,
-                "in_cluster": self.in_cluster,
-                "use_dns_endpoint": self.use_dns_endpoint,
-                "get_logs": self.get_logs,
-                "startup_timeout": self.startup_timeout,
-                "schedule_timeout": self.schedule_timeout,
-                "trigger_start_time": self.trigger_start_time,
-                "base_container_name": self.base_container_name,
-                "should_delete_pod": None,
-                "on_finish_action": self.on_finish_action.value,
-                "gcp_conn_id": self.gcp_conn_id,
-                "impersonation_chain": self.impersonation_chain,
-                "logging_interval": self.logging_interval,
-                "last_log_time": self.last_log_time,
-                "trigger_kwargs": self.trigger_kwargs,
-            },
+            kwargs,
         )
 
     @cached_property
