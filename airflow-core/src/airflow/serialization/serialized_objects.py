@@ -28,6 +28,7 @@ import enum
 import itertools
 import logging
 import math
+import re
 import sys
 import weakref
 from collections.abc import Collection, Iterable, Mapping
@@ -118,6 +119,7 @@ from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.helpers import GROUP_KEY_REGEX, KEY_REGEX
 from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
@@ -303,6 +305,18 @@ def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
         next_kwargs=var["next_kwargs"],
         timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
     )
+
+
+def _check_id(
+    dag_id: str | None, subject: str, value: str, max_length: int, regex: re.Pattern[str], allowed: str
+) -> None:
+    """Reject an id the Task SDK's validate_key or validate_group_key would reject at construction."""
+    if (length := len(value)) > max_length:
+        raise DeserializationError(
+            dag_id, f"{subject} {value!r} is {length} characters long; at most {max_length} are allowed"
+        )
+    if not regex.match(value):
+        raise DeserializationError(dag_id, f"{subject} {value!r} has to be made of {allowed} exclusively")
 
 
 def _build_json_path(error: ValidationError) -> str:
@@ -2188,7 +2202,8 @@ class DagSerialization(BaseSerialization):
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
         It must match the JSON schema, have unique task ids and deserialize. Like a Dag built with the SDK,
-        it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
+        its dag id, task ids and task group ids must be the ones ``validate_key`` and ``validate_group_key``
+        accept, it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
         ``start_date``, and its task graph must have no cycle. *serialized_obj* is not changed.
 
         :return: The deserialized Dag.
@@ -2209,6 +2224,12 @@ class DagSerialization(BaseSerialization):
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
             )
+        # The Task SDK checks these in its constructors, which a Dag serialized elsewhere never ran; the
+        # schema has already made every id a string.
+        key_characters = "alphanumeric characters, dashes, dots and underscores"
+        _check_id(dag_id, "Dag id", serialized_obj["dag"]["dag_id"], 250, KEY_REGEX, key_characters)
+        for task_id in task_ids:
+            _check_id(dag_id, f"Dag {dag_id!r} task id", task_id, 250, KEY_REGEX, key_characters)
         try:
             deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
         except Exception as e:
@@ -2230,6 +2251,17 @@ class DagSerialization(BaseSerialization):
             and not (deserialized.start_date or "start_date" in deserialized.default_args)
         ):
             raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")
+        # Each group's own id, not the dotted one it gets from its parents, as validate_group_key sees it.
+        for group in deserialized.task_group.get_task_group_dict().values():
+            if group._group_id is not None:
+                _check_id(
+                    dag_id,
+                    f"Dag {dag_id!r} task group id",
+                    group._group_id,
+                    200,
+                    GROUP_KEY_REGEX,
+                    "alphanumeric characters, dashes and underscores",
+                )
         downstream = {task_id: task.downstream_task_ids for task_id, task in deserialized.task_dict.items()}
         if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
             raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
