@@ -1,0 +1,71 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Rules for values that must stay the same in several files, checked by the `blockwatch` prek hook.
+# Rules that fit in a comment live next to the code, as `<block>` tags. This file holds the rest:
+# files that cannot hold a comment, and pins spread over many files.
+# Syntax: https://github.com/mennanov/blockwatch
+
+# Go toolchain: go-sdk/go.mod is the source of truth. Every pin is compared at major.minor.
+[[block]]
+target = 'go-sdk/go.mod'
+target-pattern = '^go (?P<value>\d+\.\d+)'
+name = 'go-version'
+
+[[block]]
+target = 'kubernetes-tests/lang_sdk/go_example/go.mod'
+target-pattern = '^go (?P<value>\d+\.\d+)'
+same-as = 'go-sdk/go.mod:go-version'
+
+[[block]]
+target = '.github/workflows/{ci-amd,ci-arm,k8s-tests}.yml'
+target-pattern = "go-version: '?(?P<value>\\d+\\.\\d+)"
+same-as = 'go-sdk/go.mod:go-version'
+
+[[block]]
+target = '{airflow-e2e-tests/tests/airflow_e2e_tests/constants.py,dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py}'
+target-pattern = 'golang:(?P<value>\d+\.\d+)-alpine'
+same-as = 'go-sdk/go.mod:go-version'
+
+[[block]]
+target = '{,go-sdk/}.pre-commit-config.yaml#/default_language_version/golang'
+same-as = 'go-sdk/go.mod:go-version'
+same-as-pattern = '^(?P<value>\d+\.\d+)'
+
+# Java SDK JDK: env.JAVA_VERSION in ci-amd.yml is the source of truth. Other workflows, such as
+# basic-tests.yml and java-sdk-release-verify.yml, use other JDKs on purpose and are not listed.
+[[block]]
+target = '.github/workflows/ci-amd.yml#/env/JAVA_VERSION'
+name = 'java-version'
+
+[[block]]
+target = '.github/workflows/ci-arm.yml#/env/JAVA_VERSION'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+
+[[block]]
+target = '.github/workflows/codeql-analysis.yml#/jobs/analyze/steps/~[name=Setup Java]/with/java-version'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+
+[[block]]
+target = 'java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions.gradle.kts'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+same-as-pattern = '(?:JavaLanguageVersion\.of\(|JavaVersion\.VERSION_|JvmTarget\.JVM_)(?P<value>\d+)'
+
+[[block]]
+target = '{scripts/docker/install_os_dependencies.sh,Dockerfile,Dockerfile.ci}'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+same-as-pattern = '^(?:TEMURIN_VERSION=\$\{TEMURIN_VERSION:-|ENV TEMURIN_VERSION=")(?P<value>\d+)'

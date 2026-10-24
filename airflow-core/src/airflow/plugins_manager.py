@@ -179,7 +179,9 @@ _APPLIES_TO_ROOTS: dict[str, frozenset[str]] = {
     "asset": frozenset({"asset"}),
 }
 
-# Which record an unqualified path is rooted at -- the entity the destination is about.
+# Which record an unqualified path is rooted at -- the entity the destination is about. The UI
+# keeps the same table, keyed by its own field names (``dagRun`` for ``dag_run``).
+# <block name="applies-to-entity-root" same-as="airflow-core/src/airflow/ui/src/utils/pluginAppliesTo.ts:applies-to-entity-root" same-as-pattern='"(?P<key>\w+)": "(?P<value>\w+)"' same-as-format="key:identifier,value:identifier">
 _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
     "asset": "asset",
     "dag": "dag",
@@ -189,6 +191,7 @@ _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
     "task_overview": "task",
     "task_instance": "task_instance",
 }
+# </block>
 
 _APPLIES_TO_ROOT_NAMES = frozenset({"asset", "dag", "dag_run", "task", "task_instance"})
 

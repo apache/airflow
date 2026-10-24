@@ -288,19 +288,6 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
-      - id: check-applies-to-roots-in-sync
-        name: Check plugin applies_to destination tables stay in sync
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        description: "The UI mirrors plugins_manager's destination -> record map; drift silently widens plugin scope"
-        entry: ./scripts/ci/prek/check_applies_to_roots_in_sync.py
-        language: python
-        files: >
-          (?x)
-          ^airflow-core/src/airflow/plugins_manager\.py$|
-          ^airflow-core/src/airflow/ui/src/utils/pluginAppliesTo\.ts$
-        pass_filenames: false
-        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         env:
@@ -308,22 +295,6 @@ repos:
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
         language: python
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
-        pass_filenames: false
-        require_serial: true
-      - id: check-java-sdk-version-in-sync
-        name: Check Java SDK JDK version is consistent across build files
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
-        language: python
-        files: >
-          (?x)
-          ^\.github/workflows/ci-(arm|amd)\.yml$|
-          ^\.github/workflows/codeql-analysis\.yml$|
-          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
-          ^scripts/docker/install_os_dependencies\.sh$|
-          ^Dockerfile$|
-          ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
       - id: sync-java-sdk-docs
@@ -548,23 +519,6 @@ repos:
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
           ^scripts/ci/lang_sdk_serialization/.*$
-      - id: check-go-version-in-sync
-        name: Check Go toolchain version is consistent across build files
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        entry: ./scripts/ci/prek/check_go_version_in_sync.py
-        language: python
-        files: >
-          (?x)
-          ^go-sdk/go\.mod$|
-          ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
-          ^\.github/workflows/ci-(arm|amd)\.yml$|
-          ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
-          ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
-          ^go-sdk/\.pre-commit-config\.yaml$|
-          ^\.pre-commit-config\.yaml$
-        pass_filenames: false
-        require_serial: true
       - id: update-go-sdk-readme-matrix
         name: Update the Go SDK compatibility matrix in go-sdk/README.md
         env:
@@ -895,6 +849,15 @@ repos:
           ^\.build/|
           ^generated/|
           ^\.apache-magpie-overrides/
+  - repo: https://github.com/mennanov/blockwatch
+    rev: db1b20c6c842c9540ec57774f53f1195274665ca  # frozen: v0.16.0
+    hooks:
+      # Checks the rules in blockwatch.toml and in `<block>` comment tags. It has no `files`
+      # filter, because the files it checks are listed in those rules.
+      - id: blockwatch
+        name: Check values kept in sync across files with blockwatch
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -954,14 +917,6 @@ repos:
           ^providers/.*/src/.*\.py$|
           ^task-sdk/src/.*\.py$|
           ^shared/.*/src/.*\.py$
-      - id: check-secrets-search-path-sync
-        name: Check sync between sdk and core
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
-        language: python
-        pass_filenames: false
-        files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
       - id: check-registry-types-json-sync
         name: Check registry types.json in sync with types.py
         env:
