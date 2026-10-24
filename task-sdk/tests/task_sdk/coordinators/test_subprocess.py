@@ -818,6 +818,19 @@ class TestPopenActivitySubprocessStart:
             )
         return proc, popen_mock, comm_sock
 
+    def test_runtime_is_started_in_its_own_process_group(self, mock_client):
+        """
+        The runtime must get its own process group, and the subprocess must know it has one.
+
+        Otherwise stopping the task signals the runtime alone and anything it spawned is
+        re-parented to init and outlives the try (issue #75533); ``_signal_subprocess`` only
+        reaches the group when ``new_process_group`` was recorded at start time.
+        """
+        proc, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+
+        assert popen_mock.call_args.kwargs["process_group"] == 0
+        assert proc._new_process_group is True
+
     def test_stdin_is_comm_socket(self, mock_client):
         proc, _, comm_sock = self._start_with_mocks(mock_client, command=["/bin/true"])
         assert proc.stdin is comm_sock

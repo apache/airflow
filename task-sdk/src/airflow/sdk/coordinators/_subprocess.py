@@ -365,6 +365,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
                 env=_build_runtime_env(),
+                # Give the runtime its own process group so stopping the task reaches whatever it
+                # started, the way a forked Python task already does (see issue #65505). Without
+                # this, a CLI the task spawned is re-parented to init and outlives the try.
+                process_group=0,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -389,6 +393,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 subprocess_schema_version=subprocess_schema_version,
                 comm_server=comm_server,
                 logs_server=logs_server,
+                new_process_group=True,
                 **kwargs,
             )
             self._register_pipe_readers(
