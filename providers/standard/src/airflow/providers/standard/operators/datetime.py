@@ -110,5 +110,9 @@ def target_times_as_dates(
         return lower, upper
 
     if upper < lower:
-        upper += datetime.timedelta(days=1)
+        # Past midnight, the window that contains base_date started the previous day
+        if base_date.time() <= upper.time():
+            lower -= datetime.timedelta(days=1)
+        else:
+            upper += datetime.timedelta(days=1)
     return lower, upper
