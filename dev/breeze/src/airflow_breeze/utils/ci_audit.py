@@ -95,12 +95,22 @@ def _is_not_found(result: subprocess.CompletedProcess) -> bool:
     return "404" in (result.stderr or "") or "Not Found" in (result.stderr or "")
 
 
+def is_public_apache_member(*, login: str, run: Runner) -> bool:
+    return _ok(run(["gh", "api", f"orgs/apache/public_members/{login}"]))
+
+
+def is_private_apache_member(*, run: Runner) -> bool:
+    membership = run(["gh", "api", "user/memberships/orgs/apache", "--jq", ".state"])
+    return _ok(membership) and _out(membership) == "active"
+
+
 def get_role(*, login: str, run: Runner, config: GateConfig, collaborators: frozenset[str]) -> Role:
     # In the gate's order: a pilot entry gates a pull request whatever its author's role.
     if config.pilot_joined_at(login) is not None:
         return Role.PILOT
-    membership = run(["gh", "api", "user/memberships/orgs/apache", "--jq", ".state"])
-    if _ok(membership) and _out(membership) == "active":
+    # The gate only sees public membership: GitHub reports a private member's pull requests as
+    # `CONTRIBUTOR`, so they are gated like an external contributor's.
+    if is_public_apache_member(login=login, run=run):
         return Role.COMMITTER
     if login.casefold() in {c.casefold() for c in collaborators}:
         return Role.COLLABORATOR
@@ -262,7 +272,19 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
             fork_ok = True
             results.append(CheckResult(3, "fork", CheckStatus.OK, f"{fork} is your fork of apache/airflow"))
 
-    results.append(CheckResult(4, "role", CheckStatus.INFO, f"you are a {role.value}"))
+    if role == Role.EXTERNAL and is_private_apache_member(run=run):
+        results.append(
+            CheckResult(
+                4,
+                "role",
+                CheckStatus.INFO,
+                f"you are a {role.value}: your apache membership is private, so the gate cannot see it; "
+                "make it public, or ask to be added to [allowlist] in .github/fork-ci-gate.toml",
+                (f"gh api -X PUT orgs/apache/public_members/{login}",),
+            )
+        )
+    else:
+        results.append(CheckResult(4, "role", CheckStatus.INFO, f"you are a {role.value}"))
 
     if fork_ok and fork is not None:
         workflow = run(["gh", "api", f"repos/{fork}/actions/workflows/{CI_WORKFLOW_FILE}", "--jq", ".state"])

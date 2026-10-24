@@ -47,6 +47,7 @@ def _machine(**overrides: Output | None) -> dict[str, Output | None]:
         "remotes": (0, REMOTES_OK),
         "repo": (0, json.dumps({"owner": "someone", "parent": "apache/airflow"})),
         "membership": (1, ""),
+        "private_membership": (1, ""),
         "workflow": (0, "active"),
         "behind": (0, "12"),
         "branch": (0, "my-change"),
@@ -61,7 +62,8 @@ def _runner(machine):
         ("gh", "--version"): "gh_version",
         ("gh", "api", "user", "--jq", ".login"): "login",
         ("git", "remote", "-v"): "remotes",
-        ("gh", "api", "user/memberships/orgs/apache", "--jq", ".state"): "membership",
+        ("gh", "api", "orgs/apache/public_members/someone"): "membership",
+        ("gh", "api", "user/memberships/orgs/apache", "--jq", ".state"): "private_membership",
         ("git", "rev-parse", "--abbrev-ref", "HEAD"): "branch",
         ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): "tracking",
     }
@@ -238,7 +240,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True),
-            (0, "active"),
+            (0, ""),
             frozenset(),
             (0, "active"),
             Role.COMMITTER,
@@ -258,7 +260,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True, pilot={"someone": datetime(2026, 10, 20, tzinfo=UTC)}),
-            (0, "active"),
+            (0, ""),
             frozenset(),
             (0, "disabled_fork"),
             Role.PILOT,
@@ -370,10 +372,21 @@ def test_failed_fork_lookup_is_not_reported_as_a_wrong_fork():
     assert 5 not in results
 
 
+def test_private_apache_member_is_gated_like_an_external_contributor():
+    results = _audit(_machine(private_membership=(0, "active"), workflow=(0, "disabled_fork")))
+
+    assert results[4].finding.startswith(
+        f"you are a {Role.EXTERNAL.value}: your apache membership is private"
+    )
+    assert results[4].fix == ("gh api -X PUT orgs/apache/public_members/someone",)
+    assert results[5].status == CheckStatus.FAIL
+    assert results[5].fix == ("gh workflow enable ci-amd.yml -R someone/airflow",)
+
+
 @pytest.mark.parametrize(
     ("membership", "status"),
     [
-        pytest.param((0, "active"), CheckStatus.INFO, id="committer"),
+        pytest.param((0, ""), CheckStatus.INFO, id="committer"),
         pytest.param((1, ""), CheckStatus.FAIL, id="external"),
     ],
 )
