@@ -562,9 +562,11 @@ bypass when both signals hold:
    pull request added to an existing one (for example `pull_request` on `ci-arm.yml`, which
    has no gate), or it is a `ci-amd.yml` run that has run for more than 5 minutes, finished or
    still running, and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a
-   started job other than `Fork CI gate` that was not skipped, a missing or duplicated gate job,
-   or a gate job that ran for more than 5 minutes. The last case catches project CI work done in
-   a job renamed to the gate's name. Runs and jobs that have not started do not count, because a
+   started job that was not skipped, other than `Fork CI gate` and the two jobs that run in every
+   gated run (`Check if the run is needed`, which has no steps for pull requests, and
+   `CI passed (project CI not run)`), a missing or duplicated gate job, or one of those three jobs
+   running for more than 5 minutes. The last case catches project CI work done in a job renamed
+   to one of their names. Runs and jobs that have not started do not count, because a
    queued job reports its creation as `started_at`: a gate job waiting more than 5 minutes for a
    runner would otherwise look like project CI work. A running run is judged as it goes, so one
    tampered to outlast the 6-hour window is still caught. A gate-only run finishes in about a
