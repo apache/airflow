@@ -1347,6 +1347,72 @@ class TestUpdateDagParsingResults:
         assert import_errors == {("def.py", bundle_name)}
 
     @pytest.mark.usefixtures("clean_db")
+    def test_failed_import_error_write_keeps_dags_and_session_usable(self, testing_dag_bundle, session):
+        """A failure while recording import errors must not discard the Dags written in the same call."""
+        from airflow.models.pool import Pool
+
+        dag = DAG(dag_id="test_failed_import_error_write")
+        dag.fileloc = "abc.py"
+        dag.relative_fileloc = "abc.py"
+
+        def failing_update_import_errors(*, session, **kwargs):
+            # include_deferred is NOT NULL, so this flush fails
+            session.add(Pool(pool="poisoned_pool", slots=1))
+            session.flush()
+
+        with patch.object(
+            airflow.dag_processing.collection,
+            "_update_import_errors",
+            side_effect=failing_update_import_errors,
+        ):
+            update_dag_parsing_results_in_db(
+                "testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(dag)],
+                import_errors={("testing", "def.py"): "boom"},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert session.is_active
+        assert session.get(DagModel, (dag.dag_id,)) is not None
+        assert session.scalar(select(func.count()).select_from(Pool).where(Pool.pool == "poisoned_pool")) == 0
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_failed_import_error_write_reraises_when_session_unusable(self, testing_dag_bundle, session):
+        """If the savepoint cannot recover the session, the failure must propagate rather than be swallowed."""
+        dag = DAG(dag_id="test_unusable_session")
+        dag.fileloc = "abc.py"
+        dag.relative_fileloc = "abc.py"
+
+        def lose_connection(*, session, **kwargs):
+            session.connection().invalidate()
+            raise OperationalError(
+                "INSERT",
+                {},
+                Exception("Lost connection to MySQL server during query"),
+                connection_invalidated=True,
+            )
+
+        with (
+            patch.object(
+                airflow.dag_processing.collection, "_update_import_errors", side_effect=lose_connection
+            ),
+            pytest.raises(OperationalError, match="Lost connection"),
+        ):
+            update_dag_parsing_results_in_db(
+                "testing",
+                bundle_version=None,
+                dags=[LazyDeserializedDAG.from_dag(dag)],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+        session.rollback()
+
+    @pytest.mark.usefixtures("clean_db")
     def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
         bundle_name = "testing"
         filename = "abc.py"
