@@ -251,7 +251,15 @@ class OperatorPartial:
             params=self.params,
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
-            template_fields=self.operator_class.template_fields,
+            template_fields=tuple(
+                dict.fromkeys(
+                    (
+                        *self.operator_class.template_fields,
+                        *self.operator_class.template_fields_extra,
+                    )
+                )
+            ),
+            template_fields_extra=tuple(self.operator_class.template_fields_extra),
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
@@ -304,6 +312,7 @@ class MappedOperator(AbstractOperator):
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
+    template_fields_extra: Sequence[str]
     template_fields_renderers: dict[str, str]
     ui_color: str
     ui_fgcolor: str
