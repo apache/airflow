@@ -84,14 +84,14 @@ func Append(execPath string, source, metadata []byte) error {
 		return fmt.Errorf(
 			"bundlefooter: source region too large (%d bytes, max %d)",
 			len(source),
-			MaxRegionSize,
+			uint64(MaxRegionSize),
 		)
 	}
 	if int64(len(metadata)) > MaxRegionSize {
 		return fmt.Errorf(
 			"bundlefooter: metadata region too large (%d bytes, max %d)",
 			len(metadata),
-			MaxRegionSize,
+			uint64(MaxRegionSize),
 		)
 	}
 
