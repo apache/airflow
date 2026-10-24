@@ -250,8 +250,7 @@ theme folder of an ``airflow-site`` checkout instead of the published wheel:
     breeze build-docs apache-airflow --sphinx-airflow-theme-path ../airflow-site/sphinx_airflow_theme
 
 Run ``./site.sh build-landing-pages && ./site.sh prepare-theme`` in ``airflow-site`` first to generate the
-theme's CSS/JS (``prepare-theme`` alone copies the previously built bundle, so rebuild after SCSS/JS edits).
-Breeze mounts the folder read-only and installs the theme in the container before the build.
+theme's CSS/JS. Breeze mounts the folder read-only and installs the theme in the container before the build.
 
 Inventory cache handling
 ........................
