@@ -1348,6 +1348,66 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
+  ci-passed:
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead. Until the gate lands,
+    # build-info has no condition and this always reports "CI passed".
+    name: >-
+      ${{ needs.build-info.result == 'skipped' && 'CI passed (project CI not run)' || 'CI passed' }}
+    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
+    # skipped required check as passed, so this job always runs and fails itself when any job it
+    # needs failed or was cancelled. Jobs skipped by selective checks count as passed.
+    if: always()
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-ts-sdk-docs
+      - check-run-needed
+      - ci-image-checks
+      - finalize-tests
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
+      - name: "Fail if any CI job failed or was cancelled"
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "At least one CI job failed or was cancelled."
+          exit 1
+      - name: "All CI jobs passed or were skipped"
+        run: echo "All CI jobs passed or were skipped."
+
   notify-slack:
     name: "Notify Slack"
     needs:
