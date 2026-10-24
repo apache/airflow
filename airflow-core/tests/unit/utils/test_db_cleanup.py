@@ -1243,6 +1243,7 @@ class TestDBCleanup:
             "asset_partition_dag_run",
             "asset_watcher",  # cascade from trigger
             "dag_favorite",  # cascade from dag
+            "dag_parse_checkpoint",  # cascade from job
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
             "dynamic_region",  # cascade from dag_run; archived with it, never aged out on its own
             "hitl_detail",  # cascade from task_instance
