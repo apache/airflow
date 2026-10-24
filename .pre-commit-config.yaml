@@ -989,6 +989,15 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-ci-gate-needs
+        name: Check the CI passed gate job needs every CI job
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Auto-merge waits for "CI passed"; a job missing from its needs could fail without stopping a merge
+        entry: ./scripts/ci/prek/check_ci_gate_needs.py
+        language: python
+        pass_filenames: false
+        files: ^\.github/workflows/ci-amd\.yml$|^scripts/ci/prek/check_ci_gate_needs\.py$
       - id: check-auth-manager-mock-targets
         name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
         description: The API test client uses SimpleAuthManager, so patching an overridden BaseAuthManager method has no effect
