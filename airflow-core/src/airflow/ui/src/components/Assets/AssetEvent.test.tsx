@@ -46,4 +46,17 @@ describe("AssetEvent", () => {
 
     expect(screen.getByText("dagRun.partitionKey: foo")).toBeInTheDocument();
   });
+
+  it("does not render a source when the event has no source task or source flag", () => {
+    render(
+      <AssetEvent
+        assetId={1}
+        event={{ ...baseEvent, source_dag_id: null, source_run_id: null, source_task_id: null }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/source/u)).not.toBeInTheDocument();
+  });
 });
