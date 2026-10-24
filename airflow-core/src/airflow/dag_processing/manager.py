@@ -57,6 +57,7 @@ from airflow.dag_processing.bundles.base import (
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.claims import get_available_work_filter
 from airflow.dag_processing.collection import is_source_discovery_failed, update_dag_parsing_results_in_db
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -499,23 +500,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         stuck_legacy_rows = 0
         for dag in dags_parsed:
-            # Dags whose bundle has been removed from config (bundle no longer active) are stale —
-            # the processor has stopped parsing their files, so the time-based check below would never fire.
-            #
-            # A NULL bundle_name means the row predates bundles (carried over from Airflow 2.x) and has not
-            # been parsed since the upgrade — parsing is what fills bundle_name in. If the file was removed
-            # as part of the upgrade, no parse will ever happen, so bundle_name stays NULL forever. Such a
-            # row can never hit the time-based check below either, because that matches on
-            # (bundle_name, relative_fileloc) and there is no bundle to match against, so without this
-            # branch the Dag stays active in the UI indefinitely. If the file does still exist, the next
-            # parse fills in bundle_name and clears is_stale, so a Dag deactivated here is reactivated.
-            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
-                self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
-                    dag.dag_id,
-                    dag.bundle_name,
-                )
-                to_deactivate.add(dag.dag_id)
+            if dag.bundle_name in inactive_bundles:
                 continue
             # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
             # the 0082 migration adds the column as nullable, and the startup repair
@@ -620,7 +605,6 @@ class DagFileProcessorManager(LoggingMixin):
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
-            self.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
             self._num_run += 1
@@ -713,9 +697,11 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetch priority parsing requests from the metadata database."""
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
-        requests = session.scalars(
-            select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
+        query = select(DagPriorityParsingRequest).where(
+            DagPriorityParsingRequest.bundle_name.in_(bundles.keys()),
+            get_available_work_filter(DagPriorityParsingRequest.processor_job_id),
         )
+        requests = session.scalars(with_row_locks(query, session=session, skip_locked=True))
         for request in requests:
             bundle = bundles[request.bundle_name]
             files.append(
@@ -760,7 +746,10 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.debug("Skipping callback fetch for uninitialized bundles: %s", unready_bundles)
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
-                .where(DbCallbackRequest.bundle_name.in_(bundle_names))
+                .where(
+                    DbCallbackRequest.bundle_name.in_(bundle_names),
+                    get_available_work_filter(DbCallbackRequest.processor_job_id),
+                )
                 .order_by(DbCallbackRequest.priority_weight.desc())
                 .limit(self.max_callbacks_per_loop),
                 of=DbCallbackRequest,
@@ -888,15 +877,6 @@ class DagFileProcessorManager(LoggingMixin):
         if version is not None:
             values["version"] = version
         session.execute(update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values))
-
-    def purge_inactive_dag_warnings(self) -> None:
-        """
-        Purge warnings for inactive/stale DAGs.
-
-        Default implementation deletes records from the metadata DB; override to
-        source warnings from an API or skip the cleanup entirely.
-        """
-        DagWarning.purge_inactive_dag_warnings()
 
     def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
         # Initialization or refresh may change files even when the provider raises afterwards.

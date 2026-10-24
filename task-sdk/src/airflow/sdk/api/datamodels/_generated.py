@@ -500,6 +500,48 @@ class PreviousTIResponse(BaseModel):
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
+class ProcessorWorkAckBody(BaseModel):
+    """
+    Acknowledge delivery, retaining the claim identity across retries.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+
+
+class ProcessorWorkClaimBody(BaseModel):
+    """
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    claim_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Claim Sequence")]
+    bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
+    limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
+
+
+class ProcessorWorkItem(BaseModel):
+    """
+    A claimed callback or priority parse request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    callback: Annotated[str | None, Field(title="Callback")] = None
+
+
 class TIAwaitingInputStatePayload(BaseModel):
     """
     Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
