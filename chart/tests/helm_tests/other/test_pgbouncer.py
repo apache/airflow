@@ -944,6 +944,11 @@ class TestPgbouncerNetworkPolicy:
                 "workers": {"celery": {"keda": {"enabled": True}}},
                 "triggerer": {"keda": {"enabled": True}},
             },
+            # namespaceLabels of disabled triggerer.keda must not replace the workers.celery.keda peer
+            {
+                "workers": {"celery": {"keda": {"enabled": True}}},
+                "triggerer": {"keda": {"enabled": False, "namespaceLabels": {"env": "inactive"}}},
+            },
         ],
     )
     def test_pod_selectors_with_keda_without_namespace_labels(self, executor, values):
