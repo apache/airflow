@@ -550,20 +550,20 @@ class TestRealBundleArgBindingsDowngrade:
             assert ti["region_id"] == startup_details.ti.region_id
             assert ti["region_index"] == 7
 
-    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30", "2027-02-28"])
     def test_execution_timeout_follows_supervisor_version(self, real_migrator, startup_details, version):
         startup_details.ti_context.execution_timeout = 90.0
         context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]
 
-        if version == "2026-06-16":
-            assert "execution_timeout" not in context
-        else:
+        if version == "2027-02-28":
             assert context["execution_timeout"] == 90.0
+        else:
+            assert "execution_timeout" not in context
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
 
-        out = real_migrator.downgrade(startup_details, "2026-10-30")
+        out = real_migrator.downgrade(startup_details, "2027-02-28")
         assert out.ti_context.arg_bindings is not None
         literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
         assert isinstance(literal, LiteralArgBinding)
