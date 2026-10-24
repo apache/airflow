@@ -52,6 +52,7 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModelV2
 from airflow.sdk import BaseOperator, TaskGroup, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.definitions.dag import NO_LOGICAL_DATE_PAST_FUTURE_ERROR
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -6526,6 +6527,44 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         assert {ti.id: ti.state for ti in dr.get_task_instances(session=session)} == before
 
 
+@pytest.fixture
+def create_linear_failed_runs(dag_maker, session):
+    """Create a dated run and a no-logical-date manual run with a >> b (both failed/upstream_failed)."""
+
+    def _create(dag_id: str, extra_tasks: list[str] | None = None):
+        with dag_maker(dag_id, serialized=True) as dag:
+            a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            a >> b
+            if extra_tasks:
+                for tid in extra_tasks:
+                    BaseOperator(task_id=tid)
+
+        dr_dated = dag_maker.create_dagrun(
+            run_id="dated",
+            state=State.FAILED,
+            run_type=DagRunType.MANUAL,
+            logical_date=pendulum.datetime(2026, 10, 1, tz="UTC"),
+        )
+        dr_manual = dag_maker.create_dagrun(
+            run_id="manual",
+            state=State.FAILED,
+            run_type=DagRunType.MANUAL,
+            logical_date=None,
+        )
+
+        for dr in (dr_dated, dr_manual):
+            dr.get_task_instance("a", session=session).state = State.FAILED
+            dr.get_task_instance("b", session=session).state = State.UPSTREAM_FAILED
+        if extra_tasks:
+            for tid in extra_tasks:
+                dr_manual.get_task_instance(tid, session=session).state = State.RUNNING
+        session.commit()
+        return dag, dr_dated, dr_manual
+
+    return _create
+
+
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
     NEW_STATE = "failed"
@@ -7466,6 +7505,48 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
         ).all()
 
+    @pytest.mark.parametrize("flag", ["include_past", "include_future"])
+    def test_patch_task_instance_no_logical_date_returns_400_and_does_not_clear_other_runs(
+        self, test_client, session, create_linear_failed_runs, flag
+    ):
+        dag, dr_dated, dr_manual = create_linear_failed_runs(f"test_patch_ti_repro_{flag}")
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskInstances/a"
+        response = test_client.patch(url, json={"new_state": "success", flag: True})
+
+        assert response.status_code == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in response.json()["detail"]
+
+        session.expire_all()
+        assert dr_dated.get_task_instance("b", session=session).state == State.UPSTREAM_FAILED
+        dr_dated.refresh_from_db(session=session)
+        assert dr_dated.state == State.FAILED
+        assert dr_manual.get_task_instance("a", session=session).state == State.FAILED
+
+    def test_patch_task_instance_no_logical_date_normal_update_succeeds(
+        self, test_client, session, create_linear_failed_runs
+    ):
+        dag, dr_dated, dr_manual = create_linear_failed_runs("test_patch_ti_normal")
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskInstances/a"
+        response = test_client.patch(url, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        session.expire_all()
+        assert dr_manual.get_task_instance("a", session=session).state == State.SUCCESS
+        assert dr_dated.get_task_instance("b", session=session).state == State.UPSTREAM_FAILED
+        dr_dated.refresh_from_db(session=session)
+        assert dr_dated.state == State.FAILED
+
+    def test_patch_task_instance_dated_run_include_future_succeeds(
+        self, test_client, session, create_linear_failed_runs
+    ):
+        dag, _, _ = create_linear_failed_runs("test_patch_ti_dated_future")
+
+        url = f"/dags/{dag.dag_id}/dagRuns/dated/taskInstances/a"
+        response = test_client.patch(url, json={"new_state": "success", "include_future": True})
+        assert response.status_code == 200
+
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
@@ -7930,6 +8011,20 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             "next_cursor": None,
             "previous_cursor": None,
         }
+
+    @pytest.mark.parametrize("flag", ["include_past", "include_future"])
+    def test_patch_task_instance_dry_run_no_logical_date_returns_400(
+        self, test_client, session, dag_maker, flag
+    ):
+        with dag_maker(f"test_dry_run_ti_{flag}", serialized=True) as dag:
+            BaseOperator(task_id="a")
+
+        dag_maker.create_dagrun(run_id="manual", run_type=DagRunType.MANUAL, logical_date=None)
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskInstances/a/dry_run"
+        response = test_client.patch(url, json={"new_state": "success", flag: True})
+        assert response.status_code == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in response.json()["detail"]
 
 
 class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
@@ -9044,6 +9139,76 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert listener.ti_note_at_listener == "listener_note"
 
+    @pytest.mark.parametrize("flag", ["include_past", "include_future"])
+    def test_bulk_task_instances_no_logical_date_returns_400_and_does_not_clear_other_runs(
+        self, test_client, session, create_linear_failed_runs, flag
+    ):
+        dag, dr_dated, _ = create_linear_failed_runs(f"test_bulk_ti_repro_{flag}")
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskInstances"
+        response = test_client.patch(
+            url,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"task_id": "a", "new_state": "success", flag: True}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        errors = response.json()["update"]["errors"]
+        assert len(errors) == 1
+        assert errors[0]["status_code"] == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in errors[0]["error"]
+
+        session.expire_all()
+        assert dr_dated.get_task_instance("b", session=session).state == State.UPSTREAM_FAILED
+        dr_dated.refresh_from_db(session=session)
+        assert dr_dated.state == State.FAILED
+
+    @pytest.mark.parametrize("invalid_first", [True, False])
+    def test_bulk_task_instances_mixed_valid_and_invalid_duplicate_key(
+        self, test_client, session, create_linear_failed_runs, invalid_first
+    ):
+        dag, dr_dated, dr_manual = create_linear_failed_runs(
+            f"test_bulk_ti_mixed_{invalid_first}", extra_tasks=["c"]
+        )
+
+        valid_entity = {"task_id": "a", "new_state": "success"}
+        invalid_entity = {"task_id": "a", "new_state": "success", "include_future": True}
+        other_valid_entity = {"task_id": "c", "new_state": "failed"}
+
+        entities = (
+            [invalid_entity, valid_entity, other_valid_entity]
+            if invalid_first
+            else [valid_entity, invalid_entity, other_valid_entity]
+        )
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskInstances"
+        response = test_client.patch(
+            url,
+            json={"actions": [{"action": "update", "entities": entities}]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        errors = data["update"]["errors"]
+        assert len(errors) == 1
+        assert errors[0]["status_code"] == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in errors[0]["error"]
+
+        success = data["update"]["success"]
+        assert f"{dag.dag_id}.manual.a[-1]" in success
+        assert f"{dag.dag_id}.manual.c[-1]" in success
+
+        session.expire_all()
+        assert dr_manual.get_task_instance("a", session=session).state == State.SUCCESS
+        assert dr_manual.get_task_instance("c", session=session).state == State.FAILED
+        assert dr_dated.get_task_instance("b", session=session).state == State.UPSTREAM_FAILED
+        dr_dated.refresh_from_db(session=session)
+        assert dr_dated.state == State.FAILED
+
 
 class TestPatchTaskGroup(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
@@ -9506,6 +9671,20 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert listener.ti_note_at_listener == "listener_note"
 
+    @pytest.mark.parametrize("flag", ["include_past", "include_future"])
+    def test_patch_task_group_no_logical_date_returns_400(self, test_client, session, dag_maker, flag):
+        with dag_maker(f"test_patch_tg_repro_{flag}", serialized=True) as dag:
+            with TaskGroup("group1"):
+                BaseOperator(task_id="a")
+            BaseOperator(task_id="b")
+
+        dag_maker.create_dagrun(run_id="manual", run_type=DagRunType.MANUAL, logical_date=None)
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskGroupInstances/group1"
+        response = test_client.patch(url, json={"new_state": "success", flag: True})
+        assert response.status_code == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in response.json()["detail"]
+
 
 class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
@@ -9624,3 +9803,18 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
         assert response.status_code == 403
+
+    @pytest.mark.parametrize("flag", ["include_past", "include_future"])
+    def test_patch_task_group_dry_run_no_logical_date_returns_400(
+        self, test_client, session, dag_maker, flag
+    ):
+        with dag_maker(f"test_dry_run_tg_{flag}", serialized=True) as dag:
+            with TaskGroup("group1"):
+                BaseOperator(task_id="a")
+
+        dag_maker.create_dagrun(run_id="manual", run_type=DagRunType.MANUAL, logical_date=None)
+
+        url = f"/dags/{dag.dag_id}/dagRuns/manual/taskGroupInstances/group1/dry_run"
+        response = test_client.patch(url, json={"new_state": "success", flag: True})
+        assert response.status_code == 400
+        assert NO_LOGICAL_DATE_PAST_FUTURE_ERROR in response.json()["detail"]

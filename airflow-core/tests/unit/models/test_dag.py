@@ -3739,6 +3739,49 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     }
 
 
+@pytest.mark.parametrize("flag", ["future", "past"])
+def test_set_task_instance_state_no_logical_date_raises_value_error(session, dag_maker, flag):
+    """Test that set_task_instance_state with past/future raises ValueError on a run with no logical_date."""
+    from airflow.serialization.definitions.dag import NO_LOGICAL_DATE_PAST_FUTURE_ERROR
+
+    with dag_maker("test_set_ti_no_logical_date", session=session, serialized=True) as dag:
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    dagrun = dag_maker.create_dagrun(run_id="manual", run_type=DagRunType.MANUAL, logical_date=None)
+
+    with pytest.raises(ValueError, match=re.escape(NO_LOGICAL_DATE_PAST_FUTURE_ERROR)):
+        dag.set_task_instance_state(
+            task_id="task_1",
+            run_id=dagrun.run_id,
+            state=State.SUCCESS,
+            session=session,
+            **{flag: True},
+        )
+
+
+@pytest.mark.parametrize("flag", ["future", "past"])
+def test_set_task_group_state_no_logical_date_raises_value_error(session, dag_maker, flag):
+    """Test that set_task_group_state with past/future raises ValueError on a run with no logical_date."""
+    from airflow.sdk import TaskGroup
+    from airflow.serialization.definitions.dag import NO_LOGICAL_DATE_PAST_FUTURE_ERROR
+
+    with dag_maker("test_set_tg_no_logical_date", session=session, serialized=True) as dag:
+        with TaskGroup("group1"):
+            EmptyOperator(task_id="task_1")
+        EmptyOperator(task_id="task_2")
+
+    dagrun = dag_maker.create_dagrun(run_id="manual", run_type=DagRunType.MANUAL, logical_date=None)
+
+    with pytest.raises(ValueError, match=re.escape(NO_LOGICAL_DATE_PAST_FUTURE_ERROR)):
+        dag.set_task_group_state(
+            group_id="group1",
+            run_id=dagrun.run_id,
+            state=State.SUCCESS,
+            session=session,
+            **{flag: True},
+        )
+
+
 @pytest.mark.need_serialized_dag
 def test_set_task_instance_state_mapped(dag_maker, session):
     """Test that when setting an individual mapped TI that the other TIs are not affected"""
