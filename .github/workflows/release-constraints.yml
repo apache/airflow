@@ -241,7 +241,7 @@ jobs:
           if git ls-remote --exit-code origin "refs/heads/constraints-${VERSION}" > /dev/null; then
             echo "ERROR! Branch 'constraints-${VERSION}' must not exist -" \
               "it would make the 'constraints-${VERSION}' tag ambiguous."
-            echo "Delete it first, e.g.: git push upstream --delete 'refs/heads/constraints-${VERSION}'"
+            echo "Delete it first, e.g.: git push origin --delete 'refs/heads/constraints-${VERSION}'"
             exit 1
           fi
           if git ls-remote --exit-code origin "refs/tags/constraints-${VERSION}" > /dev/null; then
@@ -260,8 +260,21 @@ jobs:
       - name: "Push ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
+        # constraints-X-Y is also written by update-constraints-on-push.yml on every vX-Y-test
+        # uv.lock change, which can land during the beta/rc window this workflow runs in. A
+        # concurrent write makes this push a non-fast-forward, so rebase onto the latest and retry.
         # Qualify as refs/heads/ so the push never resolves to a same-named tag.
-        run: git push origin "refs/heads/${TARGET_BRANCH}"
+        run: |
+          for attempt in $(seq 1 5); do
+            if git push origin "refs/heads/${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push of '${TARGET_BRANCH}' rejected (it moved underneath us);" \
+              "rebasing onto the latest and retrying (attempt ${attempt}/5)."
+            git pull --rebase origin "${TARGET_BRANCH}"
+          done
+          echo "ERROR! Could not push '${TARGET_BRANCH}' after 5 attempts."
+          exit 1
       - name: "Tag constraints-${{ inputs.version }}"
         working-directory: "constraints"
         shell: bash
