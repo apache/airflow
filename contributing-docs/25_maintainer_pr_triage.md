@@ -238,6 +238,7 @@ The triage workflow uses the following labels and states:
 | Label / State | Meaning |
 |---|---|
 | `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
+| `need workflow approval` | The PR's CI workflow runs wait for a maintainer, because the `Auto approve workflow runs` workflow did not approve them: a PR to a branch other than `main`, a change to CI definition files, a full-tests or dependency change, a change whose CI jobs are estimated at more than 310 job-minutes, or a change of more than 100 lines of source code (see [Pull Requests](05_pull_requests.rst)). The workflow also tries to add the label when processing the PR failed; its run then fails too. Approve the runs after looking at the diff. The workflow removes the label when a later commit is approved automatically. |
 | `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
 | `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
