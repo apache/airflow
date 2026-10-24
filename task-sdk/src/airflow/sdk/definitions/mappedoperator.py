@@ -375,6 +375,7 @@ class MappedOperator(AbstractOperator):
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
+            "_on_success_succeed_dagrun",
             "operator_class",
             "_needs_expansion",
             "partial_kwargs",
@@ -791,11 +792,13 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        on_success_succeed_dagrun = kwargs.pop("on_success_succeed_dagrun", True)
         kwargs["task_id"] = self.task_id
         op = self.operator_class(**kwargs, _airflow_from_mapped=True)
         op.is_setup = is_setup
         op.is_teardown = is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.on_success_succeed_dagrun = on_success_succeed_dagrun
         op.returns_dag_result = self.returns_dag_result
         op.downstream_task_ids = self.downstream_task_ids
         op.upstream_task_ids = self.upstream_task_ids
