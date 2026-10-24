@@ -27,8 +27,11 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 private class EtlConf {
@@ -435,5 +438,16 @@ class ContextTest {
       message
     }
     Assertions.assertInstanceOf(IllegalArgumentException::class.java, error.cause)
+  }
+
+  @Test
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun contextBuiltByHandIsNeverCancelled() {
+    val context = taskContext()
+    val start = System.nanoTime()
+
+    Assertions.assertFalse(context.isCancelled())
+    Assertions.assertFalse(context.awaitCancellation(Duration.ofMillis(200)), "the wait should end at the timeout")
+    Assertions.assertTrue(System.nanoTime() - start >= Duration.ofMillis(200).toNanos(), "the wait should last the whole timeout")
   }
 }

@@ -249,6 +249,14 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
         )
 
+    def set_task_instance_state(self, dag_id: str, run_id: str, task_id: str, state: str):
+        """Set the state of a task instance, as marking it in the UI does."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            json={"new_state": state},
+        )
+
     def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):
         """Get the Human-in-the-loop request of a task instance."""
         return self._make_request(
