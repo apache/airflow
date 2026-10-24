@@ -65,9 +65,23 @@ def dag_edges(dag: SerializedDAG):
 
     task_group_map = dag.task_group.get_task_group_dict()
 
+    # get_roots() and get_leaves() walk the whole TaskGroup on every call, so compute them once
+    # per group. Calling them inside the loops below made wide group >> group edges cubic.
+    roots_cache: dict[str | None, list[str]] = {}
+    leaves_cache: dict[str | None, list[str]] = {}
+
+    def root_ids(task_group) -> list[str]:
+        if task_group.group_id not in roots_cache:
+            roots_cache[task_group.group_id] = [task.task_id for task in task_group.get_roots()]
+        return roots_cache[task_group.group_id]
+
+    def leaf_ids(task_group) -> list[str]:
+        if task_group.group_id not in leaves_cache:
+            leaves_cache[task_group.group_id] = [task.task_id for task in task_group.get_leaves()]
+        return leaves_cache[task_group.group_id]
+
     def collect_edges(task_group: DAGNode) -> None:
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        child: DAGNode
         if not isinstance(task_group, (TaskGroup, SerializedTaskGroup)):
             return
 
@@ -77,15 +91,15 @@ def dag_edges(dag: SerializedDAG):
             target_group = task_group_map[target_id]
             edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
 
-            for child in task_group.get_leaves():
-                edges_to_add.add((child.task_id, task_group.downstream_join_id))
-                for target in target_group.get_roots():
-                    edges_to_skip.add((child.task_id, target.task_id))
-                edges_to_skip.add((child.task_id, target_group.upstream_join_id))
+            for child_id in leaf_ids(task_group):
+                edges_to_add.add((child_id, task_group.downstream_join_id))
+                for target_root_id in root_ids(target_group):
+                    edges_to_skip.add((child_id, target_root_id))
+                edges_to_skip.add((child_id, target_group.upstream_join_id))
 
-            for child in target_group.get_roots():
-                edges_to_add.add((target_group.upstream_join_id, child.task_id))
-                edges_to_skip.add((task_group.downstream_join_id, child.task_id))
+            for child_id in root_ids(target_group):
+                edges_to_add.add((target_group.upstream_join_id, child_id))
+                edges_to_skip.add((task_group.downstream_join_id, child_id))
 
         # For every individual task immediately downstream, add edges between downstream_join_id and
         # the downstream task. Skip edges between individual tasks of the TaskGroup and the
@@ -93,18 +107,18 @@ def dag_edges(dag: SerializedDAG):
         for target_id in task_group.downstream_task_ids:
             edges_to_add.add((task_group.downstream_join_id, target_id))
 
-            for child in task_group.get_leaves():
-                edges_to_add.add((child.task_id, task_group.downstream_join_id))
-                edges_to_skip.add((child.task_id, target_id))
+            for child_id in leaf_ids(task_group):
+                edges_to_add.add((child_id, task_group.downstream_join_id))
+                edges_to_skip.add((child_id, target_id))
 
         # For every individual task immediately upstream, add edges between the upstream task
         # and upstream_join_id. Skip edges between the upstream task and individual tasks
         # of the TaskGroup.
         for source_id in task_group.upstream_task_ids:
             edges_to_add.add((source_id, task_group.upstream_join_id))
-            for child in task_group.get_roots():
-                edges_to_add.add((task_group.upstream_join_id, child.task_id))
-                edges_to_skip.add((source_id, child.task_id))
+            for child_id in root_ids(task_group):
+                edges_to_add.add((task_group.upstream_join_id, child_id))
+                edges_to_skip.add((source_id, child_id))
 
         for child in task_group.children.values():
             collect_edges(child)
