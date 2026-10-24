@@ -19,10 +19,10 @@ from __future__ import annotations
 import json
 from uuid import UUID
 
+from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 from airflow.models import DagRun, Log
 from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
-from airflow_shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 
 sensitive_fields = DEFAULT_SENSITIVE_FIELDS
 
