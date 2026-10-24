@@ -523,10 +523,6 @@ class CommandFactory:
             "set",
             "clear",
         ]
-        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
-        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
-        # must keep ``dry_run=True`` and preview instead of clearing).
-        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -704,11 +700,16 @@ class CommandFactory:
             help=arg_help,
         )
 
-    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
-        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
-        if parameter_type in self.field_bool_default_datamodels and (
-            field_default is None or isinstance(field_default, bool)
-        ):
+    @staticmethod
+    def _get_bool_arg_default(field_default: Any) -> bool | None:
+        """
+        Get the default for a generated bool flag from its datamodel field default.
+
+        An omitted flag must keep the API semantics: a bare ``tasks clear`` keeps ``dry_run=True``,
+        and an optional field such as ``is_paused`` or ``include_deferred`` stays ``None`` so it is
+        not sent at all instead of overwriting the stored value with ``False``.
+        """
+        if field_default is None or isinstance(field_default, bool):
             return field_default
         return False
 
@@ -740,7 +741,7 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
+                    arg_default=self._get_bool_arg_default(field_type.default)
                     if annotation is bool
                     else None,
                 )
@@ -806,7 +807,7 @@ class CommandFactory:
 
     def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
         """
-        Apply datamodel-specific default values.
+        Apply datamodel-specific default values and checks.
 
         Centralizes special handling for different datamodels to keep
         CLI parameter processing logic clean and maintainable.
@@ -844,6 +845,12 @@ class CommandFactory:
                         )
                 else:
                     params[field] = [item.strip() for item in raw_value.split(",") if item.strip()]
+
+        # The server requires exactly one of these, so fail early instead of showing its raw validation error
+        if datamodel.__name__ == "DAGPatchBody":
+            provided = [field for field in ("is_paused", "scheduling_state") if params.get(field) is not None]
+            if len(provided) != 1:
+                raise SystemExit("Provide exactly one of --is-paused / --no-is-paused or --scheduling-state.")
 
         return params
 
