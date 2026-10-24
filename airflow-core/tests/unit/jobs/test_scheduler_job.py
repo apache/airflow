@@ -41,7 +41,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -195,8 +195,6 @@ from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
@@ -1211,7 +1209,7 @@ class TestSchedulerJob:
         ],
     )
     def test_enqueue_executor_callbacks_logs_missing_dagrun_reference(
-        self, dagrun_id, expected_event, expected_log_level, caplog
+        self, dagrun_id, expected_event, expected_log_level, caplog, mocker
     ):
         def test_callback():
             pass
@@ -1225,14 +1223,16 @@ class TestSchedulerJob:
         callback.state = CallbackState.PENDING
         callback.dagrun_id = dagrun_id
 
-        session = MagicMock()
+        session = MagicMock(spec=Session)
         session.scalars.return_value.all.return_value = [callback]
 
         executor = MockExecutor()
-        executor.queue_workload = MagicMock()
+        mocker.patch.object(executor, "queue_workload", autospec=True)
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
-        self.job_runner._executor_to_workloads = MagicMock(return_value={executor: [callback]})
+        mocker.patch.object(
+            self.job_runner, "_executor_to_workloads", autospec=True, return_value={executor: [callback]}
+        )
 
         self.job_runner._enqueue_executor_callbacks(session)
 
