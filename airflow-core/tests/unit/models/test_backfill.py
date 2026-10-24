@@ -49,6 +49,7 @@ from airflow.models.backfill import (
     _get_latest_dag_run_row_query,
     _handle_clear_run,
 )
+from airflow.models.dag_version import DagVersion
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
@@ -521,6 +522,11 @@ def test_backfill_partitioned_does_not_duplicate_legacy_utc_keyed_run(dag_maker,
             {"2021-01-05": "already exists", "2021-01-07": "in flight"},
         ),
         (ReprocessBehavior.COMPLETED, 6, {"2021-01-07": "in flight"}),
+        (
+            ReprocessBehavior.FAILED_TASKS,
+            5,
+            {"2021-01-05": "already exists", "2021-01-07": "in flight"},
+        ),
     ],
 )
 def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker, session):
@@ -608,6 +614,157 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     assert actual == exc_reasons
     # all the runs created by the backfill should have state queued
     assert all(x.state == DagRunState.QUEUED for x in dag_runs_in_b)
+
+
+@pytest.mark.parametrize(
+    ("reprocess_behavior", "expected_cleared"),
+    [
+        (ReprocessBehavior.FAILED, {"ok_task", "bad_task"}),
+        (ReprocessBehavior.FAILED_TASKS, {"bad_task"}),
+    ],
+)
+def test_reprocess_failed_tasks_clears_only_failed_tis(
+    reprocess_behavior, expected_cleared, dag_maker, session
+):
+    with dag_maker(schedule="@daily", dag_id="backfill-failed-tasks") as dag:
+        PythonOperator(task_id="ok_task", python_callable=print)
+        PythonOperator(task_id="bad_task", python_callable=print)
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2021-01-05",
+        logical_date=timezone.parse("2021-01-05"),
+        session=session,
+        state="failed",
+    )
+    dr.start_date = timezone.parse("2021-01-05")
+    ti_states = {"ok_task": TaskInstanceState.SUCCESS, "bad_task": TaskInstanceState.FAILED}
+    for ti in dr.get_task_instances(session=session):
+        ti.state = ti_states[ti.task_id]
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-05"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reprocess_behavior=reprocess_behavior,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+
+    session.expunge_all()
+    dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+    assert dr.state == DagRunState.QUEUED
+    assert dr.backfill_id == b.id
+    for ti in dr.get_task_instances(session=session):
+        if ti.task_id in expected_cleared:
+            assert ti.state is None
+        else:
+            assert ti.state == TaskInstanceState.SUCCESS
+
+
+def test_reprocess_new_tasks_runs_only_new_tasks(dag_maker, session):
+    dag_id = "backfill-new-tasks"
+    with dag_maker(dag_id, schedule="@daily", bundle_version="v1"):
+        PythonOperator(task_id="old_task", python_callable=print)
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2021-01-05",
+        logical_date=timezone.parse("2021-01-05"),
+        session=session,
+        state="success",
+    )
+    dr.start_date = timezone.parse("2021-01-05")
+    for ti in dr.get_task_instances(session=session):
+        ti.state = TaskInstanceState.SUCCESS
+    session.commit()
+
+    with dag_maker(dag_id, schedule="@daily", bundle_version="v2"):
+        PythonOperator(task_id="old_task", python_callable=print)
+        PythonOperator(task_id="new_task", python_callable=print)
+
+    b = _create_backfill(
+        dag_id=dag_id,
+        from_date=pendulum.parse("2021-01-05"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reprocess_behavior=ReprocessBehavior.NEW_TASKS,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+
+    session.expunge_all()
+    dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+    assert dr.state == DagRunState.QUEUED
+    assert dr.backfill_id == b.id
+    ti_states = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+    assert ti_states == {"old_task": TaskInstanceState.SUCCESS, "new_task": None}
+    assert dr.created_dag_version_id == DagVersion.get_latest_version(dag_id, session=session).id
+
+
+def test_reprocess_new_tasks_without_new_tasks_leaves_run_untouched(dag_maker, session):
+    dag_id = "backfill-new-tasks-noop"
+    with dag_maker(dag_id, schedule="@daily") as dag:
+        PythonOperator(task_id="old_task", python_callable=print)
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2021-01-05",
+        logical_date=timezone.parse("2021-01-05"),
+        session=session,
+        state="success",
+    )
+    dr.start_date = timezone.parse("2021-01-05")
+    for ti in dr.get_task_instances(session=session):
+        ti.state = TaskInstanceState.SUCCESS
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-05"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reprocess_behavior=ReprocessBehavior.NEW_TASKS,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+
+    session.expunge_all()
+    dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+    assert dr.state == DagRunState.SUCCESS
+    assert dr.backfill_id == b.id
+    assert all(ti.state == TaskInstanceState.SUCCESS for ti in dr.get_task_instances(session=session))
+
+
+@pytest.mark.parametrize("reprocess_behavior", [ReprocessBehavior.FAILED_TASKS, ReprocessBehavior.NEW_TASKS])
+def test_task_level_reprocess_rejected_for_partitioned(reprocess_behavior, dag_maker, session):
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidReprocessBehavior, match="not supported for partitioned Dags"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.datetime(2026, 2, 15, tz="UTC"),
+            to_date=pendulum.datetime(2026, 2, 24, tz="UTC"),
+            max_active_runs=2,
+            reprocess_behavior=reprocess_behavior,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    with pytest.raises(InvalidReprocessBehavior, match="not supported for partitioned Dags"):
+        next(
+            iter(
+                _do_dry_run(
+                    dag_id=dag.dag_id,
+                    from_date=pendulum.datetime(2026, 2, 15, tz="UTC"),
+                    to_date=pendulum.datetime(2026, 2, 24, tz="UTC"),
+                    reverse=False,
+                    reprocess_behavior=reprocess_behavior,
+                    session=session,
+                )
+            )
+        )
 
 
 @pytest.mark.parametrize(

@@ -7658,7 +7658,7 @@ export const $ReactAppResponse = {
 
 export const $ReprocessBehavior = {
     type: 'string',
-    enum: ['failed', 'completed', 'none'],
+    enum: ['failed', 'completed', 'none', 'failed_tasks', 'new_tasks'],
     title: 'ReprocessBehavior',
     description: `Internal enum for setting reprocess behavior in a backfill.
 

@@ -27,15 +27,23 @@ Backfill does not make sense for Dags that don't have a time-based schedule.
 Control over data reprocessing
 ------------------------------
 
-There are three options for reprocessing behavior. The user-facing names and their corresponding
+There are five options for reprocessing behavior. The user-facing names and their corresponding
 CLI and REST API values are:
 
 * **Missing Runs** (``none``) - if there's already a run for this logical date, do not create another,
   no matter the state
 * **Missing and Errored Runs** (``failed``) - if a run exists and is failed, create a new run for this date
 * **All Runs** (``completed``) - if a run exists and is completed or failed, create a new run for this date
+* **Failed Tasks Only** (``failed_tasks``) - like **Missing and Errored Runs**, but instead of rerunning
+  the whole run, only the failed task instances (including upstream-failed ones) are cleared and rerun
+* **New Tasks Only** (``new_tasks``) - if a completed or failed run exists, only tasks added in the latest
+  Dag version that have never run in it are run; existing task instances are left untouched. The run is
+  updated to the latest Dag version. If the run already has all tasks, it is left as is.
 
 If the latest run is still running or is queued, we do not create another run, no matter the chosen reprocessing behavior.
+
+The task-level behaviors ``failed_tasks`` and ``new_tasks`` are not supported for partitioned Dags,
+because reprocessing a partitioned run always creates a new full run.
 
 Concurrency control
 -------------------
@@ -87,7 +95,7 @@ For UI, follow the following steps:
 3. Fill in the form:
 
    - **Date range**: set "From" and "To" logical datetimes for the backfill window.
-   - **Reprocess behavior**: choose one of ``Missing Runs``, ``Missing and Errored Runs``, or ``All Runs``.
+   - **Reprocess behavior**: choose one of ``Missing Runs``, ``Missing and Errored Runs``, ``All Runs``, ``Failed Tasks Only``, or ``New Tasks Only``.
    - **Max active runs**: limit concurrent backfill runs for this backfill.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.

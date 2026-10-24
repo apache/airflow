@@ -2093,7 +2093,7 @@ export type destination3 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' 
  *
  * :meta private:
  */
-export type ReprocessBehavior = 'failed' | 'completed' | 'none';
+export type ReprocessBehavior = 'failed' | 'completed' | 'none' | 'failed_tasks' | 'new_tasks';
 
 /**
  * Scheduler info serializer for responses.

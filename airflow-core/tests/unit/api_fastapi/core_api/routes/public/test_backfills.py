@@ -419,6 +419,8 @@ class TestCreateBackfill(TestBackfillEndpoint):
             ("none", ReprocessBehavior.NONE),
             ("failed", ReprocessBehavior.FAILED),
             ("completed", ReprocessBehavior.COMPLETED),
+            ("failed_tasks", ReprocessBehavior.FAILED_TASKS),
+            ("new_tasks", ReprocessBehavior.NEW_TASKS),
         ],
     )
     def test_create_backfill(self, repro_act, repro_exp, session, dag_maker, test_client):
