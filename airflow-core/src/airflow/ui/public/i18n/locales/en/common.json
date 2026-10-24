@@ -92,7 +92,6 @@
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
   "dagRunState": "Dag Run State",
-  "dagWarnings": "Dag warnings/errors",
   "delete": "Delete",
   "diff": "Diff",
   "diffCompareWith": "Compare with",

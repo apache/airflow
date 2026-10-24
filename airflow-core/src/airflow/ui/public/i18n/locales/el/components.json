@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "1 Σφάλμα",
     "errorAndWarning": "1 Σφάλμα και {{warningText}}",
+    "types": {
+      "asset conflict": "Διένεξη οντότητας",
+      "duplicate dag id": "Διπλότυπο Dag ID",
+      "non-existent pool": "Ανύπαρκτο Pool",
+      "runtime varying value": "Τιμή που μεταβάλλεται κατά την εκτέλεση",
+      "task group cycle": "Κύκλος στην ομάδα εργασιών"
+    },
     "warning_one": "1 Προειδοποίηση",
     "warning_other": "{{count, number}} Προειδοποιήσεις"
   },

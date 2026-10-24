@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "1 त्रुटि",
     "errorAndWarning": "1 त्रुटि और {{warningText}}",
+    "types": {
+      "asset conflict": "एसेट विरोध",
+      "duplicate dag id": "डुप्लिकेट Dag ID",
+      "non-existent pool": "अनुपस्थित पूल",
+      "runtime varying value": "रनटाइम पर बदलने वाला मान",
+      "task group cycle": "Task Group चक्र"
+    },
     "warning_one": "1 चेतावनी",
     "warning_other": "{{count, number}} चेतावनियां"
   },
