@@ -47,8 +47,8 @@ Documented divergences:
    vs ``slack-state-tests-…-amd``, so the de-dup tracker in
    ``slack_notification_state.py`` keeps independent state for each
    platform on the same branch
-9. ``gate`` job and the ``needs: [gate]`` / ``if:`` lines of ``build-info``
-   — AMD only. The fork CI gate (AIP-120) decides whether project CI runs
+9. ``gate`` job, the ``needs: [gate]`` / ``if:`` lines of ``build-info``
+   and ``gate`` in the needs of ``ci-passed`` — AMD only. The fork CI gate (AIP-120) decides whether project CI runs
    for pull requests; ARM has no pull_request trigger and never runs in
    forks.
 
@@ -260,6 +260,14 @@ AMD_ONLY_GATE_BLOCK = """  gate:
       needs.gate.outputs.project-ci == 'true' &&
       needs.check-run-needed.outputs.run-needed == 'true'
 """
+# The gate is also one of the jobs the "CI passed" gate job of the merge ruleset needs.
+AMD_ONLY_CI_PASSED_GATE_NEED = """      - finalize-tests
+      - gate
+      - generate-constraints
+"""
+AMD_ONLY_CI_PASSED_GATE_NEED_REPLACEMENT = """      - finalize-tests
+      - generate-constraints
+"""
 AMD_ONLY_GATE_REPLACEMENT = """  build-info:
     name: "Build info"
     needs: [check-run-needed]
@@ -328,7 +336,13 @@ def normalize(content: str, *, side: str) -> str:
             raise SystemExit("ci-amd.yml contains the ARM-only trigger block — should not.")
         if AMD_ONLY_GATE_BLOCK not in content:
             raise SystemExit(f"ci-amd.yml is missing its expected fork CI gate block:\n{AMD_ONLY_GATE_BLOCK}")
-        content = content.replace(AMD_ONLY_BLOCK, "").replace(AMD_ONLY_GATE_BLOCK, AMD_ONLY_GATE_REPLACEMENT)
+        if content.count(AMD_ONLY_CI_PASSED_GATE_NEED) != 1:
+            raise SystemExit("ci-amd.yml must list `gate` once in the needs of the CI passed job.")
+        content = (
+            content.replace(AMD_ONLY_BLOCK, "")
+            .replace(AMD_ONLY_GATE_BLOCK, AMD_ONLY_GATE_REPLACEMENT)
+            .replace(AMD_ONLY_CI_PASSED_GATE_NEED, AMD_ONLY_CI_PASSED_GATE_NEED_REPLACEMENT)
+        )
     else:
         raise ValueError(f"Unknown side: {side}")
 

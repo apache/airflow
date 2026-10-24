@@ -1473,6 +1473,7 @@ jobs:
       - check-run-needed
       - ci-image-checks
       - finalize-tests
+      - gate
       - generate-constraints
       - migration-round-trip
       - mypy-providers
