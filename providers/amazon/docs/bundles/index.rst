@@ -61,7 +61,7 @@ pods) means on every task start.
 
 Setting ``archive_key`` instead of ``prefix`` stages the bundle from a single ``.tar.gz`` object: one
 ``HEAD`` request to detect changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then
-a local unpack and an atomic swap into place. The two options are mutually exclusive — configuring both
+a local unpack and a swap into place. The two options are mutually exclusive — configuring both
 raises at startup — so the archive is the only source of the Dags, with no second copy to keep in sync.
 
 .. code-block:: bash
