@@ -608,7 +608,7 @@ class BaseSerialization:
             )
         elif callable(var):
             return str(get_python_source(var))
-        elif isinstance(var, set):
+        elif isinstance(var, (set, frozenset)):
             # FIXME: casts set to list in customized serialization in future.
             try:
                 return cls._encode(
@@ -1370,6 +1370,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 operator_extra_links=SerializedBaseOperator.operator_extra_links,
                 template_ext=SerializedBaseOperator.template_ext,
                 template_fields=SerializedBaseOperator.template_fields,
+                template_fields_extra=SerializedBaseOperator.template_fields_extra,
                 template_fields_renderers=SerializedBaseOperator.template_fields_renderers,
                 ui_color=SerializedBaseOperator.ui_color,
                 ui_fgcolor=SerializedBaseOperator.ui_fgcolor,

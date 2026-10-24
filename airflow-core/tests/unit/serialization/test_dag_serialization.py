@@ -875,6 +875,7 @@ class TestStringifiedDAGs:
                 # List vs tuple. Check separately
                 "template_ext",
                 "template_fields",
+                "template_fields_extra",
                 # We store the string, real dag has the actual code
                 "_pre_execute_hook",
                 "_post_execute_hook",
@@ -902,6 +903,7 @@ class TestStringifiedDAGs:
                 "operator_extra_links",
                 "template_ext",
                 "template_fields",
+                "template_fields_extra",
                 # Checked separately.
                 "inlets",
                 "outlets",
@@ -915,6 +917,7 @@ class TestStringifiedDAGs:
 
         assert set(serialized_task.template_ext) == set(task.template_ext)
         assert set(serialized_task.template_fields) == set(task.template_fields)
+        assert set(serialized_task.template_fields_extra) == set(task.template_fields_extra)
 
         assert serialized_task.upstream_task_ids == task.upstream_task_ids
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
@@ -1686,6 +1689,7 @@ class TestStringifiedDAGs:
             "task_type": "BaseOperator",
             "template_ext": (),
             "template_fields": (),
+            "template_fields_extra": (),
             "template_fields_renderers": {},
             "trigger_rule": TriggerRule.ALL_SUCCESS,
             "ui_color": "#fff",
@@ -2074,6 +2078,55 @@ class TestStringifiedDAGs:
         assert isinstance(round_tripped, SerializedMappedOperator)
         assert round_tripped.inlets == []
         assert round_tripped.outlets == []
+
+    def test_serialize_template_fields_extra_roundtrip(self):
+        """``template_fields_extra`` is serialized and survives a ``SerializedBaseOperator`` round-trip."""
+
+        class ExtraTemplateOperator(MockOperator):
+            template_fields_extra = ("arg3",)
+
+            def __init__(self, arg3: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg3 = arg3
+
+        with DAG(dag_id="test_template_fields_extra_roundtrip", schedule=None, start_date=datetime.now()):
+            original = ExtraTemplateOperator(task_id="op1", arg3="{{ hi }}")
+
+        serialized = OperatorSerialization.serialize_operator(original)
+        assert list(serialized["template_fields_extra"]) == ["arg3"]
+        assert "arg3" in serialized["template_fields"]
+
+        round_tripped = OperatorSerialization.deserialize_operator(serialized)
+        assert isinstance(round_tripped, SerializedBaseOperator)
+        assert list(round_tripped.template_fields_extra) == ["arg3"]
+        assert "arg3" in round_tripped.template_fields
+
+    def test_serialize_template_fields_extra_roundtrip_mapped(self):
+        """A mapped operator carrying ``template_fields_extra`` keeps the merged ``template_fields`` after round-trip."""
+
+        class ExtraTemplateMappedOperator(MockOperator):
+            template_fields_extra = ("arg3",)
+
+            def __init__(self, arg3: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg3 = arg3
+
+        with DAG(
+            dag_id="test_template_fields_extra_roundtrip_mapped",
+            schedule=None,
+            start_date=datetime.now(),
+        ):
+            original = ExtraTemplateMappedOperator.partial(task_id="m").expand(arg1=["a", "b"])
+
+        assert list(original.template_fields) == ["arg1", "arg2", "arg3"]
+
+        serialized = OperatorSerialization.serialize_mapped_operator(original)
+        assert "template_fields" in serialized
+        assert list(serialized["template_fields"]) == ["arg1", "arg2", "arg3"]
+
+        round_tripped = OperatorSerialization.deserialize_operator(serialized)
+        assert isinstance(round_tripped, SerializedMappedOperator)
+        assert list(round_tripped.template_fields) == ["arg1", "arg2", "arg3"]
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("mapped", [False, True])

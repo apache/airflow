@@ -186,6 +186,24 @@ You can use the template as follows:
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.
 
+If you also need to receive XCom references (such as ``some_task.output``) in fields that are not
+promoted into ``template_fields``, declare them on the ``template_fields_extra`` class attribute:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields: Sequence[str] = ("name",)
+            template_fields_extra: tuple[str, ...] = ("world",)
+
+Fields listed in ``template_fields_extra`` are rendered with Jinja and treated as XCom-argument-capable
+in the same way as ``template_fields``. Existing fields already named in ``template_fields`` do not need
+to be repeated.
+
+Declare ``template_fields_extra`` as a ``tuple`` (or other :class:`~collections.abc.Sequence`) so the
+declaration order is preserved. ``frozenset`` and ``set`` are not supported: their iteration order
+is process-dependent (string hashes are randomized per process), which would otherwise flip the
+order of ``template_fields`` and the rendered-template UI between processes.
+
 
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
