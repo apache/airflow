@@ -1281,7 +1281,7 @@ class BypassFinder:
                     result = (
                         jobs_show_project_ci(jobs, self._now)
                         if run.workflow_file == CI_WORKFLOW_FILE
-                        else any(job.get("conclusion") != "skipped" for job in jobs)
+                        else any(has_job_started(job) and job.get("conclusion") != "skipped" for job in jobs)
                     )
             elif run.workflow_file != CI_WORKFLOW_FILE or not run.is_long_running(self._now):
                 result = False

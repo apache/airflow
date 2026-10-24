@@ -2264,9 +2264,16 @@ def test_new_comment_is_posted_before_the_state_comment_records_the_state(
     client.update_comment.assert_not_called()
 
 
-def test_finder_ignores_an_added_workflow_whose_jobs_all_skipped(client):
+@pytest.mark.parametrize(
+    "jobs",
+    [
+        pytest.param([_job("Fork only"), _job("Also fork only")], id="all-skipped"),
+        pytest.param([_job("Fork only", "cancelled", started=False)], id="cancelled-before-a-runner-took-it"),
+    ],
+)
+def test_finder_ignores_an_added_workflow_whose_jobs_did_not_run(client, jobs):
     run = _run(9, path=".github/workflows/fork-only.yml", minutes=1)
-    finder = _finder(client, [run], jobs=[_job("Fork only"), _job("Also fork only")])
+    finder = _finder(client, [run], jobs=jobs)
 
     assert finder.find(_pr()) is None
 
