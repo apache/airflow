@@ -302,7 +302,6 @@
     "title": "Task Status Zwischenspeicher"
   },
   "versions": {
-    "aboutThisComparison": "Über diesen Vergleich",
     "base": "Vergleichen von",
     "categories": {
       "asset": "Datensatz (Asset)",
@@ -342,7 +341,6 @@
     "maxChanges": "Maximale Änderungen",
     "maxChangesDefault": "Standard",
     "noChanges": "Es gibt keinen Unterschied zwischen diesen Versionen.",
-    "observedStateBoundary": "Vergleicht aktuell gespeichterte Dagversionen. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um Quellcode zu vergleichen.",
     "operations": {
       "added": "Hinzugefügt",
       "changed": "Geändert",
