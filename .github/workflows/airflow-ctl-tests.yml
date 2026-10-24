@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Pull requests to the airflow-ctl release branches only change airflow-ctl, so they run its tests
+# instead of the full "Tests" workflow, which does not trigger for these branches.
+name: Airflow CTL tests
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches:
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
+permissions:
+  contents: read
+concurrency:
+  group: airflow-ctl-tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  tests-airflow-ctl:
+    name: "Airflow CTL tests"
+    uses: ./.github/workflows/airflow-distributions-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      default-python-version: "3.10"
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14"]'
+      use-uv: "true"
+      canary-run: "false"
+      distribution-name: "airflow-ctl"
+      distribution-cmd-format: "prepare-airflow-ctl-distributions"
+      test-type: "airflow-ctl-tests"
+      use-local-venv: 'true'
+      test-timeout: 20
+
+  ci-passed:
+    name: CI passed
+    # The one check the release branches' ruleset requires, so auto-merge waits for CI to finish.
+    # GitHub treats a skipped required check as passed, so this job always runs and fails itself
+    # when any job it needs failed or was cancelled.
+    if: always()
+    needs:
+      - tests-airflow-ctl
+    runs-on: ["ubuntu-slim"]
+    steps:
+      - name: "Fail if any CI job failed or was cancelled"
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "At least one CI job failed or was cancelled."
+          exit 1
+      - name: "All CI jobs passed or were skipped"
+        run: echo "All CI jobs passed or were skipped."
