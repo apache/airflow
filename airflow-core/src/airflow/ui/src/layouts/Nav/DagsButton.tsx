@@ -17,59 +17,26 @@
  * under the License.
  */
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
-
-import { Menu } from "src/system-components";
 
 import { DagIcon } from "src/assets/DagIcon";
 
 import { NavButton } from "./NavButton";
-import { NavMenu } from "./NavMenu";
-
-const links = [
-  {
-    href: "/dags",
-    key: "dag_other",
-  },
-  {
-    href: "/dag_runs",
-    key: "dagRun_other",
-  },
-  {
-    href: "/task_instances",
-    key: "taskInstance_other",
-  },
-];
 
 export const DagsButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
   const { t: translate } = useTranslation();
   const isAuthorized = authorizedMenuItems.includes("Dags");
 
-  const trigger = (
+  // Without a destination NavButton renders a real <button>, which can be disabled. A disabled
+  // anchor would stay clickable.
+  return (
     <NavButton
       data-testid="nav-dags-link"
       disabled={!isAuthorized}
       icon={DagIcon}
       title={translate("nav.dags")}
-      to={links.map(({ href }) => href)}
+      to={isAuthorized ? "/dags" : undefined}
     />
-  );
-
-  if (!isAuthorized) {
-    return trigger;
-  }
-
-  return (
-    <NavMenu trigger={trigger}>
-      {links.map(({ href, key }) => (
-        <Menu.Item asChild key={key} value={key}>
-          <RouterLink aria-label={translate(key)} to={href}>
-            {translate(key)}
-          </RouterLink>
-        </Menu.Item>
-      ))}
-    </NavMenu>
   );
 };

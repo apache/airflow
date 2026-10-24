@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+  In multi-team mode, a team's ``KubernetesExecutor`` now reads ``in_cluster``, ``config_file``,
+  ``cluster_context``, ``verify_ssl``, ``ssl_ca_cert`` and ``api_client_retry_configuration`` from the
+  team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
+  un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
+
 10.25.0
 .......
 
