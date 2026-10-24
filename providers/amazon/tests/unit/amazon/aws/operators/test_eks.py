@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
     EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
+    EksDeleteNodegroupTrigger,
     EksPodTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
@@ -58,6 +59,7 @@ from unit.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from unit.amazon.aws.utils.eks_test_utils import convert_keys
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
@@ -377,20 +379,52 @@ class TestEksCreateClusterOperator:
         eks_create_cluster_operator.execute({})
         assert len(caplog.records) == 0
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
     @mock.patch.object(EksHook, "create_cluster")
-    def test_eks_create_cluster_with_deferrable(self, mock_create_cluster, caplog):
+    def test_eks_create_cluster_with_deferrable(self, mock_create_cluster, caplog, wait_for_completion):
         mock_create_cluster.return_value = None
 
         eks_create_cluster_operator = EksCreateClusterOperator(
             task_id=TASK_ID,
             **self.create_cluster_params,
             compute=None,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             eks_create_cluster_operator.execute({})
         assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
+
+    @pytest.mark.parametrize(
+        ("compute", "trigger_class"),
+        [
+            pytest.param("nodegroup", EksCreateNodegroupTrigger, id="nodegroup"),
+            pytest.param("fargate", EksCreateFargateProfileTrigger, id="fargate"),
+        ],
+    )
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
+    @mock.patch("airflow.providers.amazon.aws.operators.eks._create_compute", autospec=True)
+    def test_deferrable_create_cluster_next_defers_for_compute(
+        self, mock_create_compute, wait_for_completion, compute, trigger_class
+    ):
+        operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=compute,
+            wait_for_completion=wait_for_completion,
+            deferrable=True,
+        )
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            operator.deferrable_create_cluster_next({}, event={"status": "success"})
+
+        assert isinstance(exc.value.trigger, trigger_class)
+        assert mock_create_compute.call_args.kwargs["wait_for_completion"] is False
 
     def test_template_fields(self):
         op = EksCreateClusterOperator(
@@ -465,16 +499,23 @@ class TestEksCreateFargateProfileOperator:
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
+    @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "create_fargate_profile")
-    def test_create_fargate_profile_deferrable(self, _):
+    def test_create_fargate_profile_deferrable(self, _, mock_waiter, wait_for_completion):
         op_kwargs = {**self.create_fargate_profile_params}
         operator = EksCreateFargateProfileOperator(
             task_id=TASK_ID,
             **op_kwargs,
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             operator.execute({})
+        mock_waiter.assert_not_called()
         assert isinstance(exc.value.trigger, EksCreateFargateProfileTrigger), (
             "Trigger is not a EksCreateFargateProfileTrigger"
         )
@@ -559,35 +600,26 @@ class TestEksCreateNodegroupOperator:
         )
         assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
+    @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "create_nodegroup")
-    def test_create_nodegroup_deferrable(self, mock_create_nodegroup):
+    def test_create_nodegroup_deferrable(self, mock_create_nodegroup, mock_waiter, wait_for_completion):
         mock_create_nodegroup.return_value = True
         op_kwargs = {**self.create_nodegroup_params}
         operator = EksCreateNodegroupOperator(
             task_id=TASK_ID,
             **op_kwargs,
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred) as exc:
+        assert operator.wait_for_completion is wait_for_completion
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             operator.execute({})
         assert isinstance(exc.value.trigger, EksCreateNodegroupTrigger)
-
-    def test_create_nodegroup_deferrable_versus_wait_for_completion(self):
-        op_kwargs = {**self.create_nodegroup_params}
-        operator = EksCreateNodegroupOperator(
-            task_id=TASK_ID,
-            **op_kwargs,
-            deferrable=True,
-            wait_for_completion=True,
-        )
-        assert operator.wait_for_completion is False
-        operator = EksCreateNodegroupOperator(
-            task_id=TASK_ID,
-            **op_kwargs,
-            deferrable=False,
-            wait_for_completion=True,
-        )
-        assert operator.wait_for_completion is True
+        mock_waiter.assert_not_called()
 
     def test_template_fields(self):
         op_kwargs = {**self.create_nodegroup_params}
@@ -763,9 +795,14 @@ class TestEksDeleteClusterOperator:
         )
         assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
 
-    def test_eks_delete_cluster_operator_with_deferrable(self):
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
+    def test_eks_delete_cluster_operator_with_deferrable(self, wait_for_completion):
         self.delete_cluster_operator.deferrable = True
-        with pytest.raises(TaskDeferred):
+        self.delete_cluster_operator.wait_for_completion = wait_for_completion
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             self.delete_cluster_operator.execute({})
 
     @pytest.mark.parametrize("status", ["deleted", "success"])
@@ -975,6 +1012,19 @@ class TestEksDeleteNodegroupOperator:
         )
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    def test_delete_nodegroup_deferrable(self, _, wait_for_completion):
+        self.delete_nodegroup_operator.deferrable = True
+        self.delete_nodegroup_operator.wait_for_completion = wait_for_completion
+
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            self.delete_nodegroup_operator.execute({})
+        assert isinstance(exc.value.trigger, EksDeleteNodegroupTrigger)
+
     def test_template_fields(self):
         validate_template_fields(self.delete_nodegroup_operator)
 
@@ -1026,11 +1076,16 @@ class TestEksDeleteFargateProfileOperator:
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileDeleted")
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
     @mock.patch.object(EksHook, "delete_fargate_profile")
-    def test_delete_fargate_profile_deferrable(self, _):
+    def test_delete_fargate_profile_deferrable(self, _, wait_for_completion):
         self.delete_fargate_profile_operator.deferrable = True
+        self.delete_fargate_profile_operator.wait_for_completion = wait_for_completion
 
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             self.delete_fargate_profile_operator.execute({})
         assert isinstance(exc.value.trigger, EksDeleteFargateProfileTrigger), (
             "Trigger is not a EksDeleteFargateProfileTrigger"

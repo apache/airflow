@@ -34,6 +34,7 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
@@ -411,3 +412,16 @@ def test_uv_lock_is_mounted_only_by_its_own_compose_file():
     assert uv_lock_compose_file["services"]["airflow"]["volumes"] == [
         {"type": "bind", "source": "../../../uv.lock", "target": "/opt/airflow/uv.lock"}
     ]
+
+
+@pytest.mark.parametrize(
+    ("theme_path", "expected_count"), [("/tmp/airflow-site/sphinx_airflow_theme", 1), ("", 0)]
+)
+def test_sphinx_airflow_theme_is_mounted_only_when_a_path_is_given(theme_path: str, expected_count: int):
+    shell_params = ShellParams(sphinx_airflow_theme_path=theme_path)
+    compose_files = shell_params.compose_file.split(os.pathsep)
+    assert (
+        compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH)) == expected_count
+    )
+    # Compose interpolates the bind source from this variable, so it must be exported together with the file.
+    assert shell_params.env_variables_for_docker_commands["SPHINX_AIRFLOW_THEME_PATH"] == theme_path
