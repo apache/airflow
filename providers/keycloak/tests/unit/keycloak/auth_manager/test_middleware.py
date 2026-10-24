@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
+import threading
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.testclient import TestClient
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -28,79 +32,159 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
+from airflow.providers.keycloak.auth_manager import middleware
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS, AIRFLOW_V_3_5_PLUS
 
 if AIRFLOW_V_3_1_7_PLUS:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 else:
     AuthManagerRefreshTokenExpiredException = None  # type: ignore[assignment,misc]
 
+MODULE = "airflow.providers.keycloak.auth_manager.middleware"
 
-def pytest_generate_tests(metafunc):
-    if "secure" in metafunc.fixturenames:
-        metafunc.parametrize("secure", [True, False], indirect=True)
 
+def _build_app(static_dir=None, root_path: str = "") -> tuple[FastAPI, dict]:
+    """Return an app wrapped by the middleware and a dict capturing what the endpoint saw."""
+    seen: dict = {}
+    app = FastAPI(root_path=root_path)
+
+    @app.get("/api/v2/dags")
+    def dags(request: Request):
+        seen["user"] = getattr(request.state, "user", None)
+        seen["authenticated_via"] = getattr(request.state, "user_authenticated_via", None)
+        return PlainTextResponse("ok")
+
+    @app.get("/api/v2/monitor/health")
+    def health():
+        return PlainTextResponse("healthy")
+
+    @app.get("/api/v2/version")
+    def version():
+        return PlainTextResponse("3.x")
+
+    @app.get("/auth/login_callback")
+    def login_callback():
+        response = PlainTextResponse("logged in")
+        response.set_cookie(
+            COOKIE_NAME_JWT_TOKEN, "issued_token", path=middleware.get_cookie_path(), httponly=True
+        )
+        if AIRFLOW_V_3_3_PLUS:
+            response.set_cookie(
+                COOKIE_NAME_ACCESS_TOKEN, "issued_access_token", path=middleware.get_cookie_path(), httponly=True
+            )
+            response.set_cookie(
+                COOKIE_NAME_REFRESH_TOKEN, "issued_refresh_token", path=middleware.get_cookie_path(), httponly=True
+            )
+        return response
+
+    @app.get("/api/v2/auth/logout")
+    def logout():
+        response = PlainTextResponse("logged out")
+        response.delete_cookie(COOKIE_NAME_JWT_TOKEN, path=middleware.get_cookie_path(), httponly=True)
+        return response
+
+    @app.get("/api/v2/stream")
+    def stream():
+        return StreamingResponse(iter([b"chunk1-", b"chunk2-", b"chunk3"]), media_type="text/plain")
+
+    if static_dir is not None:
+        app.mount("/static", StaticFiles(directory=static_dir), name="webapp_static_folder")
+
+    app.add_middleware(KeycloakJWTMiddleware, skip_path_prefixes=("/static/",))
+    return app, seen
+
+
+@pytest.fixture
+def mock_auth_manager():
+    with patch(f"{MODULE}.get_auth_manager", autospec=True) as mock_get_auth_manager:
+        auth_manager = MagicMock(spec=KeycloakAuthManager)
+        auth_manager.refresh_user.return_value = None
+        mock_get_auth_manager.return_value = auth_manager
+        yield auth_manager
+
+
+@pytest.fixture
+def mock_resolve_user():
+    with patch(f"{MODULE}.resolve_user_from_token", autospec=True) as mock_resolve:
+        mock_resolve.return_value = MagicMock(spec=KeycloakAuthManagerUser)
+        yield mock_resolve
+
+
+@pytest.fixture(autouse=True)
+def no_ssl_cert():
+    with conf_vars({("api", "ssl_cert"): ""}):
+        yield
 
 @pytest.mark.asyncio
 class TestKeycloakJWTMiddleware:
-    @pytest.fixture
-    def middleware(self):
-        return KeycloakJWTMiddleware(app=Mock(name="app"))
+    def test_no_token(self, mock_resolve_user, mock_auth_manager):
+        app, _ = _build_app()
 
-    @pytest.fixture
-    def mock_request(self, secure):
-        request = MagicMock(spec=Request, name="request")
-        request.base_url.scheme = "https" if secure else "http"
-        request.cookies = {}
-        request.headers = {}
-        request.state = MagicMock(name="state", spec=[])
-        request.state.user = None
-        del request.state.user_authenticated_via
-        return request
+        response = TestClient(app).get("/api/v2/dags")
 
-    @pytest.fixture
-    def mock_user(self):
-        user = Mock(name="user", spec=KeycloakAuthManagerUser)
-        user.user_id = "user_id"
-        user.name = "name"
-        user.access_token = "access_token"
-        user.refresh_token = "refresh_token"
-        return user
+        assert response.status_code == 200
+        assert "set-cookie" not in response.headers
+        mock_resolve_user.assert_not_called()
 
-    @pytest.fixture
-    def call_next(self):
-        return AsyncMock(return_value=Mock(name="response"), name="call_next")
+    def test_invalid_token_clears_cookie(self, mock_resolve_user, mock_auth_manager):
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, seen = _build_app()
 
-    @pytest.fixture
-    def auth_manager(self):
-        return Mock(name="auth_manager")
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "invalid_token"}).get("/api/v2/dags")
 
-    @pytest.fixture
-    def secure(self, request):
-        return request.param
+        assert response.status_code == 200
+        assert seen["user"] is None
+        assert '_token=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax' in response.headers["set-cookie"]
+        mock_auth_manager.refresh_user.assert_not_called()
 
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_get_keycloak_tokens_from_cookies(
-        self, mock_get_auth_manager, auth_manager, call_next, mock_request, middleware, mock_user
-    ):
-        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
-        auth_manager.refresh_user.return_value = None
-        mock_get_auth_manager.return_value = auth_manager
+    def test_no_refreshed_user(self, mock_resolve_user, mock_auth_manager):
+        app, seen = _build_app()
 
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get("/api/v2/dags")
+        
+        trusted_marker = getattr(
+            core_api_security,
+            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+            None,
+        )
 
-        await middleware.dispatch(mock_request, call_next)
+        assert "set-cookie" not in response.headers
+        assert seen["user"] is mock_resolve_user.return_value
+        assert seen["authenticated_via"] is trusted_marker
+        if AIRFLOW_V_3_5_PLUS:
+            mock_resolve_user.assert_called_once_with("valid_token")
+        else:
+            mock_resolve_user.assert_called_once_with("valid_token", "access_token", "refresh_token")
+        mock_auth_manager.generate_jwt.assert_not_called()
 
-        assert mock_request.state.user is mock_user
-        assert mock_request.state.user.access_token == "access_token"
-        assert mock_request.state.user.refresh_token == "refresh_token"
+    def test_refreshed_user(self, mock_resolve_user, mock_auth_manager):
+        refreshed_user = MagicMock(spec=KeycloakAuthManagerUser)
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        refreshed_user.access_token = "new_access_token"
+        refreshed_user.refresh_token = "new_refresh_token"
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, seen = _build_app()
+
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get("/api/v2/dags")
 
         trusted_marker = getattr(
             core_api_security,
@@ -108,391 +192,378 @@ class TestKeycloakJWTMiddleware:
             None,
         )
 
-        if trusted_marker is not None:
-            assert mock_request.state.user_authenticated_via is trusted_marker
-        else:
-            assert not hasattr(mock_request.state, "user_authenticated_via")
-
-        auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
-        auth_manager.refresh_user.assert_called_once_with(user=mock_user)
-        call_next.assert_awaited_once_with(mock_request)
-
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_refresh_keycloak_token(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        mock_request,
-        middleware,
-        mock_user,
-        secure,
-    ):
-        new_user = Mock(name="user", spec=KeycloakAuthManagerUser)
-        new_user.access_token = "new_access_token"
-        new_user.refresh_token = "new_refresh_token"
-        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
-        auth_manager.refresh_user = Mock(return_value=new_user)
-        auth_manager.generate_jwt.return_value = "new_token"
-        mock_get_auth_manager.return_value = auth_manager
-
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        assert mock_request.state.user is new_user
-        assert mock_request.state.user.access_token == "new_access_token"
-        assert mock_request.state.user.refresh_token == "new_refresh_token"
-
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_JWT_TOKEN,
-            "new_token",
-            path="/",
-            secure=secure,
-            samesite="lax",
-            httponly=True,
-            max_age=None,
-        )
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_ACCESS_TOKEN,
-            "new_access_token",
-            path="/",
-            samesite="lax",
-            secure=secure,
-            httponly=True,
-        )
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_REFRESH_TOKEN,
-            "new_refresh_token",
-            path="/",
-            samesite="lax",
-            secure=secure,
-            httponly=True,
+        assert seen["user"] is refreshed_user
+        assert seen["authenticated_via"] is trusted_marker
+        mock_auth_manager.refresh_user.assert_called_once_with(user=mock_resolve_user.return_value)
+        mock_auth_manager.generate_jwt.assert_called_once_with(refreshed_user)
+        assert (
+            response.headers["set-cookie"]
+            == "_token=new_token; HttpOnly; Path=/; SameSite=lax, _access_token=new_access_token; HttpOnly; Path=/; SameSite=lax, _refresh_token=new_refresh_token; HttpOnly; Path=/; SameSite=lax"
         )
 
-        trusted_marker = getattr(
-            core_api_security,
-            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
-            None,
-        )
+    def test_invalid_token_does_not_clear_token_set_by_route(self, mock_resolve_user, mock_auth_manager):
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
 
-        if trusted_marker is not None:
-            assert mock_request.state.user_authenticated_via is trusted_marker
-        else:
-            assert not hasattr(mock_request.state, "user_authenticated_via")
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get("/auth/login_callback")
 
-        # Once to resolve the user, once more after the endpoint ran to confirm the
-        # token is still accepted before a replacement is issued.
-        assert auth_manager.get_user_from_token.await_args_list == [
-            call("token", "access_token", "refresh_token"),
-            call("token", "access_token", "refresh_token"),
+        assert response.headers.get_list("set-cookie") == [
+            "_token=issued_token; HttpOnly; Path=/; SameSite=lax"
         ]
-        auth_manager.refresh_user.assert_called_once_with(user=mock_user)
-        auth_manager.generate_jwt.assert_called_once_with(new_user)
-        call_next.assert_awaited_once_with(mock_request)
 
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_no_new_token_when_jwt_revoked_during_request(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        mock_request,
-        middleware,
-        mock_user,
-        secure,
+    def test_refreshed_token_does_not_override_logout(self, mock_resolve_user, mock_auth_manager):
+        refreshed_user = MagicMock(spec=KeycloakAuthManagerUser)
+        refreshed_user.access_token = "new_access_token"
+        refreshed_user.refresh_token = "new_refresh_token"
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, _ = _build_app()
+
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token"
+            }
+        ).get("/api/v2/auth/logout")
+
+        set_cookie_headers = response.headers.get_list("set-cookie")
+        assert len(set_cookie_headers) == 3
+        assert all("Max-Age=0" in header for header in set_cookie_headers)
+        assert "new_token" not in set_cookie_headers[0]
+        assert "new_access_token" not in set_cookie_headers[1]
+        assert "new_refresh_token" not in set_cookie_headers[2]
+
+    @patch(f"{MODULE}.get_cookie_path", autospec=True, return_value="/team-a/")
+    def test_root_cookie_cleared_when_route_sets_token(
+        self, mock_cookie_path, mock_resolve_user, mock_auth_manager
     ):
-        """
-        When the endpoint revokes the token the request came with (the logout route does),
-        a refreshed session must not be turned into a new JWT; the session cookies are cleared.
-        """
-        new_user = Mock(name="user", spec=KeycloakAuthManagerUser)
-        new_user.access_token = "new_access_token"
-        new_user.refresh_token = "new_refresh_token"
-        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
-        auth_manager.refresh_user = Mock(return_value=new_user)
-        auth_manager.generate_jwt.return_value = "new_token"
-        mock_get_auth_manager.return_value = auth_manager
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
 
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "stale_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            },
+        ).get("/auth/login_callback")
 
-        async def logout_endpoint(request):
-            # The endpoint revokes the presented token, so it is rejected from now on.
-            auth_manager.get_user_from_token.side_effect = InvalidTokenError("Token has been revoked")
-            return Mock(name="response")
+        set_cookie_headers = response.headers.get_list("set-cookie")
+        assert len(set_cookie_headers) == 2
+        assert set_cookie_headers[0] == "_token=issued_token; HttpOnly; Path=/team-a/; SameSite=lax"
+        assert "Max-Age=0; Path=/;" in set_cookie_headers[1]
 
-        call_next.side_effect = logout_endpoint
+    def test_refresh_user_runs_off_the_event_loop(self, mock_resolve_user, mock_auth_manager):
+        """``refresh_user`` is synchronous and may do blocking I/O, so it must not block the loop."""
+        refresh_threads = []
+        mock_auth_manager.refresh_user.side_effect = lambda user: refresh_threads.append(
+            threading.get_ident()
+        )
+        loop_threads = []
+        mock_resolve_user.side_effect = lambda token: loop_threads.append(threading.get_ident())
+        app, _ = _build_app()
 
-        response = await middleware.dispatch(mock_request, call_next)
+        TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get("/api/v2/dags")
 
-        auth_manager.generate_jwt.assert_not_called()
-        for cookie_name in (COOKIE_NAME_JWT_TOKEN, COOKIE_NAME_ACCESS_TOKEN, COOKIE_NAME_REFRESH_TOKEN):
-            assert any(
-                c.args[0] == cookie_name and c.args[1] == "" and c.kwargs.get("max_age") == 0
-                for c in response.set_cookie.call_args_list
-            ), f"{cookie_name} cookie was not cleared"
-        issued_values = {c.args[1] for c in response.set_cookie.call_args_list if len(c.args) > 1}
-        assert issued_values.isdisjoint({"new_token", "new_access_token", "new_refresh_token"})
+        assert len(refresh_threads) == 1
+        assert refresh_threads != loop_threads
 
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_new_token_when_jwt_expired_during_request(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        mock_request,
-        middleware,
-        mock_user,
-        secure,
-    ):
-        """A token that merely expired while the request was handled is still replaced."""
-        new_user = Mock(name="user", spec=KeycloakAuthManagerUser)
-        new_user.access_token = "new_access_token"
-        new_user.refresh_token = "new_refresh_token"
-        auth_manager.get_user_from_token = AsyncMock(side_effect=[mock_user, ExpiredSignatureError()])
-        auth_manager.refresh_user = Mock(return_value=new_user)
-        auth_manager.generate_jwt.return_value = "new_token"
-        mock_get_auth_manager.return_value = auth_manager
+    def test_streaming_response_passthrough(self, mock_resolve_user, mock_auth_manager):
+        mock_auth_manager.refresh_user.return_value = MagicMock(spec=KeycloakAuthManagerUser)
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, _ = _build_app()
 
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "valid_token"}).get("/api/v2/stream")
 
-        response = await middleware.dispatch(mock_request, call_next)
+        assert response.content == b"chunk1-chunk2-chunk3"
+        assert response.headers["content-type"].startswith("text/plain")
+        assert "_token=new_token" in response.headers["set-cookie"]
 
-        auth_manager.generate_jwt.assert_called_once_with(new_user)
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_JWT_TOKEN,
-            "new_token",
-            path="/",
-            secure=secure,
-            samesite="lax",
-            httponly=True,
-            max_age=None,
+    def test_http_exception_from_inner_app_returned_as_response(self, mock_resolve_user, mock_auth_manager):
+        async def raising_app(scope, receive, send):
+            raise HTTPException(status_code=418, detail="teapot")
+
+        app = KeycloakJWTMiddleware(raising_app)
+
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get("/api/v2/dags")
+
+        assert response.status_code == 418
+        assert response.json() == {"detail": "teapot"}
+
+    @pytest.mark.parametrize("root_path", ["", "/team-a"])
+    @pytest.mark.parametrize("path", ["/api/v2/monitor/health", "/api/v2/version", "/static/main.js"])
+    def test_skipped_paths(self, mock_resolve_user, mock_auth_manager, tmp_path, path, root_path):
+        """Static assets and unauthenticated endpoints never decode the JWT or hit the DB."""
+        (tmp_path / "main.js").write_text("console.log('hi');")
+        app, _ = _build_app(static_dir=tmp_path, root_path=root_path)
+        client = TestClient(
+            app,
+            root_path=root_path,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
         )
 
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_no_keycloak_token(
-        self, mock_get_auth_manager, auth_manager, call_next, middleware, mock_request, secure
+        response = client.get(f"{root_path}{path}")
+
+        assert response.status_code == 200
+        assert "set-cookie" not in response.headers
+        mock_resolve_user.assert_not_called()
+        mock_auth_manager.refresh_user.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("headers", "expected_status", "expected_body"),
+        [
+            pytest.param({}, 200, b"0123456789", id="full"),
+            pytest.param({"range": "bytes=2-4"}, 206, b"234", id="range"),
+        ],
+    )
+    def test_static_files_served_unchanged(
+        self, mock_resolve_user, tmp_path, headers, expected_status, expected_body
     ):
-        mock_get_auth_manager.return_value = auth_manager
-
-        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "token"}
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        auth_manager.get_user_from_token.assert_not_called()
-        auth_manager.refresh_user.assert_not_called()
-
-        assert mock_request.state.user is None
-
-        trusted_marker = getattr(
-            core_api_security,
-            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
-            None,
+        (tmp_path / "main.js").write_bytes(b"0123456789")
+        app, _ = _build_app(static_dir=tmp_path)
+        client = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
         )
 
-        if trusted_marker is not None:
-            assert getattr(mock_request.state, "user_authenticated_via", None) is not trusted_marker
-        else:
-            assert not hasattr(mock_request.state, "user_authenticated_via")
+        response = client.get("/static/main.js", headers=headers)
 
-        call_next.assert_awaited_with(mock_request)
+        assert response.status_code == expected_status
+        assert response.content == expected_body
+        assert "etag" in response.headers
+        assert "last-modified" in response.headers
+        revalidated = client.get("/static/main.js", headers={"if-none-match": response.headers["etag"]})
+        assert revalidated.status_code == 304
 
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_JWT_TOKEN,
-            "",
-            path="/",
-            secure=secure,
-            httponly=True,
-            samesite="lax",
-            max_age=0,
-        )
-
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_no_airflow_jwt_token(
-        self, mock_get_auth_manager, auth_manager, call_next, middleware, mock_request
+    @pytest.mark.parametrize(
+        ("scheme", "ssl_cert", "expected_secure"),
+        [
+            pytest.param("https", "", True, id="https-no-local-ssl-cert"),
+            pytest.param("http", "/etc/ssl/cert.pem", True, id="http-with-local-ssl-cert"),
+            pytest.param("https", "/etc/ssl/cert.pem", True, id="https-with-local-ssl-cert"),
+            pytest.param("http", "", False, id="http-no-local-ssl-cert"),
+        ],
+    )
+    def test_cookie_secure_flag(
+        self, mock_resolve_user, mock_auth_manager, scheme, ssl_cert, expected_secure
     ):
-        mock_get_auth_manager.return_value = auth_manager
-
-        mock_request.cookies = {
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        auth_manager.get_user_from_token.assert_not_called()
-        auth_manager.refresh_user.assert_not_called()
-
-        assert mock_request.state.user is None
-
-        trusted_marker = getattr(
-            core_api_security,
-            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
-            None,
-        )
-
-        if trusted_marker is not None:
-            assert getattr(mock_request.state, "user_authenticated_via", None) is not trusted_marker
-        else:
-            assert not hasattr(mock_request.state, "user_authenticated_via")
-
-        call_next.assert_awaited_once_with(mock_request)
-        response.set_cookie.assert_not_called()
-
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    @pytest.mark.asyncio
-    async def test_dispatch_expired_token(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        middleware,
-        mock_request,
-        secure,
-    ):
-        mock_get_auth_manager.return_value = auth_manager
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "invalid_token",
-            COOKIE_NAME_ACCESS_TOKEN: "access_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-        auth_manager.get_user_from_token.side_effect = InvalidTokenError()
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        call_next.assert_called_once_with(mock_request)
-        auth_manager.get_user_from_token.assert_called_once_with(
-            "invalid_token", "access_token", "refresh_token"
-        )
-
-        response.set_cookie.assert_any_call(
-            COOKIE_NAME_JWT_TOKEN,
-            "",
-            path="/",
-            secure=secure,
-            httponly=True,
-            samesite="lax",
-            max_age=0,
-        )
-
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    @pytest.mark.asyncio
-    async def test_dispatch_expired_keycloak_token(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        middleware,
-        mock_request,
-        mock_user,
-        secure,
-    ):
-        mock_get_auth_manager.return_value = auth_manager
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "expired_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-        mock_user.access_token = "expired_token"
-        mock_user.refresh_token = "refresh_token"
-        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
-        if AIRFLOW_V_3_1_7_PLUS:
-            auth_manager.refresh_user.side_effect = AuthManagerRefreshTokenExpiredException()
-        else:
-            auth_manager.refresh_user.return_value = None
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        call_next.assert_called_once_with(mock_request)
-        auth_manager.get_user_from_token.assert_called_once_with("token", "expired_token", "refresh_token")
-        auth_manager.refresh_user.assert_called_once_with(user=mock_user)
-
-        if AIRFLOW_V_3_1_7_PLUS:
-            response.set_cookie.assert_any_call(
-                COOKIE_NAME_JWT_TOKEN,
-                "",
-                path="/",
-                secure=secure,
-                httponly=True,
-                samesite="lax",
-                max_age=0,
+        """The cookie Secure flag must follow the request scheme as well as the local ssl_cert."""
+        mock_auth_manager.refresh_user.return_value = MagicMock(spec=KeycloakAuthManagerUser)
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        with conf_vars({("api", "ssl_cert"): ssl_cert}):
+            app, _ = _build_app()
+            client = TestClient(
+                app,
+                base_url=f"{scheme}://testserver",
+                cookies={
+                    COOKIE_NAME_JWT_TOKEN: "valid_token",
+                    COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                    COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+                },
             )
-        auth_manager.generate_jwt.assert_not_called()
 
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_dispatch_does_not_clear_fresh_token_set_by_endpoint(
-        self,
-        mock_get_auth_manager,
-        auth_manager,
-        call_next,
-        middleware,
-        mock_request,
-        mock_user,
+            response = client.get("/api/v2/dags")
+
+        assert ("Secure" in response.headers["set-cookie"]) is expected_secure
+
+    @pytest.mark.parametrize(
+        "refresh_outcome",
+        [
+            pytest.param("refreshed", id="refreshed-token"),
+            pytest.param("invalid", id="invalid-token"),
+        ],
+    )
+    @patch(f"{MODULE}.get_cookie_path", autospec=True, return_value="/team-a/")
+    def test_cookie_uses_subpath_and_clears_root_cookie(
+        self, mock_cookie_path, mock_resolve_user, mock_auth_manager, refresh_outcome
     ):
-        """
-        An expired token on the request must not clear the cookie when the endpoint
-        set a fresh one on the response (e.g. the login callback exchanging the
-        authorization code while an expired token is still in the cookie jar).
-        """
-        mock_get_auth_manager.return_value = auth_manager
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "expired",
-            COOKIE_NAME_ACCESS_TOKEN: "expired_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-        auth_manager.get_user_from_token = AsyncMock(side_effect=InvalidTokenError())
+        """With a subpath, the cookie is scoped to it and a stale root-path cookie is cleared."""
+        if refresh_outcome == "refreshed":
+            mock_auth_manager.refresh_user.return_value = MagicMock(spec=KeycloakAuthManagerUser)
+            mock_auth_manager.generate_jwt.return_value = "new_token"
+        else:
+            mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
 
-        async def call_endpoint(request):
-            # The endpoint (login callback) mints a fresh JWT and signals it
-            request.state.jwt_token_issued = True
-            return Mock(name="response")
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get("/api/v2/dags")
 
-        call_next.side_effect = call_endpoint
+        set_cookie_headers = response.headers.get_list("set-cookie")
+        assert len(set_cookie_headers) == 2
+        assert any("Path=/team-a/" in h for h in set_cookie_headers)
+        assert any(
+            "Path=/" in h and "Path=/team-a/" not in h and "Max-Age=0" in h for h in set_cookie_headers
+        )
 
-        response = await middleware.dispatch(mock_request, call_next)
-
-        response.set_cookie.assert_not_called()
-
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_cookie_path")
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
+    @pytest.mark.skipif(AIRFLOW_V_3_5_PLUS, reason="_is_jwt_still_valid() is not used anymore.")
     @pytest.mark.asyncio
-    async def test_dispatch_invalid_token_clears_root_cookie(
-        self,
-        mock_get_auth_manager,
-        mock_get_cookie_path,
-        auth_manager,
-        call_next,
-        middleware,
-        mock_request,
-        secure,
-    ):
-        mock_get_cookie_path.return_value = "/foo/"
-        mock_get_auth_manager.return_value = auth_manager
-        auth_manager.get_user_from_token.side_effect = InvalidTokenError()
-        """When a stale _token exists at root path, clearing must target both the subpath and root."""
+    @pytest.mark.parametrize(
+        ("side_effect", "new_user", "expected"),
+        [
+            (MagicMock(spec=KeycloakAuthManagerUser), MagicMock(spec=KeycloakAuthManagerUser), "new_token"),
+            (None, MagicMock(spec=KeycloakAuthManagerUser), ""),
+            (ExpiredSignatureError, MagicMock(spec=KeycloakAuthManagerUser), "new_token"),
+            (InvalidTokenError, MagicMock(spec=KeycloakAuthManagerUser), ""),
+            (MagicMock(spec=KeycloakAuthManagerUser), None, ""),
+        ],
+    )
+    @patch(f"{MODULE}.KeycloakJWTMiddleware._get_user_from_request")
+    async def test_validate_and_generate_new_user_token(self, mock_get_user_from_request, mock_auth_manager, side_effect, new_user, expected):
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        mock_get_user_from_request.side_effect = side_effect
+        
+        mock_request = Request(MagicMock())
         mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "stale_root_token",
+            COOKIE_NAME_JWT_TOKEN: "token",
             COOKIE_NAME_ACCESS_TOKEN: "access_token",
             COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
         }
-        response = await middleware.dispatch(mock_request, call_next)
+        app, seen = _build_app()
+        middleware = KeycloakJWTMiddleware(app)
+        new_token = await middleware.generate_new_user_token(mock_request, MagicMock())
+        assert new_token == expected
 
-        # Expect two delete cookies: one at the subpath and one at root "/"
-        response.set_cookie.assert_any_call(
-            "_token", "", path="/foo/", secure=secure, samesite="lax", httponly=True, max_age=0
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("new_user", "expected"),
+        [
+            (MagicMock(spec=KeycloakAuthManagerUser), "new_token"),
+            (None, ""),
+        ],
+    )
+    @patch(f"{MODULE}.KeycloakJWTMiddleware._is_jwt_still_valid")
+    async def test_generate_new_user_token(self, mock_is_jwt_still_valid, mock_auth_manager, new_user, expected):
+        mock_is_jwt_still_valid.return_value = False
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, seen = _build_app()
+        middleware = KeycloakJWTMiddleware(app)
+        new_token = await middleware.generate_new_user_token(MagicMock(), new_user)
+        assert new_token == expected
+
+    def test_refresh_user_sets_keycloak_cookies(
+        self, mock_resolve_user, mock_auth_manager
+    ):
+        refreshed_user = MagicMock(spec=KeycloakAuthManagerUser)
+        refreshed_user.access_token = "new_access_token"
+        refreshed_user.refresh_token = "new_refresh_token"
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, seen = _build_app()
+
+        response = TestClient(
+            app, 
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            },
+        ).get("/api/v2/dags")
+
+        # JWTRefreshMiddleware must stamp the trust sentinel so `get_user()` accepts
+        # the cached user. Without the marker, the auth dependency falls through
+        # to a fresh JWT validation, defeating the refresh.
+        assert seen["user"] is refreshed_user
+        trusted_marker = getattr(
+            core_api_security,
+            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+            None,
         )
-        response.set_cookie.assert_any_call(
-            "_token", "", path="/", secure=secure, samesite="lax", httponly=True, max_age=0
+        assert seen["authenticated_via"] is trusted_marker
+        mock_auth_manager.refresh_user.assert_called_once_with(user=mock_resolve_user.return_value)
+        mock_auth_manager.generate_jwt.assert_called_once_with(refreshed_user)
+        assert (
+            response.headers["set-cookie"]
+            == "_token=new_token; HttpOnly; Path=/; SameSite=lax, _access_token=new_access_token; HttpOnly; Path=/; SameSite=lax, _refresh_token=new_refresh_token; HttpOnly; Path=/; SameSite=lax"
         )
+
+    def test_refresh_user_clears_refresh_token_cookie(
+        self, mock_resolve_user, mock_auth_manager
+    ):
+        refreshed_user = MagicMock(spec=KeycloakAuthManagerUser)
+        refreshed_user.access_token = "new_access_token"
+        refreshed_user.refresh_token = None
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        app, seen = _build_app()
+
+        response = TestClient(
+            app, 
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            },
+        ).get("/api/v2/dags")
+
+        # JWTRefreshMiddleware must stamp the trust sentinel so `get_user()` accepts
+        # the cached user. Without the marker, the auth dependency falls through
+        # to a fresh JWT validation, defeating the refresh.
+        assert seen["user"] is refreshed_user
+        trusted_marker = getattr(
+            core_api_security,
+            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+            None,
+        )
+        mock_auth_manager.refresh_user.assert_called_once_with(user=mock_resolve_user.return_value)
+        mock_auth_manager.generate_jwt.assert_called_once_with(refreshed_user)
+        assert (
+            response.headers["set-cookie"]
+            == '_token=new_token; HttpOnly; Path=/; SameSite=lax, _access_token=new_access_token; HttpOnly; Path=/; SameSite=lax; _refresh_token=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax'
+        )
+
+    @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
+    def test_invalid_token_does_not_clear_extra_cookie_set_by_route(
+        self, mock_get_extra_cookies: MagicMock, mock_resolve_user, mock_auth_manager
+    ):
+        mock_get_extra_cookies.return_value = {"access_token": "", "refresh_token": "", "bar": ""}
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
+
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "stale_token",
+                COOKIE_NAME_ACCESS_TOKEN: "access_token",
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            }
+        ).get(
+            "/auth/login_callback"
+        )
+
+        assert response.headers.get_list("set-cookie") == [
+            "_token=issued_token; Path=/; SameSite=lax",
+            "_access_token=issued_access_token; Path=/; SameSite=lax",
+            "_refresh_token=issued_refresh_token; Path=/; SameSite=lax"
+            'bar=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+        ]
