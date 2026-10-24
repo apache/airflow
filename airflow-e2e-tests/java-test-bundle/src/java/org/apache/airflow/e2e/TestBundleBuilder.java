@@ -19,6 +19,9 @@
 
 package org.apache.airflow.e2e;
 
+import static java.lang.System.Logger.Level.INFO;
+
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.apache.airflow.sdk.*;
@@ -26,8 +29,8 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Bundle for the runner-behaviour E2E tests: deliberately broken task classes that exercise
- * instantiation failures, and tasks that round-trip Airflow Variables and task state through the
- * supervisor.
+ * instantiation failures, tasks that round-trip Airflow Variables and task state through the
+ * supervisor, and a task that runs until Airflow asks it to stop.
  */
 public class TestBundleBuilder implements BundleBuilder {
   public static class MissingNoArgConstructor implements Task {
@@ -90,6 +93,28 @@ public class TestBundleBuilder implements BundleBuilder {
     }
   }
 
+  /**
+   * Runs until Airflow asks it to stop. The E2E test makes that request by marking the task instance
+   * failed.
+   */
+  public static class WaitForStopRequest implements Task {
+    private static final System.Logger log = System.getLogger(WaitForStopRequest.class.getName());
+
+    public void execute(@NotNull Context context, Client client) throws InterruptedException {
+      // Check before writing the log line that the test waits for. The test makes Airflow send the
+      // stop signal after it sees that line, so by then the task has checked and the SDK keeps the
+      // stop request.
+      if (context.isCancelled()) {
+        throw new IllegalStateException("Airflow asked the task to stop before it started");
+      }
+      log.log(INFO, "Waiting for a stop request");
+      if (!context.awaitCancellation(Duration.ofMinutes(5))) {
+        throw new IllegalStateException("No stop request arrived within five minutes");
+      }
+      log.log(INFO, "Stopping at Airflow's request");
+    }
+  }
+
   @NotNull
   @Override
   public Iterable<DagDef> getDags() {
@@ -100,7 +125,9 @@ public class TestBundleBuilder implements BundleBuilder {
     variableWrite.addTask("write_and_delete", WriteAndDeleteVariable.class);
     var taskState = new DagDef("java_task_state");
     taskState.addTask("roundtrip_task_state", RoundtripTaskState.class);
-    return List.of(uninstantiable, variableWrite, taskState);
+    var stopRequest = new DagDef("java_stop_request");
+    stopRequest.addTask("wait_for_stop_request", WaitForStopRequest.class);
+    return List.of(uninstantiable, variableWrite, taskState, stopRequest);
   }
 
   public static void main(String[] args) {
