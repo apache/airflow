@@ -90,7 +90,13 @@ export const FlexibleForm = ({
   setError,
   subHeader,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
+  const {
+    confVersion,
+    paramsDict: params,
+    setDisabled,
+    setInitialParamDict,
+    setParamsDict,
+  } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
   const [hasValidationError, setHasValidationError] = useState(false);
@@ -124,6 +130,10 @@ export const FlexibleForm = ({
   useEffect(() => {
     setDisabled(disabled ?? false);
   }, [disabled, setDisabled]);
+
+  useEffect(() => {
+    setHasValidationError(false);
+  }, [confVersion]);
 
   const onUpdate = (_value?: string, error?: unknown) => {
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
@@ -165,7 +175,7 @@ export const FlexibleForm = ({
                     (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                 )
                 .map(([name]) => (
-                  <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
+                  <Row key={`${name}-${confVersion}`} name={name} namespace={namespace} onUpdate={onUpdate} />
                 ))}
             </Stack>
           </FlatSection>
