@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime as dt
 import inspect
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, MagicMock, Mock, call
 
@@ -74,6 +75,11 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from tests_common.test_utils.compat import DagSerialization, timezone
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    from time_machine import TimeMachineFixture
+
+    from airflow.providers.common.compat.sdk import Context
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -3742,6 +3748,56 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
+    @pytest.mark.parametrize(
+        ("execution_timeout", "elapsed", "expected_timeout"),
+        [
+            pytest.param(None, dt.timedelta(minutes=25), None, id="no-execution-timeout"),
+            pytest.param(
+                dt.timedelta(minutes=30), dt.timedelta(0), dt.timedelta(minutes=30), id="full-timeout"
+            ),
+            pytest.param(
+                dt.timedelta(minutes=30),
+                dt.timedelta(minutes=25),
+                dt.timedelta(minutes=5),
+                id="remaining-timeout",
+            ),
+            pytest.param(
+                dt.timedelta(minutes=30), dt.timedelta(minutes=45), dt.timedelta(0), id="elapsed-timeout"
+            ),
+        ],
+    )
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"), autospec=True)
+    def test_deferral_respects_execution_timeout(
+        self,
+        mock_hook: mock.MagicMock,
+        time_machine: TimeMachineFixture,
+        execution_timeout: dt.timedelta | None,
+        elapsed: dt.timedelta,
+        expected_timeout: dt.timedelta | None,
+    ) -> None:
+        start_date = timezone.datetime(2026, 10, 22)
+        time_machine.move_to(start_date + elapsed, tick=False)
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"batches/{BATCH_ID}"
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+        context: Context = {
+            "task": operator,
+            "ti": mock.Mock(spec=["start_date", "xcom_push"], start_date=start_date),
+        }
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.timeout == expected_timeout
+        assert isinstance(exc.value.trigger, DataprocBatchTrigger)
+
     @pytest.mark.parametrize(
         ("extra_kwargs", "match"),
         [
