@@ -26,6 +26,7 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "get-workflow-info",
         "upgrade",
         "set-milestone",
+        "fork-ci-reconcile",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -113,6 +114,17 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "GitHub parameters",
             "options": [
                 "--github-token",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze ci fork-ci-reconcile": [
+        {
+            "name": "Fork CI reconcile flags",
+            "options": [
+                "--config",
+                "--output-file",
+                "--run-url",
                 "--github-repository",
             ],
         },
