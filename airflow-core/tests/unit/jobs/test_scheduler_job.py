@@ -927,20 +927,25 @@ class TestSchedulerJob:
         session.flush()
         runner.job.max_tis_per_query = 2
 
-        ids_oldest_first = []
+        # Insert with heartbeats in the REVERSE of insertion order, so insertion/uuid7-id order is not
+        # the same as heartbeat order: the row inserted first has the newest heartbeat, the row
+        # inserted last the oldest. This pins that the scan orders by oldest heartbeat, not by id --
+        # it would still pass with the order_by removed if the two orders agreed.
+        ids_by_insertion = []
         for i in range(3):
             dr = dag_maker.create_dagrun(run_id=f"run_{i}", logical_date=DEFAULT_DATE + timedelta(days=i))
             ti = dr.get_task_instance("task", session=session)
             ti.state = State.RUNNING
             ti.region_index = -1
-            ti.last_heartbeat_at = DEFAULT_DATE + timedelta(minutes=i)
+            ti.last_heartbeat_at = DEFAULT_DATE - timedelta(minutes=i)
             ti.queued_by_job_id = runner.job.id
-            ids_oldest_first.append(ti.id)
+            ids_by_insertion.append(ti.id)
         session.commit()
 
         found = runner._find_task_instances_without_heartbeats(session=session)
-        # Capped at max_tis_per_query, returning the two oldest-heartbeat rows; the third waits for a later loop.
-        assert [row.id for row in found] == ids_oldest_first[:2]
+        # Oldest heartbeat first = reverse of insertion order; capped at max_tis_per_query (2), so the
+        # two oldest are returned (inserted last and second-to-last) and the newest waits for a later loop.
+        assert [row.id for row in found] == [ids_by_insertion[2], ids_by_insertion[1]]
 
     def test_heartbeat_purge_batch_limit_falls_back_to_parallelism(self, session):
         """max_tis_per_query == 0 means "use [core] parallelism", so the purge is never unbounded."""
