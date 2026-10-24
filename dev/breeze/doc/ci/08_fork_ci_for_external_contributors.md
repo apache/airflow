@@ -772,12 +772,12 @@ prints one row: status, finding, and the command that fixes it.
 
 | # | Check | Passing condition | Offered fix |
 |---|---|---|---|
-| 1 | `gh` present and authenticated | `gh auth status` succeeds, version at least `MIN_GH_VERSION` | install / `gh auth login` |
+| 1 | `gh` present and authenticated | `gh api user` succeeds, version at least `MIN_GH_VERSION` | install / `gh auth login` |
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
-| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds it |
-| 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]` | informational |
+| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds or repoints it |
+| 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]`; when the membership call fails for any reason but a 404, the role is reported as not checked and checks 2, 3 and 5 stay informational | informational |
 | 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: informational, with a hint when it is `active` | `gh workflow enable ci-amd.yml -R <fork>`, or `gh workflow disable ...` shown but not run by `--fix` |
-| 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than the configured threshold | `gh repo sync <fork> --branch main` |
+| 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than 200 commits (`MAX_FORK_MAIN_BEHIND`) | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
 The role is determined before checks 2 and 3, though printed as check 4. For a committer,
@@ -795,13 +795,14 @@ A 404 is a finding: the fork does not exist, or the workflow is missing. An `ups
 that points somewhere else gets `git remote set-url upstream`, since `git remote add` would
 fail on the existing name.
 
-The remote-parsing block currently inside `breeze ci upgrade` is factored into
+The remote parsing that `breeze ci upgrade` had inline is factored into
 `utils/git_remotes.py` and reused, so both commands agree on what a correct setup is. A remote
 is recognised as a GitHub repository in every form git accepts (`http` or `https` with optional
 credentials, `www.` or a port, scp-like ssh, `ssh://` with an optional port, any case of the
 host, and an ssh host alias from `~/.ssh/config` such as `git@github-personal:apache/airflow.git`,
-counted when the alias names `github` and has no dot, since a dotted host such as a GitHub
-Enterprise server is a different GitHub), and only when the repository is the whole path, so `apache/airflow-site` is never taken
+counted when the alias names `github` and has no dot, or is `github.com` with a `-` suffix such
+as `github.com-work`, since any other dotted host such as a GitHub Enterprise server is a
+different GitHub), and only when the repository is the whole path, so `apache/airflow-site` is never taken
 for `apache/airflow`. A command the audit runs that is not installed, `gh` included, is reported
 as a failed check rather than a crash.
 

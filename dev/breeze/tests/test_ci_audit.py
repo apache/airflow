@@ -38,6 +38,8 @@ REMOTES_OK = (
 # (return code, stdout) or (return code, stdout, stderr) of a command.
 Output = tuple[int, str] | tuple[int, str, str]
 
+NOT_A_MEMBER: Output = (1, "", "gh: Not Found (HTTP 404)")
+
 
 def _machine(**overrides: Output | None) -> dict[str, Output | None]:
     """Outputs of every command the audit runs, keyed by a short name."""
@@ -46,7 +48,7 @@ def _machine(**overrides: Output | None) -> dict[str, Output | None]:
         "login": (0, "someone"),
         "remotes": (0, REMOTES_OK),
         "repo": (0, json.dumps({"owner": "someone", "parent": "apache/airflow"})),
-        "membership": (1, ""),
+        "membership": NOT_A_MEMBER,
         "private_membership": (1, ""),
         "workflow": (0, "active"),
         "behind": (0, "12"),
@@ -169,6 +171,20 @@ def test_remote_fixes(remotes, fix):
     assert results[2].fix == fix
 
 
+def test_origin_is_not_added_when_the_remotes_fix_repoints_it():
+    results = _audit(
+        _machine(
+            remotes=(
+                0,
+                "origin\thttps://github.com/apache/airflow.git (fetch)\n"
+                "upstream\thttps://github.com/apache/airflow.git (fetch)\n",
+            )
+        )
+    )
+
+    assert results[3].fix == ("gh repo fork apache/airflow --remote=false",)
+
+
 def test_origin_is_added_once_when_upstream_was_cloned_as_origin():
     results = _audit(_machine(remotes=(0, "origin\thttps://github.com/apache/airflow.git (fetch)\n")))
 
@@ -197,7 +213,7 @@ def test_fork_problems(repo, message):
     [
         pytest.param(
             GateConfig(enabled=True),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (0, "disabled_fork"),
             Role.EXTERNAL,
@@ -207,7 +223,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (1, "", "gh: Not Found (HTTP 404)"),
             Role.EXTERNAL,
@@ -220,7 +236,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=False),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (0, "disabled_fork"),
             Role.EXTERNAL,
@@ -230,7 +246,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=False, pilot={"someone": datetime(2026, 10, 20, tzinfo=UTC)}),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (0, "disabled_fork"),
             Role.PILOT,
@@ -250,7 +266,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (1, "", "HTTP 502: Bad Gateway"),
             Role.EXTERNAL,
@@ -270,7 +286,7 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset({"SomeOne"}),
             (0, "disabled_manually"),
             Role.COLLABORATOR,
@@ -280,13 +296,23 @@ def test_fork_problems(repo, message):
         ),
         pytest.param(
             GateConfig(enabled=True, allowlist={"Org": ("someone",)}),
-            (1, ""),
+            NOT_A_MEMBER,
             frozenset(),
             (0, "disabled_fork"),
             Role.EXEMPTED,
             CheckStatus.OK,
             (),
             id="exempted-disabled",
+        ),
+        pytest.param(
+            GateConfig(enabled=True),
+            (1, "", "HTTP 502: Bad Gateway"),
+            frozenset(),
+            (0, "disabled_fork"),
+            Role.UNKNOWN,
+            CheckStatus.INFO,
+            (),
+            id="membership-not-checked",
         ),
     ],
 )
@@ -387,7 +413,8 @@ def test_private_apache_member_is_gated_like_an_external_contributor():
     ("membership", "status"),
     [
         pytest.param((0, ""), CheckStatus.INFO, id="committer"),
-        pytest.param((1, ""), CheckStatus.FAIL, id="external"),
+        pytest.param(NOT_A_MEMBER, CheckStatus.FAIL, id="external"),
+        pytest.param((1, "", "HTTP 502: Bad Gateway"), CheckStatus.INFO, id="membership-not-checked"),
     ],
 )
 def test_fork_setup_matters_only_for_fork_ci(membership, status):

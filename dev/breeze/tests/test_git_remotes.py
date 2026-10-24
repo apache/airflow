@@ -50,6 +50,17 @@ from airflow_breeze.utils.git_remotes import (
         pytest.param(
             "ssh://git@github-personal:2222/apache/airflow.git", "apache/airflow", id="ssh-url-alias"
         ),
+        pytest.param(
+            "git@github.com-work:apache/airflow.git", "apache/airflow", id="ssh-github-com-suffixed-alias"
+        ),
+        pytest.param(
+            "ssh://git@github.com-work/apache/airflow.git",
+            "apache/airflow",
+            id="ssh-url-github-com-suffixed-alias",
+        ),
+        pytest.param(
+            "git@github.com-work.example:apache/airflow.git", None, id="ssh-dotted-github-com-prefix"
+        ),
         pytest.param("git@gitlab.com:someone/airflow.git", None, id="ssh-not-github"),
         pytest.param("git@github.corp.example:apache/airflow.git", None, id="ssh-github-enterprise-host"),
         pytest.param("https://gitlab.com/someone/airflow.git", None, id="not-github"),

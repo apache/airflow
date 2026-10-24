@@ -27,10 +27,11 @@ from airflow_breeze.utils.run_utils import run_command
 # Every form git and GitHub accept for a GitHub repository: http or https with optional
 # credentials, `www.` or a port, scp-like ssh and ssh URLs with an optional port. The host is
 # case-insensitive. An ssh host may also be an alias from ~/.ssh/config, such as
-# `git@github-personal:apache/airflow.git`: a host without a dot that names `github`. A dotted
-# host other than github.com, such as a GitHub Enterprise server, is a different GitHub. The
+# `git@github-personal:apache/airflow.git` (a host without a dot that names `github`) or
+# `git@github.com-work:apache/airflow.git` (github.com with an undotted `-` suffix). Any other dotted host,
+# such as a GitHub Enterprise server, is a different GitHub. The
 # repository must be the whole path, so `apache/airflow-site` never matches `apache/airflow`.
-_SSH_GITHUB_HOST = r"(?:(?:www\.)?github\.com|[^@\s/:.]*github[^@\s/:.]*)"
+_SSH_GITHUB_HOST = r"(?:(?:www\.)?github\.com(?:-[^@\s/:.]+)?|[^@\s/:.]*github[^@\s/:.]*)"
 GITHUB_REMOTE_URL = re.compile(
     r"^(?:https?://(?:[^@/]+@)?(?:www\.)?github\.com(?::\d+)?/"
     rf"|(?:[^@\s/:]+@)?{_SSH_GITHUB_HOST}:"

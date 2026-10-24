@@ -59,6 +59,7 @@ class Role(str, Enum):
     EXEMPTED = "exempted organisation member"
     PILOT = "fork CI pilot participant"
     EXTERNAL = "external contributor"
+    UNKNOWN = "contributor whose apache membership could not be checked"
 
 
 @dataclass(frozen=True)
@@ -95,8 +96,12 @@ def _is_not_found(result: subprocess.CompletedProcess) -> bool:
     return "404" in (result.stderr or "") or "Not Found" in (result.stderr or "")
 
 
-def is_public_apache_member(*, login: str, run: Runner) -> bool:
-    return _ok(run(["gh", "api", f"orgs/apache/public_members/{login}"]))
+def is_public_apache_member(*, login: str, run: Runner) -> bool | None:
+    """Whether ``login`` is a public apache member; None when the API call failed."""
+    result = run(["gh", "api", f"orgs/apache/public_members/{login}"])
+    if _ok(result):
+        return True
+    return False if _is_not_found(result) else None
 
 
 def is_private_apache_member(*, run: Runner) -> bool:
@@ -110,13 +115,16 @@ def get_role(*, login: str, run: Runner, config: GateConfig, collaborators: froz
         return Role.PILOT
     # The gate only sees public membership: GitHub reports a private member's pull requests as
     # `CONTRIBUTOR`, so they are gated like an external contributor's.
-    if is_public_apache_member(login=login, run=run):
+    public_member = is_public_apache_member(login=login, run=run)
+    if public_member:
         return Role.COMMITTER
     if login.casefold() in {c.casefold() for c in collaborators}:
         return Role.COLLABORATOR
     if config.is_allowlisted(login):
         return Role.EXEMPTED
-    return Role.EXTERNAL
+    # A failed call must not make a committer look external: the fixes would then turn on fork CI
+    # in their fork, and every push would run CI twice.
+    return Role.UNKNOWN if public_member is None else Role.EXTERNAL
 
 
 def fork_ci_required(role: Role, config: GateConfig) -> bool | None:
@@ -125,6 +133,8 @@ def fork_ci_required(role: Role, config: GateConfig) -> bool | None:
         return True
     if role == Role.EXTERNAL:
         return True if config.enabled else None
+    if role == Role.UNKNOWN:
+        return None
     return False
 
 
@@ -158,14 +168,19 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
     # apache/airflow clone without a fork is fine while their pull requests run project CI.
     role = get_role(login=login, run=run, config=config, collaborators=collaborators)
     required = fork_ci_required(role, config)
-    setup_status = CheckStatus.INFO if required is False else CheckStatus.FAIL
-    setup_note = "; only needed for fork CI, which your pull requests do not use" if required is False else ""
+    setup_status = CheckStatus.INFO if required is False or role == Role.UNKNOWN else CheckStatus.FAIL
+    if required is False:
+        setup_note = "; only needed for fork CI, which your pull requests do not use"
+    elif role == Role.UNKNOWN:
+        setup_note = "; only needed for fork CI, which committers do not use"
+    else:
+        setup_note = ""
 
     remotes = parse_remotes(_out(run(["git", "remote", "-v"])))
     upstream = find_remote(remotes, "upstream")
     apache = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
     origin = find_remote(remotes, "origin")
-    # Whether the remotes fix already adds `origin`, so the fork fix must not add it again.
+    # Whether the remotes fix already adds or repoints `origin`, so the fork fix must not add it again.
     adds_origin = False
     if (
         upstream is not None
@@ -182,6 +197,7 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                     (f"git remote set-url origin https://github.com/{login}/airflow.git",),
                 )
             )
+            adds_origin = True
         else:
             results.append(CheckResult(2, "remotes", CheckStatus.OK, "`upstream` is apache/airflow"))
     elif apache is not None and upstream is None:
@@ -329,7 +345,12 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                     5,
                     "fork workflows",
                     CheckStatus.INFO,
-                    f"`Tests (AMD)` is {state} in {fork}; fork CI is not required yet",
+                    f"`Tests (AMD)` is {state} in {fork}; "
+                    + (
+                        "whether you need fork CI depends on your apache membership"
+                        if role == Role.UNKNOWN
+                        else "fork CI is not required yet"
+                    ),
                 )
             )
         else:
