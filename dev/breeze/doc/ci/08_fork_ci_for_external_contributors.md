@@ -221,14 +221,16 @@ Consequences for the other components:
 
 - The gate job reads the pull request's labels live from the API (one read-only call) rather
   than from the event payload, so labelling a pull request and pressing "Re-run all jobs"
-  switches it without a new push.
+  switches it without a new push. The reconciler deletes gated runs (see "Gated project CI runs
+  are deleted"), so for a gated pull request closing and reopening it takes the place of the
+  re-run.
 - Discovery in the reconciler also picks up open pull requests carrying `use fork ci`
   without `fork ci required`, regardless of `enabled`.
 - A pull request carrying both `fork ci required` and `use project ci` is *released*: the
   reconciler removes `fork ci required`, undrafts it if the bot drafted it, edits the state
   comment to say project CI is in use, and posts a `success` status with the description
-  "Project CI in use (label `use project ci`)". Project CI then runs on the next push or
-  re-run.
+  "Project CI in use (label `use project ci`)". Project CI then runs on the next push, or when
+  a maintainer closes and reopens the pull request.
 - Both override labels on one pull request resolve to project CI and are reported to Slack as
   a conflict.
 
