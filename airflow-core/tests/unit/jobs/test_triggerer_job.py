@@ -104,6 +104,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetRenderedFields,
     ToSupervisor,
     ToTask,
     _RequestFrame,
@@ -4007,3 +4008,86 @@ async def test_trigger_event_payload_available_at_debug(cap_structlog):
         log.get("event") == "Trigger fired event payload" and log.get("result") == TriggerEvent(payload)
         for log in debug_logs
     ), "Full event payload must be logged at DEBUG level"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_start_from_trigger_task_records_its_rendered_fields(session, supervisor_builder, mocker):
+    """
+    A task that runs entirely in the triggerer still has its rendered fields recorded.
+
+    Driven through the supervisor and the serialized Dag, so the operator is the
+    ``SerializedBaseOperator`` production builds rather than an SDK one, and only the operator
+    fields carried in ``start_trigger_args.trigger_kwargs`` are recorded.
+    """
+    from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+    from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+
+    target_time = "{{ data_interval_end }}"
+    sensor = DateTimeSensorAsync(
+        task_id="test_ti",
+        target_time=target_time,
+        start_from_trigger=True,
+        end_from_trigger=True,
+    )
+    _, _, trigger_orm, _ = create_trigger_in_db(
+        session,
+        DateTimeTrigger(target_time=target_time, end_from_trigger=True),
+        operator=sensor,
+    )
+
+    supervisor = supervisor_builder()
+    runner = TriggerRunner()
+    runner.comms_decoder = InProcessTriggerComms(supervisor)
+
+    sent: list[Any] = []
+    deliver = runner.comms_decoder.asend
+
+    async def capture(msg):
+        sent.append(msg)
+        return await deliver(msg)
+
+    runner.comms_decoder.asend = capture
+
+    supervisor.load_triggers()
+    await runner.sync_state_to_supervisor(finished_ids=[])
+    await runner.create_triggers()
+    await asyncio.wait([runner.triggers[trigger_orm.id]["task"]], timeout=10)
+
+    recorded = [msg for msg in sent if isinstance(msg, SetRenderedFields)]
+    assert [msg.rendered_fields for msg in recorded] == [{"target_time": "2023-01-01 00:00:00+00:00"}]
+
+
+@pytest.mark.asyncio
+async def test_record_rendered_fields_skips_a_trigger_with_no_template_fields(mocker):
+    """A trigger the task passed no template fields to has nothing to record."""
+    runner = TriggerRunner()
+    runner.comms_decoder = mocker.AsyncMock()
+
+    await runner.record_rendered_fields(TimeDeltaTrigger(datetime.timedelta(days=1)))
+
+    runner.comms_decoder.asend.assert_not_awaited()
+
+
+def test_supervisor_records_rendered_fields_for_the_handled_trigger(jobless_supervisor, mocker):
+    """The supervisor records the fields against the task instance whose trigger sent them."""
+    from airflow.jobs.triggerer_job_runner import _handling_trigger_ti_id
+
+    jobless_supervisor.client = mocker.MagicMock(spec=Client)
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
+    ti_id = uuid.uuid4()
+
+    token = _handling_trigger_ti_id.set(ti_id)
+    try:
+        jobless_supervisor._handle_request(
+            SetRenderedFields(rendered_fields={"target_time": "2026-01-01"}),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=7,
+        )
+    finally:
+        _handling_trigger_ti_id.reset(token)
+
+    jobless_supervisor.client.task_instances.set_rtif.assert_called_once_with(
+        ti_id, {"target_time": "2026-01-01"}
+    )
+    jobless_supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)

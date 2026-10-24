@@ -96,6 +96,7 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetRenderedFields,
     SetXCom,
     TaskStatesResult,
     TICount,
@@ -433,6 +434,7 @@ ToTriggerSupervisor = Annotated[
     | GetAssetStateStoreByUri
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
+    | SetRenderedFields
     | GetDagRunState
     | GetDRCount
     | GetPreviousTI
@@ -721,6 +723,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = OKResponse(ok=True)
         elif isinstance(msg, SetAssetStateStoreByUri):
             handle_set_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetRenderedFields):
+            # Sent only by a task that starts from the triggerer, so the fields belong to the
+            # task instance whose trigger the runner was handling when it sent the request.
+            if (ti_id := _handling_trigger_ti_id.get()) is not None:
+                self.client.task_instances.set_rtif(ti_id, msg.rendered_fields)
             resp = OKResponse(ok=True)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
@@ -1467,6 +1475,34 @@ class TriggerRunner:
             ),
         )
 
+    async def record_rendered_fields(self, trigger: BaseTrigger) -> None:
+        """
+        Record the template fields a task that starts from the triggerer renders here.
+
+        Such a task never starts in a worker, so nothing else records its rendered fields and the
+        Rendered Templates tab stays empty for the whole run. Only the operator fields that
+        ``start_trigger_args.trigger_kwargs`` carries reach the triggerer, and those are exactly
+        the ones ``BaseTrigger`` renders, so those are what this records. Rendering the rest would
+        need the Dag file, which the triggerer deliberately does not load.
+
+        Call this after ``trigger.render_template_fields()``, so the values are the rendered ones.
+        """
+        # Reused rather than reimplemented so core cannot drift from the redaction the worker applies.
+        from airflow.sdk.execution_time.task_runner import _serialize_rendered_fields  # noqa: SDK001
+
+        if not trigger.template_fields:
+            return
+
+        try:
+            rendered_fields = _serialize_rendered_fields(trigger)  # type: ignore[arg-type]
+        except Exception:
+            # A trigger that cannot be serialized still has work to do, so let it run.
+            self.log.exception("Failed to record rendered template fields", task_id=trigger.task_id)
+            return
+
+        if rendered_fields:
+            await self.comms_decoder.asend(SetRenderedFields(rendered_fields=rendered_fields))
+
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         # Emit batch creation duration only when triggers were processed.
@@ -1771,6 +1807,9 @@ class TriggerRunner:
             try:
                 if context is not None:
                     trigger.render_template_fields(context=context)
+                    # Only a task that starts from the triggerer is given a context, and it is the
+                    # one whose rendered fields nothing else records.
+                    await self.record_rendered_fields(trigger)
 
                 if event_trigger is not None:
                     try:
