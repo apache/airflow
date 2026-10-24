@@ -127,8 +127,18 @@ def test_dry_run_does_not_mutate(mock_run):
 
     client.close(1)
     client.remove_label(1, "fork ci required")
+    client.delete_run(1, 7)
 
     mock_run.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_delete_run(mock_run):
+    mock_run.return_value = _completed()
+
+    GitHubClient().delete_run(1, 7)
+
+    assert mock_run.call_args.args[0] == ["gh", "api", "-X", "DELETE", "repos/apache/airflow/actions/runs/7"]
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
