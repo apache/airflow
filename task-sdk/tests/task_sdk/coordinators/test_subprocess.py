@@ -230,18 +230,18 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            with pytest.raises(TimeoutError, match="did not connect within timeout"):
+            with pytest.raises(TaskLaunchError, match="^The runtime did not connect within 0.05 seconds$"):
                 _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
         finally:
             server.close()
 
-    def test_raises_runtime_error_if_process_exits_before_connecting(self):
+    def test_raises_launch_error_if_process_exits_before_connecting(self):
         server = _start_server()
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = 1
         mock_proc.returncode = 1
         try:
-            with pytest.raises(RuntimeError, match="process exited with 1"):
+            with pytest.raises(TaskLaunchError, match="^The runtime exited with 1 before connecting$"):
                 _accept_connections({"comm": server}, {}, mock_proc)
         finally:
             server.close()
@@ -364,7 +364,7 @@ class TestConnectionFromProcess:
         ``::ffff:127.0.0.1`` in ``/proc/net/tcp6``. The AF_INET supervisor socket's
         ``getpeername()`` reports plain ``127.0.0.1``, so the ownership check must
         treat the mapped and plain forms as the same address -- otherwise every
-        Java task is rejected with "process exited with 1 before connecting".
+        Java task is rejected with "The runtime exited with 1 before connecting".
         """
         server = _start_server()
         _, port = server.getsockname()
@@ -1501,6 +1501,73 @@ class TestExecuteTaskLaunchFailure:
         assert output in str(raised.value)
         mock_client.task_instances.start.assert_not_called()
 
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_with_a_retry_when_the_runtime_cannot_be_executed(self, mock_client):
+        coordinator = _StubSubprocessCoordinator(command=["/nonexistent/runtime"])
+
+        with pytest.raises(
+            TaskLaunchError, match=r"^The runtime cannot start: .*'/nonexistent/runtime'$"
+        ) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert isinstance(raised.value.__cause__, FileNotFoundError)
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    def test_fails_with_a_retry_for_a_schema_version_the_worker_does_not_support(
+        self, mock_accept, _, mock_client
+    ):
+        mock_accept.side_effect = _connect_without_output
+        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"], schema_version="1999-01-01")
+
+        with pytest.raises(TaskLaunchError, match=r"^The runtime cannot start: .*1999-01-01") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @patch.object(
+        ActivitySubprocess, "_on_child_started", autospec=True, side_effect=RuntimeError("API unreachable")
+    )
+    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    def test_does_not_turn_a_failure_after_the_launch_into_a_launch_error(
+        self, mock_accept, _, __, mock_client
+    ):
+        mock_accept.side_effect = _connect_without_output
+        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"])
+
+        with pytest.raises(RuntimeError, match="^API unreachable$"):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+
+def _connect_without_output(servers, drains, proc, **kwargs):
+    """Stand in for _accept_connections when the runtime connects without writing anything."""
+    accepted = {server: MagicMock(spec=socket.socket) for server in servers.values()}
+    return accepted, {soc: b"" for soc in drains.values()}
+
 
 class TestExecuteTaskBundleWiring:
     """execute_task passes the task bundle, forwards resolved roots, and holds the version lock."""
@@ -1956,7 +2023,7 @@ class TestGetScanRoots:
     def test_execute_task_is_not_reentrant(self, mock_client, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
         with coordinator._set_scan_roots([tmp_path]):
-            with pytest.raises(RuntimeError, match="not re-entrant"):
+            with pytest.raises(TaskLaunchError, match="not re-entrant") as raised:
                 coordinator.execute_task(
                     what=_make_ti(),
                     dag_rel_path="dag.py",
@@ -1964,6 +2031,7 @@ class TestGetScanRoots:
                     client=mock_client,
                     subprocess_logs_to_stdout=False,
                 )
+        assert isinstance(raised.value.__cause__, RuntimeError)
 
 
 @attrs.define(kw_only=True)

@@ -64,7 +64,7 @@ from airflow.sdk.execution_time.supervisor import (
 
 if TYPE_CHECKING:
     import pathlib
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Generator, Sequence
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger
@@ -100,7 +100,7 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
     #   * IPv4-mapped     "::ffff:127.0.0.1" -> "127.0.0.1"  (Linux, via /proc/net/tcp6)
     #   * IPv4-compatible "::127.0.0.1"      -> "127.0.0.1"  (macOS, via psutil)
     # Otherwise the JVM's connection fails the check and every Java task is rejected with
-    # "process exited with 1 before connecting".
+    # "The runtime exited with 1 before connecting".
     try:
         parsed = ipaddress.ip_address(host)
     except ValueError:
@@ -224,6 +224,48 @@ def _kill_leftover_group(pid: int) -> None:
         os.killpg(pid, signal.SIGKILL)
 
 
+# The tail of each stream is kept: a runtime that fails to start reports why at the end.
+_STARTUP_OUTPUT_LIMIT = 4096
+
+
+def _read_available(soc: socket.socket, drain_size: int) -> bytes:
+    """Return the data *soc* holds now, without waiting for more from a process that may still run."""
+    soc.setblocking(False)
+    chunks = []
+    with contextlib.suppress(BlockingIOError, OSError):
+        while chunk := soc.recv(drain_size):
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _build_launch_error(
+    reason: str, drains: dict[str, socket.socket], drained: dict[socket.socket, bytes], drain_size: int
+) -> TaskLaunchError:
+    """Build the error for a runtime that did not connect, with the output it wrote before that."""
+    message = f"The runtime {reason}"
+    for key, soc in drains.items():
+        output = drained[soc] + _read_available(soc, drain_size)
+        if text := output[-_STARTUP_OUTPUT_LIMIT:].decode(errors="replace").strip():
+            message += f"\n{key}:\n{text}"
+    return TaskLaunchError(message)
+
+
+@contextlib.contextmanager
+def _raise_as_launch_error(prefix: str) -> Generator[None, None, None]:
+    """
+    Raise a failure in the block as a TaskLaunchError, so the supervisor fails the task with its reason.
+
+    Use it only before the task instance is started: the supervisor starts the task instance itself
+    when it fails one with a TaskLaunchError. A TaskLaunchError raised in the block is kept as it is.
+    """
+    try:
+        yield
+    except TaskLaunchError:
+        raise
+    except Exception as e:
+        raise TaskLaunchError(f"{prefix}: {e}") from e
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
@@ -232,7 +274,12 @@ def _accept_connections(
     max_wait: float = 10.0,
     drain_size: int = 4096,
 ) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
-    """Block until the subprocess connects to servers, draining stdout/stderr along the way."""
+    """
+    Block until the subprocess connects to servers, draining stdout/stderr along the way.
+
+    :raises TaskLaunchError: when the subprocess exits or *max_wait* elapses before it connects. The
+        message includes what the subprocess wrote to the *drains* until then.
+    """
     accepted: dict[socket.socket, socket.socket] = {}
     drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
     with selectors.DefaultSelector() as sel:
@@ -244,11 +291,15 @@ def _accept_connections(
             if remaining <= 0:
                 for s in accepted.values():
                     s.close()
-                raise TimeoutError("process did not connect within timeout")
+                raise _build_launch_error(
+                    f"did not connect within {max_wait} seconds", drains, drained, drain_size
+                )
             if proc.poll() is not None:
                 for s in accepted.values():
                     s.close()
-                raise RuntimeError(f"process exited with {proc.returncode} before connecting")
+                raise _build_launch_error(
+                    f"exited with {proc.returncode} before connecting", drains, drained, drain_size
+                )
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
                 soc = cast("socket.socket", event.fileobj)
                 if soc in drained:
@@ -373,56 +424,57 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         **kwargs,
     ) -> Self:
         with _ResourceTracker(timeout=startup_timeout) as tracker:
-            comm_server, logs_server = tracker.track(_start_server(), _start_server())
-            stdout_r, stdout_w = tracker.track(*socket.socketpair())
-            stderr_r, stderr_w = tracker.track(*socket.socketpair())
+            with _raise_as_launch_error("The runtime cannot start"):
+                comm_server, logs_server = tracker.track(_start_server(), _start_server())
+                stdout_r, stdout_w = tracker.track(*socket.socketpair())
+                stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-            proc = subprocess.Popen(
-                [
-                    *command,
-                    "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
-                    "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
-                ],
-                stdout=stdout_w.fileno(),
-                stderr=stderr_w.fileno(),
-                env=_build_runtime_env(),
-                # Own process group, so the supervisor can signal everything the runtime
-                # spawned with os.killpg, as the Python task runner has done since #65505.
-                # Popen returns after exec, so the group exists before kill().
-                # Must agree with new_process_group=True below.
-                process_group=0,
-            )
-            tracker.track(proc)
-            for soc in tracker.untrack(stdout_w, stderr_w):
-                soc.close()
-            log.info("Starting subprocess", pid=proc.pid)
+                proc = subprocess.Popen(
+                    [
+                        *command,
+                        "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
+                        "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
+                    ],
+                    stdout=stdout_w.fileno(),
+                    stderr=stderr_w.fileno(),
+                    env=_build_runtime_env(),
+                    # Own process group, so the supervisor can signal everything the runtime
+                    # spawned with os.killpg, as the Python task runner has done since #65505.
+                    # Popen returns after exec, so the group exists before kill().
+                    # Must agree with new_process_group=True below.
+                    process_group=0,
+                )
+                tracker.track(proc)
+                for soc in tracker.untrack(stdout_w, stderr_w):
+                    soc.close()
+                log.info("Starting subprocess", pid=proc.pid)
 
-            socks, drained = _accept_connections(
-                {"comm": comm_server, "logs": logs_server},
-                {"stdout": stdout_r, "stderr": stderr_r},
-                proc,
-                max_wait=startup_timeout,
-            )
-            tracker.track(*socks.values())
+                socks, drained = _accept_connections(
+                    {"comm": comm_server, "logs": logs_server},
+                    {"stdout": stdout_r, "stderr": stderr_r},
+                    proc,
+                    max_wait=startup_timeout,
+                )
+                tracker.track(*socks.values())
 
-            self = cls(
-                id=what.id,
-                pid=proc.pid,
-                process=PopenTracker(proc),
-                process_log=logger or structlog.get_logger(logger_name="task").bind(),
-                start_time=time.monotonic(),
-                stdin=socks[comm_server],
-                subprocess_schema_version=subprocess_schema_version,
-                # The supervisor signals the group; must agree with process_group=0 above.
-                new_process_group=True,
-                comm_server=comm_server,
-                logs_server=logs_server,
-                **kwargs,
-            )
-            self._register_pipe_readers(
-                *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
-                data=drained,
-            )
+                self = cls(
+                    id=what.id,
+                    pid=proc.pid,
+                    process=PopenTracker(proc),
+                    process_log=logger or structlog.get_logger(logger_name="task").bind(),
+                    start_time=time.monotonic(),
+                    stdin=socks[comm_server],
+                    subprocess_schema_version=subprocess_schema_version,
+                    # The supervisor signals the group; must agree with process_group=0 above.
+                    new_process_group=True,
+                    comm_server=comm_server,
+                    logs_server=logs_server,
+                    **kwargs,
+                )
+                self._register_pipe_readers(
+                    *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
+                    data=drained,
+                )
             self._on_child_started(
                 ti=what,
                 dag_rel_path=dag_rel_path,
@@ -809,28 +861,32 @@ class SubprocessCoordinator(BaseCoordinator):
         read other files of the bundle, such as the JARs on a Java classpath. Any other task runs the
         artifact found by scanning the bundle that holds the artifacts.
 
-        :raises TaskLaunchError: when a native Dag file cannot run, before the runtime starts.
+        :raises TaskLaunchError: when the runtime cannot start: a native Dag file cannot run, the
+            artifact of any other task cannot be found or run, or the runtime exits or times out
+            before it connects.
         """
         task_logger = logger or log
         rel_path = os.fspath(dag_rel_path)
-        is_native = self._is_native_dag_file(rel_path, bundle_info.name)
-        if is_native:
-            bundle = _resolve_task_bundle(bundle_info, task_logger)
-        else:
-            bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
-        # Hold the version lock across start()/wait() so bundle cleanup cannot
-        # rmtree a version this task is still reading from, mirroring
-        # task_runner.main() for the Python task path.
-        with (
-            BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
-            self._set_scan_roots([bundle.path]),
-        ):
-            if is_native:
-                command, subprocess_schema_version = self._build_native_task_command(
-                    what=what, bundle=bundle, rel_path=rel_path
-                )
-            else:
-                command, subprocess_schema_version = self._build_execute_task_command(what=what)
+        with contextlib.ExitStack() as stack:
+            with _raise_as_launch_error(
+                f"Cannot prepare the runtime of task {what.task_id!r} in Dag {what.dag_id!r}"
+            ):
+                is_native = self._is_native_dag_file(rel_path, bundle_info.name)
+                if is_native:
+                    bundle = _resolve_task_bundle(bundle_info, task_logger)
+                else:
+                    bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
+                # Hold the version lock across start()/wait() so bundle cleanup cannot
+                # rmtree a version this task is still reading from, mirroring
+                # task_runner.main() for the Python task path.
+                stack.enter_context(BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version))
+                stack.enter_context(self._set_scan_roots([bundle.path]))
+                if is_native:
+                    command, subprocess_schema_version = self._build_native_task_command(
+                        what=what, bundle=bundle, rel_path=rel_path
+                    )
+                else:
+                    command, subprocess_schema_version = self._build_execute_task_command(what=what)
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,
