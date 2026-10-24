@@ -29,7 +29,8 @@ import selectors
 import signal
 import sys
 import time
-from collections import OrderedDict, defaultdict
+from collections import Counter, OrderedDict, defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -52,16 +53,18 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
+    DagBundleRefreshError,
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import is_source_discovery_failed, update_dag_parsing_results_in_db
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    DagParseSource,
 )
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
@@ -147,6 +150,14 @@ class DagFileInfo:
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
         return normalize_name_for_stats(str(self.rel_path), log_warning=False)
+
+
+@dataclass(frozen=True)
+class DagBundleDiscoveryResult:
+    """Files and failed sources observed in one bundle listing."""
+
+    files: set[DagFileInfo]
+    failed_sources: frozenset[str] = frozenset()
 
 
 def _config_int_factory(section: str, key: str):
@@ -249,13 +260,21 @@ class DagFileProcessorManager(LoggingMixin):
     """An overridable heartbeat called once every time around the loop"""
 
     _file_queue: OrderedDict[DagFileInfo, None] = attrs.field(factory=OrderedDict, init=False)
+    _priority_files: set[DagFileInfo] = attrs.field(factory=set, init=False)
+    _files_awaiting_source: dict[DagFileInfo, None] = attrs.field(factory=dict, init=False)
+    """Files deferred while other bundles continue to refill the dispatch queue."""
+    _reported_waiting_bundles: set[str] = attrs.field(factory=set, init=False)
     _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
     )
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
-    _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
+    _bundle_parse_sources: dict[str, DagParseSource] = attrs.field(factory=dict, init=False)
+    _bundle_refresh_generations: dict[str, int] = attrs.field(factory=lambda: defaultdict(int), init=False)
+    _bundles_waiting_for_refresh: set[str] = attrs.field(factory=set, init=False)
+    _bundles_needing_refresh: set[str] = attrs.field(factory=set, init=False)
+    _bundle_failed_sources: dict[str, frozenset[str]] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
@@ -581,6 +600,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._queue_requested_files_for_parsing()
 
+            self._service_processor_sockets(timeout=0)
+            self._collect_results()
             self._refresh_dag_bundles(known_files=known_files)
 
             if not self._file_queue:
@@ -877,6 +898,11 @@ class DagFileProcessorManager(LoggingMixin):
         """
         DagWarning.purge_inactive_dag_warnings()
 
+    def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
+        # Initialization or refresh may change files even when the provider raises afterwards.
+        self._bundle_refresh_generations[bundle_name] += 1
+        self._bundle_parse_sources.pop(bundle_name, None)
+
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
@@ -884,20 +910,27 @@ class DagFileProcessorManager(LoggingMixin):
         # we don't need to check if it's time to refresh every loop - that is way too often
         next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
         now_seconds = time.monotonic()
-        if now_seconds < next_check and not self._force_refresh_bundles:
+        periodic_check_due = now_seconds >= next_check
+        urgent_bundles = self._force_refresh_bundles | self._bundles_waiting_for_refresh
+        if not periodic_check_due and not urgent_bundles:
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
                 next_check - now_seconds,
             )
             return
 
-        self._bundles_last_refreshed = now_seconds
+        if periodic_check_due:
+            self._bundles_last_refreshed = now_seconds
 
         any_refreshed = False
+        active_bundles = {file.bundle_name for file in self._processors if file.bundle_version is None}
         for bundle in self._dag_bundles:
+            if not periodic_check_due and bundle.name not in urgent_bundles:
+                continue
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
+                self._invalidate_bundle_parse_source(bundle.name)
                 try:
                     bundle.initialize()
                     any_refreshed = True
@@ -926,33 +959,76 @@ class DagFileProcessorManager(LoggingMixin):
                 current_version_matches_db = True
 
             previously_seen = bundle.name in self._bundle_versions
-            if self.should_skip_refresh(
-                bundle=bundle,
-                elapsed_time_since_refresh=elapsed_time_since_refresh,
-                current_version_matches_db=current_version_matches_db,
-                previously_seen=previously_seen,
+            if (
+                bundle.name not in self._bundles_waiting_for_refresh
+                and bundle.name not in self._bundles_needing_refresh
+                and bundle.name in self._bundle_parse_sources
+                and self.should_skip_refresh(
+                    bundle=bundle,
+                    elapsed_time_since_refresh=elapsed_time_since_refresh,
+                    current_version_matches_db=current_version_matches_db,
+                    previously_seen=previously_seen,
+                )
             ):
                 self.log.debug("Not time to refresh bundle %s", bundle.name)
                 continue
 
+            if bundle.refresh_changes_source and bundle.name in active_bundles:
+                # Forced refreshes wait too: refreshing under an import would discard its result.
+                self._bundles_waiting_for_refresh.add(bundle.name)
+                continue
+
+            self._bundles_waiting_for_refresh.discard(bundle.name)
             self.log.info("Refreshing bundle %s", bundle.name)
 
+            previous_source = self._bundle_parse_sources.get(bundle.name)
+            if bundle.refresh_changes_source:
+                self._invalidate_bundle_parse_source(bundle.name)
             try:
                 bundle.refresh()
                 any_refreshed = True
-            except Exception:
+            except Exception as error:
                 self.log.exception("Error refreshing bundle %s", bundle.name)
+                source_unchanged = not bundle.refresh_changes_source or (
+                    isinstance(error, DagBundleRefreshError) and error.source_unchanged
+                )
+                if source_unchanged and previous_source is not None:
+                    self._bundle_parse_sources[bundle.name] = attrs.evolve(
+                        previous_source,
+                        refresh_generation=self._bundle_refresh_generations[bundle.name],
+                    )
+                    self._force_refresh_bundles.discard(bundle.name)
+                    if bundle.name not in self._bundles_needing_refresh:
+                        self.log.warning(
+                            "Refresh failed without changing the source; continuing to parse bundle",
+                            bundle_name=bundle.name,
+                        )
+                elif previous_source is not None or bundle.name not in self._bundles_needing_refresh:
+                    self.log.warning("Parsing paused until bundle refresh succeeds", bundle_name=bundle.name)
+                self._bundles_needing_refresh.add(bundle.name)
                 continue
 
+            self._bundles_needing_refresh.discard(bundle.name)
             self._force_refresh_bundles.discard(bundle.name)
+
+            if bundle.supports_versioning:
+                version_after_refresh, version_data_after_refresh = unpack_bundle_version(
+                    bundle.get_current_version(), bundle
+                )
+            else:
+                version_after_refresh = None
+                version_data_after_refresh = None
+
+            self._bundle_parse_sources[bundle.name] = DagParseSource(
+                bundle_version=version_after_refresh,
+                version_data=deepcopy(version_data_after_refresh),
+                refresh_generation=self._bundle_refresh_generations[bundle.name],
+            )
 
             if bundle.supports_versioning:
                 # We can short-circuit the rest of this if (1) bundle was seen before by
                 # this dag processor and (2) the version of the bundle did not change
                 # after refreshing it
-                version_after_refresh, version_data_after_refresh = unpack_bundle_version(
-                    bundle.get_current_version(), bundle
-                )
                 if previously_seen and pre_refresh_version == version_after_refresh:
                     self.log.debug(
                         "Bundle %s version not changed after refresh: %s",
@@ -966,12 +1042,8 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
 
                 self.log.info("Version changed for %s, new version: %s", bundle.name, version_after_refresh)
-            else:
-                version_after_refresh = None
-                version_data_after_refresh = None
-
             try:
-                found_files = self._find_files_in_bundle(bundle)
+                discovery = self._find_files_in_bundle(bundle)
             except Exception:
                 # Keep the bundle's known files and Dags, and leave its version unadvanced so the
                 # next refresh lists it again.
@@ -986,14 +1058,16 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception("Error persisting state for bundle %s", bundle.name)
             else:
                 self._bundle_versions[bundle.name] = version_after_refresh
-                self._bundle_version_data[bundle.name] = version_data_after_refresh
 
+            found_files = discovery.files
+            self._bundle_failed_sources[bundle.name] = discovery.failed_sources
             known_files[bundle.name] = found_files
 
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
                 observed_filelocs=self._get_observed_filelocs(found_files),
+                failed_sources=discovery.failed_sources,
             )
 
         if any_refreshed:
@@ -1003,7 +1077,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
 
-    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> set[DagFileInfo]:
+    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> DagBundleDiscoveryResult:
         """
         List the files to parse in a bundle through its importers.
 
@@ -1012,6 +1086,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info("Searching for Dag definitions in %s at %s", bundle.name, bundle.path)
         registry = get_importer_registry(bundle.name)
         definition_locs: defaultdict[Path, set[str]] = defaultdict(set)
+        failed_sources: set[str] = set()
         for _, item in registry.list_dag_definitions(bundle, safe_mode=self.dag_discovery_safe_mode):
             if isinstance(item, DagImportError):
                 # Importers report a source either absolutely or relative to the bundle.
@@ -1030,13 +1105,15 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 continue
             definition_locs[path.relative_to(bundle.path)].add(rel_fileloc)
+            if isinstance(item, DagImportError):
+                failed_sources.add(rel_fileloc)
         self.log.info(
             "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
             len(definition_locs),
             bundle.name,
             self.dag_discovery_safe_mode,
         )
-        return {
+        files = {
             DagFileInfo(
                 rel_path=rel_path,
                 bundle_name=bundle.name,
@@ -1045,6 +1122,7 @@ class DagFileProcessorManager(LoggingMixin):
             )
             for rel_path, locs in definition_locs.items()
         }
+        return DagBundleDiscoveryResult(files=files, failed_sources=frozenset(failed_sources))
 
     @staticmethod
     def _get_observed_filelocs(present: set[DagFileInfo]) -> set[str]:
@@ -1052,11 +1130,26 @@ class DagFileProcessorManager(LoggingMixin):
         return {loc for file in present for loc in (str(file.rel_path), *file.definition_locs)}
 
     def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-        """Deactivate DAGs that come from files that are no longer present in bundle."""
+        """
+        Deactivate Dags whose files are no longer present in the bundle.
+
+        Failed discovery does not prove deletion; later import failures and stale-Dag checks still apply.
+        """
         observed_filelocs = self._get_observed_filelocs(present)
+        failed_sources = self._bundle_failed_sources.get(bundle_name, frozenset())
         with create_session() as session:
             try:
                 with with_db_lock_timeout(session=session, lock_timeout=30):
+                    if failed_sources:
+                        observed_filelocs.update(
+                            loc
+                            for loc in session.scalars(
+                                select(DagModel.relative_fileloc).where(
+                                    DagModel.bundle_name == bundle_name,
+                                )
+                            )
+                            if loc is not None and is_source_discovery_failed(loc, failed_sources)
+                        )
                     any_deactivated = DagModel.deactivate_deleted_dags(
                         bundle_name=bundle_name,
                         rel_filelocs=observed_filelocs,
@@ -1087,11 +1180,17 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def clear_orphaned_import_errors(
-        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
+        self,
+        bundle_name: str,
+        observed_filelocs: set[str],
+        *,
+        failed_sources: Collection[str] = (),
+        session: Session = NEW_SESSION,
     ):
         """
         Clear import errors for files that no longer exist.
 
+        :param failed_sources: bundle-relative sources whose discovery failed, preserving descendant errors
         :param session: session for ORM operations
         """
         self.log.debug("Removing old import errors")
@@ -1102,7 +1201,9 @@ class DagFileProcessorManager(LoggingMixin):
                 .options(load_only(ParseImportError.filename))
             )
             for error in errors:
-                if error.filename not in observed_filelocs:
+                if error.filename not in observed_filelocs and not is_source_discovery_failed(
+                    error.filename, failed_sources
+                ):
                     session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")
@@ -1249,7 +1350,12 @@ class DagFileProcessorManager(LoggingMixin):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
         self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
+        self._files_awaiting_source = {
+            file: None for file in self._files_awaiting_source if file.presence_key in present_keys
+        }
+        self._priority_files = {file for file in self._priority_files if file.presence_key in present_keys}
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+        self._record_files_awaiting_source()
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
@@ -1316,9 +1422,24 @@ class DagFileProcessorManager(LoggingMixin):
         if is_callback_only:
             self.log.debug("Detected callback-only processing for %s", file)
 
+        team_name = self._get_team_name(file.bundle_name)
+        if (
+            not is_callback_only
+            and proc.parse_source.refresh_generation
+            != self._bundle_refresh_generations.get(file.bundle_name, 0)
+        ):
+            self.log.info("Discarding parse of %s after its bundle refreshed; requeuing", file.rel_path)
+            stats.incr(
+                "dag_processing.results_discarded_on_refresh",
+                tags=prune_dict(
+                    {"bundle_name": normalize_name_for_stats(file.bundle_name), "team_name": team_name}
+                ),
+            )
+            self._add_files_to_queue([file], mode="front")
+            return
+
         run_duration = time.monotonic() - proc.start_time
         finish_time = timezone.utcnow()
-        team_name = self._get_team_name(file.bundle_name)
         next_stat = process_parse_results(
             run_duration=run_duration,
             finish_time=finish_time,
@@ -1334,8 +1455,12 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
-                    bundle_version=self._bundle_versions[file.bundle_name],
-                    version_data=self._bundle_version_data.get(file.bundle_name),
+                    bundle_version=proc.parse_source.bundle_version,
+                    version_data=(
+                        dict(proc.parse_source.version_data)
+                        if proc.parse_source.version_data is not None
+                        else None
+                    ),
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
@@ -1474,9 +1599,13 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> BaseDagFileProcessorProcess:
+    def _create_process(
+        self, dag_file: DagFileInfo, *, source: DagParseSource | None = None
+    ) -> BaseDagFileProcessorProcess:
         id = uuid7()
 
+        if source is None:
+            source = self._get_dispatch_source(dag_file) or DagParseSource()
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
@@ -1493,6 +1622,7 @@ class DagFileProcessorManager(LoggingMixin):
                 logger_filehandle=logger_filehandle,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                 client=self.client,
+                parse_source=source,
             )
 
         return DagFileProcessorProcess.start(
@@ -1507,19 +1637,70 @@ class DagFileProcessorManager(LoggingMixin):
             logger_filehandle=logger_filehandle,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             client=self.client,
+            parse_source=source,
         )
+
+    def _get_dispatch_source(self, file: DagFileInfo) -> DagParseSource | None:
+        if file in self._callback_to_execute and (
+            file.bundle_version is not None or file.bundle_name not in self._bundles_waiting_for_refresh
+        ):
+            # Callbacks can run after refresh failures, but pending refreshes must drain unversioned callbacks.
+            return DagParseSource.for_callback(file.bundle_version)
+        if (
+            file.bundle_name in self._bundles_waiting_for_refresh
+            or file.bundle_name in self._force_refresh_bundles
+            or (file in self._priority_files and file.bundle_name in self._bundles_needing_refresh)
+        ):
+            return None
+        return self._bundle_parse_sources.get(file.bundle_name)
+
+    def _readmit_files_with_source(self) -> None:
+        ready = [file for file in self._files_awaiting_source if self._get_dispatch_source(file) is not None]
+        if not ready:
+            return
+        for file in ready:
+            del self._files_awaiting_source[file]
+
+        queued_first = dict.fromkeys([*self._file_queue, *ready])
+        restored_first = dict.fromkeys([*ready, *self._file_queue])
+        callbacks = [file for file in queued_first if file in self._callback_to_execute]
+        priority = [
+            file
+            for file in queued_first
+            if file in self._priority_files and file not in self._callback_to_execute
+        ]
+        regular = [
+            file
+            for file in restored_first
+            if file not in self._priority_files and file not in self._callback_to_execute
+        ]
+        self._file_queue.clear()
+        self._add_files_to_queue(callbacks + priority + regular, mode="back")
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
+        self._readmit_files_with_source()
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
 
         while self._parallelism > len(self._processors) and self._file_queue:
             file, _ = self._file_queue.popitem(last=False)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors:
+                if file in self._priority_files:
+                    self._files_awaiting_source[file] = None
                 continue
 
-            processor = self._create_process(file)
+            source = self._get_dispatch_source(file)
+            if source is None:
+                self._files_awaiting_source[file] = None
+                continue
+            has_callbacks = file in self._callback_to_execute
+            processor = self._create_process(file, source=source)
+            if has_callbacks and file in self._priority_files:
+                # Callback execution cannot satisfy a request for a fresh ordinary parse.
+                self._files_awaiting_source[file] = None
+            else:
+                self._priority_files.discard(file)
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(
@@ -1533,7 +1714,19 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
             self._processors[file] = processor
-            stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+        stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+        self._record_files_awaiting_source()
+
+    def _record_files_awaiting_source(self) -> None:
+        stats.gauge("dag_processing.files_awaiting_source", len(self._files_awaiting_source))
+        counts = Counter(file.bundle_name for file in self._files_awaiting_source)
+        for bundle_name in counts.keys() | self._reported_waiting_bundles:
+            stats.gauge(
+                "dag_processing.files_awaiting_source_by_bundle",
+                counts[bundle_name],
+                tags={"bundle_name": normalize_name_for_stats(bundle_name)},
+            )
+        self._reported_waiting_bundles = set(counts)
 
     def _add_new_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
         """
@@ -1545,6 +1738,7 @@ class DagFileProcessorManager(LoggingMixin):
         tracked_presence_keys = {file.presence_key for file in self._file_queue}
         tracked_presence_keys.update(file.presence_key for file in self._file_stats)
         tracked_presence_keys.update(file.presence_key for file in self._processors)
+        tracked_presence_keys.update(file.presence_key for file in self._files_awaiting_source)
         for files in known_files.values():
             for file in files:
                 if file.presence_key not in tracked_presence_keys:
@@ -1590,6 +1784,7 @@ class DagFileProcessorManager(LoggingMixin):
                     changed_recently.add(file)
             except FileNotFoundError:
                 self.log.warning("Skipping processing of missing file: %s", file)
+                self._priority_files.discard(file)
                 stats_to_remove = [
                     tracked_file
                     for tracked_file in self._file_stats
@@ -1624,9 +1819,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         Note this method is only called when the file path queue is empty
         """
-        # We only emit metrics after processing all files in the queue. If `self._parsing_start_time` is None
-        # when this method is called, no files have yet been added to the queue so we shouldn't emit metrics.
-        if self._parsing_start_time is not None:
+        # Deferred files are still part of this queue cycle even while other bundles refill the queue.
+        if self._parsing_start_time is not None and not self._file_queue and not self._files_awaiting_source:
             emit_metrics(
                 parse_time=time.perf_counter() - self._parsing_start_time,
                 dag_file_stats=list(self._file_stats.values()),
@@ -1636,6 +1830,7 @@ class DagFileProcessorManager(LoggingMixin):
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
+        in_progress_keys.update(file.presence_key for file in self._files_awaiting_source)
         file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         now = timezone.utcnow()
 
@@ -1664,7 +1859,7 @@ class DagFileProcessorManager(LoggingMixin):
         at_run_limit_keys = {
             presence_key
             for presence_key, stat in file_stats_by_presence_key.items()
-            if stat.run_count == self.max_runs
+            if self.max_runs != -1 and stat.run_count >= self.max_runs
         }
         to_exclude = in_progress_keys.union(at_run_limit_keys)
 
@@ -1760,6 +1955,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Add stuff to the back or front of the file queue, unless it's already present."""
         if mode == "frontprio":
             for file in files:
+                self._priority_files.add(file)
                 self._file_queue.pop(file, None)
                 self._file_queue[file] = None
                 self._file_queue.move_to_end(file, last=False)
@@ -1783,10 +1979,23 @@ class DagFileProcessorManager(LoggingMixin):
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def max_runs_reached(self):
-        """:return: whether all file paths have been processed max_runs times."""
+        """
+        Whether every file has been parsed *max_runs* times.
+
+        A file that is still queued, waiting for its bundle source, or being
+        parsed is not done, even if its stats already show *max_runs*.
+        Callback-only work is ignored because it does not count as a parse.
+        """
         if self.max_runs == -1:  # Unlimited runs.
             return False
         if self._num_run < self.max_runs:
+            return False
+        if self._priority_files:
+            return False
+        if any(
+            file not in self._callback_to_execute
+            for file in [*self._file_queue, *self._files_awaiting_source]
+        ) or any(not proc.had_callbacks for proc in self._processors.values()):
             return False
         return all(stat.run_count >= self.max_runs for stat in self._file_stats.values())
 

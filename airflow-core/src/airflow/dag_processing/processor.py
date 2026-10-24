@@ -22,9 +22,9 @@ import importlib
 import logging
 import os
 import traceback
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, cast
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -578,6 +578,26 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
         )
 
 
+@attrs.frozen
+class DagParseSource:
+    """
+    Bundle metadata snapshot shared by parses of the same refreshed source tree.
+
+    ``version_data`` and its nested values must not be mutated after capture.
+
+    :meta private:
+    """
+
+    bundle_version: str | None = None
+    version_data: Mapping[str, Any] | None = None
+    refresh_generation: int = 0
+
+    @classmethod
+    def for_callback(cls, bundle_version: str | None) -> Self:
+        """Capture a callback's version; ``had_callbacks`` exempts it from generation validation."""
+        return cls(bundle_version=bundle_version)
+
+
 @attrs.define(kw_only=True)
 class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
@@ -594,6 +614,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
+    parse_source: DagParseSource = attrs.field(factory=DagParseSource)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
