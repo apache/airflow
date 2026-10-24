@@ -21,11 +21,11 @@ from uuid import UUID
 
 from pydantic import JsonValue, model_validator
 
+from airflow._shared.webhook_naming.matching import validate_match
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.inbound_wait import WaitStatus
 from airflow.webhooks.registry import MAX_WAIT_TIMEOUT
-from airflow.webhooks.waits import validate_wait
 
 
 class InboundWaitRequest(StrictBaseModel):
@@ -42,7 +42,7 @@ class InboundWaitRequest(StrictBaseModel):
 
     @model_validator(mode="after")
     def _validate_wait(self) -> InboundWaitRequest:
-        validate_wait(self.events, self.match)
+        validate_match(self.events, self.match)
         if self.timeout is not None and self.timeout <= timedelta(0):
             raise ValueError("timeout must be positive")
         if self.timeout is not None and self.timeout > MAX_WAIT_TIMEOUT:

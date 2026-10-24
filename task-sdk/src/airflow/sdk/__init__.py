@@ -99,6 +99,7 @@ __all__ = [
     "TriggerRule",
     "Variable",
     "WaitForAll",
+    "WebhookMatch",
     "WebhookTopic",
     "WeekWindow",
     "WeightRule",
@@ -231,6 +232,7 @@ if TYPE_CHECKING:
         MultipleCronTriggerTimetable,
     )
     from airflow.sdk.definitions.variable import Variable
+    from airflow.sdk.definitions.webhooks import WebhookMatch
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
@@ -319,6 +321,7 @@ __lazy_imports: dict[str, str] = {
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WaitForAll": ".definitions.partition_mappers.wait_policy",
+    "WebhookMatch": ".definitions.webhooks",
     "WebhookTopic": ".definitions.asset",
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",

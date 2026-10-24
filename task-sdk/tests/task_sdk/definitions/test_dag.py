@@ -34,10 +34,12 @@ from airflow.sdk import (
     PartitionedAtRuntime,
     TaskGroup,
     TriggerRule,
+    WebhookMatch,
     WebhookTopic,
     dag as dag_decorator,
     task,
     task_group,
+    teardown,
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
@@ -51,7 +53,12 @@ from airflow.sdk.exceptions import (
 )
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.mock_operators import MockOperator
+
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=UTC)
+
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+PUSHED = WebhookMatch("github", events=["push"])
 
 
 class TestDag:
@@ -626,6 +633,35 @@ def test_allowed_run_types_converter(schedule, input_val, expected):
 
 
 @pytest.mark.parametrize(
+    ("cancel_on", "expected"),
+    [
+        pytest.param(None, None, id="none"),
+        pytest.param(CLOSED, [CLOSED], id="single"),
+        pytest.param(
+            [PUSHED, CLOSED, WebhookMatch("github", events=("pull_request",), match={"action": ["closed"]})],
+            [CLOSED, PUSHED],
+            id="list-with-duplicate",
+        ),
+    ],
+)
+def test_cancel_on_converter(cancel_on, expected):
+    assert DAG("test-cancel-on", cancel_on=cancel_on).cancel_on == expected
+
+
+def test_cancel_on_refuses_what_is_not_a_webhook_match():
+    with pytest.raises(TypeError, match="cancel_on must be a WebhookMatch or a list of them, not str"):
+        DAG("test-cancel-on", cancel_on="github")
+
+
+def test_cancel_on_is_converted_on_assignment():
+    dag = DAG("test-cancel-on")
+
+    dag.cancel_on = CLOSED
+
+    assert dag.cancel_on == [CLOSED]
+
+
+@pytest.mark.parametrize(
     ("schedule", "allowed_run_types", "match"),
     [
         pytest.param(
@@ -853,6 +889,97 @@ def test_validate_rejects_webhook_topic_as_inlet_or_outlet(use_topic, kind):
         dag.validate()
 
 
+def _add_classic_teardown(**kwargs):
+    BaseOperator(task_id="t", **kwargs).as_teardown()
+
+
+def _add_decorated_teardown(**kwargs):
+    @teardown
+    @task(task_id="t", **kwargs)
+    def t(): ...
+
+    t()
+
+
+def _add_mapped_teardown(**kwargs):
+    MockOperator.partial(task_id="t", **kwargs).expand(arg2=[1]).as_teardown()
+
+
+@pytest.mark.parametrize(
+    ("default_args", "add_teardown", "kwargs"),
+    [
+        pytest.param({}, _add_classic_teardown, {"cancel_on": CLOSED}, id="classic"),
+        pytest.param({}, _add_decorated_teardown, {"cancel_on": CLOSED}, id="decorated"),
+        pytest.param({}, _add_mapped_teardown, {"cancel_on": CLOSED}, id="mapped"),
+        pytest.param({"cancel_on": [CLOSED]}, _add_classic_teardown, {}, id="inherited"),
+        pytest.param({"cancel_on": [CLOSED]}, _add_mapped_teardown, {}, id="inherited-mapped"),
+    ],
+)
+def test_validate_rejects_cancel_on_on_a_teardown(default_args, add_teardown, kwargs):
+    with DAG("cancel_on_teardown", schedule=None, default_args=default_args) as dag:
+        add_teardown(**kwargs)
+
+    with pytest.raises(ValueError, match="Teardown task 't' cannot have cancel_on"):
+        dag.validate()
+
+
+def test_validate_accepts_a_teardown_that_overrides_inherited_cancel_on():
+    with DAG("cancel_on_teardown", schedule=None, default_args={"cancel_on": [CLOSED]}) as dag:
+        BaseOperator(task_id="work")
+        BaseOperator(task_id="t", cancel_on=None).as_teardown()
+
+    dag.validate()
+
+
+def _add_classic_task(**kwargs):
+    BaseOperator(task_id="t", **kwargs)
+
+
+def _add_decorated_task(**kwargs):
+    @task(task_id="t", **kwargs)
+    def t(): ...
+
+    t()
+
+
+def _add_mapped_task(**kwargs):
+    MockOperator.partial(task_id="t", **kwargs).expand(arg2=[1])
+
+
+@pytest.mark.parametrize(
+    ("default_args", "add_task", "cancel_state"),
+    [
+        pytest.param({}, _add_classic_task, "skipped", id="classic"),
+        pytest.param({}, _add_decorated_task, "skipped", id="decorated"),
+        pytest.param({}, _add_mapped_task, "skipped", id="mapped"),
+        pytest.param({"cancel_state": "skipped"}, _add_classic_task, "failed", id="differs-from-inherited"),
+    ],
+)
+def test_validate_rejects_cancel_state_without_cancel_on(default_args, add_task, cancel_state):
+    with DAG("cancel_state_alone", schedule=None, default_args=default_args) as dag:
+        add_task(cancel_state=cancel_state)
+
+    with pytest.raises(ValueError, match=f"Task 't' has cancel_state '{cancel_state}' but no cancel_on"):
+        dag.validate()
+
+
+@pytest.mark.parametrize(
+    ("dag_default_args", "group_default_args"),
+    [
+        pytest.param({"cancel_state": "skipped"}, {}, id="dag-default-args"),
+        pytest.param({}, {"cancel_state": "skipped"}, id="task-group-default-args"),
+    ],
+)
+def test_validate_accepts_inherited_cancel_state_without_cancel_on(dag_default_args, group_default_args):
+    with DAG("cancel_state_inherited", schedule=None, default_args=dag_default_args) as dag:
+        with TaskGroup("g", default_args=group_default_args):
+            classic = BaseOperator(task_id="classic")
+            mapped = MockOperator.partial(task_id="mapped").expand(arg2=[1])
+
+    dag.validate()
+    assert (classic.cancel_state, mapped.cancel_state) == ("skipped", "skipped")
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
@@ -990,6 +1117,12 @@ class TestDagDecorator:
         assert isinstance(self.operator.op_args[0], DagParam)
         self.operator.render_template_fields({})
         assert self.operator.op_args[0] == 42
+
+    def test_dag_decorator_sets_cancel_on(self):
+        @dag_decorator(schedule=None, cancel_on=CLOSED)
+        def pipeline(): ...
+
+        assert pipeline().cancel_on == [CLOSED]
 
     def test_ignore_function_result(self, monkeypatch):
         monkeypatch.setattr(DAG, "add_result", mock.create_autospec(DAG.add_result))

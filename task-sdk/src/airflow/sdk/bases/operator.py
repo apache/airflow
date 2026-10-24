@@ -65,6 +65,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.definitions.webhooks import coerce_cancel_on, coerce_cancel_state
 from airflow.sdk.exceptions import RemovedInAirflow4Warning, TaskAwaitingInput
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
@@ -96,6 +97,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.webhooks import CancelState, WebhookMatch
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
@@ -343,6 +345,8 @@ if TYPE_CHECKING:
         task_display_name: str | None = ...,
         logger_name: str | None = ...,
         allow_nested_operators: bool = True,
+        cancel_on: WebhookMatch | Collection[WebhookMatch] | None = ...,
+        cancel_state: CancelState | None = ...,
         **kwargs,
     ) -> OperatorPartial: ...
 else:
@@ -414,6 +418,12 @@ else:
         partial_kwargs["max_retry_delay"] = BaseOperator._convert_max_retry_delay(
             partial_kwargs.get("max_retry_delay", None)
         )
+        if "cancel_on" in partial_kwargs:
+            partial_kwargs["cancel_on"] = BaseOperator._convert_cancel_on(partial_kwargs["cancel_on"])
+        if "cancel_state" in partial_kwargs:
+            partial_kwargs["cancel_state"] = BaseOperator._convert_cancel_state(
+                partial_kwargs["cancel_state"]
+            )
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
             partial_kwargs[attr] = _collect_from_input(partial_kwargs.get(attr := f"on_{k}_callback"))
@@ -883,6 +893,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param start_trigger_args: Used together with ``start_from_trigger`` to explicitly specify
         which operator fields should be passed to the trigger. This helps limit the amount of
         data serialized and sent to the triggerer.
+    :param cancel_on: ``WebhookMatch`` conditions on inbound webhook deliveries that end this task, in
+        the state ``cancel_state``, in every queued or running run about the delivery's correlation key.
+        A mapped task is cancelled at every map index. A teardown task cannot have one. |experimental|
+    :param cancel_state: ``"failed"`` (the default) or ``"skipped"``: the state that ``cancel_on`` ends
+        the task in. It can only be given with ``cancel_on``. |experimental|
     """
 
     task_id: str
@@ -895,6 +910,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
     retry_policy: RetryPolicy | None = None
+    cancel_on: list[WebhookMatch] | None = None
+    cancel_state: CancelState | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     depends_on_past: bool = False
@@ -1106,6 +1123,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
         render_template_as_native_obj: bool | None = None,
+        cancel_on: WebhookMatch | Collection[WebhookMatch] | None = None,
+        cancel_state: CancelState | None = None,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1210,6 +1229,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
         self.retry_policy = retry_policy
+        # None, which nearly every task has, needs no conversion, so it is stored without setattr's work.
+        # It is still stored, so that a subclass attribute of the same name never stands in for it.
+        if cancel_on is None:
+            object.__setattr__(self, "cancel_on", None)
+        else:
+            self.cancel_on = cancel_on  # type: ignore[assignment]
+        if cancel_state is None:
+            object.__setattr__(self, "cancel_state", None)
+        else:
+            self.cancel_state = cancel_state
 
         self.resources = resources
 
@@ -1416,6 +1445,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _convert_retry_delay = _convert_timedelta
     _convert_max_retry_delay = _convert_timedelta
+    _convert_cancel_on = staticmethod(coerce_cancel_on)
+    _convert_cancel_state = staticmethod(coerce_cancel_state)
 
     @staticmethod
     def _convert_resources(resources: dict[str, Any] | None) -> Resources | None:
@@ -1574,6 +1605,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_retry_callback",
                     "on_skipped_callback",
                     "retry_policy",
+                    # Generic serialization would write each WebhookMatch condition with str(), and
+                    # would keep a cancel_state inherited by a task without cancel_on, where it is unused.
+                    "cancel_on",
+                    "cancel_state",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",

@@ -49,6 +49,7 @@ from airflow.serialization.definitions.deadline import (
     SerializedReferenceModels,
     SerializedVariableInterval,
 )
+from airflow.serialization.definitions.webhook_match import CANCEL_STATES, SerializedWebhookMatch
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
@@ -508,3 +509,47 @@ def decode_wait_policy(var: dict[str, Any]) -> WaitPolicy:
         raise WaitPolicyNotSupported(importable_string)
     policy_cls: type[WaitPolicy] = import_string(importable_string)
     return policy_cls.deserialize(var[Encoding.VAR])
+
+
+_WEBHOOK_MATCH_KEYS = frozenset({"webhook", "events", "match", "correlation_key_conf"})
+
+
+def decode_webhook_match(var: Any) -> SerializedWebhookMatch:
+    """
+    Decode one serialized ``cancel_on`` condition.
+
+    A key this version does not know is refused rather than ignored, as ignoring it could read the
+    condition as a wider one than its Dag declares.
+
+    :raises ValueError: if the condition does not follow the webhook match grammar.
+    :meta private:
+    """
+    if not isinstance(var, dict) or "webhook" not in var:
+        raise ValueError(f"A cancel_on condition must be an object with a webhook, not {var!r}")
+    if unknown := var.keys() - _WEBHOOK_MATCH_KEYS:
+        raise ValueError(f"A cancel_on condition has unknown keys {sorted(unknown)}")
+    return SerializedWebhookMatch.build(**var)
+
+
+def decode_webhook_matches(var: Any) -> tuple[SerializedWebhookMatch, ...]:
+    """
+    Decode the serialized ``cancel_on`` of a Dag or a task.
+
+    :raises ValueError: unless it is a non-empty list of conditions that follow the webhook match grammar.
+    :meta private:
+    """
+    if not isinstance(var, list) or not var:
+        raise ValueError(f"cancel_on must be a non-empty list of conditions, not {var!r}")
+    return tuple(decode_webhook_match(item) for item in var)
+
+
+def decode_cancel_state(var: Any) -> str:
+    """
+    Decode the serialized ``cancel_state`` of a task.
+
+    :raises ValueError: unless it names a state that ``cancel_on`` can end a task in.
+    :meta private:
+    """
+    if not isinstance(var, str) or var not in CANCEL_STATES:
+        raise ValueError(f"cancel_state must be one of {sorted(CANCEL_STATES)}, got {var!r}")
+    return var

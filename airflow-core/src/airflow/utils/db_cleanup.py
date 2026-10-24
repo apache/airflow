@@ -353,6 +353,10 @@ config_list: list[_TableConfig] = [
         extra_columns=["ti_id"],
         dag_id_scope=_IndirectDagScope(fk_column="ti_id", referenced_table="task_instance"),
     ),
+    # Applied requests are kept too: a run created later from an older event looks them up.
+    _TableConfig(
+        table_name="webhook_cancel_request", recency_column_name="retain_until", dag_id_column_name="dag_id"
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration

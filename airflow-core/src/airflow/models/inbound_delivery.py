@@ -36,7 +36,8 @@ class DeliveryOutcome(str, Enum):
     """What Airflow did with a recorded delivery, as ``InboundDelivery.outcome`` stores it."""
 
     #: The delivery recorded topic events, or events through asset routes, for Dags that can run, and
-    #: went to no webhook wait. It is never kept early, so a wait registered later cannot claim it.
+    #: went to no webhook wait. It is never kept early, so a wait registered later cannot claim it. Its
+    #: actions also list the cancel requests it recorded, if any.
     ACCEPTED = "accepted"
     #: Only paused or draining Dags subscribe to the delivery or to its asset routes' assets, and it has
     #: no correlation key to be kept early by, so nothing acted on it.
@@ -44,18 +45,28 @@ class DeliveryOutcome(str, Enum):
     #: No Dag that an event could start subscribes to the delivery, none of its asset routes could record
     #: an event, and it has no correlation key to be kept early by, so nothing acted on it.
     NO_SUBSCRIBERS = "no_subscribers"
-    #: The delivery has a correlation key, went to no open webhook wait and recorded no events, so a wait
-    #: registered later may still claim it.
+    #: The delivery has a correlation key, went to no open webhook wait, recorded no events and requested
+    #: no cancel, so a wait registered later may still claim it.
     EARLY = "early"
+    #: The delivery recorded cancel requests, listed in its actions, for the Dags whose ``cancel_on`` it
+    #: matches, recorded no events and went to no webhook wait. Like an early delivery, it is kept with its
+    #: payload for a wait registered later to claim, and processed again in full when redelivered, without
+    #: a second request for any Dag.
+    CANCEL_REQUESTED = "cancel_requested"
     #: The delivery resumes a webhook wait's task, or will once the task parks. Its actions also list the
     #: events it recorded, if any.
     RESUMED_WAIT = "resumed_wait"
-    #: The delivery was early, until its webhook kept ``[webhooks] early_delivery_max_per_webhook`` later
-    #: early deliveries; no wait can claim it any more.
+    #: The delivery was kept for webhook waits, ``early`` or ``cancel_requested``, until its webhook kept
+    #: ``[webhooks] early_delivery_max_per_webhook`` later such deliveries; no wait can claim it any more.
+    #: The cancel requests it recorded, if any, stay.
     EXPIRED = "expired"
 
     def __str__(self) -> str:
         return self.value
+
+
+#: The outcomes of deliveries kept for a webhook wait registered later to claim.
+CLAIMABLE_OUTCOMES = (DeliveryOutcome.EARLY, DeliveryOutcome.CANCEL_REQUESTED)
 
 
 class InboundDelivery(Base):

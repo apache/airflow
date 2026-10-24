@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 import structlog
 from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -50,6 +50,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
+from airflow.models.dag_cancel_condition import DAG_LEVEL_TASK_ID, DagCancelCondition
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -57,6 +58,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.plugins_manager import get_scheduling_class_teams
+from airflow.serialization.decoders import decode_webhook_matches
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -64,6 +66,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetUriRef,
 )
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.webhook_match import DEFAULT_CANCEL_STATE
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
@@ -725,25 +728,32 @@ class DagModelOperation(NamedTuple):
     bundle_name: str
     bundle_version: str | None
 
-    def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
-        """Find existing DagModel objects from DAG objects."""
-        stmt: Select[*tuple[DagModel]] = with_row_locks(
-            (
-                select(DagModel)
-                .options(joinedload(DagModel.tags, innerjoin=False))
-                .where(DagModel.dag_id.in_(self.dags))
-                .options(joinedload(DagModel.schedule_asset_references))
-                .options(joinedload(DagModel.schedule_asset_alias_references))
-                .options(joinedload(DagModel.task_outlet_asset_references))
-                .options(joinedload(DagModel.dag_owner_links))
-            ),
-            of=DagModel,
-            session=session,
+    def find_orm_dags(self, *, session: Session, load_cancel_conditions: bool = False) -> dict[str, DagModel]:
+        """
+        Find existing DagModel objects from Dag objects.
+
+        :param load_cancel_conditions: Whether to also load the Dags' cancel conditions, with one more
+            query. A selectin load runs again for Dags it already loaded, so only the first lookup of a
+            sync asks for it.
+        """
+        stmt = (
+            select(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .where(DagModel.dag_id.in_(self.dags))
+            .options(joinedload(DagModel.schedule_asset_references))
+            .options(joinedload(DagModel.schedule_asset_alias_references))
+            .options(joinedload(DagModel.task_outlet_asset_references))
+            .options(joinedload(DagModel.dag_owner_links))
         )
-        return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
+        if load_cancel_conditions:
+            # Not joined: a Dag's conditions would multiply the rows of its tags, owner links and asset
+            # references above.
+            stmt = stmt.options(selectinload(DagModel.cancel_conditions))
+        locked_stmt: Select[*tuple[DagModel]] = with_row_locks(stmt, of=DagModel, session=session)
+        return {dm.dag_id: dm for dm in session.scalars(locked_stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        orm_dags = self.find_orm_dags(session=session)
+        orm_dags = self.find_orm_dags(session=session, load_cancel_conditions=True)
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
@@ -899,6 +909,78 @@ class DagModelOperation(NamedTuple):
             if asset_expression is not None:
                 asset_expression = expand_asset_expr(asset_expression)
             dm.asset_expression = asset_expression
+
+
+class _CancelCondition(NamedTuple):
+    """A ``cancel_on`` condition as a row of ``dag_cancel_condition`` stores it."""
+
+    task_id: str
+    webhook: str
+    condition_digest: str
+    events: list[str] | None
+    match: dict[str, list[str]]
+    correlation_key_conf: str | None
+    cancel_state: str | None
+
+
+def _iter_declared_cancel_on(dag: LazyDeserializedDAG) -> Iterator[tuple[str, Any, str | None]]:
+    """Yield the task id, the serialized ``cancel_on`` and the ``cancel_state`` of each declaration."""
+    data = dag.data["dag"]
+    if cancel_on := data.get("cancel_on"):
+        yield DAG_LEVEL_TASK_ID, cancel_on, None
+    for raw_task in data["tasks"]:
+        task = raw_task[Encoding.VAR]
+        fields = task.get("partial_kwargs", {}) if task.get("_is_mapped") else task
+        if cancel_on := fields.get("cancel_on"):
+            yield task["task_id"], cancel_on, fields.get("cancel_state") or DEFAULT_CANCEL_STATE
+
+
+def _collect_cancel_conditions(dag: LazyDeserializedDAG) -> dict[tuple[str, str, str], _CancelCondition]:
+    # Keyed like the table, so that equivalent conditions a Lang-SDK Dag repeats are stored once.
+    conditions: dict[tuple[str, str, str], _CancelCondition] = {}
+    for task_id, cancel_on, cancel_state in _iter_declared_cancel_on(dag):
+        for condition in decode_webhook_matches(cancel_on):
+            data = condition.to_json()
+            conditions[task_id, condition.webhook, condition.digest] = _CancelCondition(
+                task_id=task_id,
+                webhook=condition.webhook,
+                condition_digest=condition.digest,
+                events=data.get("events"),
+                match=data.get("match", {}),
+                correlation_key_conf=condition.correlation_key_conf,
+                cancel_state=cancel_state,
+            )
+    return conditions
+
+
+class CancelConditionOperation(NamedTuple):
+    """Collect the ``cancel_on`` conditions of Dags and store them in ``dag_cancel_condition``."""
+
+    conditions: dict[str, dict[tuple[str, str, str], _CancelCondition]]
+
+    @classmethod
+    def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
+        return cls({dag_id: _collect_cancel_conditions(dag) for dag_id, dag in dags.items()})
+
+    def sync(self, orm_dags: dict[str, DagModel]) -> None:
+        """Store the conditions each Dag declares, leaving the rows that did not change alone."""
+        for dag_id, wanted in self.conditions.items():
+            dm = orm_dags[dag_id]
+            if not wanted:  # Optimization: no conditions at all, just clear everything.
+                dm.cancel_conditions = []
+                continue
+            stored = {(row.task_id, row.webhook, row.condition_digest): row for row in dm.cancel_conditions}
+            for key, row in stored.items():
+                if (condition := wanted.get(key)) is None:
+                    # delete-orphan deletes the row at flush.
+                    dm.cancel_conditions.remove(row)
+                elif row.cancel_state != condition.cancel_state:
+                    row.cancel_state = condition.cancel_state
+            dm.cancel_conditions.extend(
+                DagCancelCondition(dag_id=dag_id, **condition._asdict())
+                for key, condition in wanted.items()
+                if key not in stored
+            )
 
 
 def _get_task_ports(data: dict, inlets: bool, outlets: bool) -> Iterable[str]:

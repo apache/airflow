@@ -20,7 +20,6 @@ import asyncio
 import hashlib
 import json
 import os
-import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -46,7 +45,6 @@ from airflow._shared.webhook_naming import MAX_PATH_SEGMENTS
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import AssetEvent, AssetModel, AssetPartitionDagRun
-from airflow.models.base import Base
 from airflow.models.connection import Connection
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.log import Log
@@ -79,6 +77,7 @@ from tests_common.test_utils.webhooks import (
     compute_fake_signature,
     count_deliveries,
     post_signed_delivery as post,
+    record_tables,
 )
 
 if TYPE_CHECKING:
@@ -271,26 +270,6 @@ def count_checkouts() -> Iterator[list[object]]:
         yield checkouts
     finally:
         event.remove(settings.get_engine(), "checkout", on_checkout)
-
-
-@contextmanager
-def record_tables() -> Iterator[set[str]]:
-    """Collect the tables that the statements the requests execute read or write."""
-    tables: set[str] = set()
-
-    def on_execute(connection, cursor, statement, parameters, context, executemany) -> None:
-        tables.update(
-            table
-            for table in Base.metadata.tables
-            # Not just the name, which a column can have too, such as dag.deadline.
-            if re.search(rf"\b(?:FROM|JOIN|INTO|UPDATE)\s+\(?{table}\b", statement)
-        )
-
-    event.listen(settings.get_engine(), "before_cursor_execute", on_execute)
-    try:
-        yield tables
-    finally:
-        event.remove(settings.get_engine(), "before_cursor_execute", on_execute)
 
 
 class TestCreateWebhooksApp:

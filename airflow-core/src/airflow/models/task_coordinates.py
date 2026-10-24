@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import attrs
@@ -118,6 +118,25 @@ def get_public_map_index(task_instance: TaskInstance, *, session: Session) -> in
         .where(TaskInstance.id == task_instance.id)
         .execution_options(include_all_attempts=True)
     ).scalar_one()
+
+
+def build_task_instance_coordinates(task_instance: TaskInstance, *, session: Session) -> dict[str, Any]:
+    """
+    Return the coordinates by which the public API and the UI address a task instance, as JSON values.
+
+    They are its id, Dag, run and task, its public map index, and its region and index within the region
+    if it is in a dynamic region, such as a loop.
+    """
+    coordinates: dict[str, Any] = {
+        "ti_id": str(task_instance.id),
+        "dag_id": task_instance.dag_id,
+        "run_id": task_instance.run_id,
+        "task_id": task_instance.task_id,
+        "map_index": get_public_map_index(task_instance, session=session),
+    }
+    if task_instance.region_id != SENTINEL_REGION_ID:
+        coordinates.update(region_id=str(task_instance.region_id), region_index=task_instance.region_index)
+    return coordinates
 
 
 def is_plain_expansion(task_instance: TaskInstance, *, session: Session) -> bool:

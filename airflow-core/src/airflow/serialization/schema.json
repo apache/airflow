@@ -155,6 +155,31 @@
       },
       "required": [ "name", "kind" ]
     },
+    "webhook_match": {
+      "$comment": "One cancel_on condition (AIP-125) in the canonical form of the webhook match grammar, without the fields it leaves unset. Closed, so that a condition with a field this version does not know is refused rather than read as a wider condition",
+      "type": "object",
+      "properties": {
+        "webhook": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "events": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "match": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        },
+        "correlation_key_conf": {
+          "$comment": "maxLength is MAX_CORRELATION_KEY_CONF_LENGTH in airflow._shared.webhook_naming.matching",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 250
+        }
+      },
+      "required": [ "webhook" ],
+      "additionalProperties": false
+    },
+    "cancel_on": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/webhook_match" },
+      "minItems": 1
+    },
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
@@ -195,6 +220,7 @@
             { "type": "null" }
           ]
         },
+        "cancel_on": { "$ref": "#/definitions/cancel_on" },
         "fail_fast": { "type": "boolean", "default": false },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
@@ -378,6 +404,8 @@
         "on_failure_fail_dagrun": {"type": "boolean", "default": false},
         "max_active_tis_per_dag": {"type": "integer"},
         "max_active_tis_per_dagrun": {"type": "integer"},
+        "cancel_on": { "$ref": "#/definitions/cancel_on" },
+        "cancel_state": { "type": "string", "enum": [ "failed", "skipped" ] },
         "_arg_bindings": {
           "$comment": "Used for mixed-language tasks (the @task.stub operator) or tasks defined in a non-Python SDK Dag",
           "type": "array",
@@ -387,7 +415,8 @@
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
         "partial_kwargs": ["expand_input", "_is_mapped"],
-        "_is_mapped": ["expand_input", "partial_kwargs"]
+        "_is_mapped": ["expand_input", "partial_kwargs"],
+        "cancel_state": ["cancel_on"]
       },
       "additionalProperties": true
     },

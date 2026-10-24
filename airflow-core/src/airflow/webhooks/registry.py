@@ -147,6 +147,11 @@ def get_early_delivery_ttl() -> timedelta:
     return timedelta(seconds=_get_int_at_least("early_delivery_ttl", 1))
 
 
+def get_cancel_requests_per_loop() -> int:
+    """Return ``[webhooks] cancel_requests_per_loop``; raise ``AirflowConfigException`` if it is below 1."""
+    return _get_int_at_least("cancel_requests_per_loop", 1)
+
+
 def _get_store_payload() -> StorePayload:
     value = conf.get("webhooks", "store_payload")
     if value not in get_args(StorePayload):

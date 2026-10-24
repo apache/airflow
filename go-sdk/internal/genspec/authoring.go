@@ -93,6 +93,7 @@ var dagShape = authoringShape{
 		"owner_links":               "no Go authoring type yet: an object of arbitrary link targets",
 		"deadline":                  "no Go authoring type yet: a serialized deadline reference",
 		"rerun_with_latest_version": "no Go authoring type yet: the tri-state a null allows",
+		"cancel_on":                 "no Go authoring type yet: AIP-125 webhook conditions that cancel a run",
 	},
 	override: map[string]propertyOverride{
 		"start_date": {
@@ -174,6 +175,8 @@ var taskShape = authoringShape{
 		"doc_json":               "a legacy rendering of the task's docs; only doc_md is exposed",
 		"doc_rst":                "a legacy rendering of the task's docs; only doc_md is exposed",
 		"doc_yaml":               "a legacy rendering of the task's docs; only doc_md is exposed",
+		"cancel_on":              "no Go authoring type yet: AIP-125 webhook conditions that cancel a task",
+		"cancel_state":           "only meaningful with cancel_on, which has no Go authoring type yet",
 	},
 	override: map[string]propertyOverride{
 		"start_date":                {goType: "time.Time", imports: []string{"time"}},

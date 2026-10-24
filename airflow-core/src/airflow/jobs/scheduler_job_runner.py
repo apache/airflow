@@ -141,6 +141,16 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.webhooks.cancel_application import (
+    CancelOutcome,
+    apply_cancel_request,
+    apply_earlier_cancel_requests,
+    claim_pending_cancel_request,
+    mark_cancel_request_failed,
+    notify_cancel_listeners,
+)
+from airflow.webhooks.cancel_requests import CancelScope
+from airflow.webhooks.registry import get_cancel_requests_per_loop
 from airflow.webhooks.wait_registration import LIVE_STATES as WEBHOOK_WAIT_LIVE_STATES
 from airflow.webhooks.wait_resumption import (
     find_received_delivery,
@@ -181,6 +191,10 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 # Internal constant rather than a user setting — this is a performance
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
+# Seconds between two looks for pending webhook cancel requests. It bounds how long a request waits before
+# the scheduler applies it, so it is not a setting; when there is none, a look costs one indexed query.
+WEBHOOK_CANCEL_CHECK_INTERVAL = 1.0
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -402,6 +416,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
+        self._cancel_requests_per_loop = get_cancel_requests_per_loop()
+        # What the webhook cancel requests applied to the runs created in this loop changed, for what is
+        # done once they are committed.
+        self._creation_cancel_outcomes: list[CancelOutcome] = []
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -1999,6 +2017,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            WEBHOOK_CANCEL_CHECK_INTERVAL, self._apply_webhook_cancel_requests, non_fatal=True
+        )
+
+        timers.call_regular_interval(
             30,
             self._mark_backfills_complete,
         )
@@ -2196,6 +2218,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with prohibit_commit(session) as guard:
             if self._scheduler_use_job_schedule:
                 self._create_dagruns_for_dags(guard, session)
+                # The runs are committed, so what cancelled them can be told.
+                for outcome in self._creation_cancel_outcomes:
+                    notify_cancel_listeners(outcome)
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -2214,6 +2239,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._stamp_team_names(dag_runs, session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
+
+        creation_cancel_outcomes, self._creation_cancel_outcomes = self._creation_cancel_outcomes, []
+        for outcome in creation_cancel_outcomes:
+            callback_tuples.extend(outcome.callbacks)
+            self._count_webhook_cancels(outcome)
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
@@ -2641,22 +2671,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            asset_events = session.scalars(
-                select(AssetEvent).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+            asset_events = list(
+                session.scalars(
+                    select(AssetEvent).where(
+                        PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                    )
                 )
             )
             dag_run.consumed_asset_events.extend(asset_events)
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
+            self._apply_earlier_cancel_requests(
+                dag=dag, dag_run=dag_run, events=asset_events, session=session
+            )
 
         return partition_dag_ids
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
+        # A retry starts over, so the cancels of an attempt that was rolled back are dropped.
+        self._creation_cancel_outcomes = []
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
@@ -2861,6 +2898,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 #  session needs rollback. you need either to make smaller transactions and
                 #  commit after every dag run or use savepoints.
                 #  https://github.com/apache/airflow/issues/59120
+            else:
+                if consumed_asset_records:
+                    self._apply_earlier_cancel_requests(
+                        dag=serdag, dag_run=created_run, events=gated_asset_events, session=session
+                    )
+                    if created_run.state == DagRunState.FAILED:
+                        active_runs_of_dags[dag_model.dag_id] -= 1
+                        self._set_exceeds_max_active_runs(
+                            dag_model=dag_model,
+                            session=session,
+                            active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
+                        )
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
@@ -3068,6 +3117,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     remaining_runs -= 1
                     stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
                     dag_run.consumed_asset_events.extend(events)
+                    self._apply_earlier_cancel_requests(
+                        dag=dag, dag_run=dag_run, events=events, session=session
+                    )
                     self.log.info(
                         "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
                         dag.dag_id,
@@ -3093,6 +3145,100 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_id=dag.dag_id,
                 session=session,
             )
+
+    def _apply_earlier_cancel_requests(
+        self, *, dag: SerializedDAG, dag_run: DagRun, events: Collection[AssetEvent], session: Session
+    ) -> None:
+        """
+        Apply the webhook cancel requests received after the delivery events that a new run consumed.
+
+        Only a Dag with ``cancel_on`` reads them. A failure leaves the run as it was created, since creating
+        runs must go on; a transient database error propagates, so that the creation is retried.
+        """
+        if not dag.has_cancel_on:
+            return
+        try:
+            with session.begin_nested():
+                outcomes = apply_earlier_cancel_requests(
+                    dag=dag, dag_run=dag_run, events=events, multi_team=self._multi_team, session=session
+                )
+        except OperationalError:
+            raise
+        except Exception:
+            self.log.exception(
+                "Failed to apply webhook cancel requests to a new run",
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
+            )
+            return
+        for outcome in outcomes:
+            self.log.info(
+                "Applied a webhook cancel request to a new run",
+                request_id=str(outcome.request_id),
+                dag_id=outcome.dag_id,
+                run_id=dag_run.run_id,
+            )
+        self._creation_cancel_outcomes.extend(outcomes)
+
+    def _apply_webhook_cancel_requests(self) -> None:
+        """
+        Apply pending webhook cancel requests, oldest first, up to ``[webhooks] cancel_requests_per_loop``.
+
+        Each request is claimed, applied and committed in a transaction of its own, so that no other
+        scheduler applies it too. A request that cannot be applied is marked ``failed``, so that it leaves
+        the queue; a transient database error propagates and leaves it pending for the next look.
+        """
+        for _ in range(self._cancel_requests_per_loop):
+            with create_session() as session:
+                request = claim_pending_cancel_request(session=session)
+                if request is None:
+                    return
+                request_id, dag_id = request.id, request.dag_id
+                try:
+                    with session.begin_nested():
+                        outcome = apply_cancel_request(
+                            request,
+                            dag_bag=self.scheduler_dag_bag,
+                            multi_team=self._multi_team,
+                            session=session,
+                        )
+                        if any(run.run_type != DagRunType.BACKFILL_JOB for run in outcome.failed_runs) and (
+                            dag_model := DM.get_dagmodel(dag_id, session=session)
+                        ):
+                            # As for a run that timed out, so that the Dag can start its next run.
+                            session.flush()
+                            self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
+                except OperationalError:
+                    raise
+                except Exception as e:
+                    self.log.exception(
+                        "Failed to apply a webhook cancel request", request_id=str(request_id), dag_id=dag_id
+                    )
+                    mark_cancel_request_failed(request, error=type(e).__name__)
+                    session.commit()
+                    continue
+                session.commit()
+                notify_cancel_listeners(outcome)
+            # The callback sink commits and closes the scoped session, so the callbacks are sent once it is
+            # closed.
+            for _, callback in outcome.callbacks:
+                self.executor.send_callback(callback)
+            self._count_webhook_cancels(outcome)
+            self.log.info(
+                "Applied a webhook cancel request",
+                request_id=str(request_id),
+                dag_id=dag_id,
+                runs=outcome.runs_cancelled,
+                task_instances=outcome.tis_cancelled,
+            )
+
+    def _count_webhook_cancels(self, outcome: CancelOutcome) -> None:
+        for scope, count in (
+            (CancelScope.RUN, outcome.runs_cancelled),
+            (CancelScope.TASK, outcome.tis_cancelled),
+        ):
+            if count:
+                stats.incr("webhooks.cancels", count, tags={"webhook": outcome.webhook, "scope": scope.value})
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """

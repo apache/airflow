@@ -24,6 +24,7 @@ import pytest
 from airflow.exceptions import AirflowConfigException
 from airflow.webhooks.registry import (
     WebhookRegistry,
+    get_cancel_requests_per_loop,
     get_default_wait_timeout,
     get_early_delivery_ttl,
     parse_source_type_owners,
@@ -237,3 +238,15 @@ class TestWaitOptions:
             match=r"^\[webhooks\] default_wait_timeout must be 31536000 or less, not 31536001$",
         ):
             get_default_wait_timeout()
+
+
+class TestCancelOptions:
+    def test_cancel_requests_per_loop_defaults_to_20(self):
+        assert get_cancel_requests_per_loop() == 20
+
+    @conf_vars({("webhooks", "cancel_requests_per_loop"): "0"})
+    def test_refuses_cancel_requests_per_loop_below_1(self):
+        with pytest.raises(
+            AirflowConfigException, match=r"^\[webhooks\] cancel_requests_per_loop must be 1 or more, not 0$"
+        ):
+            get_cancel_requests_per_loop()

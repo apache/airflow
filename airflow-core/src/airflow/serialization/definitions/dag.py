@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+    from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
     from airflow.utils.types import DagRunTriggeredByType
@@ -117,6 +118,7 @@ class SerializedDAG:
     deadline: list[str] | None = None
     default_args: dict[str, Any] = attrs.field(factory=dict)
     allowed_run_types: list[str] | None = None
+    cancel_on: tuple[SerializedWebhookMatch, ...] = ()
     description: str | None = None
     disable_bundle_versioning: bool = False
     rerun_with_latest_version: bool | None = None
@@ -216,7 +218,11 @@ class SerializedDAG:
         if not dags:
             return
 
-        from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
+        from airflow.dag_processing.collection import (
+            AssetModelOperation,
+            CancelConditionOperation,
+            DagModelOperation,
+        )
         from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
         log.info("Bulk-writing dags to db", count=len(dags))
@@ -228,6 +234,7 @@ class SerializedDAG:
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, parse_duration, session=session)
+        CancelConditionOperation.collect(dag_op.dags).sync(orm_dags)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -266,6 +273,11 @@ class SerializedDAG:
     @property
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
+
+    @functools.cached_property
+    def has_cancel_on(self) -> bool:
+        """Whether the Dag or any of its tasks, mapped or not, has ``cancel_on`` conditions."""
+        return bool(self.cancel_on) or any(task.cancel_on for task in self.task_dict.values())
 
     @functools.cached_property
     def has_dynamic_nodes(self) -> bool:

@@ -59,6 +59,7 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -70,6 +71,7 @@ from airflow.sdk import (
     BaseHook,
     TaskGroup,
     TriggerRule,
+    WebhookMatch,
     WeightRule,
     XComArg,
     task as task_decorator,
@@ -90,6 +92,7 @@ from airflow.serialization.definitions.mappedoperator import SerializedMappedOpe
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
+from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes, Encoding
@@ -114,6 +117,7 @@ from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
@@ -1587,6 +1591,7 @@ class TestStringifiedDAGs:
             "has_on_failure_callback",
             "dag_dependencies",
             "params",
+            "cancel_on",
         }
 
         keys_for_backwards_compat: set = {
@@ -4514,6 +4519,133 @@ def test_dag_allowed_run_types_serialization(allowed_types, expected_serialized,
     assert deserialized_dag.allowed_run_types == expected_deserialized
 
 
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+PUSHED = WebhookMatch("github", events=["push"])
+ENCODED_CLOSED = {"webhook": "github", "events": ["pull_request"], "match": {"action": ["closed"]}}
+ENCODED_PUSHED = {"webhook": "github", "events": ["push"]}
+DECODED_CLOSED = SerializedWebhookMatch(
+    webhook="github", events=("pull_request",), match=(("action", ("closed",)),)
+)
+DECODED_PUSHED = SerializedWebhookMatch(webhook="github", events=("push",))
+
+
+@pytest.mark.parametrize(
+    ("cancel_on", "expected_serialized", "expected_deserialized"),
+    [
+        pytest.param(None, None, (), id="none"),
+        pytest.param(CLOSED, [ENCODED_CLOSED], (DECODED_CLOSED,), id="single"),
+        pytest.param(
+            [PUSHED, CLOSED], [ENCODED_CLOSED, ENCODED_PUSHED], (DECODED_CLOSED, DECODED_PUSHED), id="many"
+        ),
+    ],
+)
+def test_dag_cancel_on_serialization(cancel_on, expected_serialized, expected_deserialized):
+    dag = DAG(dag_id="cancellable", schedule=None, cancel_on=cancel_on)
+
+    serialized = DagSerialization.to_dict(dag)
+
+    assert serialized["dag"].get("cancel_on", "absent") == (expected_serialized or "absent")
+    assert DagSerialization.from_dict(serialized).cancel_on == expected_deserialized
+
+
+def test_cancel_on_changes_the_dag_hash_but_its_order_does_not():
+    def get_hash(**kwargs) -> str:
+        return SerializedDagModel.hash(
+            DagSerialization.to_dict(DAG(dag_id="hashed", schedule=None, **kwargs))
+        )
+
+    ordered = get_hash(cancel_on=[CLOSED, PUSHED], default_args={"cancel_on": [CLOSED, PUSHED]})
+    reordered = get_hash(cancel_on=[PUSHED, CLOSED], default_args={"cancel_on": [PUSHED, CLOSED, CLOSED]})
+
+    assert ordered == reordered
+    assert ordered != get_hash(default_args={"cancel_on": [CLOSED, PUSHED]})
+
+
+@pytest.mark.parametrize("is_mapped", [False, True])
+@pytest.mark.parametrize("cancel_state", [None, "failed", "skipped"])
+def test_task_cancel_on_serialization(is_mapped, cancel_state):
+    with DAG(dag_id="cancellable", schedule=None) as dag:
+        if is_mapped:
+            BashOperator.partial(task_id="task", cancel_on=[CLOSED], cancel_state=cancel_state).expand(
+                bash_command=["echo 1", "echo 2"]
+            )
+        else:
+            BashOperator(task_id="task", bash_command="echo 1", cancel_on=[CLOSED], cancel_state=cancel_state)
+
+    serialized = DagSerialization.to_dict(dag)
+    encoded_task = serialized["dag"]["tasks"][0]["__var"]
+    fields = encoded_task["partial_kwargs"] if is_mapped else encoded_task
+
+    assert fields["cancel_on"] == [ENCODED_CLOSED]
+    assert fields.get("cancel_state") == cancel_state
+    if is_mapped:
+        assert not {"cancel_on", "cancel_state"} & encoded_task.keys()
+    task = DagSerialization.from_dict(serialized).task_dict["task"]
+    assert isinstance(task, SerializedMappedOperator if is_mapped else SerializedBaseOperator)
+    assert (task.cancel_on, task.cancel_state) == ((DECODED_CLOSED,), cancel_state)
+
+
+@pytest.mark.parametrize("is_mapped", [False, True])
+def test_task_without_cancel_on_stores_no_inherited_cancel_state(is_mapped):
+    with DAG(dag_id="cancellable", schedule=None, default_args={"cancel_state": "skipped"}) as dag:
+        if is_mapped:
+            BashOperator.partial(task_id="task").expand(bash_command=["echo 1", "echo 2"])
+        else:
+            BashOperator(task_id="task", bash_command="echo 1")
+
+    serialized = DagSerialization.to_dict(dag)
+    encoded_task = serialized["dag"]["tasks"][0]["__var"]
+
+    assert not {"cancel_on", "cancel_state"} & (
+        encoded_task.keys() | encoded_task.get("partial_kwargs", {}).keys()
+    )
+    task = DagSerialization.from_dict(serialized).task_dict["task"]
+    assert (task.cancel_on, task.cancel_state) == ((), None)
+
+
+def test_cancel_on_in_default_args_serializes_as_plain_json():
+    dag = DAG(dag_id="cancellable", schedule=None, default_args={"cancel_on": [PUSHED, CLOSED]})
+
+    serialized_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+
+    assert serialized_dag.default_args["cancel_on"] == [ENCODED_CLOSED, ENCODED_PUSHED]
+
+
+def test_scheduler_dag_reserializes_cancel_on():
+    dag = DAG(
+        dag_id="cancellable",
+        schedule=None,
+        cancel_on=[PUSHED, CLOSED],
+        default_args={"cancel_on": CLOSED, "cancel_state": "skipped"},
+    )
+    serialized = DagSerialization.to_dict(dag)
+
+    reserialized = DagSerialization.to_dict(create_scheduler_dag(dag))
+
+    assert reserialized["dag"]["cancel_on"] == serialized["dag"]["cancel_on"]
+    assert reserialized["dag"]["default_args"] == serialized["dag"]["default_args"]
+
+
+@pytest.mark.parametrize(
+    ("dag_cancel_on", "task_cancel_on", "is_mapped", "expected"),
+    [
+        pytest.param(None, None, False, False, id="none"),
+        pytest.param(CLOSED, None, False, True, id="dag"),
+        pytest.param(None, CLOSED, False, True, id="task"),
+        pytest.param(None, CLOSED, True, True, id="mapped-task"),
+    ],
+)
+def test_has_cancel_on(dag_cancel_on, task_cancel_on, is_mapped, expected):
+    with DAG(dag_id="cancellable", schedule=None, cancel_on=dag_cancel_on) as dag:
+        BashOperator(task_id="plain", bash_command="echo 1")
+        if is_mapped:
+            BashOperator.partial(task_id="task", cancel_on=task_cancel_on).expand(bash_command=["echo 1"])
+        else:
+            BashOperator(task_id="task", bash_command="echo 1", cancel_on=task_cancel_on)
+
+    assert DagSerialization.from_dict(DagSerialization.to_dict(dag)).has_cancel_on is expected
+
+
 def dummy_callback():
     pass
 
@@ -5329,6 +5461,80 @@ class TestValidateSerializedDag:
             DeserializationError,
             match=rf"^Dag 'checked_dag' does not match the schema at {re.escape(json_path)}: ",
         ):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        ("change", "error"),
+        [
+            pytest.param(
+                lambda dag, task, mapped: dag["cancel_on"][0].update(branch="main"),
+                "does not match the schema at $.dag.cancel_on[0]: Additional properties are not allowed",
+                id="dag-condition-with-an-unknown-key",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: dag.update(cancel_on=[]),
+                "does not match the schema at $.dag.cancel_on: [] should be non-empty",
+                id="dag-without-a-condition",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: dag["cancel_on"][0].update(webhook="GitHub"),
+                "cannot be deserialized: ValueError: Webhook name must match",
+                id="dag-webhook-outside-the-grammar",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: dag["cancel_on"][0].update(match={"": ["closed"]}),
+                "cannot be deserialized: ValueError: match keys must be non-empty strings",
+                id="dag-empty-match-key",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: task.update(cancel_state="upstream_failed"),
+                "cannot be deserialized: ValueError: cancel_state must be one of",
+                id="task-unknown-cancel-state",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: task.pop("cancel_on"),
+                "cannot be deserialized: ValueError: Task 'cancelled' has cancel_state 'skipped' but no "
+                "cancel_on",
+                id="task-cancel-state-without-cancel-on",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: mapped.update(partial_kwargs={"cancel_state": "skipped"}),
+                "cannot be deserialized: ValueError: Task 'mapped' has cancel_state 'skipped' but no cancel_on",
+                id="mapped-task-cancel-state-without-cancel-on",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: mapped["partial_kwargs"]["cancel_on"][0].update(branch="main"),
+                "cannot be deserialized: ValueError: A cancel_on condition has unknown keys ['branch']",
+                id="mapped-task-condition-with-an-unknown-key",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: mapped["partial_kwargs"].update(
+                    cancel_on={
+                        "__type": "tuple",
+                        "__var": [{"__type": "dict", "__var": {"webhook": "github"}}],
+                    }
+                ),
+                "cannot be deserialized: ValueError: cancel_on must be a non-empty list of conditions",
+                id="mapped-task-cancel-on-in-an-envelope",
+            ),
+            pytest.param(
+                lambda dag, task, mapped: mapped["partial_kwargs"].update(
+                    cancel_state={"__type": "dict", "__var": {}}
+                ),
+                "cannot be deserialized: ValueError: cancel_state must be one of",
+                id="mapped-task-cancel-state-in-an-envelope",
+            ),
+        ],
+    )
+    def test_rejects_an_invalid_cancel_on(self, change, error):
+        with DAG(dag_id="checked_dag", schedule=None, cancel_on=[CLOSED]) as dag:
+            BaseOperator(task_id="cancelled", cancel_on=[CLOSED], cancel_state="skipped")
+            BashOperator.partial(task_id="mapped", cancel_on=[CLOSED]).expand(bash_command=["echo 1"])
+        data = DagSerialization.to_dict(dag)
+        tasks = {task["__var"]["task_id"]: task["__var"] for task in data["dag"]["tasks"]}
+        change(data["dag"], tasks["cancelled"], tasks["mapped"])
+
+        with pytest.raises(DeserializationError, match=f"^Dag 'checked_dag' {re.escape(error)}"):
             DagSerialization.validate_serialized_dag(data)
 
     def test_rejects_a_repeated_task_id(self):

@@ -421,6 +421,15 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "webhooks.cancels"
+    description: "Number of Dag runs and task instances that webhook cancel requests cancelled: one per
+    Dag run that a Dag-level ``cancel_on`` cancelled, and one per task instance that a task-level
+    ``cancel_on`` set to its ``cancel_state``. Metric with webhook and scope tagging; scope is ``run``
+    or ``task``."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "managed_agent.failover"
     description: "Number of failover transitions inside a ``FailoverManagedAgentClient`` group,
     emitted once each time a member fails and the next one is tried. Metric with from_platform

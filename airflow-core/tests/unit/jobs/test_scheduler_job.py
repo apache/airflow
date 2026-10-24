@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import logging
 import os
 import re
@@ -41,12 +42,14 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.assets.manager import AssetManager
@@ -70,6 +73,7 @@ from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+    WEBHOOK_CANCEL_CHECK_INTERVAL,
     SchedulerJobRunner,
 )
 from airflow.listeners.listener import get_listener_manager
@@ -110,6 +114,7 @@ from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
+from airflow.models.webhook_cancel_request import CancelRequestStatus, WebhookCancelRequest
 from airflow.partition_mappers.base import (
     PartitionMapper as CorePartitionMapper,
     RollupMapper as CoreRollupMapper,
@@ -147,6 +152,7 @@ from airflow.sdk import (
     SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
+    WebhookMatch,
     task,
     task_group,
 )
@@ -162,11 +168,12 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
+from airflow.webhooks import cancel_application
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
@@ -183,11 +190,13 @@ from tests_common.test_utils.db import (
     clear_db_import_errors,
     clear_db_inbound_deliveries,
     clear_db_jobs,
+    clear_db_logs,
     clear_db_pakl,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
     clear_db_triggers,
+    clear_db_webhook_cancel_requests,
     set_default_pool_slots,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
@@ -345,6 +354,7 @@ def _clean_db():
     clear_db_callbacks()
     clear_db_triggers()
     clear_db_inbound_deliveries()
+    clear_db_webhook_cancel_requests()
 
 
 def _add_webhook_wait(
@@ -16546,3 +16556,678 @@ class TestSchedulerObservabilityMetrics:
             self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
         mock_stats.incr.assert_not_called()
+
+
+#: A ``cancel_on`` condition that GitHub deliveries about a closed pull request match.
+PR_CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+#: The targets of a cancel request whose Dag-level condition matched, naming no conf key.
+CANCEL_RUN_TARGETS: dict[str, Any] = {"run": {"correlation_key_confs": []}, "tasks": []}
+CANCEL_KEY = "my-org/web#42"
+
+
+def _add_delivery_event(
+    session: Session, *, timestamp: datetime.datetime, dag_run: DagRun | None = None
+) -> AssetEvent:
+    """Add an event that a GitHub delivery about pull request 42 recorded, consumed by ``dag_run``."""
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "pull-requests"))
+    if asset_id is None:
+        asset = AssetModel(name="pull-requests")
+        session.add(asset)
+        session.flush()
+        asset_id = asset.id
+    event = AssetEvent(
+        asset_id=asset_id,
+        timestamp=timestamp,
+        extra={
+            "from_webhook": True,
+            "webhook": "github",
+            "delivery_id": "delivery-1",
+            "correlation_key": CANCEL_KEY,
+        },
+    )
+    session.add(event)
+    if dag_run is not None:
+        dag_run.consumed_asset_events.append(event)
+    session.flush()
+    return event
+
+
+def _add_cancel_request(
+    session: Session,
+    *,
+    received_at: datetime.datetime,
+    targets: dict[str, Any] = CANCEL_RUN_TARGETS,
+    dag_id: str = "cancellable",
+    delivery_id: str = "delivery-1",
+    **kwargs: Any,
+) -> WebhookCancelRequest:
+    request = WebhookCancelRequest(
+        inbound_delivery_id=uuid4(),
+        delivery_id=delivery_id,
+        webhook="github",
+        correlation_key=CANCEL_KEY,
+        received_at=received_at,
+        dag_id=dag_id,
+        targets=targets,
+        retain_until=received_at + timedelta(days=7),
+        **kwargs,
+    )
+    session.add(request)
+    session.flush()
+    return request
+
+
+@pytest.mark.need_serialized_dag
+class TestApplyWebhookCancelRequests:
+    """The scheduler applies webhook cancel requests about once a second, and to the runs it creates."""
+
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        _clean_db()
+        clear_db_logs()
+        yield
+        _clean_db()
+        clear_db_logs()
+
+    @staticmethod
+    def declare_cancellable_run(
+        dag_maker, session: Session, dag_id: str = "cancellable", *, run_type=DagRunType.MANUAL, **dag_kwargs
+    ) -> DagRun:
+        """Add a Dag with a running task, and a running run of it that a delivery event triggered."""
+        with dag_maker(dag_id, schedule=None, session=session, **dag_kwargs):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(run_type=run_type, logical_date=DEFAULT_DATE)
+        dag_run.get_task_instance("task", session=session).state = TaskInstanceState.RUNNING
+        _add_delivery_event(session, timestamp=timezone.utcnow() - timedelta(minutes=5), dag_run=dag_run)
+        _add_cancel_request(session, received_at=timezone.utcnow(), dag_id=dag_id)
+        session.commit()
+        return dag_run
+
+    @staticmethod
+    def declare_asset_triggered(dag_maker, session: Session, **dag_kwargs) -> datetime.datetime:
+        """Add a Dag triggered by an asset, and return when it started to consume the asset's events."""
+        with dag_maker("cancellable", schedule=[Asset(name="pull-requests")], session=session, **dag_kwargs):
+            EmptyOperator(task_id="task")
+        session.commit()
+        return session.scalars(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == "cancellable"
+            )
+        ).one()
+
+    @staticmethod
+    def queue_delivery_event(session: Session, *, timestamp: datetime.datetime) -> AssetEvent:
+        event = _add_delivery_event(session, timestamp=timestamp)
+        session.add(
+            AssetDagRunQueue(asset_id=event.asset_id, target_dag_id="cancellable", asset_event_id=event.id)
+        )
+        session.commit()
+        return event
+
+    @staticmethod
+    def get_statuses(session: Session) -> dict[str | None, tuple[str, str | None]]:
+        session.expire_all()
+        return {
+            request.delivery_id: (request.status, (request.result or {}).get("error"))
+            for request in session.scalars(select(WebhookCancelRequest))
+        }
+
+    @pytest.mark.parametrize(
+        ("per_loop", "applied"),
+        [
+            pytest.param("1", ["first"], id="one"),
+            pytest.param("2", ["first", "second"], id="two"),
+        ],
+    )
+    def test_applies_requests_oldest_first_up_to_the_configured_number(
+        self, dag_maker, session, per_loop, applied
+    ):
+        with dag_maker("cancellable", schedule=None, session=session):
+            EmptyOperator(task_id="task")
+        now = timezone.utcnow()
+        # Recorded newest first, so that the order is not the order of their ids.
+        for minutes, delivery_id in ((1, "third"), (2, "second"), (3, "first")):
+            _add_cancel_request(
+                session, received_at=now - timedelta(minutes=minutes), delivery_id=delivery_id
+            )
+        session.commit()
+        with conf_vars({("webhooks", "cancel_requests_per_loop"): per_loop}):
+            runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        runner._apply_webhook_cancel_requests()
+
+        session.expire_all()
+        assert (
+            session.scalars(
+                select(WebhookCancelRequest.delivery_id)
+                .where(WebhookCancelRequest.status == CancelRequestStatus.APPLIED)
+                .order_by(WebhookCancelRequest.received_at)
+            ).all()
+            == applied
+        )
+
+    def test_idle_step_costs_one_query(self):
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        with count_queries() as result:
+            runner._apply_webhook_cancel_requests()
+
+        assert sum(result.values()) == 1
+
+    def test_sends_the_dag_failure_callback_after_commit(self, dag_maker, session):
+        dag_run = self.declare_cancellable_run(dag_maker, session, on_failure_callback=lambda context: None)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+        runner.executor.callback_sink = DatabaseCallbackSink()
+        committed_states = []
+        send = DatabaseCallbackSink.send
+
+        def send_after_reading_the_committed_run(sink, callback, **kwargs):
+            with create_session(scoped=False) as other:
+                committed_states.append(other.scalar(select(DagRun.state).where(DagRun.id == dag_run.id)))
+            send(sink, callback, **kwargs)
+
+        with mock.patch.object(
+            DatabaseCallbackSink, "send", autospec=True, side_effect=send_after_reading_the_committed_run
+        ):
+            runner._apply_webhook_cancel_requests()
+
+        callback = session.scalars(select(DbCallbackRequest)).one().get_callback_request()
+        assert isinstance(callback, DagCallbackRequest)
+        assert (callback.dag_id, callback.run_id, callback.is_failure_callback, callback.msg) == (
+            "cancellable",
+            dag_run.run_id,
+            True,
+            "cancelled",
+        )
+        assert committed_states == [DagRunState.FAILED]
+
+    @mock.patch("airflow.models.dagrun.get_listener_manager", autospec=True)
+    @mock.patch.object(cancel_application, "get_listener_manager", autospec=True)
+    def test_calls_listeners_after_commit(self, ti_listeners, run_listeners, dag_maker, session):
+        dag_run = self.declare_cancellable_run(dag_maker, session)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+        committed_states = []
+
+        def read_the_committed_states(**kwargs):
+            with create_session(scoped=False) as other:
+                committed_states.append(
+                    (
+                        other.scalar(select(DagRun.state).where(DagRun.id == dag_run.id)),
+                        other.scalar(select(TaskInstance.state).where(TaskInstance.run_id == dag_run.run_id)),
+                    )
+                )
+
+        ti_listeners.return_value.hook.on_task_instance_failed.side_effect = read_the_committed_states
+        run_listeners.return_value.hook.on_dag_run_failed.side_effect = read_the_committed_states
+
+        runner._apply_webhook_cancel_requests()
+
+        assert committed_states == [(DagRunState.FAILED, TaskInstanceState.FAILED)] * 2
+        assert run_listeners.return_value.hook.on_dag_run_failed.call_args.kwargs["msg"] == "cancelled"
+
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_counts_cancels_by_webhook_and_scope(self, mock_get_backend, dag_maker, session):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        self.declare_cancellable_run(dag_maker, session)
+        with dag_maker("tasks", schedule=None, session=session):
+            PythonOperator.partial(task_id="e2e", python_callable=list).expand(op_kwargs=[{}, {}])
+        dag_run = dag_maker.create_dagrun(logical_date=DEFAULT_DATE)
+        _add_delivery_event(session, timestamp=timezone.utcnow() - timedelta(minutes=5), dag_run=dag_run)
+        _add_cancel_request(
+            session,
+            received_at=timezone.utcnow(),
+            dag_id="tasks",
+            delivery_id="delivery-2",
+            targets={
+                "run": None,
+                "tasks": [{"task_id": "e2e", "cancel_state": "skipped", "correlation_key_confs": []}],
+            },
+        )
+        session.commit()
+
+        SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._apply_webhook_cancel_requests()
+
+        assert [call for call in mock_stats.incr.call_args_list if call.args[0] == "webhooks.cancels"] == [
+            mock.call("webhooks.cancels", count=1, tags={"webhook": "github", "scope": "run"}),
+            mock.call("webhooks.cancels", count=2, tags={"webhook": "github", "scope": "task"}),
+        ]
+
+    @pytest.mark.parametrize(
+        ("run_type", "exceeds_max_non_backfill"),
+        [
+            pytest.param(DagRunType.MANUAL, False, id="manual"),
+            pytest.param(DagRunType.BACKFILL_JOB, True, id="backfill"),
+        ],
+    )
+    def test_lets_a_dag_at_max_active_runs_start_its_next_run(
+        self, dag_maker, session, run_type, exceeds_max_non_backfill
+    ):
+        self.declare_cancellable_run(dag_maker, session, run_type=run_type, max_active_runs=1)
+        session.get_one(DagModel, "cancellable").exceeds_max_non_backfill = True
+        session.commit()
+
+        SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._apply_webhook_cancel_requests()
+
+        session.expire_all()
+        assert session.get_one(DagModel, "cancellable").exceeds_max_non_backfill is exceeds_max_non_backfill
+
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            pytest.param(
+                RuntimeError("bug"),
+                {"first": ("failed", "RuntimeError"), "second": ("applied", None)},
+                id="error",
+            ),
+            pytest.param(
+                IntegrityError("INSERT", {}, Exception("duplicate key")),
+                {"first": ("failed", "IntegrityError"), "second": ("applied", None)},
+                id="database-error",
+            ),
+            pytest.param(
+                OperationalError("SELECT", {}, Exception("server closed the connection")),
+                {"first": ("pending", None), "second": ("pending", None)},
+                id="transient-database-error",
+            ),
+        ],
+    )
+    @mock.patch("airflow.jobs.scheduler_job_runner.apply_cancel_request", autospec=True)
+    def test_marks_a_request_that_fails_to_apply_failed_and_continues(
+        self, apply_cancel_request, dag_maker, session, caplog, error, expected
+    ):
+        with dag_maker("cancellable", schedule=None, session=session):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+        dag_run.get_task_instance("task", session=session).state = TaskInstanceState.RUNNING
+        dag_run_id, run_id = dag_run.id, dag_run.run_id
+        now = timezone.utcnow()
+        _add_delivery_event(session, timestamp=now - timedelta(minutes=5), dag_run=dag_run)
+        first = _add_cancel_request(session, received_at=now - timedelta(minutes=1), delivery_id="first")
+        second = _add_cancel_request(session, received_at=now, delivery_id="second")
+        session.commit()
+        errors = iter([error])
+
+        def fail_first(request, **kwargs):
+            # The first request fails only after it has cancelled the run, which its savepoint must undo.
+            outcome = cancel_application.apply_cancel_request(request, **kwargs)
+            if (raised := next(errors, None)) is not None:
+                raise raised
+            return outcome
+
+        apply_cancel_request.side_effect = fail_first
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        if isinstance(error, OperationalError):
+            with pytest.raises(OperationalError):
+                runner._apply_webhook_cancel_requests()
+        else:
+            runner._apply_webhook_cancel_requests()
+            assert {
+                "event": "Failed to apply a webhook cancel request",
+                "request_id": str(first.id),
+            } in caplog
+
+        assert self.get_statuses(session) == expected
+        if isinstance(error, OperationalError):
+            assert session.scalar(select(DagRun.state).where(DagRun.id == dag_run_id)) == DagRunState.RUNNING
+            return
+        cancel_logs = session.scalars(select(Log).where(Log.event == "webhook_cancel")).all()
+        assert [json.loads(log.extra)["request_id"] for log in cancel_logs] == [str(second.id)]
+        assert session.get_one(WebhookCancelRequest, first.id).result == {
+            "dag_runs": [],
+            "task_instances": [],
+            "skipped_runs": [],
+            "error": type(error).__name__,
+        }
+        assert session.get_one(WebhookCancelRequest, second.id).result["dag_runs"] == [
+            {"run_id": run_id, "state": "failed"}
+        ]
+        assert session.get_one(DagRun, dag_run_id).note == "Cancelled by webhook github delivery second"
+
+    def test_skips_a_request_another_scheduler_holds(self, dag_maker, session):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        with dag_maker("cancellable", schedule=None, session=session):
+            EmptyOperator(task_id="task")
+        now = timezone.utcnow()
+        held = _add_cancel_request(session, received_at=now - timedelta(minutes=1), delivery_id="held")
+        _add_cancel_request(session, received_at=now, delivery_id="free")
+        session.commit()
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        with create_session(scoped=False) as locker:
+            locker.scalar(
+                select(WebhookCancelRequest.id).where(WebhookCancelRequest.id == held.id).with_for_update()
+            )
+            try:
+                runner._apply_webhook_cancel_requests()
+            finally:
+                locker.rollback()
+
+        assert self.get_statuses(session) == {"held": ("pending", None), "free": ("applied", None)}
+
+    def test_waits_for_a_run_another_scheduler_holds(self, dag_maker, session):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        dag_run = self.declare_cancellable_run(dag_maker, session)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as locker:
+            locker.scalar(select(DagRun.id).where(DagRun.id == dag_run.id).with_for_update())
+            future = pool.submit(runner._apply_webhook_cancel_requests)
+            try:
+                with pytest.raises(TimeoutError):
+                    future.result(timeout=1)
+            finally:
+                locker.rollback()
+            future.result(timeout=30)
+
+        session.expire_all()
+        assert session.scalar(select(DagRun.state).where(DagRun.id == dag_run.id)) == DagRunState.FAILED
+
+    @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
+    def test_scheduler_loop_looks_for_cancel_requests_every_second(self, call_regular_interval):
+        scheduler_job = Job()
+        scheduler_job.heartbeat = mock.MagicMock()
+        runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)])
+
+        runner._run_scheduler_loop()
+
+        assert WEBHOOK_CANCEL_CHECK_INTERVAL == 1.0
+        assert (
+            mock.call(
+                mock.ANY, WEBHOOK_CANCEL_CHECK_INTERVAL, runner._apply_webhook_cancel_requests, non_fatal=True
+            )
+            in call_regular_interval.call_args_list
+        )
+
+    @mock.patch("airflow.models.dagrun.get_listener_manager", autospec=True)
+    def test_cancels_an_asset_triggered_run_whose_event_is_older_than_a_request(
+        self, run_listeners, dag_maker, session
+    ):
+        started = self.declare_asset_triggered(
+            dag_maker, session, cancel_on=[PR_CLOSED], on_failure_callback=lambda context: None
+        )
+        self.queue_delivery_event(session, timestamp=started + timedelta(seconds=1))
+        earlier = {"run_id": "earlier", "state": "failed"}
+        request = _add_cancel_request(
+            session,
+            received_at=started + timedelta(seconds=2),
+            status=CancelRequestStatus.APPLIED,
+            result={"dag_runs": [earlier], "task_instances": [], "skipped_runs": [], "error": None},
+        )
+        session.commit()
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+        runner.executor.callback_sink = DatabaseCallbackSink()
+        committed_states = []
+
+        def read_the_committed_run(dag_run, msg):
+            with create_session(scoped=False) as other:
+                committed_states.append(other.scalar(select(DagRun.state).where(DagRun.id == dag_run.id)))
+
+        run_listeners.return_value.hook.on_dag_run_failed.side_effect = read_the_committed_run
+
+        runner._do_scheduling(session)
+
+        session.expire_all()
+        dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == "cancellable")).one()
+        assert (dag_run.state, dag_run.note) == (
+            DagRunState.FAILED,
+            "Cancelled by webhook github delivery delivery-1",
+        )
+        assert dag_run.get_task_instance("task", session=session).state == TaskInstanceState.SKIPPED
+        assert session.scalars(select(Log.run_id).where(Log.event == "webhook_cancel")).all() == [
+            dag_run.run_id
+        ]
+        callback = session.scalars(select(DbCallbackRequest)).one().get_callback_request()
+        assert (callback.run_id, callback.msg) == (dag_run.run_id, "cancelled")
+        assert session.get_one(WebhookCancelRequest, request.id).result["dag_runs"] == [
+            earlier,
+            {"run_id": dag_run.run_id, "state": "failed"},
+        ]
+        assert committed_states == [DagRunState.FAILED]
+        assert runner._creation_cancel_outcomes == []
+
+    @pytest.mark.parametrize(
+        ("cancel_on", "received_after_the_event"),
+        [
+            pytest.param([PR_CLOSED], False, id="request-older-than-the-event"),
+            pytest.param(None, True, id="dag-without-cancel-on"),
+        ],
+    )
+    @mock.patch(
+        "airflow.jobs.scheduler_job_runner.apply_earlier_cancel_requests",
+        autospec=True,
+        side_effect=cancel_application.apply_earlier_cancel_requests,
+    )
+    def test_creates_an_asset_triggered_run_that_no_request_applies_to(
+        self, apply_earlier_cancel_requests, dag_maker, session, cancel_on, received_after_the_event
+    ):
+        started = self.declare_asset_triggered(dag_maker, session, cancel_on=cancel_on)
+        self.queue_delivery_event(session, timestamp=started + timedelta(seconds=2))
+        _add_cancel_request(
+            session, received_at=started + timedelta(seconds=3 if received_after_the_event else 1)
+        )
+        session.commit()
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+        assert session.scalars(select(DagRun.state)).one() == DagRunState.QUEUED
+        assert apply_earlier_cancel_requests.call_count == (1 if cancel_on else 0)
+
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_gives_the_tasks_of_an_asset_triggered_run_their_cancel_state(
+        self, mock_get_backend, dag_maker, session
+    ):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        with dag_maker("cancellable", schedule=[Asset(name="pull-requests")], session=session) as dag:
+            EmptyOperator(task_id="deploy")
+            EmptyOperator(task_id="e2e", cancel_on=[PR_CLOSED], cancel_state="skipped")
+        session.commit()
+        started = session.scalars(
+            select(DagScheduleAssetReference.created_at).where(DagScheduleAssetReference.dag_id == dag.dag_id)
+        ).one()
+        self.queue_delivery_event(session, timestamp=started + timedelta(seconds=1))
+        _add_cancel_request(
+            session,
+            received_at=started + timedelta(seconds=2),
+            targets={
+                "run": None,
+                "tasks": [{"task_id": "e2e", "cancel_state": "skipped", "correlation_key_confs": []}],
+            },
+        )
+        session.commit()
+
+        SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._do_scheduling(session)
+
+        session.expire_all()
+        dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == "cancellable")).one()
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.get_task_instance("e2e", session=session).state == TaskInstanceState.SKIPPED
+        mock_stats.incr.assert_any_call(
+            "webhooks.cancels", count=1, tags={"webhook": "github", "scope": "task"}
+        )
+
+    @pytest.mark.usefixtures("clear_asset_partition_rows")
+    def test_cancels_a_partitioned_asset_run_whose_event_is_older_than_a_request(self, dag_maker, session):
+        asset = Asset(name="pull-requests")
+        with dag_maker(
+            "cancellable",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            cancel_on=[PR_CLOSED],
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        session.commit()
+        _produce_and_register_asset_event(
+            dag_id="producer",
+            asset=asset,
+            partition_key="my-org/web#42",
+            session=session,
+            dag_maker=dag_maker,
+        )
+        delivered_at = timezone.utcnow() - timedelta(minutes=1)
+        # As an asset route records it: from a delivery, not from a task.
+        session.execute(
+            update(AssetEvent)
+            .where(AssetEvent.source_dag_id == "producer")
+            .values(
+                source_dag_id=None,
+                source_task_id=None,
+                source_run_id=None,
+                timestamp=delivered_at,
+                extra={"from_webhook": True, "webhook": "github", "correlation_key": CANCEL_KEY},
+            )
+        )
+        _add_cancel_request(session, received_at=delivered_at + timedelta(seconds=1))
+        session.commit()
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+
+        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {"cancellable"}
+
+        dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == "cancellable")).one()
+        assert dag_run.state == DagRunState.FAILED
+        assert [outcome.runs_cancelled for outcome in runner._creation_cancel_outcomes] == [1]
+
+    @staticmethod
+    def declare_asset_gated(dag_maker, session: Session) -> None:
+        """Add an asset-gated Dag whose schedule is due, its queued delivery event, and a later request."""
+        due = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+        with dag_maker(
+            "cancellable",
+            schedule=AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+                assets=[Asset(name="pull-requests")],
+            ),
+            cancel_on=[PR_CLOSED],
+            max_active_runs=1,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = due
+        dag_model.next_dagrun_data_interval = (due, due)
+        dag_model.next_dagrun_create_after = due
+        delivered_at = due + timedelta(hours=1)
+        TestApplyWebhookCancelRequests.queue_delivery_event(session, timestamp=delivered_at)
+        # Applied by the loop while no run was about the key yet.
+        _add_cancel_request(
+            session,
+            received_at=delivered_at + timedelta(minutes=1),
+            status=CancelRequestStatus.APPLIED,
+            result=cancel_application.build_empty_result(),
+        )
+        session.commit()
+
+    @time_machine.travel("2026-03-29 18:30:00+00:00")
+    def test_cancels_an_asset_gated_run_whose_event_is_older_than_a_request(self, dag_maker, session):
+        self.declare_asset_gated(dag_maker, session)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+        session.expire_all()
+        assert session.scalars(select(DagRun.state).where(DagRun.dag_id == "cancellable")).one() == (
+            DagRunState.FAILED
+        )
+        assert session.get_one(DagModel, "cancellable").exceeds_max_non_backfill is False
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.apply_earlier_cancel_requests", autospec=True)
+    @time_machine.travel("2026-03-29 18:30:00+00:00")
+    def test_retries_creating_an_asset_gated_run_whose_cancel_hits_a_transient_database_error(
+        self, apply_earlier_cancel_requests, dag_maker, session
+    ):
+        self.declare_asset_gated(dag_maker, session)
+        errors = iter([OperationalError("SELECT", {}, Exception("server closed the connection"))])
+
+        def fail_once(**kwargs):
+            if (error := next(errors, None)) is not None:
+                raise error
+            return cancel_application.apply_earlier_cancel_requests(**kwargs)
+
+        apply_earlier_cancel_requests.side_effect = fail_once
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+        session.expire_all()
+        assert session.scalars(select(DagRun.state).where(DagRun.dag_id == "cancellable")).one() == (
+            DagRunState.FAILED
+        )
+        assert apply_earlier_cancel_requests.call_count == 2
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(RuntimeError("bug"), id="error"),
+            pytest.param(IntegrityError("INSERT", {}, Exception("duplicate key")), id="database-error"),
+            pytest.param(
+                OperationalError("SELECT", {}, Exception("server closed the connection")),
+                id="transient-database-error",
+            ),
+        ],
+    )
+    @mock.patch("airflow.jobs.scheduler_job_runner.apply_earlier_cancel_requests", autospec=True)
+    def test_a_cancel_that_fails_at_creation_leaves_the_run_as_created(
+        self, apply_earlier_cancel_requests, dag_maker, session, caplog, error
+    ):
+        with dag_maker("cancellable", schedule=None, cancel_on=[PR_CLOSED], session=session):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(state=DagRunState.QUEUED, logical_date=DEFAULT_DATE)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+        def fail_after_failing_the_run(*, dag_run, session, **kwargs):
+            dag_run.set_state(DagRunState.FAILED)
+            session.flush()
+            raise error
+
+        apply_earlier_cancel_requests.side_effect = fail_after_failing_the_run
+
+        if isinstance(error, OperationalError):
+            with pytest.raises(OperationalError):
+                runner._apply_earlier_cancel_requests(
+                    dag=dag_maker.serialized_dag, dag_run=dag_run, events=[], session=session
+                )
+            return
+        runner._apply_earlier_cancel_requests(
+            dag=dag_maker.serialized_dag, dag_run=dag_run, events=[], session=session
+        )
+
+        assert session.scalar(select(DagRun.state).where(DagRun.id == dag_run.id)) == DagRunState.QUEUED
+        assert runner._creation_cancel_outcomes == []
+        assert {
+            "event": "Failed to apply webhook cancel requests to a new run",
+            "run_id": dag_run.run_id,
+        } in caplog
+
+    @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_partitioned_asset_dags", autospec=True)
+    def test_drops_the_cancels_of_a_creation_attempt_that_is_retried(self, create_partitioned, session):
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+        rolled_back, kept = (
+            cancel_application.CancelOutcome(
+                request_id=uuid4(), webhook="github", delivery_id=delivery_id, dag_id="cancellable"
+            )
+            for delivery_id in ("rolled-back", "kept")
+        )
+        attempts = iter(
+            [
+                (rolled_back, OperationalError("SELECT", {}, Exception("server closed the connection"))),
+                (kept, None),
+            ]
+        )
+
+        def record_then_maybe_fail(self, session):
+            outcome, error = next(attempts)
+            self._creation_cancel_outcomes.append(outcome)
+            if error is not None:
+                raise error
+            return set()
+
+        create_partitioned.side_effect = record_then_maybe_fail
+
+        runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+        assert runner._creation_cancel_outcomes == [kept]
