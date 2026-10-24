@@ -106,6 +106,7 @@ class InProcessExecutionAPI:
 
         from airflow.api_fastapi.auth.tokens import JWTValidator
         from airflow.api_fastapi.execution_api.app import create_task_execution_api_app, lifespan
+        from airflow.api_fastapi.execution_api.workload_identity import DagProcessorIdentityVerifier
 
         if not self._app:
             # Keep the stub private: a shared None validator would prevent lifespan() from
@@ -114,6 +115,9 @@ class InProcessExecutionAPI:
             self._app = create_task_execution_api_app(lifespan=attrs.evolve(lifespan, registry=registry))
             # Auth dependency overrides bypass validation, so the stub skips validator setup in lifespan().
             registry.register_value(JWTValidator, None)
+            # No external Dag processor can reach this app, so it must not load trust settings meant for
+            # API servers, which can fail to load in components configured differently.
+            registry.register_value(DagProcessorIdentityVerifier, None)
             _configure_in_process_auth(self._app, triggerer_id=self.triggerer_id)
 
         return self._app

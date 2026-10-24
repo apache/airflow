@@ -43,10 +43,10 @@ class IssuedToken(NamedTuple):
 
 
 class ExpiredDagProcessorToken(ValueError):
-    """The parent credential expired before a Job or parsing credential could be issued."""
+    """The parent credential expired before a session, Job, or parsing credential could be issued."""
 
 
-def _get_lifetime(generator: JWTGenerator, parent_expiry: float, message: str) -> int:
+def get_token_lifetime(generator: JWTGenerator, parent_expiry: float, message: str) -> int:
     """Return whole seconds a child token may live: the signer's lifetime, capped by its parent's expiry."""
     lifetime = math.floor(min(generator.valid_for, parent_expiry - timezone.utcnow().timestamp()))
     if lifetime < 1:
@@ -77,7 +77,7 @@ def generate_dag_processor_token(
     session_expiry: float,
 ) -> IssuedToken:
     """Issue a Job credential that cannot outlive its provisioned session credential."""
-    lifetime = _get_lifetime(generator, session_expiry, "Session credential has expired")
+    lifetime = get_token_lifetime(generator, session_expiry, "Session credential has expired")
     token = generator.generate(
         extras={
             "sub": str(session_id),
@@ -101,7 +101,7 @@ def generate_dag_parse_token(
     processor_expiry: float,
 ) -> IssuedToken:
     """Issue a parsing credential that cannot outlive its parent Job credential."""
-    lifetime = _get_lifetime(generator, processor_expiry, "Processor credential has expired")
+    lifetime = get_token_lifetime(generator, processor_expiry, "Processor credential has expired")
     token = generator.generate(
         extras={
             "sub": str(attempt_id),

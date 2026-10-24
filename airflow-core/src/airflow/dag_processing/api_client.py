@@ -25,6 +25,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
+from types import TracebackType
 from typing import Any
 from uuid import UUID
 
@@ -43,6 +44,7 @@ from airflow.api_fastapi.execution_api.datamodels.job import (
     TerminalJobState,
 )
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.dag_processing.credentials import FileSessionTokenProvider, SessionTokenProvider
 from airflow.sdk.api.client import BearerAuth, Client
 from airflow.sdk.execution_time.comms import GetConnection, GetVariable, MaskSecret
 from airflow.sdk.execution_time.request_handlers import handle_get_connection, handle_get_variable
@@ -105,7 +107,8 @@ class DagProcessorAPIClient(Client):
         self,
         *,
         base_url: str,
-        token_file: str | Path,
+        token_file: str | Path | None = None,
+        token_provider: SessionTokenProvider | None = None,
         hostname: str,
         unixname: str | None = None,
         bundle_names: list[str] | None = None,
@@ -114,13 +117,19 @@ class DagProcessorAPIClient(Client):
     ):
         if not math.isfinite(token_reload_interval) or token_reload_interval < 0:
             raise ValueError("token_reload_interval must be finite and nonnegative")
+        if token_file is not None:
+            if token_provider is not None:
+                raise ValueError("Specify exactly one of token_file or token_provider")
+            token_provider = FileSessionTokenProvider(token_file)
+        elif token_provider is None:
+            raise ValueError("Specify exactly one of token_file or token_provider")
         self._registration = JobRegisterBody(
             registration_id=uuid7(),
             hostname=hostname,
             unixname=unixname,
             bundle_names=bundle_names,
         )
-        self._token_file = Path(token_file)
+        self._token_provider = token_provider
         self._token_reload_interval = token_reload_interval
         self._session_token: str | None = None
         self._reload_at = 0.0
@@ -212,15 +221,50 @@ class DagProcessorAPIClient(Client):
         # Task-token refresh headers cannot replace a provisioned or Job-bound credential.
         pass
 
-    def _read_session_token(self, *, force: bool = False) -> str:
+    def _read_session_token(
+        self,
+        *,
+        force: bool = False,
+        refresh: bool = False,
+        retry: bool = False,
+        timeout: httpx2.Timeout | None = None,
+    ) -> str:
         now = monotonic()
         if self._session_token is None or force or now >= self._reload_at:
-            token = self._token_file.read_text().strip()
+            token = self._token_provider.get_token(
+                force_refresh=refresh, retry=retry, timeout=timeout
+            ).strip()
             if not token:
-                raise ValueError(f"Dag processor token file is empty: {self._token_file}")
+                raise ValueError("Dag processor session credential is empty")
             self._session_token = token
             self._reload_at = now + self._token_reload_interval
         return self._session_token
+
+    def _close_token_provider(self) -> None:
+        try:
+            self._token_provider.close()
+        finally:
+            self._session_token = None
+            self._registered_with = None
+            self.auth = BearerAuth("")
+
+    def close(self) -> None:
+        """Close the owned credential provider and HTTP connection pool."""
+        try:
+            self._close_token_provider()
+        finally:
+            super().close()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        try:
+            self._close_token_provider()
+        finally:
+            super().__exit__(exc_type, exc_value, traceback)
 
     def _check_can_run(self) -> None:
         if self._completion_state is not None:
@@ -253,7 +297,7 @@ class DagProcessorAPIClient(Client):
             raise DagProcessorRegistrationRetired(
                 "The Dag processor registration has ended; restart required"
             )
-        session_token = self._read_session_token(force=True)
+        session_token = self._read_session_token(force=True, retry=retry, timeout=timeout)
         started_at = monotonic()
         body = self._registration.model_dump(mode="json")
         retried_auth = False
@@ -277,7 +321,7 @@ class DagProcessorAPIClient(Client):
                     ) from error
                 if error.response.status_code not in (401, 403) or retried_auth:
                     raise
-                rotated = self._read_session_token(force=True)
+                rotated = self._read_session_token(force=True, refresh=True, retry=retry, timeout=timeout)
                 if rotated == session_token:
                     raise
                 session_token = rotated
@@ -312,7 +356,10 @@ class DagProcessorAPIClient(Client):
         if self.restart_required or monotonic() < self._retry_renewal_at:
             return
         try:
-            if self._read_session_token() != self._registered_with or monotonic() >= self._renew_at:
+            if (
+                self._read_session_token(timeout=self._get_bounded_timeout()) != self._registered_with
+                or monotonic() >= self._renew_at
+            ):
                 # Do not spend the runtime request's retry budget on an optional early renewal.
                 self._register_job(retry=False, timeout=self._get_bounded_timeout())
         except (httpx2.HTTPError, OSError, ValueError, DagProcessorRegistrationRetired) as error:

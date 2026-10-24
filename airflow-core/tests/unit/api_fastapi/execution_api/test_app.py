@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import json
 import threading
 from contextlib import asynccontextmanager
 from unittest import mock
@@ -211,6 +212,28 @@ def test_in_process_execution_api_runs_without_jwt_secret():
     with httpx2.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+@conf_vars(
+    {
+        ("execution_api", "dag_processor_workload_identity"): json.dumps(
+            {
+                "issuer": "https://identity.example/",
+                "jwks_url": "https://identity.example/keys",
+                "audience": "airflow-dag-processor-bootstrap",
+                "instance_id_claim": ["sub"],
+                "grants": {"processor": ["bundle-of-another-component"]},
+            }
+        )
+    }
+)
+def test_in_process_execution_api_ignores_workload_identity_trust():
+    """Trust settings shared with API servers must not stop components that host the in-process API."""
+    api = InProcessExecutionAPI()
+    with httpx2.Client(transport=api.transport) as client:
+        response = client.post("http://localhost/dag-processor/session-token")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Workload identity provisioning is not enabled"}
 
 
 def test_in_process_task_xcom_write_uses_its_attempt_id(create_task_instance, session):

@@ -42,6 +42,10 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
+from airflow.api_fastapi.execution_api.workload_identity import (
+    DagProcessorIdentityVerifier,
+    create_dag_processor_identity_verifier,
+)
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -106,7 +110,15 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
         # Create an app scoped validator, so that we don't have to fetch it every time
         registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
 
-    yield
+    # InProcessExecutionAPI stubs out the identity verifier: don't create one in that case.
+    if DagProcessorIdentityVerifier in registry:
+        yield
+        return
+
+    async with create_dag_processor_identity_verifier() as verifier:
+        # None when the exchange is disabled; the route answers 404 then.
+        registry.register_value(DagProcessorIdentityVerifier, verifier)
+        yield
 
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
