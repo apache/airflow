@@ -85,6 +85,7 @@ describe("TaskInstanceTooltip", () => {
       executor_config: "{}",
       hostname: null,
       id: "test_my_task",
+      in_loop: false,
       logical_date: null,
       map_index: 0,
       max_tries: 3,
@@ -264,5 +265,30 @@ describe("TaskInstanceTooltip", () => {
 
     expect(screen.getByText(/runId/iu)).toBeInTheDocument();
     expect(screen.getByText(/manual__2025-01-01T00:00:00\+00:00/iu)).toBeInTheDocument();
+  });
+
+  it("names the try even on a first attempt", () => {
+    render(
+      <TaskInstanceTooltip
+        open
+        taskInstance={{
+          child_states: null,
+          loop_iteration: { iteration: 1, loop_id: "process_batch" },
+          max_end_date: null,
+          min_start_date: null,
+          state: "success",
+          task_display_name: "batch_ready",
+          task_id: "process_batch.batch_ready",
+          try_number: 1,
+        }}
+      >
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    // Clearing a pass regenerates the later ones as fresh executions that start at try 1, so
+    // two neighbouring bars can both be a first try and the number is what tells them apart.
+    expect(screen.getByText(/tryNumber/iu).textContent).toContain("1");
   });
 });

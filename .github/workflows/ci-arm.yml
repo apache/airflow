@@ -16,9 +16,9 @@
 # under the License.
 #
 ---
-# ARM canary CI workflow. Triggered on the canary cron only — ARM runners are
-# reserved for the scheduled slot. Companion to `ci-amd.yml`, which runs the
-# same pipeline on AMD for every PR and push. The two workflows are physical
+# ARM canary CI workflow. Triggered on the canary cron and on release branches by
+# `release-branch-ci.yml` — never on PRs. Companion to `ci-amd.yml`, which runs the
+# same pipeline on AMD for every PR. The two workflows are physical
 # copies of each other (GitHub Actions has no cross-file YAML include),
 # differing only in their trigger surface, the hardcoded `runner-type` /
 # `platform` values in `build-info`'s outputs, and the architecture-specific
@@ -31,17 +31,6 @@ on:  # yamllint disable-line rule:truthy
     # architecture). The `:28` vs AMD's `:58` offset keeps the two from competing for
     # runners at exactly the same minute.
     - cron: '28 7,19 * * *'
-  push:
-    # Post-merge pushes to release-prep / providers branches run on both
-    # AMD and ARM (the matching block lives in the other wrapper too —
-    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
-    # intentionally NOT in this list: main pushes stay AMD-only via
-    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-      - chart/v[0-9]+-[0-9]+x-test
-      - airflow-ctl/v[0-9]+-[0-9]+-test
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -55,12 +44,97 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-arm-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Push runs have a group of their own per branch: a newer push cancels the older push run (the
+  # newer run then also tests the cancelled run's changes, see `check-run-needed`), and a push never
+  # cancels a full run of the branch.
+  group: >-
+    ci-arm-${{ github.event.pull_request.number || github.ref }}${{
+    github.event_name == 'push' && '-push' || '' }}
+  # A scheduled canary queues behind a run in progress instead of cancelling it: it may well be a
+  # manual run of the same commit, which the canary would otherwise cancel and then skip itself.
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
+  check-run-needed:
+    name: "Check if the run is needed"
+    # A scheduled canary is not needed when the last completed full run of this workflow on the
+    # branch tested the same commit and succeeded: it would only repeat that run. A push run tests
+    # the changes since the last successful run of this workflow on the branch, found here.
+    # This job runs for every event, with no steps for the others: every other job depends on it
+    # through `build-info`, and GitHub skips the whole dependency chain below a skipped job unless
+    # each job in it has a status function such as `always()` in its `if:`.
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run-needed: ${{ steps.schedule.outputs.run-needed || 'true' }}
+      push-base-commit: ${{ steps.push.outputs.push-base-commit }}
+    steps:
+      - name: "Find the last successful run of the branch"
+        if: github.event_name == 'push'
+        id: push
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          workflow_path="${WORKFLOW_REF%@*}"
+          # A successful push or full run tested everything up to its commit. Changes after it -- from
+          # pushes whose runs failed, or were cancelled by a newer push -- are all tested by this run.
+          # A successful run of this same commit is passed over, so that a re-run tests again.
+          if ! base="$(gh api "repos/${REPOSITORY}/actions/workflows/${workflow_path##*/}/runs" -X GET \
+            -f branch="${BRANCH}" -f status=success -F per_page=30 \
+            --jq "[.workflow_runs[] | select((.event == \"push\" or .event == \"workflow_dispatch\")
+                  and .head_sha != \"${GITHUB_SHA}\")][0].head_sha // \"\"")"; then
+            # Fail open: a failed lookup must not skip the run.
+            echo "::warning::Could not find the last successful run of ${BRANCH}, all tests will run"
+            base=""
+          fi
+          # With no successful run to build on, selective checks run all tests.
+          echo "push-base-commit=${base}" >> "${GITHUB_OUTPUT}"
+          echo "Testing the changes since ${base:-the start: no successful run yet, so all tests run}." \
+            >> "${GITHUB_STEP_SUMMARY}"
+      - name: "Check the last full run of ${{ github.sha }}"
+        if: github.event_name == 'schedule'
+        id: schedule
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          workflow_path="${WORKFLOW_REF%@*}"
+          workflow="${workflow_path##*/}"
+          # Full runs are the scheduled canaries and manual `workflow_dispatch` runs; this run is
+          # still in progress, so `status=completed` leaves it out.
+          if ! last="$(gh api \
+            "repos/${REPOSITORY}/actions/workflows/${workflow}/runs?branch=${BRANCH}&status=completed" \
+            -F per_page=20 -X GET \
+            --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch")][0]
+                  | "\(.head_sha // "") \(.conclusion // "") \(.html_url // "")"')"; then
+            # Fail open: a canary that cannot check the last run runs, and reports to Slack.
+            echo "::warning::Could not find the last full run of ${BRANCH}, running the canary"
+            last=""
+          fi
+          read -r last_sha last_conclusion last_url <<< "${last}"
+          if [[ "${last_sha}" == "${GITHUB_SHA}" && "${last_conclusion}" == "success" ]]; then
+            echo "run-needed=false" >> "${GITHUB_OUTPUT}"
+            echo "No new commits since the last successful full run: ${last_url}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "run-needed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
   build-info:
     name: "Build info"
+    needs: [check-run-needed]
+    if: needs.check-run-needed.outputs.run-needed == 'true'
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     outputs:
@@ -128,6 +202,7 @@ jobs:
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
       run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
+      run-ts-sdk-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-tests }}
       run-ts-sdk-docs: ${{ steps.selective-checks.outputs.run-ts-sdk-docs }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -178,6 +253,16 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Fetch the last tested push commit"
+        # Selective checks of a push diff against this commit. A two-commit diff only needs the
+        # commit itself, not the history in between; if it cannot be fetched, all tests run.
+        if: needs.check-run-needed.outputs.push-base-commit != ''
+        shell: bash
+        env:
+          PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${PUSH_BASE_COMMIT}" \
+            || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all tests will run"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
@@ -219,6 +304,8 @@ jobs:
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
           PLATFORM: "linux/arm64"
+          SELECTIVE_TESTS_ON_PUSH: "true"
+          PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
@@ -235,7 +322,7 @@ jobs:
 
   basic-tests:
     name: "Basic tests"
-    needs: [build-info]
+    needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
@@ -252,6 +339,7 @@ jobs:
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
+      push-base-commit: ${{ needs.check-run-needed.outputs.push-base-commit }}
 
   build-ci-images:
     name: Build CI images
@@ -1018,6 +1106,40 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
 
+  tests-ts-sdk:
+    name: "TypeScript SDK tests"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    if: needs.build-info.outputs.run-ts-sdk-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        with:
+          package_json_file: ts-sdk/package.json
+          run_install: false
+      # keep this in sync with the Node version in ts-sdk-release.yml
+      - name: Setup node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: "24.19.0"
+          cache: 'pnpm'
+          cache-dependency-path: ts-sdk/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: ./ts-sdk
+        run: pnpm install --frozen-lockfile
+      - name: Run TypeScript SDK tests
+        working-directory: ./ts-sdk
+        run: pnpm test
+        env:
+          FORCE_COLOR: 2
+
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
@@ -1038,7 +1160,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1072,7 +1194,7 @@ jobs:
       - name: "Build Java SDK Javadoc"
         run: breeze build-docs --sdk-docs-only --sdk=java
       - name: "Upload Javadoc artifact"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk/
@@ -1104,7 +1226,7 @@ jobs:
       - name: "Build TypeScript SDK API reference"
         run: breeze build-docs --sdk-docs-only --sdk=typescript
       - name: "Upload TypeScript SDK docs artifact"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: ts-sdk-docs
           path: generated/_build/docs/ts-sdk/
@@ -1156,7 +1278,7 @@ jobs:
       contents: write
       packages: write
     # This will fire when all the jobs from "needs" are either successful or skipped
-    if: always() && !failure() && !cancelled()
+    if: always() && !failure() && !cancelled() && needs.build-info.result == 'success'
     needs:
       - additional-ci-image-checks
       - additional-prod-image-tests
@@ -1183,6 +1305,7 @@ jobs:
       - tests-airflow-ctl
       - tests-go-sdk
       - tests-java-sdk
+      - tests-ts-sdk
       - build-java-sdk-docs
       - build-ts-sdk-docs
       - tests-with-lowest-direct-resolution-core
@@ -1204,16 +1327,79 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
+  ci-passed:
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead. Until the gate lands,
+    # build-info has no condition and this always reports "CI passed".
+    name: >-
+      ${{ needs.build-info.result == 'skipped' && 'CI passed (project CI not run)' || 'CI passed' }}
+    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
+    # skipped required check as passed, so this job always runs and fails itself when any job it
+    # needs failed or was cancelled. Jobs skipped by selective checks count as passed.
+    if: always()
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-ts-sdk-docs
+      - check-run-needed
+      - ci-image-checks
+      - finalize-tests
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
+      - name: "Fail if any CI job failed or was cancelled"
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "At least one CI job failed or was cancelled."
+          exit 1
+      - name: "All CI jobs passed or were skipped"
+        run: echo "All CI jobs passed or were skipped."
+
   notify-slack:
     name: "Notify Slack"
     needs:
       - build-info
+      - check-run-needed
       - finalize-tests
       - tests-agent-frameworks
+    # A no-op canary (`run-needed` is 'false') does not post; a failed check does.
     if: >-
       always() &&
       !cancelled() &&
       github.event_name == 'schedule' &&
+      needs.check-run-needed.outputs.run-needed != 'false' &&
       github.run_attempt == 1
     runs-on: ["ubuntu-slim"]
     steps:
@@ -1254,7 +1440,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-arm"
           path: ./slack-state/
@@ -1341,7 +1527,7 @@ jobs:
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Download all test warning artifacts from the current build"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           path: ./artifacts
           pattern: test-warnings-*
@@ -1355,7 +1541,7 @@ jobs:
             --pattern "**/warnings-*.txt" \
             --output ./files
       - name: "Upload artifact for summarized warnings"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "test-summarized-warnings"
           path: ./files/warn-summary-*.txt

@@ -65,13 +65,9 @@ exclude = ["*"]
 bypass-selection = true
 
 [dependency-groups]
-# To build docs run:
+# To build docs and check their spelling run:
 #
 #    uv run --group docs sphinx-build -T --color -b html  . _build
-#
-# To check spelling:
-#
-#    uv run --group docs sphinx-build -T --color -b spelling  . _build
 #
 # To enable auto-refreshing build with server:
 #

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from collections import deque
@@ -26,6 +27,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli.commands.standalone_command import StandaloneCommand, SubCommand
+from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -34,6 +36,14 @@ from airflow.executors.executor_constants import (
 )
 
 from tests_common.test_utils.config import conf_vars
+
+
+def default_dag_discovery_config():
+    """Dag discovery options at their defaults, as the generated airflow.cfg writes them."""
+    return {
+        ("dag_processor", key): conf.get_default_value("dag_processor", key)
+        for key in ("refresh_interval", "dag_bundle_config_list")
+    }
 
 
 class TestStandaloneCommand:
@@ -84,6 +94,47 @@ class TestStandaloneCommand:
         env = cmd.calculate_env()
 
         assert "AIRFLOW__CORE__AUTH_MANAGER" not in env
+
+    def test_calculate_env_refreshes_dags_folder_on_every_bundle_check_by_default(self):
+        """The generated airflow.cfg spells out every default, which must not count as a user choice."""
+        config = {**default_dag_discovery_config(), ("dag_processor", "bundle_refresh_check_interval"): "5"}
+        with conf_vars(config), mock.patch.dict(os.environ):
+            env = StandaloneCommand().calculate_env()
+
+        assert env["AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL"] == "5"
+
+    @pytest.mark.parametrize(
+        ("config", "environ"),
+        [
+            pytest.param({("dag_processor", "refresh_interval"): "60"}, {}, id="interval-in-airflow-cfg"),
+            pytest.param({}, {"AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL": "60"}, id="interval-in-env"),
+            pytest.param(
+                {}, {"AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL": "300"}, id="default-interval-in-env"
+            ),
+            pytest.param(
+                {
+                    ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                        [
+                            {
+                                "name": "my-git-repo",
+                                "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+                                "kwargs": {},
+                            }
+                        ]
+                    )
+                },
+                {},
+                id="custom-bundles",
+            ),
+        ],
+    )
+    def test_calculate_env_keeps_user_chosen_dag_discovery(self, config, environ):
+        with conf_vars({**default_dag_discovery_config(), **config}), mock.patch.dict(os.environ, environ):
+            env = StandaloneCommand().calculate_env()
+
+        assert env.get("AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL") == environ.get(
+            "AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL"
+        )
 
     @mock.patch("airflow.cli.commands.standalone_command.os.path.exists", return_value=False)
     @mock.patch("airflow.cli.commands.standalone_command.create_auth_manager")

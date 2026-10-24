@@ -1015,14 +1015,10 @@ class TestGetPendingPartitionedDagRun:
         assert body["dag_id"] == "slash_key_dag"
         assert body["partition_key"] == "region/us"
 
-    def test_duplicate_pending_apdr_rows_return_latest(self, test_client, dag_maker, session):
-        """
-        Duplicate pending APDR rows for the same (dag_id, partition_key) must not 500.
-
-        The model docstring for ``AssetPartitionDagRun`` says callers should always
-        work on the latest row when duplicates exist; the route must do the same
-        instead of raising ``MultipleResultsFound`` from ``.one_or_none()``.
-        """
+    @pytest.mark.parametrize(
+        "selection", [None, "oldest", "newest", "missing", "other-dag", "other-partition", "created"]
+    )
+    def test_pending_partition_details_select_run(self, test_client, dag_maker, session, selection):
         asset = Asset(uri="s3://bucket/dup_apdr", name="dup_apdr")
         with dag_maker(
             dag_id="dup_apdr_dag",
@@ -1030,40 +1026,52 @@ class TestGetPendingPartitionedDagRun:
             serialized=True,
         ):
             EmptyOperator(task_id="t")
-        dag_maker.create_dagrun()
+        dag_run = dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
         asset = session.scalar(select(AssetModel).where(AssetModel.uri == "s3://bucket/dup_apdr"))
 
-        # Older duplicate row: no received events.
-        stale_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
-        session.add(stale_pdr)
+        next_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
+        session.add(next_pdr)
         session.flush()
 
-        # Newer duplicate row (higher id): has a received event.
-        latest_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
-        session.add(latest_pdr)
+        later_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
+        session.add(later_pdr)
         session.flush()
-        event = AssetEvent(asset_id=asset.id, timestamp=pendulum.now())
+        event = AssetEvent(asset_id=asset.id, timestamp=pendulum.datetime(2024, 8, 1))
         session.add(event)
         session.flush()
         session.add(
             PartitionedAssetKeyLog(
                 asset_id=asset.id,
                 asset_event_id=event.id,
-                asset_partition_dag_run_id=latest_pdr.id,
+                asset_partition_dag_run_id=next_pdr.id,
                 source_partition_key="2024-08-01",
                 target_dag_id="dup_apdr_dag",
                 target_partition_key="2024-08-01",
             )
         )
+        params = {"partition_key": "2024-08-01"}
+        if selection is not None:
+            params["partitioned_dag_run_id"] = next_pdr.id if selection == "oldest" else later_pdr.id
+        if selection == "missing":
+            params["partitioned_dag_run_id"] = -1
+        elif selection == "other-dag":
+            later_pdr.target_dag_id = "other-dag"
+        elif selection == "other-partition":
+            later_pdr.partition_key = "other-partition"
+        elif selection == "created":
+            later_pdr.created_dag_run_id = dag_run.id
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/dup_apdr_dag?partition_key=2024-08-01")
+        resp = test_client.get("/pending_partitioned_dag_run/dup_apdr_dag", params=params)
+        if selection in {"missing", "other-dag", "other-partition", "created"}:
+            assert resp.status_code == 404
+            return
         assert resp.status_code == 200
         body = resp.json()
-        assert body["id"] == latest_pdr.id
-        assert body["total_received"] == 1
+        assert body["id"] == (next_pdr.id if selection == "oldest" else later_pdr.id)
+        assert body["total_received"] == (1 if selection == "oldest" else 0)
 
     def test_non_rollup_many_to_one_received_capped_at_one(self, test_client, dag_maker, session):
         """

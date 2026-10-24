@@ -62,6 +62,7 @@ from airflow.models.asset import (
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
@@ -87,9 +88,11 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import CompactUUID
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.attempt_ownership import (
+    COORDINATES,
     CURRENT_ID,
     HISTORY_ID,
     NOW,
@@ -912,6 +915,26 @@ class TestDBCleanup:
                 # "dagrun_id" intentionally omitted from extra_columns
             )
 
+    def test_do_delete_checks_batch_existence_without_counting_rows(self):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "sqlite"
+        session.scalars.return_value.one.return_value = False
+        _, source_table, _, query = _build_do_delete_test_objects()
+
+        _do_delete(
+            query=query,
+            orm_model=source_table,
+            skip_archive=False,
+            session=session,
+            batch_size=100,
+        )
+
+        existence_query = session.scalars.call_args.args[0]
+        compiled_query = str(existence_query.compile()).lower()
+        assert "exists" in compiled_query
+        assert "count(" not in compiled_query
+        session.execute.assert_not_called()
+
     def test_do_delete_rolls_back_before_drop_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
@@ -1230,6 +1253,7 @@ class TestDBCleanup:
             "asset_watcher",  # cascade from trigger
             "dag_favorite",  # cascade from dag
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "dynamic_region",  # cascade from dag_run; archived with it, never aged out on its own
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
             "job_team",  # cascade from job
@@ -1678,6 +1702,45 @@ class TestDBCleanup:
                 == count
             )
 
+    @pytest.mark.execution_timeout(10)
+    def test_dag_run_cleanup_archives_its_regions(self, ownership_session):
+        session = ownership_session
+        region_id = uuid4()
+        session.execute(
+            sa.insert(DynamicRegion).values(
+                id=region_id,
+                dag_id=COORDINATES["dag_id"],
+                run_id=COORDINATES["run_id"],
+                node_id="loop",
+                family_root_id=region_id,
+                path=b"",
+                created_at=NOW - timedelta(days=100),
+            )
+        )
+        session.execute(sa.update(TaskInstance).values(region_id=region_id))
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["dag_run"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.scalar(sa.select(sa.func.count()).select_from(DynamicRegion)) == 0
+        archived = [
+            archive
+            for archive in _get_archived_table_names(["dag_run"], session)
+            if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}dynamic_region__")
+        ]
+        archived_ids = [
+            row[0]
+            for archive in archived
+            for row in session.execute(sa.text(f"SELECT id FROM {archive}").columns(id=CompactUUID()))
+        ]
+        assert archived_ids == [region_id]
+
     @pytest.mark.parametrize("include", [True, False])
     @pytest.mark.execution_timeout(10)
     def test_cleanup_scopes_attempt_cascade_to_selected_dag(self, ownership_session, include):
@@ -1704,7 +1767,7 @@ class TestDBCleanup:
                 dag_id="other",
                 task_id="task",
                 run_id="manual",
-                map_index=-1,
+                region_index=-1,
                 state="success",
                 try_number=1,
                 working_set=True,
@@ -1991,7 +2054,7 @@ class TestTaskStoreCleanup:
             expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="job_id",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -2002,7 +2065,7 @@ class TestTaskStoreCleanup:
             never_expire = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="result",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -2013,7 +2076,7 @@ class TestTaskStoreCleanup:
             not_yet_expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="future_key",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",

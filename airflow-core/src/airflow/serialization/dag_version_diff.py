@@ -256,6 +256,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "retries",
         "retry_delay",
         "retry_exponential_backoff",
+        "returns_dag_result",
         "run_as_user",
         "start_date",
         "start_from_trigger",
@@ -377,6 +378,7 @@ _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS = _DIFF_V1_TASK_GROUP_METADATA_FIELDS | {
     "downstream_task_ids",
     "expand_input",
     "is_mapped",
+    "loop",
 }
 
 

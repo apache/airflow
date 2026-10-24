@@ -1773,6 +1773,46 @@ class TestKubernetesExecutor:
         assert executor.get_event_buffer() == {key: (TaskInstanceState.SUCCESS, None)}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_process_workloads_invalid_executor_config_is_not_tracked_as_running(self):
+        """A task failed by execute_async must not stay in ``running``.
+
+        Otherwise ``has_task`` keeps returning True and the scheduler ignores the FAILED event,
+        leaving the task instance stuck in queued until ``task_queued_timeout``.
+        """
+        executor = self.kubernetes_executor
+        workload = ExecuteTask(
+            ti=WorkloadTaskInstance(
+                id=uuid4(),
+                dag_version_id=uuid4(),
+                dag_id="dag",
+                task_id="task",
+                run_id="run_id",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                priority_weight=1,
+                queue="default",
+                executor_config={"KubernetesExecutor": {"config_file": "/some/path/kubeconfig.yaml"}},
+            ),
+            dag_rel_path="dag.py",
+            bundle_info=BundleInfo(name="bundle"),
+            token="",
+            log_path=None,
+        )
+        key = executor.get_task_key(workload.ti) if executor.supports_task_instance_uuid else workload.ti.key
+        if AIRFLOW_V_3_1_PLUS:
+            executor.queue_workload(workload, session=None)
+        else:
+            executor.queue_command(workload.ti, [workload], workload.ti.priority_weight, workload.ti.queue)
+
+        executor._process_workloads([workload])
+
+        assert key not in executor.running
+        assert executor.get_event_buffer() == {
+            key: (TaskInstanceState.FAILED, "Invalid executor_config passed")
+        }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     def test_queue_workload_queues_execute_task(self):
         """queue_workload must queue an ExecuteTask on every supported Airflow 3 version.
 
@@ -4068,35 +4108,71 @@ class TestKubernetesExecutorMultiTeam:
             executor.end()
 
 
+class _ExecutorWithOwnClients(KubernetesExecutor):
+    client_factory = "my_company.build_client"
+    async_client_factory = "my_company.build_async_client"
+
+
+EXECUTOR_CLIENT_FACTORIES = pytest.mark.parametrize(
+    ("executor_class", "client_factory", "async_client_factory"),
+    [
+        pytest.param(KubernetesExecutor, None, None, id="kubernetes-executor"),
+        pytest.param(
+            _ExecutorWithOwnClients,
+            "my_company.build_client",
+            "my_company.build_async_client",
+            id="subclass-with-own-clients",
+        ),
+    ],
+)
+
+
 @pytest.mark.skipif(AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed")
 class TestClientFactoryCallSites:
     """
     Pin the call sites that must go through the executor's client helpers.
 
     If any of them calls ``get_kube_client`` directly instead, the factory silently stops applying
-    there while every other test stays green. Each site also has to pass its team, or a team's
-    executor would build clients from the global factory instead of its own.
+    there while every other test stays green. Each site also has to pass its team and the
+    executor's own factory, or the client would be built for the wrong team or by the wrong
+    factory.
     """
 
+    @EXECUTOR_CLIENT_FACTORIES
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client._get_executor_kube_client", autospec=True)
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.client")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
         autospec=True,
     )
-    def test_start_uses_executor_client(self, mock_watcher, mock_client, mock_get_executor_kube_client):
-        executor = KubernetesExecutor()
+    def test_start_uses_executor_client(
+        self,
+        mock_watcher,
+        mock_client,
+        mock_get_executor_kube_client,
+        executor_class,
+        client_factory,
+        async_client_factory,
+    ):
+        executor = executor_class()
         executor.team_name = "team_a"
         executor.job_id = 1
         try:
             executor.start()
+            assert executor.kube_scheduler.async_client_factory == async_client_factory
         finally:
             executor.end()
 
-        mock_get_executor_kube_client.assert_called_once_with(team_name="team_a")
+        mock_get_executor_kube_client.assert_called_once_with(
+            team_name="team_a", executor_client_factory=client_factory
+        )
+        assert mock_watcher.call_args.kwargs["client_factory"] == client_factory
 
+    @EXECUTOR_CLIENT_FACTORIES
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client._get_executor_kube_client", autospec=True)
-    def test_get_streaming_task_log_uses_executor_client(self, mock_get_executor_kube_client):
+    def test_get_streaming_task_log_uses_executor_client(
+        self, mock_get_executor_kube_client, executor_class, client_factory, async_client_factory
+    ):
         ti = mock.MagicMock(
             dag_id="dag",
             task_id="task",
@@ -4106,12 +4182,14 @@ class TestClientFactoryCallSites:
             hostname="",
             executor_config={},
         )
-        executor = KubernetesExecutor()
+        executor = executor_class()
         executor.team_name = "team_a"
 
         executor.get_streaming_task_log(ti=ti, try_number=1)
 
-        mock_get_executor_kube_client.assert_called_once_with(team_name="team_a")
+        mock_get_executor_kube_client.assert_called_once_with(
+            team_name="team_a", executor_client_factory=client_factory
+        )
 
     @mock.patch.object(KubernetesJobWatcher, "_run", side_effect=RuntimeError("stop"), autospec=True)
     @mock.patch(
@@ -4126,24 +4204,30 @@ class TestClientFactoryCallSites:
             scheduler_job_id="1",
             kube_config=mock.MagicMock(),
             team_name="team_a",
+            client_factory="my_company.build_client",
         )
 
         with pytest.raises(RuntimeError, match="stop"):
             watcher.run()
 
-        mock_get_executor_kube_client.assert_called_once_with(team_name="team_a")
+        mock_get_executor_kube_client.assert_called_once_with(
+            team_name="team_a", executor_client_factory="my_company.build_client"
+        )
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
         autospec=True,
     )
     def test_make_kube_watcher_passes_the_team_to_the_watcher(self, mock_watcher):
-        """The watcher runs in its own process, so it only learns its team by being told."""
-        scheduler = mock.Mock(team_name="team_a", scheduler_job_id="1")
+        """The watcher runs in its own process, so it only learns its team and factory by being told."""
+        scheduler = mock.Mock(
+            team_name="team_a", scheduler_job_id="1", client_factory="my_company.build_client"
+        )
 
         AirflowKubernetesScheduler._make_kube_watcher(scheduler, "ns")
 
         assert mock_watcher.call_args.kwargs["team_name"] == "team_a"
+        assert mock_watcher.call_args.kwargs["client_factory"] == "my_company.build_client"
 
     @pytest.mark.asyncio
     @mock.patch(
@@ -4151,12 +4235,19 @@ class TestClientFactoryCallSites:
         autospec=True,
     )
     async def test_create_pods_async_uses_executor_client(self, mock_get_executor_async_kube_client):
-        scheduler = mock.Mock(pod_creation_max_concurrency=1, _async_pod_client=None, team_name="team_a")
+        scheduler = mock.Mock(
+            pod_creation_max_concurrency=1,
+            _async_pod_client=None,
+            team_name="team_a",
+            async_client_factory="my_company.build_async_client",
+        )
         scheduler.kube_config.kube_client_request_args = {}
 
         await AirflowKubernetesScheduler._create_pods_async(scheduler, [])
 
-        mock_get_executor_async_kube_client.assert_awaited_once_with(team_name="team_a")
+        mock_get_executor_async_kube_client.assert_awaited_once_with(
+            team_name="team_a", executor_client_factory="my_company.build_async_client"
+        )
 
 
 @pytest.mark.skipif(AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed")
@@ -4224,6 +4315,48 @@ class TestAsyncClientFactoryValidation:
         with pytest.raises(AirflowConfigException, match="async_client_factory is required"):
             executor.start()
         mock_get_executor_kube_client.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("async_client_factory", "expect_raise"),
+        [
+            pytest.param(None, True, id="subclass-without-async-factory"),
+            pytest.param("my_company.build_async_client", False, id="subclass-with-both-factories"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("kubernetes_executor", "async_pod_creation"): "True",
+            ("kubernetes_executor", "client_factory"): "my_company.build_config_client",
+        }
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client._get_executor_kube_client", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.multiprocessing.Manager",
+        autospec=True,
+    )
+    def test_start_checks_the_subclass_factories_not_the_config(
+        self, mock_manager, mock_scheduler, mock_get_executor_kube_client, async_client_factory, expect_raise
+    ):
+        """A subclass's own factories replace the config ones, so its pair is what has to be complete."""
+        executor_class = type(
+            "ExecutorWithOwnClients",
+            (KubernetesExecutor,),
+            {"client_factory": "my_company.build_client", "async_client_factory": async_client_factory},
+        )
+        executor = executor_class()
+        executor.job_id = 1
+        if expect_raise:
+            with pytest.raises(
+                AirflowConfigException, match="sets client_factory but not async_client_factory"
+            ):
+                executor.start()
+        else:
+            executor.start()
+            mock_get_executor_kube_client.assert_called_once()
 
 
 @pytest.fixture
