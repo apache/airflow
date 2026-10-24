@@ -61,7 +61,6 @@ class TestProjectStructure:
         # A long-standing bug in the test below allowed modules without tests to go undetected.
         # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
-            "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
@@ -77,7 +76,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
-            "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_appbuilder.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_jinja_globals.py",
