@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 
 _PASSWORD = "snowflake42"
 
+IMPERSONATION_PATH = ["arn:aws:iam::123456789012:role/a", "arn:aws:iam::123456789012:role/b"]
+
 BASE_CONNECTION_KWARGS: dict = {
     "login": "user",
     "conn_type": "snowflake",
@@ -2226,6 +2228,15 @@ class TestPytestSnowflakeHook:
 
         assert "workload_identity_provider" in widgets
 
+    def test_connection_form_exposes_workload_identity_impersonation_path(self):
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+
+        assert "workload_identity_impersonation_path" in SnowflakeHook.get_connection_form_widgets()
+        assert (
+            "workload_identity_impersonation_path" in SnowflakeHook.get_ui_field_behaviour()["placeholders"]
+        )
+
     @pytest.mark.parametrize(
         ("field", "value"),
         [("token", "an-oidc-jwt"), ("token_file_path", "/var/run/secrets/oidc/token")],
@@ -2258,6 +2269,76 @@ class TestPytestSnowflakeHook:
 
         assert "token" not in conn_params
         assert "token_file_path" not in conn_params
+
+    @pytest.mark.parametrize(
+        "impersonation_path",
+        [IMPERSONATION_PATH, ", ".join(IMPERSONATION_PATH)],
+        ids=["list", "comma-separated"],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.version", return_value="4.0.0")
+    def test_get_conn_params_forwards_workload_identity_impersonation_path(self, _, impersonation_path):
+        """A list or a comma-separated string reaches the connector as a list, in order."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "AWS"
+        connection_kwargs["extra"]["workload_identity_impersonation_path"] = impersonation_path
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["workload_identity_impersonation_path"] == IMPERSONATION_PATH
+
+    @pytest.mark.parametrize("impersonation_path", [None, "", " , ", []])
+    def test_get_conn_params_omits_workload_identity_impersonation_path_when_empty(self, impersonation_path):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "AWS"
+        connection_kwargs["extra"]["workload_identity_impersonation_path"] = impersonation_path
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "workload_identity_impersonation_path" not in conn_params
+
+    @pytest.mark.parametrize(
+        ("impersonation_path", "connector_version", "error"),
+        [
+            ({"role": "a"}, "4.0.0", ValueError),
+            (IMPERSONATION_PATH, "3.17.0", AirflowOptionalProviderFeatureException),
+        ],
+        ids=["not-a-list", "connector-too-old"],
+    )
+    def test_get_conn_params_rejects_workload_identity_impersonation_path(
+        self, impersonation_path, connector_version, error
+    ):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "AWS"
+        connection_kwargs["extra"]["workload_identity_impersonation_path"] = impersonation_path
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.version", return_value=connector_version),
+            pytest.raises(error, match="workload_identity_impersonation_path"),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.version", return_value="4.0.0")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine")
+    def test_get_sqlalchemy_engine_passes_workload_identity_impersonation_path_as_connect_arg(
+        self, mock_create_engine, _
+    ):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "AWS"
+        connection_kwargs["extra"]["workload_identity_impersonation_path"] = IMPERSONATION_PATH
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_sqlalchemy_engine()
+
+        uri, kwargs = mock_create_engine.call_args
+        assert "workload_identity_impersonation_path" not in uri[0]
+        assert kwargs["connect_args"]["workload_identity_impersonation_path"] == IMPERSONATION_PATH
 
     def test_get_conn_params_pat_authenticator_passes_password_as_token(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
