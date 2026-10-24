@@ -5586,6 +5586,28 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
+@pytest.mark.parametrize("key", ["target", "msg"])
+@mock.patch(
+    "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+    side_effect=lambda logger, *args, **kwargs: logger,
+)
+def test_process_log_messages_reserved_kwarg_names_are_forwarded(mock_reconfigure, key):
+    """
+    A log event with a key named ``target`` or ``msg`` must not collide with the
+    parameter names of ``_log_to_target``. Spreading such an event raised a
+    TypeError that escaped the supervisor loop: the task process was orphaned,
+    the heartbeat stopped, and a successful task was recorded as failed.
+    """
+    target_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    gen = process_log_messages_from_subprocess(loggers=(target_logger,))
+    next(gen)
+
+    gen.send(json.dumps({"level": "info", "event": "deploying", key: "prod"}).encode() + b"\n")
+
+    target_logger.log.assert_called_once_with(logging.INFO, "deploying", **{key: "prod"})
+
+
 @pytest.mark.parametrize(
     "bad_timestamp",
     [
