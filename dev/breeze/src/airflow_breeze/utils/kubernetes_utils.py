@@ -379,8 +379,9 @@ def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> di
     return yaml.safe_load(config_path.read_text())
 
 
-# Must match nodePort in scripts/ci/kubernetes/nodeport.yaml.
+# <block same-as="scripts/ci/kubernetes/nodeport.yaml#/spec/ports/0/nodePort" same-as-pattern='(?P<value>\d+)'>
 FORWARDED_NODE_PORT = 30007
+# </block>
 
 
 def _render_kind_cluster_config(forwarded_port_number: int, k8s_api_server_port: int) -> str:

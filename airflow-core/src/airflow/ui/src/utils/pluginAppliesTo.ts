@@ -69,7 +69,7 @@ const ROOT_BY_PREFIX: Record<string, RootName> = {
 
 // Which record an unqualified path is rooted at: the entity the destination is about. A
 // destination missing here can evaluate nothing, so all of its paths are skipped.
-// Kept in sync with `_APPLIES_TO_ENTITY_ROOT` in `airflow/plugins_manager.py`.
+// <block name="applies-to-entity-root" same-as="airflow-core/src/airflow/plugins_manager.py:applies-to-entity-root" same-as-pattern='(?P<key>\w+): "(?P<value>\w+)"' same-as-format="key:identifier,value:identifier">
 const ENTITY_ROOT_BY_DESTINATION: Record<string, RootName> = {
   asset: "asset",
   dag: "dag",
@@ -79,6 +79,7 @@ const ENTITY_ROOT_BY_DESTINATION: Record<string, RootName> = {
   task_instance: "taskInstance",
   task_overview: "task",
 };
+// </block>
 
 type Resolution = { found: false } | { found: true; values: Array<unknown> };
 

@@ -114,6 +114,7 @@ class ExtraMenuItem:
 class MenuItem(Enum):
     """Define all menu items defined in the menu."""
 
+    # <block name="menu-items" same-as-pattern='= "(?P<value>[^"]+)"'>
     REQUIRED_ACTIONS = "Required Actions"
     ASSETS = "Assets"
     AUDIT_LOG = "Audit Log"
@@ -129,6 +130,7 @@ class MenuItem(Enum):
     PROVIDERS = "Providers"
     VARIABLES = "Variables"
     XCOMS = "XComs"
+    # </block>
 
 
 class UIAlert(BaseModel):

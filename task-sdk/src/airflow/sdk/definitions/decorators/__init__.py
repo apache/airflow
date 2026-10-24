@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
     C = TypeVar("C", bound=Callable)
 
-# Please keep this in sync with the .pyi's __all__.
 __all__ = [
+    # <block name="all" same-as="task-sdk/src/airflow/sdk/definitions/decorators/__init__.pyi:all">
     "TaskDecorator",
     "TaskDecoratorCollection",
     "dag",
@@ -41,6 +41,7 @@ __all__ = [
     "task_group",
     "setup",
     "teardown",
+    # </block>
 ]
 
 

@@ -33,8 +33,8 @@ from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import AnyConditionFunc
 from airflow.sdk.definitions.decorators.task_group import task_group
 
-# Please keep this in sync with __init__.py's __all__.
 __all__ = [
+    # <block name="all" same-as="task-sdk/src/airflow/sdk/definitions/decorators/__init__.py:all">
     "TaskDecorator",
     "TaskDecoratorCollection",
     "dag",
@@ -43,6 +43,7 @@ __all__ = [
     "task_group",
     "setup",
     "teardown",
+    # </block>
 ]
 
 _T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])

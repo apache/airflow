@@ -231,9 +231,10 @@ ALLOWED_SDKS = [JAVA_SDK, TYPESCRIPT_SDK]
 # Keep in sync with the toolchain the Java SDK Gradle build targets.
 JAVA_SDK_VERSION = "17"
 
-# Node image used to build the TypeScript SDK docs. Keep in sync with the ``engines.node``
-# requirement in ts-sdk/package.json.
+# Node image used to build the TypeScript SDK docs.
+# <block same-as="ts-sdk/package.json#/engines/node" same-as-pattern='(?P<value>\d+)'>
 TYPESCRIPT_SDK_NODE_VERSION = "22"
+# </block>
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]

@@ -45,14 +45,15 @@ type BackfillDagRunsModalProps = {
 };
 
 const translateExceptionReason = (reason: string, translate: (key: string) => string) => {
-  // Keep this mapping in sync with BackfillDagRunExceptionReason in airflow.models.backfill.
   switch (reason) {
+    // <block name="exception-reasons" same-as="airflow-core/src/airflow/models/backfill.py:exception-reasons" same-as-pattern='case "(?P<value>[^"]+)":'>
     case "already exists":
       return translate("components:backfill.exceptionReason.alreadyExists");
     case "in flight":
       return translate("components:backfill.exceptionReason.inFlight");
     case "unknown":
       return translate("components:backfill.exceptionReason.unknown");
+    // </block>
     default:
       return reason;
   }
