@@ -129,6 +129,13 @@ class TestS3DagBundle:
         url: str = bundle.view_url_template()
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
 
+    def test_view_url_template_points_at_archive(self):
+        bundle = self._archive_bundle()
+        assert (
+            bundle.view_url_template()
+            == f"https://{S3_BUCKET_NAME}.s3.{AWS_CONN_ID_REGION}.amazonaws.com/{S3_ARCHIVE_KEY}"
+        )
+
     def test_supports_versioning(self):
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME

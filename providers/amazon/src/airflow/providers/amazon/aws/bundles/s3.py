@@ -247,7 +247,9 @@ class S3DagBundle(BaseDagBundle):
         if self.s3_hook.region_name:
             url += f".{self.s3_hook.region_name}"
         url += ".amazonaws.com"
-        if self.prefix:
+        if self.archive_key:
+            url += f"/{self.archive_key}"
+        elif self.prefix:
             url += f"/{self.prefix}"
 
         return url
