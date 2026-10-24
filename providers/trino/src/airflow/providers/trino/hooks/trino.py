@@ -399,11 +399,17 @@ class TrinoHook(DbApiHook):
         """Return Trino specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+        authority = DbApiHook.get_openlineage_authority_part(
+            connection, default_port=trino.constants.DEFAULT_PORT
+        )
+        if not authority:
+            raise AirflowOptionalProviderFeatureException(
+                "Cannot determine OpenLineage authority from connection: "
+                "connection host is required. Please set the host in your Trino connection."
+            )
         return DatabaseInfo(
             scheme="trino",
-            authority=DbApiHook.get_openlineage_authority_part(
-                connection, default_port=trino.constants.DEFAULT_PORT
-            ),
+            authority=authority,
             information_schema_columns=[
                 "table_schema",
                 "table_name",
