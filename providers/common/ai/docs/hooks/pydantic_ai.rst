@@ -101,12 +101,13 @@ The spec file's ``model`` is the last resort: ``model_id`` and the connection's
 Using the hook in an async task
 -------------------------------
 
-In an ``async def`` task, use the async counterparts ``aget_hook``, ``aget_conn``
-and ``acreate_agent``, and run the agent with ``await agent.run(...)``. They take the
-same parameters as ``get_hook``, ``get_conn`` and ``create_agent`` and return the same
-objects, fallback chain included. Connection lookups make synchronous calls to the Task
-SDK, which raise ``DeadlockImminentError`` on the event loop while another async call
-is in flight, so the async methods run them in a worker thread.
+In an ``async def`` task on Airflow 3.2.1 and later, use the async counterparts
+``aget_hook``, ``aget_conn`` and ``acreate_agent``, and run the agent with
+``await agent.run(...)``. They take the same parameters as ``get_hook``, ``get_conn`` and
+``create_agent`` and return the same objects, fallback chain included. Connection lookups
+make synchronous calls to the Task SDK, which block the event loop while another async
+call is in flight (from 3.3.1 they raise ``DeadlockImminentError`` instead), so the async
+methods run them on a worker thread of their own.
 
 .. code-block:: python
 

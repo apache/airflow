@@ -22,7 +22,9 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
@@ -2352,7 +2354,7 @@ class TestPydanticAIHookAsync:
         )
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     async def test_acreate_agent_with_spec_file_forwards_every_argument(
         self, mock_agent_cls, loop_guarded_registry, infer_model_stub
     ):
@@ -2449,6 +2451,61 @@ class TestPydanticAIHookAsync:
                 infer_model_stub.models["anthropic:claude-opus-4-6"],
             ]
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "hop",
+        [
+            lambda hook: type(hook).aget_hook("primary"),
+            lambda hook: hook.aget_conn(),
+            lambda hook: hook.acreate_agent(instructions="Be helpful."),
+        ],
+        ids=["aget_hook", "aget_conn", "acreate_agent"],
+    )
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    async def test_async_hops_do_not_need_the_default_executor(
+        self, mock_agent_cls, hop, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+        loop = asyncio.get_running_loop()
+        default_executor = ThreadPoolExecutor(max_workers=1)
+        loop.set_default_executor(default_executor)
+        release = threading.Event()
+        # The only default worker is taken, as asend() takes it to read its reply.
+        parked = loop.run_in_executor(None, release.wait)
+
+        try:
+            await asyncio.wait_for(hop(hook), timeout=5)
+        finally:
+            release.set()
+            await parked
+            default_executor.shutdown()
+
+        loop_guarded_registry.get_connection_mock.assert_called_once_with("primary")
+
+    @pytest.mark.asyncio
+    async def test_gathered_hooks_never_send_at_the_same_time(self, loop_guarded_registry, infer_model_stub):
+        loop_guarded_registry.add("first", extra={"model": "openai:gpt-5.6-sol"})
+        loop_guarded_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        active = 0
+        overlapped = False
+
+        def slow_extra(conn):
+            nonlocal active, overlapped
+            active += 1
+            overlapped = overlapped or active > 1
+            time.sleep(0.05)
+            active -= 1
+            return json.loads(conn.extra) if conn.extra else {}
+
+        with patch.object(Connection, "extra_dejson", new=property(_off_the_event_loop(slow_extra))):
+            await asyncio.gather(
+                PydanticAIHook(llm_conn_id="first").aget_conn(),
+                PydanticAIHook(llm_conn_id="second").aget_conn(),
+            )
+
+        assert not overlapped
 
 
 class TestPydanticAIHookConnectionCache:
