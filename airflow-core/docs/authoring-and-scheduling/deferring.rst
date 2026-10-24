@@ -301,6 +301,10 @@ If you want to defer your task directly to the triggerer without going into the 
 * ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
+.. note::
+
+    Tasks using ``start_from_trigger=True`` (and especially those also using ``end_from_trigger=True``) execute directly in the triggerer without running on workers. By default, Airflow pools do not count deferred tasks against occupied slots. If you assign these tasks to a pool to limit concurrent execution, the pool must be configured with ``include_deferred=True``; otherwise, the tasks will not be constrained by the pool's slot capacity.
+
 In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``trigger_cls``.
 
 .. code-block:: python
