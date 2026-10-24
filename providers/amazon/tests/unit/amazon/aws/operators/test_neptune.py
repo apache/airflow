@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.neptune import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_ID = "test_cluster"
@@ -76,7 +77,6 @@ def test_deferred_trigger_receives_the_operator_configuration(mock_conn, operato
         task_id="task_test",
         db_cluster_id=CLUSTER_ID,
         deferrable=True,
-        wait_for_completion=False,
         aws_conn_id="aws_default",
         region_name=REGION_NAME,
         verify=VERIFY,
@@ -150,17 +150,21 @@ class TestNeptuneStartClusterOperator:
         mock_waiter.assert_not_called()
         assert resp == {"db_cluster_id": CLUSTER_ID}
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneHook, "conn")
-    def test_start_cluster_deferrable(self, mock_conn):
+    def test_start_cluster_deferrable(self, mock_conn, wait_for_completion):
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
             aws_conn_id="aws_default",
         )
 
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             operator.execute(None)
 
     @mock.patch.object(NeptuneHook, "conn")
@@ -193,7 +197,6 @@ class TestNeptuneStartClusterOperator:
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
             aws_conn_id="aws_default",
         )
 
@@ -240,7 +243,6 @@ class TestNeptuneStartClusterOperator:
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
             aws_conn_id="aws_default",
         )
 
@@ -361,7 +363,6 @@ class TestNeptuneStopClusterOperator:
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
             aws_conn_id="aws_default",
         )
 
@@ -404,7 +405,6 @@ class TestNeptuneStopClusterOperator:
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
             aws_conn_id="aws_default",
         )
 
@@ -414,17 +414,21 @@ class TestNeptuneStopClusterOperator:
 
         assert mock_defer.call_count == 2
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneHook, "conn")
-    def test_stop_cluster_deferrable(self, mock_conn):
+    def test_stop_cluster_deferrable(self, mock_conn, wait_for_completion):
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
             db_cluster_id=CLUSTER_ID,
             deferrable=True,
-            wait_for_completion=False,
+            wait_for_completion=wait_for_completion,
             aws_conn_id="aws_default",
         )
 
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             operator.execute(None)
 
     def test_template_fields(self):

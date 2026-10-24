@@ -36,6 +36,7 @@ from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -282,38 +283,42 @@ class TestEmrAddStepsOperator:
             execution_role_arn=None,
         )
 
-    def test_wait_for_completion_false_with_deferrable(self):
-        job_flow_id = "j-8989898989"
-        operator = EmrAddStepsOperator(
-            task_id="test_task",
-            job_flow_id=job_flow_id,
-            aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
-            wait_for_completion=True,
-            deferrable=True,
-        )
-
-        assert operator.wait_for_completion is False
-
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
+        ],
+    )
     @patch("airflow.providers.amazon.aws.operators.emr.get_log_uri")
     @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
-    def test_emr_add_steps_deferrable(self, mock_add_job_flow_steps, mock_get_log_uri):
-        mock_add_job_flow_steps.return_value = "test_step_id"
+    def test_emr_add_steps_wait_combinations(
+        self, mock_add_job_flow_steps, mock_get_log_uri, wait_for_completion, deferrable
+    ):
+        mock_add_job_flow_steps.return_value = ["test_step_id"]
         mock_get_log_uri.return_value = "test/log/uri"
-        job_flow_id = "j-8989898989"
         operator = EmrAddStepsOperator(
             task_id="test_task",
-            job_flow_id=job_flow_id,
+            job_flow_id="j-8989898989",
             aws_conn_id="aws_default",
             dag=DAG("test_dag_id", schedule=None, default_args=self.args),
-            wait_for_completion=True,
-            deferrable=True,
+            wait_for_completion=wait_for_completion,
+            deferrable=deferrable,
         )
+        assert operator.wait_for_completion is wait_for_completion
 
-        with pytest.raises(TaskDeferred) as exc:
-            operator.execute(MagicMock())
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            if deferrable:
+                with pytest.raises(TaskDeferred) as exc:
+                    operator.execute(MagicMock())
+                assert isinstance(exc.value.trigger, EmrAddStepsTrigger)
+            else:
+                operator.execute(MagicMock())
 
-        assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"
+        hook_waits = mock_add_job_flow_steps.call_args.kwargs["wait_for_completion"]
+        assert hook_waits is (wait_for_completion and not deferrable)
 
     def test_template_fields(self):
         op = EmrAddStepsOperator(

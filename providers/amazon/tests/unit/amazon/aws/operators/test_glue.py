@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.operators.glue import (
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -180,6 +181,28 @@ class TestGlueJobOperator:
         assert defer.value.trigger.waiter_delay == 60
         assert defer.value.trigger.attempts == 75
         assert defer.value.trigger.aws_conn_id == "aws_default"
+
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_wait_combinations(self, _, mock_initialize_job, wait_for_completion):
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            wait_for_completion=wait_for_completion,
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
+            glue.execute(mock.MagicMock())
 
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -1673,7 +1696,8 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
@@ -1684,10 +1708,11 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.RUN_ID
-        assert glue_data_quality_hook.get_waiter.call_count == wait_for_completion
+        assert glue_data_quality_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
@@ -1806,7 +1831,8 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
@@ -1816,10 +1842,11 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.RUN_ID
-        assert glue_data_quality_hook.get_waiter.call_count == wait_for_completion
+        assert glue_data_quality_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
