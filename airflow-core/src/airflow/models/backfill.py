@@ -249,9 +249,11 @@ class BackfillDagRunExceptionReason(str, Enum):
     :meta private:
     """
 
+    # <block name="exception-reasons" same-as="airflow-core/src/airflow/ui/src/pages/Dag/Backfills/BackfillDagRunsModal.tsx:exception-reasons" same-as-pattern='= "(?P<value>[^"]+)"'>
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
+    # </block>
 
 
 class BackfillDagRun(Base):

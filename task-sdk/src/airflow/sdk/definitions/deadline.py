@@ -35,8 +35,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Field name used in serialization - must be in sync with SerializedReferenceModels.REFERENCE_TYPE_FIELD
+# Field name used in serialization.
+# <block name="reference-type-field">
 REFERENCE_TYPE_FIELD = "reference_type"
+# </block>
 
 
 class BaseDeadlineReference(ABC):

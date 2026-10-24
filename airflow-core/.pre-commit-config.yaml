@@ -128,7 +128,7 @@ repos:
           ^src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ../scripts/ci/prek/compile_ui_assets.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@10.25.0']
+        additional_dependencies: ['pnpm@10.28.1']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         env:
@@ -142,7 +142,7 @@ repos:
           ^src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ../scripts/ci/prek/compile_ui_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@10.25.0']
+        additional_dependencies: ['pnpm@10.28.1']
       - id: check-tests-in-the-right-folders
         name: Check if tests are in the right folders
         env:
@@ -253,7 +253,7 @@ repos:
           ^src/airflow/ui/node-modules/.*|
           ^src/airflow/ui/.pnpm-store
         entry: ../scripts/ci/prek/ts_compile_lint_ui.py
-        additional_dependencies: ['pnpm@10.25.0']
+        additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: true
         require_serial: true
       - id: ts-compile-lint-simple-auth-manager-ui
@@ -272,7 +272,7 @@ repos:
           ^src/airflow/api_fastapi/node-modules/.*|
           ^src/airflow/api_fastapi/.pnpm-store
         entry: ../scripts/ci/prek/ts_compile_lint_simple_auth_manager_ui.py
-        additional_dependencies: ['pnpm@10.25.0']
+        additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: true
         require_serial: true
       - id: mypy-airflow-core

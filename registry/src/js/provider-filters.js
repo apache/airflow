@@ -33,13 +33,15 @@
   let currentSearch = '';
   let debounceTimer;
 
-  // Kept in sync by hand with normalize() in search.js and
+  // Kept in sync with normalize() in search.js and
   // src/_data/providerKeywordMatch.js (this file and search.js are browser
   // IIFEs; providerKeywordMatch runs at build time under CommonJS). If they
   // drift, 'pydantic-ai' stops finding the integration named "Pydantic AI".
+  // <block same-as="registry/src/_data/providerKeywordMatch.js:normalize">
   function normalize(text) {
     return text.toLowerCase().replace(/[-_\s]+/g, ' ');
   }
+  // </block>
 
   // The card prints the full distribution name under the title, so that string
   // has to be a working query. Matching against it directly would make
