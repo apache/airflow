@@ -79,7 +79,10 @@ class BranchDateTimeOperator(BaseBranchOperator):
             now = timezone.coerce_datetime(timezone.utcnow())
         if TYPE_CHECKING:
             assert isinstance(now, datetime.datetime)
-        lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)
+        # A time target applies to the current date in the Dag's timezone, not the UTC date
+        lower, upper = target_times_as_dates(
+            now.astimezone(self.dag.timezone), self.target_lower, self.target_upper
+        )
         lower = timezone.coerce_datetime(lower, self.dag.timezone)
         upper = timezone.coerce_datetime(upper, self.dag.timezone)
 
