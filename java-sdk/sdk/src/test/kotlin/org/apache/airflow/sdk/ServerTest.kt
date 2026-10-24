@@ -27,8 +27,12 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.Frame
 import org.apache.airflow.sdk.execution.IncomingFrame
+import org.apache.airflow.sdk.execution.Level
+import org.apache.airflow.sdk.execution.Log
+import org.apache.airflow.sdk.execution.LogMessage
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.RawFrame
+import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.apache.airflow.sdk.execution.pollSignals
@@ -41,6 +45,12 @@ import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
 import sun.misc.Signal
 import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.io.OutputStream
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -119,6 +129,31 @@ class NeverCheckingTask : Task {
   }
 }
 
+/** Gets a variable, so the task waits for a reply from the supervisor. */
+class VariableTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    client.getVariable("my_variable")
+  }
+}
+
+/**
+ * Main class of the JVM that [ServerTest.taskGetsReplyWhileQueuedLogsAreWritten] starts. Its main
+ * method turns on debug logging, queues 32 MiB of log messages before the log connection opens, and
+ * serves [VariableTask] as task "a" of Dag "c".
+ */
+object QueuedLogsProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    Log.globalThreshold = Level.DEBUG
+    Log.namedThresholds = emptyMap()
+    repeat(64) { LogSender.messages.add(LogMessage("x".repeat(512 * 1024), emptyMap(), "probe", Level.INFO)) }
+    Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", VariableTask::class.java)))))
+  }
+}
+
 class ServerTest {
   private fun hexToBytes(hex: String): ByteArray =
     hex
@@ -140,6 +175,84 @@ class ServerTest {
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
     writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
     writeByteArray(payload)
+  }
+
+  private fun DataOutputStream.writeFrame(payload: ByteArray) {
+    write(Frame.lengthPrefix(payload.size.toUInt()))
+    write(payload)
+    flush()
+  }
+
+  private fun DataInputStream.readFrame(): IncomingFrame {
+    val prefix = ByteArray(4).also { readFully(it) }
+    return CoordinatorComm.decode(ByteArray(Frame.parseLengthPrefix(prefix).toInt()).also { readFully(it) })
+  }
+
+  private fun variableResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(2)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type").packString("VariableResult")
+      packer.packString("key").packString("my_variable")
+      packer.packString("value").packString("value")
+    }
+    return out.toByteArray()
+  }
+
+  @Test
+  @DisplayName("Should give a task its reply when the startup details arrive while queued logs are still being written")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun taskGetsReplyWhileQueuedLogsAreWritten() {
+    val loopback = InetAddress.getLoopbackAddress()
+    ServerSocket(0, 1, loopback).use { commListener ->
+      ServerSocket(0, 1, loopback).use { logsListener ->
+        commListener.soTimeout = 30_000
+        logsListener.soTimeout = 30_000
+        val process =
+          ProcessBuilder(
+            File(System.getProperty("java.home"), "bin/java").path,
+            "-cp",
+            System.getProperty("java.class.path"),
+            QueuedLogsProbe::class.java.name,
+            "--comm",
+            "${loopback.hostAddress}:${commListener.localPort}",
+            "--logs",
+            "${loopback.hostAddress}:${logsListener.localPort}",
+          ).redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .start()
+        try {
+          commListener.accept().use { comm ->
+            logsListener.accept().use { logs ->
+              comm.soTimeout = 30_000
+              logs.soTimeout = 30_000
+              val toServer = DataOutputStream(comm.getOutputStream())
+              val fromServer = DataInputStream(comm.getInputStream())
+              // The first byte shows that the server has started to write the queued messages. The test
+              // then reads no logs for a second, so the server is still writing the queued messages when
+              // the startup details arrive.
+              logs.getInputStream().read()
+              toServer.writeFrame(hexToBytes(STARTUP_HEX))
+              Thread.sleep(1000)
+              thread(isDaemon = true) { runCatching { logs.getInputStream().transferTo(OutputStream.nullOutputStream()) } }
+
+              val request = fromServer.readFrame()
+              Assertions.assertInstanceOf(GetVariable::class.java, request.body)
+              toServer.writeFrame(variableResultFrame(request.id))
+              val result = fromServer.readFrame()
+              Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task should get its reply and succeed")
+              toServer.writeFrame(ackFrame(result.id))
+              Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit after it reports the result")
+              Assertions.assertEquals(0, process.exitValue())
+            }
+          }
+        } finally {
+          process.destroyForcibly()
+        }
+      }
+    }
   }
 
   @Test
