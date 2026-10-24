@@ -603,10 +603,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_id = task_instance.task_id
         run_id = task_instance.run_id
 
-        serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
-            dag_run=task_instance.dag_run,
-            session=session,
-        )
+        try:
+            serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
+                dag_run=task_instance.dag_run,
+                session=session,
+            )
+        except DBAPIError:
+            raise
+        except Exception:
+            self.log.exception(
+                "Failed to load Dag %s for task instance %s, skipping it", dag_id, task_instance
+            )
+            starved_tasks.add((dag_id, task_id))
+            return False
 
         # If the DAG is missing, fail all scheduled TIs for this DAG.
         if not serialized_dag:
