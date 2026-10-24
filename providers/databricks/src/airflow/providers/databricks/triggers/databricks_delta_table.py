@@ -273,7 +273,7 @@ class DatabricksDeltaTableVersionTrigger(BaseTrigger):
         self.databricks_conn_id = databricks_conn_id
         if baseline_version is not None:
             try:
-                self.baseline_version = int(baseline_version)
+                self.baseline_version: int | None = int(baseline_version)
             except (ValueError, TypeError) as e:
                 raise ValueError(f"Invalid baseline_version {baseline_version!r}: must be an integer.") from e
         else:
@@ -282,7 +282,7 @@ class DatabricksDeltaTableVersionTrigger(BaseTrigger):
 
         if target_version is not None:
             try:
-                self.target_version = int(target_version)
+                self.target_version: int | None = int(target_version)
             except (ValueError, TypeError) as e:
                 raise ValueError(f"Invalid target_version {target_version!r}: must be an integer.") from e
         else:

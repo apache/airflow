@@ -104,7 +104,7 @@ When a new version is detected, the sensor pushes metadata to XCom under the key
 
 Downstream tasks requiring reproducible reads should pin their queries to the observed version using ``VERSION AS OF``:
 
-.. code-block:: sql
+.. code-block:: text
 
     SELECT * FROM main.default.customers
     VERSION AS OF {{ ti.xcom_pull(task_ids="wait_for_table_updates", key="delta_table_version")["version"] }}
