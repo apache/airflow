@@ -224,6 +224,10 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("wait_for_downstream")
 
     @property
+    def wait_for_past_depends_before_skipping(self) -> bool:
+        return self._get_partial_kwargs_or_operator_default("wait_for_past_depends_before_skipping")
+
+    @property
     def retries(self) -> int:
         return self._get_partial_kwargs_or_operator_default("retries")
 
