@@ -41,11 +41,15 @@ records an asset event on each of the delivery's *topic names* that a Dag schedu
 starts a run of each such Dag. An *asset route* in the webhook's connection can also have a delivery
 record an event on a data asset, such as a table that the sender has loaded (see `Asset routes`_). A task
 can also wait in its Dag run for a delivery that matches it, such as one saying that a pull request it
-opened was merged: the delivery then resumes the task, through the task's *webhook wait*.
+opened was merged: the delivery then resumes the task, through the task's *webhook wait*. And a Dag or a
+task can declare, with ``cancel_on``, which deliveries cancel its runs, such as the runs that deploy a
+preview of a pull request once the pull request is closed: such a delivery records a *cancel request*,
+which the scheduler applies to the runs about the same pull request.
 
 This page is for Deployment Managers. Dag authors subscribe to deliveries as described in
-:doc:`/authoring-and-scheduling/webhook-topics`, and wait for them as described in
-:doc:`/authoring-and-scheduling/webhook-waits`. Provider authors write source types as described in the
+:doc:`/authoring-and-scheduling/webhook-topics`, wait for them as described in
+:doc:`/authoring-and-scheduling/webhook-waits`, and have them cancel runs as described in
+:doc:`/authoring-and-scheduling/webhook-cancel`. Provider authors write source types as described in the
 Webhook Sources page of the providers documentation.
 
 Setting up a webhook
@@ -175,7 +179,8 @@ The :ref:`[webhooks] <config:webhooks>` section of the configuration reference d
      - Largest body a webhook accepts, unless its connection sets its own ``max_body_bytes``.
    * - ``delivery_retention``
      - ``7``
-     - Days a delivery's record is kept before ``airflow db clean`` may remove it, at most 365.
+     - Days a delivery's record, and the cancel requests it recorded, are kept before ``airflow db clean``
+       may remove them, at most 365.
    * - ``rate_limit_per_minute``
      - ``0``
      - Verified deliveries per minute that each process takes for each webhook; ``0`` is no limit.
@@ -187,14 +192,23 @@ The :ref:`[webhooks] <config:webhooks>` section of the configuration reference d
      - Largest payload copied into a topic event's extra; ``0`` copies every payload.
    * - ``early_delivery_ttl``
      - ``600``
-     - Seconds after its receipt that an ``early`` delivery can still go to a webhook wait registered later.
+     - Seconds after its receipt that a delivery kept for webhook waits, ``early`` or ``cancel_requested``,
+       can still go to a wait registered later.
    * - ``early_delivery_max_per_webhook``
      - ``1000``
-     - Most ``early`` deliveries within ``early_delivery_ttl`` that a webhook keeps; older ones expire.
+     - Most deliveries kept for webhook waits, ``early`` or ``cancel_requested``, within
+       ``early_delivery_ttl`` that a webhook keeps; older ones expire.
    * - ``default_wait_timeout``
      - empty
      - Seconds a webhook wait registered without a timeout lasts, at most 31536000 (365 days). When it is
        empty, such a wait is refused.
+   * - ``cancel_requests_per_loop``
+     - ``20``
+     - Most webhook cancel requests the scheduler applies each time it looks for them, about once a second.
+       Each request is applied and committed on its own, and the rest wait for the next time. At least 1.
+
+The scheduler reads ``cancel_requests_per_loop``, at startup, and does not start if it is below 1; the
+webhooks process does not read it.
 
 The API servers that serve the Execution API read ``[webhooks]`` too, when a task registers a webhook
 wait: they refuse a wait on a webhook that their ``names`` does not list, or whose connection they cannot
@@ -243,11 +257,12 @@ change it in the connection and then in the sender, within ``connection_cache_tt
 first delivery signed with the new secret then usually passes, and deliveries signed with the old one pass
 until the cached connection is read again or expires. A failure to read a secrets backend is never cached.
 
-Webhooks have no team in Airflow 3.5. ``[webhooks] names`` refuses a name qualified with a team, such as
-``team:name``, the connection is looked up without a team, so a connection that belongs to a team is not
-found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team, an
-asset route records nothing for an asset that a Dag of a team schedules on, and a task whose Dag has a
-team cannot register a webhook wait.
+Webhooks have no team in this version of Airflow. ``[webhooks] names`` refuses a name qualified with a team,
+such as ``team:name``, the connection is looked up without a team, so a connection that belongs to a team is
+not found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team, an
+asset route records nothing for an asset that a Dag of a team schedules on, a task whose Dag has a team cannot
+register a webhook wait, and no delivery records a cancel request for a Dag that has a team (see
+:doc:`/authoring-and-scheduling/webhook-cancel`).
 
 Source types
 ------------
@@ -294,7 +309,9 @@ refuses it:
 6. The delivery must be within ``[webhooks] rate_limit_per_minute``.
 7. The source type parses the delivery.
 8. One transaction records the delivery, its topic events, the events of its asset routes and, if it
-   recorded any event, an audit log entry, and hands the delivery to the
+   has a correlation key, a cancel request for each Dag whose ``cancel_on`` it matches (see
+   :doc:`/authoring-and-scheduling/webhook-cancel`), with an audit log entry if it recorded any event or
+   cancel request, and hands the delivery to the
    :doc:`webhook waits </authoring-and-scheduling/webhook-waits>` that it matches, with an audit log entry
    for each (see `Outcomes and repeated deliveries`_).
 9. The response is sent once that transaction has committed.
@@ -358,13 +375,15 @@ before sending the whole body. Every request under ``/webhooks`` other than ``/w
 an access log line, refused or not, so the access log grows with every request that reaches the process.
 
 The delivery contract follows from this order. A 202 means that the delivery's record, whatever topic
-events, asset route events and audit log entries it recorded, and what it did for webhook waits,
-committed before the answer was sent; a 200 ``duplicate`` means that an earlier copy's did; a 200
-handshake records nothing. Asset listeners and metrics run after the commit. A 5xx records nothing, so a
-sender that retries can deliver again once the cause is fixed. The one exception is an ``early`` delivery,
-which looks for webhook waits once more after its record has committed: if that second look fails, the
-delivery is answered 5xx but its record is kept, and a retry is processed again in full, as a repeat of
-an ``early`` delivery is (see `Outcomes and repeated deliveries`_). Some senders, such as Jira Cloud, retry
+events, asset route events, cancel requests and audit log entries it recorded, and what it did for webhook
+waits, committed before the answer was sent; a 200 ``duplicate`` means that an earlier copy's did; a 200
+handshake records nothing. Asset listeners and metrics run after the commit, and the scheduler applies the
+cancel requests after the answer, within a second or two while it runs. A 5xx records nothing, so a
+sender that retries can deliver again once the cause is fixed. The one exception is a delivery kept for
+webhook waits, ``early`` or ``cancel_requested``, which looks for waits once more after its record has
+committed: if that second look fails, the delivery is answered 5xx but its record and its cancel requests
+are kept, and a retry is processed again in full, as a repeat of such a delivery is (see
+`Outcomes and repeated deliveries`_). Some senders, such as Jira Cloud, retry
 on their own, but GitHub does not, so a GitHub delivery refused during an outage has to be sent again from
 the webhook's **Recent Deliveries** page in GitHub. Delivery is at least once and unordered.
 
@@ -378,39 +397,51 @@ A recorded delivery has the first of these outcomes that applies to it:
 * ``resumed_wait``: it went to at least one :doc:`webhook wait </authoring-and-scheduling/webhook-waits>`,
   a task waiting for a delivery that matches it. A wait whose task is parked resumes the task at once, and
   one whose task is still running resumes it once it parks. Its record lists the waits, and the topic
-  events and asset route events that it recorded as well, if any.
+  events, asset route events and cancel requests that it recorded as well, if any.
 * ``accepted``: it recorded topic events or asset route events, for at least one Dag that is not paused,
-  and went to no wait. It is not kept for a wait, even if it has a correlation key, so a wait registered
-  after it never gets it.
-* ``early``: it has a correlation key, recorded no event and went to no wait. It is kept, with its
-  payload, for a wait that matches it and is registered within
+  and went to no wait. Its record lists the cancel requests that it recorded as well, if any. It is not
+  kept for a wait, even if it has a correlation key, so a wait registered after it never gets it.
+* ``cancel_requested``: it has a correlation key, recorded no event and went to no wait, and recorded a
+  cancel request for at least one Dag whose ``cancel_on`` it matches, which the scheduler applies to the
+  runs about its correlation key (see :doc:`/authoring-and-scheduling/webhook-cancel`). It is kept for a
+  wait as an ``early`` delivery is, and counts toward ``early_delivery_max_per_webhook`` as one does: a
+  wait that gets it makes it ``resumed_wait``, and its cancel requests stay.
+* ``early``: it has a correlation key, recorded no event, requested no cancel and went to no wait. It is
+  kept, with its payload, for a wait that matches it and is registered within
   :ref:`[webhooks] early_delivery_ttl <config:webhooks>` seconds of its receipt. Such a wait gets it as
   soon as it is registered, and resumes its task once the task parks; the delivery's outcome then becomes
   ``resumed_wait``. Once that time has passed, it keeps its outcome and its payload until its record is
   removed (see `Retention`_), but no wait gets it. Unpausing a Dag does not replay it, but a repeat of it
   is processed again in full.
-* ``expired``: it was ``early`` until its webhook kept
-  :ref:`[webhooks] early_delivery_max_per_webhook <config:webhooks>` later early deliveries received
+* ``expired``: it was kept for waits, ``early`` or ``cancel_requested``, until its webhook kept
+  :ref:`[webhooks] early_delivery_max_per_webhook <config:webhooks>` later such deliveries received
   within ``early_delivery_ttl``. Its payload is dropped, and no wait registered after then gets it unless
-  the delivery is repeated.
+  the delivery is repeated. The cancel requests it recorded, if any, stay.
 * ``dag_paused``: it has no correlation key, and only Dags that are paused or draining schedule on its
   names or on its routes' assets, so it recorded nothing. Unpausing a Dag does not replay it.
 * ``no_subscribers``: it has no correlation key, no Dag that an event could start schedules on its names,
   and none of its asset routes could record an event, so it recorded nothing.
 
-The record of a delivery says why each of its asset routes recorded nothing, whatever its outcome.
+The record of a delivery says why each of its asset routes recorded nothing, whatever its outcome. A
+delivery requests a cancel whatever else it does, so the cancel requests of a ``resumed_wait`` or
+``accepted`` delivery are listed in its record too.
 
 ``duplicate`` is only ever answered, never recorded. A delivery repeats a recorded one when it is sent to
 the same webhook with the same delivery id and the same body; the body counts, because senders send the
 delivery id in a header that their signature does not cover. A repeat of an ``accepted`` or
 ``resumed_wait`` delivery is answered 200 ``duplicate`` and records nothing. A repeat of a delivery that
-recorded no event and went to no wait, with outcome ``early``, ``expired``, ``dag_paused`` or
-``no_subscribers``, is processed again in full, as a first delivery is, without a second record: a Dag
-that subscribed or was unpaused since then receives it, a webhook wait registered since then gets it, and
-the record then says what the repeat did. The delivery recorded no event before, so no event is recorded
-twice. A repeat that is ``early`` again is early for ``early_delivery_ttl`` from when the delivery was
-first received. If two copies of a delivery arrive at once, at most one of them acts. A delivery without
-a delivery id, or with an empty one, cannot be recognized as a repeat, so each copy of it acts.
+recorded no event and went to no wait, with outcome ``early``, ``cancel_requested``, ``expired``,
+``dag_paused`` or ``no_subscribers``, is processed again in full, as a first delivery is, without a second
+record: a Dag that subscribed or was unpaused since then receives it, a webhook wait registered since then
+gets it, a Dag that declared a matching ``cancel_on`` since then gets a cancel request, and the record then
+says what the repeat did. The delivery recorded no event before, so no event is recorded twice, and it
+never records a second cancel request for a Dag: a repeat of a ``cancel_requested`` delivery keeps the
+requests of the first copy, and is answered 202 ``cancel_requested`` again unless it now records an event
+or goes to a wait. A request that a repeat records
+is dated from when the delivery was first received, as its record is. A repeat that is ``early`` again is
+early for ``early_delivery_ttl`` from when the delivery was first received. If two copies of a delivery
+arrive at once, at most one of them acts. A delivery without a delivery id, or with an empty one, cannot be
+recognized as a repeat, so each copy of it acts.
 
 The generic sources read the delivery id from the header or field that the connection's
 ``delivery_id_header`` or ``delivery_id_field`` names, and other source types from where their sender puts
@@ -516,12 +547,12 @@ source type's default if it has one, or else by :ref:`[webhooks] store_payload <
   text such as commit messages and pull request bodies;
 * ``none`` keeps nothing.
 
-A delivery that acts keeps a payload: an ``accepted``, ``resumed_wait`` or ``early`` delivery keeps one
-in its record, in the extra of each of its topic events and asset route events, and in the event that a
-webhook wait resumes its task with. Deliveries that act on nothing, ``no_subscribers`` and
-``dag_paused``, keep none, so a sender that sends every event does not fill the database, and an
-``expired`` delivery drops its payload. An ``early`` delivery keeps its payload until its record is
-removed, also once ``early_delivery_ttl`` has passed, so every delivery with a correlation key that no Dag
+A delivery that acts keeps a payload: an ``accepted``, ``resumed_wait``, ``cancel_requested`` or ``early``
+delivery keeps one in its record, in the extra of each of its topic events and asset route events, and in the
+event that a webhook wait resumes its task with. Deliveries that act on nothing, ``no_subscribers`` and
+``dag_paused``, keep none, so a sender that sends every event does not fill the database, and an ``expired``
+delivery drops its payload. An ``early`` or ``cancel_requested`` delivery keeps its payload until its record
+is removed, also once ``early_delivery_ttl`` has passed, so every delivery with a correlation key that no Dag
 subscribes to, such as each ``github`` delivery about a pull request or an issue, keeps its payload for
 ``delivery_retention`` days. Each event carries its own copy, and the copy is left out of an event, with
 ``payload`` null and ``payload_truncated`` true, when it is larger than
@@ -545,11 +576,11 @@ removes a record inside its retention, while one in the future does. A changed `
 applies to deliveries received after the change. Nothing else removes records, so run ``airflow db clean``
 regularly, as for the other tables it cleans; ``--yes`` skips its confirmation prompt, as a scheduled run
 needs. Unless you pass ``--skip-archive``, it keeps the records it removes, payloads included, in an archive
-table:
+table. Clean the cancel requests that deliveries record, described below, in the same run:
 
 .. code-block:: bash
 
-    airflow db clean --tables inbound_delivery --yes \
+    airflow db clean --tables inbound_delivery,webhook_cancel_request --yes \
         --clean-before-timestamp "$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
 
 Keep ``delivery_retention`` longer than the longest time over which any sender you configure retries a
@@ -561,6 +592,15 @@ acts again. Topic events and audit log entries are removed with their own tables
 received a delivery whose record was removed before its task parked resumes the task at its deadline, with
 the timeout event rather than the delivery.
 
+The cancel requests that deliveries record, in the ``webhook_cancel_request`` table, have the
+``retain_until`` of their delivery's record, and ``airflow db clean`` removes them by that column, whether
+or not the scheduler has applied them. A request is kept once it is applied, because the scheduler also
+applies it to a run created later from an earlier delivery, as described in
+:doc:`/authoring-and-scheduling/webhook-cancel`. Deleting a Dag removes its requests. The conditions that
+Dags declare with ``cancel_on``, in the ``dag_cancel_condition`` table, belong to their Dags: the Dag
+processor keeps them in step with each Dag's code, deleting a Dag removes them, and
+``airflow db clean`` does not clean them.
+
 .. _inbound-webhooks-deliveries:
 
 Viewing deliveries
@@ -568,8 +608,9 @@ Viewing deliveries
 
 The record of each delivery can be read in the UI and through the REST API: when the delivery was
 received, its webhook, source type, delivery id, correlation key and attributes, its outcome, the topic
-names it offered, the topic events and asset route events it recorded, the asset routes it skipped and
-the webhook waits it went to. Neither shows its payload.
+names it offered, the topic events and asset route events it recorded, the asset routes it skipped, the
+webhook waits it went to, and the cancel requests it recorded, with what the scheduler did with each.
+Neither shows its payload.
 
 In the UI
 ~~~~~~~~~
@@ -593,8 +634,11 @@ id, time of receipt, source type and correlation key; its outcome, with a senten
 attributes; the topic names it offered, each with a button that copies it; the topic events it
 recorded, each linked to its asset's page; the events its asset routes recorded, each linked to its
 asset's page with the route's topic and the partition key; the asset routes it skipped, each with
-why; and the webhook waits it went to, each linked to the page of the task instance that registered it,
-with its Dag id, run id and the wait's id. ``?id=<id>`` in the address opens the panel of the delivery
+why; the webhook waits it went to, each linked to the page of the task instance that registered it,
+with its Dag id, run id and the wait's id; and the cancel requests it recorded, each with its Dag, its
+scope, the tasks it ends, its status, with what it means, and when the scheduler applied it or failed to,
+and the runs and task instances it cancelled, each linked to its page, or the runs it left alone, with why.
+``?id=<id>`` in the address opens the panel of the delivery
 with that id, as in ``/webhook_deliveries/demo?id=<id>``. Wherever the UI lists asset events, the source
 of an event that a delivery recorded reads **Webhook** and links there.
 
@@ -662,13 +706,13 @@ fields:
    * - ``correlation_key``
      - What the delivery is about, if its source type says, or null.
    * - ``outcome``
-     - ``resumed_wait``, ``accepted``, ``early``, ``expired``, ``dag_paused`` or ``no_subscribers`` (see
-       `Outcomes and repeated deliveries`_).
+     - ``resumed_wait``, ``accepted``, ``cancel_requested``, ``early``, ``expired``, ``dag_paused`` or
+       ``no_subscribers`` (see `Outcomes and repeated deliveries`_).
    * - ``candidates``
      - The topic names that the delivery offered.
    * - ``actions``
-     - What the delivery did, or null if it recorded nothing, skipped no asset route and went to no
-       webhook wait. Each of these keys is present only when its list is not empty:
+     - What the delivery did, or null if it recorded nothing, skipped no asset route, went to no webhook
+       wait and recorded no cancel request. Each of these keys is present only when its list is not empty:
 
        * ``asset_events``: the topic events that the delivery recorded, sorted by asset name, each with the
          asset's name, the asset's id and the asset event's id, as in
@@ -684,7 +728,40 @@ fields:
          id, run id, task id and map index of the task instance that registered it, as in
          ``{"wait_id": "0199...", "ti_id": "0199...", "dag_id": "deploy", "run_id": "manual__2026-10-20",
          "task_id": "wait_for_merge", "map_index": -1}``, plus its ``region_id`` and ``region_index`` if
-         the task instance is in a dynamic region, such as a mapped task's expansion or a loop.
+         the task instance is in a dynamic region, such as a mapped task's expansion or a loop;
+       * ``cancel_requests``: the cancel requests that the delivery recorded, each with the request's id,
+         the Dag id, and the scope, ``run`` if a condition of the Dag itself matched or else ``task``, as in
+         ``{"request_id": "0199...", "dag_id": "deploy_preview", "scope": "run"}``. It summarizes the
+         ``cancel_requests`` field, which is authoritative.
+   * - ``cancel_requests``
+     - The cancel requests that the delivery recorded, by Dag id, each with what the scheduler did with it
+       (see :doc:`/authoring-and-scheduling/webhook-cancel`). These records are authoritative: ``actions``
+       summarizes them, can miss one that a concurrent repeat of the delivery recorded, and still names a
+       request whose record was removed. Each has:
+
+       * ``id`` and ``dag_id``;
+       * ``targets``: what the request cancels in each run about the delivery's correlation key, as in
+         ``{"run": {"correlation_key_confs": ["pr"]}, "tasks": [{"task_id": "run_e2e_tests",
+         "cancel_state": "skipped", "correlation_key_confs": []}]}``. ``run`` is null unless a condition of
+         the Dag itself matched, and fails the whole run; ``tasks`` lists, by task id, each task whose
+         condition matched, with the state it ends the task in. ``correlation_key_confs`` lists the conf
+         keys under which a run triggered with a conf holds the correlation key, and is empty when only
+         the runs that a delivery started are about it;
+       * ``status``: ``pending`` until the scheduler applies the request, which it does within a second
+         or two while it runs; then ``applied``, or ``failed`` if applying it raised an error, which the
+         scheduler logged;
+       * ``applied_at``: when the scheduler applied the request or failed to, or null;
+       * ``result``: null until the scheduler acts on the request, then what it did:
+         ``{"dag_runs": [...], "task_instances": [...], "skipped_runs": [...], "error": null}``.
+         ``dag_runs`` lists the ``run_id`` and ``state`` of each run that the request cancelled, ``failed``,
+         or ``running`` or ``queued`` while a teardown still has to run; ``task_instances`` the
+         ``ti_id``, ``run_id``, ``task_id``, ``map_index`` and new ``state`` of each task instance that it
+         ended, plus ``region_id`` and ``region_index`` if the task instance is in a dynamic region;
+         ``skipped_runs`` the ``run_id`` of each run about the key that it left alone, with the
+         ``reason``, ``dag_not_found`` if the run's Dag version could not be loaded or ``dag_has_team``
+         (see :doc:`/authoring-and-scheduling/webhook-cancel`); and ``error`` the class name of the error
+         that failed it. A run created later from an earlier delivery is added when the scheduler cancels
+         it as it creates it, which can happen while the request is ``pending``.
    * - ``team_name``
      - Null: webhooks have no team in Airflow 3.5.
 
@@ -766,12 +843,14 @@ the webhook's connection, and never returns the payload of a delivery. Each wait
    * - ``status``
      - ``registered`` until a matching delivery arrives; ``received`` if one arrived before the task
        parked: while the task was running, or before the wait was registered, when Airflow kept the
-       delivery ``early``; the task resumes with it once it parks; ``resumed`` once a delivery resumed the
-       task; ``timed_out`` if none arrived before the deadline; ``ended`` if the task registered another
-       wait, or if a wait registered on the same events and match found the wait's try no longer running
-       or parked, or, for a ``registered`` wait, a matching delivery did. Nothing else ends a wait whose
-       try stopped: it keeps ``registered`` until a matching delivery or such a registration ends it, and
-       ``received``, since no other delivery is offered to it, until such a registration does.
+       delivery for waits (``early``, or ``cancel_requested`` if it requested a cancel); the task resumes
+       with it once it parks; ``resumed`` once a delivery resumed the task; ``timed_out`` if none arrived
+       before the deadline; ``ended`` if the task registered another wait, if a webhook cancel request
+       ended its task (see :doc:`/authoring-and-scheduling/webhook-cancel`), or if a wait registered on the
+       same events and match found the wait's try no longer running or parked, or, for a ``registered``
+       wait, a matching delivery did. Nothing else ends a wait whose try stopped: it keeps ``registered``
+       until a matching delivery or such a registration ends it, and ``received``, since no other delivery
+       is offered to it, until such a registration does.
    * - ``deadline``
      - When the wait times out if no matching delivery has arrived.
    * - ``created_at`` and ``ended_at``
@@ -796,10 +875,10 @@ A webhook's deliveries say why a delivery started no run:
   an event (see below). Compare those names with the name of the Dag's topic.
 * ``dag_paused``: only paused or draining Dags schedule on its names. Unpausing a Dag does not replay the
   delivery, but the sender can deliver it again.
-* ``early`` or ``expired``: the delivery has a correlation key and recorded no event: no Dag that an event
-  could start schedules on its names, or only paused or draining ones do, and no asset route recorded an
-  event. Unpausing a Dag does not replay the delivery, but the sender can deliver it again, and the repeat
-  is processed again in full, unless a webhook wait has taken the delivery since.
+* ``early``, ``cancel_requested`` or ``expired``: the delivery has a correlation key and recorded no event: no
+  Dag that an event could start schedules on its names, or only paused or draining ones do, and no asset route
+  recorded an event. Unpausing a Dag does not replay the delivery, but the sender can deliver it again, and
+  the repeat is processed again in full, unless a webhook wait has taken the delivery since.
 * ``accepted``, or ``resumed_wait`` with events: it recorded the topic events and asset route events that
   its details link to, which queue the Dags scheduled on their assets. A Dag that has no run yet may be
   waiting for an event on another asset, as with ``a & b``, or, with a partitioned timetable, for the same
@@ -821,20 +900,72 @@ route's topic, which its topic names show:
   ``partition_key_field`` names an asset that no Dag with a partitioned timetable schedules on, or one
   without names an asset that only such Dags schedule on.
 
+.. _inbound-webhooks-not-cancelled:
+
+Why a run was or was not cancelled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:doc:`/authoring-and-scheduling/webhook-cancel` describes which runs a delivery cancels. When a run that
+should have been cancelled was not, the deliveries say why:
+
+* The delivery has no correlation key, so it requested no cancel: its record shows none. A GitHub ``push``
+  or ``workflow_run`` has none, and neither has a delivery to a generic source whose connection sets no
+  ``correlation_key_field``, or whose field the delivery does not fill. ``airflow webhooks check`` notes a
+  webhook with ``cancel_on`` conditions whose latest deliveries have no key.
+* The delivery lists no cancel request for the Dag: none of the Dag's conditions, or its tasks', matched
+  its event and attributes, which its record shows, or the Dag declared them only after the delivery
+  arrived. ``airflow webhooks check`` lists the conditions on each webhook.
+* :ref:`config:core__multi_team` is on, and the Dag has a team: no request is recorded for it, and
+  ``airflow webhooks check`` reports it.
+* The request is ``pending``: no scheduler has applied it yet, because none is running, or because many
+  requests wait before it.
+* The request is ``failed``: applying it raised an error, which its ``error`` names and the scheduler
+  logged.
+* The request is ``applied`` but lists no run, or not this one: the run is not about the delivery's
+  correlation key. It was started by an event that a delivery to another webhook, or with another key,
+  recorded, or by an event that the REST API, a trigger or a task created; it was triggered without the key in
+  its ``conf``, under another conf key than the condition's ``correlation_key_conf``, or with a condition that
+  names none; it was triggered after the delivery was received, or, if only its ``conf`` makes it about the
+  key, cleared after it, or started from an event newer than the delivery; or it had already finished.
+* The request is ``applied`` but lists no run, and the run's only unfinished tasks were teardowns when the
+  scheduler applied it: a cancel leaves teardowns to run, so it changed nothing, and the run ends as its tasks
+  make it end.
+* The request lists the run under the runs it left alone, with the reason ``dag_not_found``, when the
+  scheduler could not load the run's Dag version, or ``dag_has_team``.
+
+A run that was cancelled by mistake can be cleared, which queues it again, as for any failed run. Clearing it
+does not cancel it again once the request that cancelled it is ``applied``. A run that the scheduler cancelled
+as it created it, while the request was still ``pending``, is cancelled again if it is cleared before the
+scheduler applies that request, which takes longer when many requests wait.
+
+.. _inbound-webhooks-audit-log:
+
 Audit log
 ~~~~~~~~~
 
-A delivery that records topic events or asset route events also writes an audit log entry, in the same
-transaction, with the event ``webhook_delivery``, the owner ``webhook:<name>``, and in its extra the
-delivery id, the topic names it recorded events on as ``names``, its outcome, ``accepted`` or
-``resumed_wait``, and, if its asset routes recorded events, the ``topic`` and ``asset`` of each such route
-as ``asset_routes``. The entry has no Dag, so only users allowed to read audit log entries that belong to
-no Dag see it, such as the **admin** role of the Simple auth manager.
+A delivery that records topic events, asset route events or cancel requests also writes an audit log
+entry, in the same transaction, with the event ``webhook_delivery``, the owner ``webhook:<name>``, and in
+its extra the delivery id, the topic names it recorded events on as ``names``, its outcome, ``accepted``,
+``resumed_wait`` or ``cancel_requested``, if its asset routes recorded events, the ``topic`` and
+``asset`` of each such route as ``asset_routes``, and, if it recorded cancel requests, the
+``request_id``, ``dag_id`` and ``scope`` of each as ``cancel_requests``. A repeat of a delivery writes an
+entry only if it records something new, and lists only the cancel requests that it recorded itself. The
+entry has no Dag, so only users allowed to read audit log entries that belong to no Dag see it, such as
+the **admin** role of the Simple auth manager.
 
 A delivery that goes to webhook waits writes one more entry for each wait, with the same event and owner,
 the task instance that registered the wait, and in its extra the delivery id, the outcome
-``resumed_wait`` and the wait's id as ``wait_id``. A wait that gets an ``early`` delivery when it is
-registered writes the same entry. Users allowed to read the audit log of the task's Dag see it.
+``resumed_wait`` and the wait's id as ``wait_id``. A wait that gets an ``early`` or ``cancel_requested``
+delivery when it is registered writes the same entry. Users allowed to read the audit log of the task's
+Dag see it.
+
+The scheduler writes an entry with the event ``webhook_cancel`` and the owner ``webhook:<name>`` for each
+run that a cancel request cancels, with the run's Dag id and run id, and for each task instance that a
+task's ``cancel_on`` ends, with the task instance. Its extra has the delivery id, the sender's or else the
+id of Airflow's record of the delivery, the request's id as ``request_id``, the ``scope``, ``run`` or
+``task``, and for a task instance the ``state`` it ended in. Users allowed to read the audit log of the
+Dag see these entries. A task instance that a run's cancel ends gets no entry of its own: the run's entry
+covers it.
 
 .. _inbound-webhooks-metrics:
 
@@ -842,7 +973,7 @@ Metrics
 -------
 
 When :doc:`metrics <logging-monitoring/metrics>` are enabled, the webhooks process emits the first three of
-these metrics, and the scheduler ``webhooks.open_waits``:
+these metrics, and the scheduler ``webhooks.open_waits`` and ``webhooks.cancels``:
 
 .. list-table::
    :header-rows: 1
@@ -868,6 +999,12 @@ these metrics, and the scheduler ``webhooks.open_waits``:
      - Open webhook waits whose task is running or parked, tagged ``webhook``, every
        :ref:`[scheduler] ti_metrics_interval <config:scheduler__ti_metrics_interval>`. A webhook left with
        none reports 0 once, and nothing more until it has one again.
+   * - ``webhooks.cancels``
+     - counter
+     - Runs and task instances that webhook cancel requests cancelled, tagged ``webhook`` and ``scope``:
+       one with the scope ``run`` for each run that a Dag's ``cancel_on`` cancelled, and one with the scope
+       ``task`` for each task instance that a task's ``cancel_on`` ended. Requests that cancel nothing are
+       not counted.
 
 The tags reach OpenTelemetry, and StatsD only with a tagged format such as InfluxDB or DogStatsD; see
 :doc:`logging-monitoring/metrics`. Requests under ``/webhooks`` are also counted in the API server's HTTP
@@ -879,13 +1016,23 @@ Command line
 ------------
 
 ``airflow webhooks check [NAME ...]``
-    Checks that each webhook, by default each name that ``[webhooks] names`` lists, can be served: that
-    ``names`` lists it, and that its connection exists without a team, has the ``inbound_webhook`` type and
-    a password, and configures a source type that an installed provider serves, with options that the
-    source type accepts. It names the problem otherwise, such as a source type that two packages declare,
-    or the standard provider release needed for ``hmac_json`` and ``token_header``. It prints the source
-    type, body limit and ``store_payload`` of each webhook it can serve, and exits with 1 if any webhook has
-    a problem.
+    Checks that each webhook, by default each name that ``[webhooks] names`` lists and each webhook that a
+    Dag's or a task's ``cancel_on`` names, can be served: that ``names`` lists it, and that its connection
+    exists without a team, has the ``inbound_webhook`` type and a password, and configures a source type
+    that an installed provider serves, with options that the source type accepts. It names the problem
+    otherwise, such as a source type that two packages declare, or the standard provider release needed
+    for ``hmac_json`` and ``token_header``. It prints the source type, body limit and ``store_payload`` of
+    each webhook it can serve.
+
+    It then lists which Dags and tasks each webhook cancels, one line for each condition of their
+    ``cancel_on``, as in ``Webhook github cancels the runs of Dag deploy_preview on pull_request deliveries
+    with action closed, repository my-org/web, and manual runs by conf key pr`` and ``Webhook github sets task
+    run_e2e_tests of Dag deploy_preview to skipped on pull_request deliveries with action synchronize,
+    repository my-org/web``. With :ref:`config:core__multi_team` on, a Dag with a team whose ``cancel_on``
+    names the webhook is a problem, since no cancel request is recorded for it. For a webhook with conditions,
+    it notes when none of its latest 100 recorded deliveries has a correlation key, since ``cancel_on`` acts
+    only on deliveries that have one; the note does not change the exit code. It exits with 1 if any webhook
+    has a problem.
 
 ``airflow webhooks send-test NAME --url URL --data DATA``
     Sends one delivery as a sender would, and prints the answer as
@@ -895,7 +1042,8 @@ Command line
     for the content of a file; ``--secret``, ``--signature-header`` and ``--signature-prefix`` replace what
     the connection ``webhook_<name>`` says; ``--delivery-id`` sends an id in the connection's
     ``delivery_id_header``; and ``--header 'NAME: VALUE'``, which may be repeated, adds a header. A test
-    delivery is processed like any other, so it starts the Dags that schedule on its names.
+    delivery is processed like any other, so it starts the Dags that schedule on its names, and records
+    cancel requests that cancel the runs about its correlation key.
 
 ``airflow providers webhook-sources``
     Lists the source types that the installed providers declare, and whether each is served.
@@ -930,8 +1078,14 @@ The webhooks process answers anyone who can reach it, so give it only what it ne
   * for deliveries that go to webhook waits, ``SELECT`` on ``task_instance``, ``dag_run`` and
     ``dynamic_region``, and ``UPDATE`` on ``inbound_wait`` and on ``task_instance``, which a delivery locks
     and writes to resume a parked task;
+  * for deliveries with a correlation key, ``SELECT`` on ``dag_cancel_condition``, which holds the
+    ``cancel_on`` conditions of Dags, and ``SELECT`` and ``INSERT`` on ``webhook_cancel_request``, which
+    holds the cancel requests that deliveries record and which a repeat of a delivery reads. The process
+    writes no run or task instance state for a cancel: the scheduler applies the requests. A request's id
+    is a UUID, so no sequence is involved;
   * when :ref:`config:core__multi_team` is on, ``SELECT`` on ``dag_bundle``, ``dag_bundle_team`` and
-    ``team``, which the team filter reads;
+    ``team``, which the team filter reads, also with ``dag`` for the ``cancel_on`` conditions of Dags with a
+    team;
   * for asset routes with a ``partition_key_field``, ``SELECT`` on ``serialized_dag`` and
     ``dag_version``, ``SELECT`` and ``INSERT`` on ``asset_partition_dag_run`` and
     ``partitioned_asset_key_log``, which queue the partition-aware Dags; ``UPDATE`` on ``asset``, which
@@ -940,8 +1094,9 @@ The webhooks process answers anyone who can reach it, so give it only what it ne
 
   Airflow's tests pin which tables a delivery reads and writes when ``multi_team`` is off, for topic events
   and for asset routes with a partition key, but not for deliveries that go to webhook waits, and not these
-  privileges. A delivery that needs a privilege the process lacks is answered 500 or 503, depending on the
-  database, and the error is logged.
+  privileges; they also check that a delivery that requests a cancel reads and writes no ``dag_run``,
+  ``task_instance``, ``serialized_dag`` or ``dag_version``. A delivery that needs a privilege the process
+  lacks is answered 500 or 503, depending on the database, and the error is logged.
 * Only the plugins it needs. The first delivery that records an event imports every plugin installed
   where the process runs, from the plugins folder and from entry points, to find listeners, and the
   ``on_asset_changed`` and ``on_asset_event_emitted`` hooks of listener plugins then run after each such
@@ -960,10 +1115,15 @@ Turning webhooks off
   from the ``names`` of the API servers that serve the Execution API also refuses new waits on it.
 * To keep a webhook's deliveries from starting runs while still recording them, pause every Dag that
   schedules on its topics or on the assets that its asset routes name. Its deliveries are then recorded
-  as ``dag_paused``, or as ``early`` if they have a correlation key, such as each ``github`` delivery about
-  a pull request or an issue, and a sender's redelivery of one after unpausing is processed again, so the
-  unpaused Dags receive it. A delivery that a webhook wait took, at once or while it was ``early``, is
-  ``resumed_wait`` instead, and a redelivery of it is a duplicate (see :ref:`inbound-webhooks-outcomes`).
+  as ``dag_paused``, or as ``early``, or ``cancel_requested`` if they request a cancel, if they have a
+  correlation key, such as each ``github`` delivery about a pull request or an issue, and a sender's
+  redelivery of one after unpausing is processed again, so the unpaused Dags receive it. A delivery that a
+  webhook wait took, at once or while it was kept for waits, is ``resumed_wait`` instead, and a redelivery
+  of it is a duplicate (see :ref:`inbound-webhooks-outcomes`).
+* Pausing a Dag does not stop the deliveries that match its ``cancel_on`` from cancelling its runs. To stop
+  a webhook from cancelling runs, remove the conditions on it from the ``cancel_on`` of the Dags and tasks,
+  which applies once the Dag processor has parsed them, or stop the webhook as above. The scheduler still
+  applies the cancel requests that deliveries recorded before.
 
 Migrating from airflow-provider-inbound-webhooks
 ------------------------------------------------

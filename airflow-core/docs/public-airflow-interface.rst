@@ -481,21 +481,31 @@ in ``airflow.webhooks.naming``, which are public too.
   _api/airflow/webhooks/naming/index
 
 The rest of the inbound webhooks interface is public and experimental too, and is described in
-:doc:`administration-and-deployment/webhooks`, :doc:`authoring-and-scheduling/webhook-topics` and
-:doc:`authoring-and-scheduling/webhook-waits`: the routes ``POST /webhooks/<name>`` and
-``GET /webhooks/_health`` with their status codes and the body of a 202, the topic name grammar, the keys of
-the extra of topic events, which asset routes record events on and the reasons they skip, the
-``[webhooks]`` options, ``GET /api/v2/webhooks``, ``GET /api/v2/webhooks/{webhook_name}/deliveries`` with
-``~`` for every webhook, the outcomes of a delivery and the shape of its ``actions``,
+:doc:`administration-and-deployment/webhooks`, :doc:`authoring-and-scheduling/webhook-topics`,
+:doc:`authoring-and-scheduling/webhook-waits` and :doc:`authoring-and-scheduling/webhook-cancel`: the
+routes ``POST /webhooks/<name>`` and ``GET /webhooks/_health`` with their status codes and the body of a
+202, the topic name grammar, the keys of the extra of topic events, which asset routes record events on
+and the reasons they skip, the ``[webhooks]`` options, ``GET /api/v2/webhooks``,
+``GET /api/v2/webhooks/{webhook_name}/deliveries`` with ``~`` for every webhook, the outcomes of a delivery,
+``cancel_requested`` included, the shape of its ``actions``, and its ``cancel_requests`` with their
+targets, statuses and results, ``cancel_on`` in the responses of
+``GET /api/v2/dags/{dag_id}/details`` and of the task routes, with ``cancel_state`` in the latter,
 ``GET /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits`` and the statuses of
-a webhook wait, the match grammar of a wait's ``events`` and ``match``, the ``airflow webhooks`` commands,
-the webhook metrics and their tags, and the owner of the audit log entries.
+a webhook wait, the match grammar of a wait's ``events`` and ``match``, which runs a cancel request applies
+to and what it does to them, the reason ``cancelled`` that a Dag's ``on_failure_callback`` gets for a
+cancel, the ``airflow webhooks`` commands, the webhook metrics and their tags, ``webhooks.cancels``
+included, and the owner of the audit log entries and their events, ``webhook_delivery`` and
+``webhook_cancel``.
 
 :class:`~airflow.sdk.WebhookTopic` is part of the Task SDK, and so are ``BaseOperator.wait_for_webhook``,
 ``WebhookWaitUnsupported`` in ``airflow.sdk.exceptions``, and the shapes of the events that a waiting task
 resumes with: ``{"webhook", "event", "delivery_id", "received_at", "attributes", "payload"}`` for a
 delivery that matches its wait, and ``{"error", "error_type": "timeout"}`` when none does before the
-timeout (see :ref:`webhook-waits-resume-event`). The Execution API route that registers a wait is internal.
+timeout (see :ref:`webhook-waits-resume-event`). So are :class:`~airflow.sdk.WebhookMatch`, the
+``cancel_on`` argument of ``DAG``, and the ``cancel_on`` and ``cancel_state`` arguments of
+``BaseOperator`` (see :doc:`authoring-and-scheduling/webhook-cancel`). The Execution API route that
+registers a wait is internal, and so are the ``dag_cancel_condition`` and ``webhook_cancel_request``
+tables and the text of the note that a cancel writes on a run.
 
 Each source type's name, the ``source_type`` key that selects it in a connection's extra, its own
 connection extra options, its attributes and the fields its topic names are built from are the public
@@ -508,6 +518,11 @@ You can read more about writing webhook source types in the Webhook Sources page
 documentation.
 
 .. versionadded:: 3.5.0
+
+.. versionchanged:: 3.6.0
+    Added ``WebhookMatch`` and ``cancel_on``, with the cancel requests of deliveries, the
+    ``cancel_requested`` outcome, the ``cancelled`` callback reason, the ``webhook_cancel`` audit log event
+    and the ``webhooks.cancels`` metric.
 
 Secrets Backends
 ----------------

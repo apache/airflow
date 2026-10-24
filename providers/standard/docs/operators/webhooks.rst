@@ -66,12 +66,13 @@ Within a webhook, only one running or parked task instance can wait with the sam
 ``match``. The API server refuses a second such wait with 409, and its task fails. A Dag that needs the
 same delivery in several tasks can schedule on a webhook topic instead.
 
-A delivery that arrives before its wait is registered is kept for it if the delivery has a correlation
-key, such as each GitHub delivery about a pull request or issue, went to no other wait and recorded no
-topic or asset route events. Its outcome is then ``early``, and a wait that matches it and is registered
-within ``[webhooks] early_delivery_ttl`` of its receipt takes it: the task resumes as soon as it parks. A
-delivery that recorded topic or asset route events for a Dag is not kept, so a wait registered after it
-never gets it. :ref:`apache-airflow:inbound-webhooks-outcomes` describes the outcomes.
+A delivery that arrives before its wait is registered is kept for it if the delivery has a correlation key,
+such as each GitHub delivery about a pull request or issue, went to no other wait and recorded no topic or
+asset route events. Its outcome is then ``early``, or ``cancel_requested`` if it also recorded cancel
+requests, and a wait that matches it and is registered within ``[webhooks] early_delivery_ttl`` of its receipt
+takes it: the task resumes as soon as it parks. A delivery that recorded topic or asset route events for a Dag
+is not kept, so a wait registered after it never gets it. :ref:`apache-airflow:inbound-webhooks-outcomes`
+describes the outcomes.
 
 .. _howto/decorator:webhook_wait:
 

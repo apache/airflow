@@ -1208,7 +1208,9 @@ The design leaves the following residual risks, which are not vulnerabilities:
 * **A leaked shared secret.** Whoever holds a webhook's shared secret can send deliveries that pass as
   the sender's, for any event and with any attributes, until the secret is rotated by editing the
   ``webhook_<name>`` connection. Such deliveries start the Dags that subscribe to their topics or that are
-  scheduled on the assets their asset routes name, and resume the tasks whose webhook waits they match.
+  scheduled on the assets their asset routes name, resume the tasks whose webhook waits they match, and
+  fail the active runs, or end tasks, of the Dags whose ``cancel_on`` names the webhook, for any
+  correlation key they choose.
 * **A delivery replayed under a new id.** A delivery is recognized as a repeat by its delivery id
   together with a digest of its body. Some senders, such as GitHub and Jira, sign only the body, others
   send a token that covers nothing, and the delivery id travels in a header, so a captured delivery can
@@ -1237,6 +1239,22 @@ The design leaves the following residual risks, which are not vulnerabilities:
   asset that the route names, other than a webhook topic, and start the Dags scheduled on it, while
   ``POST /api/v2/assets/events`` requires permission to create events on the asset. Edit rights on a
   webhook connection are therefore also rights to record asset events.
+* **Cancel by delivery.** A delivery can request cancels only for the Dags whose code declares a
+  ``cancel_on`` condition on its webhook that it matches, and the scheduler applies a request only to the
+  queued and running runs of such a Dag that are about the delivery's correlation key, through an event
+  that an earlier delivery recorded, including runs the scheduler creates later from such an event, or
+  through their conf if they were queued before the delivery (see
+  :doc:`/authoring-and-scheduling/webhook-cancel`). Before ``cancel_on``, a leaked secret could only
+  start runs and resume waiting tasks; with it, it can also fail runs. A generic source's
+  ``correlation_key_field`` lets the sender choose the key, as the holder of the secret can for any source
+  type. Whoever triggers a run with a conf chooses its conf key, which only exposes their own run to cancels.
+  The key of a run started by an event counts only for an event that a delivery recorded: an event that
+  the REST API, an asset watcher's trigger or a task created never makes a run about a key, whatever its
+  extra says. A delivery replayed under a new id records new requests, which cancel the runs about its key
+  that started since the original. The webhooks process writes no run or task instance state for a
+  cancel, and loads no Dag: it reads the conditions that the Dag processor stored and records requests. The
+  scheduler reads the requests that the webhooks process records, and runs no Dag code to apply them; the
+  Dag's ``on_failure_callback`` runs in the Dag processor, as for a run that timed out.
 * **Credentials held by an exposed process.** The process that serves inbound webhooks holds the
   metadata database credentials, the credentials of any secrets backend it reads, and the Fernet key
   unless it is withheld because no ``webhook_<name>`` connection is stored in the metadata database,
