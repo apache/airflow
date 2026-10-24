@@ -633,13 +633,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         Get job with status of specified name and namespace.
 
+        Reads the Job object rather than the ``jobs/status`` subresource: both return the same ``status``,
+        but RBAC checks subresources separately, so this only needs ``get`` on ``jobs``.
+
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -1325,12 +1326,14 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Get job's status object.
 
+        Reads the Job object, see :meth:`KubernetesHook.get_job_status`.
+
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job_status(
+            job: V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )
