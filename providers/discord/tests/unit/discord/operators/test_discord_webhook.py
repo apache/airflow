@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
@@ -49,3 +51,10 @@ class TestDiscordWebhookOperator:
         assert self._config["avatar_url"] == operator.avatar_url
         assert self._config["tts"] == operator.tts
         assert self._config["proxy"] == operator.proxy
+
+    @pytest.mark.parametrize("http_conn_id", [None, ""])
+    def test_missing_http_conn_id_raises_value_error(self, http_conn_id):
+        with pytest.raises(ValueError, match="No valid Discord http_conn_id supplied."):
+            DiscordWebhookOperator(task_id="discord_webhook_task", dag=self.dag, http_conn_id=http_conn_id)
+
+        assert "discord_webhook_task" not in self.dag.task_dict
