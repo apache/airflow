@@ -25,6 +25,55 @@
 Changelog
 ---------
 
+.. note::
+  The worker cannot register a model class for XCom deserialization when ``output_type`` is a
+  list of output types such as ``[Summary, int]``, an output marker such as
+  ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a ``NewType``. For these
+  output types, ``AgentOperator`` and ``@task.agent`` now push each model in the output as a
+  JSON-compatible dict (``model_dump(mode="json")``), including models inside a list, tuple or
+  dict. On Airflow < 3.3, the worker registers no model class at all, so a model inside a list,
+  tuple or dict is now pushed as a JSON-compatible dict for every ``output_type``. A top-level
+  model is still dumped with plain ``model_dump()`` when ``serialize_output=True`` is set or on
+  Airflow < 3.3.
+
+  The new behaviour changes the type that a downstream task receives after an upgrade. Versions
+  1.0.0 and 1.1.0 pushed these models as model instances. They dumped a top-level model with
+  plain ``model_dump()`` only in HITL review, with ``serialize_output=True`` or on
+  Airflow < 3.3. A downstream task loaded a model instance when the model's class was listed in
+  ``[core] allowed_deserialization_classes``, or on Airflow >= 3.3 when another task in the
+  same Dag declared the class as its ``output_type``. That downstream task now gets a dict and
+  must read ``result["field"]`` instead of ``result.field``. In HITL review on Airflow >= 3.3
+  without ``serialize_output=True``, values such as ``datetime``, ``date``, ``timedelta``,
+  ``UUID`` and ``Decimal`` in a top-level model now arrive as strings, for example
+  ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
+  :doc:`structured_output`.
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add emit_message_history to record an agent transcript without seeding it (#74811)``
+* ``Push LLMOperator's token usage and cost to XCom (#74355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use common.compat mask_secret in MCPHook (#75064)``
+* ``Preserve SQL table allowlist validation with newer sqlglot and add OpenAI Decisions and System One to the connection vendor list (#73822)``
+
+Misc
+~~~~
+
+* ``Remove unused mypy suppressions in common providers (#75257)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Number task loop iterations from one instead of zero (#74773)``
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Fix Modal contract test importing a private class from its old location (#75188)``
+
 1.0.0
 .....
 

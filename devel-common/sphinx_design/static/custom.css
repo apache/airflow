@@ -44,10 +44,6 @@ div.admonition.warning {
 /* Patches as of moving to Sphinx 7 to get layout to previous state  */
 /* Needs to be cleaned in a follow-up to source this from the origin style in */
 /* https://github.com/apache/airflow-site/blob/main/landing-pages/site/assets/scss/_rst-content.scss */
-.base-layout {
-  padding-top: 163px !important; /* banner + navbar + 2px padding */
-}
-
 section {
   padding-top: 0rem !important;
   padding-bottom: 0rem !important;
@@ -87,14 +83,14 @@ a.headerlink svg {
 :target::before {
   content: "";
   display: block;
-  height: 161px; /* 40px banner + 121px navbar */
-  margin: -161px 0 0; /* negative fixed header height */
+  height: 130px; /* 90px navbar + 40px gap */
+  margin: -130px 0 0; /* negative of the height above */
 }
 
 @media (max-width: 1280px) {
   :target::before {
-    height: 117px; /* 40px banner + 77px mobile navbar */
-    margin: -117px 0 0; /* negative fixed header height */
+    height: 120px; /* 80px mobile navbar + 40px gap */
+    margin: -120px 0 0; /* negative of the height above */
   }
 }
 

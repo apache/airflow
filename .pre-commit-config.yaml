@@ -326,6 +326,20 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: sync-java-sdk-docs
+        name: Sync the Java SDK quick start and version across the user-facing docs
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/sync_java_sdk_docs.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/java\.rst$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/sync_java_sdk_docs\.py$
+        additional_dependencies: ['rich>=13.6.0']
+        pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
         name: Sync Java SDK supervisor schema with configured version
         env:
@@ -564,6 +578,21 @@ repos:
           ^go-sdk/README\.md$|
           ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
           ^scripts/ci/prek/update_go_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
+      - id: update-lang-sdk-central-matrix
+        name: Update the consolidated Language SDK compatibility matrix
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/update_lang_sdk_central_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^(go|java|ts)-sdk/capabilities\.yaml$|
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/index\.rst$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_lang_sdk_central_matrix\.py$
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
@@ -1139,6 +1168,15 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-ci-gate-needs
+        name: Check the CI passed gate job needs every CI job
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Auto-merge waits for "CI passed"; a job missing from its needs could fail without stopping a merge
+        entry: ./scripts/ci/prek/check_ci_gate_needs.py
+        language: python
+        pass_filenames: false
+        files: ^\.github/workflows/ci-amd\.yml$|^scripts/ci/prek/check_ci_gate_needs\.py$
       - id: check-auth-manager-mock-targets
         name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
         env:

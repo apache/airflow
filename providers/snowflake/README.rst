@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-snowflake``
 
-Release: ``6.19.0``
+Release: ``6.20.0``
 
 
 `Snowflake <https://www.snowflake.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``snowflake`` provider. All classes for this prov
 are in ``airflow.providers.snowflake`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.19.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.20.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ========================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
@@ -102,8 +102,8 @@ Extra                Dependencies
 ===================  ======================================================
 ``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
-``openlineage``      ``apache-airflow-providers-openlineage>=2.3.0``
+``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
 ===================  ======================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.19.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.20.0/changelog.html>`_.

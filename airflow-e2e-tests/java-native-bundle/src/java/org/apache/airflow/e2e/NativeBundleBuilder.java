@@ -31,9 +31,9 @@ import org.apache.airflow.sdk.*;
  * Bundle for the native Dag E2E tests: Dags declared entirely in Java, parsed by the Dag processor
  * from this JAR.
  *
- * <p>This is the bundle's main class, so it is the Dag source the Airflow UI shows. Every task sets
- * {@code queue}, which {@code queue_to_coordinator} routes to the {@code java-jdk} coordinator.
- * The {@code java-native} coordinator only parses this JAR.
+ * <p>This is the bundle's main class, so it is the Dag source the Airflow UI shows. Each Dag sets
+ * {@code queue} once and every task inherits it, which {@code queue_to_coordinator} routes to the
+ * {@code java-jdk} coordinator. The {@code java-native} coordinator only parses this JAR.
  */
 public class NativeBundleBuilder {
   public static final String QUEUE = "java-native";
@@ -110,34 +110,30 @@ public class NativeBundleBuilder {
         new DagDef("java_native_e2e")
             .config("description", "Native Java Dag of the Airflow E2E tests")
             .config("catchup", false)
-            .config("tags", List.of("java-sdk", "native", "e2e"));
+            .config("tags", List.of("java-sdk", "native", "e2e"))
+            .config("queue", QUEUE);
 
-    var extract = dag.task("extract", Extract.class).config("queue", QUEUE);
-    var transform = dag.task("transform", Transform.class).config("queue", QUEUE);
-    var load = dag.task("load", Load.class).config("queue", QUEUE);
+    var extract = dag.task("extract", Extract.class);
+    var transform = dag.task("transform", Transform.class);
+    var load = dag.task("load", Load.class);
 
     transform.after(extract).before(load);
 
-    var reportMany = dag.task("report_many", ReportMany.class).config("queue", QUEUE);
-    var reportFew = dag.task("report_few", ReportFew.class).config("queue", QUEUE);
-    dag.If("has_rows", HasRows.class).after(transform).config("queue", QUEUE).Then(reportMany).Else(reportFew);
+    var reportMany = dag.task("report_many", ReportMany.class);
+    var reportFew = dag.task("report_few", ReportFew.class);
+    dag.If("has_rows", HasRows.class).after(transform).Then(reportMany).Else(reportFew);
 
-    var reportLong = dag.task("report_long", ReportLong.class).config("queue", QUEUE);
-    var reportShort = dag.task("report_short", ReportShort.class).config("queue", QUEUE);
-    dag.Switch("pick_report", PickReport.class)
-        .after(transform)
-        .config("queue", QUEUE)
-        .Case(reportLong)
-        .Case(reportShort);
+    var reportLong = dag.task("report_long", ReportLong.class);
+    var reportShort = dag.task("report_short", ReportShort.class);
+    dag.Switch("pick_report", PickReport.class).after(transform).Case(reportLong).Case(reportShort);
 
     // A task that starts a run of another Dag; it runs no Java code.
-    var trigger =
-        dag.task("trigger_downstream", new TriggerDagRun("java_native_target_e2e")).config("queue", QUEUE);
+    var trigger = dag.task("trigger_downstream", new TriggerDagRun("java_native_target_e2e"));
     load.before(trigger);
 
     // Ordering-only edge: the checks group runs after extract, with no data flowing.
     var checks = dag.taskGroup("checks");
-    checks.task("audit", Audit.class).config("queue", QUEUE);
+    checks.task("audit", Audit.class);
     extract.before(checks);
 
     return dag;
