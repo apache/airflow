@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+.. note::
+
+    Non-team provisioning now generates resource-specific read/write permissions and
+    ``DefaultMenuAccess`` instead of the four broad ``ReadOnly``, ``User``, ``Op``, and ``Admin``
+    permission definitions. Re-run ``airflow keycloak-auth-manager create-all`` to provision
+    the required scopes, resources, and permissions. Legacy permissions and extra policy
+    attachments are not automatically removed in non-team mode and can still affect access.
+    Non-team to multi-team client migration is not supported by the provisioning commands.
+    Provision a separate client for multi-team configuration. See
+    :doc:`auth-manager/manage/permissions` for the current grants and provisioning guidance.
+
+.. note::
+
+    The Keycloak provisioning commands ``create-all``, ``create-permissions``,
+    and ``create-team`` now explicitly configure the resource-server decision
+    strategy as ``AFFIRMATIVE`` and report strategy changes. This client-wide
+    setting also affects existing custom permissions. A permitting permission
+    can authorize access despite another permission's denial. Review custom
+    authorization rules that depend on ``UNANIMOUS`` before provisioning an
+    existing client. ``--dry-run`` reports the proposed change without applying it.
+
 0.11.2
 ......
 
@@ -120,14 +141,18 @@ Bug Fixes
 .....
 
 .. note::
-    Upgrading the provider does not update existing Keycloak permissions. For each existing team,
+    In version 0.9.0, upgrading the provider did not update existing Keycloak permissions.
+    The upgrade instructions for that version were: for each existing team,
     run ``airflow keycloak-auth-manager create-team <team>`` again to update the team-specific
     permissions and repair the global ``ReadOnly`` and ``Admin`` permissions. For non-team
     installations, run ``airflow keycloak-auth-manager create-permissions`` again without
     ``--teams`` to update the global ``ReadOnly`` and ``Admin`` permissions.
 
-    Manually added policies attached to these permissions will also be evaluated under the
-    ``AFFIRMATIVE`` strategy after the update.
+    Manually added policies attached to these permissions were also evaluated under the
+    ``AFFIRMATIVE`` strategy after the update. These instructions describe the 0.9.0 permission
+    model. Current non-team provisioning creates resource-specific permissions instead of
+    updating these four broad permission definitions; consult
+    :doc:`auth-manager/manage/permissions` for the current provisioning guidance.
 
 .. note::
     For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
