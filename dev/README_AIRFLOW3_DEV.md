@@ -216,6 +216,9 @@ that produced it.
 When CI is red for a reason unrelated to the PR, for example a test that is broken on `main`, a
 committer can still merge by ticking **Merge without waiting for requirements to be met (bypass
 rules)**. Use it only when you are sure the failure is not caused by the PR, and say so in a comment.
+The rulesets grant the bypass to the repository's Write role, which only committers hold here, so a new
+committer gets it once ASF Infra adds them to the repository after they link their GitHub account in
+[GitBox](https://gitbox.apache.org/setup/); nothing in `.asf.yaml` needs to change.
 
 ## Merging PRs for providers and Helm chart
 
