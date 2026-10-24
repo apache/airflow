@@ -38,6 +38,14 @@ from airflow_breeze.utils.path_utils import (
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+# RunsOn (runs-on.com) EC2 runner label templates. Jobs fill in their size class with
+# `format(<label>, cpu, ram)` in the workflow; the same call leaves the public labels unchanged.
+RUNS_ON_AMD_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={{0}}/ram={{1}}"
+)
+RUNS_ON_ARM_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={{0}}/ram={{1}}"
+)
 
 # Platform the tests of a CI run execute on.
 CI_AMD_PLATFORM = "linux/amd64"
