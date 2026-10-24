@@ -565,13 +565,17 @@ bypass when both signals hold:
    pull request added to an existing one (for example `pull_request` on `ci-arm.yml`, which
    has no gate), or it is a `ci-amd.yml` run that has run for more than 5 minutes, finished or
    still running, and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a
-   started job that was not skipped, other than `Fork CI gate` and the two jobs that run in every
-   gated run (`Check if the run is needed`, which has no steps for pull requests, and
-   `CI passed (project CI not run)`), a missing or duplicated gate job, or one of those three jobs
-   running for more than 5 minutes. The last case catches project CI work done in a job renamed
-   to one of their names. Runs and jobs that have not started do not count, because a
-   queued job reports its creation as `started_at`: a gate job waiting more than 5 minutes for a
-   runner would otherwise look like project CI work. A running run is judged as it goes, so one
+   started job that was not skipped, other than `Fork CI gate` and the jobs that run in every
+   gated run (`Check if the run is needed`, which has no steps for pull requests, and the
+   `CI passed` job, named `CI passed (project CI not run)` when project CI was skipped and
+   `CI passed` when a newer push cancelled the run before `Build info` started), a missing or
+   duplicated gate job, one of those jobs appearing twice (either `CI passed` name counts as
+   the same job), or one of them running for more than 5 minutes. The last two cases catch
+   project CI work done in jobs renamed to one of their names. A job counts as started
+   only when a runner picked it up (a non-zero `runner_id`, or steps): a queued job reports its
+   creation as `started_at`, and a run cancelled by a newer push marks its never-started jobs
+   `completed` and `cancelled`, so a gate waiting for a runner would otherwise look like project
+   CI work. A running run is judged as it goes, so one
    tampered to outlast the 6-hour window is still caught. A gate-only run finishes in about a
    minute, so jobs are listed only for the rare long runs. The triggers are read from the
    monitor's own checkout of `main`, so no API call is needed; a pull request into a release
@@ -587,11 +591,15 @@ bypass when both signals hold:
 GitHub lists at most 1000 runs for such a query. When more were created in the window, the
 reconciler reports on Slack that the tampering check was incomplete for that run.
 
-Signal 2 exists so that project CI runs with a legitimate cause never close anything: a pull
-request created before an `enabled_since` that was later moved back for the backlog reset, or
-one that was released with `use project ci` and later re-gated, has full runs but does not
-touch workflows. Signal 1 exists so that an external pull request that edits `ci-amd.yml`
-legitimately, and leaves the gate intact, is not closed for touching the file.
+Signal 2 exists so that project CI runs with a legitimate cause do not close pull requests that
+leave `.github/workflows/` alone: a pull request created before an `enabled_since` that was
+later moved back for the backlog reset, or one that was released with `use project ci` and
+later re-gated, has full runs but does not touch workflows. Only the removal of
+`use project ci` and a maintainer's reopen bound which runs count, so a workflow-editing pull
+request that becomes gated any other way (the backlog reset, a removed allowlist entry, a
+contributor losing their collaborator association) with full runs in the last six hours
+(`TAMPER_WINDOW`) is closed. Signal 1 exists so that an external pull request that edits
+`ci-amd.yml` legitimately, and leaves the gate intact, is not closed for touching the file.
 
 When both hold the reconciler records `gate_bypassed` in the state comment marker, drafts the
 pull request, removes `ready for maintainer review`, posts an `error` status whose
@@ -818,7 +826,9 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
    Switching on again must move `enabled_since` forward to the new switch-on instant;
    otherwise pull requests opened while the gate was off are gated retroactively.
 8. The backlog reset, if ever adopted, is `enabled_since` moved back, staged over days by
-   moving it in steps.
+   moving it in steps. Before each step, label `use project ci` on the pull requests it gates
+   that change `.github/workflows/` and ran project CI in the last six hours: otherwise the
+   tampering check closes them. Removing an allowlist entry needs the same care.
 
 ## Security considerations
 

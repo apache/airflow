@@ -28,7 +28,13 @@ from click.testing import CliRunner
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
 from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
-from airflow_breeze.utils.fork_ci_messages import Marker, parse_marker, render_marker
+from airflow_breeze.utils.fork_ci_messages import (
+    CI_PASSED_CONTEXT,
+    STATUS_CONTEXT,
+    Marker,
+    parse_marker,
+    render_marker,
+)
 from airflow_breeze.utils.fork_ci_reconcile import (
     BaseGateConfigs,
     BypassFinder,
@@ -49,6 +55,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     load_workflow_triggers,
     parse_pull_request,
     pull_request_changes_ci_files,
+    read_head_status,
     run_reconcile,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -637,13 +644,21 @@ def test_gate_tampering_closes(pr_overrides, checked):
 
 
 def _job(
-    name: str, conclusion: str | None = "skipped", minutes: float = 0.2, status: str = "completed"
+    name: str,
+    conclusion: str | None = "skipped",
+    minutes: float = 0.2,
+    status: str = "completed",
+    started: bool | None = None,
 ) -> dict:
     start = NOW - timedelta(hours=1)
+    if started is None:
+        started = status != "queued"
     return {
         "name": name,
         "status": status,
         "conclusion": conclusion,
+        "runner_id": 1 if started else 0,
+        "steps": [{"name": "Set up job"}] if started else [],
         "started_at": start.isoformat(),
         "completed_at": (start + timedelta(minutes=minutes)).isoformat() if status == "completed" else None,
     }
@@ -692,6 +707,54 @@ def _job(
             [_job("Fork CI gate", "success"), _job("CI passed (project CI not run)", "success", minutes=30)],
             True,
             id="work-under-ci-passed-name",
+        ),
+        pytest.param(
+            [
+                _job("Check if the run is needed", "cancelled", started=False),
+                _job("Fork CI gate", "cancelled", started=False),
+                _job("Build info", "cancelled", started=False),
+                _job("Tests", "cancelled", started=False),
+                _job("CI passed", "failure"),
+            ],
+            False,
+            id="cancelled-before-the-gate-started",
+        ),
+        pytest.param(
+            [_job("Fork CI gate", "cancelled", minutes=30, started=False)],
+            False,
+            id="gate-cancelled-after-queueing-for-30-minutes",
+        ),
+        pytest.param(
+            [_job("Fork CI gate", "success"), _job("CI passed", "success", minutes=30)],
+            True,
+            id="work-under-cancelled-run-ci-passed-name",
+        ),
+        pytest.param(
+            [
+                _job("Fork CI gate", "success"),
+                _job("CI passed", "success", minutes=4),
+                _job("CI passed", "success", minutes=4),
+            ],
+            True,
+            id="work-split-across-short-ci-passed-jobs",
+        ),
+        pytest.param(
+            [
+                _job("Fork CI gate", "success"),
+                _job("CI passed", "success"),
+                _job("CI passed (project CI not run)", "success"),
+            ],
+            True,
+            id="both-ci-passed-names",
+        ),
+        pytest.param(
+            [
+                _job("Fork CI gate", "success"),
+                _job("Check if the run is needed", "success", minutes=4),
+                _job("Check if the run is needed", "success", minutes=4),
+            ],
+            True,
+            id="work-split-across-short-check-run-needed-jobs",
         ),
     ],
 )
@@ -935,7 +998,7 @@ def _pr_node(number: int, **overrides) -> dict:
         "headRepository": {"nameWithOwner": "someone/my-airflow"},
         "labels": {"nodes": [{"name": "fork ci required"}]},
         "timelineItems": {"nodes": []},
-        "commits": {"nodes": [{"commit": {"status": None}}]},
+        "commits": {"nodes": [{"commit": {"oid": f"sha{number}", "status": None}}]},
         "comments": {"nodes": []},
     }
     node.update(overrides)
@@ -984,6 +1047,7 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
             "nodes": [
                 {
                     "commit": {
+                        "oid": "sha1",
                         "status": {
                             "context": {
                                 "state": "PENDING",
@@ -992,7 +1056,7 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
                                 "createdAt": "2026-11-08T00:00:00Z",
                             },
                             "ciPassed": {"state": "SUCCESS"},
-                        }
+                        },
                     }
                 }
             ]
@@ -1024,6 +1088,71 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
     assert pr.marker_comment_id == 5
     assert pr.head_repo == "someone/my-airflow"
     assert pr.head_ref == "branch-1"
+
+
+def test_parse_pull_request_leaves_statuses_of_another_commit_unread():
+    node = _pr_node(
+        1,
+        commits={
+            "nodes": [
+                {
+                    "commit": {
+                        "oid": "older-dated-commit",
+                        "status": {
+                            "context": {
+                                "state": "SUCCESS",
+                                "targetUrl": "u",
+                                "description": "d",
+                                "createdAt": "2026-11-08T00:00:00Z",
+                            },
+                            "ciPassed": {"state": "SUCCESS"},
+                        },
+                    }
+                }
+            ]
+        },
+    )
+
+    pr = parse_pull_request(node)
+
+    assert pr.head_status_unread is True
+    assert pr.current_status is None
+    assert pr.status_created_at is None
+    assert pr.ci_passed_state is None
+
+
+@pytest.mark.parametrize(
+    ("statuses", "expected_status", "expected_ci_passed"),
+    [
+        pytest.param(
+            [
+                {
+                    "context": STATUS_CONTEXT,
+                    "state": "pending",
+                    "target_url": "u",
+                    "description": "d",
+                    "created_at": "2026-11-08T00:00:00Z",
+                },
+                {"context": CI_PASSED_CONTEXT, "state": "success"},
+                {"context": "other", "state": "failure"},
+            ],
+            ("pending", "u", "d"),
+            "success",
+            id="both-statuses",
+        ),
+        pytest.param([], None, None, id="no-statuses"),
+    ],
+)
+def test_read_head_status(client, statuses, expected_status, expected_ci_passed):
+    client.rest_get.return_value = {"statuses": statuses}
+    pr = dataclasses.replace(parse_pull_request(_pr_node(1)), head_status_unread=True)
+
+    read = read_head_status(client, REPO, pr)
+
+    client.rest_get.assert_called_once_with(f"repos/{REPO}/commits/sha1/status?per_page=100")
+    assert read.current_status == expected_status
+    assert read.ci_passed_state == expected_ci_passed
+    assert read.head_status_unread is False
 
 
 def test_discover_labels_pilot_pull_requests_while_disabled(client):

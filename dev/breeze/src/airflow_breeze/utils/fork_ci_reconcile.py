@@ -78,9 +78,15 @@ GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
 GATE_JOB_NAME = "Fork CI gate"
 # Jobs that also run, without needing the gate, in a run the gate left to fork CI: main's
 # check-run-needed (no steps outside schedule and push runs) and the "CI passed" gate job of the
-# merge ruleset, which reports under this name when project CI did not run. Like the gate, each
+# merge ruleset, which reports as "CI passed (project CI not run)" when project CI was skipped and
+# as "CI passed" when a newer push cancelled the run before build-info started. Like the gate, each
 # must finish within GATE_MAX_DURATION, so project CI work moved under one of these names counts.
-GATED_RUN_JOB_NAMES = frozenset({"Check if the run is needed", "CI passed (project CI not run)"})
+# Each runs once, so the names of one job are grouped: repeating short jobs under them counts too.
+GATED_RUN_JOBS = (
+    frozenset({"Check if the run is needed"}),
+    frozenset({"CI passed (project CI not run)", "CI passed"}),
+)
+GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
@@ -191,6 +197,10 @@ class PullRequestSnapshot:
     # Set when the state comment was not among the comments fetched with the pull request and
     # more comments follow; the reconciler pages from here before deciding anything.
     comments_cursor: str | None = None
+    # Set when the pull request's last listed commit is not its head: GitHub orders the commit list
+    # by date, so after a rebase that keeps old dates the statuses read with it belong to another
+    # commit. The reconciler reads the head's statuses before deciding anything.
+    head_status_unread: bool = False
 
 
 @dataclass(frozen=True)
@@ -262,7 +272,10 @@ def needs_workflow_state(marker: Marker | None) -> bool:
     return marker is None or marker.state != ForkState.AWAITING_PUSH.value
 
 
-STARTED_JOB_STATUSES = frozenset({"in_progress", "completed"})
+def has_job_started(job: dict[str, Any]) -> bool:
+    # A job that never reached a runner -- queued, or cancelled while queued -- has no steps and a
+    # `runner_id` of null or 0, but its `status` can be "completed" and its `started_at` set.
+    return bool(job.get("runner_id")) or bool(job.get("steps"))
 
 
 def jobs_show_project_ci(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
@@ -270,27 +283,28 @@ def jobs_show_project_ci(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
     Whether the jobs of a ci-amd.yml run show more than the gate deciding to skip.
 
     Any started job other than the gate and the ``GATED_RUN_JOB_NAMES`` jobs that was not skipped
-    counts, and so does a gate job that is missing or duplicated, or one of those jobs running for
+    counts, and so does a gate job that is missing or duplicated, one of those jobs duplicated, or
+    one of them running for
     longer than they ever need, which is how a renamed job doing project CI work under their name
-    shows up. Jobs that have not started do not count: a queued job reports its creation as
-    ``started_at``, so waiting for a runner would look like work.
+    shows up. Jobs that no runner picked up do not count: a queued job reports its creation as
+    ``started_at``, and a run cancelled by a newer push marks its never-started jobs completed.
     """
     jobs = list(jobs)
     gate_jobs = [job for job in jobs if job["name"] == GATE_JOB_NAME]
     if len(gate_jobs) != 1:
         return True
+    if any(sum(job["name"] in names for job in jobs) > 1 for names in GATED_RUN_JOBS):
+        return True
     expected_names = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME}
     for job in jobs:
-        if job["name"] not in expected_names or job.get("status") not in STARTED_JOB_STATUSES:
+        if job["name"] not in expected_names or not has_job_started(job):
             continue
         started = parse_github_datetime(job.get("started_at") or "")
         completed = parse_github_datetime(job.get("completed_at") or "") or now
         if started is not None and completed - started > GATE_MAX_DURATION:
             return True
     return any(
-        job["name"] not in expected_names
-        and job.get("status") in STARTED_JOB_STATUSES
-        and job.get("conclusion") != "skipped"
+        job["name"] not in expected_names and has_job_started(job) and job.get("conclusion") != "skipped"
         for job in jobs
     )
 
@@ -610,6 +624,7 @@ query($q: String!, $cursor: String) {
         }
       }
       commits(last: 1) { nodes { commit {
+        oid
         status {
           context(name: "%(context)s") { state targetUrl description createdAt }
           ciPassed: context(name: "%(ci_passed)s") { state }
@@ -682,7 +697,8 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     status_created_at = None
     ci_passed_state = None
     commits = (node.get("commits") or {}).get("nodes") or []
-    if commits:
+    head_status_unread = bool(commits) and commits[0]["commit"].get("oid") != node["headRefOid"]
+    if commits and not head_status_unread:
         status = commits[0]["commit"].get("status") or {}
         if status.get("ciPassed"):
             ci_passed_state = status["ciPassed"]["state"].lower()
@@ -729,6 +745,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         marker_comment_body=marker_body,
         marker_error=marker_error,
         comments_cursor=comments_cursor,
+        head_status_unread=head_status_unread,
     )
 
 
@@ -1064,6 +1081,25 @@ def find_state_comment(client: GitHubClient, repo: str, pr: PullRequestSnapshot)
     return replace(pr, comments_cursor=None)
 
 
+def read_head_status(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> PullRequestSnapshot:
+    """Read the reconciler's statuses from the head commit, for a snapshot that could not."""
+    combined = client.rest_get(f"repos/{repo}/commits/{pr.head_sha}/status?per_page=100")
+    statuses = {status["context"]: status for status in combined.get("statuses") or []}
+    status = statuses.get(STATUS_CONTEXT)
+    ci_passed = statuses.get(CI_PASSED_CONTEXT)
+    return replace(
+        pr,
+        current_status=(
+            (status["state"], status.get("target_url") or "", status.get("description") or "")
+            if status
+            else None
+        ),
+        status_created_at=parse_github_datetime(status.get("created_at") or "") if status else None,
+        ci_passed_state=ci_passed["state"] if ci_passed else None,
+        head_status_unread=False,
+    )
+
+
 def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int, head_sha: str) -> bool | None:
     """
     Whether the pull request at ``head_sha`` changes CI-defining paths; None when it cannot tell.
@@ -1209,6 +1245,8 @@ def run_reconcile(
     for listed in prs:
         try:
             pr = listed if listed.comments_cursor is None else find_state_comment(client, repo, listed)
+            if pr.head_status_unread:
+                pr = read_head_status(client, repo, pr)
             fork = observations.get(pr.number, ForkObservation())
             if (
                 pr.head_repo
