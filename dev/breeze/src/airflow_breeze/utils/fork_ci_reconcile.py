@@ -158,6 +158,7 @@ class WorkflowRun:
     updated_at: datetime
     status: str
     event: str = "pull_request"
+    run_attempt: int = 1
 
     @property
     def workflow_file(self) -> str:
@@ -941,6 +942,7 @@ def parse_workflow_run(run: dict[str, Any]) -> WorkflowRun:
         updated_at=parse_github_datetime(run["updated_at"]),  # type: ignore[arg-type]
         status=run["status"],
         event=run["event"],
+        run_attempt=run.get("run_attempt") or 1,
     )
 
 
@@ -1039,7 +1041,8 @@ class BypassFinder:
 
         A commit that changes workflows could do project CI work under the gate's name within its
         time limit, so its runs are kept as evidence, as are runs whose change set is too large
-        to check.
+        to check. The jobs read are those of the latest attempt, and deleting a run deletes every
+        attempt, so a re-run is kept: an earlier attempt may have run project CI.
         """
         if not pr.head_repo:
             return []
@@ -1049,6 +1052,7 @@ class BypassFinder:
             if run.workflow_file == CI_WORKFLOW_FILE
             and run.event == "pull_request"
             and run.status == "completed"
+            and run.run_attempt == 1
             and not self._did_run_project_ci(run)
             and is_gated_skip_run(self._get_jobs(run), self._now)
             and self._commit_changes_workflows(run, pr.base_ref) is False

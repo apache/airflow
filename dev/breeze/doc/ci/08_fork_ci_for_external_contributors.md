@@ -702,8 +702,9 @@ the gate, `Check if the run is needed` and `CI passed (project CI not run)` succ
 other job was skipped. A run in which anything else happened, including a run the tampering check
 counts as project CI work, is kept, and so is a run whose commit changes `.github/workflows/` or
 whose change set is too large to check: such a commit could do project CI work under the gate's
-name within its time limit, and its run is the evidence. Nothing is deleted for a pull request in
-the `gate_bypassed` state. A dry run only reports the deletions.
+name within its time limit, and its run is the evidence. A re-run is kept too: deleting a run
+deletes every attempt, and an earlier attempt may have run project CI. Nothing is deleted for a
+pull request in the `gate_bypassed` state. A dry run only reports the deletions.
 
 ### Far behind the base branch
 

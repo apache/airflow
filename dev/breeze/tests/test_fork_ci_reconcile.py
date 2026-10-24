@@ -782,6 +782,7 @@ def _run(
     age_hours=1.0,
     event="pull_request",
     status="completed",
+    run_attempt=1,
 ):
     created = NOW - timedelta(hours=age_hours)
     return {
@@ -796,6 +797,7 @@ def _run(
         "updated_at": (created + timedelta(minutes=minutes)).isoformat(),
         "status": status,
         "event": event,
+        "run_attempt": run_attempt,
     }
 
 
@@ -1044,6 +1046,7 @@ def test_is_gated_skip_run(jobs, expected):
         pytest.param(
             [_run(7, minutes=1)], GATED_JOBS, (".github/workflows/ci-amd.yml",), [], id="workflows-changed"
         ),
+        pytest.param([_run(7, minutes=1, run_attempt=2)], GATED_JOBS, ("README.md",), [], id="re-run"),
         pytest.param(
             [_run(7, minutes=1)],
             GATED_JOBS,
