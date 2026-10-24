@@ -704,6 +704,38 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * Where a cancel request is, as ``WebhookCancelRequest.status`` stores it.
+ */
+export type CancelRequestStatus = 'pending' | 'applied' | 'failed';
+
+/**
+ * A run that a cancel request cancelled.
+ */
+export type CancelledRunResponse = {
+    run_id: string;
+    /**
+     * `failed`, or `running` or `queued` if a teardown still has to run first.
+     */
+    state: DagRunState;
+};
+
+/**
+ * A task instance that a cancel request ended.
+ */
+export type CancelledTaskInstanceResponse = {
+    /**
+     * The task instance's id.
+     */
+    ti_id?: string | null;
+    run_id: string;
+    task_id: string;
+    map_index: number;
+    region_id?: string;
+    region_index?: number;
+    state: TaskInstanceState;
+};
+
+/**
  * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
  */
 export type ClearPartitionsBody = {
@@ -993,6 +1025,10 @@ export type DAGDetailsResponse = {
     active_runs_count?: number;
     team_name?: string | null;
     latest_dag_version: DagVersionResponse | null;
+    /**
+     * The webhook deliveries that cancel the Dag's runs about their correlation key, or null if none do.
+     */
+    cancel_on?: Array<WebhookMatchResponse> | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2077,6 +2113,17 @@ export type SchedulerInstanceInfoResponse = {
 };
 
 /**
+ * A run about a cancel request's correlation key that the scheduler left as it was.
+ */
+export type SkippedCancelRunResponse = {
+    run_id: string;
+    /**
+     * Why: `dag_not_found` if its Dag version could not be loaded; `dag_has_team` if its Dag belongs to a team.
+     */
+    reason: string;
+};
+
+/**
  * An individual log message.
  */
 export type StructuredLogMessage = {
@@ -2345,6 +2392,14 @@ export type TaskResponse = {
 } | null;
     is_mapped: boolean | null;
     /**
+     * The webhook deliveries that end the task in the runs about their correlation key, or null if none do.
+     */
+    cancel_on?: Array<WebhookMatchResponse> | null;
+    /**
+     * The state such a delivery ends the task in, or null if the task has no `cancel_on`.
+     */
+    cancel_state?: 'failed' | 'skipped' | null;
+    /**
      * Extract and return extra_links.
      */
     readonly extra_links: Array<(string)>;
@@ -2521,6 +2576,87 @@ export type VersionInfo = {
 export type WaitStatus = 'registered' | 'received' | 'resumed' | 'ended' | 'timed_out';
 
 /**
+ * A cancel request that a delivery recorded, and what the scheduler did with it.
+ */
+export type WebhookCancelRequestResponse = {
+    id: string;
+    dag_id: string;
+    targets: WebhookCancelTargetsResponse;
+    /**
+     * `pending` until the scheduler applies it, which it does within a second or two while it runs; then `applied`, or `failed` if applying it raised an error, which the scheduler logged.
+     */
+    status: CancelRequestStatus;
+    /**
+     * When the scheduler applied it, or failed to.
+     */
+    applied_at: string | null;
+    /**
+     * The runs and task instances it cancelled. A run created later from an earlier delivery is added when the scheduler cancels it as it creates it, which can happen while it is `pending`.
+     */
+    result: WebhookCancelResultResponse | null;
+};
+
+/**
+ * What the scheduler did with a cancel request.
+ */
+export type WebhookCancelResultResponse = {
+    /**
+     * The runs it failed, if a condition of the Dag itself matched.
+     */
+    dag_runs?: Array<CancelledRunResponse>;
+    /**
+     * The task instances it ended, if a task's condition matched.
+     */
+    task_instances?: Array<CancelledTaskInstanceResponse>;
+    /**
+     * The runs about its correlation key that it left as they were.
+     */
+    skipped_runs?: Array<SkippedCancelRunResponse>;
+    /**
+     * The error that applying it raised, if it failed.
+     */
+    error?: string | null;
+};
+
+/**
+ * The whole runs a cancel request fails.
+ */
+export type WebhookCancelRunTargetResponse = {
+    /**
+     * The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are.
+     */
+    correlation_key_confs: Array<(string)>;
+};
+
+/**
+ * What a cancel request cancels in each run about its correlation key.
+ */
+export type WebhookCancelTargetsResponse = {
+    /**
+     * Set if a condition of the Dag itself matched, which fails the whole run.
+     */
+    run: WebhookCancelRunTargetResponse | null;
+    /**
+     * The tasks whose conditions matched, by task id.
+     */
+    tasks: Array<WebhookCancelTaskTargetResponse>;
+};
+
+/**
+ * A task that a cancel request ends in its runs, and the state it ends in.
+ */
+export type WebhookCancelTaskTargetResponse = {
+    task_id: string;
+    cancel_state: 'failed' | 'skipped';
+    /**
+     * The conf keys by which a run triggered with a conf is about the request's correlation key; empty if only runs started by a webhook delivery are.
+     */
+    correlation_key_confs: Array<(string)>;
+};
+
+export type cancel_state = 'failed' | 'skipped';
+
+/**
  * Webhook collection response.
  */
 export type WebhookCollectionResponse = {
@@ -2578,6 +2714,31 @@ export type WebhookDeliveryResponse = {
     [key: string]: JsonValue;
 } | null;
     team_name: string | null;
+    /**
+     * The cancel requests the delivery recorded, by Dag, each with what the scheduler did with it. These records are authoritative: `actions` summarizes them, can miss one that a concurrent redelivery recorded, and still names a request whose record was removed.
+     */
+    cancel_requests?: Array<WebhookCancelRequestResponse>;
+};
+
+/**
+ * A condition on deliveries to an inbound webhook, as a Dag's or a task's ``cancel_on`` declares it.
+ */
+export type WebhookMatchResponse = {
+    webhook: string;
+    /**
+     * The delivery events it accepts, or null for any event.
+     */
+    events?: Array<(string)> | null;
+    /**
+     * The delivery attributes it requires, each with the values of which one must match.
+     */
+    match?: {
+        [key: string]: Array<(string)>;
+    };
+    /**
+     * The top-level conf key whose value makes a run triggered with a conf about a correlation key, or null.
+     */
+    correlation_key_conf?: string | null;
 };
 
 /**
@@ -2641,7 +2802,7 @@ export type WebhookWaitResponse = {
         [key: string]: (string | number | Array<(string | number)>);
     };
     /**
-     * `registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery `early`; the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then.
+     * `registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery for waits (`early`, or `cancel_requested` if it requested a cancel); the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, if a webhook cancel request ended its task, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then.
      */
     status: WaitStatus;
     /**

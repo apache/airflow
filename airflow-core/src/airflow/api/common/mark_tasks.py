@@ -36,6 +36,17 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
 
+#: The states of a task instance that started and has not finished. Ending a run gives such a task instance
+#: the run's task state, where it skips one that has not started.
+RUNNING_STATES = frozenset(
+    {
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.AWAITING_INPUT,
+    }
+)
+
 
 @provide_session
 def set_state(
@@ -249,13 +260,6 @@ def _set_dag_run_terminal_state(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    running_states = (
-        TaskInstanceState.RUNNING,
-        TaskInstanceState.DEFERRED,
-        TaskInstanceState.UP_FOR_RESCHEDULE,
-        TaskInstanceState.AWAITING_INPUT,
-    )
-
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
     running_tis: list[TaskInstance] = list(
@@ -264,7 +268,7 @@ def _set_dag_run_terminal_state(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id.in_(task_ids),
-                TaskInstance.state.in_(running_states),
+                TaskInstance.state.in_(RUNNING_STATES),
             )
         ).all()
     )
@@ -290,7 +294,7 @@ def _set_dag_run_terminal_state(
                     TaskInstance.state.is_(None),
                     and_(
                         TaskInstance.state.not_in(State.finished),
-                        TaskInstance.state.not_in(running_states),
+                        TaskInstance.state.not_in(RUNNING_STATES),
                     ),
                 ),
             )

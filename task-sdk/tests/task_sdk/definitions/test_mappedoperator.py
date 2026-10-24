@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
+from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule, WebhookMatch
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
@@ -50,6 +50,9 @@ from tests_common.test_utils.mock_operators import (
 )
 
 DEFAULT_DATE = datetime(2016, 1, 1)
+
+M1 = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+M2 = WebhookMatch("github", events=["push"])
 
 
 def test_task_mapping_with_dag():
@@ -812,6 +815,8 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("inlets", ["a"], ["b"]),
         ("outlets", ["a"], ["b"]),
         ("render_template_as_native_obj", True, False),
+        ("cancel_on", [M1], [M2]),
+        ("cancel_state", "failed", "skipped"),
     ],
 )
 def test_setters(setter_name: str, old_value: object, new_value: object) -> None:
@@ -820,6 +825,34 @@ def test_setters(setter_name: str, old_value: object, new_value: object) -> None
     assert getattr(op, setter_name) == old_value
     setattr(op, setter_name, new_value)
     assert getattr(op, setter_name) == new_value
+
+
+def test_setters_convert_cancel_on_and_cancel_state():
+    op = MockOperator.partial(task_id="a").expand(arg2=["a", "b"])
+
+    op.cancel_on = M1
+    op.cancel_state = TaskInstanceState.SKIPPED
+
+    assert op.partial_kwargs["cancel_on"] == [M1]
+    assert type(op.partial_kwargs["cancel_state"]) is str
+
+
+@pytest.mark.parametrize(
+    ("mapped_kwargs", "names"),
+    [
+        pytest.param({"arg2": "a", "cancel_on": [M1]}, "cancel_on", id="cancel_on"),
+        pytest.param(
+            {"arg2": "a", "cancel_on": [M1], "cancel_state": "skipped"},
+            "cancel_on, cancel_state",
+            id="both",
+        ),
+    ],
+)
+def test_unmap_refuses_cancel_on_from_expand_kwargs(mapped_kwargs, names):
+    mapped = MockOperator.partial(task_id="t").expand_kwargs([mapped_kwargs])
+
+    with pytest.raises(ValueError, match=f"expand_kwargs\\(\\) cannot map {names}; pass it to partial"):
+        mapped.unmap(mapped_kwargs)
 
 
 def test_mapped_operator_in_task_group_no_duplicate_prefix():

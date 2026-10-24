@@ -40,8 +40,9 @@ from airflow.assets.manager import AssetManager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.log import Log
+from airflow.models.webhook_cancel_request import WebhookCancelRequest
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk import Asset
+from airflow.sdk import Asset, WebhookMatch
 from airflow.webhooks import pipeline
 from airflow.webhooks.naming import build_topic_name
 from airflow.webhooks.registry import WebhookRegistry
@@ -52,6 +53,7 @@ from tests_common.test_utils.webhooks import (
     EVENT_HEADER,
     SIGNATURE_HEADER,
     FakeHmacSource,
+    FakeWaitSource,
     compute_fake_signature,
 )
 
@@ -97,14 +99,16 @@ TOPIC = Asset(name=build_topic_name("fake", "my-org/web", "push"))
 #: The webhook whose deliveries a Dag subscribes to through TOPIC, or through the webhook's asset route.
 SUBSCRIBED_WEBHOOKS = {"topic": "fake", "asset_route": "routed"}
 SUBSCRIPTIONS = pytest.mark.parametrize("through", list(SUBSCRIBED_WEBHOOKS))
+#: A push delivery about my-org/web#7, which FakeWaitSource gives that correlation key.
+KEYED_BODY = b'{"path": "my-org/web", "repository": "my-org/web", "number": 7}'
 
 
 @pytest.fixture(autouse=True)
 def source_class():
     with mock.patch.object(
         ProvidersManager, "get_webhook_source_class", autospec=True, return_value=FakeHmacSource
-    ):
-        yield
+    ) as mock_source_class:
+        yield mock_source_class
 
 
 @pytest.fixture(autouse=True)
@@ -116,6 +120,18 @@ def clean_db():
     clear_db_inbound_deliveries()
     clear_db_assets()
     clear_db_logs()
+
+
+@pytest.fixture
+def keyed_source(source_class):
+    """Parse deliveries with FakeWaitSource, which gives those of KEYED_BODY a correlation key."""
+    source_class.return_value = FakeWaitSource
+
+
+def declare_cancel_on(dag_maker) -> None:
+    """Add Dag cancellable, whose ``cancel_on`` the push deliveries to webhook fake match."""
+    with dag_maker("cancellable", schedule=None, cancel_on=[WebhookMatch("fake", events=["push"])]):
+        pass
 
 
 def subscribe(dag_maker, through: str) -> str:
@@ -130,17 +146,17 @@ def client() -> TestClient:
     return TestClient(create_webhooks_app(REGISTRY), raise_server_exceptions=False)
 
 
-def post(client: TestClient, name: str = "fake") -> Response:
+def post(client: TestClient, name: str = "fake", body: bytes = BODY) -> Response:
     headers = {
         "content-type": "application/json",
         EVENT_HEADER: "push",
         DELIVERY_ID_HEADER: "delivery-1",
-        SIGNATURE_HEADER: compute_fake_signature(BODY, SECRET),
+        SIGNATURE_HEADER: compute_fake_signature(body, SECRET),
     }
-    return client.post(f"/{name}", content=BODY, headers=headers)
+    return client.post(f"/{name}", content=body, headers=headers)
 
 
-def post_copies(client: TestClient, copies: int, name: str = "fake") -> list[int]:
+def post_copies(client: TestClient, copies: int, name: str = "fake", body: bytes = BODY) -> list[int]:
     """Post copies of one delivery at once, each looking it up before any of them has recorded it."""
     barrier = threading.Barrier(copies)
     lookups = itertools.count()
@@ -159,12 +175,16 @@ def post_copies(client: TestClient, copies: int, name: str = "fake") -> list[int
         ),
         ThreadPoolExecutor(copies) as executor,
     ):
-        responses = list(executor.map(lambda _: post(client, name), range(copies)))
+        responses = list(executor.map(lambda _: post(client, name, body), range(copies)))
     return [response.status_code for response in responses]
 
 
 def count_deliveries(session: Session) -> int:
     return session.execute(select(func.count()).select_from(InboundDelivery)).scalar_one()
+
+
+def count_requests(session: Session) -> int:
+    return session.execute(select(func.count()).select_from(WebhookCancelRequest)).scalar_one()
 
 
 def count_actions(session: Session) -> tuple[int, ...]:
@@ -209,6 +229,58 @@ def test_concurrent_redeliveries_after_a_dag_subscribes_act_once(client, session
     assert sorted(statuses) == [HTTPStatus.OK, HTTPStatus.ACCEPTED]
     assert count_deliveries(session) == 1
     assert count_actions(session) == (1, 1, 1)
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.usefixtures("keyed_source")
+@mock.patch.dict(os.environ, CONNECTION)
+def test_concurrent_copies_of_a_delivery_that_requests_a_cancel_record_one_request(
+    client, session, dag_maker
+):
+    """The copy that loses has acted, so it is processed again, and keeps the request the other recorded."""
+    declare_cancel_on(dag_maker)
+
+    statuses = post_copies(client, 2, body=KEYED_BODY)
+
+    assert statuses == [HTTPStatus.ACCEPTED, HTTPStatus.ACCEPTED]
+    assert (count_deliveries(session), count_requests(session)) == (1, 1)
+    assert count_actions(session) == (0, 1, 0)
+    assert session.scalars(select(InboundDelivery.outcome)).one() == "cancel_requested"
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.usefixtures("keyed_source")
+@mock.patch.dict(os.environ, CONNECTION)
+def test_concurrent_redeliveries_after_a_dag_declares_cancel_on_record_one_request(
+    client, session, dag_maker
+):
+    """Both insert a request for the Dag; the unique key refuses the second, which is processed again."""
+    assert post(client, body=KEYED_BODY).json()["outcome"] == "early"
+    declare_cancel_on(dag_maker)
+
+    statuses = post_copies(client, 2, body=KEYED_BODY)
+
+    assert statuses == [HTTPStatus.ACCEPTED, HTTPStatus.ACCEPTED]
+    assert (count_deliveries(session), count_requests(session)) == (1, 1)
+    assert count_actions(session) == (0, 1, 0)
+    assert session.scalars(select(InboundDelivery.outcome)).one() == "cancel_requested"
+
+
+@pytest.mark.backend("sqlite")
+@pytest.mark.usefixtures("keyed_source")
+@mock.patch.dict(os.environ, CONNECTION)
+def test_concurrent_copies_of_a_delivery_that_requests_a_cancel_record_at_most_one_request_on_sqlite(
+    client, session, dag_maker
+):
+    declare_cancel_on(dag_maker)
+
+    statuses = post_copies(client, 2, body=KEYED_BODY)
+
+    # The copy that loses is processed again, unless it times out waiting for the database's lock.
+    assert set(statuses) <= {HTTPStatus.ACCEPTED, HTTPStatus.SERVICE_UNAVAILABLE}
+    recorded = count_deliveries(session)
+    assert recorded == (1 if HTTPStatus.ACCEPTED in statuses else 0)
+    assert count_requests(session) == recorded
 
 
 @pytest.mark.backend("sqlite")

@@ -20,13 +20,14 @@ from __future__ import annotations
 import inspect
 from collections import abc
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 
 from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.common.types import TimeDeltaWithValidation
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.webhooks import WebhookMatchResponse
 from airflow.task.priority_strategy import (
     get_weight_rule_from_priority_weight_strategy,
     validate_and_load_priority_weight_strategy,
@@ -81,12 +82,34 @@ class TaskResponse(BaseModel):
     params: abc.MutableMapping | None
     class_ref: dict | None
     is_mapped: bool | None
+    cancel_on: list[WebhookMatchResponse] | None = Field(
+        default=None,
+        description=(
+            "The webhook deliveries that end the task in the runs about their correlation key, or null if "
+            "none do."
+        ),
+    )
+    cancel_state: Literal["failed", "skipped"] | None = Field(
+        default=None,
+        description="The state such a delivery ends the task in, or null if the task has no `cancel_on`.",
+    )
 
     @model_validator(mode="before")
     @classmethod
     def validate_model(cls, task: Any) -> Any:
         task.__dict__.update({"class_ref": _get_class_ref(task), "is_mapped": task.is_mapped})
         return task
+
+    @model_validator(mode="after")
+    def set_cancel_state(self) -> TaskResponse:
+        """
+        Set the state a cancel ends the task in, which a serialized task holds only if the Dag names it.
+
+        A task with ``cancel_on`` and no ``cancel_state`` ends failed. A task without ``cancel_on`` is
+        never cancelled, whatever ``cancel_state`` it inherits.
+        """
+        self.cancel_state = (self.cancel_state or "failed") if self.cancel_on else None
+        return self
 
     @field_validator("weight_rule", mode="before")
     @classmethod
@@ -109,6 +132,12 @@ class TaskResponse(BaseModel):
         if params is None:
             return None
         return {k: v.dump() for k, v in params.items()}
+
+    @field_validator("cancel_on", mode="before")
+    @classmethod
+    def get_cancel_on(cls, cancel_on: Any) -> Any:
+        """Return null for a task without ``cancel_on``, which a serialized task holds as an empty tuple."""
+        return cancel_on or None
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]

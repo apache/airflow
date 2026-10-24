@@ -40,6 +40,7 @@ import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
+import { CancelConditions } from "./CancelConditions";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
 import { WebhookWait } from "./WebhookWait";
@@ -166,6 +167,7 @@ export const Details = () => {
         tryNumber={tryNumber}
         tryState={tryInstance?.state}
       />
+      <CancelConditions taskInstance={tryInstance} />
       <Table.Root striped>
         <Table.Body>
           <Table.Row>

@@ -19,14 +19,22 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select
+import pytest
+from sqlalchemy import delete, event, func, select
 from starlette.datastructures import Headers, QueryParams
 
+from airflow import settings
+from airflow.models.base import Base
 from airflow.models.connection import Connection
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.log import Log
+from airflow.models.team import Team
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.webhooks.base import (
     WebhookDelivery,
@@ -38,7 +46,11 @@ from airflow.webhooks.base import (
 )
 from airflow.webhooks.naming import build_candidate_names
 
+from tests_common.test_utils.db import clear_db_teams
+
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from fastapi.testclient import TestClient
     from httpx2 import Response
     from sqlalchemy.orm import Session
@@ -118,6 +130,61 @@ def post_signed_delivery(
 
 def count_deliveries(session: Session) -> int:
     return session.execute(select(func.count()).select_from(InboundDelivery)).scalar_one()
+
+
+def get_deliveries(session: Session) -> list[InboundDelivery]:
+    """Return the recorded deliveries as the database has them now, oldest first."""
+    session.expire_all()
+    # Deliveries recorded under frozen time share received_at; uuid7 ids are recorded in order.
+    return list(
+        session.scalars(select(InboundDelivery).order_by(InboundDelivery.received_at, InboundDelivery.id))
+    )
+
+
+def get_audit_logs(session: Session) -> list[Log]:
+    """Return the ``webhook_delivery`` audit log entries, oldest first."""
+    return list(session.scalars(select(Log).where(Log.event == "webhook_delivery").order_by(Log.id)))
+
+
+def read(session: Session, model: type, row_id):
+    """Return the row of ``model`` with ``row_id`` as the database has it now."""
+    session.expire_all()
+    return session.get_one(model, row_id)
+
+
+@contextmanager
+def record_tables() -> Iterator[set[str]]:
+    """Collect the tables that the statements the requests execute read or write."""
+    tables: set[str] = set()
+
+    def on_execute(connection, cursor, statement, parameters, context, executemany) -> None:
+        tables.update(
+            table
+            for table in Base.metadata.tables
+            # Not just the name, which a column can have too, such as dag.deadline.
+            if re.search(rf"\b(?:FROM|JOIN|INTO|UPDATE)\s+\(?{table}\b", statement)
+        )
+
+    event.listen(settings.get_engine(), "before_cursor_execute", on_execute)
+    try:
+        yield tables
+    finally:
+        event.remove(settings.get_engine(), "before_cursor_execute", on_execute)
+
+
+@pytest.fixture
+def team_bundle(session):
+    """Bundle team_a_bundle, of team team_a; request it before dag_maker, which must remove its Dags first."""
+    clear_db_teams()
+    team = Team(name="team_a")
+    bundle = DagBundleModel(name="team_a_bundle")
+    bundle.teams.append(team)
+    session.add_all([team, bundle])
+    session.commit()
+    yield bundle.name
+    clear_db_teams()
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name == "team_a_bundle"))
+    session.commit()
 
 
 def build_webhook_request(body: bytes = b"{}", headers: dict[str, str] | None = None) -> WebhookRequest:

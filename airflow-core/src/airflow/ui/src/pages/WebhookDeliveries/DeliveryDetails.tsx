@@ -22,16 +22,26 @@ import { HStack, Link, List, Table, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { WebhookDeliveryResponse } from "openapi/requests/types.gen";
+import type { WebhookCancelRequestResponse, WebhookDeliveryResponse } from "openapi/requests/types.gen";
 
 import { ClipboardIconButton, ClipboardRoot } from "src/system-components";
 
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
 import { getTaskInstanceLink } from "src/utils/links";
 
-import { getOutcomeExplanation, getOutcomeLabel, getSkipReasonExplanation } from "./outcomes";
+import {
+  type CancelScope,
+  getCancelRequestStatusExplanation,
+  getCancelRequestStatusLabel,
+  getCancelScopeLabel,
+  getOutcomeExplanation,
+  getOutcomeLabel,
+  getRunNotCancelledExplanation,
+  getSkipReasonExplanation,
+} from "./outcomes";
 
 type RecordedAssetEvent = {
   asset: string;
@@ -96,25 +106,41 @@ const isRecordedWait = (value: unknown): value is RecordedWait =>
     ((value as { region_id?: unknown }).region_id === undefined &&
       (value as { region_index?: unknown }).region_index === undefined));
 
+type RecordedCancelRequest = {
+  dag_id: string;
+  request_id: string;
+  scope: CancelScope;
+};
+
+const isRecordedCancelRequest = (value: unknown): value is RecordedCancelRequest =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { dag_id?: unknown }).dag_id === "string" &&
+  typeof (value as { request_id?: unknown }).request_id === "string" &&
+  ((value as { scope?: unknown }).scope === "run" || (value as { scope?: unknown }).scope === "task");
+
 const findList = <T,>(value: unknown, isItem: (item: unknown) => item is T): Array<T> | undefined =>
   Array.isArray(value) && value.every(isItem) ? value : undefined;
 
-// Topic events, asset route events, skipped asset routes and webhook waits are each recorded as a list of
-// objects. Every other key, and those lists in any other shape, are shown as recorded.
+// Topic events, asset route events, skipped asset routes, webhook waits and cancel requests are each
+// recorded as a list of objects. Every other key, and those lists in any other shape, are shown as recorded.
 const splitActions = (actions: NonNullable<WebhookDeliveryResponse["actions"]>) => {
   const assetEvents = findList(actions.asset_events, isRecordedAssetEvent);
   const routeEvents = findList(actions.asset_routes, isRecordedRouteEvent);
   const skippedRoutes = findList(actions.skipped_asset_routes, isSkippedAssetRoute);
   const waits = findList(actions.waits, isRecordedWait);
+  const cancelRequests = findList(actions.cancel_requests, isRecordedCancelRequest);
   const shownKeys = new Set([
     ...(assetEvents ? ["asset_events"] : []),
     ...(routeEvents ? ["asset_routes"] : []),
     ...(skippedRoutes ? ["skipped_asset_routes"] : []),
     ...(waits ? ["waits"] : []),
+    ...(cancelRequests ? ["cancel_requests"] : []),
   ]);
 
   return {
     assetEvents: assetEvents ?? [],
+    cancelRequests: cancelRequests ?? [],
     otherActions: Object.fromEntries(Object.entries(actions).filter(([key]) => !shownKeys.has(key))),
     routeEvents: routeEvents ?? [],
     skippedRoutes: skippedRoutes ?? [],
@@ -138,6 +164,161 @@ const LabeledText = ({ label, value }: { readonly label: string; readonly value:
   </HStack>
 );
 
+const CancelRequestResult = ({
+  dagId,
+  request,
+}: {
+  readonly dagId: string;
+  readonly request: WebhookCancelRequestResponse;
+}) => {
+  const { t: translate } = useTranslation(["browse", "common"]);
+  const dagRuns = request.result?.dag_runs ?? [];
+  const taskInstances = request.result?.task_instances ?? [];
+  const skippedRuns = request.result?.skipped_runs ?? [];
+
+  return (
+    <>
+      {dagRuns.length > 0 ? (
+        <VStack alignItems="start" gap={0}>
+          <Text color="fg.muted">{translate("webhookDeliveries.details.cancelledRuns")}</Text>
+          <List.Root data-testid="cancelled-runs" ps={4}>
+            {dagRuns.map(({ run_id: runId, state }) => (
+              <List.Item key={runId}>
+                <HStack gap={1}>
+                  <StateBadge state={state} />
+                  <Link asChild color="fg.info">
+                    <RouterLink to={`/dags/${dagId}/runs/${runId}`}>{runId}</RouterLink>
+                  </Link>
+                </HStack>
+              </List.Item>
+            ))}
+          </List.Root>
+        </VStack>
+      ) : undefined}
+      {taskInstances.length > 0 ? (
+        <VStack alignItems="start" gap={0}>
+          <Text color="fg.muted">{translate("webhookDeliveries.details.cancelledTaskInstances")}</Text>
+          <List.Root data-testid="cancelled-task-instances" ps={4}>
+            {taskInstances.map((taskInstance) => (
+              <List.Item
+                key={`${taskInstance.run_id}/${taskInstance.task_id}/${taskInstance.map_index}/${taskInstance.region_id ?? ""}/${taskInstance.region_index ?? ""}`}
+              >
+                <HStack gap={1}>
+                  <StateBadge state={taskInstance.state} />
+                  <Link asChild color="fg.info">
+                    <RouterLink
+                      to={getTaskInstanceLink({
+                        dag_id: dagId,
+                        dag_run_id: taskInstance.run_id,
+                        map_index: taskInstance.map_index,
+                        region_id: taskInstance.region_id,
+                        region_index: taskInstance.region_index,
+                        task_id: taskInstance.task_id,
+                      })}
+                    >
+                      {taskInstance.map_index >= 0
+                        ? `${taskInstance.task_id} [${taskInstance.map_index}]`
+                        : taskInstance.task_id}
+                    </RouterLink>
+                  </Link>
+                  <Text color="fg.muted" wordBreak="break-all">
+                    {taskInstance.run_id}
+                  </Text>
+                </HStack>
+              </List.Item>
+            ))}
+          </List.Root>
+        </VStack>
+      ) : undefined}
+      {skippedRuns.length > 0 ? (
+        <VStack alignItems="start" gap={0}>
+          <Text color="fg.muted">{translate("webhookDeliveries.details.runsNotCancelled")}</Text>
+          <List.Root data-testid="runs-not-cancelled" ps={4}>
+            {skippedRuns.map(({ reason, run_id: runId }) => (
+              <List.Item key={runId}>
+                <VStack alignItems="start" gap={0}>
+                  <Link asChild color="fg.info">
+                    <RouterLink to={`/dags/${dagId}/runs/${runId}`}>{runId}</RouterLink>
+                  </Link>
+                  <Text color="fg.muted">{getRunNotCancelledExplanation(translate, reason)}</Text>
+                </VStack>
+              </List.Item>
+            ))}
+          </List.Root>
+        </VStack>
+      ) : undefined}
+      {request.status === "applied" &&
+      dagRuns.length === 0 &&
+      taskInstances.length === 0 &&
+      skippedRuns.length === 0 ? (
+        <Text color="fg.muted">{translate("webhookDeliveries.details.noRunCancelled")}</Text>
+      ) : undefined}
+    </>
+  );
+};
+
+const CancelRequestItem = ({
+  dagId,
+  request,
+  scope,
+}: {
+  readonly dagId: string;
+  readonly request: WebhookCancelRequestResponse | undefined;
+  readonly scope: CancelScope;
+}) => {
+  const { t: translate } = useTranslation(["browse", "common"]);
+  const tasks = request?.targets.tasks ?? [];
+
+  return (
+    <VStack alignItems="start" gap={0}>
+      <Link asChild color="fg.info">
+        <RouterLink to={`/dags/${dagId}`}>{dagId}</RouterLink>
+      </Link>
+      <LabeledText
+        label={translate("webhookDeliveries.details.cancelScope")}
+        value={getCancelScopeLabel(translate, scope)}
+      />
+      {tasks.length > 0 ? (
+        <LabeledText
+          label={translate("webhookDeliveries.details.cancelTasks")}
+          value={tasks
+            .map(
+              ({ cancel_state: cancelState, task_id: taskId }) =>
+                `${taskId} (${translate(`common:states.${cancelState}`)})`,
+            )
+            .join(", ")}
+        />
+      ) : undefined}
+      {request === undefined ? undefined : (
+        <LabeledText
+          label={translate("webhookDeliveries.details.cancelRequestStatus")}
+          value={getCancelRequestStatusLabel(translate, request.status)}
+        />
+      )}
+      <Text color="fg.muted">{getCancelRequestStatusExplanation(translate, request?.status)}</Text>
+      {request?.applied_at === null || request?.applied_at === undefined ? undefined : (
+        <HStack gap={1}>
+          <Text color="fg.muted">
+            {translate(
+              request.status === "failed"
+                ? "webhookDeliveries.details.failedAt"
+                : "webhookDeliveries.details.appliedAt",
+            )}
+          </Text>
+          <Time datetime={request.applied_at} />
+        </HStack>
+      )}
+      {request?.result?.error === null || request?.result?.error === undefined ? undefined : (
+        <LabeledText
+          label={translate("webhookDeliveries.details.cancelError")}
+          value={request.result.error}
+        />
+      )}
+      {request === undefined ? undefined : <CancelRequestResult dagId={dagId} request={request} />}
+    </VStack>
+  );
+};
+
 const DetailRow = ({ children, label }: { readonly children?: ReactNode; readonly label: string }) => (
   <Table.Row>
     <Table.Cell fontWeight="bold" verticalAlign="top" whiteSpace="nowrap">
@@ -149,9 +330,14 @@ const DetailRow = ({ children, label }: { readonly children?: ReactNode; readonl
 
 export const DeliveryDetails = ({ delivery }: { readonly delivery: WebhookDeliveryResponse }) => {
   const { t: translate } = useTranslation(["browse", "common"]);
-  const { assetEvents, otherActions, routeEvents, skippedRoutes, waits } = splitActions(
+  const { assetEvents, cancelRequests, otherActions, routeEvents, skippedRoutes, waits } = splitActions(
     delivery.actions ?? {},
   );
+  // The records are authoritative: actions can miss a request that a concurrent redelivery recorded,
+  // and still names a request whose record was removed.
+  const requests = delivery.cancel_requests ?? [];
+  const requestIds = new Set(requests.map(({ id }) => id));
+  const goneRequests = cancelRequests.filter(({ request_id: requestId }) => !requestIds.has(requestId));
 
   return (
     <Table.Root size="sm" striped>
@@ -233,6 +419,27 @@ export const DeliveryDetails = ({ delivery }: { readonly delivery: WebhookDelive
                           value={wait.wait_id}
                         />
                       </VStack>
+                    </List.Item>
+                  ))}
+                </List.Root>
+              </VStack>
+            ) : undefined}
+            {requests.length > 0 || goneRequests.length > 0 ? (
+              <VStack alignItems="start" gap={1}>
+                <Text fontWeight="medium">{translate("webhookDeliveries.details.cancelRequests")}</Text>
+                <List.Root data-testid="delivery-cancel-requests" gap={2} ps={4}>
+                  {requests.map((request) => (
+                    <List.Item key={request.id}>
+                      <CancelRequestItem
+                        dagId={request.dag_id}
+                        request={request}
+                        scope={request.targets.run === null ? "task" : "run"}
+                      />
+                    </List.Item>
+                  ))}
+                  {goneRequests.map((recorded) => (
+                    <List.Item key={recorded.request_id}>
+                      <CancelRequestItem dagId={recorded.dag_id} request={undefined} scope={recorded.scope} />
                     </List.Item>
                   ))}
                 </List.Root>

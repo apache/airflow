@@ -36,7 +36,8 @@ verifies each delivery and describes it. For each delivery, Airflow builds a lis
 records an asset event on each of them that a Dag schedules on. A Dag subscribes to deliveries by
 scheduling on a topic, a :class:`~airflow.sdk.WebhookTopic`, and each delivery then starts a run of it,
 with the delivery in ``triggering_asset_events``. To have a task of a running Dag run wait for a delivery
-instead, see :doc:`webhook-waits`.
+instead, see :doc:`webhook-waits`, and to have a later delivery cancel the runs that a delivery started,
+see :doc:`webhook-cancel`.
 
 Topic names
 -----------
@@ -126,17 +127,18 @@ It accepts ``access_control`` like any asset.
 When a delivery records events
 ------------------------------
 
-A delivery records an event on one of its names only if a Dag that is not paused, draining or stale
-schedules on that name, directly or through ``Asset.ref``. Otherwise it records no event on that name. A
-delivery that records no event, on any of its names or through an
-:ref:`asset route <inbound-webhooks-asset-routes>`, and goes to no :doc:`webhook wait <webhook-waits>` has
-the outcome ``early`` if it has a correlation key, which keeps it for webhook waits, or else
-``dag_paused`` if only paused or draining Dags schedule on its names or on its routes' assets, or
-``no_subscribers`` if none do (see :ref:`inbound-webhooks-outcomes`). Unpausing a Dag does not replay the
-deliveries received while it was paused. If the sender delivers one of them again, the copy is processed
-again in full when the delivery recorded nothing, with outcome ``dag_paused`` or ``early``, so the unpaused
-Dag receives it. It is answered as a duplicate when the delivery started another Dag's run or went to a
-webhook wait, so in those cases the unpaused Dag never receives it.
+A delivery records an event on one of its names only if a Dag that is not paused, draining or stale schedules
+on that name, directly or through ``Asset.ref``. Otherwise it records no event on that name. A delivery that
+records no event, on any of its names or through an :ref:`asset route <inbound-webhooks-asset-routes>`, and
+goes to no :doc:`webhook wait <webhook-waits>` has the outcome ``cancel_requested`` if it has a correlation
+key and recorded cancel requests (see :doc:`webhook-cancel`), or ``early`` if it has one and recorded none,
+either of which keeps it for webhook waits, or else ``dag_paused`` if only paused or draining Dags schedule on
+its names or on its routes' assets, or ``no_subscribers`` if none do (see :ref:`inbound-webhooks-outcomes`).
+Unpausing a Dag does not replay the deliveries received while it was paused. If the sender delivers one of
+them again, the copy is processed again in full when the delivery recorded no event and went to no wait, with
+outcome ``dag_paused``, ``early`` or ``cancel_requested``, so the unpaused Dag receives it. It is answered as
+a duplicate when the delivery started another Dag's run or went to a webhook wait, so in those cases the
+unpaused Dag never receives it.
 
 * ``Asset.ref(name=...)`` and ``Asset.ref(uri=...)`` subscribe only to a topic that some Dag declares,
   because deliveries never create assets and events are recorded only on active assets.
@@ -237,6 +239,9 @@ Runs
   only through ``Asset.ref`` are not swept in that way.
 * ``dag_run.conf`` is ``{}``: the delivery is in ``triggering_asset_events``, not in the configuration.
   A run triggered by hand has no triggering asset events.
+* A run is about the correlation key of the delivery that started it, which its topic event keeps, so a
+  later delivery with the same key, such as the one that closes the pull request whose label started the
+  run, can cancel it through the ``cancel_on`` of the Dag or of its tasks (see :doc:`webhook-cancel`).
 * Runs are created in the order the deliveries were recorded, and may finish in any order. A burst of
   deliveries queues behind ``max_active_runs``; the webhook's rate limit is the only bound on how many
   can queue.

@@ -63,6 +63,7 @@ def import_all_models():
     import airflow.models.asset_state_store
     import airflow.models.backfill
     import airflow.models.connection_test
+    import airflow.models.dag_cancel_condition
     import airflow.models.dag_favorite
     import airflow.models.dag_version
     import airflow.models.dagbag
@@ -78,6 +79,7 @@ def import_all_models():
     import airflow.models.task_state_store
     import airflow.models.tasklog
     import airflow.models.team
+    import airflow.models.webhook_cancel_request
     import airflow.models.xcom
 
 

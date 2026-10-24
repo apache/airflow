@@ -23,19 +23,27 @@ from uuid import UUID
 
 import pytest
 
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.api_fastapi.auth.managers.models.resource_details import ConnectionDetails
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.models.dag import DagModel
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
+from airflow.models.webhook_cancel_request import CancelRequestStatus, WebhookCancelRequest
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.utils.session import create_session
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
+from airflow.webhooks.cancel_application import mark_cancel_request_failed
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_inbound_deliveries, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_inbound_deliveries,
+    clear_db_runs,
+    clear_db_webhook_cancel_requests,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.webhooks import FakeHmacSource, FakeSecretsBackend, build_webhook_connection
 
@@ -73,6 +81,7 @@ def _build_delivery(delivery_id: str, received_at: datetime, **overrides: Any) -
 
 @pytest.fixture(autouse=True)
 def deliveries() -> Generator[None, None, None]:
+    clear_db_webhook_cancel_requests()
     clear_db_inbound_deliveries()
     with create_session() as session:
         session.add_all(
@@ -97,6 +106,7 @@ def deliveries() -> Generator[None, None, None]:
             ]
         )
     yield
+    clear_db_webhook_cancel_requests()
     clear_db_inbound_deliveries()
 
 
@@ -154,6 +164,7 @@ class TestGetWebhookDeliveries:
             "candidates": ["webhook:github/acme/repo:pull_request"],
             "actions": {"topic_events": ["webhook:github/acme/repo:pull_request"]},
             "team_name": None,
+            "cancel_requests": [],
         }
 
     @pytest.mark.parametrize("url", [URL, ALL_WEBHOOKS_URL])
@@ -254,6 +265,230 @@ class TestGetWebhookDeliveries:
         body = response.json()
         assert [delivery["delivery_id"] for delivery in body["deliveries"]] == expected_delivery_ids
         assert body["total_entries"] == len(expected_delivery_ids)
+
+
+CANCEL_KEY = "my-org/shop#301"
+CANCEL_DELIVERY_RECORD_ID = UUID("01990000-0000-7000-8000-000000000003")
+CANCEL_RECEIVED_AT = RECEIVED_AT + timedelta(minutes=3)
+APPLIED_AT = CANCEL_RECEIVED_AT + timedelta(seconds=1)
+PREVIEW_DAG_ID = "preview_environment"
+SHIP_DAG_ID = "ship_when_labeled"
+PREVIEW_REQUEST_ID = UUID("01990000-0000-7000-8000-0000000000e1")
+SHIP_REQUEST_ID = UUID("01990000-0000-7000-8000-0000000000e2")
+RUN_TARGETS = {"run": {"correlation_key_confs": ["pr"]}, "tasks": []}
+TASK_TARGETS = {
+    "run": None,
+    "tasks": [{"task_id": "run_e2e_tests", "cancel_state": "skipped", "correlation_key_confs": []}],
+}
+EMPTY_RESULT: dict[str, Any] = {"dag_runs": [], "task_instances": [], "skipped_runs": [], "error": None}
+REGION_ID = "0199f8a0-0000-7000-8000-0000000000d2"
+
+
+def _add_cancel_request(
+    session: Session, request_id: UUID, dag_id: str, targets: dict[str, Any], **overrides: Any
+) -> WebhookCancelRequest:
+    request = WebhookCancelRequest(
+        **{
+            "id": request_id,
+            "inbound_delivery_id": CANCEL_DELIVERY_RECORD_ID,
+            "delivery_id": "close-301",
+            "webhook": WEBHOOK,
+            "correlation_key": CANCEL_KEY,
+            "received_at": CANCEL_RECEIVED_AT,
+            "dag_id": dag_id,
+            "targets": targets,
+            "retain_until": CANCEL_RECEIVED_AT + timedelta(days=7),
+            **overrides,
+        }
+    )
+    session.add(request)
+    session.commit()
+    return request
+
+
+class TestGetDeliveryCancelRequests:
+    @pytest.fixture(autouse=True)
+    def cancel_delivery(self, testing_dag_bundle, session) -> Generator[None, None, None]:
+        clear_db_dags()
+        session.add_all(
+            [
+                DagModel(dag_id=PREVIEW_DAG_ID, bundle_name="testing"),
+                DagModel(dag_id=SHIP_DAG_ID, bundle_name="testing"),
+                _build_delivery(
+                    "close-301",
+                    CANCEL_RECEIVED_AT,
+                    id=CANCEL_DELIVERY_RECORD_ID,
+                    correlation_key=CANCEL_KEY,
+                    outcome="cancel_requested",
+                    actions={
+                        "cancel_requests": [
+                            {"request_id": str(PREVIEW_REQUEST_ID), "dag_id": PREVIEW_DAG_ID, "scope": "run"},
+                            {"request_id": str(SHIP_REQUEST_ID), "dag_id": SHIP_DAG_ID, "scope": "task"},
+                        ]
+                    },
+                ),
+            ]
+        )
+        session.commit()
+        yield
+        clear_db_webhook_cancel_requests()
+        clear_db_dags()
+
+    @staticmethod
+    def get_cancel_requests(test_client) -> list[dict[str, Any]]:
+        response = test_client.get(URL, params={"id": str(CANCEL_DELIVERY_RECORD_ID)})
+        assert response.status_code == 200, response.text
+        [delivery] = response.json()["deliveries"]
+        return delivery["cancel_requests"]
+
+    def test_lists_each_cancel_request_with_its_status_and_result(self, test_client, session):
+        # Added in the other order, so the response's order comes from the query.
+        _add_cancel_request(session, SHIP_REQUEST_ID, SHIP_DAG_ID, TASK_TARGETS)
+        _add_cancel_request(
+            session,
+            PREVIEW_REQUEST_ID,
+            PREVIEW_DAG_ID,
+            RUN_TARGETS,
+            status=CancelRequestStatus.APPLIED,
+            applied_at=APPLIED_AT,
+            result={**EMPTY_RESULT, "dag_runs": [{"run_id": "asset_triggered__1", "state": "failed"}]},
+        )
+
+        assert self.get_cancel_requests(test_client) == [
+            {
+                "id": str(PREVIEW_REQUEST_ID),
+                "dag_id": PREVIEW_DAG_ID,
+                "targets": RUN_TARGETS,
+                "status": "applied",
+                "applied_at": from_datetime_to_zulu_without_ms(APPLIED_AT),
+                "result": {**EMPTY_RESULT, "dag_runs": [{"run_id": "asset_triggered__1", "state": "failed"}]},
+            },
+            {
+                "id": str(SHIP_REQUEST_ID),
+                "dag_id": SHIP_DAG_ID,
+                "targets": TASK_TARGETS,
+                "status": "pending",
+                "applied_at": None,
+                "result": None,
+            },
+        ]
+
+    def test_lists_the_task_instances_a_request_cancelled_and_the_runs_it_left(self, test_client, session):
+        ti_id = "0199f8a0-0000-7000-8000-0000000000b1"
+        _add_cancel_request(
+            session,
+            SHIP_REQUEST_ID,
+            SHIP_DAG_ID,
+            TASK_TARGETS,
+            status=CancelRequestStatus.APPLIED,
+            applied_at=APPLIED_AT,
+            result={
+                **EMPTY_RESULT,
+                "task_instances": [
+                    {
+                        "ti_id": ti_id,
+                        "dag_id": SHIP_DAG_ID,
+                        "run_id": "manual_1",
+                        "task_id": "run_e2e_tests",
+                        "map_index": -1,
+                        "state": "skipped",
+                    },
+                    {
+                        "ti_id": ti_id,
+                        "dag_id": SHIP_DAG_ID,
+                        "run_id": "manual_1",
+                        "task_id": "run_e2e_tests",
+                        "map_index": 2,
+                        "region_id": REGION_ID,
+                        "region_index": 2,
+                        "state": "skipped",
+                    },
+                ],
+                "skipped_runs": [{"run_id": "manual_2", "reason": "dag_not_found"}],
+            },
+        )
+
+        [request] = self.get_cancel_requests(test_client)
+
+        assert request["result"] == {
+            **EMPTY_RESULT,
+            "task_instances": [
+                {
+                    "ti_id": ti_id,
+                    "run_id": "manual_1",
+                    "task_id": "run_e2e_tests",
+                    "map_index": -1,
+                    "state": "skipped",
+                },
+                {
+                    "ti_id": ti_id,
+                    "run_id": "manual_1",
+                    "task_id": "run_e2e_tests",
+                    "map_index": 2,
+                    "region_id": REGION_ID,
+                    "region_index": 2,
+                    "state": "skipped",
+                },
+            ],
+            "skipped_runs": [{"run_id": "manual_2", "reason": "dag_not_found"}],
+        }
+
+    @pytest.mark.parametrize("by_scheduler", [True, False], ids=["marked-by-the-scheduler", "error-only"])
+    def test_lists_a_request_that_failed_to_apply(self, test_client, session, by_scheduler):
+        request = _add_cancel_request(session, PREVIEW_REQUEST_ID, PREVIEW_DAG_ID, RUN_TARGETS)
+        if by_scheduler:
+            mark_cancel_request_failed(request, error="RuntimeError")
+        else:
+            request.status = CancelRequestStatus.FAILED
+            request.applied_at = APPLIED_AT
+            request.result = {"error": "RuntimeError"}
+        session.commit()
+
+        [listed] = self.get_cancel_requests(test_client)
+
+        assert (listed["status"], listed["applied_at"] is not None, listed["result"]) == (
+            "failed",
+            True,
+            {**EMPTY_RESULT, "error": "RuntimeError"},
+        )
+
+    def test_leaves_out_a_cancel_request_whose_record_is_gone(self, test_client, session):
+        _add_cancel_request(session, SHIP_REQUEST_ID, SHIP_DAG_ID, TASK_TARGETS)
+
+        response = test_client.get(URL, params={"id": str(CANCEL_DELIVERY_RECORD_ID)})
+
+        assert response.status_code == 200, response.text
+        [delivery] = response.json()["deliveries"]
+        assert [request["id"] for request in delivery["cancel_requests"]] == [str(SHIP_REQUEST_ID)]
+        assert len(delivery["actions"]["cancel_requests"]) == 2
+
+    @pytest.mark.parametrize(
+        ("query_params", "expected_statement_count"),
+        [
+            pytest.param({}, 1, id="keyed-deliveries"),
+            # d-2 has no correlation key, so it can have recorded no request.
+            pytest.param({"delivery_id": "d-2"}, 0, id="no-keyed-delivery"),
+        ],
+    )
+    def test_cancel_requests_of_a_page_cost_one_query_and_none_without_any(
+        self, test_client, session, query_params, expected_statement_count
+    ):
+        _add_cancel_request(session, PREVIEW_REQUEST_ID, PREVIEW_DAG_ID, RUN_TARGETS)
+        _add_cancel_request(session, SHIP_REQUEST_ID, SHIP_DAG_ID, TASK_TARGETS)
+
+        with capture_orm_selects("webhook_cancel_request") as statements:
+            response = test_client.get(URL, params=query_params)
+
+        assert response.status_code == 200, response.text
+        assert len(statements) == expected_statement_count
+        assert {
+            delivery["delivery_id"]: [request["dag_id"] for request in delivery["cancel_requests"]]
+            for delivery in response.json()["deliveries"]
+        } == (
+            {"close-301": [PREVIEW_DAG_ID, SHIP_DAG_ID], "d-4": [], "d-3": [], "d-2": [], "d-1": []}
+            if expected_statement_count
+            else {"d-2": []}
+        )
 
 
 def _allow_reading(*readable_conn_ids: str):

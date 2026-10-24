@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+    from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -74,6 +75,9 @@ class SerializedBaseOperator(DAGNode):
     _weight_rule: str | PriorityWeightStrategy = "downstream"
 
     allow_nested_operators: bool = True
+    # Not in get_serialized_fields: OperatorSerialization encodes and decodes both explicitly.
+    cancel_on: tuple[SerializedWebhookMatch, ...] = ()
+    cancel_state: str | None = None
     dag: SerializedDAG | None = None
     depends_on_past: bool = False
     do_xcom_push: bool = True

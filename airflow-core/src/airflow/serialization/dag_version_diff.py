@@ -207,6 +207,8 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "_task_display_name",
         "_task_module",
         "allow_nested_operators",
+        "cancel_on",
+        "cancel_state",
         "depends_on_past",
         "do_xcom_push",
         "doc",
@@ -315,6 +317,8 @@ _DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "access_control": "authorization",
     "allowed_run_types": "schedule",
     "bundle_name": "provenance",
+    # Fails the Dag's runs, so it changes how they execute.
+    "cancel_on": "task",
     "catchup": "schedule",
     "dag_dependencies": "dependency",
     "dag_display_name": "metadata",
@@ -833,8 +837,9 @@ def _encode_partial_field_value(field: str, value: Any) -> Any:
         return {"__type": "timedelta", "__var": value}
     if field.endswith("_date") and value is not None and not isinstance(value, str):
         return {"__type": "datetime", "__var": value}
-    if field == "resources":
-        # Resources serialize as a raw mapping; a plain dictionary has a dict envelope instead.
+    if field in {"resources", "cancel_on"}:
+        # Resources and cancel_on conditions serialize as raw JSON; a plain dictionary has a dict
+        # envelope instead.
         return value
     return _encode_json_value(value)
 

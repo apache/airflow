@@ -213,12 +213,20 @@ and through the REST API, with the ``#`` written as ``%23``:
 ``GET /api/v2/webhooks/github/deliveries?correlation_key=my-org/web%237``.
 
 Webhook waits use the key to keep deliveries that arrive before the wait that they are for is registered.
-A delivery with a key that records no topic or asset route event and goes to no wait is kept as ``early``
-for ``[webhooks] early_delivery_ttl`` seconds, so that a task that waits for the pull request or issue it
-is about still gets it, as when a merge gate's pull request is merged before the task registers its wait
-(see :ref:`apache-airflow:webhook-waits-early`). A wait does not match on the key itself: its ``match``
-names the ``repository`` and ``number`` attributes instead. A delivery without a key, such as a ``push``,
-that arrives before its wait is not kept.
+A delivery with a key that records no topic or asset route event and goes to no wait is kept as ``early``,
+or ``cancel_requested`` if it recorded cancel requests, for ``[webhooks] early_delivery_ttl`` seconds, so
+that a task that waits for the pull request or issue it is about still gets it, as when a merge gate's pull
+request is merged before the task registers its wait (see :ref:`apache-airflow:webhook-waits-early`). A
+wait does not match on the key itself: its ``match`` names the ``repository`` and ``number`` attributes
+instead. A delivery without a key, such as a ``push``, that arrives before its wait is not kept.
+
+A Dag's or a task's ``cancel_on`` uses the key to find the runs that a delivery is about (see
+:ref:`apache-airflow:webhook-cancel`). A run that a delivery about pull request 7 of ``my-org/web``
+started, through a topic, is about ``my-org/web#7``, so a later delivery that closes the pull request, and
+matches a ``cancel_on`` condition of the run's Dag, fails the run. A run triggered with
+``{"pr": "my-org/web#7"}`` in its conf is about the same key when the condition names ``pr`` as its
+``correlation_key_conf``. A delivery without a key, such as a ``push`` or a ``workflow_run``, cancels
+nothing.
 
 Stored payload
 --------------

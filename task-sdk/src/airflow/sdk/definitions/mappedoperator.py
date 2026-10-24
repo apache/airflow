@@ -51,6 +51,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     is_mappable,
 )
 from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions.webhooks import coerce_cancel_on, coerce_cancel_state
 
 if TYPE_CHECKING:
     import datetime
@@ -67,10 +68,14 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.retry_policy import RetryPolicy
+    from airflow.sdk.definitions.webhooks import CancelState, WebhookMatch
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
+
+# The scheduler reads these from partial_kwargs, so they cannot differ between map indexes.
+UNMAPPABLE_ARGS = frozenset({"cancel_on", "cancel_state"})
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -88,6 +93,8 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
                 continue
             if value is NOTSET:
                 continue
+            if name in UNMAPPABLE_ARGS:
+                raise ValueError(f"{op.__name__}.expand() cannot map {name}; pass it to partial()")
             if is_mappable(value):
                 continue
             type_name = type(value).__name__
@@ -566,6 +573,22 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_policy"] = value
 
     @property
+    def cancel_on(self) -> list[WebhookMatch] | None:
+        return self.partial_kwargs.get("cancel_on")
+
+    @cancel_on.setter
+    def cancel_on(self, value: WebhookMatch | Collection[WebhookMatch] | None) -> None:
+        self.partial_kwargs["cancel_on"] = coerce_cancel_on(value)
+
+    @property
+    def cancel_state(self) -> CancelState | None:
+        return self.partial_kwargs.get("cancel_state")
+
+    @cancel_state.setter
+    def cancel_state(self, value: CancelState | None) -> None:
+        self.partial_kwargs["cancel_state"] = coerce_cancel_state(value)
+
+    @property
     def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
@@ -760,6 +783,11 @@ class MappedOperator(AbstractOperator):
                 self.partial_kwargs,
                 mapped_kwargs,
                 fail_reason="unmappable or already specified",
+            )
+
+        if unmappable := UNMAPPABLE_ARGS.intersection(mapped_kwargs):
+            raise ValueError(
+                f"expand_kwargs() cannot map {', '.join(sorted(unmappable))}; pass it to partial()"
             )
 
         # If params appears in the mapped kwargs, we need to merge it into the

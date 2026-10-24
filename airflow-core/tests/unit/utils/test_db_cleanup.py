@@ -59,6 +59,7 @@ from airflow.models.inbound_wait import InboundWait
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.webhook_cancel_request import WebhookCancelRequest
 from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -1245,6 +1246,7 @@ class TestDBCleanup:
             # pending its created_dag_run_id is NULL, so those rows are not cleaned
             "asset_partition_dag_run",
             "asset_watcher",  # cascade from trigger
+            "dag_cancel_condition",  # cascade from dag
             "dag_favorite",  # cascade from dag
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
             "dynamic_region",  # cascade from dag_run; archived with it, never aged out on its own
@@ -2132,6 +2134,72 @@ class TestInboundWaitCleanup:
             for row in session.execute(sa.text(f"SELECT webhook FROM {archive}"))
         ]
         assert archived == ["github"]
+
+
+class TestWebhookCancelRequestCleanup:
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining"),
+        [
+            pytest.param(None, None, [("cancellable", "retained"), ("other", "retained")], id="all-dags"),
+            pytest.param(
+                ["cancellable"],
+                None,
+                [("cancellable", "retained"), ("other", "expired"), ("other", "retained")],
+                id="include-a-dag",
+            ),
+            pytest.param(
+                None,
+                ["cancellable"],
+                [("cancellable", "expired"), ("cancellable", "retained"), ("other", "retained")],
+                id="exclude-a-dag",
+            ),
+        ],
+    )
+    def test_requests_are_kept_until_retain_until(
+        self, testing_dag_bundle, session, dag_ids, exclude_dag_ids, expected_remaining
+    ):
+        """Whatever their status, as a run created later from an older event looks applied ones up."""
+        received_at = pendulum.datetime(2026, 1, 1, tz="UTC")
+        cutoff = received_at.add(days=30)
+        for dag_id in ("cancellable", "other"):
+            session.add(DagModel(dag_id=dag_id, bundle_name="testing"))
+            session.flush()
+            for key, retain_until, status in (
+                ("expired", cutoff.subtract(days=1), "pending"),
+                ("retained", cutoff.add(days=1), "applied"),
+            ):
+                session.add(
+                    WebhookCancelRequest(
+                        inbound_delivery_id=uuid4(),
+                        webhook="github",
+                        correlation_key=key,
+                        received_at=received_at,
+                        dag_id=dag_id,
+                        targets={"run": {"correlation_key_confs": []}, "tasks": []},
+                        status=status,
+                        retain_until=retain_until,
+                    )
+                )
+        session.commit()
+
+        _cleanup_table(
+            **config_dict["webhook_cancel_request"].__dict__,
+            clean_before_timestamp=cutoff,
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            skip_archive=True,
+            session=session,
+        )
+
+        remaining = session.execute(
+            select(WebhookCancelRequest.dag_id, WebhookCancelRequest.correlation_key).order_by(
+                WebhookCancelRequest.dag_id, WebhookCancelRequest.correlation_key
+            )
+        )
+        assert [tuple(row) for row in remaining] == expected_remaining
 
 
 class TestCallbackCleanupConfig:

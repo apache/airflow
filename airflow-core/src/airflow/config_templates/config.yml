@@ -2532,9 +2532,9 @@ webhooks:
       description: |
         .. note:: |experimental|
 
-        Days a webhook delivery is recorded for. ``airflow db clean`` removes a record only once it is
-        older than this, whatever cutoff it is given. A changed value applies to deliveries received
-        after the change.
+        Days a webhook delivery is recorded for, and the cancel requests it recorded are kept for.
+        ``airflow db clean`` removes a record or a request only once it is older than this, whatever
+        cutoff it is given. A changed value applies to deliveries received after the change.
 
         Keep it longer than any sender retries a delivery: a retry that arrives after the record of its
         first delivery is removed is not recognised as a retry, and is processed again. At most 365, so
@@ -2563,11 +2563,12 @@ webhooks:
         .. note:: |experimental|
 
         What is kept of the payload of a delivery that records events, goes to a webhook wait or is kept
-        early for one, in its delivery record, in the extra of the topic events and asset route events it
-        records, and in the event that a webhook wait resumes its task with: ``full``, the payload as
-        parsed from the body; ``summary``, the parts its source type keeps; or ``none``. A webhook uses
-        ``store_payload`` from its connection's extra if set, or else its source type's default if the
-        source type has one, or else this option. Deliveries that act on nothing keep no payload.
+        for one (``early`` or ``cancel_requested``), in its delivery record, in the extra of the topic
+        events and asset route events it records, and in the event that a webhook wait resumes its task
+        with: ``full``, the payload as parsed from the body; ``summary``, the parts its source type
+        keeps; or ``none``. A webhook uses ``store_payload`` from its connection's extra if set, or else
+        its source type's default if the source type has one, or else this option. Deliveries that act
+        on nothing keep no payload.
 
         The extra of these events, payload included, can be read by every user allowed to read assets
         and by every Dag scheduled on their assets, so use ``summary`` or ``none`` for senders whose
@@ -2604,11 +2605,13 @@ webhooks:
       description: |
         .. note:: |experimental|
 
-        Seconds after it is received that an early delivery can still be claimed by a matching webhook
-        wait registered later. A delivery is early when it has a correlation key, went to no open wait
-        and recorded no topic or asset route events. A wait that claims an early delivery resumes its
-        task with it once the task parks. Once this period has passed the delivery is no longer claimed,
-        and ``airflow db clean`` removes it with the other delivery records.
+        Seconds after it is received that a delivery kept for webhook waits, ``early`` or
+        ``cancel_requested``, can still be claimed by a matching wait registered later. A delivery is
+        kept when it has a correlation key, went to no open wait and recorded no topic or asset route
+        events; it is ``cancel_requested`` rather than ``early`` if it recorded cancel requests. A wait
+        that claims such a delivery resumes its task with it once the task parks. Once this period has
+        passed the delivery is no longer claimed, and ``airflow db clean`` removes it with the other
+        delivery records.
       version_added: 3.5.0
       type: integer
       example: "3600"
@@ -2617,14 +2620,26 @@ webhooks:
       description: |
         .. note:: |experimental|
 
-        Largest number of early deliveries, received within ``early_delivery_ttl`` and not yet claimed,
-        that a webhook keeps claimable. At this number, keeping one more marks the oldest one expired and
-        drops its payload, so that no wait can claim it. Deliveries recorded at the same moment can each
-        keep one more, and the next early delivery expires that excess too. At least 1.
+        Largest number of deliveries kept for webhook waits, ``early`` or ``cancel_requested``, received
+        within ``early_delivery_ttl`` and not yet claimed, that a webhook keeps claimable. At this number,
+        keeping one more marks the oldest one expired and drops its payload, so that no wait can claim it;
+        the cancel requests it recorded stay. Deliveries recorded at the same moment can each keep one
+        more, and the next delivery kept expires that excess too. At least 1.
       version_added: 3.5.0
       type: integer
       example: "10000"
       default: "1000"
+    cancel_requests_per_loop:
+      description: |
+        .. note:: |experimental|
+
+        Largest number of webhook cancel requests the scheduler applies each time it looks for them,
+        about once a second. Each request is applied and committed on its own, and the rest wait for
+        the next time. At least 1.
+      version_added: 3.6.0
+      type: integer
+      example: "50"
+      default: "20"
 lineage:
   description: ~
   options:

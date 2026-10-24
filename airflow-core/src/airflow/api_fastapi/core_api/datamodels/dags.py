@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -39,6 +40,7 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_p
 from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.webhooks import WebhookMatchResponse
 from airflow.configuration import conf
 from airflow.utils.state import DagSchedulingState
 from airflow.utils.types import DagRunType
@@ -228,6 +230,13 @@ class DAGDetailsResponse(DAGResponse):
     active_runs_count: int = 0
     team_name: str | None = None
     latest_dag_version: DagVersionResponse | None
+    cancel_on: list[WebhookMatchResponse] | None = Field(
+        default=None,
+        description=(
+            "The webhook deliveries that cancel the Dag's runs about their correlation key, or null if "
+            "none do."
+        ),
+    )
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -244,6 +253,12 @@ class DAGDetailsResponse(DAGResponse):
         if doc_md is None:
             return None
         return inspect.cleandoc(doc_md)
+
+    @field_validator("cancel_on", mode="before")
+    @classmethod
+    def get_cancel_on(cls, cancel_on: Any) -> Any:
+        """Return null for a Dag without ``cancel_on``, which a serialized Dag holds as an empty tuple."""
+        return cancel_on or None
 
     @field_validator("default_args", mode="before")
     @classmethod

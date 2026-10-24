@@ -28,7 +28,9 @@ from sqlalchemy import delete
 
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.serialization.encoders import encode_trigger
+from airflow.sdk import WebhookMatch
+from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
+from airflow.serialization.encoders import encode_trigger, encode_webhook_matches
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding, stringify_encoding_keys
 from airflow.triggers.base import BaseEventTrigger
 
@@ -385,3 +387,43 @@ class TestTriggerHashConsistency:
         db_hash = BaseEventTrigger.hash(reloaded.classpath, reloaded.kwargs)
 
         assert dag_hash == db_hash
+
+
+CLOSED = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+PUSHED = WebhookMatch("github", events=["push"])
+CLOSED_BY_CONF = WebhookMatch(
+    "github", events=["pull_request"], match={"action": "closed"}, correlation_key_conf="pr"
+)
+ENCODED_CLOSED = {"webhook": "github", "events": ["pull_request"], "match": {"action": ["closed"]}}
+ENCODED_PUSHED = {"webhook": "github", "events": ["push"]}
+ENCODED_CLOSED_BY_CONF = {**ENCODED_CLOSED, "correlation_key_conf": "pr"}
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param(
+            [
+                CLOSED_BY_CONF,
+                CLOSED,
+                PUSHED,
+                WebhookMatch("github", events=["pull_request", "pull_request"], match={"action": ["closed"]}),
+            ],
+            [ENCODED_CLOSED, ENCODED_PUSHED, ENCODED_CLOSED_BY_CONF],
+            id="sdk-list-with-a-reordered-repeat",
+        ),
+        pytest.param(CLOSED, [ENCODED_CLOSED], id="single-sdk-condition"),
+        pytest.param(
+            SerializedWebhookMatch.build(webhook="github", events=["push"]),
+            [ENCODED_PUSHED],
+            id="core-condition",
+        ),
+        pytest.param(
+            (ENCODED_CLOSED_BY_CONF, ENCODED_PUSHED),
+            [ENCODED_PUSHED, ENCODED_CLOSED_BY_CONF],
+            id="encoded-conditions",
+        ),
+    ],
+)
+def test_encode_webhook_matches_sorts_and_writes_equivalent_conditions_once(value, expected):
+    assert encode_webhook_matches(value) == expected

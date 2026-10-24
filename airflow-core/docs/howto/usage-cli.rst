@@ -260,6 +260,11 @@ You can optionally provide a list of tables to perform deletes on with ``--table
   ``--exclude-dag-ids`` select waits by the Dag of their task instance. Cleaning ``task_instance`` or
   ``dag_run`` archives the waits of the task instances it removes.
 
+  The ``webhook_cancel_request`` table, which holds the cancel requests that webhook deliveries record for
+  Dags with ``cancel_on``, is cleaned by its ``retain_until`` column, like ``inbound_delivery``, whether or
+  not the scheduler has applied a request. A request's ``retain_until`` is that of the delivery that
+  recorded it. ``--dag-ids`` and ``--exclude-dag-ids`` select requests by their Dag.
+
 You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list).
 
 .. warning::

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Table } from "@chakra-ui/react";
+import { Box, Code, HStack, Table, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -28,6 +28,7 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+import { WebhookMatchList } from "src/components/WebhookMatchList";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { formatNumber, useDurationFormat } from "src/utils";
@@ -139,6 +140,19 @@ export const Details = () => {
               <Table.Cell>{translate("dagDetails.maxConsecutiveFailedDagRuns")}</Table.Cell>
               <Table.Cell>{formatNumber(dag.max_consecutive_failed_dag_runs, i18n.language)}</Table.Cell>
             </Table.Row>
+            {dag.cancel_on === null ||
+            dag.cancel_on === undefined ||
+            dag.cancel_on.length === 0 ? undefined : (
+              <Table.Row data-testid="cancel-on-row">
+                <Table.Cell>{translate("dagDetails.cancelOn")}</Table.Cell>
+                <Table.Cell>
+                  <Text color="fg.muted" pb={1}>
+                    {translate("dagDetails.cancelOnExplanation")}
+                  </Text>
+                  <WebhookMatchList matches={dag.cancel_on} />
+                </Table.Cell>
+              </Table.Row>
+            )}
             <Table.Row data-testid="catchup-row">
               <Table.Cell>{translate("dagDetails.catchup")}</Table.Cell>
               <Table.Cell>{dag.catchup.toString()}</Table.Cell>

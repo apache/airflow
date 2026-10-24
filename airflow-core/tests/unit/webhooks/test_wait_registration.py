@@ -24,6 +24,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import func, select, update
 
+from airflow._shared.webhook_naming.matching import compute_key_digest, compute_match_digest
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
@@ -39,7 +40,6 @@ from airflow.webhooks.wait_registration import (
     claim_early_delivery_after_commit,
     register_wait,
 )
-from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.db import clear_db_inbound_deliveries, clear_db_logs, clear_db_runs
 

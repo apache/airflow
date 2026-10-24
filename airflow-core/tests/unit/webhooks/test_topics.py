@@ -24,9 +24,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.inbound_delivery import DeliveryOutcome
-from airflow.models.team import Team
 from airflow.sdk import Asset
 from airflow.webhooks.base import WebhookDelivery
 from airflow.webhooks.connections import ConfiguredWebhook
@@ -34,8 +32,8 @@ from airflow.webhooks.naming import build_candidate_names, build_topic_name
 from airflow.webhooks.topics import TopicEvents, build_event_extra, record_topic_events
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_assets, clear_db_teams
-from tests_common.test_utils.webhooks import FakeHmacSource
+from tests_common.test_utils.db import clear_db_assets
+from tests_common.test_utils.webhooks import FakeHmacSource, team_bundle as team_bundle
 
 WEBHOOK = ConfiguredWebhook(
     name="fake",
@@ -62,21 +60,6 @@ RECORD_ID = UUID("01a14ee2-0e00-7366-b2e2-38ec29a5a228")
 def topic_asset(session):
     """The asset of TOPIC, active, as if a Dag declared it, so that Dags can subscribe through Asset.ref."""
     session.add_all([AssetModel(name=TOPIC.name, uri=TOPIC.uri), AssetActive(name=TOPIC.name, uri=TOPIC.uri)])
-    session.commit()
-
-
-@pytest.fixture
-def team_bundle(session):
-    """Bundle team_a_bundle, of team team_a; request it before dag_maker, which must remove its Dags first."""
-    clear_db_teams()
-    team = Team(name="team_a")
-    bundle = DagBundleModel(name="team_a_bundle")
-    bundle.teams.append(team)
-    session.add_all([team, bundle])
-    session.commit()
-    yield bundle.name
-    clear_db_teams()
-    session.execute(delete(DagBundleModel).where(DagBundleModel.name == "team_a_bundle"))
     session.commit()
 
 

@@ -213,9 +213,15 @@ Webhook Events
 ~~~~~~~~~~~~~~
 
 - ``webhook_delivery``: A delivery to an :doc:`inbound webhook </administration-and-deployment/webhooks>`
-  recorded topic or asset route events, as an entry without a Dag, or went to a task's
+  recorded topic or asset route events or
+  :doc:`cancel requests </authoring-and-scheduling/webhook-cancel>`, as an entry without a Dag whose extra
+  lists the requests as ``cancel_requests``, or went to a task's
   :doc:`webhook wait </authoring-and-scheduling/webhook-waits>`, as an entry of that task instance. Its
   owner is ``webhook:<name>``.
+- ``webhook_cancel``: The scheduler applied a webhook delivery's cancel request to a Dag run, as an entry
+  of that run, or to a task instance, as an entry of that task instance. Its owner is ``webhook:<name>``,
+  and its extra has the ``delivery_id``, the ``request_id``, the ``scope``, ``run`` or ``task``, and for a
+  task instance the ``state`` it ended in.
 
 User Action Events
 ~~~~~~~~~~~~~~~~~~

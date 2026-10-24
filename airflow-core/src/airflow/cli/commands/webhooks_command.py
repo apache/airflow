@@ -23,53 +23,163 @@ import hashlib
 import hmac
 import json
 import sys
+from collections import defaultdict
 from http.client import HTTPException
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from sqlalchemy import select
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowNotFoundException
 from airflow.models.connection import AirflowSecretsBackendAccessDenied, Connection
+from airflow.models.dag import DagModel
+from airflow.models.dag_cancel_condition import DAG_LEVEL_TASK_ID, DagCancelCondition
+from airflow.models.inbound_delivery import InboundDelivery
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.session import create_session
 from airflow.webhooks.connections import CONN_ID_PREFIX
 from airflow.webhooks.registry import WebhookRegistry, get_webhook_name_problem
 from airflow.webhooks.status import get_webhook_status
+from airflow.webhooks.topics import build_dag_has_team_clause
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+
+    from sqlalchemy.orm import Session
 
 DEFAULT_SIGNATURE_HEADER = "X-Signature"
 MAX_ANSWER_BYTES = 1_048_576
+#: How many of a webhook's latest deliveries ``check`` reads to tell whether its deliveries have
+#: correlation keys.
+CORRELATION_KEY_SAMPLE_SIZE = 100
+
+
+def _get_cancel_conditions(*, session: Session) -> dict[str, list[DagCancelCondition]]:
+    conditions: defaultdict[str, list[DagCancelCondition]] = defaultdict(list)
+    for condition in session.scalars(
+        select(DagCancelCondition).order_by(
+            DagCancelCondition.webhook,
+            DagCancelCondition.dag_id,
+            DagCancelCondition.task_id,
+            DagCancelCondition.condition_digest,
+        )
+    ):
+        conditions[condition.webhook].append(condition)
+    return conditions
+
+
+def _find_dags_with_a_team(dag_ids: Collection[str], *, session: Session) -> set[str]:
+    if not dag_ids or not conf.getboolean("core", "multi_team"):
+        return set()
+    return set(
+        session.scalars(
+            select(DagModel.dag_id).where(DagModel.dag_id.in_(dag_ids), build_dag_has_team_clause())
+        )
+    )
+
+
+def _describe_values(values: list[str]) -> str:
+    return values[0] if len(values) == 1 else f"one of {', '.join(values)}"
+
+
+def _describe_cancel_condition(condition: DagCancelCondition) -> str:
+    """Return a line that says which deliveries to the condition's webhook cancel what."""
+    events = condition.events
+    if events is None:
+        deliveries = "any delivery"
+    else:
+        deliveries = f"{' or '.join(events)} deliveries"
+    if condition.match:
+        deliveries += " with " + ", ".join(
+            f"{key} {_describe_values(values)}" for key, values in sorted(condition.match.items())
+        )
+    if condition.correlation_key_conf is not None:
+        deliveries += f", and manual runs by conf key {condition.correlation_key_conf}"
+    if condition.task_id == DAG_LEVEL_TASK_ID:
+        return f"Webhook {condition.webhook} cancels the runs of Dag {condition.dag_id} on {deliveries}"
+    return (
+        f"Webhook {condition.webhook} sets task {condition.task_id} of Dag {condition.dag_id} to "
+        f"{condition.cancel_state} on {deliveries}"
+    )
+
+
+def _get_correlation_key_note(name: str, *, session: Session) -> str | None:
+    """Return a note if none of the webhook's latest deliveries has a correlation key, which cancel_on needs."""
+    keys = session.scalars(
+        select(InboundDelivery.correlation_key)
+        .where(InboundDelivery.webhook == name)
+        .order_by(InboundDelivery.received_at.desc())
+        .limit(CORRELATION_KEY_SAMPLE_SIZE)
+    ).all()
+    if not keys or any(key is not None for key in keys):
+        return None
+    finding = (
+        f"the only delivery recorded for webhook {name} has no correlation key"
+        if len(keys) == 1
+        else f"none of the {len(keys)} latest deliveries recorded for webhook {name} has a correlation key"
+    )
+    return (
+        f"Note: {finding}, and cancel_on acts only on deliveries that have one; a generic source sets one "
+        "with correlation_key_field"
+    )
 
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def check(args) -> None:
-    """Check that webhooks can receive deliveries, and exit with 1 if any cannot."""
+    """
+    Check that webhooks can receive deliveries, and exit with 1 if any cannot.
+
+    Also list the Dags and tasks whose ``cancel_on`` names each webhook, and check each webhook that a
+    ``cancel_on`` names even when ``[webhooks] names`` does not list it.
+    """
     try:
         registry = WebhookRegistry.from_config()
     except AirflowConfigException as e:
         raise SystemExit(str(e)) from e
-    names = args.names or sorted(registry.names)
-    if not names:
-        raise SystemExit("[webhooks] names lists no webhooks to check")
     failed = False
-    for name in names:
-        if problem := get_webhook_name_problem(name):
-            problems: tuple[str, ...] = (problem,)
-        else:
-            status = get_webhook_status(name, registry=registry)
-            if (webhook := status.webhook) is not None and not status.problems:
-                print(
-                    f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps "
-                    f"webhooks, with source type {webhook.source_type}, bodies of up to "
-                    f"{webhook.max_body_bytes} bytes and store_payload {webhook.store_payload}"
-                )
-                continue
-            problems = status.problems
-        failed = True
-        for problem in problems:
-            print(f"Problem with webhook {name}: {problem}", file=sys.stderr)
+    with create_session() as session:
+        conditions = _get_cancel_conditions(session=session)
+        names = args.names or sorted(registry.names | conditions.keys())
+        if not names:
+            raise SystemExit("[webhooks] names lists no webhooks to check")
+        team_dag_ids = _find_dags_with_a_team(
+            {condition.dag_id for name in names for condition in conditions.get(name, ())},
+            session=session,
+        )
+        for name in names:
+            webhook_conditions = conditions.get(name, [])
+            served = False
+            if problem := get_webhook_name_problem(name):
+                problems = [problem]
+            else:
+                status = get_webhook_status(name, registry=registry, session=session)
+                problems = list(status.problems)
+                if (webhook := status.webhook) is not None and not problems:
+                    served = True
+                    print(
+                        f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps "
+                        f"webhooks, with source type {webhook.source_type}, bodies of up to "
+                        f"{webhook.max_body_bytes} bytes and store_payload {webhook.store_payload}"
+                    )
+            problems.extend(
+                f"Dag {dag_id} belongs to a team, and this version of Airflow records no cancel requests "
+                "for Dags with a team"
+                for dag_id in sorted({condition.dag_id for condition in webhook_conditions} & team_dag_ids)
+            )
+            if problems or not served:
+                failed = True
+            for problem in problems:
+                print(f"Problem with webhook {name}: {problem}", file=sys.stderr)
+            for condition in webhook_conditions:
+                print(_describe_cancel_condition(condition))
+            if webhook_conditions and (note := _get_correlation_key_note(name, session=session)):
+                print(note)
     if failed:
         raise SystemExit(1)
 

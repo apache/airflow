@@ -64,6 +64,7 @@ from airflow.sdk import (
     StartOfWeekMapper,
     StartOfYearMapper,
     WaitForAll,
+    WebhookMatch,
     WeekWindow,
     Window,
     YearWindow,
@@ -77,7 +78,7 @@ from airflow.sdk.definitions.timetables.assets import (
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
-from airflow.serialization.decoders import decode_deadline_alert
+from airflow.serialization.decoders import decode_deadline_alert, decode_webhook_match
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -87,6 +88,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetRef,
 )
 from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
+from airflow.serialization.definitions.webhook_match import SerializedWebhookMatch
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
@@ -102,6 +104,8 @@ from airflow.timetables.base import Timetable as CoreTimetable
 from airflow.utils.docs import get_docs_url
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from dateutil.relativedelta import relativedelta
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
@@ -263,6 +267,53 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
             else serialize(d.callback)
         ),
     }
+
+
+def ensure_serialized_webhook_match(
+    obj: WebhookMatch | SerializedWebhookMatch | Mapping[str, Any],
+) -> SerializedWebhookMatch:
+    """
+    Return a ``cancel_on`` condition as a core object.
+
+    A mapping is a condition in its serialized form, as the ``default_args`` of a deserialized Dag
+    hold it.
+
+    :meta private:
+    """
+    if isinstance(obj, SerializedWebhookMatch):
+        return obj
+    if isinstance(obj, WebhookMatch):
+        return SerializedWebhookMatch.build(
+            webhook=obj.webhook,
+            events=obj.events,
+            match=obj.match,
+            correlation_key_conf=obj.correlation_key_conf,
+        )
+    return decode_webhook_match(obj)
+
+
+def encode_webhook_matches(
+    value: WebhookMatch
+    | SerializedWebhookMatch
+    | Iterable[WebhookMatch | SerializedWebhookMatch | Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Encode ``cancel_on`` conditions in a fixed order and without repeats.
+
+    The hash of a serialized Dag sorts no list of objects, so conditions given in another order or
+    written another way would otherwise make a new Dag version.
+
+    :meta private:
+    """
+    items = [value] if isinstance(value, (WebhookMatch, SerializedWebhookMatch)) else value
+    conditions = {match.digest: match for match in map(ensure_serialized_webhook_match, items)}
+    return [
+        match.to_json()
+        for match in sorted(
+            conditions.values(),
+            key=lambda m: (m.webhook, m.correlation_key_conf or "", m.events or (), m.match),
+        )
+    ]
 
 
 def _encode_decoded_deadline_callback(callback: Any) -> dict[str, Any]:

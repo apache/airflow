@@ -132,6 +132,7 @@ from airflow.sdk.definitions.timetables.trigger import (
     MultipleCronTriggerTimetable,
 )
 from airflow.sdk.definitions.variable import Variable as Variable
+from airflow.sdk.definitions.webhooks import WebhookMatch as WebhookMatch
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
@@ -220,6 +221,7 @@ __all__ = [
     "Variable",
     "WaitForAll",
     "WaitPolicy",
+    "WebhookMatch",
     "WebhookTopic",
     "WeekWindow",
     "WeightRule",

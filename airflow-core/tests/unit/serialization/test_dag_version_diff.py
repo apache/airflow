@@ -35,7 +35,16 @@ from airflow.providers.standard.operators.python import BranchPythonOperator, Py
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.sdk import DAG, Asset, ExceptionRetryPolicy, Param, TaskGroup, task as sdk_task, task_group
+from airflow.sdk import (
+    DAG,
+    Asset,
+    ExceptionRetryPolicy,
+    Param,
+    TaskGroup,
+    WebhookMatch,
+    task as sdk_task,
+    task_group,
+)
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.operator_resources import Resources
@@ -120,6 +129,15 @@ def _build_field_sweep_payload() -> dict[str, Any]:
         BashOperator(task_id="setup", bash_command="echo unchanged").as_setup()
         BashOperator(task_id="teardown", bash_command="echo unchanged").as_teardown()
         BashOperator.partial(task_id="mapped", run_as_user="service").expand(bash_command=["one", "two"])
+        BashOperator(
+            task_id="cancellable",
+            bash_command="echo unchanged",
+            cancel_on=[WebhookMatch("github")],
+            cancel_state="skipped",
+        )
+        BashOperator.partial(
+            task_id="mapped_cancellable", cancel_on=[WebhookMatch("github")], cancel_state="skipped"
+        ).expand(bash_command=["one", "two"])
         sdk_task(task_id="decorated")(_return_private_before).expand(private_argument=["one", "two"])
         sdk_task.stub(task_id="stubbed")(_declare_private_argument)("private_value")
         with TaskGroup("group"):
@@ -300,6 +318,51 @@ def test_build_diff_exposes_serializer_only_field_names_without_private_values(
         assert "private_" not in json.dumps(result)
         assert not {"before_value", "after_value", "before_digest", "after_digest"} & change.keys()
     assert (base, target) == originals
+
+
+def _build_cancel_on_payload(location: str, cancel_on: list[WebhookMatch]) -> dict[str, Any]:
+    with DAG(
+        "cancellable",
+        schedule=None,
+        cancel_on=cancel_on if location == "dag" else None,
+    ) as dag:
+        task_cancel_on = cancel_on if location in {"task", "mapped"} else None
+        if location == "mapped":
+            BashOperator.partial(task_id="private_task", cancel_on=task_cancel_on).expand(
+                bash_command=["echo unchanged"]
+            )
+        else:
+            BashOperator(task_id="private_task", bash_command="echo unchanged", cancel_on=task_cancel_on)
+    return _serialize_dag(dag)
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("location", "path"),
+    [
+        ("dag", "/dag/cancel_on"),
+        ("task", "/dag/tasks/{task_id}/cancel_on"),
+        ("mapped", "/dag/tasks/{task_id}/partial_kwargs/cancel_on"),
+    ],
+)
+def test_build_diff_reports_cancel_on_changes(location, path, include_values):
+    closed = WebhookMatch("github", events=["pull_request"], match={"action": "closed"})
+    base = _build_cancel_on_payload(location, [closed])
+    target = _build_cancel_on_payload(location, [closed, WebhookMatch("github", events=["push"])])
+    stored = {
+        "dag": lambda: target["dag"]["cancel_on"],
+        "task": lambda: _get_task(target)["cancel_on"],
+        "mapped": lambda: _get_task(target)["partial_kwargs"]["cancel_on"],
+    }[location]()
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert len(result["changes"]) == 1
+    change = result["changes"][0]
+    assert change["path"] == path.format(task_id="private_task" if include_values else "*")
+    assert (change["operation"], change["category"], change["impact"]) == ("changed", "task", "execution")
+    if include_values:
+        assert change["after_value"] == stored
 
 
 def test_diff_v1_task_group_field_policy_tracks_serializer_schema() -> None:
