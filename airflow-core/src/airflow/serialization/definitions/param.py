@@ -22,6 +22,8 @@ import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
 
+import attrs
+
 from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
@@ -80,6 +82,19 @@ class SerializedParam:
             "description": self.description,
             "source": self.source,
         }
+
+
+@attrs.define(kw_only=True)
+class SerializedDagParam:
+    """
+    Server-side reference to a Dag param, such as one passed to a mapped task's ``partial()``.
+
+    Only the worker resolves Dag params, from its own parse of the Dag file.
+    """
+
+    dag_id: str
+    name: str
+    default: Any = NOTSET
 
 
 def _coerce_param(v: Any) -> SerializedParam:
