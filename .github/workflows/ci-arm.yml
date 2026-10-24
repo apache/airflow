@@ -1348,6 +1348,7 @@ jobs:
       - build-java-sdk-docs
       - build-prod-images
       - build-ts-sdk-docs
+      - check-run-needed
       - ci-image-checks
       - finalize-tests
       - generate-constraints
