@@ -25,7 +25,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 from uuid import UUID
 
@@ -39,6 +39,9 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagBundleStateResponse,
     DagParseResultBody,
     DagParseResultResponse,
+    ProcessorWorkAckBody,
+    ProcessorWorkClaimBody,
+    ProcessorWorkItem,
 )
 from airflow.api_fastapi.execution_api.datamodels.job import (
     DagParseTokenBody,
@@ -142,6 +145,8 @@ class DagProcessorAPIClient(Client):
         self._job_id: int | None = None
         self._completion_state: TerminalJobState | None = None
         self._completed = False
+        self._pending_claims: dict[str, ProcessorWorkClaimBody] = {}
+        self._claim_sequences: dict[str, int] = {}
         super().__init__(base_url=base_url, token="", **kwargs)
 
     @property
@@ -397,6 +402,44 @@ class DagProcessorAPIClient(Client):
             timeout=self._get_bounded_timeout(),
         )
         return [DagBundleStateResponse.model_validate(item) for item in response.json()]
+
+    def claim_work(
+        self, kind: Literal["callbacks", "priority"], bundle_names: list[str], limit: int
+    ) -> list[ProcessorWorkItem]:
+        if not bundle_names:
+            return []
+        body = self._pending_claims.setdefault(
+            kind,
+            ProcessorWorkClaimBody(
+                claim_id=uuid7(),
+                claim_sequence=self._claim_sequences.get(kind, 0) + 1,
+                bundle_names=bundle_names,
+                limit=min(limit, 100),
+            ),
+        )
+        response = self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/requested-work/{kind}/claim",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        work = [ProcessorWorkItem.model_validate(item) for item in response.json()]
+        self._claim_sequences[kind] = body.claim_sequence
+        del self._pending_claims[kind]
+        return work
+
+    def acknowledge_work(self, kind: Literal["callbacks", "priority"], work: ProcessorWorkItem) -> None:
+        body = ProcessorWorkAckBody(claim_id=work.claim_id)
+        self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/requested-work/{kind}/{work.id}/ack",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
 
     def publish_inventory(self, bundle_name: str, body: DagBundleInventoryBody) -> DagBundleInventoryResponse:
         response = self.request(

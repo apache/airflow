@@ -40,6 +40,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
+from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
@@ -434,7 +435,11 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
                     {
                         "dag_id": request.dag_id,
                         "team_name": (
-                            DagModel.get_team_name(request.dag_id)
+                            (
+                                get_configured_bundle_team_names().get(request.bundle_name)
+                                if conf.get("dag_processor", "execution_api_token_file", fallback=None)
+                                else DagModel.get_team_name(request.dag_id)
+                            )
                             if conf.getboolean("core", "multi_team")
                             else None
                         ),
@@ -595,6 +600,7 @@ class DagParseSource:
     version_data: Mapping[str, Any] | None = None
     refresh_generation: int = 0
     bundle_revision: UUID | None = None
+    inventory_sequence: int = 0
 
     @classmethod
     def for_callback(cls, bundle_version: str | None) -> Self:
