@@ -47,6 +47,11 @@ API_RETRY_POLICY = ExceptionRetryPolicy(
             action=RetryAction.RETRY,
             retry_delay=timedelta(seconds=30),
         ),
+        RetryRule(
+            exception=LookupError,
+            action=RetryAction.SKIP,
+            reason="No data for this interval yet",
+        ),
     ],
 )
 # [END retry_policy_definition]

@@ -1512,6 +1512,34 @@ def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_co
     assert msg.retry_reason == "do not retry"
 
 
+def test_retry_policy_skip_marks_task_skipped(create_runtime_ti, mock_supervisor_comms):
+    """A SKIP decision ends the task SKIPPED with the policy's reason and counts no failure."""
+
+    class _NothingToDo(BaseOperator):
+        def execute(self, context):
+            raise LookupError("no new partitions")
+
+    task = _NothingToDo(
+        task_id="skip_with_reason",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=LookupError, action=RetryAction.SKIP, reason="nothing to ingest")]
+        ),
+    )
+    ti = create_runtime_ti(task=task)
+    stats_backend = mock.MagicMock(spec=StatsLogger)
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.stats", stats_backend):
+        state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.SKIPPED
+    assert isinstance(msg, TaskState)
+    assert msg.state == TaskInstanceState.SKIPPED
+    assert msg.retry_reason == "nothing to ingest"
+    counted = [call.args[0] for call in stats_backend.incr.call_args_list if call.args]
+    assert "ti_failures" not in counted
+
+
 @pytest.mark.parametrize(
     ("task_id", "retries", "try_number"),
     [
