@@ -33,7 +33,7 @@
   - [Skipping prek hooks (Static checks)](#skipping-prek-hooks-static-checks)
   - [Suspended providers](#suspended-providers)
   - [Selective check outputs](#selective-check-outputs)
-  - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
+  - [Self-hosted (RunsOn) vs. public runners](#self-hosted-runson-vs-public-runners)
   - [Changing behaviours of the CI runs by setting labels](#changing-behaviours-of-the-ci-runs-by-setting-labels)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -141,11 +141,16 @@ high-blast-radius signals:
 
 ```mermaid
 flowchart TD
-    A([_should_run_all_tests_and_versions]) --> B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
+    A([_should_run_all_tests_and_versions]) --> T{fork push with<br/>truncated change set?}
+    T -->|yes| YES0[True<br/>run everything]
+    T -->|no| FP{fork push?}
+    FP -->|yes - treated as a pull request| E
+    FP -->|no| B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
     B -->|yes| C{PUSH and only<br/>.txt/.md files changed?}
     C -->|yes| NO1[False<br/>skip full tests]
-    C -->|no| D{PUSH and<br/>branch != main?}
-    D -->|yes - release branch push| NO2[False<br/>selective only]
+    C -->|no| D{PUSH with<br/>--selective-tests-on-push?}
+    D -->|yes - release branch push in ci-amd.yml| NO2[treated like PULL_REQUEST<br/>selective]
+    NO2 --> E
     D -->|no| YES1[True<br/>run everything]
     B -->|no - PULL_REQUEST| E{commit_ref missing?}
     E -->|yes| YES2[True]
@@ -184,9 +189,12 @@ Two related booleans share this machinery:
   versions instead of just the defaults. Labels (`default versions only`, `latest versions only`,
   `all versions`) override; otherwise it follows `_should_run_all_tests_and_versions()`.
 * **`is_canary_run`** — `True` for SCHEDULE/PUSH/DISPATCH events **on `apache/airflow`** (not forks)
-  when more than just `.txt`/`.md` changed, or whenever the `canary` label is set. Canary runs always
-  run unit tests even when `full_tests_needed` is `False` (this is what makes a *release-branch push*
-  still run its relevant unit tests — see the examples).
+  when more than just `.txt`/`.md` changed, or whenever the `canary` label is set. A PUSH with
+  `--selective-tests-on-push` (env `SELECTIVE_TESTS_ON_PUSH`) is **not** a canary: `ci-amd.yml` passes
+  that flag, so a push to a release branch runs the selective tests of the changes since the last
+  successful run of the branch (`--push-base-commit`), exactly as a pull request would. Workflows that run on push for other reasons (constraints, image cache) do not
+  pass it, and keep getting the full set of Python versions they need. Canary runs always run unit
+  tests even when `full_tests_needed` is `False`.
 
 ### Stage 2 — decide which jobs run
 
@@ -289,13 +297,13 @@ flowchart TD
         PR1[event=PULL_REQUEST<br/>files=providers/amazon/.../s3.py] --> PR2[full_tests_needed=False<br/>all_versions=False<br/>is_canary_run=False]
         PR2 --> PR3[unit tests: Providers amazon + Always<br/>default versions only<br/>amazon prek/mypy only]
     end
-    subgraph PUSHMAIN[Push / merge to main]
-        PM1[event=PUSH, branch=main] --> PM2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
-        PM2 --> PM3[full matrix, all versions,<br/>all canary-only jobs]
+    subgraph RELFULL[Release branch full run, dispatched]
+        RF1[event=WORKFLOW_DISPATCH<br/>branch=v3-x-test] --> RF2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
+        RF2 --> RF3[full matrix, all versions,<br/>all canary-only jobs]
     end
     subgraph RELPUSH[Push to release branch v3-x-test]
-        RP1[event=PUSH, branch!=main] --> RP2[full_tests_needed=False<br/>is_canary_run=True]
-        RP2 --> RP3[unit tests run via canary<br/>but selective test types<br/>default versions]
+        RP1[event=PUSH<br/>--selective-tests-on-push] --> RP2[full_tests_needed=False<br/>is_canary_run=False]
+        RP2 --> RP3[same selection as a PR<br/>with the files changed since<br/>the last successful run<br/>default versions]
     end
     subgraph CANARY[Scheduled nightly canary]
         CN1[event=SCHEDULE on apache/airflow] --> CN2[full_tests_needed=True<br/>all_versions=True<br/>is_canary_run=True]
@@ -315,16 +323,36 @@ flowchart TD
    PR runs the **full matrix** — same as a canary — because the change can affect everything. (A *non-test*
    workflow such as `codeql-analysis.yml`, or a `scripts/ci/prek/...` static-check hook, does **not** force
    the full matrix — see the `Environment files` carve-outs above.)
-4. **Push / merge to `main`.** `_should_run_all_tests_and_versions()` is true for PUSH on `main` →
-   `full_tests_needed=True`, `all_versions=True`, `is_canary_run=True`. The full matrix plus all
-   canary-only jobs run. This is the safety net that backstops aggressive PR-time optimisation.
-5. **Push to a release branch** (`v3-1-test`). PUSH but `branch != main` → `full_tests_needed=False`
-   (selective), yet `is_canary_run=True`, so `run_unit_tests=True`. The branch runs its *relevant*
-   unit tests on default versions rather than the entire matrix — release branches don't need the full
-   cross-version sweep on every push.
+4. **Full run of a release branch** (WORKFLOW_DISPATCH on `v3-1-test`, started by
+   `release-branch-ci.yml` a few times a day or by a release manager). `full_tests_needed=True`,
+   `all_versions=True`, `is_canary_run=True`. The full matrix plus all canary-only jobs run, and the
+   branch's constraints and image cache are refreshed. `main` gets the same from the scheduled canary;
+   neither builds the full matrix on push.
+5. **Push to a release branch** (`v3-1-test`). `ci-amd.yml` passes `--selective-tests-on-push` and
+   `--push-base-commit` (the commit of the last successful run of the workflow on the branch), so the
+   push is treated like a pull request whose files are those changed since that commit:
+   `full_tests_needed` and `is_canary_run` follow the PR rules, and the run selects only the tests
+   those changes need, on default versions. If the diff cannot be computed, all tests run.
 6. **Scheduled nightly canary** (SCHEDULE on `apache/airflow`). Full matrix on all versions, every
    canary-only job. The most thorough run; it is what gives us confidence that the PR-time shortcuts
    never let a regression through.
+7. **Push in a contributor fork** (AIP-120, see
+   [Fork CI for external contributors](08_fork_ci_for_external_contributors.md)). The changed files
+   come from the cross-repository compare API against `apache/airflow`'s branch line of the pushed
+   code (breeze's default branch at that commit: `main`, or the release branch it was cut from),
+   not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
+   exactly like a pull request with those files. `is_committer_build` is always `False` because
+   forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
+   or the compare fails, everything runs, including the UI E2E tests, which otherwise only follow
+   matching files or the `full tests needed` label. Checks that compare a file with its previous version
+   (`pyproject.toml` and the provider dependency bump check) read the previous version at the
+   compare's merge base in `apache/airflow`, not at the pushed commit's parent, which after a
+   merge of upstream `main` is the contributor's own previous tip. A file missing at the merge
+   base counts as new; any other failure to read it fails the selective checks instead of
+   skipping the check. The labels come from the open
+   `apache/airflow` pull request of the pushed branch, so `full tests needed`,
+   `allow provider dependency bump` and the other labels work as on a pull request; a label
+   added later takes effect on the next fork run.
 
 ## Troubleshooting: my CI run does too much
 
@@ -433,7 +461,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 
 ## Selective check decision rules
 
-* `Full tests` case is enabled when the event is PUSH **to `main`**, SCHEDULE or WORKFLOW_DISPATCH, or we
+* `Full tests` case is enabled when the event is PUSH, SCHEDULE or WORKFLOW_DISPATCH, or we
   miss commit info, or any of the important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
   etc.) changed, or the API *contract* changed (the generated OpenAPI spec or the client generator —
   plain API source/test edits that leave the committed spec
@@ -443,9 +471,13 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   set. Any other changed `tests_common` helper only selects the tests that import it.
   That enables all matrix combinations of variables (representative) and all possible test type. No further
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
-  `.txt`/`.md` files skips full tests, and a PUSH to a **release branch** (`v3-X-test`, i.e. not `main`)
-  runs selective tests only (it is still a `canary` run, so its *relevant* unit tests run on default
-  versions). The high-level flow and worked examples for these cases are in
+  `.txt`/`.md` files skips full tests, and a PUSH with `--selective-tests-on-push` (which `ci-amd.yml`
+  passes for pushes to release branches) is treated like a pull request — selective tests on default
+  versions, not a `canary` run. A PUSH in a contributor fork is not a PUSH for this rule either: it is
+  selected like a pull request against `apache/airflow`, and runs everything only when its change set
+  reaches the compare API's 300-file cap (a list of 300 may be missing files) or the compare fails. The
+  incremental base of a release-branch push (the last successful run of the branch) is only looked up in
+  `apache/airflow`. The high-level flow and worked examples for these cases are in
   [The decision pipeline](#the-decision-pipeline) and
   [Worked examples](#worked-examples-pull-requests-pushes-and-canary-runs) above.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
@@ -657,6 +689,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
+| runner-type                                             | Runner labels for the CI jobs on this platform: public, or a RunsOn template jobs fill with cpu/ram     | \["ubuntu-22.04"\]                       |      |
 | selected-providers-list-as-string                       | List of providers affected when they are selectively affected.                                          | airbyte http                             | *    |
 | skip-prek-hooks                                         | Which prek hooks should be skipped during the static-checks run                                         | flynt,identity                           |      |
 | skip-providers-tests                                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)         | true                                     |      |
@@ -666,24 +699,82 @@ GitHub Actions to pass the list of parameters to a command to execute
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)          | false                                    |      |
 
 
-## Committer vs. Non-committer PRs
+## Self-hosted (RunsOn) vs. public runners
 
-There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
-The main reason is security; we do not want to run untrusted code on our infrastructure for self-hosted runners.
+The `Tests (AMD)` / `Tests (ARM)` jobs run either on GitHub-hosted ("public") runners or on self-hosted
+[RunsOn](https://runs-on.com) EC2 runners in the Airflow AWS account. Selective checks route runs of
+code from `apache/airflow` itself there; this is a routing preference, not what keeps fork code off
+RunsOn (see below). The `runner-type` output is decided as follows, first match wins:
 
-Currently there is no difference because we are not using `self-hosted` runners (until we implement `Action
-Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
-while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR.
+1. Runs in any repository other than `apache/airflow` (forks running their own CI) use public runners.
+2. Any run uses public runners while the repository variable `USE_PUBLIC_RUNNERS` is `true`: the
+   switch for moving `main` off RunsOn without a PR, e.g. when the stack is unavailable.
+3. PRs with the `use public runners` label use public runners.
+4. Any `push`, `schedule` or `workflow_dispatch` in `apache/airflow` (canary runs and the release
+   branch pushes, all triggered by people with write access) uses RunsOn.
+5. Other events than `pull_request` use public runners.
+6. PRs with the `use self-hosted runners` label use RunsOn, if a committer's (`COMMITTERS` in
+   `global_constants.py`) latest review of the PR's head commit is an approval and no committer's
+   request for changes stands. The label outlives the commit it was added for, so on its own it would
+   vouch for every later push: a new push sends the PR back to public runners until the head commit is
+   approved again, and so does a dismissed approval if no other committer's approval of the head commit
+   remains. A committer's request for changes keeps the PR on public runners across pushes, as it blocks
+   a merge on GitHub, until that committer reviews again or the review is dismissed. The label must
+   also still be on the PR: a re-run reuses the labels of its original event, so they are checked
+   against the PR's current ones. If the PR or its reviews cannot be read, the label is ignored as well.
+7. PRs with the `non committer build` label use public runners.
+8. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
+   they carry code nobody has reviewed yet.
+9. PRs from a branch of `apache/airflow` use RunsOn; PRs from forks use public runners.
+
+Labels are read from the event that started the run, and the CI workflows do not run on `labeled`. After
+adding or removing a label, push a commit or close and reopen the PR; re-running an earlier run reuses
+its original labels, and "Re-run failed jobs" also reuses that run's runner decision. A push voids the
+approval `use self-hosted runners` needs, so for that label approve the head commit and then close and
+reopen the PR.
+
+The RunsOn value is a label template such as
+`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
+picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
+or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
+on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
+gated on `runner.environment == 'self-hosted'`:
+
+* The EC2 cost summary of each job.
+* The image stashes (`.github/actions/stash-restore` / `stash-save`). On RunsOn the image tarballs go to
+  the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
+  Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by
+  the same run, branch and repository (or, for a PR, its base branch). The smaller caches (mount cache, prek, docs inventory) use
+  the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save;
+  the price is that every RunsOn canary uploads the mount cache from AWS to GitHub.
+
+The decision above is not a security boundary. Under the `pull_request` event the code that
+evaluates it is the PR's own: a fork PR runs its own workflow files and breeze sources, and can name
+RunsOn labels in `runs-on:` directly. RunsOn launches a runner for any job of a repository its GitHub
+App is installed on, so nothing in this repository can prevent that. Keeping untrusted code away from
+anything that matters has to be enforced outside the repository, by:
+
+* The repository's Actions setting "Approval for running fork pull request workflows from
+  contributors", which must be "Require approval for all external contributors". That still exempts
+  members of the `apache` GitHub organization (ASF committers of any project who linked their GitHub
+  account) and repository collaborators, but every exempt person is identifiable.
+* The RunsOn stack, which must be dedicated to this repository and give the runners an instance role
+  that reaches nothing beyond the stack's own cache bucket (whose contents are never trusted, see the
+  stash actions), no EBS permissions, no SSH, network isolation between runners and a maximum run
+  time. RunsOn has no cap on instance sizes or counts and its budget only alerts, so the AWS account's
+  EC2 vCPU quotas are the cost ceiling.
+
+Pushes in a contributor fork are never committer builds, whoever pushes, because forks have no
+self-hosted runners.
 
 ## Changing behaviours of the CI runs by setting labels
 
-Also, currently for most of the jobs, committer builds by default use "Self-hosted" runners, while
-non-committer builds use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR. In the future when we might also switch committers to public runners.
-Committers will be able to use `use self-hosted runners` label in the PR to force using self-hosted runners.
-The `use public runners` label will still be available for committers and they will be able to set it for
-builds that also have `canary` label set to also switch the `canary` builds to public runners.
+PRs from `apache/airflow` branches run on self-hosted RunsOn runners and PRs from forks run on public
+runners (see above). Set `use public runners` to move a PR to public runners; a committer can set
+`use self-hosted runners` and approve the PR's head commit to move a fork PR to RunsOn, provided no
+committer's request for changes stands, then close and reopen the PR (a push would need a fresh
+approval; a committer should do the reopen, since an external author's reopen still needs a maintainer
+to approve the workflow run).
 
 If you are testing CI workflow changes and want to test it for more complete matrix combinations generated by
 the jobs - you can set `all versions` label in the PR. This will run the PRs with the same combinations
@@ -691,7 +782,7 @@ of versions as the `canary` main build. Using `all versions` is automatically se
 change in `pyproject.toml`.
 
 If you are running an `apache` PR, you can also set `canary` label for such PR and in this case, all the
-`canary` properties of build will be used: `self-hosted` runners, `full tests needed` mode, `all versions`
+`canary` properties of build will be used: `full tests needed` mode, `all versions`
 as well as all canary-specific jobs will run there. You can modify this behaviour of the `canary` run by
 applying `use public runners`, and `default versions only` labels to the PR as well which will still run
 a `canary` equivalent build but with public runners an default Python/K8S versions only - respectively.

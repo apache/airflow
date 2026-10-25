@@ -322,7 +322,7 @@ class TestDeferForApproval:
         assert call_kwargs["params"] == {}
 
     def test_raises_on_non_string_prompt(self, context):
-        op = FakeOperator(prompt=["Describe this:", object()])  # type: ignore[arg-type]
+        op = FakeOperator(prompt=["Describe this:", object()])
         with pytest.raises(TypeError, match="non-string prompt"):
             op.defer_for_approval(context, "output")
 

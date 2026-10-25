@@ -558,7 +558,7 @@ class TestEnvironment:
         serialization where the message would not say which entry was wrong.
         """
         with pytest.raises(SandboxTerminalError, match="strings"):
-            backend.create(spec=SandboxSpec(env=env))  # type: ignore[arg-type]
+            backend.create(spec=SandboxSpec(env=env))
         assert fake.Sandbox.created == [], "refused before anything was provisioned"
 
 

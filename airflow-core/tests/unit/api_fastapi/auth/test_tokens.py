@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import anyio
-import httpx
+import httpx2
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
@@ -63,9 +63,9 @@ class TestJWKS:
         jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "kid")]})
 
         async def mock_transport(request):
-            return httpx.Response(status_code=200, content=jwk_content)
+            return httpx2.Response(status_code=200, content=jwk_content)
 
-        client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
+        client = httpx2.AsyncClient(transport=httpx2.MockTransport(mock_transport))
         jwks = JWKS(url="https://example.com/jwks.json", client=client)
 
         # Test fetching JWKS
@@ -79,9 +79,9 @@ class TestJWKS:
         jwk_content = json.dumps({"keys": [key_to_jwk_dict(ed25519_private_key, "kid")]})
 
         async def mock_transport(request):
-            return httpx.Response(status_code=200, content=jwk_content)
+            return httpx2.Response(status_code=200, content=jwk_content)
 
-        client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
+        client = httpx2.AsyncClient(transport=httpx2.MockTransport(mock_transport))
         current = 1_000_000.0
 
         def mock_monotonic():

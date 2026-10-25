@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
+import json
 import os
 import selectors
 import signal
@@ -66,6 +67,8 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.comms import SetTaskStateStore
+    from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -405,6 +408,23 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         return self
 
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
+        super()._on_child_started(
+            ti=ti,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
+        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        self._arm_execution_timeout()
+
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
@@ -444,6 +464,21 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         code = super().wait()
         self._close_unused_sockets(self._comm_server, self._logs_server)
         return code
+
+    def _handle_set_task_state_store(
+        self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # A Python task warns in its own setter; a language SDK runtime cannot compute the size
+        # json.dumps gives, so the supervisor warns for it in the task log.
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            if (size := len(json.dumps(msg.value))) > limit:
+                self.process_log.warning(
+                    "Task store value exceeds configured max_value_storage_bytes",
+                    key=msg.key,
+                    size=size,
+                    max_value_storage_bytes=limit,
+                )
+        return super()._handle_set_task_state_store(msg, log, req_id)
 
 
 def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:

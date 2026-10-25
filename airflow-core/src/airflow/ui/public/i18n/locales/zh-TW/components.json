@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "1 個錯誤",
     "errorAndWarning": "1 個錯誤與 {{warningText}}",
+    "types": {
+      "asset conflict": "資源衝突",
+      "duplicate dag id": "重複的 Dag ID",
+      "non-existent pool": "資源池不存在",
+      "runtime varying value": "執行時變動的值",
+      "task group cycle": "任務群組循環"
+    },
     "warning_one": "1 個警告",
     "warning_other": "{{count, number}} 個警告"
   },
@@ -162,6 +169,12 @@
   "toggleTableView": "顯示表格檢視",
   "triggerDag": {
     "button": "觸發",
+    "dagStartEndDate": {
+      "both": "Dag 開始日期：{{startDate}}，結束日期：{{endDate}}",
+      "end": "Dag 結束日期：{{endDate}}",
+      "noTaskWillRun": "不會執行任何任務。",
+      "start": "Dag 開始日期：{{startDate}}"
+    },
     "dataInterval": "資料區間",
     "dataIntervalAuto": "依邏輯日期與排程規則推斷",
     "dataIntervalManual": "手動指定",

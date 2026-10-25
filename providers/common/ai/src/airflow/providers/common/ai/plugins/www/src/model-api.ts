@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { regionQuery, type TaskRegion } from "./region.ts";
 import type { UsageInfo } from "src/types/model";
 
 function getApiBase(): string {
@@ -40,13 +41,15 @@ async function fetchXComValue<T>(
   taskId: string,
   mapIndex: number,
   key: string,
+  region?: TaskRegion,
 ): Promise<T | null> {
   const path =
     `${API_BASE}/dags/${encodeURIComponent(dagId)}` +
     `/dagRuns/${encodeURIComponent(runId)}` +
     `/taskInstances/${encodeURIComponent(taskId)}` +
     `/xcomEntries/${encodeURIComponent(key)}`;
-  const res = await fetch(`${path}?map_index=${mapIndex}&deserialize=true`, {
+  // A task inside a task loop needs its pass's region, or the route rejects the read as ambiguous.
+  const res = await fetch(`${path}?map_index=${mapIndex}&deserialize=true${regionQuery(region)}`, {
     credentials: "same-origin",
   });
   if (res.status === 404) return null;
@@ -66,12 +69,18 @@ function isUsageInfo(value: unknown): value is UsageInfo {
   return typeof value === "object" && value !== null;
 }
 
-export function createModelApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
+export function createModelApi(
+  dagId: string,
+  runId: string,
+  taskId: string,
+  mapIndex: number,
+  region?: TaskRegion,
+) {
   return {
     fetchModelName: () =>
-      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY),
+      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY, region),
     fetchUsage: async () => {
-      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, "usage");
+      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, "usage", region);
       // A reference-storing XCom backend (e.g. common.io with a low
       // xcom_objectstorage_threshold) returns the stored reference string here instead of
       // the real value, since this public endpoint never runs the backend's

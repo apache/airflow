@@ -986,7 +986,7 @@ class TestPydanticAIHookFallback:
         """``Connection.get_hook`` dispatches on conn_type alone and can return anything."""
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         registry.add("wrong_type", conn_type="langchain")
-        registry.hook_classes["wrong_type"] = MagicMock  # type: ignore[assignment]
+        registry.hook_classes["wrong_type"] = MagicMock
 
         hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["wrong_type"])
         with pytest.raises(ValueError, match="not a PydanticAIHook"):

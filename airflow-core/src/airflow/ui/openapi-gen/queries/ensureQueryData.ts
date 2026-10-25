@@ -1380,7 +1380,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @param data.regionId
 * @param data.regionIndex
 * @param data.loopId Task group id of a loop; matches every instance it produced.
-* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.taskId
 * @param data.runAfterGte
@@ -2476,13 +2476,29 @@ export const ensureUseGridServiceGetLoopHistoryData = (queryClient: QueryClient,
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runId
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGanttServiceGetGanttDataData = (queryClient: QueryClient, { dagId, runId }: {
+export const ensureUseGanttServiceGetGanttDataData = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }), queryFn: () => GanttService.getGanttData({ dagId, runId }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GanttService.getGanttData({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

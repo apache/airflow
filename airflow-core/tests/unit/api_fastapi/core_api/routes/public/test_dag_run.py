@@ -834,6 +834,23 @@ class TestGetDagRuns:
         assert len(collected) == len(set(collected)), "cursor pages overlapped"
         assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_start_date_lower_bound_excludes_finished_runs_with_null_start_date(self, test_client, session):
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN2_ID))
+        run.start_date = None
+        run.end_date = START_DATE1 + timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"start_date_gte": START_DATE2.isoformat(), "order_by": "dag_run_id"},
+        )
+
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [run["dag_run_id"] for run in body["dag_runs"]] == [DAG2_RUN1_ID, DAG2_RUN2_ID]
+
     @pytest.mark.parametrize(
         ("dag_id", "query_params", "expected_dag_id_list"),
         [
@@ -2356,7 +2373,7 @@ class TestClearDagRun:
             run_id=run.run_id,
             dag_version_id=run.created_dag_version_id,
             region_id=region.id,
-            region_index=1,
+            region_index=2,
         )
         later.state = State.SUCCESS
         session.add(later)
@@ -2368,7 +2385,7 @@ class TestClearDagRun:
 
         assert response.status_code == 200, response.text
         work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
-        assert {row["region_index"] for row in work} == {0, 1}
+        assert {row["region_index"] for row in work} == {1, 2}
         assert {row["map_index"] for row in work} == {-1}
         assert all(
             row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}

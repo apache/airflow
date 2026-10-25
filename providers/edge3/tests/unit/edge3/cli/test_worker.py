@@ -753,6 +753,60 @@ class TestEdgeWorker:
         assert launched_job not in worker_with_job.jobs
         assert not stderr_file_path.exists()
 
+    @pytest.mark.parametrize(
+        ("returncode", "expected_state", "expected_pushes"),
+        [
+            pytest.param(0, TaskInstanceState.SUCCESS, 1, id="success"),
+            pytest.param(1, TaskInstanceState.FAILED, 2, id="failure"),
+        ],
+    )
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch", autospec=True)
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state", autospec=True)
+    @patch("airflow.providers.edge3.cli.worker.logs_push", autospec=True)
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_reports_state_when_log_push_fails(
+        self,
+        mock_logs_push,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        returncode: int,
+        expected_state: TaskInstanceState,
+        expected_pushes: int,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        mock_logs_push.side_effect = ClientResponseError(
+            request_info=RequestInfo(url=URL("mock.com"), method="POST", headers=None),  # type:ignore[arg-type]
+            message="Internal Server Error",
+            status=500,
+            history=(),
+        )
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        worker_with_job.push_logs = True
+        logfile = tmp_path / "mock.log"
+        logfile.write_text("some log content")
+        launched_job = Job(edge_job, _MockProcess(returncode=returncode), logfile)
+
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
+
+        assert mock_logs_push.call_count == expected_pushes
+        assert mock_jobs_set_state.call_args_list == [
+            call(edge_job.key, TaskInstanceState.RUNNING, task_instance_id=None),
+            call(edge_job.key, expected_state, task_instance_id=None),
+        ]
+        assert launched_job not in worker_with_job.jobs
+
     @time_machine.travel(datetime.now(), tick=False)
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @pytest.mark.asyncio

@@ -71,6 +71,11 @@ def test_upgrade_has_floor_flag():
     assert option.default is True
 
 
+def test_upgrade_has_latest_package_managers_flag():
+    option = next(p for p in upgrade.params if p.name == "latest_package_managers")
+    assert option.default is False
+
+
 def test_existing_pr_body_is_replaced_with_the_new_report():
     # The upgrade branch name is stable, so most runs update an open PR instead of creating one.
     assert build_update_pr_body_command("ci-upgrade-main", "body with report") == [
