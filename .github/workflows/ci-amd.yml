@@ -352,6 +352,7 @@ jobs:
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      in-memory-runner-type: ${{ steps.selective-checks.outputs.in-memory-runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -461,6 +462,8 @@ jobs:
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
           # Repository variable: "true" moves every run, pushes included, back to public runners.
           USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+          # Repository variable: "false" keeps docker of the RunsOn jobs on disk instead of in RAM.
+          USE_IN_MEMORY_DOCKER: "${{ vars.USE_IN_MEMORY_DOCKER }}"
           PLATFORM: "linux/amd64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
@@ -764,7 +767,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -793,7 +796,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -822,7 +825,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -852,7 +855,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -881,7 +884,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -912,7 +915,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -1010,6 +1013,7 @@ jobs:
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       runners: ${{ needs.build-info.outputs.runner-type }}
+      in-memory-runners: ${{ needs.build-info.outputs.in-memory-runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
@@ -1059,7 +1063,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
