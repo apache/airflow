@@ -98,6 +98,68 @@ whose CI runs in the contributor's fork (AIP-120), the gate skips `build-info` a
 everything after it, so the run finishes in seconds; see
 [Fork CI for external contributors](08_fork_ci_for_external_contributors.md).
 
+### Approval of pull request runs
+
+GitHub holds the runs of a fork PR in `action_required` until someone with write access approves
+them, for the contributors the repository's approval setting covers. The
+`auto-approve-workflow-runs.yml` workflow runs every 30 minutes on `main` and calls
+`breeze ci approve-workflow-runs`, which approves the waiting runs of a commit when all of these hold:
+
+- the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
+  branches' own workflows and always wait for a maintainer
+- the PR changes nothing under `.github/`, `dev/breeze/` or `scripts/ci/`, which define the workflows
+  and choose the runners
+- the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
+  `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
+  run from `main`'s tree and do not know it)
+- selective checks for the PR's merge commit succeed, and do not need the full set of tests, all Python
+  and database versions, a canary build or upgraded dependencies (the estimate does not model them)
+- the jobs selective checks select are estimated at no more than 310 job-minutes on public runners
+  (about 23% of a full-tests run, just above the cluster of single core areas and the Helm chart)
+- the PR changes at most 100 lines of source code; tests (including e2e tests), docs, newsfragments,
+  translations, lock files and images are not counted
+
+A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
+project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
+gate: its runs are approved whatever its size, cost or dependency changes, unless it changes a file
+the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`, `scripts/ci/`,
+`scripts/docker/`, `scripts/in_container/`, `Dockerfile*`, `.pre-commit-config.yaml`). Such a PR gets
+the `need workflow approval` label and one comment telling the author that the CI change needs a
+maintainer; see
+[Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
+
+Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
+approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
+head of several open PRs is never approved automatically, because its runs cannot be told apart by
+PR, and only runs started after the PR was opened and after its base branch last changed are
+approved (retargeting a PR does not start new runs). A run selects its jobs from the labels the PR
+had when it started, while the decision uses the current labels, so for PRs that run project CI a
+run started before a label that changes which tests run was added or removed
+(`full tests needed`, `all versions`, `default versions only`, `latest versions only`, `canary`,
+`upgrade to newer dependencies`, `area:e2e-tests`, `area:kubernetes-tests`) is left for a
+maintainer, since it still runs the selection it started with; the next push is decided afresh.
+For a PR whose CI runs in the fork the selection does not matter, but the gate falls back to the
+labels a run started with when it cannot read the current ones, so a run started before
+`use fork ci` or `use project ci` was added or removed is left for a maintainer instead. Other PRs get the
+`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
+a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
+failure stays visible even if the label could not be added. The label is removed when a later commit
+of the PR is approved automatically.
+
+The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
+objects to list the changed files; it never checks out or runs the PR's code. The merge commit must
+have been built from the head commit whose runs get approved, so a push after the check cannot slip
+into an approved run. Approving with the workflow's `GITHUB_TOKEN` starts the runs right away, and
+`workflow_run` workflows that follow them still trigger.
+
+The estimate comes from `dev/breeze/src/airflow_breeze/utils/ci_minutes_estimate.py`, which turns the
+selective-check outputs into job groups with job-minutes and a wall-clock estimate, weighting
+providers by the size of their test suites. The job summary lists every waiting PR with its decision,
+the expected job groups and the estimated time. The numbers are medians of recent `Tests (AMD)` PR
+runs on public runners; refresh them with `dev/calibrate_ci_minutes_estimates.py`, as
+`.github/AGENTS.md` describes. Run `breeze ci approve-workflow-runs --report-only` (or dispatch the
+workflow with `report-only`) to see the decisions without approving or labelling anything.
+
 ## Fork push run
 
 These runs are triggered by a push to any branch of a contributor's fork in which the

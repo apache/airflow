@@ -214,6 +214,33 @@ def tamper_close_comment(*, run_url: str) -> str:
     )
 
 
+CI_CHANGE_MARKER = "<!-- workflow-approval: ci-change -->"
+# A long list of contributor-chosen paths would bury the explanation.
+MAX_LISTED_CI_FILES = 10
+
+
+def _sanitize_path(path: str) -> str:
+    # File names are the contributor's; a backtick or a line break would end the code span and let
+    # them post Markdown, including mentions, as the bot.
+    return "".join(char if char.isprintable() and char != "`" else "?" for char in path)
+
+
+def ci_change_approval_comment(*, ci_files: list[str]) -> str:
+    listed = [f"- `{_sanitize_path(path)}`" for path in ci_files[:MAX_LISTED_CI_FILES]]
+    if len(ci_files) > MAX_LISTED_CI_FILES:
+        listed.append(f"- and {len(ci_files) - MAX_LISTED_CI_FILES} more")
+    return (
+        f"{CI_CHANGE_MARKER}\n\n"
+        "**Your CI change needs a maintainer.** CI for this pull request runs in your fork, and the "
+        "workflow runs it starts in apache/airflow are approved automatically while they only run the "
+        "fork CI gate. This pull request changes files that define what CI runs:\n\n"
+        + "\n".join(listed)
+        + "\n\nSuch a change can make project CI run on the project's runners, so its workflow runs in "
+        "apache/airflow wait for a maintainer to review the change and approve them. CI in your fork "
+        "is not affected, and its result stays visible on this pull request. " + WHY_FORK_CI + FOOTER
+    )
+
+
 _STATUS_DESCRIPTIONS = {
     "setup_required": "Fork CI not set up - see the pull request comment",
     "awaiting_push": "Fork CI enabled, waiting for a push - see the pull request comment",
