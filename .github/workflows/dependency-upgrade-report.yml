@@ -76,6 +76,9 @@ jobs:
             const inputName = new RegExp('^dependency-report-inputs-(3\\.[0-9]+)-' +
               '(constraints(?:-source-providers|-no-providers)?)-(true|false)-([1-9][0-9]*)$');
             const saved = artifacts.map(a => [a, inputName.exec(a.name)]).filter(([, match]) => match);
+            // Only RunsOn runners can read RunsOn's S3 cache, where a canary on RunsOn keeps its CI image.
+            const runsOnRunner = `runs-on=${process.env.GITHUB_RUN_ID}/family=m7a+m7i+m6a+m6i` +
+              '/image=ubuntu22-full-x64/volume=150gb/cpu=8/ram=32';
             for (const [input, [, python, mode, useUv, attempt]] of saved) {
               if (attempt !== rawAttempt) continue;
               const entry = `${python}:${mode}`;
@@ -86,7 +89,11 @@ jobs:
                 continue;
               }
               // The stash action names the artifact after the stash key, with '/' as '_', and the branch.
-              const image = artifacts.find(a => a.name === `ci-image-save-v3-linux_amd64-${python}-main`);
+              // On RunsOn runners the image itself goes to RunsOn's S3 cache and the artifact is only
+              // its digest, stashed under the key plus '-s3' (see .github/actions/stash-save).
+              const imageName = `ci-image-save-v3-linux_amd64-${python}-main`;
+              const image = artifacts.find(a => a.name === imageName) ||
+                artifacts.find(a => a.name === `ci-image-save-v3-linux_amd64-${python}-s3-main`);
               const missing = input.expired ? 'inputs expired' :
                 !image ? 'CI image missing' : image.expired ? 'CI image expired' : '';
               if (missing) {
@@ -94,8 +101,9 @@ jobs:
                 skipped.push(`${entry} (${missing})`);
                 continue;
               }
-              include.push({ python, mode, 'use-uv': useUv,
-                'inputs-id': input.id, 'image-id': image.id });
+              const fromS3 = image.name !== imageName;
+              include.push({ python, mode, 'use-uv': useUv, 'inputs-id': input.id, 'image-id': image.id,
+                'image-source': fromS3 ? 's3' : 'artifact', runner: fromS3 ? runsOnRunner : 'ubuntu-22.04' });
             }
             core.setOutput('matrix', JSON.stringify({ include }));
             core.setOutput('has-reports', include.length > 0 ? 'true' : 'false');
@@ -120,7 +128,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.has-reports == 'true'
     name: "Explain ${{ matrix.python }}:${{ matrix.mode }}"
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     # Explaining constraints-source-providers took up to 115 minutes in the canary (Oct 2026).
     timeout-minutes: 150
     strategy:
@@ -139,14 +147,23 @@ jobs:
         with:
           ref: ${{ needs.plan.outputs.source-sha }}
           persist-credentials: false
-      # Docker moves to /mnt as in the image build jobs: the loaded image and uv resolutions outgrow /.
+      # The disk is prepared as in the image build jobs: the loaded image and uv resolutions outgrow /,
+      # and the runner scripts come from the workflow's own version, which knows RunsOn's disks.
+      - name: "Checkout the workflow version for its actions and runner scripts"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
+          sparse-checkout: |
+            .github/actions
+            scripts/ci
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
+        run: ./workflow-version/scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
-        run: ./scripts/ci/move_docker_to_mnt.sh
+        run: ./workflow-version/scripts/ci/move_docker_to_mnt.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Download the original CI image"
@@ -157,6 +174,42 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           merge-multiple: true
           path: /mnt
+        if: matrix.image-source == 'artifact'
+      - name: "Download the digest of the original CI image"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          artifact-ids: ${{ matrix.image-id }}
+          run-id: ${{ needs.plan.outputs.source-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/ci-image-digest
+        if: matrix.image-source == 's3'
+      # The tarball is the one the canary stashed, addressed by its digest as in
+      # .github/actions/stash-restore, so a later build on `main` cannot replace it.
+      - name: "Restore the original CI image from the RunsOn cache"
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(cat "${RUNNER_TEMP}/ci-image-digest/sha256")"
+          if [[ ! "${digest}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Malformed digest of the original CI image"
+            exit 1
+          fi
+          export AWS_DEFAULT_REGION="${RUNS_ON_AWS_REGION:?not running on a RunsOn runner}"
+          bucket="${RUNS_ON_S3_BUCKET_CACHE:?not running on a RunsOn runner}"
+          object="s3://${bucket}/cache/airflow-stash/sha256/${digest}.tar"
+          payload="${RUNNER_TEMP}/ci-image-stash.tar"
+          aws s3 cp --only-show-errors "${object}" "${payload}"
+          echo "${digest}  ${payload}" | sha256sum --check --status
+          tar -tPf "${payload}" | while IFS= read -r entry; do
+            if [[ "${entry}" != /mnt/* ]]; then
+              echo "::error::The original CI image stash holds ${entry} outside /mnt"
+              exit 1
+            fi
+          done
+          tar -xPf "${payload}"
+          rm -f "${payload}"
+        if: matrix.image-source == 's3'
       - name: "Load the original CI image"
         env:
           PYTHON_VERSION: ${{ matrix.python }}

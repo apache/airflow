@@ -25,6 +25,7 @@ import subprocess
 import pytest
 import yaml
 
+from airflow_breeze.global_constants import RUNS_ON_AMD_RUNNER_TEMPLATE
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 NODE_HARNESS = """
@@ -33,6 +34,7 @@ const input = JSON.parse(readFileSync(0, 'utf8'));
 process.env.SOURCE_RUN_ID = input.id;
 process.env.SOURCE_RUN_ATTEMPT = input.sourceAttempt;
 process.env.GITHUB_RUN_ATTEMPT = String(input.attempt);
+process.env.GITHUB_RUN_ID = '456';
 const result = { outputs: {}, requests: [], notices: [], warnings: [], summary: '' };
 const summary = {
   addHeading() { return this; }, addLink() { return this; },
@@ -141,6 +143,8 @@ def test_plan_keeps_original_inputs_when_the_report_is_rerun(source_run, source_
             "use-uv": "true",
             "inputs-id": 1,
             "image-id": 2,
+            "image-source": "artifact",
+            "runner": "ubuntu-22.04",
         }
     ]
     assert all(request["run_id"] == 123 for request in result["requests"])
@@ -251,21 +255,64 @@ def stash_artifact_name(key, ref):
     return "-".join(re.sub(r"[^_\-.\w]", "_", part) for part in (key, ref))
 
 
-@requires_node
-def test_plan_finds_the_image_under_the_name_the_canary_stashes_it(source_run, source_artifacts):
+def image_stash_key():
     steps = load_workflow("workflows/ci-image-build.yml")["jobs"]["build-ci-images"]["steps"]
     keys = [
         step["with"]["key"]
         for step in steps
-        if step.get("uses", "").startswith("apache/infrastructure-actions/stash/save@")
+        if step.get("uses", "").endswith("/stash-save")
         and step["with"]["key"].startswith("ci-image-save-")
         and "image-stash-ref" not in step["with"]["key"]
     ]
     assert keys == ["ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"]
     key = keys[0].replace("${{ inputs.platform }}", "linux/amd64")
-    key = key.replace("${{ env.PYTHON_MAJOR_MINOR_VERSION }}", "3.14")
+    return key.replace("${{ env.PYTHON_MAJOR_MINOR_VERSION }}", "3.14")
+
+
+def runs_on_digest_suffix():
+    """The suffix .github/actions/stash-save adds to the key of the digest it stashes on RunsOn."""
+    steps = load_workflow("actions/stash-save/action.yml")["runs"]["steps"]
+    digest = next(step for step in steps if step["name"] == "Save stash digest to GitHub artifacts")
+    return digest["with"]["key"].removeprefix("${{ inputs.key }}")
+
+
+@requires_node
+@pytest.mark.parametrize(
+    ("runs_on", "image_source", "runner"),
+    [
+        pytest.param(False, "artifact", "ubuntu-22.04", id="github-hosted-canary"),
+        pytest.param(
+            True, "s3", RUNS_ON_AMD_RUNNER_TEMPLATE.format(run_id="456").format(8, 32), id="runs-on-canary"
+        ),
+    ],
+)
+def test_plan_finds_the_image_under_the_name_the_canary_stashes_it(
+    source_run, source_artifacts, runs_on, image_source, runner
+):
+    key = image_stash_key() + (runs_on_digest_suffix() if runs_on else "")
     source_artifacts[1]["name"] = stash_artifact_name(key, "main")
-    assert included_inputs(run_plan(source_run, source_artifacts)) == [1]
+    [entry] = json.loads(run_plan(source_run, source_artifacts)["outputs"]["matrix"])["include"]
+    assert entry["inputs-id"] == 1
+    assert entry["image-id"] == 2
+    assert entry["image-source"] == image_source
+    assert entry["runner"] == runner
+
+
+def test_explain_restores_a_runs_on_image_where_stash_save_put_it():
+    stash_save = (AIRFLOW_ROOT_PATH / ".github" / "actions" / "stash-save" / "action.yml").read_text()
+    assert 'prefix="s3://${bucket}/cache/airflow-stash"' in stash_save
+    assert 'object="${prefix}/sha256/${digest}.tar"' in stash_save
+    steps = load_workflow("workflows/dependency-upgrade-report.yml")["jobs"]["explain"]["steps"]
+    by_name = {step["name"]: step for step in steps}
+    restore = by_name["Restore the original CI image from the RunsOn cache"]
+    assert 'object="s3://${bucket}/cache/airflow-stash/sha256/${digest}.tar"' in restore["run"]
+    assert "sha256sum --check" in restore["run"]
+    assert restore["if"] == "matrix.image-source == 's3'"
+    assert by_name["Download the digest of the original CI image"]["if"] == "matrix.image-source == 's3'"
+    assert by_name["Download the original CI image"]["if"] == "matrix.image-source == 'artifact'"
+    assert load_workflow("workflows/dependency-upgrade-report.yml")["jobs"]["explain"]["runs-on"] == (
+        "${{ matrix.runner }}"
+    )
 
 
 def test_each_canary_attempt_triggers_its_own_report():
@@ -282,12 +329,14 @@ def test_explain_prepares_the_disk_like_the_image_build_jobs():
     build_steps = load_workflow("workflows/ci-image-build.yml")["jobs"]["build-ci-images"]["steps"]
     steps = load_workflow("workflows/dependency-upgrade-report.yml")["jobs"]["explain"]["steps"]
     names = [step["name"] for step in steps]
+    workflow_version = "Checkout the workflow version for its actions and runner scripts"
     disk_steps = ["Free up disk space", "Make /mnt writeable", "Move docker to /mnt"]
-    assert names[1:5] == [*disk_steps, "Install Breeze"]
+    assert names[1:6] == [workflow_version, *disk_steps, "Install Breeze"]
     assert names.index("Install Breeze") < names.index("Download the original CI image")
-    build_runs = {step["name"]: step.get("run") for step in build_steps}
+    build = {step["name"]: step for step in build_steps}
+    assert steps[names.index(workflow_version)]["with"] == build[workflow_version]["with"]
     for name in disk_steps:
-        assert steps[names.index(name)]["run"] == build_runs[name]
+        assert steps[names.index(name)]["run"] == build[name]["run"]
 
 
 @pytest.mark.parametrize(

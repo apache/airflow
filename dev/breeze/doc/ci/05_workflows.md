@@ -467,7 +467,9 @@ ID from that run. It never substitutes the latest branch image or constraints: a
 saved constraints or image are missing or expired is skipped with a warning and listed in the
 summary, and the others are still explained. The image comes from the CI image stash, which
 keeps only the newest image per Python version and branch, so a later build on `main` can
-replace it within hours. Re-running the canary triggers the workflow again; inputs that an earlier attempt
+replace it within hours. A canary on RunsOn keeps the image in RunsOn's S3 cache and stashes
+only its digest; the report job then runs on a RunsOn runner and downloads exactly that tarball
+by its digest. Re-running the canary triggers the workflow again; inputs that an earlier attempt
 already saved are not explained again.
 
 The saved constraints are the constraints branch as the summary saw it, not constraints
