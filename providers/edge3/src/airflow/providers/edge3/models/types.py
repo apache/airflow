@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.executors import workloads
-    from airflow.executors.workloads import ExecuteCallback
+    from airflow.executors.workloads import ExecuteCallback, TestConnection
 
 if not AIRFLOW_V_3_3_PLUS:
     ExecuteTypeBody: TypeAlias = ExecuteTask
@@ -42,6 +42,14 @@ def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
         from airflow.executors.workloads import ExecuteCallback
 
         return isinstance(workload, ExecuteCallback)
+    return False
+
+
+def is_connection_test_execute(workload: workloads.All) -> TypeGuard[TestConnection]:
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads import TestConnection
+
+        return isinstance(workload, TestConnection)
     return False
 
 
@@ -80,4 +88,35 @@ def build_callback_job_filter() -> ColumnElement[bool]:
         EdgeJobModel.run_id == literal(CALLBACK_JOB_RUN_ID_PREFIX) + EdgeJobModel.task_id,
         EdgeJobModel.try_number == CALLBACK_JOB_TRY_NUMBER,
         EdgeJobModel.map_index == CALLBACK_JOB_MAP_INDEX,
+    )
+
+
+TEST_CONNECTION_TAG = "TestConnection"
+
+CONNECTION_TEST_JOB_TRY_NUMBER = 0
+CONNECTION_TEST_JOB_MAP_INDEX = -1
+CONNECTION_TEST_JOB_RUN_ID_PREFIX = f"{TEST_CONNECTION_TAG}-"
+
+
+def build_connection_test_run_id(connection_test_id: str) -> str:
+    return f"{CONNECTION_TEST_JOB_RUN_ID_PREFIX}{connection_test_id}"
+
+
+def is_connection_test_job(dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int) -> bool:
+    return (
+        dag_id == TEST_CONNECTION_TAG
+        and run_id == build_connection_test_run_id(task_id)
+        and try_number == CONNECTION_TEST_JOB_TRY_NUMBER
+        and map_index == CONNECTION_TEST_JOB_MAP_INDEX
+    )
+
+
+def build_connection_test_job_filter() -> ColumnElement[bool]:
+    from airflow.providers.edge3.models.edge_job import EdgeJobModel
+
+    return and_(
+        EdgeJobModel.dag_id == TEST_CONNECTION_TAG,
+        EdgeJobModel.run_id == literal(CONNECTION_TEST_JOB_RUN_ID_PREFIX) + EdgeJobModel.task_id,
+        EdgeJobModel.try_number == CONNECTION_TEST_JOB_TRY_NUMBER,
+        EdgeJobModel.map_index == CONNECTION_TEST_JOB_MAP_INDEX,
     )

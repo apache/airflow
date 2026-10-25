@@ -37,7 +37,7 @@ from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG, TEST_CONNECTION_TAG
 from airflow.providers.edge3.worker_api.routes.jobs import state as set_job_state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
@@ -45,11 +45,17 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
+    from airflow.executors.workloads import (
+        CallbackFetchMethod,
+        ExecuteCallback,
+        TaskInstanceDTO,
+        TestConnection as ConnectionTestWorkload,
+    )
     from airflow.executors.workloads.callback import CallbackDTO
+    from airflow.models.connection_test import ConnectionTestState
     from airflow.utils.state import CallbackState
 
 pytestmark = pytest.mark.db_test
@@ -881,6 +887,15 @@ class _WorkloadFactory:
             log_path="test.log",
         )
 
+    def _make_test_connection(self, queue: str | None = None) -> ConnectionTestWorkload:
+        return ConnectionTestWorkload(
+            connection_test_id=uuid4(),
+            connection_id="test_conn",
+            timeout=60,
+            queue=queue,
+            token="test_token",
+        )
+
 
 class TestQueueWorkload(_WorkloadFactory):
     @pytest.fixture(autouse=True)
@@ -921,7 +936,19 @@ class TestQueueWorkload(_WorkloadFactory):
         assert workload.key in executor.running
         assert executor.slots_available == executor.parallelism - 1
 
-    @pytest.mark.parametrize("make_workload", ["_make_execute_task", "_make_execute_callback"])
+    @pytest.mark.parametrize(
+        "make_workload",
+        [
+            "_make_execute_task",
+            "_make_execute_callback",
+            pytest.param(
+                "_make_test_connection",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+"
+                ),
+            ),
+        ],
+    )
     @pytest.mark.parametrize(
         ("job_state", "reported_state"),
         [
@@ -946,7 +973,12 @@ class TestQueueWorkload(_WorkloadFactory):
 
         executor.sync()
 
-        reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
+        if isinstance(workload, ExecuteTask):
+            reported_states = TaskInstanceState
+        elif isinstance(workload, ExecuteCallback):
+            reported_states = CallbackState
+        else:
+            reported_states = ConnectionTestState
         assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None)}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
@@ -1118,6 +1150,52 @@ class TestQueueWorkload(_WorkloadFactory):
             jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
             assert jobs[0].state == TaskInstanceState.QUEUED
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    @pytest.mark.parametrize(("queue", "expected_queue"), [(None, "default"), ("edge_queue", "edge_queue")])
+    def test_queue_workload_test_connection(self, queue, expected_queue):
+        executor = EdgeExecutor()
+        workload = self._make_test_connection(queue=queue)
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.dag_id == TEST_CONNECTION_TAG
+            assert job.task_id == str(workload.connection_test_id)
+            assert job.run_id == f"{TEST_CONNECTION_TAG}-{workload.connection_test_id}"
+            assert job.map_index == -1
+            assert job.try_number == 0
+            assert job.queue == expected_queue
+            assert job.state == TaskInstanceState.QUEUED
+            assert job.key == workload.key
+            assert '"type":"TestConnection"' in job.command or '"type": "TestConnection"' in job.command
+        assert workload.key in executor.running
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    def test_fail_connection_test_deletes_job(self):
+        executor = EdgeExecutor()
+        workload = self._make_test_connection()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        executor.fail_connection_test(workload.key)
+
+        assert workload.key not in executor.running
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)) is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    def test_declares_connection_test_support(self):
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            assert WorkloadType.TEST_CONNECTION in EdgeExecutor.supported_workload_types
+        else:
+            assert EdgeExecutor.supports_connection_test is True
 
     def test_queue_workload_unknown_type_raises(self):
         executor = EdgeExecutor()

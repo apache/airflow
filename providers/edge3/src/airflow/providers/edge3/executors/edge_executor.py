@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import UUID
 
 from sqlalchemy import case, delete, literal, select
@@ -40,9 +40,14 @@ from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWork
 from airflow.providers.edge3.models.types import (
     CALLBACK_JOB_MAP_INDEX,
     CALLBACK_JOB_TRY_NUMBER,
+    CONNECTION_TEST_JOB_MAP_INDEX,
+    CONNECTION_TEST_JOB_TRY_NUMBER,
     EXECUTE_CALLBACK_TAG,
+    TEST_CONNECTION_TAG,
     build_callback_run_id,
+    build_connection_test_run_id,
     is_callback_execute,
+    is_connection_test_execute,
 )
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.utils.db import DBLocks, create_global_lock
@@ -61,6 +66,9 @@ if TYPE_CHECKING:
 
     from airflow.cli.cli_config import GroupCommand
     from airflow.models.callback import CallbackKey
+    from airflow.models.connection_test import ConnectionTestKey
+
+    JobKey: TypeAlias = TaskInstanceUuid | TaskInstanceKey | CallbackKey | ConnectionTestKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]
@@ -84,12 +92,16 @@ class EdgeExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
+    if AIRFLOW_V_3_4_PLUS:
+        supported_workload_types: frozenset[WorkloadType] = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
+        )
+    else:
+        supports_connection_test: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.last_reported_state: dict[
-            TaskInstanceUuid | TaskInstanceKey | CallbackKey, TaskInstanceState | str
-        ] = {}
+        self.last_reported_state: dict[JobKey, TaskInstanceState | str] = {}
 
         # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
         # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
@@ -134,7 +146,7 @@ class EdgeExecutor(BaseExecutor):
         session: Session,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
-        key: TaskInstanceUuid | TaskInstanceKey | CallbackKey
+        key: JobKey
         if is_callback_execute(workload):
             existing_job = session.scalars(
                 select(EdgeJobModel).where(
@@ -162,6 +174,23 @@ class EdgeExecutor(BaseExecutor):
                         team_name=self.team_name,
                     )
                 )
+            key = workload.key
+        elif is_connection_test_execute(workload):
+            connection_test_id = str(workload.connection_test_id)
+            session.add(
+                EdgeJobModel(
+                    dag_id=TEST_CONNECTION_TAG,
+                    task_id=connection_test_id,
+                    run_id=build_connection_test_run_id(connection_test_id),
+                    map_index=CONNECTION_TEST_JOB_MAP_INDEX,
+                    try_number=CONNECTION_TEST_JOB_TRY_NUMBER,
+                    queue=workload.queue or self.conf.get_mandatory_value("operators", "default_queue"),
+                    concurrency_slots=1,
+                    state=TaskInstanceState.QUEUED,
+                    command=workload.model_dump_json(),
+                    team_name=self.team_name,
+                )
+            )
             key = workload.key
         elif isinstance(workload, workloads.ExecuteTask):
             task_instance = workload.ti
@@ -312,15 +341,13 @@ class EdgeExecutor(BaseExecutor):
 
         return bool(lifeless_jobs)
 
-    def _job_key(self, job: EdgeJobModel) -> TaskInstanceUuid | TaskInstanceKey | CallbackKey:
+    def _job_key(self, job: EdgeJobModel) -> JobKey:
         key = job.key
         if self.supports_task_instance_uuid and isinstance(key, TaskInstanceKey):
             return TaskInstanceUuid(UUID(job.task_instance_id or json.loads(job.command)["ti"]["id"]))
         return key
 
-    def _get_tracked_job_keys(
-        self, session: Session, states: Sequence[TaskInstanceState]
-    ) -> set[TaskInstanceUuid | TaskInstanceKey | CallbackKey]:
+    def _get_tracked_job_keys(self, session: Session, states: Sequence[TaskInstanceState]) -> set[JobKey]:
         """
         Read the keys of this team's jobs that are in one of ``states``.
 
@@ -341,11 +368,9 @@ class EdgeExecutor(BaseExecutor):
             EdgeJobModel.task_instance_id,
             command.label("command"),
         ).where(EdgeJobModel.team_name == self.team_name, EdgeJobModel.state.in_(states))
-        keys: set[TaskInstanceUuid | TaskInstanceKey | CallbackKey] = set()
+        keys: set[JobKey] = set()
         for job in session.execute(query):
-            key: TaskInstanceUuid | TaskInstanceKey | CallbackKey = build_job_key(
-                job.dag_id, job.task_id, job.run_id, job.try_number, job.map_index
-            )
+            key: JobKey = build_job_key(job.dag_id, job.task_id, job.run_id, job.try_number, job.map_index)
             if self.supports_task_instance_uuid and isinstance(key, TaskInstanceKey):
                 key = TaskInstanceUuid(UUID(job.task_instance_id or json.loads(job.command)["ti"]["id"]))
             keys.add(key)
@@ -489,6 +514,23 @@ class EdgeExecutor(BaseExecutor):
             if self._job_key(job) == key:
                 self._delete_job(job, session)
         self.log.info("Revoked task instance %s from EdgeExecutor", key)
+
+    @provide_session
+    def fail_connection_test(self, key: ConnectionTestKey, *, session: Session = NEW_SESSION) -> None:
+        super().fail_connection_test(key)
+        self.last_reported_state.pop(key, None)
+        jobs = session.scalars(
+            select(EdgeJobModel)
+            .with_for_update()
+            .where(
+                EdgeJobModel.dag_id == TEST_CONNECTION_TAG,
+                EdgeJobModel.task_id == key.id,
+                EdgeJobModel.run_id == build_connection_test_run_id(key.id),
+                EdgeJobModel.team_name == self.team_name,
+            )
+        )
+        for job in jobs:
+            self._delete_job(job, session)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
