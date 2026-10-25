@@ -337,6 +337,49 @@ where `*` is any characters except `/`).
 The `check-ci-workflows-in-sync` prek hook allowlist is extended to permit the `gate` job and
 the `build-info` dependency to exist only in the AMD workflow.
 
+### Approving gated runs
+
+GitHub holds the `pull_request` runs of a fork pull request in `action_required` until someone with
+write access approves them, for the contributors the repository's approval setting covers. Until
+then the gate job does not run either. A gated pull request would stay in the maintainers' approval
+queue even though its project CI run only executes the gate, and the reconciler could not delete a
+gated run that never ran.
+
+`breeze ci approve-workflow-runs`, run every 30 minutes by `auto-approve-workflow-runs.yml` (see
+[CI workflows](05_workflows.md#approval-of-pull-request-runs)), handles them. For a pull request to
+`main` it calls `fork_ci_gate.decide` with the configuration of its own `main` checkout and the
+pull request's author, association, creation time, head repository and current labels, the inputs
+the gate job of the waiting run uses. When the reason is gated (`external`, `pilot` or
+`label_fork_ci`), the rules for pull requests that run project CI (estimated job-minutes, lines of
+source code, dependency files, full tests) do not apply, because none of those jobs run. One rule
+applies instead:
+
+- The waiting runs of the head commit are approved when the pull request's merge commit changes no
+  file that the reconciler counts as CI-defining: `.github/`, `dev/breeze/`, `scripts/ci/`,
+  `scripts/docker/`, `scripts/in_container/`, `Dockerfile*` and `.pre-commit-config.yaml` (see
+  "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
+  `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
+  review) run on GitHub-hosted runners.
+- Otherwise the runs wait for a maintainer, the pull request is labelled `need workflow approval`,
+  and the workflow posts one comment explaining that the change to the listed CI files needs a
+  maintainer to review it and approve the runs. The comment starts with the marker
+  `<!-- workflow-approval: ci-change -->` and is posted once per pull request; only comments by
+  `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
+  workflow that does run, so such a run must not start without a review.
+
+A run started before `use fork ci` or `use project ci` was last added or removed is not approved
+automatically: the gate falls back to the labels of the run's event when it cannot read the current
+ones, and those can still send the run to project CI. The next push is decided afresh.
+
+Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
+approved automatically is also one whose green fork run is trusted, and one that changes CI is both
+left waiting for approval and labelled `needs project ci` once its fork run is green. The gate
+tampering check still applies to every run a maintainer approves by hand.
+
+The approval reads only API metadata and the git objects of the merge commit; it never checks out or
+runs the pull request's code. Pull requests to other branches keep the rules for project CI, which
+leave them to a maintainer.
+
 ## Fork mode CI
 
 ### Trigger
@@ -1022,6 +1065,9 @@ as a failed check rather than a crash.
   see "Trusting a green fork run".
 - Job statuses carry names from the contributor's workflow under their own `Fork CI job / <name>`
   prefix, so they cannot post the reconciler's own contexts or `CI passed`; see "Job statuses".
+- Workflow runs of a gated pull request are approved without a maintainer only when it changes no
+  CI-defining file, so a pull request that edits the gate away still waits for a maintainer before
+  any run starts; see "Approving gated runs".
 - The reconciler runs on `main` with `pull-requests: write` and never checks out or executes
   pull request content. Its inputs are API data; its comment templates are static.
 - Fork runs get the fork's `GITHUB_TOKEN` only. Nothing in project CI trusts a fork run's
