@@ -196,9 +196,13 @@ Auto-merge is enabled for the whole repository, so every branch that PRs target 
 then, its PRs never report the check, and a committer merges them by bypassing the rule.
 
 The `main` ruleset requires one check, **CI passed**. It is a job in the `Tests (AMD)` workflow that always
-runs and fails when any other CI job failed or was cancelled; jobs that selective checks skip count as
-passed, so PRs that run only part of the tests still get a result. The `check-ci-gate-needs` prek hook
-makes sure every new CI job is added to it. `Tests (ARM)`, which runs on pushes and on a schedule rather
+runs and fails when any other CI job failed; jobs that selective checks skip count as passed, so PRs that
+run only part of the tests still get a result. A run with cancelled jobs and no failed one reports as
+**CI passed (run cancelled)** instead, so a duplicate run of the same commit that concurrency cancelled
+does not show a failed **CI passed** next to its twin's result. Such a run does not report **CI passed**
+at all, so the PR stays blocked until another run of the commit, or a re-run, reports it. A job that
+hits its timeout is cancelled while the run is not, so that run's check fails, under the same name. The
+`check-ci-gate-needs` prek hook makes sure every new CI job is added to it. `Tests (ARM)`, which runs on pushes and on a schedule rather
 than on PRs, has the same job, kept identical by the `check-ci-workflows-in-sync` hook. For a PR that the
 fork CI gate (AIP-120) leaves to CI in the contributor's fork, project CI does not run, so the job reports
 as **CI passed (project CI not run)** instead, and the fork CI reconciler posts **CI passed** once the
