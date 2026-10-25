@@ -72,7 +72,7 @@ with DAG(
     deadline=DeadlineAlert(
         reference=DeadlineReference.DAGRUN_QUEUED_AT,
         interval=timedelta(seconds=30),
-        callback=AsyncCallback("airflow.example_dags.example_deadline_alert.notify_deadline_missed"),
+        callback=AsyncCallback(notify_deadline_missed),
         name="scheduled_and_manual_runs",
         run_type_filter={DagRunType.SCHEDULED, DagRunType.MANUAL},
     ),

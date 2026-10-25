@@ -2280,23 +2280,25 @@ export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClie
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
 /**
 * Get Dag Deadline Alerts
-* Get all deadline alerts defined on a Dag.
+* Get alerts from the latest Dag, a specified version, or a run's creation version.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
+* @param data.dagRunId
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDeadlinesServiceGetDagDeadlineAlertsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, versionNumber }: {
+export const ensureUseDeadlinesServiceGetDagDeadlineAlertsData = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy, versionNumber }: {
   dagId: string;
+  dagRunId?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, dagRunId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, dagRunId, limit, offset, orderBy, versionNumber }) });
 /**
 * Get Callback Logs
 * Get the execution logs of a deadline callback.

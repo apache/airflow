@@ -125,7 +125,45 @@ describe("Header", () => {
     },
   );
 
-  it("keeps stored deadlines visible when the current filter excludes the run", () => {
+  it.each([
+    { creationFilter: ["scheduled"], latestFilter: ["backfill"], visible: false },
+    { creationFilter: ["backfill"], latestFilter: ["scheduled"], visible: true },
+  ])(
+    "preserves deadline status=$visible after the filter changes",
+    ({ creationFilter, latestFilter, visible }) => {
+      vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockImplementation(
+        ({ dagRunId }) =>
+          ({
+            data: {
+              deadline_alerts: [
+                {
+                  id: "alert",
+                  interval: 25,
+                  reference_type: "DagRunQueuedAtDeadline",
+                  run_type_filter: dagRunId === baseDagRun.dag_run_id ? creationFilter : latestFilter,
+                },
+              ],
+              total_entries: 1,
+            },
+            isLoading: false,
+          }) as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>,
+      );
+
+      render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+
+      expect(screen.queryByText(i18n.t("dag:deadlineStatus.label")))[
+        visible ? "toBeInTheDocument" : "toBeNull"
+      ]();
+      expect(screen.queryByText(i18n.t("dag:deadlineStatus.met")))[
+        visible ? "toBeInTheDocument" : "toBeNull"
+      ]();
+      for (const [params] of vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mock.calls) {
+        expect(params).toEqual({ dagId: baseDagRun.dag_id, dagRunId: baseDagRun.dag_run_id, limit: 100 });
+      }
+    },
+  );
+
+  it("keeps stored deadlines visible without an applicable alert", () => {
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: {
         deadline_alerts: [

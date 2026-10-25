@@ -61,7 +61,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 });
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, dagRunId, limit: 100 });
   const { data: deadlineData } = useDeadlinesServiceGetDeadlines({
     dagId,
     dagRunId,

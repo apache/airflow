@@ -5519,6 +5519,7 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 
 export type GetDagDeadlineAlertsData = {
     dagId: string;
+    dagRunId?: string | null;
     limit?: number;
     offset?: number;
     /**
@@ -9904,6 +9905,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

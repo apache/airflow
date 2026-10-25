@@ -1456,7 +1456,8 @@ paths:
       tags:
       - Deadlines
       summary: Get Dag Deadline Alerts
-      description: Get all deadline alerts defined on a Dag.
+      description: Get alerts from the latest Dag, a specified version, or a run's
+        creation version.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -1476,6 +1477,14 @@ paths:
           - type: integer
           - type: 'null'
           title: Version Number
+      - name: dag_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -1514,6 +1523,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
