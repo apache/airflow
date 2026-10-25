@@ -451,6 +451,49 @@ unprivileged, which constrains what can go on it:
 When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
 `ubuntu-22.04` otherwise.
 
+### Spot interruptions of self-hosted runners
+
+Runs of `apache/airflow` committers and the canary run on self-hosted
+[RunsOn](https://runs-on.com) runners, which are EC2 Spot instances. When AWS reclaims
+one, RunsOn fails the job with an error annotation titled "EC2 Spot interruption", and
+once the run finishes it re-runs the failed jobs, after attempts 1 and 2; attempt 3 is
+its last. An interrupted job ends with exit code 137 and no test failure in its log.
+
+- **Pull requests.** `spot-interruption-notice.yml` checks the newest "Tests (AMD)" run of
+  each pull request every 10 minutes, including runs still in progress, and keeps one
+  comment on the pull request: which jobs were interrupted and that RunsOn re-runs them,
+  and, once the re-run finished, whether it passed. It runs on a schedule, not on the
+  runs' events, so no pull request run gets write access.
+- **Slack.** The `notify-slack` job of a canary does not post when every failure is a Spot
+  interruption that RunsOn re-runs, and leaves the notification state alone; it posts for
+  RunsOn's re-run instead, including when the re-run passed. It still posts for attempt
+  3, and for any other failure. A re-run started by a maintainer does not post.
+
+Both use `scripts/ci/spot_interruptions.py`, which recognises an interruption only by the
+annotation on a job that ran on a RunsOn runner: a pull request's run executes the pull
+request's workflow file, which could add such an annotation, but external contributors'
+runs use GitHub-hosted runners. A notice names the run it is about, and only that run's
+re-run reports into it. Completed runs are looked at for 7 days after they were created,
+so the outcome of a re-run of an older run is not reported.
+
+**API budget of the notice.** Each poll uses the workflow's `GITHUB_TOKEN`, whose limit for
+`apache/airflow`, a repository of an Enterprise Cloud account, is 15,000 requests an hour,
+shared by every workflow of the repository (it would be 1,000 outside an enterprise). Measured
+in October 2026, with 120-340 pull request runs of "Tests (AMD)" completing a day, a poll makes
+about 45-55 requests:
+
+| Requests | Per poll |
+|---|---|
+| Runs in progress | 1 |
+| Runs completed in the last 7 days, listed a day at a time (100 per page) | ~22 |
+| Jobs of each run in progress or changed in the last 2 hours (50 per page; ~140 jobs in a full run) | ~15-27 |
+| Annotations of failed jobs on RunsOn runners, pull request lookups, comments | ~5, more while runs are interrupted |
+
+That is about 270-330 requests an hour at one poll every 10 minutes, about 2% of the limit.
+Most of it is the listing of completed runs, which grows with the 7-day window: shortening
+it to 3 days saves about 12 requests a poll. A day with more than 1,000 completed runs would
+exceed what GitHub lists for one query, and the script then warns that older runs are missed.
+
 ## Implementation Details
 
 Here's how the composite workflow system is organized in practice.
