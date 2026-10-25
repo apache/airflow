@@ -385,7 +385,7 @@ Stable API Permissions
      - DAGs.can_read
      - Viewer
    * - ``/api/v2/dagBundles/{bundle_name}/refresh``
-     - POST
+     - PUT
      - DAGs.can_edit
      - User
    * - ``/api/v2/dagSources/{dag_id}``

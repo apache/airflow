@@ -442,10 +442,10 @@ def get_dag_bundle_files(
     )
 
 
-@dag_bundles_router.post(
+@dag_bundles_router.put(
     "/{bundle_name}/refresh",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(action_logging()), Depends(requires_access_dag_bundle(method="PUT"))],
 )
 def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefreshResponse:
@@ -460,6 +460,8 @@ def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefres
             )
             session.flush()
     except IntegrityError:
-        # The deterministic request key means an equivalent refresh is already pending.
-        pass
-    return DagBundleRefreshResponse(bundle_name=bundle_name)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A refresh request for this Dag bundle is already pending.",
+        ) from None
+    return DagBundleRefreshResponse(bundle_name="")

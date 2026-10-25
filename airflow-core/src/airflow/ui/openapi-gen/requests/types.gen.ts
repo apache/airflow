@@ -7156,7 +7156,7 @@ export type $OpenApiTs = {
         };
     };
     '/api/v2/dagBundles/{bundle_name}/refresh': {
-        post: {
+        put: {
             req: RefreshDagBundleData;
             res: {
                 /**
@@ -7175,6 +7175,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

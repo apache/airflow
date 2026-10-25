@@ -4102,6 +4102,7 @@ class TestDagFileProcessorManager:
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version=None)
         assert manager._bundle_versions["mock_bundle"] is None
 
+    @time_machine.travel("2024-01-01 00:00:00", tick=False)
     def test_requested_bundle_refresh_bypasses_refresh_interval(self):
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_versions["mock_bundle"] = None

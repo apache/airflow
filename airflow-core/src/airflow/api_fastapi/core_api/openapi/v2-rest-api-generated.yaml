@@ -3602,7 +3602,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagBundles/{bundle_name}/refresh:
-    post:
+    put:
       tags:
       - Dag Bundle
       summary: Refresh Dag Bundle
@@ -3643,6 +3643,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:

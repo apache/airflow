@@ -229,7 +229,12 @@ def requires_access_dag(
 
 
 def requires_access_dag_bundle(method: ResourceMethod) -> Callable[[str, BaseUser, Session], None]:
-    """Authorize a Dag bundle action against its owning team."""
+    """
+    Authorize the caller against the owning team of the requested Dag bundle.
+
+    A team-owned bundle uses that team's Dag scope. A global bundle uses the
+    global Dag scope.
+    """
 
     def inner(bundle_name: str, user: GetUserDep, session: SessionDep) -> None:
         bundle = session.scalar(
@@ -239,7 +244,7 @@ def requires_access_dag_bundle(method: ResourceMethod) -> Callable[[str, BaseUse
             )
         )
         if bundle is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag bundle not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag bundle is not found or inactive")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(

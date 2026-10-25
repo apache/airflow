@@ -1773,7 +1773,7 @@ export class DagBundleService {
      */
     public static refreshDagBundle(data: RefreshDagBundleData): CancelablePromise<RefreshDagBundleResponse> {
         return __request(OpenAPI, {
-            method: 'POST',
+            method: 'PUT',
             url: '/api/v2/dagBundles/{bundle_name}/refresh',
             path: {
                 bundle_name: data.bundleName
@@ -1782,11 +1782,12 @@ export class DagBundleService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
     }
-
+    
 }
 
 export class DagStatsService {
