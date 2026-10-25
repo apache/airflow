@@ -1491,9 +1491,11 @@ class TestDagTestFilesToSync:
             DoNothingOperator(task_id="plain")
 
         with mock.patch("airflow.models.dag.DagModel.get_current") as get_current:
-            files = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
+            to_sync = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
 
-        assert files == [own.resolve()]
+        assert to_sync is not None
+        assert to_sync.paths == [own.resolve()]
+        assert to_sync.dag_ids == {"parent"}
         get_current.assert_not_called()
 
     def test_files_to_sync_adds_target_files_known_to_the_metadata_db(self, bundle):
@@ -1516,9 +1518,12 @@ class TestDagTestFilesToSync:
         with mock.patch(
             "airflow.models.dag.DagModel.get_current", side_effect=lambda dag_id, session: models[dag_id]
         ) as get_current:
-            files = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
+            to_sync = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
 
-        assert files == sorted([own.resolve(), child_a.resolve(), child_b.resolve()])
+        assert to_sync is not None
+        assert to_sync.paths == sorted([own.resolve(), child_a.resolve(), child_b.resolve()])
+        # The Dags those files have to yield; the other bundle's Dag is not parsed here.
+        assert to_sync.dag_ids == {"parent", "child_a", "child_b"}
         assert get_current.call_args_list == [
             mock.call("child_a", session=mock.sentinel.session),
             mock.call("child_b", session=mock.sentinel.session),

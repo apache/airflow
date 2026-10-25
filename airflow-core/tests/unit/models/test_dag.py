@@ -470,6 +470,66 @@ class TestDag:
 
         assert [Path(f).resolve() for f in parsed] == [TEST_DAGS_FOLDER.resolve()]
 
+    # The second sync follows the first within seconds; without lowering the interval the moved
+    # Dag's serialized version would not be rewritten that soon, with or without the fix.
+    @conf_vars({("core", "load_examples"): "false", ("core", "min_serialized_dag_update_interval"): "0"})
+    def test_dag_test_walks_bundle_when_trigger_target_moved_to_another_file(
+        self, configure_testing_dag_bundle, tmp_path, session
+    ):
+        """
+        A trigger target that moved to another file, while its old file still defines another Dag, is
+        re-synced from its new file instead of being triggered from its stale serialized version.
+        """
+        imports = (
+            "from datetime import datetime\n"
+            "from airflow.providers.standard.operators.empty import EmptyOperator\n"
+            "from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator\n"
+            "from airflow.sdk import DAG\n"
+        )
+
+        def dag_source(dag_id: str, task: str) -> str:
+            return (
+                f"with DAG(dag_id={dag_id!r}, schedule=None, start_date=datetime(2024, 1, 1), "
+                f"is_paused_upon_creation=False):\n    {task}\n"
+            )
+
+        bundle = tmp_path / "dags"
+        bundle.mkdir()
+        (bundle / "parent.py").write_text(
+            imports
+            + dag_source(
+                "moving_target_parent",
+                'TriggerDagRunOperator(task_id="trigger", trigger_dag_id="moving_target")',
+            )
+        )
+        (bundle / "old.py").write_text(
+            imports
+            + dag_source("moving_target", 'EmptyOperator(task_id="before_move")')
+            + dag_source("moving_target_neighbour", 'EmptyOperator(task_id="stays")')
+        )
+
+        with configure_testing_dag_bundle(bundle):
+            parent = DagBag(dag_folder=os.fspath(bundle)).dags["moving_target_parent"]
+            assert parent.test().state == DagRunState.SUCCESS
+
+            # Move the target to new.py. old.py still exists, for the neighbour.
+            (bundle / "old.py").write_text(
+                imports + dag_source("moving_target_neighbour", 'EmptyOperator(task_id="stays")')
+            )
+            (bundle / "new.py").write_text(
+                imports + dag_source("moving_target", 'EmptyOperator(task_id="after_move")')
+            )
+
+            assert parent.test().state == DagRunState.SUCCESS
+
+        session.expire_all()
+        target = session.get(DagModel, "moving_target")
+        assert target is not None
+        assert target.relative_fileloc == "new.py"
+        serialized = DBDagBag().get_latest_version_of_dag("moving_target", session=session)
+        assert serialized is not None
+        assert serialized.task_ids == ["after_move"]
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()

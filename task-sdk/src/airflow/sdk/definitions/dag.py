@@ -32,7 +32,7 @@ from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeGuard, Union, cast, overload
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -1356,7 +1356,9 @@ class DAG:
             # are parsed when those files are known (apache/airflow#72513). The whole
             # bundle is walked when they are not: ``self`` lives outside the bundle, a
             # target has never been parsed so its file is unknown, or a target is only
-            # resolvable at runtime. ``sync_bag_to_db`` is idempotent at the per-DAG hash level.
+            # resolvable at runtime. It is also walked when a parsed file no longer defines
+            # the Dag recorded for it, e.g. a target that moved to another file while its old
+            # file stays. ``sync_bag_to_db`` is idempotent at the per-DAG hash level.
             #
             # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
             # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
@@ -1386,11 +1388,11 @@ class DAG:
                     bundle_name=bundle.name,
                     collect_dags=False,
                 )
-                files_to_parse = _dag_test_files_to_sync(self, bundle, session=session)
-                if files_to_parse is not None:
-                    for file_path in files_to_parse:
+                to_sync = _dag_test_files_to_sync(self, bundle, session=session)
+                if to_sync is not None:
+                    for file_path in to_sync.paths:
                         dagbag.collect_dags(dag_folder=file_path)
-                if files_to_parse is None or self.dag_id not in dagbag.dags:
+                if to_sync is None or not to_sync.dag_ids.issubset(dagbag.dags):
                     dagbag.collect_dags()
                 sync_bag_to_db(dagbag, bundle.name, bundle.version)
                 if DagVersion.get_version(self.dag_id):
@@ -1555,14 +1557,23 @@ def _static_trigger_targets(dag: DAG) -> set[str] | None:
     return targets
 
 
-def _dag_test_files_to_sync(dag: DAG, bundle, *, session) -> list[Path] | None:
+class _DagTestFiles(NamedTuple):
+    """The files ``DAG.test()`` parses in a bundle, and the Dags they are expected to define."""
+
+    paths: list[Path]
+    dag_ids: set[str]
+
+
+def _dag_test_files_to_sync(dag: DAG, bundle, *, session) -> _DagTestFiles | None:
     """
     Return the files ``DAG.test()`` has to parse in ``bundle`` for ``dag``.
 
-    That is the file defining ``dag`` plus the files of the Dags it triggers. Returns ``None`` when
-    the whole bundle has to be walked instead: ``dag`` is not defined inside the bundle, a trigger
-    target is not resolvable statically, or a target has never been parsed, so the metadata DB does
-    not know which file defines it (apache/airflow#64884).
+    That is the file defining ``dag`` plus the files of the Dags it triggers, along with the ids of
+    those Dags. When parsing the files does not yield all of them, the metadata DB is out of date
+    (a target moved to another file, say) and the caller walks the whole bundle. Returns ``None``
+    when the whole bundle has to be walked anyway: ``dag`` is not defined inside the bundle, a
+    trigger target is not resolvable statically, or a target has never been parsed, so the metadata
+    DB does not know which file defines it (apache/airflow#64884).
     """
     from airflow.models.dag import DagModel
 
@@ -1576,6 +1587,7 @@ def _dag_test_files_to_sync(dag: DAG, bundle, *, session) -> list[Path] | None:
         return None
 
     files = {own_file}
+    dag_ids = {dag.dag_id}
     for target_id in sorted(targets):
         target_model = DagModel.get_current(target_id, session=session)
         if target_model is None:
@@ -1593,7 +1605,8 @@ def _dag_test_files_to_sync(dag: DAG, bundle, *, session) -> list[Path] | None:
         if not target_file.is_relative_to(bundle_path) or not target_file.is_file():
             return None
         files.add(target_file)
-    return sorted(files)
+        dag_ids.add(target_id)
+    return _DagTestFiles(paths=sorted(files), dag_ids=dag_ids)
 
 
 def _run_task(
