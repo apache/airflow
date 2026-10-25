@@ -23,8 +23,9 @@ import os
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Callable
 from enum import Enum, auto
-from functools import cached_property
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -511,6 +512,55 @@ def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[
     ]
 
 
+# The release branches of a single component (the Helm chart, airflow-ctl) only ever get backports of that
+# component, so CI there runs that component's tests, whatever changed, and nothing else. Per component,
+# the outputs decorated with `_scoped_to_component_branch` that run: True forces one on, and an output
+# missing from the table is off. Static checks and docs still run. The PROD image is built for those
+# tests alone: `run_generic_prod_image_tests` stays off.
+COMPONENT_BRANCH_OUTPUTS: dict[str, dict[str, bool | None]] = {
+    "chart": {
+        "run_helm_tests": True,
+        "run_kubernetes_tests": True,
+        # Helm unit tests run in the CI image; Kubernetes tests deploy the PROD image.
+        "ci_image_build": True,
+        "prod_image_build": True,
+    },
+    "airflow-ctl": {
+        "run_airflow_ctl_tests": True,
+        "run_airflow_ctl_integration_tests": True,
+        # The airflow-ctl integration tests run against the PROD image, built from the CI image.
+        "ci_image_build": True,
+        "prod_image_build": True,
+    },
+}
+# The documentation built on a component's branch, when documentation changed.
+COMPONENT_BRANCH_DOCS = {"chart": "helm-chart", "airflow-ctl": "apache-airflow-ctl"}
+# The release branches of each component, as in the pull_request branch filters of the CI workflow. A
+# feature branch named after a component, say chart/fix-ingress, is not one of them.
+COMPONENT_BRANCH_PATTERNS = {
+    "chart": re.compile(r"^chart/v\d+-\d+x-(test|stable)$"),
+    "airflow-ctl": re.compile(r"^airflow-ctl/v\d+-\d+-(test|stable)$"),
+}
+
+
+def _scoped_to_component_branch(func: Callable[[SelectiveChecks], bool]) -> Callable[[SelectiveChecks], bool]:
+    """Restrict an output deciding whether a test job runs to the component of a component branch."""
+
+    @wraps(func)
+    def wrapper(self: SelectiveChecks) -> bool:
+        component = self._component_branch
+        if component is None:
+            return func(self)
+        outputs = COMPONENT_BRANCH_OUTPUTS[component]
+        if func.__name__ not in outputs:
+            return False
+        forced = outputs[func.__name__]
+        return func(self) if forced is None else forced
+
+    wrapper.scoped_to_component_branch = True  # type: ignore[attr-defined]
+    return wrapper
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
@@ -566,6 +616,23 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+
+    @cached_property
+    def _target_branch(self) -> str:
+        """The branch a pull request targets, or the branch a push or a dispatched run is on."""
+        return self._github_context_dict.get("base_ref") or self._github_context_dict.get("ref_name") or ""
+
+    @cached_property
+    def _component_branch(self) -> str | None:
+        """The component in COMPONENT_BRANCH_OUTPUTS whose release branch the run targets, if any."""
+        return next(
+            (
+                component
+                for component, pattern in COMPONENT_BRANCH_PATTERNS.items()
+                if pattern.match(self._target_branch)
+            ),
+            None,
+        )
 
     @cached_property
     def latest_versions_only(self) -> bool:
@@ -923,14 +990,17 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_api_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ol_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.ASSET_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -939,10 +1009,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ui_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ui_e2e_tests(self) -> bool:
         return (
             self._should_be_run(FileGroupForCi.UI_FILES)
@@ -951,18 +1023,21 @@ class SelectiveChecks:
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_remote_logging_s3_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_S3_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_remote_logging_elasticsearch_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -972,24 +1047,29 @@ class SelectiveChecks:
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_task_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_task_sdk_integration_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES) or self._should_be_run(
             FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_airflow_ctl_integration_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
             FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
@@ -1000,6 +1080,7 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.SCRIPTS_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_kubernetes_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
@@ -1008,10 +1089,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.DOC_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_helm_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
 
     @cached_property
+    @_scoped_to_component_branch
     def run_unit_tests(self) -> bool:
         def _only_new_ui_files() -> bool:
             all_source_files = set(
@@ -1042,6 +1125,7 @@ class SelectiveChecks:
         return all(Path(file).name == "pyproject.toml" for file in self._files)
 
     @cached_property
+    @_scoped_to_component_branch
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
@@ -1059,6 +1143,21 @@ class SelectiveChecks:
         )
 
     @cached_property
+    @_scoped_to_component_branch
+    def run_generic_basic_tests(self) -> bool:
+        """The basic tests of Airflow itself that run for every change: the standalone Airflow and the
+        shared distributions."""
+        return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_generic_prod_image_tests(self) -> bool:
+        """The tests of the PROD image itself, run whenever it is built: Docker Compose, the image-building
+        examples and the basic end-to-end tests."""
+        return self.prod_image_build
+
+    @cached_property
+    @_scoped_to_component_branch
     def prod_image_build(self) -> bool:
         return (
             self.run_kubernetes_tests
@@ -1387,6 +1486,8 @@ class SelectiveChecks:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
+        if self._component_branch is not None:
+            return COMPONENT_BRANCH_DOCS[self._component_branch]
         if self._default_branch != "main":
             return "apache-airflow docker-stack"
         if self.full_tests_needed:
@@ -1472,6 +1573,8 @@ class SelectiveChecks:
 
     @cached_property
     def skip_providers_tests(self) -> bool:
+        if self._component_branch is not None:
+            return True
         if self._default_branch != "main" or (not self._default_branch.startswith("chart/v1-2x")):
             return True
         if self.full_tests_needed:
@@ -1601,6 +1704,7 @@ class SelectiveChecks:
         return PUBLIC_ARM_RUNNERS
 
     @cached_property
+    @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
 

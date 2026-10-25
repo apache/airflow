@@ -111,6 +111,8 @@ jobs:
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      run-generic-prod-image-tests: ${{ steps.selective-checks.outputs.run-generic-prod-image-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
@@ -212,6 +214,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
+      run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -784,6 +787,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-prod-image-tests: ${{ needs.build-info.outputs.run-generic-prod-image-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
