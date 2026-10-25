@@ -20,6 +20,11 @@ name: CI Image Checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -154,6 +159,7 @@ jobs:
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
       - name: "Show prek log on failure"
