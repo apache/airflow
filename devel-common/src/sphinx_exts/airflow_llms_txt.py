@@ -228,9 +228,12 @@ def _xref_title(xref: addnodes.pending_xref, env: BuildEnvironment) -> str | Non
 
 def _separate_markdown_doctrees(app: Sphinx, config: Config) -> None:
     """Give the Markdown build its own doctree cache."""
-    # sphinx-llm's sequential build shares the HTML cache, which can reuse
-    # incompatible doctrees or overwrite them. Set a separate cache before
-    # Sphinx creates the environment.
+    # In sequential mode, sphinx-llm shares the HTML build's cache, but
+    # extensions can transform doctrees differently for HTML and Markdown.
+    # This cache lives inside sphinx-llm's temporary Markdown output directory,
+    # which is deleted after the Markdown files are copied.
+    # Remove this workaround once Airflow uses the upstream cache-isolation fix.
+    # config-inited runs before Sphinx creates the environment.
 
     if app.tags.has("sphinx_llm_markdown"):
         app.doctreedir = Path(app.outdir) / ".doctrees"
@@ -279,8 +282,15 @@ def _clean_markdown_doctree(app: Sphinx, doctree: nodes.document, docname: str) 
     source_url = app.config.llms_txt_source_url
     for reference in doctree.findall(nodes.reference):
         refuri = reference.get("refuri", "")
+
+        # |version| in a URL is not an RST substitution.
+        # extra_provider_files_with_substitutions rewrites only the built HTML,
+        # so Markdown needs the equivalent replacement on the doctree.
         if "|version|" in refuri:
             refuri = reference["refuri"] = refuri.replace("|version|", app.config.version)
+
+        # Give handwritten GitHub release links the same source ref as
+        # exampleinclude links, so both point to examples matching these docs.
         if release_url and source_url and release_url != source_url:
             for kind in ("blob", "tree"):
                 prefix = release_url.replace("/blob/", f"/{kind}/")
@@ -417,6 +427,15 @@ def _write_llms_txt(app: Sphinx, exception: Exception | None) -> None:
         return
     env = app.env
     outdir = Path(app.outdir)
+    root_doc = app.config.root_doc
+
+    # Report a missing root page before the coverage check lists every HTML page.
+    # sphinx-llm logs subprocess failures above without copying the Markdown output.
+    if not (outdir / f"{root_doc}.html.md").is_file():
+        raise ExtensionError(
+            f"The Markdown build did not generate {root_doc}.html.md; "
+            "check the sphinx-llm build output above for errors."
+        )
 
     _write_markdown_redirects(app)
     _check_markdown_coverage(outdir)
@@ -433,7 +452,6 @@ def _write_llms_txt(app: Sphinx, exception: Exception | None) -> None:
         description = _page_description(env, docname) if describe else ""
         return f"{line}: {description}" if description else line
 
-    root_doc = app.config.root_doc
     root = env.get_doctree(root_doc)
     # A caption's own pages come first; each page with pages under it gets a section of its own.
     # Each section is its caption and its (docname, llms.txt line) pairs.

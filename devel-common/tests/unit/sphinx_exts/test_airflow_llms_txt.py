@@ -167,12 +167,23 @@ def test_coverage_excludes_special_pages(tmp_path, name):
     airflow_llms_txt._check_markdown_coverage(tmp_path)
 
 
-def test_missing_root_markdown_fails_build(tmp_path):
-    app = make_app(tmp_path, found_docs={"index"})
-    (app.outdir / "index.html").write_text("HTML", encoding="utf-8")
+@pytest.mark.parametrize("root_doc", ["index", "guide/start"])
+def test_missing_root_markdown_fails_build(tmp_path, root_doc):
+    app = make_app(tmp_path, found_docs={root_doc, "other"})
+    app.config.root_doc = root_doc
 
-    with pytest.raises(ExtensionError, match="index.html"):
+    for name in (root_doc, "other"):
+        page = app.outdir / f"{name}.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text("HTML", encoding="utf-8")
+
+    with pytest.raises(ExtensionError) as exc:
         airflow_llms_txt._write_llms_txt(app, None)
+
+    assert str(exc.value) == (
+        f"The Markdown build did not generate {root_doc}.html.md; "
+        "check the sphinx-llm build output above for errors."
+    )
 
 
 @pytest.mark.parametrize(
@@ -198,6 +209,25 @@ def test_index_generation_skipped(tmp_path, builder, enabled, exception):
 
     assert not (app.outdir / "llms.txt").exists()
     assert not (app.outdir / "llms-full.txt").exists()
+
+
+def test_index_generation_reports_partial_markdown_coverage(tmp_path):
+    app = make_app(
+        tmp_path,
+        found_docs={"index", "guide", "operators/llm"},
+    )
+
+    for name in ("index", "guide", "operators/llm"):
+        page = app.outdir / f"{name}.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text("HTML", encoding="utf-8")
+
+    (app.outdir / "index.html.md").write_text("# Documentation\n", encoding="utf-8")
+
+    with pytest.raises(ExtensionError) as exc:
+        airflow_llms_txt._write_llms_txt(app, None)
+
+    assert str(exc.value) == ("HTML pages missing Markdown copies:\n  guide.html\n  operators/llm.html")
 
 
 def test_indexes_follow_navigation_and_use_versioned_urls(tmp_path):
@@ -534,7 +564,7 @@ Rendering
 Setup
 -----
 
-See `Setup`_.
+See :ref:`Setup <setup-section>`.
 
 .. note::
 
@@ -635,6 +665,4 @@ def test_rendered_table_is_compact(rendered_markdown):
 
 
 def test_rendered_same_page_link(rendered_markdown):
-    assert "[Setup]()" not in rendered_markdown
-    assert "[Setup]" in rendered_markdown
-    assert "#setup-section" in rendered_markdown or "#setup" in rendered_markdown
+    assert "[Setup](#setup-section)" in rendered_markdown
