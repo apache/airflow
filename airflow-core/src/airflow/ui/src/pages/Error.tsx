@@ -81,6 +81,11 @@ export const ErrorPage = () => {
             >
               {translate("error.home")}
             </Button>
+            {error === null || error === undefined ? undefined : (
+              <Button onClick={() => globalThis.location.reload()} size="lg" variant="outline">
+                {translate("error.reload")}
+              </Button>
+            )}
           </HStack>
         </VStack>
       </Container>

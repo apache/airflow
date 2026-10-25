@@ -118,6 +118,7 @@
     "home": "Home",
     "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
+    "reload": "Reload page",
     "title": "Error"
   },
   "errors": {
