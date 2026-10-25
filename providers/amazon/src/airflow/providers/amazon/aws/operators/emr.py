@@ -1316,10 +1316,11 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         ``cancel_on_kill`` then defaults to False; if it is set to True explicitly, a retried or cleared
         task cancels its previous run and submits a fresh one instead of reconnecting to it, like
         ``GlueJobOperator`` with ``stop_job_run_on_kill=True``.
-        Because task state is retained across a clear (unless ``[state_store] clear_on_success`` is
-        enabled), clearing a task whose run already succeeded reconnects to that completed run and
-        returns without re-running it. Defaults to False. Has no effect on Airflow < 3.3, where task
-        state is unavailable.
+        A task whose stored run already succeeded returns that run without re-running it. On Airflow
+        3.4+ clearing a task discards its task state unless ``keep_task_state`` is set, so a plain
+        clear submits a new run; with ``cancel_on_kill`` off the old run keeps going, so set
+        ``cancel_on_kill=True`` to stop it. Defaults to False. Has no effect on Airflow < 3.3, where
+        task state is unavailable.
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
         into the EMR Serverless ``spark-defaults`` configuration so the Spark job emits a
         ``parentRunFacet`` linking back to the Airflow task. Defaults to the
