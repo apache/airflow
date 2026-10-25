@@ -467,8 +467,9 @@ Its first parameter is an ``airflow.Context``, which gives it what Airflow provi
      - ``DagID``, ``RunID``, ``TaskID`` (including any task group prefix), ``MapIndex`` (``nil`` for an unmapped
        task) and ``TryNumber``.
    * - ``actx.DagRun()``
-     - ``DagID``, ``RunID``, and the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and
-       ``DataIntervalEnd`` (``nil`` when the run has no such value, such as a manual run).
+     - ``DagID``, ``RunID``, the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and
+       ``DataIntervalEnd`` (``nil`` when the run has no such value, such as a manual run), and ``Conf``. See
+       :ref:`go-sdk/dag-run-conf`.
 
 ``airflow.Context`` is a ``context.Context``, so pass it to a client call or to ``http.NewRequestWithContext``. Its
 ``Done()`` fires when Airflow stops the task, so long-running work can stop cleanly. Cleanup that must outlive
@@ -488,6 +489,32 @@ retries it if the task has retries.
         airflow.DagRun{DagID: "simple_dag", RunID: "run1"},
     )
     require.NoError(t, transform(actx, "uk", map[string]any{"rows": 42}))
+
+.. _go-sdk/dag-run-conf:
+
+The Dag run conf
+~~~~~~~~~~~~~~~~
+
+``actx.DagRun().Conf`` is the conf the run was triggered with, a ``map[string]any`` whose values have the Go
+types listed in :ref:`the XCom type mapping <go-sdk/types>`. It is ``nil`` for a run triggered without a conf.
+
+.. code-block:: go
+
+    func load(actx airflow.Context) error {
+        table, ok := actx.DagRun().Conf["target_table"].(string)
+        if !ok {
+            return errors.New("this Dag run needs a target_table in its conf")
+        }
+        ...
+    }
+
+An integer arrives as a Go integer type whose width depends on the value, so round-trip a number, or an object
+nested in the conf, through ``json.Marshal`` and ``json.Unmarshal`` into a typed Go value rather than asserting
+one integer type.
+
+The conf holds only the values the run was triggered with. In a Python task, ``params`` combines the conf with
+the defaults of the Dag's params; ``Conf`` does not carry those defaults, so a scheduled run usually has no
+conf at all.
 
 .. _go-sdk/client:
 
