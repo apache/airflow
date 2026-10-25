@@ -30,6 +30,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
+# Each job of the fork run is reported under this prefix. Job names come from the contributor's
+# workflow, so the prefix keeps them from posting STATUS_CONTEXT or CI_PASSED_CONTEXT.
+JOB_STATUS_CONTEXT_PREFIX = "Fork CI job / "
+JOB_NAME_MAX_LENGTH = 100
 # The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
 # CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
 # reports it from the fork run.
@@ -74,12 +78,16 @@ class Marker:
     since: datetime
     # Commits the head commit was behind its base branch when its fork CI turned green.
     behind: int | None = None
+    # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
+    jobs: str | None = None
 
 
 def render_marker(marker: Marker) -> str:
     data: dict[str, object] = {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}
     if marker.behind is not None:
         data["behind"] = marker.behind
+    if marker.jobs is not None:
+        data["jobs"] = marker.jobs
     return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
 
 
@@ -95,6 +103,7 @@ def parse_marker(body: str) -> Marker | None:
             sha=data["sha"],
             since=datetime.fromisoformat(data["since"]),
             behind=data.get("behind"),
+            jobs=data.get("jobs"),
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         raise ValueError(f"Malformed fork CI marker: {match.group(0)!r}") from e
@@ -216,6 +225,33 @@ _STATUS_DESCRIPTIONS = {
     "released": "Project CI in use (label `use project ci`) - see the checks",
     "ungated": "Project CI in use (base branch without fork CI) - see the checks",
 }
+
+# (commit status state, description) of a fork job, by its status and conclusion. A queued job is
+# reported like a running one: each change is one more write, and commit statuses can only be posted
+# one at a time (GraphQL has no mutation for them).
+JOB_STATUSES = {
+    "running": ("pending", "Running in the fork - see Details"),
+    "success": ("success", "Passed in the fork - see Details"),
+    "failure": ("failure", "Failed in the fork - see Details"),
+    "timed_out": ("failure", "Timed out in the fork - see Details"),
+    "startup_failure": ("failure", "Failed to start in the fork - see Details"),
+    "cancelled": ("failure", "Cancelled in the fork - see Details"),
+}
+
+
+# Commit statuses cannot be deleted and have no neutral state. A job reported for an earlier run that
+# the latest completed run does not have is overwritten with this, so it no longer shows as running
+# or failed; `Fork CI / Tests (AMD)` is what tells the result.
+STALE_JOB_STATUS = ("success", "Not in the latest fork run - see Fork CI / Tests (AMD)")
+
+
+def job_status_context(job_name: str) -> str:
+    # A line break or control character would make an unreadable check name.
+    name = "".join(char if char.isprintable() else " " for char in job_name).strip()
+    if len(name) > JOB_NAME_MAX_LENGTH:
+        name = f"{name[: JOB_NAME_MAX_LENGTH - 1]}…"
+    return f"{JOB_STATUS_CONTEXT_PREFIX}{name}"
+
 
 STATUS_STATES = {
     "setup_required": "error",

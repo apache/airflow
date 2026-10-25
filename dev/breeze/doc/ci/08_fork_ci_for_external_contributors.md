@@ -661,6 +661,87 @@ Commit statuses were chosen over check runs because a check run created with the
 token is attached to the creating workflow's check suite and its details link then opens the
 monitor run rather than `details_url`. A status honours `target_url`.
 
+### Job statuses
+
+Next to the aggregate status, each job of the fork run is reported as its own commit status, so
+the pull request shows which jobs run, failed or passed, each linking to the job in the fork.
+The run is the one `Fork CI / Tests (AMD)` reports (its `databaseId` is fetched with the check
+suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`.
+
+- The context is `Fork CI job / <job name>`, with non-printable characters replaced and the name
+  shortened to 100 characters. Job names come from the workflow of the contributor's commit, so
+  the prefix is what keeps a job from posting `Fork CI / Tests (AMD)`, from which the reconciler
+  reads its decisions back, or `CI passed`, which the merge ruleset requires. Jobs that share a
+  context, which GitHub compares case-insensitively, are reported as the worst of them.
+- A queued or running job is `pending` ("Running in the fork"), a successful one `success`, and a
+  failed, timed-out, cancelled or unstartable one `failure`. Skipped and neutral jobs, and the jobs
+  every run has (`Fork CI gate`, `Check if the run is needed`, `Platform: AMD` and `CI passed`), are
+  not reported. Queued and running share one status so that starting a job costs no write.
+- The desired statuses are compared with the head commit's current ones
+  (`GET /repos/apache/airflow/commits/<sha>/status`), and only differences are posted, failures
+  first. GraphQL has no mutation for commit statuses (`createCheckRun` exists, but see above for
+  why check runs do not fit), so each one is a REST call, and they count towards GitHub's limits on
+  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (60) of
+  them, each write charged as it is made. What does not fit is posted by the next run, and once
+  the budget is spent no further pull request's jobs or statuses are read in that run. A run that
+  defers job statuses adds a note to the Slack message, with fixed wording so it is posted once
+  while deferrals persist; the run log lists the pull requests.
+- Commit statuses cannot be deleted and have no neutral state. When a run has completed, a job
+  context posted for an earlier run of the same commit that the completed run does not have, or
+  skipped, is overwritten with `success` and the description "Not in the latest fork run - see
+  Fork CI / Tests (AMD)", so it no longer shows as running or failed.
+- Once every job of a completed run is reported, the run is recorded in the marker as
+  `jobs: "<run id>:<attempt>:<conclusion>"` (`runAttempt` is fetched with the check suites), so
+  later runs do not read its jobs again. A run in progress is read on every run, and a re-run in
+  the fork is read again because its attempt changes, even when it ends with the same conclusion.
+- Reporting job statuses is caught on its own: when it fails, the failure is listed with the
+  unknown items for Slack, and the pull request is still classified, so for example a `CI passed`
+  that no longer holds is still revoked.
+
+The job statuses are informational. Merging still depends on `CI passed`, and the state machine
+on `Fork CI / Tests (AMD)`; a job status never changes either.
+
+`job_statuses = false` in `.github/fork-ci-gate.toml` turns them off; the reconciler then posts
+only `Fork CI / Tests (AMD)` and `CI passed`, as before. Statuses already posted stay on their
+commits. Turn them off when the fork CI monitor's runs hit GitHub's rate limits (rate-limit
+retries in the run log, or "still rate limited" errors in Slack); `dev/AGENTS.md` records this for
+agents.
+
+#### Write budget
+
+Measured on 2026-10-25 from `apache/airflow`'s own `Tests (AMD)` pull request runs (the same
+workflow runs in the forks; `GET /repos/apache/airflow/actions/runs/<id>/jobs?filter=latest`,
+jobs whose conclusion is not `skipped`, minus the four jobs that are not reported):
+
+| Pull request | Run | Started jobs | Reported job statuses |
+|---|---|---|---|
+| Breeze test fix | [40138784120](https://github.com/apache/airflow/actions/runs/40138784120) | 11 | 7 |
+| Documentation fix | [40169750323](https://github.com/apache/airflow/actions/runs/40169750323) | 16 | 12 |
+| Google provider change | [40158907296](https://github.com/apache/airflow/actions/runs/40158907296) | 43 | 39 |
+| CI change (full tests) | [40207881565](https://github.com/apache/airflow/actions/runs/40207881565) | 131 | 127 |
+
+`apache/airflow` had 1898 `Tests (AMD)` pull request runs from 2026-10-18 to 2026-10-24, about 270 a
+day or 11 an hour. Each reported job costs at most two writes (running, then its result) and one
+when it starts and finishes between two reconciler runs; a fork run of 30-60 minutes spans two to
+four of them, so most jobs cost two.
+
+The limits that matter are GitHub's documented ones for the `GITHUB_TOKEN` of `apache/airflow`,
+shared by every workflow of the repository: 1000 REST requests an hour, and 80 content-creating
+requests a minute and 500 an hour. Assuming about 35 reported jobs for an average push:
+
+- **Contributor pilot**, a few gated pushes a day: about 70 writes a push, under 20 an hour, under
+  5% of the content-creating limit.
+- **Gate enabled**, assuming about half of the pull request runs come from gated pull requests
+  (about 5-6 pushes an hour): about 400 writes an hour without a cap, 80% of the content-creating
+  limit and more at peaks. The cap of 60 writes a run, four runs an hour, holds job statuses to at
+  most 240 an hour: 48% of the content-creating limit and 24% of the REST limit, plus two reads per
+  pull request with a run in progress. Job statuses then lag behind at busy times, the aggregate
+  status does not.
+
+These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
+are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
+the gate, and turn `job_statuses` off if they approach the limits.
+
 ### Relationship to the triage skill
 
 The `pr-management-triage` skill described in `contributing-docs/25_maintainer_pr_triage.md`
@@ -760,7 +841,9 @@ Per run, with ~700 gated pull requests: ~28 GraphQL calls for pass 2, ~14 for fo
 calls for the recent `pull_request` runs, one REST call per base branch for its workflow
 files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated pull request,
 one changed-files call per head commit that turns green, plus one mutation per actual state
-change. Well inside
+change. Job statuses add a jobs call and a status call per pull request with a fork run in
+progress or a completed run not yet reported, and up to two status mutations per job, at most
+`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Well inside
 the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
 budget stays observable.
 
@@ -906,6 +989,8 @@ as a failed check rather than a crash.
   workflow files on the base branch.
 - A green fork run is trusted only for pull requests that do not change what fork CI runs;
   see "Trusting a green fork run".
+- Job statuses carry names from the contributor's workflow under their own `Fork CI job / <name>`
+  prefix, so they cannot post the reconciler's own contexts or `CI passed`; see "Job statuses".
 - The reconciler runs on `main` with `pull-requests: write` and never checks out or executes
   pull request content. Its inputs are API data; its comment templates are static.
 - Fork runs get the fork's `GITHUB_TOKEN` only. Nothing in project CI trusts a fork run's
