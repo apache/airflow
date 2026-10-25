@@ -52,7 +52,11 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.dagwarning import (
+    PARSE_FAILURE_WARNING_TYPE,
+    DagWarning,
+    DagWarningType,
+)
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -383,6 +387,36 @@ def _update_dag_warnings(
         session.merge(warning_to_add)
 
 
+def dag_parse_failure_warnings(bundle_name: str, warnings_by_rel_path: dict[str, list]) -> list[DagWarning]:
+    return [
+        DagWarning(
+            dag_id=record.dag_id,
+            warning_type=record.warning_type,
+            message=record.message,
+            bundle_name=bundle_name,
+            filename=rel_path,
+        )
+        for rel_path, records in warnings_by_rel_path.items()
+        for record in records
+    ]
+
+
+def _update_file_scoped_parse_failure_warnings(
+    files_parsed: set[tuple[str, str]],
+    parse_failure_warnings: Iterable[DagWarning],
+    session: Session,
+) -> None:
+    if files_parsed:
+        session.execute(
+            delete(DagWarning).where(
+                tuple_(DagWarning.bundle_name, DagWarning.filename).in_(files_parsed),
+                DagWarning.warning_type == PARSE_FAILURE_WARNING_TYPE,
+            )
+        )
+    for warning in parse_failure_warnings:
+        session.merge(warning)
+
+
 def _update_import_errors(
     files_parsed: set[tuple[str, str]],
     import_errors: dict[tuple[str, str], str],
@@ -573,32 +607,6 @@ def _reject_other_teams_plugin_classes(
     return accepted
 
 
-def _reject_dags_with_unloadable_timetables(
-    bundle_name: str,
-    dags: Collection[LazyDeserializedDAG],
-    import_errors: dict[tuple[str, str], str],
-) -> list[LazyDeserializedDAG]:
-    """
-    Drop Dags whose timetable raises when rebuilt, recording an import error for each.
-
-    A custom timetable runs user code when it is deserialized, for example ``Variable.get`` in
-    ``__init__``. Checking here keeps one failing Dag from aborting the save of every Dag in its file.
-    """
-    accepted: list[LazyDeserializedDAG] = []
-    for dag in dags:
-        try:
-            dag.timetable
-        except Exception:
-            log.exception("Failed to load timetable of Dag", dag_id=dag.dag_id)
-            depth = conf.getint("core", "dagbag_import_error_traceback_depth")
-            import_errors[(bundle_name, dag.relative_fileloc)] = (
-                f"Failed to load the timetable of Dag '{dag.dag_id}':\n{traceback.format_exc(limit=-depth)}"
-            )
-            continue
-        accepted.append(dag)
-    return accepted
-
-
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -608,6 +616,7 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
+    parse_failure_warnings: Iterable[DagWarning] | None = None,
     version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.DUPLICATE_DAG_ID,
@@ -642,7 +651,6 @@ def update_dag_parsing_results_in_db(
         without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
-    accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
@@ -714,6 +722,15 @@ def update_dag_parsing_results_in_db(
         _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
         log.exception("Error logging DAG warnings.")
+
+    try:
+        _update_file_scoped_parse_failure_warnings(
+            files_parsed if files_parsed is not None else set(),
+            parse_failure_warnings or (),
+            session,
+        )
+    except Exception:
+        log.exception("Error logging Dag parse failure warnings.")
 
     session.flush()
 

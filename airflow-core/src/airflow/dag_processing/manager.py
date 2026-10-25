@@ -1392,6 +1392,8 @@ class DagFileProcessorManager(LoggingMixin):
         if warnings and isinstance(warnings[0], dict):
             warnings = [DagWarning(**warn) for warn in warnings]
 
+        parse_failure_warnings = [DagWarning(**row) for row in (parsing_result.parse_warnings or [])]
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
@@ -1403,6 +1405,7 @@ class DagFileProcessorManager(LoggingMixin):
             session=session,
             files_parsed=files_parsed,
             dag_source_codes=parsing_result.dag_source_codes,
+            parse_failure_warnings=parse_failure_warnings,
         )
 
     def _collect_results(self):
@@ -1868,7 +1871,7 @@ def process_parse_results(
         normalized_bundle = normalize_name_for_stats(bundle_name)
         stats.timing(
             "dag_processing.last_duration",
-            timedelta(seconds=stat.last_duration),
+            stat.last_duration,
             tags=prune_dict(
                 {"bundle_name": normalized_bundle, "file_name": file_name, "team_name": team_name}
             ),

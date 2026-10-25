@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
@@ -220,6 +221,7 @@ class DagImportResult:
     errors: list[DagImportError] = field(default_factory=list)
     skipped_definitions: list[DagDefinition] = field(default_factory=list)
     warnings: list[DagImportWarning] = field(default_factory=list)
+    parse_warnings: list[DagParseWarningRecord] = field(default_factory=list)
     dependencies: list[DagDefinition] = field(default_factory=list)
 
     @property

@@ -23,6 +23,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 from airflow.sdk.definitions.taskgroup import TaskGroup
 
 if TYPE_CHECKING:
@@ -110,6 +111,7 @@ class DagContext(ContextStack[DAG]):
 
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
+    parse_warnings: list[DagParseWarningRecord] = []
 
     @classmethod
     def pop(cls) -> DAG | None:

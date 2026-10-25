@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
-from pydantic import AliasPath, Field
+from pydantic import AliasPath, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.dagwarning import DagWarningTypeValue
@@ -33,7 +33,16 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningTypeValue
     message: str
     timestamp: datetime
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    dag_display_name: str | None = Field(
+        default=None, validation_alias=AliasPath("dag_model", "dag_display_name")
+    )
+
+
+@model_validator(mode="after")
+def default_dag_display_name(self) -> DAGWarningResponse:
+    if not self.dag_display_name:
+        self.dag_display_name = self.dag_id
+    return self
 
 
 class DAGWarningCollectionResponse(BaseModel):

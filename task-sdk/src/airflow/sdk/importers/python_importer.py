@@ -178,6 +178,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         """Import DAGs from a Python DAG definition."""
         result = DagImportResult(definition=definition)
         DagContext.autoregistered_dags.clear()
+        DagContext.parse_warnings.clear()
         captured_warnings: list[warnings.WarningMessage] = []
 
         try:
@@ -211,6 +212,9 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
 
         self._process_modules(modules, result, bundle=bundle)
+        from airflow.sdk.definitions.parse_warning import drain_parse_warnings
+
+        result.parse_warnings.extend(drain_parse_warnings())
         return result
 
     def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
@@ -250,9 +254,10 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
+        DagContext.current_autoregister_module_name = mod_name
+
         def parse() -> list[types.ModuleType]:
             try:
-                DagContext.current_autoregister_module_name = mod_name
                 with definition.import_context():
                     loader: importlib.abc.Loader
                     if get_file_suffix(definition) == ".pyc":
@@ -270,6 +275,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             except BaseException as e:
                 sys.modules.pop(mod_name, None)
                 DagContext.autoregistered_dags.clear()
+                DagContext.parse_warnings.clear()
                 log.exception("Failed to import: %r", definition)
                 if self._dagbag_import_error_tracebacks:
                     stacktrace = traceback.format_exc(limit=-self._dagbag_import_error_traceback_depth)
@@ -284,10 +290,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                     )
                 )
                 return []
-            finally:
-                # Reset on every exit: DagContext.pop() looks this name up in sys.modules, which may not
-                # hold it if the load did not complete.
-                DagContext.current_autoregister_module_name = None
 
         dagbag_import_timeout: float
         try:
@@ -326,6 +328,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         }
         top_level_dags.update(DagContext.autoregistered_dags)
 
+        DagContext.current_autoregister_module_name = None
         DagContext.autoregistered_dags.clear()
 
         for dag, _mod in top_level_dags:

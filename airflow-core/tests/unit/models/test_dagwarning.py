@@ -25,7 +25,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
-from airflow.models.dagwarning import DagWarning, DagWarningType, get_warning_type_value
+from airflow.dag_processing.collection import _update_file_scoped_parse_failure_warnings
+from airflow.models.dagwarning import (
+    PARSE_FAILURE_WARNING_TYPE,
+    DagWarning,
+    DagWarningType,
+    get_warning_type_value,
+)
 
 from tests_common.test_utils.db import clear_db_dags
 
@@ -107,3 +113,19 @@ class TestDagWarning:
         # Assert that the delete method was called twice
         assert delete_mock.call_count == 2
         assert self.session_mock.execute.call_count == 2
+
+    def test_file_scoped_parse_failure_warnings_replace_per_file(self, session):
+        files = {("testing", "dynamic.py")}
+        warning = DagWarning(
+            "failed_dag",
+            PARSE_FAILURE_WARNING_TYPE,
+            "boom",
+            bundle_name="testing",
+            filename="dynamic.py",
+        )
+        _update_file_scoped_parse_failure_warnings(files, [warning], session)
+        session.commit()
+        assert len(session.scalars(select(DagWarning)).all()) == 1
+        _update_file_scoped_parse_failure_warnings(files, [], session)
+        session.commit()
+        assert session.scalars(select(DagWarning)).all() == []

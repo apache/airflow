@@ -73,11 +73,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
-from airflow.sdk.execution_time.task_runner import (
-    RuntimeTaskInstance,
-    _send_error_email_notification,
-    check_xcom_backend_supports_loops,
-)
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.sdk.importers import DagSourceCode  # noqa: TC001
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
@@ -134,12 +130,13 @@ class DagFileParsingResult(BaseModel):
     import_errors: dict[str, str] | None = None
     parsed_definitions: list[str] = Field(default_factory=list)
     """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
+    parse_warnings: list[dict] = Field(default_factory=list)
     dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
     """Source code of the parsed Dags, keyed by dag_id."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
-ToManagerMessage = (
+ToManager = Annotated[
     DagFileParsingResult
     | GetConnection
     | GetVariable
@@ -155,10 +152,9 @@ ToManagerMessage = (
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
-    | MaskSecret
-)
-
-ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
+    | MaskSecret,
+    Field(discriminator="type"),
+]
 
 ToDagProcessor = Annotated[
     DagFileParseRequest
@@ -259,12 +255,24 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
-    # Dag warnings reference the dag table, so only Dags that serialized can carry one.
+    # Pool/runtime warnings reference the dag table; parse-failure warnings are stored separately.
     serialized_dag_ids = {dag.dag_id for dag in serialized_dags}
+    parse_warnings = [
+        {
+            "bundle_name": msg.bundle_name,
+            "filename": rel_path,
+            "dag_id": w.dag_id,
+            "warning_type": w.warning_type,
+            "message": w.message,
+        }
+        for rel_path, warnings in bag.parse_warnings.items()
+        for w in warnings
+    ]
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
+        parse_warnings=parse_warnings,
         warnings=[
             *stability_check_result.get_formatted_warnings(bag.dag_ids),
             *(
@@ -287,9 +295,6 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
-            # Only possible because importing the SDK resolves the XCom backend here; the worker check is the
-            # one that must stay, so drop this one rather than keep that import working for its sake.
-            check_xcom_backend_supports_loops(dag)
             data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
@@ -594,6 +599,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
@@ -718,7 +724,6 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     client: Client
-    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

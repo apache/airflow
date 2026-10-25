@@ -27,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -76,7 +76,7 @@ from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dagwarning import DagWarning
+from airflow.models.dagwarning import PARSE_FAILURE_WARNING_TYPE, DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
@@ -316,7 +316,23 @@ class PermittedDagWarningFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag warnings for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagWarning.dag_id.in_(self.value or set()))
+        authorized = self.value or set()
+        readable_files = (
+            select(DagModel.bundle_name, DagModel.relative_fileloc)
+            .where(DagModel.dag_id.in_(authorized))
+            .distinct()
+        )
+        return select.where(
+            or_(
+                DagWarning.dag_id.in_(authorized),
+                and_(
+                    DagWarning.warning_type == PARSE_FAILURE_WARNING_TYPE,
+                    DagWarning.bundle_name.is_not(None),
+                    DagWarning.filename.is_not(None),
+                    tuple_(DagWarning.bundle_name, DagWarning.filename).in_(readable_files),
+                ),
+            )
+        )
 
 
 class PermittedEventLogFilter(PermittedDagFilter):

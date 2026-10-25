@@ -42,7 +42,7 @@ from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParseRequest,
     DagFileParsingResult,
-    ToManagerMessage,
+    ToManager,
 )
 from airflow.exceptions import DeserializationError
 from airflow.models.pool import Pool
@@ -101,7 +101,7 @@ class LangSDKRuntimeSchemaVersion(BaseModel):
     type: Literal["LangSDKRuntimeSchemaVersion"] = "LangSDKRuntimeSchemaVersion"
 
 
-LangSDKToManager = Annotated[LangSDKRuntimeSchemaVersion | ToManagerMessage, Field(discriminator="type")]
+LangSDKToManager = Annotated[LangSDKRuntimeSchemaVersion | ToManager, Field(discriminator="type")]
 
 
 def _get_import_timeout(path: str) -> float | None:

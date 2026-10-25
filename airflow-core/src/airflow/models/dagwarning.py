@@ -22,7 +22,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated
 
 from pydantic import StringConstraints, TypeAdapter
-from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
+from sqlalchemy import Index, String, Text, delete, select, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 WARNING_TYPE_MAX_LENGTH = 50
+PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure"
 
 
 class DagWarning(Base):
@@ -51,25 +52,35 @@ class DagWarning(Base):
     warning_type: Mapped[str] = mapped_column(String(WARNING_TYPE_MAX_LENGTH), primary_key=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
-
-    __tablename__ = "dag_warning"
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ("dag_id",),
-            ["dag.dag_id"],
-            name="dcw_dag_id_fkey",
-            ondelete="CASCADE",
-        ),
-        Index("idx_dag_warning_dag_id", dag_id),
+    dag_model = relationship(
+        "DagModel",
+        viewonly=True,
+        lazy="selectin",
+        primaryjoin="foreign(DagWarning.dag_id) == DagModel.dag_id",
     )
 
-    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
+    __tablename__ = "dag_warning"
+    __table_args__ = (Index("idx_dag_warning_dag_id", "dag_id"),)
+
+    def __init__(
+        self,
+        dag_id: str,
+        warning_type: str,
+        message: str,
+        *,
+        bundle_name: str | None = None,
+        filename: str | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.dag_id = dag_id
         self.warning_type = get_warning_type_value(warning_type)
         self.message = message
+        self.bundle_name = bundle_name
+        self.filename = filename
 
     def __eq__(self, other) -> bool:
         return self.dag_id == other.dag_id and self.warning_type == other.warning_type
