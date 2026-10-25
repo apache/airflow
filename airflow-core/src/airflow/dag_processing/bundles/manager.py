@@ -169,52 +169,60 @@ def _get_cached_bundle_config_snapshot(*, metadata_only: bool = False) -> _Bundl
 
 
 def _refresh_bundle_config_snapshot(
-    *, force: bool = False, metadata_only: bool = False
+    *,
+    force: bool = False,
+    metadata_only: bool = False,
+    snapshot: _BundleConfigSnapshot | None = None,
 ) -> _BundleConfigSnapshot:
-    snapshot = (
+    cached = (
         _get_cached_bundle_config_snapshot(metadata_only=True)
         if metadata_only
         else _get_cached_bundle_config_snapshot()
     )
+    if snapshot is None:
+        snapshot = cached
     if not is_bundle_config_reload_enabled():
         return snapshot
     now = time.monotonic()
-    if not force and now - snapshot.last_checked < conf.getint(
-        "dag_processor", "bundle_refresh_check_interval"
-    ):
-        return snapshot
-    snapshot.last_checked = now
     try:
-        config_list = _read_bundle_config_list()
-        previous_configs = snapshot.configs
+        if not force and now - cached.last_checked < conf.getint(
+            "dag_processor", "bundle_refresh_check_interval"
+        ):
+            if snapshot.configs is cached.configs:
+                return snapshot
+            config_list = [cached.configs[name] for name in cached.team_names]
+        else:
+            cached.last_checked = now
+            config_list = _read_bundle_config_list()
         if {config.name: config for config in config_list} == {
-            name: previous_configs[name] for name in snapshot.team_names
+            name: snapshot.configs[name] for name in snapshot.team_names
         }:
-            return snapshot
-        for config in config_list:
-            previous = previous_configs.get(config.name)
-            if previous is not None:
-                if previous != config:
-                    raise _bundle_item_exc(
-                        f"Use a new bundle name when changing configuration for '{config.name}'"
+            current = snapshot
+        else:
+            for config in config_list:
+                existing = snapshot.configs.get(config.name)
+                if existing is not None:
+                    if existing != config:
+                        raise _bundle_item_exc(
+                            f"Use a new bundle name when changing configuration for '{config.name}'"
+                        )
+                    continue
+                if not metadata_only:
+                    if config.team_name and not conf.getboolean("core", "multi_team"):
+                        raise _bundle_item_exc("Bundle teams require multi-team mode")
+                    _InternalBundleConfig(
+                        bundle_class=import_string(config.classpath),
+                        kwargs=config.kwargs,
+                        team_name=config.team_name,
                     )
-                continue
-            if not metadata_only:
-                if config.team_name and not conf.getboolean("core", "multi_team"):
-                    raise _bundle_item_exc("Bundle teams require multi-team mode")
-                _InternalBundleConfig(
-                    bundle_class=import_string(config.classpath),
-                    kwargs=config.kwargs,
-                    team_name=config.team_name,
-                )
-        current = _create_bundle_config_snapshot(config_list)
+            current = _create_bundle_config_snapshot(config_list)
     except Exception:
         log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
         return snapshot
-    snapshot.configs = current.configs
-    snapshot.names = current.names
-    snapshot.team_names = current.team_names
-    return snapshot
+    cached.configs = current.configs
+    cached.names = current.names
+    cached.team_names = current.team_names
+    return replace(current, last_checked=cached.last_checked)
 
 
 def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
@@ -415,6 +423,10 @@ class DagBundlesManager(LoggingMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
+        # Keep misses local so new task managers can discover bundles immediately.
+        self._failed_bundle_lookups: dict[str, float] = {}
+        self._pending_template_updates: dict[str, BaseDagBundle | None] = {}
+        self._snapshot = replace(_get_cached_bundle_config_snapshot())
         self.parse_config()
 
     def parse_config(self) -> None:
@@ -425,8 +437,7 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        snapshot = _get_cached_bundle_config_snapshot()
-        self._snapshot = replace(snapshot)
+        snapshot = self._snapshot
         if self._bundle_config.keys() == snapshot.names:
             return
 
@@ -478,10 +489,9 @@ class DagBundlesManager(LoggingMixin):
         """
         self.log.debug("Syncing DAG bundles to the database")
 
-        def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
-            bundle_instance = (
-                self.get_bundle(bundle_name) if bundle_instances is None else bundle_instances[bundle_name]
-            )
+        def _extract_and_sign_template(
+            bundle_name: str, bundle_instance: BaseDagBundle
+        ) -> tuple[str | None, dict]:
             new_template_ = bundle_instance.view_url_template()
             new_params_ = self._extract_template_params(bundle_instance)
             if new_template_:
@@ -511,21 +521,26 @@ class DagBundlesManager(LoggingMixin):
         teams = {
             team.name: team for team in session.scalars(select(Team).where(Team.name.in_(requested_teams)))
         }
+        for team_name in requested_teams:
+            if team_name not in teams:
+                raise _bundle_item_exc(f"Team '{team_name}' does not exist")
 
+        template_instances = self._pending_template_updates | (bundle_instances or {})
+        pending_templates: dict[str, BaseDagBundle | None] = {}
         for name, config in self._bundle_config.items():
-            team: Team | None = None
-            if config.team_name:
-                team = teams.get(config.team_name)
-                if not team:
-                    raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
+            team = teams.get(config.team_name) if config.team_name else None
 
             bundle = stored.pop(name, None)
-            update_template = bundle_instances is None or name in bundle_instances
+            update_template = bundle_instances is None or name in template_instances
             if update_template:
+                bundle_instance = template_instances.get(name)
                 try:
-                    new_template, new_params = _extract_and_sign_template(name)
+                    if bundle_instance is None:
+                        bundle_instance = self.get_bundle(name)
+                    new_template, new_params = _extract_and_sign_template(name, bundle_instance)
                 except Exception as e:
                     self.log.exception("Error creating bundle '%s': %s", name, e)
+                    pending_templates[name] = bundle_instance
                     if bundle is None and bundle_instances is None:
                         continue
                     update_template = False
@@ -562,6 +577,7 @@ class DagBundlesManager(LoggingMixin):
                 )
                 bundle.teams = []
 
+        self._pending_template_updates = pending_templates
         if not deactivate_missing:
             # This process only owns a subset of the bundles, so the remaining stored
             # bundles may well be owned by another dag-processor. Leave them alone.
@@ -810,7 +826,7 @@ class DagBundlesManager(LoggingMixin):
 
     def _refresh_config(self) -> None:
         """Refresh bundle configuration and update this manager."""
-        _refresh_bundle_config_snapshot()
+        self._snapshot = _refresh_bundle_config_snapshot(snapshot=self._snapshot)
         self.parse_config()
 
     def get_bundle(
@@ -825,13 +841,27 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        if name not in self._bundle_config:
-            if name not in _get_cached_bundle_config_snapshot().names:
-                _refresh_bundle_config_snapshot(force=True)
-            self.parse_config()
-        cfg_bundle = self._bundle_config.get(name)
+        bundle_config = self._bundle_config
+        if name not in bundle_config:
+            snapshot = _get_cached_bundle_config_snapshot()
+            if name not in snapshot.names and is_bundle_config_reload_enabled():
+                now = time.monotonic()
+                interval = conf.getint("dag_processor", "bundle_refresh_check_interval")
+                self._failed_bundle_lookups = {
+                    bundle_name: checked_at
+                    for bundle_name, checked_at in self._failed_bundle_lookups.items()
+                    if now - checked_at < interval
+                }
+                if name not in self._failed_bundle_lookups:
+                    snapshot = _refresh_bundle_config_snapshot(force=True)
+                    if name not in snapshot.names:
+                        self._failed_bundle_lookups[name] = now
+            if name in snapshot.names:
+                bundle_config = DagBundlesManager()._bundle_config
+        cfg_bundle = bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
+        self._failed_bundle_lookups.pop(name, None)
         return cfg_bundle.bundle_class(
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )

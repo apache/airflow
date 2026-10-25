@@ -30,6 +30,7 @@ import signal
 import sys
 import time
 from collections import OrderedDict, defaultdict
+from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -337,7 +338,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager = self._dag_bundle_manager
         dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
@@ -352,10 +353,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        manager = DagBundlesManager()
+        manager = self._dag_bundle_manager
         bundles = list(manager.get_all_dag_bundles())
         self._bundle_importer_registries.clear()
-        self._dag_bundle_manager = manager
         return bundles
 
     def run(self):
@@ -1040,7 +1040,7 @@ class DagFileProcessorManager(LoggingMixin):
         if not is_bundle_config_reload_enabled():
             return
         try:
-            dag_bundle_manager = DagBundlesManager()
+            dag_bundle_manager = copy(self._dag_bundle_manager)
             bundle_names = set(dag_bundle_manager.get_all_bundle_names())
         except Exception:
             self.log.exception("Could not load Dag bundles; keeping the current bundles")
