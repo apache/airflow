@@ -136,10 +136,9 @@ github:
             strict_required_status_checks_policy: false
             required_status_checks:
               - context: "CI passed"
-              - context: "check-newsfragment-pr-number"
-    # The branches `ci-amd.yml` runs pull request CI for, apart from `main`. The newsfragment check
-    # runs only on `main`, so these require "CI passed" alone. A release branch gets the "CI passed"
-    # job only when it is backported there; until then its PRs need a committer to bypass the rule.
+    # The branches `ci-amd.yml` runs pull request CI for, apart from `main`. A release branch gets
+    # the "CI passed" job only when it is backported there; until then its PRs need a committer to
+    # bypass the rule.
     - name: "Require CI on release branches"
       target: branch
       enforcement: active

@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.utils.functools_cache import clear_all_cached_functions
+from airflow_breeze.utils.shared_options import _SharedOptions
 
 
 def pytest_configure(config):
@@ -86,3 +87,11 @@ def make_worktree(tmp_path):
         return path
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def restore_shared_options(monkeypatch):
+    # Invoking a command with --dry-run or --verbose sets these for the whole process, so later tests
+    # on the same xdist worker would run with them, and run_command would return empty output.
+    for name in ("verbose_value", "dry_run_value", "forced_answer"):
+        monkeypatch.setattr(_SharedOptions, name, getattr(_SharedOptions, name))
