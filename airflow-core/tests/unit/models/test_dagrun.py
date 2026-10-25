@@ -3730,7 +3730,7 @@ def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session):
     assert retry_ti.priority_weight == 2
 
 
-def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, session):
+def test_schedule_tis_refreshes_a_retry_started_from_trigger(dag_maker, session):
     with dag_maker(session=session):
         task = MockOperator(task_id="task")
         task.start_from_trigger = True
@@ -3756,8 +3756,8 @@ def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, sess
     session.commit()
 
     assert hook_calls == [("task", 2)]
-    session.expire_all()
-    assert (ti.state, ti.queue) == (TaskInstanceState.DEFERRED, "retry_queue")
+    assert ti.queue == "retry_queue"
+    assert dr.get_task_instance("task", session=session).state == TaskInstanceState.SCHEDULED
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
@@ -3846,7 +3846,7 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
-    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
+    Test that an operator with start_trigger_args is scheduled, to be deferred once its pool allows it.
     """
 
     class TestOperator(BaseOperator):
@@ -3874,7 +3874,9 @@ def test_schedule_tis_start_trigger(dag_maker, session):
 
     ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
-    assert ti.state == TaskInstanceState.DEFERRED
+    ti = dr.get_task_instance("test_task", session=session)
+    assert ti.state == TaskInstanceState.SCHEDULED
+    assert ti.trigger_id is None
 
 
 @pytest.mark.need_serialized_dag
@@ -3906,7 +3908,7 @@ def test_schedule_tis_start_trigger_next_kwargs_round_trip(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     ti = dr.get_task_instance("test_task")
     ti.task = dr.dag.get_task("test_task")
-    dr.schedule_tis((ti,), session=session)
+    ti.defer_task(session=session)
 
     assert ti.state == TaskInstanceState.DEFERRED
     assert deserialize(ti.next_kwargs) == {"delay": datetime.timedelta(seconds=30)}
@@ -3948,7 +3950,7 @@ def test_schedule_tis_start_trigger_kwargs_e2e(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     ti = dr.get_task_instance("test_task")
     ti.task = dr.dag.get_task("test_task")
-    dr.schedule_tis((ti,), session=session)
+    ti.defer_task(session=session)
 
     assert ti.state == TaskInstanceState.DEFERRED
 
