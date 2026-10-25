@@ -38,13 +38,13 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 
 
 class AddLoopContext(VersionChange):
-    """Provide the pinned loop definition and enclosing iteration at task startup."""
+    """Provide the pinned loop definition and enclosing iteration, numbered from one, at task startup."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("loop").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_loop_context(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_loop_context(response: ResponseInfo) -> None:
         response.body.pop("loop", None)
 
 
@@ -88,9 +88,23 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_arg_bindings_field(response: ResponseInfo) -> None:
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
+
+
+class AddExecutionTimeoutToTIRunContext(VersionChange):
+    """Add ``execution_timeout`` so the supervisor can enforce it."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``execution_timeout`` from the run context for older clients."""
+        response.body.pop("execution_timeout", None)
 
 
 class AddCallbackRunEndpoint(VersionChange):
@@ -142,9 +156,23 @@ class AddMultiTeamToTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_multi_team_field(response: ResponseInfo) -> None:
         """Strip ``multi_team`` from the run context for older clients."""
         response.body.pop("multi_team", None)
+
+
+class AddExpandedTICountToTIRunContext(VersionChange):
+    """Add ``expanded_ti_count``, the size of the mapped expansion a task instance belongs to."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("expanded_ti_count").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_expanded_ti_count(response: ResponseInfo) -> None:  # type: ignore[misc]
+        response.body.pop("expanded_ti_count", None)
 
 
 class AddFirstTaskRescheduleStartDateField(VersionChange):

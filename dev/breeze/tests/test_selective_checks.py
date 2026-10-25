@@ -23,6 +23,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from rich.console import Console
 
 from airflow_breeze.global_constants import (
@@ -30,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
+    COMMITTERS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2260,7 +2262,6 @@ def test_excluded_providers():
                     "3.14": [
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
-                        "vespa",
                     ],
                 }
             ),
@@ -2911,6 +2912,82 @@ def test_expected_output_push(
         github_event=GithubEvents.PUSH,
         pr_labels=pr_labels,
         default_branch=default_branch,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("selective_tests_on_push", "expected_outputs"),
+    [
+        pytest.param(
+            False,
+            {
+                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
+                "full-tests-needed": "true",
+            },
+            id="Push runs all tests by default",
+        ),
+        pytest.param(
+            True,
+            {
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "full-tests-needed": "false",
+                "run-unit-tests": "true",
+            },
+            id="Push selects tests from the changed files when selective tests on push are enabled",
+        ),
+    ],
+)
+def test_selective_tests_on_push(selective_tests_on_push: bool, expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/api.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        default_branch="v3-4-test",
+        selective_tests_on_push=selective_tests_on_push,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "fork_changes_truncated", "expected_outputs"),
+    [
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            False,
+            {"full-tests-needed": "false", "all-versions": "false", "is-committer-build": "false"},
+            id="Fork push of a docs change does not run everything",
+        ),
+        pytest.param(
+            (),
+            False,
+            {"full-tests-needed": "false", "basic-checks-only": "true", "is-committer-build": "false"},
+            id="Fork push without changes against upstream runs basic checks only",
+        ),
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            True,
+            {
+                "full-tests-needed": "true",
+                "all-versions": "true",
+                "is-committer-build": "false",
+                "run-ui-e2e-tests": "true",
+            },
+            id="Fork push with a truncated change set runs everything",
+        ),
+    ],
+)
+def test_expected_output_fork_push(
+    files: tuple[str, ...], fork_changes_truncated: bool, expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        github_repository="potiuk/airflow",
+        github_actor="potiuk",
+        fork_push=True,
+        fork_changes_truncated=fork_changes_truncated,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
@@ -4107,6 +4184,62 @@ dependencies = [
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_fails_on_a_fork_push(mock_run_command):
+    """A push in a contributor's fork is checked like the pull request it stands for."""
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout=(
+            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+            if "^:" in args[0][2]
+            else '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PUSH,
+            default_branch="main",
+            fork_push=True,
+        ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
+    mock_run_command, mock_upstream_file
+):
+    """
+    After the contributor merges upstream main, the pushed commit's parent is their own old tip,
+    so a release manager's bump from main would look like theirs.
+    """
+    bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout=(
+            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+            if "^:" in args[0][2]
+            else bumped
+        ),
+    )
+    mock_upstream_file.return_value = bumped
+
+    assert not SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="base-sha",
+    ).provider_dependency_bump
+
+    mock_upstream_file.assert_called_once_with(path="providers/amazon/pyproject.toml", ref="base-sha")
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
 def test_provider_dependency_bump_check_skipped_on_release_branch(mock_run_command):
     """Test that provider dependency bump check is a no-op on release branches (v3-X-test)."""
     old_toml = """
@@ -4319,6 +4452,27 @@ dependencies = [
             pr_labels=(),
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
+        ).common_compat_changed_without_next_version
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_without_next_version_fails_on_a_fork_push(mock_run_command):
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout='[project]\ndependencies = ["apache-airflow-providers-common-compat>=1.8.0"]\n',
+    )
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=(
+                "providers/common/compat/src/airflow/providers/common/compat/file.py",
+                "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+            ),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PUSH,
+            default_branch="main",
+            fork_push=True,
         ).common_compat_changed_without_next_version
 
 
@@ -4753,3 +4907,412 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
     for provider in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS:
         assert provider in get_available_distributions()
         assert provider not in LONG_RUNNING_TEST_PROVIDERS
+
+
+RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]'
+RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
+
+
+HEAD_SHA = "a" * 40
+
+
+@pytest.fixture(autouse=True)
+def _no_use_public_runners_variable(monkeypatch):
+    monkeypatch.delenv("USE_PUBLIC_RUNNERS", raising=False)
+
+
+def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
+    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA}
+    return {
+        "run_id": 42,
+        "event": {"pull_request": {"number": 7, "head": head, "user": {"type": author_type}}},
+    }
+
+
+@pytest.mark.parametrize(
+    ("github_event", "github_repository", "github_context_dict", "pr_labels", "platform", "expected"),
+    [
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="canary push uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            RUNS_ON_ARM,
+            id="scheduled ARM canary uses ARM RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.WORKFLOW_DISPATCH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="workflow_dispatch uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", author_type="Bot"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="bot PR from an apache/airflow branch uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            {
+                "run_id": 42,
+                "event": {
+                    "pull_request": {
+                        "head": {"ref": "dependabot/uv/foo", "repo": {"full_name": "apache/airflow"}},
+                        "user": {"type": "User"},
+                    }
+                },
+            },
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="user PR from a Dependabot branch uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", author_type="Bot"),
+            ("use self-hosted runners", "non committer build"),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="committer's self-hosted label wins over bot author and non committer build",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {},
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="push without a run id stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            ("use self-hosted runners", "use public runners"),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="public runners label wins over the self-hosted label",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "someone/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="push in a fork repository stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "someone/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            '["ubuntu-22.04-arm"]',
+            id="schedule in a fork repository stays on public ARM runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="PR from an apache/airflow branch uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="PR from a fork uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context(None),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="PR from a deleted fork uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            ("use self-hosted runners",),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="PR from a fork with the self-hosted label uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            ("canary", "full tests needed"),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="canary label does not route a fork PR to RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            ("use public runners",),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="public runners label opts an apache/airflow PR out",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            ("non committer build",),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="non committer build label treats an apache/airflow PR as a fork PR",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="pull_request_target uses public runners",
+        ),
+    ],
+)
+@patch.object(SelectiveChecks, "_is_self_hosted_label_approved", autospec=True, return_value=True)
+def test_runner_type(
+    _mock_is_self_hosted_label_approved,
+    github_event: GithubEvents,
+    github_repository: str,
+    github_context_dict: dict[str, Any],
+    pr_labels: tuple[str, ...],
+    platform: str,
+    expected: str,
+):
+    selective_checks = SelectiveChecks(
+        github_event=github_event,
+        github_repository=github_repository,
+        github_context_dict=github_context_dict,
+        pr_labels=pr_labels,
+        platform=platform,
+    )
+    assert selective_checks.runner_type == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("true", '["ubuntu-22.04"]', id="true moves a push to public runners"),
+        pytest.param("True", '["ubuntu-22.04"]', id="case does not matter"),
+        pytest.param("false", RUNS_ON_AMD, id="false keeps RunsOn"),
+        pytest.param("", RUNS_ON_AMD, id="an unset variable keeps RunsOn"),
+    ],
+)
+def test_use_public_runners_variable(monkeypatch, value: str, expected: str):
+    monkeypatch.setenv("USE_PUBLIC_RUNNERS", value)
+    selective_checks = SelectiveChecks(
+        github_event=GithubEvents.PUSH, github_repository="apache/airflow", github_context_dict={"run_id": 42}
+    )
+    assert selective_checks.runner_type == expected
+
+
+@patch.object(SelectiveChecks, "_is_self_hosted_label_approved", autospec=True, return_value=True)
+def test_use_public_runners_variable_beats_the_self_hosted_label(
+    _mock_is_self_hosted_label_approved, monkeypatch
+):
+    monkeypatch.setenv("USE_PUBLIC_RUNNERS", "true")
+    selective_checks = SelectiveChecks(
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict=_pull_request_context("apache/airflow"),
+        pr_labels=("use self-hosted runners",),
+    )
+    assert selective_checks.runner_type == '["ubuntu-22.04"]'
+
+
+def _review(login: str, state: str, commit_id: str = HEAD_SHA) -> dict[str, Any]:
+    return {"user": {"login": login}, "state": state, "commit_id": commit_id}
+
+
+@pytest.mark.parametrize(
+    ("pages", "expected"),
+    [
+        pytest.param([[_review(COMMITTERS[0], "APPROVED")]], True, id="approved by a committer"),
+        pytest.param(
+            [[_review(COMMITTERS[0].swapcase(), "APPROVED")]],
+            True,
+            id="approved by a committer whose login differs in case",
+        ),
+        pytest.param([[_review("a-triager", "APPROVED")]], False, id="approved by a non-committer"),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED", commit_id="b" * 40)]],
+            False,
+            id="approved an earlier commit only",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "CHANGES_REQUESTED")]],
+            False,
+            id="changes requested after approving",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "CHANGES_REQUESTED"), _review(COMMITTERS[0], "APPROVED")]],
+            True,
+            id="approved after requesting changes",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "DISMISSED")]],
+            False,
+            id="approval dismissed",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "COMMENTED")]],
+            True,
+            id="a later comment keeps the approval",
+        ),
+        pytest.param(
+            [[_review("a-triager", "APPROVED")], [_review(COMMITTERS[0], "APPROVED")]],
+            True,
+            id="approved on a later page",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[1], "CHANGES_REQUESTED")]],
+            False,
+            id="another committer's request for changes vetoes an approval",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review("a-triager", "CHANGES_REQUESTED")]],
+            True,
+            id="a non-committer's request for changes does not veto",
+        ),
+        pytest.param(
+            [
+                [
+                    _review(COMMITTERS[1], "CHANGES_REQUESTED", commit_id="b" * 40),
+                    _review(COMMITTERS[0], "APPROVED"),
+                ]
+            ],
+            False,
+            id="a committer's request for changes on an earlier commit still vetoes",
+        ),
+        pytest.param(
+            [
+                [
+                    _review(COMMITTERS[1], "CHANGES_REQUESTED", commit_id="b" * 40),
+                    _review(COMMITTERS[1], "APPROVED", commit_id="b" * 40),
+                    _review(COMMITTERS[0], "APPROVED"),
+                ]
+            ],
+            True,
+            id="a request for changes withdrawn by its committer's later approval does not veto",
+        ),
+        pytest.param([[]], False, id="no review"),
+        pytest.param([{"message": "Not Found"}], False, id="error object instead of reviews"),
+    ],
+)
+@patch("requests.get", autospec=True)
+def test_is_self_hosted_label_approved(mock_get, pages: list[list[dict[str, Any]]], expected: bool):
+    pull_request = Mock(spec=requests.Response)
+    pull_request.json.return_value = {"labels": [{"name": "use self-hosted runners"}]}
+    responses = [pull_request]
+    for index, page in enumerate(pages):
+        response = Mock(spec=requests.Response)
+        response.json.return_value = page
+        response.links = {"next": {"url": f"page-{index + 1}"}} if index + 1 < len(pages) else {}
+        responses.append(response)
+    mock_get.side_effect = responses
+    selective_checks = SelectiveChecks(
+        github_context_dict=_pull_request_context("someone/airflow"),
+        pr_labels=("use self-hosted runners",),
+    )
+    assert selective_checks._is_self_hosted_label_approved() is expected
+    assert [call.args[0] for call in mock_get.call_args_list[:2]] == [
+        "https://api.github.com/repos/apache/airflow/pulls/7",
+        "https://api.github.com/repos/apache/airflow/pulls/7/reviews?per_page=100",
+    ]
+
+
+@pytest.mark.parametrize(
+    "pull_request_body",
+    [
+        pytest.param({"labels": [{"name": "full tests needed"}]}, id="label removed since the event"),
+        pytest.param({"message": "Not Found"}, id="error object instead of the PR"),
+    ],
+)
+@patch("requests.get", autospec=True)
+def test_is_self_hosted_label_approved_needs_the_current_label(mock_get, pull_request_body: dict[str, Any]):
+    # A re-run reuses the labels of its original event, so the label is still in pr_labels.
+    response = Mock(spec=requests.Response)
+    response.json.return_value = pull_request_body
+    mock_get.return_value = response
+    selective_checks = SelectiveChecks(
+        github_context_dict=_pull_request_context("someone/airflow"),
+        pr_labels=("use self-hosted runners",),
+    )
+    assert selective_checks._is_self_hosted_label_approved() is False
+    mock_get.assert_called_once()
+
+
+@patch("requests.get", autospec=True)
+def test_is_self_hosted_label_approved_without_head_sha(mock_get):
+    # A review whose commit_id is missing must not match a missing head sha.
+    response = Mock(spec=requests.Response)
+    response.json.return_value = [{"user": {"login": COMMITTERS[0]}, "state": "APPROVED"}]
+    response.links = {}
+    mock_get.return_value = response
+    context = _pull_request_context("someone/airflow")
+    del context["event"]["pull_request"]["head"]["sha"]
+    selective_checks = SelectiveChecks(github_context_dict=context, pr_labels=("use self-hosted runners",))
+    assert selective_checks._is_self_hosted_label_approved() is False
+    mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("head_repo", "expected"),
+    [
+        pytest.param("someone/airflow", '["ubuntu-22.04"]', id="fork PR falls back to public runners"),
+        pytest.param("apache/airflow", RUNS_ON_AMD, id="apache/airflow PR stays on RunsOn"),
+    ],
+)
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param(requests.ConnectionError("down"), id="connection error"),
+        pytest.param(requests.HTTPError("403"), id="non-2xx response"),
+    ],
+)
+@patch("requests.get", autospec=True)
+def test_self_hosted_label_ignored_when_reviews_cannot_be_read(
+    mock_get, failure: Exception, head_repo: str, expected: str
+):
+    mock_get.side_effect = failure
+    selective_checks = SelectiveChecks(
+        github_event=GithubEvents.PULL_REQUEST,
+        github_context_dict=_pull_request_context(head_repo),
+        pr_labels=("use self-hosted runners",),
+    )
+    assert selective_checks.runner_type == expected

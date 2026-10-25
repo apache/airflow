@@ -62,6 +62,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -218,9 +219,9 @@ class Backfill(Base):
         return None
 
     @duration.expression  # type: ignore[no-redef]
-    def duration(cls) -> Any:
+    def duration(cls: type[Backfill]) -> ColumnElement[Any]:
         @provide_session
-        def _get_dialect(*, session: Session = NEW_SESSION) -> str:
+        def _get_dialect(*, session: Session = NEW_SESSION) -> str | None:
             return get_dialect_name(session=session)
 
         dialect_name = _get_dialect()
@@ -231,10 +232,10 @@ class Backfill(Base):
         elif dialect_name == "sqlite":
             duration_expr = (func.julianday(cls.completed_at) - func.julianday(cls.created_at)) * 86400
         else:
-            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)  # type: ignore[operator, arg-type]
+            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)
 
         when_condition = (
-            cls.completed_at.isnot(None) & cls.created_at.isnot(None),  # type: ignore[union-attr, attr-defined]
+            cls.completed_at.isnot(None) & cls.created_at.isnot(None),
             duration_expr,
         )
 

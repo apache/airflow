@@ -67,4 +67,4 @@ You can check each command with `airflowctl <command> --help` to see the availab
 #### Implemented Commands
 
 Implemented commands are the ones which are not auto generated and need to be implemented manually.
-You can check the implemented commands under `airflow-ctl/src/airflowctl/clt/commands/`.
+You can check the implemented commands under `airflow-ctl/src/airflowctl/ctl/commands/`.

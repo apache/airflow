@@ -26,6 +26,7 @@ import sys
 from email.message import Message
 from importlib.metadata import EntryPoint
 from types import SimpleNamespace
+from typing import get_args, get_type_hints
 from unittest import mock
 
 import pytest
@@ -275,8 +276,8 @@ class TestPluginsManager:
             name = "test_plugin_a"
 
             # Malformed on purpose to trigger the warning path; mypy ignores below.
-            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
-            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[typeddict-item]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -1505,3 +1506,319 @@ def test_core_plugin_manager_passes_compatibility_policy(monkeypatch, tmp_path):
         plugins_manager._get_plugins.__wrapped__()
 
     load.assert_called_once_with(provider_incompatibility_reason)
+
+
+class TestUiActions:
+    """``ui_actions`` collection: per-action validation, scoping and name conflicts."""
+
+    @staticmethod
+    def _load(*plugins):
+        """The actions left on the plugins, which is what ``get_plugin_info`` dumps.
+
+        Asserting on what ``_get_ui_plugins`` returns instead would still pass if the loop
+        that removes rejected actions from the plugin were deleted, and the API serves the
+        plugin's own list rather than that return value.
+        """
+        from airflow import plugins_manager
+
+        with mock_plugin_manager(plugins=list(plugins)):
+            plugins_manager._get_ui_plugins()
+
+            return [action for plugin in plugins for action in plugin.ui_actions]
+
+    @staticmethod
+    def _messages(caplog):
+        return [record.getMessage() for record in caplog.records]
+
+    def test_loads_a_well_formed_action(self):
+        class Plugin(AirflowPlugin):
+            name = "actions_ok"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Runbook",
+                    "destination": "dag",
+                    "href": "https://example.com/{DAG_ID}",
+                }
+            ]
+
+        assert [action["name"] for action in self._load(Plugin())] == ["Runbook"]
+
+    @pytest.mark.parametrize(
+        ("action", "expected_in_message"),
+        [
+            pytest.param("not a dict", "expected a dictionary", id="not-a-dict"),
+            pytest.param(
+                {"action_type": "link", "name": "", "destination": "dag", "href": "https://e.com"},
+                "name",
+                id="empty-name",
+            ),
+            pytest.param(
+                {"action_type": "popover", "name": "N", "destination": "dag", "href": "https://e.com"},
+                "action_type",
+                id="unknown-action-type",
+            ),
+            pytest.param(
+                {"action_type": "link", "name": "N", "destination": "asset", "href": "https://e.com"},
+                "destination",
+                id="unsupported-destination",
+            ),
+            pytest.param(
+                {"action_type": "link", "name": "N", "destination": "dag"},
+                "href",
+                id="link-without-href",
+            ),
+            pytest.param(
+                {"action_type": "react", "name": "N", "destination": "dag"},
+                "bundle_url",
+                id="react-without-bundle-url",
+            ),
+            # Caught here rather than at serialization, where it would fail
+            # `PluginResponse.model_validate` and drop the whole plugin.
+            pytest.param(
+                {
+                    "action_type": "link",
+                    "name": "N",
+                    "destination": "dag",
+                    "href": "https://e.com",
+                    "url_route": "copied-from-a-react-app",
+                },
+                "url_route",
+                id="unknown-key",
+            ),
+            # A list is unhashable, so an unguarded `not in frozenset` raises TypeError out
+            # of `_get_ui_plugins`, making `GET /plugins` a 500 for every plugin.
+            pytest.param(
+                {
+                    "action_type": "link",
+                    "name": "N",
+                    "destination": ["dag", "dag_run"],
+                    "href": "https://e.com",
+                },
+                "destination",
+                id="unhashable-destination",
+            ),
+            pytest.param(
+                {
+                    "action_type": "link",
+                    "name": "N",
+                    "destination": "dag",
+                    "href": "https://e.com",
+                    "icon": 42,
+                },
+                "icon",
+                id="non-string-icon",
+            ),
+            pytest.param(
+                {
+                    "action_type": "link",
+                    "name": "N",
+                    "destination": "dag",
+                    "href": "https://e.com",
+                    "icon_dark_mode": ["dark.svg"],
+                },
+                "icon_dark_mode",
+                id="non-string-dark-icon",
+            ),
+            pytest.param(
+                {
+                    "action_type": "link",
+                    "name": "N",
+                    "destination": "dag",
+                    "href": "https://e.com",
+                    "url_route": "x",
+                    "category": "y",
+                },
+                "keys",
+                id="several-unknown-keys",
+            ),
+        ],
+    )
+    def test_drops_an_unusable_action(self, action, expected_in_message, caplog):
+        class Plugin(AirflowPlugin):
+            name = "actions_bad"
+            ui_actions = [action]
+
+        with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+            assert self._load(Plugin()) == []
+
+        assert any(expected_in_message in message for message in self._messages(caplog))
+
+    def test_keeps_the_good_actions_of_a_plugin_with_a_bad_one(self, caplog):
+        good = {
+            "action_type": "link",
+            "name": "Good",
+            "destination": "dag",
+            "href": "https://example.com",
+        }
+
+        class Plugin(AirflowPlugin):
+            name = "actions_mixed"
+            ui_actions = [{"action_type": "link", "name": "Bad", "destination": "nowhere"}, good]
+
+        with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+            assert [action["name"] for action in self._load(Plugin())] == ["Good"]
+
+    def test_withholds_an_action_whose_applies_to_path_matches_no_field(self, caplog):
+        class Plugin(AirflowPlugin):
+            name = "actions_scoped"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Typo",
+                    "destination": "dag",
+                    "href": "https://example.com",
+                    "applies_to": {"dag.tagz": ["ml"]},
+                }
+            ]
+
+        with caplog.at_level(logging.ERROR, logger="airflow.plugins_manager"):
+            assert self._load(Plugin()) == []
+
+        assert any("tagz" in message for message in self._messages(caplog))
+
+    def test_keeps_a_valid_applies_to_block(self):
+        class Plugin(AirflowPlugin):
+            name = "actions_scoped_ok"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Failed only",
+                    "destination": "task_instance",
+                    "href": "https://example.com",
+                    "applies_to": {"state": ["failed"]},
+                }
+            ]
+
+        assert self._load(Plugin())[0]["applies_to"] == {"state": ["failed"]}
+
+    @pytest.mark.parametrize(
+        ("name", "expected_in_message"),
+        [
+            pytest.param("   ", "blank", id="whitespace-only"),
+            pytest.param("AirflowPlugin", "shared registration slot", id="shared-slot"),
+        ],
+    )
+    def test_drops_a_react_action_whose_name_is_not_a_usable_global_key(
+        self, name, expected_in_message, caplog
+    ):
+        # Bound outside the class body: `name` there is the plugin's own attribute.
+        action_name = name
+
+        class Plugin(AirflowPlugin):
+            name = "actions_bad_global"
+            ui_actions = [
+                {
+                    "action_type": "react",
+                    "name": action_name,
+                    "destination": "dag",
+                    "bundle_url": "https://example.com/a.js",
+                }
+            ]
+
+        with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+            assert self._load(Plugin()) == []
+
+        assert any(expected_in_message in message for message in self._messages(caplog))
+
+    def test_two_react_actions_cannot_share_a_name(self, caplog):
+        """Both register under the same global, so the first plugin to load keeps it."""
+
+        def plugin_with(plugin_name):
+            return type(
+                plugin_name,
+                (AirflowPlugin,),
+                {
+                    "name": plugin_name,
+                    "ui_actions": [
+                        {
+                            "action_type": "react",
+                            "name": "Shared",
+                            "destination": "dag",
+                            "bundle_url": f"https://example.com/{plugin_name}.js",
+                        }
+                    ],
+                },
+            )()
+
+        first, second = plugin_with("first_plugin"), plugin_with("second_plugin")
+
+        with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+            kept = self._load(first, second)
+
+        # One survives, and it is the one that loaded first.
+        assert len(kept) == 1
+        assert first.ui_actions == kept
+        assert second.ui_actions == []
+        assert any("second_plugin" in message for message in self._messages(caplog))
+
+    @pytest.mark.parametrize("app_first", [True, False], ids=["app-first", "action-first"])
+    def test_a_react_action_cannot_take_a_react_app_name(self, app_first, caplog):
+        """The component registers under its name, so whichever order they load, one must lose."""
+
+        class AppPlugin(AirflowPlugin):
+            name = "app_plugin"
+            react_apps = [
+                {
+                    "name": "Shared",
+                    "bundle_url": "https://example.com/app.js",
+                    "destination": "nav",
+                    "url_route": "shared-app",
+                }
+            ]
+
+        class ActionPlugin(AirflowPlugin):
+            name = "action_plugin"
+            ui_actions = [
+                {
+                    "action_type": "react",
+                    "name": "Shared",
+                    "destination": "dag",
+                    "bundle_url": "https://example.com/action.js",
+                }
+            ]
+
+        plugins = [AppPlugin(), ActionPlugin()] if app_first else [ActionPlugin(), AppPlugin()]
+
+        with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+            # Only the action loses the name; the React App keeps it.
+            assert self._load(*plugins) == []
+
+        assert any("Shared" in message for message in self._messages(caplog))
+
+
+class TestActionSchemaParity:
+    """The action shape is written twice; nothing stops the two drifting.
+
+    A field added to the TypedDict but not the response model is dropped on the way out under
+    ``extra="allow"``, so the UI never sees it and nothing fails.
+    """
+
+    @pytest.mark.parametrize(
+        ("action_type", "model_name"),
+        [
+            pytest.param("link", "PluginLinkActionResponse", id="link"),
+            pytest.param("react", "PluginReactActionResponse", id="react"),
+        ],
+    )
+    def test_the_typed_dict_and_the_response_model_carry_the_same_fields(self, action_type, model_name):
+        from airflow._shared.plugins_manager import PluginActionDict
+        from airflow.api_fastapi.core_api.datamodels import plugins as datamodels
+
+        # Reached through the exported union, so a new variant is covered without editing this.
+        # Hints are resolved rather than read raw: the shared module uses postponed annotations,
+        # so `__annotations__` holds ForwardRef strings and `__required_keys__` reports every
+        # key as required -- including the `NotRequired` ones.
+        typed_dict = next(
+            shape
+            for shape in get_args(PluginActionDict)
+            if get_args(get_type_hints(shape)["action_type"]) == (action_type,)
+        )
+        model = getattr(datamodels, model_name)
+
+        assert set(model.model_fields) == set(get_type_hints(typed_dict))
+
+    def test_the_validator_accepts_exactly_the_declared_destinations(self):
+        from airflow._shared.plugins_manager import PluginActionDestinationLiteral
+
+        assert set(get_args(PluginActionDestinationLiteral)) == plugins_manager._ACTION_DESTINATIONS

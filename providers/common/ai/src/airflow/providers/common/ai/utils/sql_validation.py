@@ -69,6 +69,9 @@ DEFAULT_ALLOWED_TYPES: tuple[type[exp.Expr], ...] = (
     exp.Except,
 )
 
+# Snowflake ``LIST``/``LS @stage``; sqlglot >= 30.22 only (older releases mis-parse it as exp.Alias).
+_LIST_STAGE: type[exp.Expr] | None = getattr(exp, "ListStage", None)
+
 # Read-only metadata statements that introspect the schema without touching data:
 # - Describe: DESCRIBE / DESC <table> (and EXPLAIN on some dialects)
 # - Show: SHOW TABLES / SHOW COLUMNS / SHOW DATABASES, etc.
@@ -323,10 +326,11 @@ def collect_table_references(
             continue
         # A bare aliased expression is never a valid top-level statement -- sqlglot only
         # produces one by mis-parsing input it does not model. Snowflake ``LIST @stage`` /
-        # ``LS @stage`` (list a stage's files) parse this way, as ``Column AS Parameter``.
-        # Read-only mode already rejects it via the statement-type allow-list; this also
-        # refuses it on the ``allow_writes`` path, where only this scan runs.
-        if isinstance(stmt, exp.Alias):
+        # ``LS @stage`` (list a stage's files) parse this way, as ``Column AS Parameter``,
+        # before sqlglot 30.22, which models them as ``exp.ListStage`` instead.
+        # Read-only mode already rejects both via the statement-type allow-list; this also
+        # refuses them on the ``allow_writes`` path, where only this scan runs.
+        if isinstance(stmt, exp.Alias) or (_LIST_STAGE is not None and isinstance(stmt, _LIST_STAGE)):
             unverifiable.append("a statement sqlglot could not parse as a query (e.g. Snowflake LIST @stage)")
             continue
         # A function whose string argument reaches a file, another table, or a program

@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import attrs
@@ -118,7 +118,7 @@ from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -1107,6 +1107,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    # The slot this instance fills in its region, so its meaning follows the region's node: a loop
+    # region numbers its iterations from one and a mapped expansion numbers its slots from zero.
+    # -1 covers both a plain task, which belongs to no region at all and is the common case, and a
+    # mapped task that has not been expanded yet. Code that reads the column without knowing which
+    # node the region executes cannot tell an iteration from a map index.
     region_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     map_index = synonym("region_index")
     region_id: Mapped[UUID] = mapped_column(
@@ -1423,11 +1428,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-        map_index = f"/mapped/{self.region_index}" if self.region_index >= 0 else ""
-        try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-
-        return _log_uri
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}"
+        query: dict[str, Any] = {}
+        if self.region_id == SENTINEL_REGION_ID:
+            if self.region_index >= 0:
+                _log_uri += f"/mapped/{self.region_index}"
+        else:
+            # In a region, region_index is a map index only for a mapped task (in a loop it is the iteration
+            # otherwise), and the UI selects the task instance by its region, which tells loop iterations apart
+            if (task := getattr(self, "task", None)) is not None and task.get_needs_expansion():
+                _log_uri += f"/mapped/{self.region_index}"
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number > 0:
+            query["try_number"] = self.try_number
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:
@@ -2839,9 +2853,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
         run_id: str | None = None,
+        full: bool = True,
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+        #
+        # `full=False` returns plain JSON types and never runs the Airflow
+        # serialization module, so a stored `__classname__` envelope is not imported or
+        # instantiated. Callers that evaluate task dependencies -- the ti_deps, run by
+        # the scheduler and by the API server's task instance dependencies endpoint --
+        # pass it, since they only need primitive values.
 
         from airflow.models.xcom import XComModel, xcom_entity
 
@@ -2879,9 +2900,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return default
 
             if map_indexes is not None or first.map_index < 0:
-                return XComModel.deserialize_value(first)
+                if full:
+                    return XComModel.deserialize_value(first)
+                return XComModel.deserialize_value_primitives(first)
 
-            return LazyXComSelectSequence.from_select(
+            sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+            return sequence_cls.from_select(
                 query.with_only_columns(entity.value).order_by(None),
                 order_by=[entity.map_index.expression],
                 session=session,
@@ -2907,7 +2931,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ordering.append(case(map_index_whens, value=entity.map_index))
         else:
             ordering.append(entity.map_index)
-        return LazyXComSelectSequence.from_select(
+        sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+        return sequence_cls.from_select(
             query.with_only_columns(entity.value).order_by(None),
             order_by=ordering,
             session=session,
@@ -3583,7 +3608,7 @@ def find_relevant_relatives(
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(
                     task=task,
-                    relative=relative,  # type: ignore[arg-type]
+                    relative=relative,
                     run_id=run_id,
                     map_index=map_index,
                     ti_count=ti_count,

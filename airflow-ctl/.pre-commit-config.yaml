@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: mypy-airflow-ctl
         name: Run mypy for airflow-ctl
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-ctl
         pass_filenames: false
@@ -33,6 +35,8 @@ repos:
         require_serial: true
       - id: generate-airflowctl-help-images
         name: Generate SVG from Airflow CTL Commands
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/capture_airflowctl_help.py
         language: python
         pass_filenames: false
@@ -43,6 +47,8 @@ repos:
           ^src/airflowctl/ctl/commands/.*\.py$
       - id: check-airflowctl-command-coverage
         name: Check airflowctl CLI command test coverage
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_airflowctl_command_coverage.py
         language: python
         pass_filenames: false
@@ -52,6 +58,8 @@ repos:
           ^docs/images/command_hashes.txt$
       - id: check-airflowctl-help-texts
         name: Check airflowctl CLI commands have help texts
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_airflowctl_help_texts.py
         language: python
         pass_filenames: false
