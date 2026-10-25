@@ -134,7 +134,8 @@ TEST_COMMANDS = [
     "plugins list-import-errors",
 ]
 
-# TODO: remove the skip once core exposes the asset state store API (the 3.2.x core does not).
+# This release branch targets core 3.2.x, which has no asset state store API, so these commands stay
+# skipped here. Integration coverage for them lives on `main`.
 ASSET_STATE_STORE_TEST_COMMANDS = [
     "assets set-state-store 1 test_key test_value",
     "assets get-state-store 1 test_key",
@@ -144,7 +145,7 @@ ASSET_STATE_STORE_TEST_COMMANDS = [
     "assets clear-state-store 1",
 ]
 _ASSET_STATE_STORE_SKIP = pytest.mark.skip(
-    reason="core 3.2.x has no asset state-store API; remove once core provides it"
+    reason="core 3.2.x has no asset state store API; covered on main, skipped for this release branch"
 )
 
 NO_AUTH_TEST_COMMANDS = [

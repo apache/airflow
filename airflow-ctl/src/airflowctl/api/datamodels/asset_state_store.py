@@ -19,7 +19,8 @@
 Hand-written asset state store datamodels.
 
 The 3.2.x core API does not expose the asset state store endpoints, so these models cannot be produced
-by ``datamodel-codegen``. Once core provides the API, move them back into ``generated.py``.
+by ``datamodel-codegen``. They stay hand-written for the life of this release branch; the generated
+models live on ``main``.
 """
 
 from __future__ import annotations
