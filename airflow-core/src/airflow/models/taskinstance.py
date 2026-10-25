@@ -328,10 +328,10 @@ def _get_new_task_ids(
     session: Session,
 ) -> list[str]:
     """
-    Get task ids for newly added tasks in the latest DAG version.
+    Get task ids for tasks present in the latest DAG version but missing a TI on this run.
 
-    This is a read-only operation that compares the current DAG version
-    with the latest DAG version to identify new tasks.
+    This is a read-only operation that compares the run's existing TaskInstance
+    rows with the latest DAG version to identify new tasks.
 
     :param dag_id: The dag_id for the DAG
     :param run_id: The run_id for the DAG run
@@ -350,15 +350,11 @@ def _get_new_task_ids(
     if not latest_dag:
         raise ValueError(f"Latest DAG version for '{dag_id}' not found")
 
-    # Use created_dag_version_id directly to get the DAG version the run was
-    # originally created with. We cannot use get_dag_for_run here because it
-    # falls back to the latest version when bundle_version is not set (e.g.
-    # LocalDagBundle), which would make current_dag == latest_dag and the diff
-    # always empty.
-    current_dag = None
-    if dag_run.created_dag_version_id:
-        current_dag = scheduler_dagbag.get_dag(version_id=dag_run.created_dag_version_id, session=session)
-    new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
+    # Compare against the run's actual TaskInstance rows, not created_dag_version_id: runs
+    # carried over from Airflow 2 (or whose Dag version was cleaned up) have no created
+    # version, so diffing versions would report no new tasks.
+    existing_task_ids = {ti.task_id for ti in dag_run.get_task_instances(session=session)}
+    new_task_ids = set(latest_dag.task_ids) - existing_task_ids
 
     return list(new_task_ids)
 
