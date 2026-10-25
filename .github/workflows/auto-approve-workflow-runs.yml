@@ -17,7 +17,9 @@
 #
 ---
 # Approves the waiting workflow runs of external contributors' PRs to main when the change is safe to
-# run without a maintainer's look, and labels the others "need workflow approval". The rules are in
+# run without a maintainer's look, and labels the others "need workflow approval". A PR whose CI runs
+# in the contributor's fork (AIP-120) is approved unless it changes CI definition files, and then gets
+# a comment saying why its runs wait. The rules are in
 # dev/breeze/src/airflow_breeze/utils/workflow_run_approval.py and documented in
 # contributing-docs/05_pull_requests.rst.
 #
@@ -37,7 +39,8 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # Approving workflow runs.
   actions: write
-  # Adding and removing the "need workflow approval" label.
+  # Adding and removing the "need workflow approval" label, and commenting on a fork CI PR whose
+  # CI change keeps its runs waiting.
   pull-requests: write
   contents: read
 concurrency:

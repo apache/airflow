@@ -23,6 +23,10 @@ defines CI or chooses runners, do not need the full set of tests or a dependency
 jobs, as selected by selective checks, are estimated to take a limited number of job-minutes.
 Everything else gets the ``need workflow approval`` label and waits for a maintainer.
 
+A PR whose CI runs in the contributor's fork (AIP-120) is decided by one rule instead: its project
+CI run only executes the fork CI gate, so it is approved whatever its size, unless it changes files
+that define CI, in which case it waits for a maintainer and the author gets a comment saying why.
+
 Only API metadata and git objects of the PR are read. The PR's code is never checked out or run:
 selective checks come from the trusted ``main`` checkout and only see the list of changed files
 and the PR's ``pyproject.toml`` contents through ``git show``.
@@ -43,6 +47,16 @@ from rich.markup import escape
 from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, estimate_ci_minutes
 from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.fork_ci_gate import (
+    GATED_REASONS,
+    GateConfig,
+    GateEvent,
+    decide,
+    load_config,
+    parse_github_datetime,
+)
+from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER, ci_change_approval_comment
+from airflow_breeze.utils.fork_ci_reconcile import changes_ci_definition
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -90,6 +104,10 @@ NON_SOURCE_FILE_PATTERN = re.compile(
 
 GITHUB_API_URL = "https://api.github.com"
 
+# Read from the trusted main checkout, which is also the base branch whose gate job decides the
+# PRs that are approved automatically.
+FORK_CI_GATE_CONFIG_PATH = AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"
+
 
 @dataclass
 class ChangedFile:
@@ -102,6 +120,8 @@ class ApprovalDecision:
     approve: bool
     reasons: list[str] = field(default_factory=list)
     estimate: CiMinutesEstimate | None = None
+    # Posted on the PR once, when the runs are left for a maintainer.
+    comment: str | None = None
 
 
 def count_source_lines(changed_files: list[ChangedFile]) -> int:
@@ -130,6 +150,47 @@ def find_new_provider_files(files: list[str]) -> list[str]:
         and file.endswith("/provider.yaml")
         and not (AIRFLOW_ROOT_PATH / file).exists()
     ]
+
+
+def is_gated_to_fork_ci(*, pr: dict[str, Any], github_repository: str, config: GateConfig) -> bool:
+    """Whether the PR's ``Tests (AMD)`` run only executes the fork CI gate (AIP-120)."""
+    event = GateEvent(
+        event_name="pull_request",
+        repository=github_repository,
+        ref="",
+        head_repository=pr["head"]["repo"]["full_name"] if pr["head"].get("repo") else "",
+        author_login=(pr.get("user") or {}).get("login") or "",
+        author_association=pr.get("author_association") or "",
+        created_at=parse_github_datetime(pr["created_at"]),
+        labels=tuple(label["name"] for label in pr.get("labels", [])),
+    )
+    return decide(event, config).reason in GATED_REASONS
+
+
+def find_fork_ci_definition_files(files: list[str]) -> list[str]:
+    """The files the fork CI reconciler counts as defining CI, so both decide alike."""
+    return [file for file in files if changes_ci_definition([file], file_count=1)]
+
+
+def decide_gated_approval(*, changed_files: list[ChangedFile]) -> ApprovalDecision:
+    """
+    Decide on the runs of a PR whose CI runs in the contributor's fork.
+
+    Its project CI run only executes the gate, so its cost and size do not matter. A change to the CI
+    definition could remove the gate or add a workflow that does run, so it still needs a maintainer,
+    and the author is told why.
+    """
+    ci_files = find_fork_ci_definition_files([file.path for file in changed_files])
+    if ci_files:
+        return ApprovalDecision(
+            approve=False,
+            reasons=[f"its CI runs in the fork, but it changes CI definition files: {', '.join(ci_files)}"],
+            comment=ci_change_approval_comment(ci_files=ci_files),
+        )
+    return ApprovalDecision(
+        approve=True,
+        reasons=["its CI runs in the contributor's fork, so its project CI run only executes the gate"],
+    )
 
 
 def decide_approval(
@@ -272,6 +333,25 @@ class GitHubApi:
         response = self._session.post(
             f"{GITHUB_API_URL}/repos/{self.github_repository}/issues/{pr_number}/labels",
             json={"labels": [label]},
+            timeout=60,
+        )
+        response.raise_for_status()
+
+    def has_bot_comment(self, pr_number: int, marker: str) -> bool:
+        comments = self._get_paginated(f"issues/{pr_number}/comments?per_page=100")
+        # Only the workflow's own comments count; anyone can post a comment containing the marker.
+        return any(
+            (comment.get("user") or {}).get("login") == "github-actions[bot]" and marker in comment["body"]
+            for comment in comments
+        )
+
+    def create_comment(self, pr_number: int, body: str) -> None:
+        if self.report_only:
+            console_print(f"[info]Report only: would comment on PR #{pr_number}[/]")
+            return
+        response = self._session.post(
+            f"{GITHUB_API_URL}/repos/{self.github_repository}/issues/{pr_number}/comments",
+            json={"body": body},
             timeout=60,
         )
         response.raise_for_status()
@@ -531,6 +611,10 @@ def decide_for_pull_request(*, api: GitHubApi, pr: dict[str, Any]) -> ApprovalDe
         changed_files = get_changed_files(merge_sha)
     except ValueError:
         return ApprovalDecision(approve=False, reasons=["its changed files could not be listed"])
+    if pr["base"]["ref"] == AUTO_APPROVABLE_BASE_BRANCH and is_gated_to_fork_ci(
+        pr=pr, github_repository=api.github_repository, config=load_config(FORK_CI_GATE_CONFIG_PATH)
+    ):
+        return decide_gated_approval(changed_files=changed_files)
     pr_labels = tuple(label["name"] for label in pr.get("labels", []))
     return decide_approval(
         base_branch=pr["base"]["ref"],
@@ -577,6 +661,9 @@ def apply_decision(
     console_print(f"[warning]PR #{pr_number} needs a maintainer: {escape('; '.join(decision.reasons))}[/]")
     if not has_label:
         api.add_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
+    # Once per PR: every later push would otherwise repeat it while the change stays.
+    if decision.comment is not None and not api.has_bot_comment(pr_number, CI_CHANGE_MARKER):
+        api.create_comment(pr_number, decision.comment)
 
 
 MARKDOWN_SPECIAL_CHARACTERS = re.compile(r"([\\`*_{}\[\]()<>#+!|~])")

@@ -266,6 +266,13 @@ and approves them automatically when all of these hold:
   thorough tests still qualifies. Larger changes are usually new features, and a maintainer looks
   at them first.
 
+If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
+``apache/airflow`` only checks that, so none of the rules above apply. Its runs are approved
+automatically unless the PR changes files that define CI: anything under ``.github/``,
+``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a ``Dockerfile``
+or ``.pre-commit-config.yaml``. Then the runs wait for a maintainer and a comment on the PR explains
+why. CI in your fork runs either way.
+
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
 qualify, it gets the ``need workflow approval`` label and a maintainer approves the runs after

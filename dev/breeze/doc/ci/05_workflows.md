@@ -119,6 +119,15 @@ them, for the contributors the repository's approval setting covers. The
 - the PR changes at most 100 lines of source code; tests (including e2e tests), docs, newsfragments,
   translations, lock files and images are not counted
 
+A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
+project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
+gate: its runs are approved whatever its size, cost or dependency changes, unless it changes a file
+the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`, `scripts/ci/`,
+`scripts/docker/`, `scripts/in_container/`, `Dockerfile*`, `.pre-commit-config.yaml`). Such a PR gets
+the `need workflow approval` label and one comment telling the author that the CI change needs a
+maintainer; see
+[Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
+
 Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
 approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
 head of several open PRs is never approved automatically, because its runs cannot be told apart by

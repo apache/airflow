@@ -204,7 +204,10 @@ Approving workflow runs of external contributors
 
 The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 30 minutes. It approves
 the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
-than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. For every PR it also
+than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. PRs whose CI runs in
+the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
+approved whatever their size unless they change CI definition files; such a PR also gets a comment
+explaining that its CI change needs a maintainer. For every PR it also
 estimates the CI jobs selective checks will run and how long they take, and writes them to the job
 summary. Use ``--report-only`` to see the decisions without approving runs or changing labels. The rules
 are described in `CI workflows <ci/05_workflows.md>`_.

@@ -26,6 +26,8 @@ from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import approve_workflow_runs
 from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, EstimatedJobGroup
+from airflow_breeze.utils.fork_ci_gate import GateConfig
+from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
@@ -401,7 +403,7 @@ def test_apply_decision_labels_prs_that_need_a_maintainer(labels, expected_add_l
     assert api.add_label.call_args_list == expected_add_label_calls
 
 
-@pytest.mark.parametrize("method", ["approve_run", "add_label", "remove_label"])
+@pytest.mark.parametrize("method", ["approve_run", "add_label", "remove_label", "create_comment"])
 def test_report_only_api_does_not_change_anything(method):
     api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=True)
     with mock.patch.object(api, "_session", autospec=True) as session:
@@ -801,3 +803,127 @@ def test_approve_workflow_runs_command_exits_non_zero_after_summary_when_a_pr_fa
 
     assert result.exit_code == exit_code, result.output
     mock_summary.assert_called_once_with(results, mock.ANY)
+
+
+GATE_ENABLED = GateConfig(enabled=True, enabled_since=datetime(2026, 1, 1, tzinfo=UTC))
+
+
+def _gated_pr(*, base_ref="main", author_association="CONTRIBUTOR", labels=()) -> dict:
+    return {
+        **_pr(10, "aaa", labels=labels),
+        "base": {"ref": base_ref},
+        "user": {"login": "contributor"},
+        "author_association": author_association,
+    }
+
+
+@pytest.mark.parametrize(
+    ("changed_files", "approve", "ci_files"),
+    [
+        pytest.param(LARGE_SOURCE_CHANGE, True, [], id="large change approved without size checks"),
+        pytest.param([ChangedFile("airflow-core/pyproject.toml", 3)], True, [], id="dependency change"),
+        pytest.param(
+            [ChangedFile(".github/workflows/ci-amd.yml", 1), *CORE_CHANGE],
+            False,
+            [".github/workflows/ci-amd.yml"],
+            id="workflow change",
+        ),
+        pytest.param(
+            [ChangedFile("scripts/docker/entrypoint_ci.sh", 1)],
+            False,
+            ["scripts/docker/entrypoint_ci.sh"],
+            id="file the fork CI reconciler counts as CI",
+        ),
+    ],
+)
+@mock.patch(f"{MODULE}.build_selective_checks", autospec=True)
+@mock.patch(f"{MODULE}.load_config", autospec=True, return_value=GATE_ENABLED)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_decide_for_pull_request_gated_to_fork_ci(
+    mock_fetch,
+    mock_get_changed_files,
+    mock_load_config,
+    mock_selective_checks,
+    changed_files,
+    approve,
+    ci_files,
+):
+    mock_get_changed_files.return_value = changed_files
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    decision = decide_for_pull_request(api=api, pr=_gated_pr())
+
+    assert decision.approve is approve
+    assert decision.estimate is None
+    mock_selective_checks.assert_not_called()
+    if approve:
+        assert decision.comment is None
+    else:
+        assert decision.comment is not None
+        assert all(f"`{path}`" in decision.comment for path in ci_files)
+
+
+@pytest.mark.parametrize(
+    ("config", "pr"),
+    [
+        pytest.param(GateConfig(), _gated_pr(), id="gate disabled"),
+        pytest.param(GATE_ENABLED, _gated_pr(author_association="MEMBER"), id="committer"),
+        pytest.param(GATE_ENABLED, _gated_pr(labels=["use project ci"]), id="use project ci"),
+        pytest.param(GATE_ENABLED, _gated_pr(base_ref="v3-4-test"), id="release branch"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_approval", autospec=True)
+@mock.patch(f"{MODULE}.build_selective_checks", autospec=True)
+@mock.patch(f"{MODULE}.load_config", autospec=True)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=LARGE_SOURCE_CHANGE)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_decide_for_pull_request_running_project_ci_keeps_the_size_rules(
+    mock_fetch,
+    mock_get_changed_files,
+    mock_load_config,
+    mock_selective_checks,
+    mock_decide_approval,
+    config,
+    pr,
+):
+    mock_load_config.return_value = config
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    decision = decide_for_pull_request(api=api, pr=pr)
+
+    assert decision is mock_decide_approval.return_value
+
+
+@pytest.mark.parametrize(("already_commented", "expect_comment"), [(False, True), (True, False)])
+def test_apply_decision_comments_once_on_a_ci_change(already_commented, expect_comment):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.has_bot_comment.return_value = already_commented
+    decision = ApprovalDecision(approve=False, reasons=["it changes CI"], comment="explanation")
+
+    apply_decision(api=api, pr=_pr(10, "aaa"), run_ids=[1], decision=decision)
+
+    api.approve_run.assert_not_called()
+    api.has_bot_comment.assert_called_once_with(10, CI_CHANGE_MARKER)
+    assert api.create_comment.call_args_list == ([mock.call(10, "explanation")] if expect_comment else [])
+
+
+def test_apply_decision_without_a_comment_does_not_read_comments():
+    api = mock.MagicMock(spec=GitHubApi)
+
+    apply_decision(
+        api=api, pr=_pr(10, "aaa"), run_ids=[1], decision=ApprovalDecision(approve=False, reasons=["big"])
+    )
+
+    api.has_bot_comment.assert_not_called()
+    api.create_comment.assert_not_called()
+
+
+@pytest.mark.parametrize(("login", "expected"), [("github-actions[bot]", True), ("contributor", False)])
+def test_has_bot_comment_only_counts_the_workflow_comments(login, expected):
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    comments = [{"user": {"login": login}, "body": f"{CI_CHANGE_MARKER}\n\ntext"}]
+    with mock.patch.object(api, "_get_paginated", autospec=True, return_value=comments):
+        assert api.has_bot_comment(10, CI_CHANGE_MARKER) is expected
