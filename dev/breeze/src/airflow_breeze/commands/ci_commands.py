@@ -1695,6 +1695,20 @@ def set_milestone(
     help="Where the Slack message is written when there are items for maintainers.",
 )
 @click.option(
+    "--reported-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="REPORTED_FILE",
+    help="The items the previous run reported, left out of the Slack message, and replaced by "
+    "this run's items. Without it every item is reported on every run.",
+)
+@click.option(
+    "--draft-changes-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="DRAFT_CHANGES_FILE",
+    help="Where the draft state changes are written, as JSON, for the job that applies them with "
+    "the permission the reconciler does not get. Without it they are only logged.",
+)
+@click.option(
     "--run-url",
     default="",
     envvar="RUN_URL",
@@ -1703,7 +1717,14 @@ def set_milestone(
 @option_github_repository
 @option_verbose
 @option_dry_run
-def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str, github_repository: str):
+def fork_ci_reconcile(
+    config_path: Path | None,
+    output_file: Path,
+    reported_file: Path | None,
+    draft_changes_file: Path | None,
+    run_url: str,
+    github_repository: str,
+):
     from datetime import UTC, datetime
 
     from airflow_breeze.utils.fork_ci_gate import load_config
@@ -1719,6 +1740,8 @@ def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str,
         run_url=run_url,
         output_file=output_file,
         workflows_dir=AIRFLOW_ROOT_PATH / ".github" / "workflows",
+        reported_file=reported_file,
+        draft_changes_file=draft_changes_file,
     )
     github_output = os.environ.get("GITHUB_OUTPUT")
     if github_output:

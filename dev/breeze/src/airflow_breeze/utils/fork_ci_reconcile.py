@@ -28,7 +28,7 @@ import base64
 import functools
 import json
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -1179,9 +1179,29 @@ def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapsho
     return compare.get("behind_by")
 
 
-def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> None:
-    if plan.draft is True:
-        client.convert_to_draft(pr.number, pr.node_id)
+@dataclass(frozen=True)
+class DraftChange:
+    """A draft state change, applied by the monitor's draft-state job rather than the reconciler."""
+
+    number: int
+    node_id: str
+    draft: bool
+    # Remove `fork ci required` once the pull request is undrafted.
+    release: bool = False
+
+
+def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> DraftChange | None:
+    """
+    Apply the plan, except for the draft state change, which is returned.
+
+    GitHub authorises draft changes against `contents: write`, which the reconciler, running
+    Breeze and its dependencies, does not get; a separate job with no other code applies them.
+    """
+    draft_change = None
+    if plan.draft is not None:
+        verb = "convert to draft" if plan.draft else "mark ready for review"
+        console_print(f"[info]#{pr.number}: {verb} (left to the draft-state job)[/]")
+        draft_change = DraftChange(pr.number, pr.node_id, plan.draft)
     if plan.add_labels:
         client.add_labels(pr.number, plan.add_labels)
     for label in plan.remove_labels:
@@ -1198,14 +1218,17 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
         client.set_status(pr.number, pr.head_sha, *plan.ci_passed, context=CI_PASSED_CONTEXT)
     for comment in plan.new_comments:
         client.create_comment(pr.number, comment)
-    if plan.draft is False:
-        client.mark_ready(pr.number, pr.node_id)
     if plan.close:
         client.close(pr.number)
     # Last, because the label is what brings the pull request back to the next run: when an
     # earlier mutation fails, the next run retries the release instead of losing track of it.
+    # A release that undrafts leaves it to the draft-state job, for the same reason.
     if LABEL_FORK_CI_REQUIRED in plan.remove_labels:
-        client.remove_label(pr.number, LABEL_FORK_CI_REQUIRED)
+        if draft_change is not None and not draft_change.draft:
+            draft_change = replace(draft_change, release=True)
+        else:
+            client.remove_label(pr.number, LABEL_FORK_CI_REQUIRED)
+    return draft_change
 
 
 def _escape_slack(text: str) -> str:
@@ -1255,6 +1278,41 @@ def build_slack_payload(
     }
 
 
+def drop_reported(
+    reported_file: Path,
+    *,
+    unknown: list[tuple[int, str]],
+    attention: list[tuple[int, str]],
+    notes: list[str],
+    record: bool = True,
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
+    """
+    Leave out the items the previous run already reported, and record this run's items.
+
+    Only the previous run's items are kept, so an item that went away and comes back is posted
+    again. A missing or unreadable file reports everything.
+    """
+    current: dict[str, list[Any]] = {
+        "unknown": [list(item) for item in unknown],
+        "attention": [list(item) for item in attention],
+        "notes": notes,
+    }
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        previous = {}
+    if not isinstance(previous, dict):
+        previous = {}
+    if record:
+        reported_file.write_text(json.dumps(current, indent=2))
+
+    def drop(key: str, items: list[Any]) -> list[Any]:
+        seen = previous.get(key) or []
+        return [item for item, stored in zip(items, current[key]) if stored not in seen]
+
+    return drop("unknown", unknown), drop("attention", attention), drop("notes", notes)
+
+
 def run_reconcile(
     client: GitHubClient,
     config: GateConfig,
@@ -1263,6 +1321,8 @@ def run_reconcile(
     run_url: str,
     output_file: Path,
     workflows_dir: Path,
+    reported_file: Path | None = None,
+    draft_changes_file: Path | None = None,
     channel: str = "internal-airflow-ci-cd",
     default_branch: str = "main",
 ) -> bool:
@@ -1272,10 +1332,16 @@ def run_reconcile(
     :param config: the gate configuration of the default branch's checkout.
     :param workflows_dir: ``.github/workflows`` of a checkout of the default branch, whose
         triggers decide which recorded runs were legitimate.
+    :param reported_file: the items of the previous run, replaced by this run's. Items in it are
+        left out of the Slack message, so an item that persists is posted once. A dry run reads
+        it but leaves it unchanged, because it posts nothing.
+    :param draft_changes_file: where the draft state changes for the draft-state job are written,
+        as a JSON list; always written, empty when there are none.
     """
     repo = client.repo
     unknown: list[tuple[int, str]] = []
     attention: list[tuple[int, str]] = []
+    draft_changes: list[DraftChange] = []
     configs = BaseGateConfigs(client, repo=repo, default_branch=default_branch, default_config=config)
 
     discover(client, configs, repo=repo, now=now, unknown=unknown)
@@ -1320,7 +1386,9 @@ def run_reconcile(
                 ),
                 count_behind=functools.partial(count_commits_behind, client, repo, pr),
             )
-            apply_plan(client, pr, plan)
+            draft_change = apply_plan(client, pr, plan)
+            if draft_change is not None:
+                draft_changes.append(draft_change)
             # The fork's result is in the `Fork CI / Tests (AMD)` status; the gated run's skipped
             # checks only clutter the pull request. Runs with any project CI work stay for the
             # tampering check.
@@ -1338,6 +1406,12 @@ def run_reconcile(
     for number, reason in [*unknown, *attention]:
         console_print(f"[warning]#{number}: {reason}[/]")
     console_print(f"[info]Reconciled {len(prs)} pull requests; GitHub calls: {dict(client.calls)}[/]")
+    if draft_changes_file is not None:
+        draft_changes_file.write_text(json.dumps([asdict(change) for change in draft_changes]))
+    if reported_file is not None:
+        unknown, attention, notes = drop_reported(
+            reported_file, unknown=unknown, attention=attention, notes=notes, record=not client.dry_run
+        )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:
         payload = build_slack_payload(

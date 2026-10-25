@@ -125,6 +125,8 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--config",
                 "--output-file",
+                "--reported-file",
+                "--draft-changes-file",
                 "--run-url",
                 "--github-repository",
             ],

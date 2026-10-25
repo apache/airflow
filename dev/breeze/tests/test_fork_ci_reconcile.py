@@ -38,6 +38,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 from airflow_breeze.utils.fork_ci_reconcile import (
     BaseGateConfigs,
     BypassFinder,
+    DraftChange,
     ForkObservation,
     ForkState,
     Plan,
@@ -48,6 +49,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     classify,
     count_commits_behind,
     discover,
+    drop_reported,
     fetch_fork_observations,
     fetch_workflow_state,
     find_state_comment,
@@ -1440,7 +1442,7 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
-        _search_result(_pr_node(1), _pr_node(2)),
+        _search_result(_pr_node(1), _pr_node(2, isDraft=False)),
         {"pr0": {"object": None}, "pr1": {"object": None}},
     ]
     workflow_state_calls = []
@@ -1456,11 +1458,22 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
 
     client.rest_get.side_effect = rest_get
 
+    draft_changes_file = tmp_path / "draft-changes.json"
+
     has_alerts = run_reconcile(
-        client, CONFIG, now=NOW, run_url="https://run", output_file=output, workflows_dir=tmp_path
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=output,
+        workflows_dir=tmp_path,
+        draft_changes_file=draft_changes_file,
     )
 
     assert has_alerts is True
+    assert json.loads(draft_changes_file.read_text()) == [
+        {"number": 2, "node_id": "PR_2", "draft": True, "release": False}
+    ]
     payload = json.loads(output.read_text())
     assert payload["channel"] == "internal-airflow-ci-cd"
     text = "\n".join(block["text"]["text"] for block in payload["blocks"])
@@ -1521,13 +1534,26 @@ def test_command_writes_has_alerts_output(mock_run, tmp_path, monkeypatch):
     github_output = tmp_path / "github_output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
 
-    result = CliRunner().invoke(fork_ci_reconcile, ["--dry-run", "--output-file", str(tmp_path / "s.json")])
+    result = CliRunner().invoke(
+        fork_ci_reconcile,
+        [
+            "--dry-run",
+            "--output-file",
+            str(tmp_path / "s.json"),
+            "--reported-file",
+            str(tmp_path / "reported.json"),
+            "--draft-changes-file",
+            str(tmp_path / "draft-changes.json"),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     assert github_output.read_text() == "has-alerts=true\n"
     github_client = mock_run.call_args.args[0]
     assert github_client.dry_run is True
     assert github_client.repo == "apache/airflow"
+    assert mock_run.call_args.kwargs["reported_file"] == tmp_path / "reported.json"
+    assert mock_run.call_args.kwargs["draft_changes_file"] == tmp_path / "draft-changes.json"
 
 
 @pytest.mark.parametrize(
@@ -1557,19 +1583,103 @@ def test_run_reconcile_without_gated_pull_requests(client, tmp_path, total_count
     "fails", [pytest.param(False, id="all-succeed"), pytest.param(True, id="status-fails")]
 )
 def test_fork_ci_required_is_removed_after_everything_else(client, fails):
-    plan, _, _ = _classify(_pr(labels=("fork ci required", "use project ci")), GREEN)
+    pr = _pr(is_draft=False, labels=("fork ci required", "use project ci"))
+    plan, _, _ = _classify(pr, GREEN)
     calls = mock.Mock()
-    client.mark_ready.side_effect = lambda *args: calls("mark_ready")
     client.remove_label.side_effect = lambda pr, label: calls("remove_label", label)
-    client.set_status.side_effect = GitHubError("gh api failed: HTTP 500") if fails else None
+    client.set_status.side_effect = (
+        GitHubError("gh api failed: HTTP 500") if fails else lambda *args, **kwargs: calls("set_status")
+    )
 
     if fails:
         with pytest.raises(GitHubError):
-            apply_plan(client, _pr(), plan)
+            apply_plan(client, pr, plan)
         client.remove_label.assert_not_called()
     else:
-        apply_plan(client, _pr(), plan)
+        apply_plan(client, pr, plan)
         assert calls.call_args_list[-1] == mock.call("remove_label", "fork ci required")
+
+
+@pytest.mark.parametrize(
+    ("plan", "expected", "removes_fork_ci_required"),
+    [
+        pytest.param(
+            Plan(draft=True, remove_labels=["fork ci required"]),
+            DraftChange(42, "PR_node", draft=True),
+            True,
+            id="draft",
+        ),
+        pytest.param(Plan(draft=False), DraftChange(42, "PR_node", draft=False), False, id="undraft"),
+        pytest.param(
+            Plan(draft=False, remove_labels=["fork ci required"]),
+            DraftChange(42, "PR_node", draft=False, release=True),
+            False,
+            id="undraft-on-release",
+        ),
+        pytest.param(Plan(), None, False, id="unchanged"),
+    ],
+)
+def test_apply_plan_leaves_draft_changes_to_the_draft_state_job(
+    client, plan, expected, removes_fork_ci_required
+):
+    assert apply_plan(client, _pr(), plan) == expected
+    assert (mock.call(42, "fork ci required") in client.remove_label.call_args_list) is (
+        removes_fork_ci_required
+    )
+
+
+def test_drop_reported_posts_each_item_once_while_it_persists(tmp_path):
+    reported_file = tmp_path / "reported.json"
+
+    def report(unknown=(), attention=(), notes=()):
+        return drop_reported(
+            reported_file, unknown=list(unknown), attention=list(attention), notes=list(notes)
+        )
+
+    assert report(unknown=[(1, "a")], notes=["n"]) == ([(1, "a")], [], ["n"])
+    assert report(unknown=[(1, "a")], attention=[(2, "b")], notes=["n"]) == ([], [(2, "b")], [])
+    assert report(attention=[(2, "b")]) == ([], [], [])
+    assert report(unknown=[(1, "a")], attention=[(2, "b")]) == ([(1, "a")], [], [])
+
+
+@pytest.mark.parametrize("content", [None, "not json", "[]"])
+def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_path, content):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert drop_reported(reported_file, unknown=[(1, "a")], attention=[], notes=[]) == ([(1, "a")], [], [])
+    assert json.loads(reported_file.read_text()) == {"unknown": [[1, "a"]], "attention": [], "notes": []}
+
+
+@pytest.mark.parametrize(
+    ("first_dry_run", "second_has_alerts"),
+    [
+        pytest.param(False, False, id="posted"),
+        pytest.param(True, True, id="dry-run-posts-nothing"),
+    ],
+)
+def test_run_reconcile_posts_a_persisting_item_once(client, tmp_path, first_dry_run, second_has_alerts):
+    output = tmp_path / "slack-message.json"
+    client.rest_get_pages.return_value = [{"total_count": 1500, "workflow_runs": []}]
+
+    def reconcile(dry_run=False):
+        client.dry_run = dry_run
+        client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+        return run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=output,
+            workflows_dir=tmp_path,
+            reported_file=tmp_path / "reported.json",
+        )
+
+    assert reconcile(dry_run=first_dry_run) is True
+    output.unlink()
+    assert reconcile() is second_has_alerts
+    assert output.exists() is second_has_alerts
 
 
 def test_slack_payload_stays_within_slack_limits():
