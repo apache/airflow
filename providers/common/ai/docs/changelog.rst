@@ -51,11 +51,6 @@ Changelog
 .. warning::
   The following changes are breaking for code written against 1.0.0:
 
-  * ``LlamaIndexHook`` and ``LangChainHook`` (both experimental, see :doc:`stability`):
-    ``embed_model`` and ``llm_model`` are now keyword-only.
-    In 1.0.0 they were the third and fourth positional parameters (after ``llm_conn_id`` and
-    ``embed_conn_id``), and the two hooks listed them in opposite order, so positional calls silently
-    swapped meanings between the hooks. Pass them by keyword, e.g. ``LlamaIndexHook(llm_model="gpt-5")``.
   * ``PydanticAIHook``: when a connection supplies credentials (password or host) and the provider class
     rejects the resulting keyword arguments (``TypeError``), the hook now raises ``ValueError``. In 1.0.0
     it logged a warning and fell back to environment-variable authentication, which could authenticate
@@ -74,6 +69,16 @@ Changelog
           from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
       except (ImportError, AirflowOptionalProviderFeatureException):
           LLMRetryPolicy = None
+
+.. note::
+  ``LlamaIndexHook`` and ``LangChainHook`` (both experimental, see :doc:`stability`):
+  passing ``embed_model`` and ``llm_model`` positionally is deprecated. In 1.0.0 they were the third and
+  fourth positional parameters (after ``llm_conn_id`` and ``embed_conn_id``), and the two hooks listed
+  them in opposite order (``embed_model`` then ``llm_model`` for ``LlamaIndexHook``, ``llm_model`` then
+  ``embed_model`` for ``LangChainHook``). Positional calls still work and emit an
+  ``AirflowProviderDeprecationWarning``, but support will be removed in a future release. Pass them by
+  keyword, e.g. ``LlamaIndexHook(llm_model="gpt-5")``, which also avoids the meanings swapping between
+  the two hooks.
 
 1.1.0
 .....
