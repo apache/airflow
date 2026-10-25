@@ -188,7 +188,8 @@ Pull requests from external contributors can run their CI in the contributor's f
 gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
 one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
 pull requests without fork CI activity for a week, closes gated pull requests that made project CI run
-by changing workflows, and writes everything it could not classify to a Slack message. With
+by changing workflows, and writes everything it could not classify to a Slack message. It also cancels
+the unfinished workflow runs of pull requests, of any author, that have already merged. With
 ``--dry-run`` it prints the changes instead of applying them. See
 `Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md>`_ for the design.
 
