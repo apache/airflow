@@ -113,6 +113,7 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
     OS_DEPS_IMAGE_DEBIAN_VERSION,
     OS_DEPS_IMAGE_TYPES,
+    PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     OsDepsImageType,
@@ -5332,6 +5333,14 @@ def mirror_base_images(python: str | None):
     # Only main mirrors, so it covers every Python version an active release branch still builds on,
     # not only the ones main itself uses.
     python_versions = ALL_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    unavailable = [
+        version for version in python_versions if version in PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES
+    ]
+    if unavailable:
+        console_print(
+            f"[warning]Skipping Python {', '.join(unavailable)}: Docker publishes no hardened image for it yet.[/]"
+        )
+        python_versions = [version for version in python_versions if version not in unavailable]
     failed: list[str] = []
     # Tags this run moved to an image other than the one the builds are pinned to. Only a move counts:
     # a pin that was already behind has had its upgrade triggered by the run that moved the tag.
