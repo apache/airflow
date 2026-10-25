@@ -177,6 +177,16 @@ describe("loadPlugin", () => {
     }
   });
 
+  it("renders nothing when the bundle cannot be fetched", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const { default: Component } = await loadPlugin(pluginA, () => Promise.reject(new Error("network down")));
+    const { container } = render(<Component />, { wrapper: Wrapper });
+
+    // An error page here would bury the page the plugin was only decorating.
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("does not let a malformed bundle inherit a previously-loaded plugin's component", async () => {
     // A well-formed bundle sets globalThis.AirflowPlugin on import; a malformed one sets nothing.
     await loadPlugin(pluginA, () => {

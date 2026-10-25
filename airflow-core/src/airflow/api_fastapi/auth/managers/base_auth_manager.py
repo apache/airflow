@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -162,7 +163,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB lookup, kept off the event loop
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
@@ -182,6 +184,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method.
         """
         return []
+
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        Middlewares added by this method will be initialised before middleware from
+        ``get_fastapi_middlewares()``. To disable JWT refresh return an empty list.
+        To add more middleware, simply add more tuples here in the same format as
+        ``get_fastapi_middlewares()``.
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
+
+        return [(JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
@@ -786,7 +802,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
-            pools_by_team[team_name].add(pool_name)
+            if pool_name is not None:
+                pools_by_team[team_name].add(pool_name)
 
         pool_names: set[str] = set()
         for team_name, team_pool_names in pools_by_team.items():

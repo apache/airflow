@@ -985,6 +985,7 @@ export const $BackfillPostBody = {
         },
         max_active_runs: {
             type: 'integer',
+            minimum: 1,
             title: 'Max Active Runs',
             default: 10
         },
@@ -6708,7 +6709,9 @@ export const $LoopIterationResponse = {
         },
         iteration: {
             type: 'integer',
-            title: 'Iteration'
+            minimum: 1,
+            title: 'Iteration',
+            description: 'Position in the enclosing loop, counting from one.'
         }
     },
     type: 'object',
@@ -7003,6 +7006,126 @@ export const $PluginImportErrorResponse = {
     description: 'Plugin Import Error serializer for responses.'
 } as const;
 
+export const $PluginLinkActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'link',
+            title: 'Action Type'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'href'],
+    title: 'PluginLinkActionResponse',
+    description: 'Serializer for a UI action that opens a URL.'
+} as const;
+
+export const $PluginReactActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'react',
+            title: 'Action Type'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'bundle_url'],
+    title: 'PluginReactActionResponse',
+    description: 'Serializer for a UI action that mounts a React component behind a button.'
+} as const;
+
 export const $PluginResponse = {
     properties: {
         name: {
@@ -7063,6 +7186,28 @@ export const $PluginResponse = {
             type: 'array',
             title: 'React Apps'
         },
+        ui_actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/PluginLinkActionResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/PluginReactActionResponse'
+                    }
+                ],
+                discriminator: {
+                    propertyName: 'action_type',
+                    mapping: {
+                        link: '#/components/schemas/PluginLinkActionResponse',
+                        react: '#/components/schemas/PluginReactActionResponse'
+                    }
+                }
+            },
+            type: 'array',
+            title: 'Ui Actions',
+            description: 'User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.'
+        },
         appbuilder_views: {
             items: {
                 '$ref': '#/components/schemas/AppBuilderViewResponse'
@@ -7122,6 +7267,7 @@ export const $PoolBody = {
         name: {
             type: 'string',
             maxLength: 256,
+            pattern: '\\S',
             title: 'Name'
         },
         slots: {
@@ -9612,6 +9758,7 @@ export const $VariableBody = {
         key: {
             type: 'string',
             maxLength: 250,
+            pattern: '\\S',
             title: 'Key'
         },
         value: {
@@ -10306,6 +10453,13 @@ export const $CalendarTimeRangeResponse = {
     required: ['date', 'state', 'count'],
     title: 'CalendarTimeRangeResponse',
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
+} as const;
+
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ConfigResponse = {
@@ -11290,10 +11444,40 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        callback_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Callback Id'
+        },
+        callback_type: {
+            type: 'string',
+            title: 'Callback Type'
+        },
+        callback_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/CallbackState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        callback_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Path'
         }
     },
     type: 'object',
-    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
+    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id', 'callback_id', 'callback_type'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
 } as const;
@@ -12224,6 +12408,11 @@ export const $LoopIterationSummary = {
                 }
             ],
             title: 'End Date'
+        },
+        decision_reason: {
+            type: 'string',
+            title: 'Decision Reason',
+            description: "Why the loop's gate continued or stopped the loop at this iteration, if its until callable said."
         }
     },
     type: 'object',

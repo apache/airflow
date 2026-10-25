@@ -35,7 +35,7 @@ Start here
 - :doc:`features`: what the provider can do, with the page, extra, minimum Airflow
   version and stability of each feature.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
-- :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
+- :doc:`use_cases/index`: jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
 
 This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
@@ -162,7 +162,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -186,7 +186,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.21.0``
+``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
 ``pydantic-ai-slim``                        ``>=2.36.0``
 ``structlog``                               ``>=24.2.0``
@@ -239,7 +239,7 @@ Extra            Dependencies
 ``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.35.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
-``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0,<2``
 ``islo``         ``islo>=0.3.19``
 ``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
@@ -258,5 +258,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl.sha512>`__)

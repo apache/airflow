@@ -289,10 +289,33 @@ class Deadline(Base):
             data["kwargs"] = kwargs
             return data
 
+        callback_failed = False
         if isinstance(self.callback, TriggererCallback):
-            self.callback.data = callback_data_with_context()
+            from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
-            self.callback.queue(session=session)
+            data = callback_data_with_context()
+            # The triggerer decodes the context with full serde, which rebuilds a value in either
+            # encoding as an object, and strict serialize raises on the current one. Fail the
+            # callback instead of queueing it: raising here would abort the scheduler loop, and the
+            # deadline would be picked up and raise again on every restart.
+            if found := find_reserved_keys(data["kwargs"]["context"], root="context"):
+                _, keys = found
+                logger.error(
+                    "Not queueing the callback of deadline %s for Dag %s, run %s: its context holds "
+                    "reserved serialization keys %s",
+                    self.id,
+                    self.dagrun.dag_id,
+                    self.dagrun.run_id,
+                    ", ".join(keys),
+                )
+                self.callback.state = CallbackState.FAILED
+                self.callback.output = (
+                    f"Not queued: the callback context holds reserved serialization keys {', '.join(keys)}"
+                )
+                callback_failed = True
+            else:
+                self.callback.data = data
+                self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
@@ -324,6 +347,12 @@ class Deadline(Base):
                 {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
             ),
         )
+        if callback_failed:
+            stats.incr(
+                **self.callback.get_metric_info(
+                    CallbackState.FAILED, self.callback.output, team_name=team_name
+                )
+            )
 
 
 class ReferenceModels:

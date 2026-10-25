@@ -17,12 +17,11 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
 import { dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
+import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
 
 const mockConfig: Record<string, unknown> = {
@@ -43,14 +42,6 @@ vi.mock("src/queries/useConfig", () => ({
 
 // Only the draining assertions need a fourth Dag, and every extra row is re-rendered by each
 // test that leans on the default fixture, so it is served per-test rather than globally.
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledFrame: "bypass" });
-});
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 const withDrainingDag = () => server.use(dagsListHandler([...defaultDags, drainingDag]));
 
@@ -125,7 +116,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
-    fireEvent.click(within(screen.getByTestId("paused-pill")).getByRole("button"));
+    fireEvent.click(screen.getByTestId("paused-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
@@ -170,7 +161,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
     expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
 
-    fireEvent.click(within(await screen.findByTestId("timetable_type-pill")).getByRole("button"));
+    fireEvent.click(await screen.findByTestId("timetable_type-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();

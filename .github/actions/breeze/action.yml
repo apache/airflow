@@ -29,6 +29,8 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: "RunsOn cost summary"
+      uses: ./.github/actions/runs-on-cost-summary
     - name: "Setup python"
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
       with:

@@ -2156,9 +2156,9 @@ class DagSerialization(BaseSerialization):
         Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
 
         A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
-        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup`` and
-        ``disable_bundle_versioning`` out unless the Dag sets them. A value the Dag sets is kept.
-        *serialized_obj* is changed in place.
+        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup``,
+        ``disable_bundle_versioning`` and the tasks' default ``execution_timeout`` out unless the Dag
+        sets them. A value the Dag sets is kept. *serialized_obj* is changed in place.
         """
         dag = serialized_obj.get("dag")
         if not isinstance(dag, dict):
@@ -2178,6 +2178,9 @@ class DagSerialization(BaseSerialization):
         ):
             if key not in dag:
                 dag[key] = get(section, option)
+        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is not None:
+            task_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
+            task_defaults.setdefault("execution_timeout", execution_timeout.total_seconds())
 
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:

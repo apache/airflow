@@ -55,6 +55,8 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNS_ON_AMD_RUNNER_TEMPLATE,
+    RUNS_ON_ARM_RUNNER_TEMPLATE,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
@@ -66,10 +68,12 @@ from airflow_breeze.global_constants import (
     SelectiveTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
+    get_airflow_version,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.fork_compare import get_upstream_file
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
@@ -93,6 +97,7 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 AREA_E2E_TESTS_LABEL = "area:e2e-tests"
@@ -892,7 +897,16 @@ def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[
 
 
 class SelectiveChecks:
-    __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
+    __HASHABLE_FIELDS = {
+        "_files",
+        "_default_branch",
+        "_commit_ref",
+        "_pr_labels",
+        "_github_event",
+        "_fork_push",
+        "_fork_changes_truncated",
+        "_fork_merge_base",
+    }
 
     def __init__(
         self,
@@ -906,7 +920,18 @@ class SelectiveChecks:
         github_actor: str = "",
         github_context_dict: dict[str, Any] | None = None,
         platform: str = CI_AMD_PLATFORM,
+        selective_tests_on_push: bool = False,
+        fork_push: bool = False,
+        fork_changes_truncated: bool = False,
+        fork_merge_base: str | None = None,
     ):
+        """
+        :param fork_push: the push happened in a contributor fork (AIP-120); ``files`` are the
+            changes against apache/airflow and the run is selected like a pull request.
+        :param fork_changes_truncated: the compare API capped the changed files of a fork push.
+        :param fork_merge_base: the apache/airflow commit a fork push is compared with; previous
+            versions of changed files are read there instead of from the pushed commit's parent.
+        """
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
         # only helpers that cannot be narrowed to their importers still force the full set of tests.
@@ -932,6 +957,10 @@ class SelectiveChecks:
         self._github_actor = github_actor
         self._github_context_dict = github_context_dict or {}
         self._platform = platform
+        self._selective_tests_on_push = selective_tests_on_push
+        self._fork_push = fork_push
+        self._fork_changes_truncated = fork_changes_truncated
+        self._fork_merge_base = fork_merge_base
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -985,8 +1014,33 @@ class SelectiveChecks:
     def default_constraints_branch(self) -> str:
         return self._default_constraints_branch
 
+    def _get_full_run_events(self) -> list[GithubEvents]:
+        # Only `ci-amd.yml` / `ci-arm.yml` opt in: other push-triggered workflows (constraints, image
+        # cache) rely on a push selecting all Python versions.
+        if self._selective_tests_on_push:
+            return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+        return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+
+    def _get_previous_file_content(self, path: str) -> str | None:
+        if self._fork_merge_base:
+            return get_upstream_file(path=path, ref=self._fork_merge_base)
+        result = run_command(
+            ["git", "show", f"{self._commit_ref}^:{path}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        return result.stdout if result.returncode == 0 else None
+
+    def _is_pull_request_like(self) -> bool:
+        return self._github_event == GithubEvents.PULL_REQUEST or self._fork_push
+
     def _should_run_all_tests_and_versions(self) -> bool:
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+        if self._fork_changes_truncated:
+            console_print("[warning]Running everything because the fork change set is truncated[/]")
+            return True
+        if not self._fork_push and self._github_event in self._get_full_run_events():
             if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
                 console_print(
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
@@ -1254,6 +1308,13 @@ class SelectiveChecks:
             console_print(
                 f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
                 f"'{FULL_TESTS_NEEDED_LABEL}' label is set[/]"
+            )
+            return True
+        # The UI files of a truncated fork change set may be among the files the compare API
+        # did not list, so the file match below cannot rule them out.
+        if self._fork_changes_truncated:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because the fork change set is truncated[/]"
             )
             return True
         matched_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
@@ -1838,21 +1899,14 @@ class SelectiveChecks:
                 f"Could not get pyproject.toml from {self._commit_ref}[/]"
             )
             return False
-        old_result = run_command(
-            ["git", "show", f"{self._commit_ref}^:pyproject.toml"],
-            capture_output=True,
-            text=True,
-            cwd=AIRFLOW_ROOT_PATH,
-            check=False,
-        )
-        if old_result.returncode != 0:
+        old_content = self._get_previous_file_content("pyproject.toml")
+        if old_content is None:
             console_print(
-                f"[warning]Cannot determine pyproject.toml changes. "
-                f"Could not get pyproject.toml from {self._commit_ref}^[/]"
+                "[warning]Cannot determine pyproject.toml changes. Could not get its previous version[/]"
             )
             return False
         self._new_toml = tomllib.loads(new_result.stdout)
-        self._old_toml = tomllib.loads(old_result.stdout)
+        self._old_toml = tomllib.loads(old_content)
         return True
 
     @cached_property
@@ -1868,8 +1922,10 @@ class SelectiveChecks:
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self._github_event == GithubEvents.SCHEDULE:
-            console_print("[warning]Upgrade to newer dependencies: Schedule event[/]")
+        # A dispatched run is a full run, like a scheduled canary: on release branches it replaces the
+        # push runs that used to update the constraints after a dependency backport.
+        if self._github_event in (GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH):
+            console_print(f"[warning]Upgrade to newer dependencies: {self._github_event} event[/]")
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             console_print(
@@ -2127,17 +2183,141 @@ class SelectiveChecks:
         return PUBLIC_ARM_RUNNERS
 
     @cached_property
+    def runner_type(self) -> str:
+        """Runner labels for the jobs of a CI run on this run's platform.
+
+        The RunsOn label is a template the jobs fill in with their size class.
+        """
+        # RunsOn needs the run id in the label; without one (e.g. a local run) the jobs would never start.
+        run_id = self._github_context_dict.get("run_id")
+        if not run_id or not self._use_runs_on_runners():
+            return PUBLIC_ARM_RUNNERS if self._platform == CI_ARM_PLATFORM else PUBLIC_AMD_RUNNERS
+        template = (
+            RUNS_ON_ARM_RUNNER_TEMPLATE if self._platform == CI_ARM_PLATFORM else RUNS_ON_AMD_RUNNER_TEMPLATE
+        )
+        return json.dumps([template.format(run_id=run_id)])
+
+    def _use_runs_on_runners(self) -> bool:
+        """Whether this run should use the self-hosted RunsOn runners.
+
+        This only routes runs; it does not keep fork code off RunsOn. A ``pull_request`` run uses
+        the PR's own workflow files and breeze, so a fork can request a RunsOn label directly -
+        that restriction has to be enforced by the RunsOn stack and the repository's Actions
+        settings, not here. Routed there: pushes, schedules and dispatches, and PRs from
+        apache/airflow branches except bots' (e.g. Dependabot's). A fork PR goes there while it
+        carries the ``use self-hosted runners`` label, a committer has approved its head commit and
+        no committer's request for changes is outstanding.
+        The repository variable ``USE_PUBLIC_RUNNERS=true`` moves every run back to public runners.
+        """
+        if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            return False
+        if os.environ.get("USE_PUBLIC_RUNNERS", "").casefold() == "true":
+            return False
+        if USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
+            return False
+        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+            return True
+        if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._is_self_hosted_label_approved():
+            return True
+        if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
+            return False
+        pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
+        # The PR author, not github.actor: a committer rebasing a Dependabot PR becomes the actor.
+        # The branch too: anyone can open their own PR from a Dependabot branch.
+        if (pull_request.get("user") or {}).get("type") == "Bot" or (
+            pull_request.get("head", {}).get("ref", "").startswith("dependabot/")
+        ):
+            return False
+        # A PR from a deleted fork has no head repo.
+        head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
+        return head_repo == APACHE_AIRFLOW_GITHUB_REPOSITORY
+
+    def _is_self_hosted_label_approved(self) -> bool:
+        """Whether the PR still has the label, a committer approved its head commit and no committer's veto stands.
+
+        A re-run reuses the labels of its original event, so a later removal only shows in the PR
+        itself. The label outlives the commit it was added for, so on its own it would vouch for
+        every later push. A request for changes stays in force across pushes, as on GitHub, until
+        that committer reviews again or it is dismissed. Any failure to tell counts as "no".
+        """
+        # Lazy: breeze keeps its top-level imports minimal (check-breeze-top-dependencies-limited).
+        import requests
+
+        pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
+        head_sha = pull_request.get("head", {}).get("sha")
+        if not head_sha:
+            return False
+        pull_request_url = (
+            f"https://api.github.com/repos/{self._github_repository}/pulls/{pull_request.get('number')}"
+        )
+        headers = {"Accept": "application/vnd.github+json"}
+        if token := os.environ.get("GITHUB_TOKEN"):
+            headers["Authorization"] = f"Bearer {token}"
+        # Each reviewer's latest verdict, on the head commit and on any commit; a dismissed review is
+        # listed as DISMISSED in place, and comment-only reviews change nothing.
+        latest_on_head: dict[str, str] = {}
+        latest_overall: dict[str, str] = {}
+        try:
+            response = requests.get(pull_request_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            if USE_SELF_HOSTED_RUNNERS_LABEL not in {label["name"] for label in response.json()["labels"]}:
+                console_print(
+                    f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: the PR no longer has it"
+                )
+                return False
+            url: str | None = f"{pull_request_url}/reviews?per_page=100"
+            while url:
+                response = requests.get(url, headers=headers, timeout=30)
+                response.raise_for_status()
+                for review in response.json():
+                    if review.get("state") not in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
+                        continue
+                    login = ((review.get("user") or {}).get("login") or "").casefold()
+                    latest_overall[login] = review["state"]
+                    if review.get("commit_id") == head_sha:
+                        latest_on_head[login] = review["state"]
+                url = response.links.get("next", {}).get("url")
+        # AttributeError / KeyError / TypeError: a 200 whose body is not the expected PR or list of reviews.
+        except (requests.RequestException, AttributeError, KeyError, TypeError) as e:
+            console_print(f"[warning]Could not read the labels and reviews of the PR: {e}")
+            return False
+        committers = {committer.casefold() for committer in COMMITTERS}
+        approved = any(latest_on_head.get(committer) == "APPROVED" for committer in committers)
+        vetoed = any(latest_overall.get(committer) == "CHANGES_REQUESTED" for committer in committers)
+        if approved and not vetoed:
+            return True
+        console_print(
+            f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: "
+            f"the head commit {head_sha} is not approved by a committer, or a committer's request for "
+            "changes stands"
+        )
+        return False
+
+    @cached_property
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:
-        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
+        """Provider compatibility input matrix for the current run.
+
+        Filters out python versions that are not built. Also drops the entry whose
+        ``airflow-version`` matches the current branch version: on a ``vX-Y-test``
+        branch the just-bumped ``X.Y.0`` is added to the matrix by the version-bump
+        commit before it is released, so compat jobs that pull the released
+        ``apache/airflow:X.Y.0`` image/package would fail until GA. The entry starts
+        running again once the branch bumps to the next patch (``X.Y.1``) and ``X.Y.0``
+        is a real release.
+        """
+        current_airflow_version = get_airflow_version()
         return json.dumps(
             [
                 check
                 for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
+                and check["airflow-version"] != current_airflow_version
             ]
         )
 
@@ -2201,6 +2381,9 @@ class SelectiveChecks:
     @cached_property
     def is_committer_build(self):
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
+            return False
+        # Forks have no self-hosted runners; a committer's fork push must stay on public runners.
+        if self._fork_push:
             return False
         return self._github_actor in COMMITTERS
 
@@ -2267,7 +2450,7 @@ class SelectiveChecks:
 
     def _is_canary_run(self):
         return (
-            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
+            self._github_event in self._get_full_run_events()
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
             and not self.only_text_non_doc_files_changed
         ) or CANARY_LABEL in self._pr_labels
@@ -2292,7 +2475,7 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
         )
-        if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
+        if not pyproject_files or not self._is_pull_request_like():
             return False
 
         violations = []
@@ -2308,20 +2491,13 @@ class SelectiveChecks:
             if new_result.returncode != 0:
                 continue
 
-            # Get the old version of the file
-            old_result = run_command(
-                ["git", "show", f"{self._commit_ref}^:{pyproject_file}"],
-                capture_output=True,
-                text=True,
-                cwd=AIRFLOW_ROOT_PATH,
-                check=False,
-            )
-            if old_result.returncode != 0:
+            old_content = self._get_previous_file_content(pyproject_file)
+            if old_content is None:
                 continue
 
             try:
                 new_toml = tomllib.loads(new_result.stdout)
-                old_toml = tomllib.loads(old_result.stdout)
+                old_toml = tomllib.loads(old_content)
             except Exception:
                 continue
 
@@ -2513,7 +2689,7 @@ class SelectiveChecks:
         Check if common.compat provider changed and other providers changed don't have '# use next version'
         comment for their common-compat dependency.
         """
-        if self._github_event != GithubEvents.PULL_REQUEST:
+        if not self._is_pull_request_like():
             return False
         # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
         # cherry-picked common.compat changes don't follow the '# use next version'

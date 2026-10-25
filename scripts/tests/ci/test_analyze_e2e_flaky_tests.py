@@ -50,6 +50,22 @@ class TestGhApi:
         assert args[args.index("--method") + 1] == "GET"
 
 
+class TestGetRecentRunIds:
+    @pytest.mark.parametrize(
+        ("event", "expected_event"),
+        [
+            pytest.param("schedule", "schedule", id="scheduled-canaries"),
+            pytest.param("", None, id="all-events"),
+        ],
+    )
+    def test_filters_by_event(self, analyze_module, event, expected_event):
+        with patch.object(
+            analyze_module, "gh_api", autospec=True, return_value='{"workflow_runs": []}'
+        ) as mock:
+            analyze_module.get_recent_run_ids("apache/airflow", "ci-amd.yml", "main", 10, event)
+        assert mock.call_args.kwargs.get("event") == expected_event
+
+
 class TestEscapeSlackMrkdwn:
     def test_escapes_ampersand(self, analyze_module):
         assert analyze_module.escape_slack_mrkdwn("a & b") == "a &amp; b"

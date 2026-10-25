@@ -136,7 +136,7 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun"],
                 DagModel,
                 {
                     "last_run_state": DagRun.state,

@@ -25,6 +25,55 @@
 Changelog
 ---------
 
+.. note::
+  The worker cannot register a model class for XCom deserialization when ``output_type`` is a
+  list of output types such as ``[Summary, int]``, an output marker such as
+  ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a ``NewType``. For these
+  output types, ``AgentOperator`` and ``@task.agent`` now push each model in the output as a
+  JSON-compatible dict (``model_dump(mode="json")``), including models inside a list, tuple or
+  dict. On Airflow < 3.3, the worker registers no model class at all, so a model inside a list,
+  tuple or dict is now pushed as a JSON-compatible dict for every ``output_type``. A top-level
+  model is still dumped with plain ``model_dump()`` when ``serialize_output=True`` is set or on
+  Airflow < 3.3.
+
+  The new behaviour changes the type that a downstream task receives after an upgrade. Versions
+  1.0.0 and 1.1.0 pushed these models as model instances. They dumped a top-level model with
+  plain ``model_dump()`` only in HITL review, with ``serialize_output=True`` or on
+  Airflow < 3.3. A downstream task loaded a model instance when the model's class was listed in
+  ``[core] allowed_deserialization_classes``, or on Airflow >= 3.3 when another task in the
+  same Dag declared the class as its ``output_type``. That downstream task now gets a dict and
+  must read ``result["field"]`` instead of ``result.field``. In HITL review on Airflow >= 3.3
+  without ``serialize_output=True``, values such as ``datetime``, ``date``, ``timedelta``,
+  ``UUID`` and ``Decimal`` in a top-level model now arrive as strings, for example
+  ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
+  :doc:`structured_output`.
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add emit_message_history to record an agent transcript without seeding it (#74811)``
+* ``Push LLMOperator's token usage and cost to XCom (#74355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use common.compat mask_secret in MCPHook (#75064)``
+* ``Preserve SQL table allowlist validation with newer sqlglot and add OpenAI Decisions and System One to the connection vendor list (#73822)``
+
+Misc
+~~~~
+
+* ``Remove unused mypy suppressions in common providers (#75257)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Number task loop iterations from one instead of zero (#74773)``
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Fix Modal contract test importing a private class from its old location (#75188)``
+
 1.0.0
 .....
 
@@ -108,9 +157,10 @@ Changelog
   ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
   ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
   full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
-  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
-  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
-  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
+  the old top-level array: check ``result.get("truncated")`` first, then read ``result["columns"]``
+  on a full result or ``result["sample_columns"]`` on a summary. A full result carries no
+  ``truncated`` key and a summary carries no ``columns`` key, so indexing either one directly
+  raises ``KeyError`` on the other kind of result.
 
 .. note::
   ``AgentOperator`` no longer accepts ``code_mode``. Pass the pydantic-ai-harness capability
@@ -119,12 +169,14 @@ Changelog
   as ``max_tool_calls``. If the task also passes ``agent_params={"capabilities": [...]}``,
   move those into ``capabilities=`` too, since the two cannot be combined. The import runs
   when the Dag file is parsed, so the ``code-mode`` extra is now needed by the Dag processor
-  as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.24.0``, the first
-  release with ``max_tool_calls``. See :doc:`code_mode`.
+  as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.35.0``, the first
+  release that caps ``pydantic-monty`` below 1.0, which earlier releases cannot run code with.
+  See :doc:`code_mode`.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* ``Fail the task when a reviewed output no longer matches 'output_type' (#74473)``
 * ``Remove 'agent_params' from LLM operators so they cannot run tools (#74721)``
 * ``Add AirflowDurability capability for durable agent replay across task retries (#74385, #74720)``
 * ``Bound LLM operator usage_limits across task retries (#74396)``
@@ -133,6 +185,12 @@ Breaking changes
 Features
 ~~~~~~~~
 
+* ``Replay an OpenAI Agents SDK agent's completed calls when Airflow retries its task (#74770)``
+* ``Record OpenAI Agents SDK traces as the Airflow task's OpenTelemetry spans (#74769)``
+* ``Let retry policies reschedule a task without using a retry (#74719)``
+* ``Allow durable agent execution with a 'CodeMode' capability (#74735)``
+* ``Add an OpenAI Agents SDK adapter for 'common.ai' toolsets (#74767)``
+* ``Let LLMBatchOperator request_params be templated (#74751)``
 * ``Add 'OpenShell' backend for sandbox tools (#73961)``
 * ``Add Anthropic tool runner adapter for 'common.ai' toolsets (#73962)``
 * ``Let an agent ask for tool approval in more than one step (#74686)``
@@ -173,6 +231,13 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Make Common AI example Dags reach the behaviour they show (#74901)``
+* ``Reject duplicate durable toolset ids and fail deferred tools with 'UnsupportedToolDeferralError' (#74902)``
+* ``Fix Common AI Model tab not loading on Airflow 3.4 (#74898)``
+* ``Keep the pydantic-ai first-run banner out of Common AI task logs (#74900)``
+* ``Cap 'pydantic-ai-skills' below 2 for the Common AI skills extra (#74899)``
+* ``Fingerprint durable agent steps that hold sets or values that are not JSON (#71575)``
+* ``Fix HookToolset calls to hook methods that take a datetime (#74759)``
 * ``Stop rejecting valid non-ASCII Anthropic batches as too large (#74662)``
 * ``Mask tool output from every capability in Common AI agents (#73993)``
 * ``Validate the connection type in PydanticAIHook.get_hook (#74626)``
@@ -202,6 +267,11 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Keep the custom-toolset example's version from changing the PyPI path (#74939)``
+* ``Fix stale Common AI docs and add a guide to writing a toolset (#74904)``
+* ``Document progressive tool disclosure for Common AI toolsets (#74736)``
+* ``Walk through the reviewer's side of Common AI approval gates (#74737)``
+* ``Run the OpenAI Agents adapter tests in the agent framework CI job (#74768)``
 * ``Add a feature map to the Common AI docs (#74723)``
 * ``Document how common.ai agent tasks recover from provider and worker failures (#74708)``
 * ``Fix the common.ai message_history trimming example and link the memory page (#74706)``
@@ -233,6 +303,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add the Common AI docs fixes to the 1.0.0 changelog (#74937)``
+   * ``Prepare ad-hoc providers release 2026-10-17 (#74933)``
+   * ``Prepare ad-hoc providers release 2026-10-14 (#74733)``
    * ``Add sqlglot drift tripwires for common.ai read-only SQL validation (#74487)``
    * ``Test that deferred capability ids stay out of Common AI durable fingerprints (#74423)``
    * ``Assert on structured log events in common.ai tests (#74443)``

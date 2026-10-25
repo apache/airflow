@@ -21,12 +21,23 @@ import type {
   DAGResponse,
   DAGRunResponse,
   ExternalViewResponse,
+  PluginAppliesToResponse,
   ReactAppResponse,
   TaskInstanceResponse,
   TaskResponse,
 } from "openapi/requests/types.gen";
 
 export type PluginView = ExternalViewResponse | ReactAppResponse;
+
+/**
+ * The minimum a plugin contribution needs to be scoped: a destination to match on and an
+ * optional `applies_to` block. Widened past `PluginView` so UI actions, which are neither an
+ * external view nor a React app, go through exactly the same matchers.
+ */
+export type ScopableView = {
+  applies_to?: PluginAppliesToResponse | null;
+  destination?: string;
+};
 
 /**
  * The records the current route resolved to, which `applies_to` paths are evaluated against.
@@ -184,7 +195,7 @@ const isNonEmpty = (value: Array<string> | null | undefined): value is Array<str
  *
  * Omitting `applies_to` (or giving it no paths) shows the view everywhere.
  */
-export const matchesAppliesTo = (view: PluginView, context: AppliesToContext): boolean => {
+export const matchesAppliesTo = (view: ScopableView, context: AppliesToContext): boolean => {
   const { applies_to: appliesTo } = view;
 
   if (appliesTo === undefined || appliesTo === null) {
@@ -206,7 +217,7 @@ export const matchesAppliesTo = (view: PluginView, context: AppliesToContext): b
  *
  * Callers use this to skip fetching the context records entirely when no view needs them.
  */
-export const hasAppliesToCriteria = (view: PluginView): boolean => {
+export const hasAppliesToCriteria = (view: ScopableView): boolean => {
   const { applies_to: appliesTo } = view;
 
   return appliesTo !== undefined && appliesTo !== null && Object.values(appliesTo).some(isNonEmpty);
@@ -218,5 +229,42 @@ export const hasAppliesToCriteria = (view: PluginView): boolean => {
  * Without this, a scoped view would render on first paint and disappear once the queries
  * resolve. Unscoped views never wait.
  */
-export const isAppliesToPending = (view: PluginView, context: AppliesToContext): boolean =>
+export const isAppliesToPending = (view: ScopableView, context: AppliesToContext): boolean =>
   hasAppliesToCriteria(view) && context.isLoading;
+
+/**
+ * Keep only the contributions this destination should render, already scoped.
+ */
+export const filterScopedViews = <View extends ScopableView>(
+  views: Array<View>,
+  destination: string,
+  context: AppliesToContext,
+): Array<View> =>
+  views.filter(
+    (view) =>
+      view.destination === destination &&
+      !isAppliesToPending(view, context) &&
+      matchesAppliesTo(view, context),
+  );
+
+/**
+ * Combine the route's context with one built from a specific record.
+ *
+ * The record wins for the entity it *is* -- a table row is scoped against its own Dag Run, not
+ * the page's. The route's Dag wins only when it is the same Dag, because it is the richer
+ * record: a details page has fields a list row does not.
+ */
+export const mergeAppliesToContext = (
+  routeContext: AppliesToContext,
+  record: Pick<AppliesToContext, "dag" | "dagRun" | "taskInstance">,
+): AppliesToContext => ({
+  asset: routeContext.asset,
+  dag:
+    record.dag === undefined || routeContext.dag?.dag_id === record.dag.dag_id
+      ? (routeContext.dag ?? record.dag)
+      : record.dag,
+  dagRun: record.dagRun ?? routeContext.dagRun,
+  isLoading: routeContext.isLoading,
+  task: routeContext.task,
+  taskInstance: record.taskInstance ?? routeContext.taskInstance,
+});

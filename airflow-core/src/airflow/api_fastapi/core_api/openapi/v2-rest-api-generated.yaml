@@ -4184,13 +4184,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+            next_dagrun, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          next_dagrun, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -7391,6 +7391,17 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: exclude_internal_keys
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Leave out XComs whose keys Airflow reserves for itself, such
+            as loop decision reasons.
+          default: false
+          title: Exclude Internal Keys
+        description: Leave out XComs whose keys Airflow reserves for itself, such
+          as loop decision reasons.
       - name: limit
         in: query
         required: false
@@ -9212,11 +9223,13 @@ paths:
         schema:
           anyOf:
           - type: integer
-            minimum: 0
+            minimum: 1
           - type: 'null'
-          description: Narrow ``loop_id`` to a single pass of that loop.
+          description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+            count from one.
           title: Iteration
-        description: Narrow ``loop_id`` to a single pass of that loop.
+        description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+          count from one.
       - name: cursor
         in: query
         required: false
@@ -13069,6 +13082,7 @@ components:
           default: none
         max_active_runs:
           type: integer
+          minimum: 1.0
           title: Max Active Runs
           default: 10
         run_on_latest_version:
@@ -16979,7 +16993,9 @@ components:
           title: Loop Id
         iteration:
           type: integer
+          minimum: 1.0
           title: Iteration
+          description: Position in the enclosing loop, counting from one.
       type: object
       required:
       - loop_id
@@ -17181,6 +17197,91 @@ components:
       - error
       title: PluginImportErrorResponse
       description: Plugin Import Error serializer for responses.
+    PluginLinkActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: link
+          title: Action Type
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - href
+      title: PluginLinkActionResponse
+      description: Serializer for a UI action that opens a URL.
+    PluginReactActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: react
+          title: Action Type
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - bundle_url
+      title: PluginReactActionResponse
+      description: Serializer for a UI action that mounts a React component behind
+        a button.
     PluginResponse:
       properties:
         name:
@@ -17223,6 +17324,20 @@ components:
             $ref: '#/components/schemas/ReactAppResponse'
           type: array
           title: React Apps
+        ui_actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/PluginLinkActionResponse'
+            - $ref: '#/components/schemas/PluginReactActionResponse'
+            discriminator:
+              propertyName: action_type
+              mapping:
+                link: '#/components/schemas/PluginLinkActionResponse'
+                react: '#/components/schemas/PluginReactActionResponse'
+          type: array
+          title: Ui Actions
+          description: User-defined actions rendered on Dag, Dag Run, and Task Instance
+            table rows and header cards.
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -17280,6 +17395,7 @@ components:
         name:
           type: string
           maxLength: 256
+          pattern: \S
           title: Name
         slots:
           type: integer
@@ -18898,6 +19014,7 @@ components:
         key:
           type: string
           maxLength: 250
+          pattern: \S
           title: Key
         value:
           $ref: '#/components/schemas/JsonValue'

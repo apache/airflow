@@ -32,8 +32,8 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.13.15" \
+    --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.13.16" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas==2.1.2" \
