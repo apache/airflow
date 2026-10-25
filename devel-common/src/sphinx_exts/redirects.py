@@ -49,7 +49,9 @@ def iter_redirects(app):
             from_path = from_path.replace(in_suffix, ".html")
             to_path = to_path.replace(in_suffix, ".html")
 
-            # Preserve the existing handling of provider redirect paths.
+            # Redirects climb back to the package docs root, or to the shared docs
+            # root for provider destinations, which requires one extra parent level.
+            # Core API-to-provider redirects use the package-root depth instead.
             depth = len(from_path.split(os.path.sep)) - 1
             if (
                 from_path.startswith("_api/airflow/")

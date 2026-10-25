@@ -38,6 +38,9 @@ def example_source_ref(tag: str) -> str:
     if not head or head == git("rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}"):
         return tag
 
-    # Main builds need current examples; unpublished release-fix commits fall back to the tag.
+    # Main docs may reference examples missing from the latest release tag.
+    # The docs publishing workflow can cherry-pick fixes onto a release tag,
+    # creating a local-only HEAD that is unavailable on GitHub. Prefer HEAD
+    # when a remote-tracking ref or tag contains it; otherwise use the release tag.
     pushed = git("for-each-ref", "--contains", head, "--count=1", "refs/remotes", "refs/tags")
     return head if pushed else tag
