@@ -63,7 +63,7 @@
     - type: javascript
       value: 'output.should_create === false'
 
-- description: "Worker connection testing (#62343): feature newsfragment"
+- description: "Worker connection testing (#62343): no newsfragment"
   vars:
     request: |
       I added asynchronous connection testing: connection tests can now
@@ -74,15 +74,41 @@
       Should I create a newsfragment?
   assert:
     - type: javascript
-      value: 'output.should_create === true'
+      value: 'output.should_create === false'
 
-- description: "Coordinator layer (#65958): feature newsfragment"
+- description: "Coordinator layer (#65958): no newsfragment"
   vars:
     request: |
       I added a coordinator layer to the task execution supervisor so
       coordinators written in other languages can drive task execution,
       along with a first Java coordinator and a new config option. Most
       of the changes are in task-sdk, with some in airflow-core.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === false'
+
+- description: "Asset-triggered Dag run default (#68517): significant newsfragment"
+  vars:
+    request: |
+      I changed single-asset schedules and asset OR expressions to create
+      one Dag run per event instead of consuming all queued events in one
+      run, which also changes AssetOrTimeSchedule and
+      PartitionedAssetTimetable. Existing Dags scheduled this way will
+      start producing a different number of runs after upgrading.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === true'
+
+- description: "Async Postgres driver default (#68496): significant newsfragment"
+  vars:
+    request: |
+      I changed the driver Airflow derives for the async metadata database
+      when [database] sql_alchemy_conn_async is unset: for PostgreSQL the
+      derived URL now uses psycopg3 instead of asyncpg when psycopg3 is
+      installed. Deployments that did not set the async URL explicitly will
+      connect through a different driver after upgrading.
       Should I create a newsfragment?
   assert:
     - type: javascript
