@@ -97,11 +97,16 @@ record captures the decisions that shape it and the alternatives rejected.
    the pull request's tree or only its head commit, so a later push that restores the gate
    does not hide it: a run did project CI work (its jobs show more than the gate, or it is a
    workflow not on the base branch) *and* that run's own commit changes files under
-   ``.github/workflows/``. Both are required so that legitimate project CI runs (backlog
-   reset, a removed ``use project ci``) and legitimate workflow edits that keep the gate
-   intact are never closed. A green fork run is trusted only when the pull request does not
+   ``.github/workflows/``. Both are required so that pull requests with legitimate project CI
+   runs (backlog reset, a removed ``use project ci``) that do not change
+   ``.github/workflows/``, and legitimate workflow edits that keep the gate intact, are never
+   closed. A pull request that is gated again after legitimate project CI runs and also edits
+   workflows can still be closed while those runs are in the tampering window. A green fork run is trusted only when the pull request does not
    change what fork CI runs (``.github/``, ``dev/breeze/``, ``scripts/ci/`` and the like);
-   otherwise it stays a draft until a maintainer runs project CI. Commit statuses were chosen over check
+   otherwise it stays a draft until a maintainer runs project CI. A trusted green fork run also
+   gets a ``CI passed`` commit status, the check the merge ruleset requires, because a gated
+   pull request never runs project CI to report it; it is only ever posted as success, and
+   overwritten when the head commit is no longer green. Commit statuses were chosen over check
    runs because a check run created with the workflow token links to the creating workflow
    instead of the fork run. ``pull_request_target`` was rejected: it would react to
    untrusted events with write permissions for a gain of a few minutes of latency.
@@ -111,7 +116,8 @@ record captures the decisions that shape it and the alternatives rejected.
    ``internal-airflow-ci-cd`` Slack channel through the same action and payload convention
    as the CI duration monitor. Two expected outcomes are posted as well, in their own
    section: a pull request closed for gate tampering and a pull request carrying both
-   override labels.
+   override labels. A green fork run that cannot be trusted is not posted: the
+   ``needs project ci`` label lists those pull requests for maintainers.
 
 6. **``breeze ci audit`` is the contributor's pre-flight.** It checks ``gh``, the
    ``upstream``/``origin`` remote convention, fork existence, who the user is to the project,

@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Drives pull requests whose CI runs in contributor forks (AIP-120): labels, draft state, the
+# state comment, the `Fork CI / Tests (AMD)` commit status and closing. It is the only writer for
+# those pull requests and never checks out or runs pull request code. See
+# dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+name: "Fork CI monitor"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Compute the changes without applying them to pull requests"
+        type: boolean
+        default: false
+permissions:
+  # Listing the runs and jobs of the gate tampering check; unlisted scopes are none.
+  actions: read
+  contents: read
+  # Labels, draft state, comments and closing of gated pull requests.
+  pull-requests: write
+  # The `Fork CI / Tests (AMD)` commit status on pull request head commits.
+  statuses: write
+concurrency:
+  group: fork-ci-monitor
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: "Reconcile pull requests gated to fork CI"
+    if: github.repository == 'apache/airflow'
+    # The breeze action frees disk space with sudo and docker, which ubuntu-slim does not provide.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout main"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Reconcile"
+        id: reconcile
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: breeze ci fork-ci-reconcile --output-file slack-message.json
+      # A dry run reports what it would have done, which must not read as done on Slack.
+      - name: "Post to Slack"
+        if: steps.reconcile.outputs.has-alerts == 'true' && !inputs.dry-run
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: "slack-message.json"
+      # A run that fails before writing its message, for example on a discovery query or a rate
+      # limit it cannot wait out, would otherwise stay silent.
+      - name: "Report a failed run to Slack"
+        if: failure() && !inputs.dry-run
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: >-
+              Fork CI monitor run failed:
+              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
