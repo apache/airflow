@@ -39,41 +39,12 @@ For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/
 Creating a Deadline Alert
 -------------------------
 
-Creating a Deadline Alert requires three mandatory parameters:
+Creating a Deadline Alert requires ``reference``, ``interval``, and ``callback``, with an optional run type filter:
 
 * Reference: When to start counting from
 * Interval: How far before or after the reference point to trigger the alert (either a timedelta or a dynamic interval such as VariableInterval)
 * Callback: A Callback object which contains a path to a callable and optional kwargs to pass to it if the deadline is exceeded
-
-Use the optional ``run_type_filter`` parameter with :class:`airflow.sdk.DagRunType` enum members
-to restrict an alert to selected Dag run types.
-For example, the following alert applies to scheduled and asset-triggered runs, excluding backfill
-and manual runs:
-
-.. code-block:: python
-
-    from datetime import timedelta
-
-    from airflow.sdk import AsyncCallback, DagRunType, DeadlineAlert, DeadlineReference
-
-    DeadlineAlert(
-        reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-        interval=timedelta(hours=2),
-        callback=AsyncCallback(notify_deadline_missed),
-        run_type_filter={DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED},
-    )
-
-Omitting ``run_type_filter`` or setting it to ``None`` preserves the default of applying to all run types.
-An empty collection or an unknown run type is rejected. Each alert can select different run types.
-Excluded runs do not create deadline records.
-The Deadlines list continues to show stored deadline records. Changing this setting affects newly
-created runs; it does not remove existing deadline records.
-Filtering out backfill runs does not exclude catchup runs, which use ``DagRunType.SCHEDULED``.
-
-The ``example_deadline_alert_run_type_filter`` example Dag applies a 30-second
-deadline to scheduled and manual runs. Its task waits for 60 seconds so these
-runs miss the deadline. Backfill runs execute the same task without creating
-deadline records.
+* Run type filter (optional): Run types to monitor, using :class:`airflow.sdk.DagRunType` members; defaults to ``None`` for all run types
 
 Here is how Deadlines are calculated:
 
@@ -84,12 +55,13 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-Below is an example Dag implementation. If the Dag has not finished 15 minutes after it was queued, send a Slack message:
+The following Dag sends a Slack message if a scheduled or asset-triggered run has not finished
+15 minutes after it was queued:
 
 .. code-block:: python
 
     from datetime import datetime, timedelta
-    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DagRunType, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -98,6 +70,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
+            run_type_filter={DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED},
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
@@ -108,6 +81,10 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
     ):
         EmptyOperator(task_id="example_task")
 
+.. note::
+    Empty filters and unknown run types are rejected. Excluded runs do not create deadline records.
+    Filter changes affect newly created runs; existing deadline records remain visible.
+
 The timeline for this example would look like this:
 
 ::
@@ -115,6 +92,9 @@ The timeline for this example would look like this:
     |------|-----------|---------|-----------|--------|
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
+
+For a runnable example comparing included runs and excluded backfills, see the
+``example_deadline_alert_run_type_filter`` example Dag.
 
 .. note::
     The import path for :class:`~airflow.sdk.AsyncCallback` was changed in Airflow 3.2 from
