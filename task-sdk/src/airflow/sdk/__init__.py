@@ -131,7 +131,13 @@ __version__ = "1.5.0"
 
 if TYPE_CHECKING:
     from airflow.sdk import lineage
-    from airflow.sdk.api.datamodels._generated import DagRunState, DagRunType, TaskInstanceState, TriggerRule, WeightRule
+    from airflow.sdk.api.datamodels._generated import (
+        DagRunState,
+        DagRunType,
+        TaskInstanceState,
+        TriggerRule,
+        WeightRule,
+    )
     from airflow.sdk.bases.branch import BaseBranchOperator, BranchMixIn
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
