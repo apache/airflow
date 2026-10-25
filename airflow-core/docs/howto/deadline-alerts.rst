@@ -39,7 +39,7 @@ For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/
 Creating a Deadline Alert
 -------------------------
 
-Creating a Deadline Alert requires ``reference``, ``interval``, and ``callback``, with an optional run type filter:
+A Deadline Alert accepts the following parameters:
 
 * Reference: When to start counting from
 * Interval: How far before or after the reference point to trigger the alert (either a timedelta or a dynamic interval such as VariableInterval)
@@ -55,8 +55,8 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-The following Dag sends a Slack message if a scheduled or asset-triggered run has not finished
-15 minutes after it was queued:
+Below is an example Dag implementation. It sends a Slack message if a scheduled
+or asset-triggered run has not finished 15 minutes after it was queued:
 
 .. code-block:: python
 
@@ -81,10 +81,6 @@ The following Dag sends a Slack message if a scheduled or asset-triggered run ha
     ):
         EmptyOperator(task_id="example_task")
 
-.. note::
-    Empty filters and unknown run types are rejected. Excluded runs do not create deadline records.
-    Filter changes affect newly created runs; existing deadline records remain visible.
-
 The timeline for this example would look like this:
 
 ::
@@ -92,9 +88,6 @@ The timeline for this example would look like this:
     |------|-----------|---------|-----------|--------|
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
-
-For a runnable example comparing included runs and excluded backfills, see the
-``example_deadline_alert_run_type_filter`` example Dag.
 
 .. note::
     The import path for :class:`~airflow.sdk.AsyncCallback` was changed in Airflow 3.2 from
