@@ -323,7 +323,9 @@ summary and a body separated by a blank line, similar to ``git`` commit messages
 
 Static checks in CI validate that newsfragment filenames use the correct PR number. Run locally, before the
 PR exists, they accept any number. If you need to skip this check (e.g. when cherry-picking a newsfragment
-from another PR), add the ``skip newsfragment check`` label to your PR and re-run the failed jobs.
+from another PR), ask a maintainer to add the ``skip newsfragment check`` label to your PR, then re-run the
+failed static checks. When your PR's CI runs in your fork, re-run them there, or push again; maintainers
+cannot re-run jobs in your fork.
 
 
 Step 5: Pass PR Review

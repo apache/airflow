@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+from email.message import Message
 from unittest import mock
 
 import pytest
@@ -122,7 +124,7 @@ class TestNewsfragmentPrNumber:
             ],
         ]
 
-        errors = check_pr_number("apache/airflow", "123")
+        errors = check_pr_number("123")
 
         assert len(errors) == 1
         assert "airflow-core/newsfragments/124.bugfix.rst" in errors[0]
@@ -135,44 +137,60 @@ class TestNewsfragmentPrNumber:
     def test_check_pr_number_is_skipped_by_label(self, mock_get_items):
         mock_get_items.return_value = [{"name": "skip newsfragment check"}]
 
-        assert check_pr_number("apache/airflow", "123") == []
+        assert check_pr_number("123") == []
         mock_get_items.assert_called_once()
 
     @pytest.mark.parametrize(
-        ("env", "expected_call", "expected_exit"),
+        ("pr_number", "expected_calls", "expected_exit"),
         [
-            pytest.param({}, None, 0, id="local-run-accepts-any-number"),
-            pytest.param({"PR_NUMBER": "123"}, mock.call("apache/airflow", "123"), 1, id="ci"),
-            pytest.param(
-                {"PR_NUMBER": "123", "PR_REPOSITORY": "someone/airflow"},
-                mock.call("someone/airflow", "123"),
-                1,
-                id="ci-other-repository",
-            ),
+            pytest.param(None, [], 0, id="local-run-accepts-any-number"),
+            pytest.param("123", [mock.call("123")], 1, id="ci"),
         ],
     )
     @mock.patch.object(newsfragments, "check_pr_number", autospec=True, return_value=["wrong number"])
     def test_main_checks_pr_number_only_in_ci(
-        self, mock_check, monkeypatch, tmp_path, env, expected_call, expected_exit
+        self, mock_check, monkeypatch, tmp_path, pr_number, expected_calls, expected_exit
     ):
-        monkeypatch.delenv("PR_NUMBER", raising=False)
-        monkeypatch.delenv("PR_REPOSITORY", raising=False)
-        for key, value in env.items():
-            monkeypatch.setenv(key, value)
+        if pr_number:
+            monkeypatch.setenv("PR_NUMBER", pr_number)
+        else:
+            monkeypatch.delenv("PR_NUMBER", raising=False)
         newsfragment = tmp_path / "newsfragments" / "124.bugfix.rst"
         newsfragment.parent.mkdir()
         newsfragment.write_text("A change\n")
 
         assert main([str(newsfragment)]) == expected_exit
-        assert mock_check.call_args_list == ([expected_call] if expected_call else [])
+        assert mock_check.call_args_list == expected_calls
 
-    @pytest.mark.parametrize("token", [None, "secret"])
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(urllib.error.URLError("no network"), id="url-error"),
+            pytest.param(
+                urllib.error.HTTPError("https://api.github.com", 403, "rate limited", Message(), None),
+                id="http-error",
+            ),
+        ],
+    )
+    @mock.patch.object(newsfragments, "check_pr_number", autospec=True)
+    def test_main_reports_an_unreadable_pull_request(self, mock_check, monkeypatch, capsys, error):
+        monkeypatch.setenv("PR_NUMBER", "123")
+        mock_check.side_effect = error
+
+        assert main([]) == 1
+        assert "Could not read pull request 123 from GitHub" in capsys.readouterr().out
+
+    @pytest.mark.parametrize(
+        ("token", "expected_authorization"),
+        [pytest.param(None, None, id="anonymous"), pytest.param("secret", "Bearer secret", id="token")],
+    )
     @mock.patch.object(newsfragments.urllib.request, "urlopen", autospec=True)
-    def test_get_github_items_reads_every_page(self, mock_urlopen, monkeypatch, token):
+    def test_get_github_items_reads_every_page(
+        self, mock_urlopen, monkeypatch, token, expected_authorization
+    ):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         if token:
             monkeypatch.setenv("GITHUB_TOKEN", token)
-        else:
-            monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         pages = [[{"n": i} for i in range(100)], [{"n": 100}]]
         mock_urlopen.return_value.__enter__.side_effect = [
             mock.Mock(read=mock.Mock(return_value=json.dumps(page).encode())) for page in pages
@@ -186,4 +204,4 @@ class TestNewsfragmentPrNumber:
             "https://api.github.com/repos/apache/airflow/pulls/1/files?per_page=100&page=1",
             "https://api.github.com/repos/apache/airflow/pulls/1/files?per_page=100&page=2",
         ]
-        assert requests[0].get_header("Authorization") == (f"Bearer {token}" if token else None)
+        assert requests[0].get_header("Authorization") == expected_authorization

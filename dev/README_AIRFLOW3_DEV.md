@@ -208,7 +208,8 @@ fork CI gate (AIP-120) leaves to CI in the contributor's fork, project CI does n
 as **CI passed (project CI not run)** instead, and the fork CI reconciler posts **CI passed** once the
 fork run for the PR's latest commit is green and trusted. Static checks also fail a newsfragment of a PR
 to `main` that is named after another PR number, in project CI and in the fork run; the
-`skip newsfragment check` label turns that off, after a re-run of the failed jobs.
+`skip newsfragment check` label turns that off, after a re-run of the failed static checks, which for CI
+in the contributor's fork the contributor does there.
 
 Auto-merge does not wait for checks from other workflows: **CodeQL**, **Dependency review** and
 **Registry tests**. The last two only run when dependency or registry files change. Look at those

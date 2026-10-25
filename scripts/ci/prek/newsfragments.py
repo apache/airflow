@@ -29,11 +29,13 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
 VALID_CHANGE_TYPES = {"significant", "feature", "improvement", "bugfix", "doc", "misc"}
 SKIP_PR_NUMBER_LABEL = "skip newsfragment check"
+PR_REPOSITORY = "apache/airflow"
 NEWSFRAGMENT_PATH = re.compile(r"/newsfragments/[^/]+\.rst$")
 
 
@@ -98,21 +100,22 @@ def get_github_items(path: str) -> list[dict]:
         page += 1
 
 
-def check_pr_number(repo: str, pr_number: str) -> list[str]:
+def check_pr_number(pr_number: str) -> list[str]:
     """Return the errors for the newsfragments the pull request adds under another number."""
-    labels = get_github_items(f"repos/{repo}/issues/{pr_number}/labels")
+    labels = get_github_items(f"repos/{PR_REPOSITORY}/issues/{pr_number}/labels")
     if any(label["name"] == SKIP_PR_NUMBER_LABEL for label in labels):
         print(f"Newsfragment PR number not checked: the pull request has the {SKIP_PR_NUMBER_LABEL!r} label.")
         return []
     # Removed files are left out, so deleting a misnumbered newsfragment fixes the check.
     files = [
         f["filename"]
-        for f in get_github_items(f"repos/{repo}/pulls/{pr_number}/files")
+        for f in get_github_items(f"repos/{PR_REPOSITORY}/pulls/{pr_number}/files")
         if f["status"] != "removed"
     ]
     return [
         f"Newsfragment {filename} is not named after pull request {pr_number}. Rename it to "
-        f"{pr_number}.<type>.rst, or add the {SKIP_PR_NUMBER_LABEL!r} label and re-run the failed jobs."
+        f"{pr_number}.<type>.rst, or have a maintainer add the {SKIP_PR_NUMBER_LABEL!r} label and "
+        "re-run the failed static checks (with CI in your fork, re-run them there)."
         for filename in find_misnumbered_newsfragments(pr_number, files)
     ]
 
@@ -129,7 +132,12 @@ def main(filenames: list[str]) -> int:
             failed = True
     pr_number = os.environ.get("PR_NUMBER")
     if pr_number:
-        errors = check_pr_number(os.environ.get("PR_REPOSITORY", "apache/airflow"), pr_number)
+        try:
+            errors = check_pr_number(pr_number)
+        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+            errors = [
+                f"Could not read pull request {pr_number} from GitHub to check newsfragment numbers: {e}"
+            ]
         for error in errors:
             print(error)
         if errors:

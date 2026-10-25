@@ -439,7 +439,9 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           number=""
-          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" ]]; then
+          # A pull request inside a fork has a number of the fork's, not of apache/airflow.
+          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" \
+              && "${REPOSITORY}" == "apache/airflow" ]]; then
             number="${EVENT_PR_NUMBER}"
           elif [[ "${EVENT_NAME}" == "push" && "${REPOSITORY}" != "apache/airflow" ]]; then
             number=$(gh api -X GET repos/apache/airflow/pulls -f head="${OWNER}:${REF_NAME}" \
