@@ -180,6 +180,7 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
+      newsfragment-pr-number: ${{ steps.newsfragment-pr.outputs.pr-number }}
       # platform is hardcoded per workflow file (this is the
       # ARM copy). The matching AMD copy lives in ci-amd.yml.
       platform: "linux/arm64"
@@ -297,6 +298,32 @@ jobs:
         env:
           SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+      # The newsfragment check of static checks fails a newsfragment of the pull request that is
+      # named after another number. A push in a fork (AIP-120) has no pull request in its event,
+      # so the open pull request of the pushed branch is looked up; without one, any number passes.
+      - name: "Find the pull request for the newsfragment check"
+        id: newsfragment-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          number=""
+          # A pull request inside a fork has a number of the fork's, not of apache/airflow.
+          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" \
+              && "${REPOSITORY}" == "apache/airflow" ]]; then
+            number="${EVENT_PR_NUMBER}"
+          elif [[ "${EVENT_NAME}" == "push" && "${REPOSITORY}" != "apache/airflow" ]]; then
+            number=$(gh api -X GET repos/apache/airflow/pulls -f head="${OWNER}:${REF_NAME}" \
+              -f state=open -f base=main --jq '.[0].number // empty' || true)
+          fi
+          if [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "pr-number=${number}" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Selective checks
         id: selective-checks
         env:
@@ -328,6 +355,7 @@ jobs:
     needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
@@ -413,6 +441,7 @@ jobs:
       id-token: write
       contents: read
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}

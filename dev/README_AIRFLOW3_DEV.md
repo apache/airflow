@@ -195,15 +195,15 @@ Auto-merge is enabled for the whole repository, so every branch that PRs target 
 `airflow-ctl` branches. A release branch gets the **CI passed** job only once it is backported there; until
 then, its PRs never report the check, and a committer merges them by bypassing the rule.
 
-The `main` ruleset requires two checks. **CI passed** is a job in the `Tests (AMD)` workflow that always
+The `main` ruleset requires one check, **CI passed**. It is a job in the `Tests (AMD)` workflow that always
 runs and fails when any other CI job failed or was cancelled; jobs that selective checks skip count as
 passed, so PRs that run only part of the tests still get a result. The `check-ci-gate-needs` prek hook
 makes sure every new CI job is added to it. `Tests (ARM)`, which runs on pushes and on a schedule rather
 than on PRs, has the same job, kept identical by the `check-ci-workflows-in-sync` hook. Once the fork CI
 gate (AIP-120) is in place, a PR that it leaves to CI in the contributor's fork does not run project CI,
 so the job reports as **CI passed (project CI not run)** instead, and the fork CI reconciler posts **CI
-passed** once the fork run for the PR's latest commit is green and trusted.
-**check-newsfragment-pr-number** runs on every PR too.
+passed** once the fork run for the PR's latest commit is green and trusted. Static checks also fail a
+newsfragment of a PR to `main` that is named after another PR number.
 
 Auto-merge does not wait for checks from other workflows: **CodeQL**, **Dependency review** and
 **Registry tests**. The last two only run when dependency or registry files change. Look at those
