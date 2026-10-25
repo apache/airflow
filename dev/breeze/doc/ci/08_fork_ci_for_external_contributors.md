@@ -221,14 +221,16 @@ Consequences for the other components:
 
 - The gate job reads the pull request's labels live from the API (one read-only call) rather
   than from the event payload, so labelling a pull request and pressing "Re-run all jobs"
-  switches it without a new push.
+  switches it without a new push. The reconciler deletes gated runs (see "Gated project CI runs
+  are deleted"), so for a gated pull request closing and reopening it takes the place of the
+  re-run.
 - Discovery in the reconciler also picks up open pull requests carrying `use fork ci`
   without `fork ci required`, regardless of `enabled`.
 - A pull request carrying both `fork ci required` and `use project ci` is *released*: the
   reconciler removes `fork ci required`, undrafts it if the bot drafted it, edits the state
   comment to say project CI is in use, and posts a `success` status with the description
-  "Project CI in use (label `use project ci`)". Project CI then runs on the next push or
-  re-run.
+  "Project CI in use (label `use project ci`)". Project CI then runs on the next push, or when
+  a maintainer closes and reopens the pull request.
 - Both override labels on one pull request resolve to project CI and are reported to Slack as
   a conflict.
 
@@ -690,6 +692,20 @@ is the source the ruleset accepts.
   job must not report success there; it reports under another name when `build-info` is
   skipped, and the reconciler's status is the only `CI passed` the pull request has.
 
+### Gated project CI runs are deleted
+
+A gated run of `ci-amd.yml` lists every project CI job on the pull request as a skipped check,
+next to the fork's result in `Fork CI / Tests (AMD)`. GitHub cannot delete or update single check
+runs created by GitHub Actions, so the reconciler deletes the whole run once it completed: the
+`ci-amd.yml` `pull_request` runs of a gated pull request's branch from the tamper window in which
+the gate, `Check if the run is needed` and `CI passed (project CI not run)` succeeded and every
+other job was skipped. A run in which anything else happened, including a run the tampering check
+counts as project CI work, is kept, and so is a run whose commit changes `.github/workflows/` or
+whose change set is too large to check: such a commit could do project CI work under the gate's
+name within its time limit, and its run is the evidence. A re-run is kept too: deleting a run
+deletes every attempt, and an earlier attempt may have run project CI. Nothing is deleted for a
+pull request in the `gate_bypassed` state. A dry run only reports the deletions.
+
 ### Far behind the base branch
 
 A fork run tests the pushed commit as it is, while project CI tests it merged with the base
@@ -745,11 +761,11 @@ budget stays observable.
 `.github/workflows/fork-ci-monitor.yml`:
 
 - `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
-- `permissions: actions: read, contents: read, pull-requests: write, statuses: write` with a
+- `permissions: actions: write, contents: read, pull-requests: write, statuses: write` with a
   justification comment. Comments and labels on pull requests are covered by
   `pull-requests: write`; the commit status needs `statuses: write`; the gate tampering check
-  lists runs and their jobs, which needs `actions: read` because every scope a `permissions`
-  block leaves out is `none`.
+  lists runs and their jobs, and the reconciler deletes gated runs, which needs `actions: write`
+  because every scope a `permissions` block leaves out is `none`.
 - `runs-on: ubuntu-latest` (the breeze setup action frees disk space with `sudo` and `docker`,
   which `ubuntu-slim` does not provide), `timeout-minutes: 20`, `concurrency: fork-ci-monitor`
   with `cancel-in-progress: false` so runs never overlap.

@@ -51,6 +51,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     fetch_fork_observations,
     fetch_workflow_state,
     find_state_comment,
+    is_gated_skip_run,
     jobs_show_project_ci,
     load_workflow_triggers,
     parse_pull_request,
@@ -781,6 +782,7 @@ def _run(
     age_hours=1.0,
     event="pull_request",
     status="completed",
+    run_attempt=1,
 ):
     created = NOW - timedelta(hours=age_hours)
     return {
@@ -795,6 +797,7 @@ def _run(
         "updated_at": (created + timedelta(minutes=minutes)).isoformat(),
         "status": status,
         "event": event,
+        "run_attempt": run_attempt,
     }
 
 
@@ -987,6 +990,76 @@ def test_finder_reports_an_incomplete_run_listing(client, total_count, incomplet
     finder = _finder(client, [_run(7)], total_count=total_count)
 
     assert (finder.incomplete is not None) is incomplete
+
+
+GATED_JOBS = [
+    _job("Check if the run is needed", "success"),
+    _job("Fork CI gate", "success"),
+    _job("Build info", started=False),
+    _job("CI passed (project CI not run)", "success"),
+]
+
+
+@pytest.mark.parametrize(
+    ("jobs", "expected"),
+    [
+        pytest.param(GATED_JOBS, True, id="gated"),
+        pytest.param([*GATED_JOBS[:2], _job("Build info", "success"), GATED_JOBS[3]], False, id="ci-ran"),
+        pytest.param(
+            [*GATED_JOBS[:3], _job("CI passed (run cancelled)", "success")], False, id="run-cancelled"
+        ),
+        pytest.param(GATED_JOBS[1:], False, id="check-run-needed-missing"),
+        pytest.param(
+            [GATED_JOBS[0], _job("Fork CI gate", "failure"), *GATED_JOBS[2:]], False, id="gate-failed"
+        ),
+        pytest.param(
+            [*GATED_JOBS[:2], _job("Build info", "cancelled"), GATED_JOBS[3]], False, id="cancelled"
+        ),
+    ],
+)
+def test_is_gated_skip_run(jobs, expected):
+    assert is_gated_skip_run(jobs, NOW) is expected
+
+
+@pytest.mark.parametrize(
+    ("runs", "jobs", "compare_files", "expected_ids"),
+    [
+        pytest.param([_run(7, minutes=1)], GATED_JOBS, ("README.md",), [7], id="gated"),
+        pytest.param([_run(7, minutes=1)], TAMPERED_JOBS, ("README.md",), [], id="project-ci-ran"),
+        pytest.param(
+            [_run(7, minutes=1, status="in_progress")], GATED_JOBS, ("README.md",), [], id="in-progress"
+        ),
+        pytest.param(
+            [_run(7, minutes=1, path=".github/workflows/codeql-analysis.yml")],
+            GATED_JOBS,
+            ("README.md",),
+            [],
+            id="other-workflow",
+        ),
+        pytest.param(
+            [_run(7, minutes=1, event="pull_request_review")],
+            GATED_JOBS,
+            ("README.md",),
+            [],
+            id="other-event",
+        ),
+        pytest.param(
+            [_run(7, minutes=1)], GATED_JOBS, (".github/workflows/ci-amd.yml",), [], id="workflows-changed"
+        ),
+        pytest.param([_run(7, minutes=1, run_attempt=2)], GATED_JOBS, ("README.md",), [], id="re-run"),
+        pytest.param(
+            [_run(7, minutes=1)],
+            GATED_JOBS,
+            tuple(f"f{i}.py" for i in range(300)),
+            [],
+            id="too-large-to-check",
+        ),
+    ],
+)
+def test_finder_finds_gated_runs(client, runs, jobs, compare_files, expected_ids):
+    finder = _finder(client, runs, jobs=jobs, compare_files=compare_files)
+
+    assert [run.id for run in finder.find_gated_runs(_pr())] == expected_ids
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1395,6 +1468,52 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
     assert "#2" not in text
     client.set_status.assert_called_once()
     assert client.set_status.call_args.args[:3] == (2, "sha2", "error")
+
+
+@pytest.mark.parametrize(
+    ("state", "deletes"),
+    [
+        pytest.param(ForkState.AWAITING_PUSH, True, id="gated"),
+        pytest.param(ForkState.GATE_BYPASSED, False, id="gate-bypassed"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state, deletes):
+    mock_classify.return_value = Plan(state=state)
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(
+            _pr_node(1, headRefName="my-change", headRepository={"nameWithOwner": "someone/airflow"})
+        ),
+        {"pr0": {"object": None}},
+    ]
+    client.rest_get_pages.side_effect = lambda path: [
+        {"total_count": 1, "workflow_runs": [_run(7, minutes=1)] if "event=pull_request&" in path else []}
+    ]
+
+    def rest_get(path, paginate=False, items_key=None):
+        if path.endswith("/actions/workflows/ci-amd.yml"):
+            return {"state": "active"}
+        if path.endswith("jobs?filter=latest&per_page=100"):
+            return GATED_JOBS
+        if "/compare/" in path:
+            return {"files": [{"filename": "README.md"}]}
+        raise AssertionError(path)
+
+    client.rest_get.side_effect = rest_get
+    (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
+
+    run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert client.delete_run.call_args_list == ([mock.call(1, 7)] if deletes else [])
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.run_reconcile", autospec=True, return_value=True)
