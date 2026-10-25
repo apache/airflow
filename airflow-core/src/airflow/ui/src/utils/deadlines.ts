@@ -18,9 +18,17 @@
  */
 import type { TFunction } from "i18next";
 
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { humanizeSeconds } from "src/utils/datetimeUtils";
+
+export const isDeadlineAlertApplicable = (
+  alert: DeadlineAlertResponse,
+  runType: DAGRunResponse["run_type"],
+): boolean =>
+  alert.run_type_filter === null ||
+  alert.run_type_filter === undefined ||
+  alert.run_type_filter.includes(runType);
 
 // The API sends a null interval when the alert has no fixed number of seconds — a variable
 // interval the scheduler only resolves per run, or a stored value it could not read as a
