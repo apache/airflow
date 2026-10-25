@@ -727,6 +727,14 @@ over 3000 characters or more than 50 blocks, so items are split across sections,
 shortened to 500 characters, and sections past the 50th are replaced by a pointer to the run
 log, which always lists every item in full.
 
+Each item is posted once while it persists. The run records its items in a file
+(`--reported-file`) that the workflow carries to the next run through the Actions cache, and the
+message holds only the items the previous run did not report. The workflow keeps the new record
+only once Slack accepted the message, so a failed post is retried by the next run. An item that
+goes away and comes back is posted again; a lost cache entry re-posts everything once. The
+message for a run that failed before writing its message is posted for the first of consecutive
+failed runs only. A dry run saves nothing, so it never suppresses the next message.
+
 Attention items are expected outcomes that a maintainer should still see: a pull request
 closed for gate tampering, and a pull request carrying both override labels. They are listed
 in their own section of the message so they are not mistaken for reconciler failures.
@@ -737,7 +745,7 @@ Unknown means any of:
 - A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
   conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
-- A mutation that returned an error (label, draft, undraft, comment, close, status).
+- A mutation that returned an error (label, comment, close, status).
 - A head repository that no longer exists.
 - A state comment whose marker cannot be parsed.
 
@@ -761,18 +769,35 @@ budget stays observable.
 `.github/workflows/fork-ci-monitor.yml`:
 
 - `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
-- `permissions: actions: write, contents: read, pull-requests: write, statuses: write` with a
-  justification comment. Comments and labels on pull requests are covered by
-  `pull-requests: write`; the commit status needs `statuses: write`; the gate tampering check
-  lists runs and their jobs, and the reconciler deletes gated runs, which needs `actions: write`
-  because every scope a `permissions` block leaves out is `none`.
+- Two jobs, each with its own `permissions` block and a justification comment; the workflow
+  grants nothing by default.
+- The `reconcile` job: `actions: write, contents: read, pull-requests: write, statuses: write`.
+  Comments and labels on pull requests are covered by `pull-requests: write`; the commit status
+  needs `statuses: write`; the gate tampering check lists runs and their jobs, and the
+  reconciler deletes gated runs, which needs `actions: write` because every scope a
+  `permissions` block leaves out is `none`.
+- The `draft-state` job: `contents: write, pull-requests: write`. GitHub authorises the draft
+  and undraft mutations (`convertPullRequestToDraft`, `markPullRequestReadyForReview`) against
+  `contents: write` and refuses them with `contents: read` ("Resource not accessible by
+  integration"). That scope also allows pushing to the repository, so the reconciler, which
+  installs and runs Breeze and its dependencies, does not get it: it writes the draft changes
+  as a job output (`--draft-changes-file`), and this job applies them with `gh` and `jq` only,
+  without a checkout. On a release that undrafts, it also removes `fork ci required` after
+  the undraft, so a failed undraft keeps the label and the next run retries it. Pull requests
+  whose change failed are posted to Slack once while the same set keeps failing. It validates
+  every entry before acting on it, runs even when only the reconciler's Slack post failed, and
+  runs with an empty list too, so a failure set that cleared is recorded as cleared. It is
+  skipped on a dry run. The draft state is advisory: the commit statuses
+  keep a pull request from merging, so a failed draft change does not weaken the gate.
 - `runs-on: ubuntu-latest` (the breeze setup action frees disk space with `sudo` and `docker`,
   which `ubuntu-slim` does not provide), `timeout-minutes: 20`, `concurrency: fork-ci-monitor`
   with `cancel-in-progress: false` so runs never overlap.
-- Steps: checkout `main` with `persist-credentials: false`, `./.github/actions/breeze`,
-  `breeze ci fork-ci-reconcile` with `GH_TOKEN`, then the Slack post step guarded by
-  `has-alerts` and skipped on a dry run, whose alerts describe changes it did not make, and a
-  second Slack step that reports a run failing before it could write its message.
+- Steps: restoring the reported items from the Actions cache into `$RUNNER_TEMP`, checkout
+  `main` with `persist-credentials: false`, `./.github/actions/breeze`, `breeze ci fork-ci-reconcile` with `GH_TOKEN`,
+  then the Slack post step guarded by `has-alerts` and skipped on a dry run, whose alerts
+  describe changes it did not make, a second Slack step that reports the first of consecutive
+  runs failing before they could write their message, and saving what Slack accepted to the
+  cache.
 - Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
   four attempts, without waiting after the last one.
 

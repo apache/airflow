@@ -144,28 +144,6 @@ class GitHubClient:
             None,
         )
 
-    def convert_to_draft(self, pr: int, node_id: str) -> None:
-        self._mutate(
-            f"#{pr}: convert to draft",
-            ["api", "graphql"],
-            {
-                "query": "mutation($id: ID!) { convertPullRequestToDraft(input: {pullRequestId: $id}) "
-                "{ clientMutationId } }",
-                "variables": {"id": node_id},
-            },
-        )
-
-    def mark_ready(self, pr: int, node_id: str) -> None:
-        self._mutate(
-            f"#{pr}: mark ready for review",
-            ["api", "graphql"],
-            {
-                "query": "mutation($id: ID!) { markPullRequestReadyForReview(input: {pullRequestId: $id}) "
-                "{ clientMutationId } }",
-                "variables": {"id": node_id},
-            },
-        )
-
     def create_comment(self, pr: int, body: str) -> None:
         self._mutate(
             f"#{pr}: create comment",
