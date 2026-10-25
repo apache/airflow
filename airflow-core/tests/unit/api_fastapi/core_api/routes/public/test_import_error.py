@@ -906,7 +906,6 @@ class TestGetImportErrors:
             "dag_id2",
             "dag_id3",
         ]
-        # Each file is still authorized on its own Dags, with their own team.
         assert sorted(
             (request["details"].id, request["details"].team_name)
             for call in mock_batch_is_authorized_dag.call_args_list

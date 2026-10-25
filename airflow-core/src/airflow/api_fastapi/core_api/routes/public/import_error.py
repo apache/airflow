@@ -301,7 +301,6 @@ def get_import_errors(
         (import_error, [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None])
         for import_error, file_dag_ids_iter in import_errors_result
     ]
-    # One team lookup for the whole page rather than one per import error.
     page_dag_ids = list({dag_id for _, dag_ids in errors_with_dag_ids for dag_id in dag_ids})
     dag_id_to_team = (
         DagModel.get_dag_id_to_team_name_mapping(page_dag_ids, session=session) if page_dag_ids else {}
