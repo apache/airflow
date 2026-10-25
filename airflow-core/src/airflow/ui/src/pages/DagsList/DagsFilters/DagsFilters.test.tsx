@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
 import { dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
@@ -116,7 +116,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
-    fireEvent.click(within(screen.getByTestId("paused-pill")).getByRole("button"));
+    fireEvent.click(screen.getByTestId("paused-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
     expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
 
-    fireEvent.click(within(await screen.findByTestId("timetable_type-pill")).getByRole("button"));
+    fireEvent.click(await screen.findByTestId("timetable_type-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();

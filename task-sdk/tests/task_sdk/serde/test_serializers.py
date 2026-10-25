@@ -64,7 +64,7 @@ class CustomTZ(datetime.tzinfo):
 
 class NoNameTZ(datetime.tzinfo):
     def utcoffset(self, dt):
-        return datetime.timedelta(hours=2)
+        return None
 
 
 class FooBarModel(BaseModel):
@@ -107,16 +107,21 @@ class TestSerializers:
             pytest.param(DateTime(2022, 7, 10, tzinfo=tzutc()), id="datetime_tzutc"),
             pytest.param(DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")), id="datetime_zoneinfo"),
             pytest.param(datetime.datetime.now(), id="datetime_now"),
+            pytest.param(
+                datetime.datetime(2022, 7, 10, tzinfo=datetime.timezone(datetime.timedelta(hours=2))),
+                id="datetime_stdlib_fixed_offset",
+            ),
         ],
     )
     def test_datetime(self, input_obj):
         """Test serialization and deserialization of various datetime-related objects."""
         serialized_obj = serialize(input_obj)
         deserialized_obj = deserialize(serialized_obj)
-        if isinstance(input_obj, (datetime.date, datetime.timedelta, Date)):
+        if isinstance(input_obj, datetime.datetime):
             assert input_obj == deserialized_obj
+            assert input_obj.utcoffset() == deserialized_obj.utcoffset()
         else:
-            assert input_obj.timestamp() == deserialized_obj.timestamp()
+            assert input_obj == deserialized_obj
 
     @pytest.mark.parametrize(
         ("tz_input", "expected_tz_name"),
@@ -624,6 +629,12 @@ class TestSerializers:
         from airflow.sdk.serde.serializers.timezone import serialize
 
         assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
+
+    def test_timezone_serialize_fixed_offset(self):
+        from airflow.sdk.serde.serializers.timezone import serialize
+
+        tz = datetime.timezone(datetime.timedelta(hours=-5))
+        assert serialize(tz) == (-18000, "pendulum.tz.timezone.FixedTimezone", 1, True)
 
     def test_timezone_serialize_no_name(self):
         from airflow.sdk.serde.serializers.timezone import serialize
