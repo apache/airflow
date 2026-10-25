@@ -49,6 +49,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run scripts tests (true/false)"
         required: true
         type: string
+      run-generic-basic-tests:
+        description: >-
+          Whether to run the standalone Airflow and shared distributions tests (true/false): not on the
+          release branch of a single component
+        required: true
+        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -137,6 +143,7 @@ jobs:
   tests-shared-distributions:
     timeout-minutes: 10
     name: Shared distributions tests
+    if: inputs.run-generic-basic-tests == 'true'
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
@@ -394,6 +401,7 @@ jobs:
   test-airflow-standalone:
     timeout-minutes: 30
     name: "Test Airflow standalone commands"
+    if: inputs.run-generic-basic-tests == 'true'
     runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
     env:
       AIRFLOW_HOME: ~/airflow
