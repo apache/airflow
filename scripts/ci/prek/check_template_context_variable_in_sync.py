@@ -53,6 +53,8 @@ IGNORE = {
     "asset_state_store",
     # Only available inside private loop groups.
     "loop",
+    # Only available inside mapped task groups.
+    "mapped_args",
 }
 
 

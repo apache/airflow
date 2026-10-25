@@ -24,7 +24,7 @@ import re
 import weakref
 from collections import deque
 from collections.abc import Collection, Generator, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 import attrs
 
@@ -43,6 +43,8 @@ from airflow.sdk.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -225,9 +227,9 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         """
         Map this task group over each keyword argument.
 
-        Use the returned group in place of this one; inside it,
-        :attr:`MappedTaskGroup.mapped_args` references the value of an
-        argument for each expanded instance.
+        Use the returned group in place of this one, as a context manager. Inside it,
+        ``tg.mapped_args["name"]`` references the value of argument ``name`` for each
+        expanded instance; templates can read it as ``{{ mapped_args.name }}``.
 
         .. code-block:: python
 
@@ -235,7 +237,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 a = PythonOperator(
                     task_id="a",
                     python_callable=work,
-                    op_kwargs={"duration": tg.mapped_args.duration},
+                    op_kwargs={"duration": tg.mapped_args["duration"]},
                 )
         """
         from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
@@ -244,11 +246,24 @@ class TaskGroup(TaskGroupMixin, DAGNode):
             raise TypeError("no arguments to expand against")
         expand_input = DictOfListsExpandInput(kwargs)
         ensure_xcomarg_return_value(expand_input.value)
-        return self._replace_with_mapped(expand_input)
+        return self._replace_with_mapped(expand_input, method="expand")
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> MappedTaskGroup:
         """
         Map this task group over a list of argument dicts.
+
+        Use the returned group in place of this one, as a context manager. Inside it,
+        ``tg.mapped_args["name"]`` references the value of key ``name`` in the dict of
+        each expanded instance; templates can read it as ``{{ mapped_args.name }}``.
+
+        .. code-block:: python
+
+            with TaskGroup(group_id="process").expand_kwargs(first_task.output) as tg:
+                a = PythonOperator(
+                    task_id="a",
+                    python_callable=work,
+                    op_kwargs=tg.mapped_args["op_kwargs"],
+                )
 
         :param kwargs: A list of dicts, or an XComArg resolving to one.
         """
@@ -263,19 +278,19 @@ class TaskGroup(TaskGroupMixin, DAGNode):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         expand_input = ListOfDictsExpandInput(kwargs)
         ensure_xcomarg_return_value(expand_input.value)
-        return self._replace_with_mapped(expand_input)
+        return self._replace_with_mapped(expand_input, method="expand_kwargs")
 
     def _replace_with_mapped(
-        self, expand_input: DictOfListsExpandInput | ListOfDictsExpandInput
+        self, expand_input: DictOfListsExpandInput | ListOfDictsExpandInput, *, method: str
     ) -> MappedTaskGroup:
         # attrs slotted classes cannot change __class__ to a subclass with extra slots,
         # so the group is unregistered from its parent and rebuilt as a MappedTaskGroup.
         if type(self) is not TaskGroup:
-            raise TypeError(f"expand() is not supported on {type(self).__name__}")
+            raise TypeError(f"{method}() is not supported on {type(self).__name__}")
         if self.parent_group is None:
-            raise TypeError("expand() is not supported on the root task group")
+            raise TypeError(f"{method}() is not supported on the root task group")
         if self.children:
-            raise TypeError("expand() must be called before adding tasks to the task group")
+            raise TypeError(f"{method}() must be called before adding tasks to the task group")
         init_kwargs = {
             field.alias: getattr(self, field.name)
             for field in attrs.fields(TaskGroup)
@@ -469,6 +484,11 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     def __enter__(self) -> Self:
         from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
+        if self.parent_group is not None and self.parent_group.children.get(self.node_id) is not self:
+            raise TypeError(
+                f"task group {self.group_id!r} was replaced by expand() or expand_kwargs(); "
+                "use the task group they return"
+            )
         TaskGroupContext.push(self)
         return self
 
@@ -822,29 +842,42 @@ class MappedArgs:
     """
     Arguments of a mapped task group, each resolved for every expanded instance of the group.
 
-    Access an argument as an attribute (``mapped_args.duration``) or by key (``mapped_args["duration"]``).
+    Access an argument by key, e.g. ``mapped_args["duration"]``.
     """
 
     _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
     _group_id: str | None = attrs.field(alias="group_id")
 
     def __getitem__(self, key: str) -> MappedArgument:
-        if isinstance(self._expand_input, DictOfListsExpandInput) and key not in self._expand_input.value:
+        if not isinstance(key, str):
+            raise TypeError(f"mapped argument keys must be str, not {type(key).__name__}")
+        if (known_keys := self._get_known_keys()) is not None and key not in known_keys:
             raise KeyError(
                 f"{key!r} is not a mapped argument of task group {self._group_id!r}; "
-                f"available: {sorted(self._expand_input.value)}"
+                f"available: {sorted(known_keys)}"
             )
         return MappedArgument(input=self._expand_input, key=key)
 
-    def __getattr__(self, key: str) -> MappedArgument:
-        # Keys of expand_kwargs() are only known at run time, so without this guard dunder
-        # lookups such as copy's ``__deepcopy__`` would get a MappedArgument back.
-        if key.startswith("_"):
-            raise AttributeError(key)
-        try:
-            return self[key]
-        except KeyError as e:
-            raise AttributeError(*e.args) from e
+    def __contains__(self, key: object) -> bool:
+        if (known_keys := self._get_known_keys()) is None:
+            raise TypeError(
+                f"the mapped arguments of task group {self._group_id!r} come from an XCom "
+                "and are only known at run time"
+            )
+        return key in known_keys
+
+    def __iter__(self):
+        # Without this, iteration falls back to __getitem__(0), (1), ... until it raises.
+        raise TypeError("'MappedArgs' object is not iterable")
+
+    def _get_known_keys(self) -> set[str] | None:
+        """Return the argument names known at parse time, or None if some are only known at run time."""
+        if isinstance(self._expand_input, DictOfListsExpandInput):
+            return set(self._expand_input.value)
+        items = self._expand_input.value
+        if isinstance(items, Sequence) and all(isinstance(item, Mapping) for item in items):
+            return {key for item in items if isinstance(item, Mapping) for key in item}
+        return None
 
 
 @attrs.define(kw_only=True, repr=False)
@@ -862,8 +895,13 @@ class MappedTaskGroup(TaskGroup):
     _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
 
     @property
+    def expand_input(self) -> DictOfListsExpandInput | ListOfDictsExpandInput:
+        """The arguments this group is mapped over, as passed to ``expand`` or ``expand_kwargs``."""
+        return self._expand_input
+
+    @property
     def mapped_args(self) -> MappedArgs:
-        """References to the arguments this group is mapped over, e.g. ``tg.mapped_args.duration``."""
+        """References to the arguments this group is mapped over, e.g. ``tg.mapped_args["duration"]``."""
         return MappedArgs(expand_input=self._expand_input, group_id=self.group_id)
 
     def __iter__(self):

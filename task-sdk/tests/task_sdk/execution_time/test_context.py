@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
+import jinja2
 import pytest
 from pydantic import ValidationError
 
@@ -35,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
 )
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -98,6 +100,7 @@ from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
+    MappedArgsAccessor,
     OutletEventAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
@@ -2960,3 +2963,30 @@ class TestMacrosAccessorTeamScoping:
 
         assert accessor.team_a_macros.team_a_macro() == "team-a"
         assert accessor.global_macros.shared_macro() == "shared"
+
+
+class TestMappedArgsAccessor:
+    @staticmethod
+    def _build_accessor(data):
+        expand_input = mock.Mock(spec=DictOfListsExpandInput)
+        expand_input.resolve.return_value = (data, set())
+        context = {"ti": mock.sentinel.ti}
+        return MappedArgsAccessor(expand_input, context), expand_input, context
+
+    def test_resolves_once_on_first_read(self):
+        accessor, expand_input, context = self._build_accessor({"value": "a"})
+        expand_input.resolve.assert_not_called()
+
+        assert "value" in accessor
+        assert accessor["value"] == "a"
+        expand_input.resolve.assert_called_once_with(context)
+
+    def test_unknown_key(self):
+        accessor, _, _ = self._build_accessor({"value": "a"})
+        with pytest.raises(KeyError, match=r"'other' is not a mapped argument; available: \['value'\]"):
+            accessor["other"]
+
+    def test_jinja_reads_argument_named_like_a_mapping_method(self):
+        accessor, _, _ = self._build_accessor({"items": [1, 2]})
+        template = jinja2.Template("{{ mapped_args.items }}")
+        assert template.render(mapped_args=accessor) == "[1, 2]"
