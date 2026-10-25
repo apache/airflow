@@ -20,6 +20,11 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -316,6 +321,8 @@ jobs:
           PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
+          GITHUB_TOKEN: ${{ github.token }}
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
 

@@ -321,9 +321,9 @@ and place it in `airflow-core/newsfragments </airflow-core/newsfragments>`__ for
 `chart/newsfragments </chart/newsfragments>`__ for helm chart newsfragments. It can be a single line, or a
 summary and a body separated by a blank line, similar to ``git`` commit messages.
 
-A CI check validates that newsfragment filenames use the correct PR number. If you need to skip this check
-(e.g. when cherry-picking a newsfragment from another PR), add the ``skip newsfragment check`` label to
-your PR.
+Static checks in CI validate that newsfragment filenames use the correct PR number. Run locally, before the
+PR exists, they accept any number. If you need to skip this check (e.g. when cherry-picking a newsfragment
+from another PR), add the ``skip newsfragment check`` label to your PR and re-run the failed jobs.
 
 
 Step 5: Pass PR Review
