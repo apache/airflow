@@ -96,7 +96,6 @@
   "dagRun_one": "Запуск Dag-а",
   "dagRun_other": "Запуски Dag-а",
   "dagRunId": "ID запуска Dag-а",
-  "dagWarnings": "Предупреждения/ошибки Dag-а",
   "defaultToGraphView": "По умолчанию открывать граф",
   "defaultToGridView": "По умолчанию отображать в сетке",
   "delete": "Удалить",

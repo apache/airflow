@@ -94,7 +94,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -119,7 +119,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -144,7 +144,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -169,7 +169,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -194,7 +194,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 32, 128) }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -220,7 +220,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -246,7 +246,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -272,7 +272,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 8, 32) }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -298,7 +298,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 4, 16) }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -323,7 +323,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 4, 16) }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -348,7 +348,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 32, 128) }}
       platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"

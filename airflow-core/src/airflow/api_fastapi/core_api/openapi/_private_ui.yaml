@@ -4039,7 +4039,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -5808,7 +5807,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6157,7 +6155,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id

@@ -182,8 +182,8 @@ no vote.
 
    It validates that `vX-Y-test` exists, checks out its tip, tags the beta there, builds and signs
    the artifacts, resolves constraints through the `release-constraints` workflow from `vX-Y-test`
-   (exactly like an `rc`: provider rc waves are allowed and the result lands on its own
-   `constraints-X.Y.0bN` branch and tag, leaving the shared `constraints-X-Y` untouched), uploads to
+   (exactly like an `rc`: provider rc waves are allowed, the result is committed onto the shared
+   `constraints-X-Y` branch and tagged `constraints-X.Y.0bN`), uploads to
    SVN dev and PyPI, and pushes the tags. Everything downstream of the tag is the same as an `rc`;
    only the branch/sync/vote handling differs.
 
@@ -722,9 +722,9 @@ still works but is no longer recommended.
    allowance is scoped to `apache-airflow-providers-*`; no other package can resolve to a
    pre-release, so a beta of some third-party library cannot slip into what the candidate ships.
 
-   The result lands on a branch of its own (`constraints-${VERSION_RC}`) and is tagged
-   `constraints-${VERSION_RC}`. The shared `constraints-X-Y` branch is left where it was — only
-   the final release moves it.
+   The result is committed onto the shared `constraints-X-Y` branch and tagged
+   `constraints-${VERSION_RC}`. There is no `constraints-${VERSION_RC}` branch — a branch with the
+   same name as the tag would make the name ambiguous, so the workflow fails if it finds one.
 
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
@@ -1557,7 +1557,7 @@ disagree with the version:
 
 | `--version` | Provider pins | Lands on | Tagged |
 |---|---|---|---|
-| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-3` | `constraints-3.3.1rc1` |
+| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3-3` (commit) | `constraints-3.3.1rc1` |
 | `3.3.1` | newest final in PyPI | `constraints-3-3` (commit) | `constraints-3.3.1` |
 
 The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
@@ -1568,9 +1568,10 @@ candidate in the wave keeps its release. A final ignores candidates entirely, wh
 it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
 graph can resolve to a pre-release, since no other requirement mentions one.
 
-Re-running the workflow for the same candidate deletes and re-creates that candidate's branch and
-tag, so redoing a candidate's constraints just works. A final is never treated this way - it commits
-onto the shared `constraints-X-Y` branch, whose history everything downstream reads.
+Re-running the workflow for the same candidate adds another commit onto `constraints-X-Y` and
+re-creates the candidate's tag on it, so redoing a candidate's constraints just works. If a
+leftover `constraints-${VERSION}` branch exists (from when candidates had a branch of their own),
+the workflow stops and asks for it to be deleted first.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
