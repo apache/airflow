@@ -98,8 +98,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param update_config: If True, Operator will update job configuration.  (default: False)
     :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed. In
-        deferrable mode this requires Airflow 3.3+, and a retried or cleared task stops its previous
-        run and waits for it to end before starting a new one, instead of reconnecting to it.
+        deferrable mode this requires Airflow 3.3+, and with ``durable`` a retried or cleared task stops
+        its previous run and waits for it to end before starting a new one, instead of reconnecting to it.
     :param sleep_before_return: time in seconds to wait before returning final status. This is meaningful in case
         of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
@@ -460,6 +460,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         if (
             AIRFLOW_V_3_3_PLUS
             and self.deferrable
+            and self.durable
             and self.stop_job_run_on_kill
             and context["ti"].try_number > 1
         ):

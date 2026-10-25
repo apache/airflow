@@ -520,6 +520,30 @@ class TestGlueJobOperator:
 
         mock_initialize_job.assert_not_called()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the trigger's on_kill only runs on Airflow 3.3+")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_with_stop_job_run_on_kill_without_durable_starts_fresh(
+        self, mock_get_conn, mock_initialize_job
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            deferrable=True,
+            durable=False,
+            stop_job_run_on_kill=True,
+        )
+        mock_ti = self._make_retry_with_running_previous_run(glue)
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": "22222"}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock_ti})
+
+        glue.hook.conn.batch_stop_job_run.assert_not_called()
+        assert GlueJobOperator.TASK_UUID_ARG not in mock_initialize_job.call_args[0][0]
+        assert defer.value.trigger.run_id == "22222"
+
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
         reason="task_state_store only exists as an execute() context key on Airflow 3.3+",
