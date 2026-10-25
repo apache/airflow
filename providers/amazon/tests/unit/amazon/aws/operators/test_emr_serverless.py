@@ -21,7 +21,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from botocore.exceptions import WaiterError
+from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
@@ -1892,6 +1892,8 @@ class TestEmrServerlessStartJobOperatorDurable:
         result = self._operator().execute({"task_state_store": store})
 
         assert result == "done-run"
+        mock_conn.get_application.assert_not_called()
+        mock_conn.start_application.assert_not_called()
         mock_conn.start_job_run.assert_not_called()
 
     @mock.patch.object(EmrServerlessHook, "conn")
@@ -1968,21 +1970,49 @@ class TestEmrServerlessStartJobOperatorDurable:
         operator.defer.assert_called_once()
         assert operator.defer.call_args.kwargs["trigger"].job_id == "existing-run"
 
-    def test_durable_with_cancel_on_kill_true_raises_in_deferrable(self):
-        with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
-            EmrServerlessStartJobOperator(
-                task_id="test_task",
-                application_id=application_id,
-                execution_role_arn=execution_role_arn,
-                job_driver=spark_job_driver,
-                deferrable=True,
-                durable=True,
-                cancel_on_kill=True,
-            )
+    @pytest.mark.parametrize(
+        ("previous_state", "cancel_side_effect", "expect_cancel"),
+        [
+            pytest.param("RUNNING", None, True, id="running"),
+            pytest.param("RUNNING", ClientError({"Error": {}}, "CancelJobRun"), True, id="already_cancelled"),
+            pytest.param("SUCCESS", None, False, id="succeeded"),
+        ],
+    )
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_deferrable_with_cancel_on_kill_cancels_previous_run_and_starts_fresh(
+        self, mock_conn, previous_state, cancel_side_effect, expect_cancel
+    ):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": previous_state}}
+        mock_conn.cancel_job_run.side_effect = cancel_side_effect
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": "fresh-run",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        store = _FakeTaskStateStore({self.key: "previous-run"})
 
-    def test_durable_forces_cancel_on_kill_off_in_deferrable(self):
-        operator = self._operator(deferrable=True)  # durable=True, cancel_on_kill unset
-        assert operator.cancel_on_kill is False
+        result = self._operator(deferrable=True, cancel_on_kill=True).execute({"task_state_store": store})
+
+        assert result == "fresh-run"
+        if expect_cancel:
+            mock_conn.cancel_job_run.assert_called_once_with(
+                applicationId=application_id, jobRunId="previous-run"
+            )
+        else:
+            mock_conn.cancel_job_run.assert_not_called()
+        mock_conn.start_job_run.assert_called_once()
+        assert store.get(self.key) == "fresh-run"
+
+    @pytest.mark.parametrize(("airflow_3_3_plus", "expected"), [(True, False), (False, True)])
+    def test_durable_turns_default_cancel_on_kill_off_in_deferrable_on_3_3_plus(
+        self, airflow_3_3_plus, expected
+    ):
+        with mock.patch("airflow.providers.amazon.aws.operators.emr.AIRFLOW_V_3_3_PLUS", airflow_3_3_plus):
+            operator = self._operator(deferrable=True)  # durable=True, cancel_on_kill unset
+        assert operator.cancel_on_kill is expected
+
+    def test_durable_keeps_explicit_cancel_on_kill_in_deferrable(self):
+        assert self._operator(deferrable=True, cancel_on_kill=True).cancel_on_kill is True
 
     def test_sync_durable_with_cancel_on_kill_allowed(self):
         """cancel_on_kill only applies to the deferrable trigger, so the combination is fine in sync."""
