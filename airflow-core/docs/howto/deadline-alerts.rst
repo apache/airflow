@@ -70,6 +70,11 @@ The Deadlines list continues to show stored deadline records. Changing this sett
 created runs; it does not remove existing deadline records.
 Filtering out backfill runs does not exclude catchup runs, which use ``DagRunType.SCHEDULED``.
 
+The ``example_deadline_alert_run_type_filter`` example Dag applies a 30-second
+deadline to scheduled and manual runs. Its task waits for 60 seconds so these
+runs miss the deadline. Backfill runs execute the same task without creating
+deadline records.
+
 Here is how Deadlines are calculated:
 
 ::
