@@ -17,12 +17,12 @@
  * under the License.
  */
 import { matchRoutes, type LazyRouteFunction, type RouteObject } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TabEntity, TaskInstanceTab } from "src/constants/tab";
 import { getTabPath } from "src/utils/tab";
 
-import { routerConfig, taskInstanceRoutes } from "./router";
+import { loadRouteModule, routerConfig, taskInstanceRoutes } from "./router";
 
 vi.mock("src/pages/DagsList", () => ({ DagsList: () => null }));
 
@@ -67,6 +67,13 @@ describe("Dag route handles", () => {
 });
 
 describe("lazy routes", () => {
+  beforeEach(() => globalThis.sessionStorage.clear());
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    globalThis.sessionStorage.clear();
+  });
+
   it("lazy-loads every page route", () => {
     const [rootRoute] = routerConfig as Array<RouteObject>;
 
@@ -95,6 +102,16 @@ describe("lazy routes", () => {
     const [{ Component }, { DagsList }] = await Promise.all([loadRoute(), import("src/pages/DagsList")]);
 
     expect(Component).toBe(DagsList);
+  });
+
+  it("reloads only once when route module loading fails repeatedly", async () => {
+    const error = new Error("Route module unavailable");
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
+
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+
+    expect(reload).toHaveBeenCalledOnce();
   });
 });
 

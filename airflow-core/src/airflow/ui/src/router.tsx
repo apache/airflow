@@ -32,11 +32,28 @@ import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
 import { client } from "./queryClient";
 
+const ROUTE_MODULE_RELOAD_KEY = "airflow-route-module-reload-attempted";
+
+export const loadRouteModule = async <Module,>(factory: () => Promise<Module>) => {
+  try {
+    return await factory();
+  } catch (error) {
+    if (globalThis.sessionStorage.getItem(ROUTE_MODULE_RELOAD_KEY) === null) {
+      globalThis.sessionStorage.setItem(ROUTE_MODULE_RELOAD_KEY, "true");
+      globalThis.location.reload();
+    }
+
+    throw error;
+  }
+};
+
 const lazyRoute =
   <Module,>(factory: () => Promise<Module>, name: keyof Module) =>
-  async () => ({
-    Component: (await factory())[name] as ComponentType,
-  });
+  async () => {
+    const module = await loadRouteModule(factory);
+
+    return { Component: module[name] as ComponentType };
+  };
 
 const loadAsset = lazyRoute(() => import("src/pages/Asset"), "Asset");
 const loadAssetEvents = lazyRoute(() => import("src/pages/Asset/AssetEvents"), "AssetEvents");
@@ -99,41 +116,44 @@ const loadTaskStateStore = lazyRoute(() => import("src/pages/TaskStateStore"), "
 const loadVariables = lazyRoute(() => import("src/pages/Variables"), "Variables");
 const loadXCom = lazyRoute(() => import("src/pages/XCom"), "XCom");
 
-const loadDagRunsWithLayout = async () => {
-  const [{ DagsLayout }, { DagRuns: DagRunsPage }] = await Promise.all([
-    import("src/layouts/DagsLayout"),
-    import("src/pages/DagRuns"),
-  ]);
+const loadDagRunsWithLayout = () =>
+  loadRouteModule(async () => {
+    const [{ DagsLayout }, { DagRuns: DagRunsPage }] = await Promise.all([
+      import("src/layouts/DagsLayout"),
+      import("src/pages/DagRuns"),
+    ]);
 
-  return {
-    element: (
-      <DagsLayout>
-        <DagRunsPage />
-      </DagsLayout>
-    ),
-  };
-};
+    return {
+      element: (
+        <DagsLayout>
+          <DagRunsPage />
+        </DagsLayout>
+      ),
+    };
+  });
 
-const loadTaskInstancesWithLayout = async () => {
-  const [{ DagsLayout }, { TaskInstances: TaskInstancesPage }] = await Promise.all([
-    import("src/layouts/DagsLayout"),
-    import("src/pages/TaskInstances"),
-  ]);
+const loadTaskInstancesWithLayout = () =>
+  loadRouteModule(async () => {
+    const [{ DagsLayout }, { TaskInstances: TaskInstancesPage }] = await Promise.all([
+      import("src/layouts/DagsLayout"),
+      import("src/pages/TaskInstances"),
+    ]);
 
-  return {
-    element: (
-      <DagsLayout>
-        <TaskInstancesPage />
-      </DagsLayout>
-    ),
-  };
-};
+    return {
+      element: (
+        <DagsLayout>
+          <TaskInstancesPage />
+        </DagsLayout>
+      ),
+    };
+  });
 
-const loadHITLTaskInstancesWithDrawer = async () => {
-  const { HITLTaskInstances: HITLTaskInstancesPage } = await import("src/pages/HITLTaskInstances");
+const loadHITLTaskInstancesWithDrawer = () =>
+  loadRouteModule(async () => {
+    const { HITLTaskInstances: HITLTaskInstancesPage } = await import("src/pages/HITLTaskInstances");
 
-  return { element: <HITLTaskInstancesPage enableHITLReviewDrawer /> };
-};
+    return { element: <HITLTaskInstancesPage enableHITLReviewDrawer /> };
+  });
 
 const pluginRoute = {
   lazy: loadExternalView,
