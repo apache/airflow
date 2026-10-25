@@ -23,6 +23,7 @@
 
 - [CI run types](#ci-run-types)
   - [Pull request run](#pull-request-run)
+  - [Fork push run](#fork-push-run)
   - [Canary run](#canary-run)
 - [Workflows](#workflows)
   - [Workflow Architecture Overview](#workflow-architecture-overview)
@@ -91,6 +92,30 @@ where instead  of using constraints to build images, attempt is made to upgrade
 all dependencies to latest versions and build images with them. This way we check how Airflow behaves when the
 dependencies are upgraded. This can also be forced by setting the `upgrade to newer dependencies`
 label in the PR if you are a committer and want to force dependency upgrade.
+
+Every pull request run of `ci-amd.yml` starts with the `Fork CI gate` job. For pull requests
+whose CI runs in the contributor's fork (AIP-120), the gate skips `build-info` and therefore
+everything after it, so the run finishes in seconds; see
+[Fork CI for external contributors](08_fork_ci_for_external_contributors.md).
+
+## Fork push run
+
+These runs are triggered by a push to any branch of a contributor's fork in which the
+`Tests (AMD)` workflow is enabled. They run in the fork, on GitHub's public runners and with the
+fork's token, and are how pull requests labelled `fork ci required` get their CI result. They are
+selected like a pull request run: the changed files come from comparing the pushed commit with
+`apache/airflow` (`main`, or the release branch the pushed code was cut from, as breeze's default
+branch at that commit records it), so a fork whose `main` is behind does not make the run bigger,
+and they never use self-hosted runners. The `schedule` trigger is skipped in forks, so enabling
+the workflow does not start the canary matrix there. The fork CI reconciler reads the result of these runs and reports it on the pull
+request as the `Fork CI / Tests (AMD)` status.
+
+In `apache/airflow` itself, pushes still only run CI for the release-prep and providers branches
+(`CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`, the branches `release-branch-ci.yml` starts
+full runs for), and they test only the changes since the last successful run of the branch. That
+incremental base is looked up only in `apache/airflow`: a fork's push is always compared with
+`apache/airflow` as described above. A push to any other branch produces a run in which only the
+gate executes.
 
 ## Canary run
 
