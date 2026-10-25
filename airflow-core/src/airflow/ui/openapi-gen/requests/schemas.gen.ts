@@ -5235,16 +5235,7 @@ export const $DagRunType = {
     type: 'string',
     enum: ['backfill', 'scheduled', 'manual', 'operator_triggered', 'asset_triggered', 'asset_materialization'],
     title: 'DagRunType',
-    description: `Identify how a Dag run was created.
-
-The supported run types are:
-
-* backfill: A run created by a backfill operation.
-* scheduled: A run created according to the Dag's timetable, including catchup runs.
-* manual: A manually triggered run, such as through the UI, CLI, or REST API.
-* operator_triggered: A run triggered by an operator.
-* asset_triggered: A run triggered by asset updates.
-* asset_materialization: A run created to materialize assets.`
+    description: 'Class with DagRun types.'
 } as const;
 
 export const $DagScheduleAssetReference = {
