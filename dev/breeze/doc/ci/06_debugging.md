@@ -44,12 +44,16 @@ in some cases, you need to run the PR as coming from the "apache"
 repository rather than from your fork.
 
 You can also apply the label later and rebase the PR or close/reopen
-the PR to apply the label to the PR.
+the PR to apply the label to the PR. For `use self-hosted runners`, a
+committer approves the head commit (with no committer's request for
+changes standing) and closes/reopens the PR: a rebase needs a fresh
+approval.
 
 | Action to perform                                                                                                                                                | Label to set          | PR from "apache" repo |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|:---------------------:|
 | Run the build with all combinations of all<br>python, backends, kubernetes etc on PR, <br>and run all types of tests for all test<br>groups.                     | full tests needed     |                       |
 | Force to use public runners for the build                                                                                                                        | use public runners    |                       |
+| Run a PR from a fork on the self-hosted RunsOn<br>runners (needs a committer's approval of its head commit<br>and no committer's request for changes)            | use self-hosted runners |                     |
 | Debug resources used during the build for <br>parallel jobs                                                                                                      | debug ci resources    |                       |
 | Force running PR on latest versions of<br>python, backends, kubernetes etc. when you<br>want to save resources and test only latest<br>versions                  | latest versions only  |                       |
 | Force running PR on minimal (default) <br>versions of python, backends, kubernetes etc.<br>in order to save resources and run tests only<br>for minimum versions | default versions only |                       |
