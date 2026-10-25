@@ -31,10 +31,12 @@ from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
+    GATE_OVERRIDE_LABELS,
     MAX_AUTO_APPROVED_JOB_MINUTES,
     MAX_AUTO_APPROVED_SOURCE_LINES,
     MAX_ERROR_TEXT_LENGTH,
     NEED_WORKFLOW_APPROVAL_LABEL,
+    TEST_SELECTION_LABELS,
     ApprovalDecision,
     ChangedFile,
     GitHubApi,
@@ -360,6 +362,7 @@ def test_process_waiting_runs_groups_runs_by_pr_commit(mock_decide):
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
     api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
     api.get_runs_waiting_for_approval.return_value = [
         _run(1, "aaa"),
         _run(2, "aaa"),
@@ -617,6 +620,7 @@ def test_process_waiting_runs_only_approves_runs_started_for_the_current_pr(
     ]
     api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
     api.get_last_base_change.return_value = last_base_change
+    api.get_last_label_change.return_value = None
     mock_decide.return_value = ApprovalDecision(approve=True, reasons=["cheap"])
 
     results = process_waiting_runs(api, created_since=CREATED_SINCE)
@@ -655,6 +659,7 @@ def test_process_waiting_runs_continues_after_a_pull_request_fails(mock_decide, 
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
     api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
     api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa"), _run(2, "bbb")]
     api.get_open_pull_requests.return_value = [_pr(10, "aaa"), _pr(11, "bbb")]
     mock_decide.side_effect = [error, ApprovalDecision(approve=True, reasons=["cheap"])]
@@ -674,6 +679,7 @@ def test_process_waiting_runs_records_a_failure_while_approving_as_not_approved(
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
     api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
     api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa"), _run(2, "aaa")]
     api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
     api.approve_run.side_effect = [None, requests.HTTPError("409 Conflict")]
@@ -692,6 +698,7 @@ def _api_with_prs(prs, runs):
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
     api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
     api.get_runs_waiting_for_approval.return_value = runs
     api.get_open_pull_requests.return_value = prs
     return api
@@ -927,3 +934,111 @@ def test_has_bot_comment_only_counts_the_workflow_comments(login, expected):
     comments = [{"user": {"login": login}, "body": f"{CI_CHANGE_MARKER}\n\ntext"}]
     with mock.patch.object(api, "_get_paginated", autospec=True, return_value=comments):
         assert api.has_bot_comment(10, CI_CHANGE_MARKER) is expected
+
+
+@pytest.mark.parametrize(
+    ("decision_labels", "approved_runs"),
+    [
+        pytest.param(frozenset({"full tests needed"}), [3], id="runs started before the change"),
+        pytest.param(frozenset(), [2, 3], id="no change of the decision's labels"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_skips_runs_started_before_a_test_selection_label_changed(
+    mock_decide, decision_labels, approved_runs
+):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [
+        _run(2, "aaa", created_at="2026-10-22T10:00:00Z"),
+        _run(3, "aaa", created_at="2026-10-22T11:00:00Z"),
+    ]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.side_effect = lambda number, labels: (
+        datetime(2026, 10, 22, 10, 30, tzinfo=UTC) if labels else None
+    )
+    mock_decide.return_value = ApprovalDecision(
+        approve=True, reasons=["cheap"], decision_labels=decision_labels
+    )
+
+    process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert api.approve_run.call_args_list == [mock.call(run_id) for run_id in approved_runs]
+
+
+def test_get_last_label_change_ignores_other_labels_and_reads_the_timeline_once():
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=True)
+    events = [
+        {"event": "unlabeled", "created_at": "2026-10-22T09:00:00Z", "label": {"name": "full tests needed"}},
+        {
+            "event": "unlabeled",
+            "created_at": "2026-10-22T11:00:00Z",
+            "label": {"name": NEED_WORKFLOW_APPROVAL_LABEL},
+        },
+        {"event": "labeled", "created_at": "2026-10-22T11:30:00Z", "label": {"name": "area:UI"}},
+        {
+            "event": "unlabeled",
+            "created_at": "2026-10-22T11:45:00Z",
+            "label": {"name": "use public runners"},
+        },
+        {"event": "base_ref_changed", "created_at": "2026-10-22T08:00:00Z"},
+    ]
+    with mock.patch.object(api, "_get_paginated", autospec=True, return_value=events) as get_paginated:
+        assert api.get_last_label_change(10, TEST_SELECTION_LABELS) == datetime(
+            2026, 10, 22, 9, 0, tzinfo=UTC
+        )
+        assert api.get_last_base_change(10) == datetime(2026, 10, 22, 8, 0, tzinfo=UTC)
+    get_paginated.assert_called_once()
+
+
+@mock.patch(f"{MODULE}.load_config", autospec=True, return_value=GATE_ENABLED)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=CORE_CHANGE)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_gated_approval_depends_on_the_gate_override_labels(
+    mock_fetch, mock_get_changed_files, mock_load_config
+):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    assert decide_for_pull_request(api=api, pr=_gated_pr()).decision_labels == GATE_OVERRIDE_LABELS
+
+
+@pytest.mark.parametrize("event", ["labeled", "unlabeled"])
+@pytest.mark.parametrize("label", sorted(TEST_SELECTION_LABELS))
+def test_get_last_label_change_counts_every_test_selection_label(label, event):
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=True)
+    events = [{"event": event, "created_at": "2026-10-22T09:00:00Z", "label": {"name": label}}]
+    with mock.patch.object(api, "_get_paginated", autospec=True, return_value=events):
+        assert api.get_last_label_change(10, TEST_SELECTION_LABELS) == datetime(
+            2026, 10, 22, 9, 0, tzinfo=UTC
+        )
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_leaves_gated_runs_started_before_use_fork_ci_was_added(mock_decide):
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    timeline = [
+        {"event": "labeled", "created_at": "2026-10-22T10:30:00Z", "label": {"name": "use fork ci"}},
+        {"event": "unlabeled", "created_at": "2026-10-22T10:40:00Z", "label": {"name": "full tests needed"}},
+    ]
+    mock_decide.return_value = ApprovalDecision(
+        approve=True, reasons=["fork CI"], decision_labels=GATE_OVERRIDE_LABELS
+    )
+    with (
+        mock.patch.object(
+            api,
+            "get_runs_waiting_for_approval",
+            autospec=True,
+            return_value=[
+                _run(2, "aaa", created_at="2026-10-22T10:00:00Z"),
+                _run(3, "aaa", created_at="2026-10-22T11:00:00Z"),
+            ],
+        ),
+        mock.patch.object(api, "get_open_pull_requests", autospec=True, return_value=[_pr(10, "aaa")]),
+        mock.patch.object(api, "_get_paginated", autospec=True, return_value=timeline),
+        mock.patch.object(api, "approve_run", autospec=True) as approve_run,
+    ):
+        process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert approve_run.call_args_list == [mock.call(3)]

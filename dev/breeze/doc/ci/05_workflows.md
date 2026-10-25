@@ -132,7 +132,15 @@ Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, s
 approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
 head of several open PRs is never approved automatically, because its runs cannot be told apart by
 PR, and only runs started after the PR was opened and after its base branch last changed are
-approved (retargeting a PR does not start new runs). Other PRs get the
+approved (retargeting a PR does not start new runs). A run selects its jobs from the labels the PR
+had when it started, while the decision uses the current labels, so for PRs that run project CI a
+run started before a label that changes which tests run was added or removed
+(`full tests needed`, `all versions`, `default versions only`, `latest versions only`, `canary`,
+`upgrade to newer dependencies`, `area:e2e-tests`, `area:kubernetes-tests`) is left for a
+maintainer, since it still runs the selection it started with; the next push is decided afresh.
+For a PR whose CI runs in the fork the selection does not matter, but the gate falls back to the
+labels a run started with when it cannot read the current ones, so a run started before
+`use fork ci` or `use project ci` was added or removed is left for a maintainer instead. Other PRs get the
 `need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
 a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
 failure stays visible even if the label could not be added. The label is removed when a later commit

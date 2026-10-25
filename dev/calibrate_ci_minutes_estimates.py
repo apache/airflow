@@ -23,6 +23,7 @@ Measure the numbers behind ``dev/breeze/src/airflow_breeze/utils/ci_minutes_esti
 
 Downloads recent successful ``Tests (AMD)`` PR runs, their job timings and the selective-check outputs
 their ``Build info`` job printed, then prints the medians and fits to copy into the estimate module.
+Only runs on public runners with the default versions are counted, as the estimate models them.
 Downloads are cached in ``--cache-dir``, so re-runs only fetch new runs.
 
 Needs an authenticated ``gh`` CLI. Run from the repository root:
@@ -45,16 +46,17 @@ from pathlib import Path
 REPOSITORY = "apache/airflow"
 WORKFLOW = "ci-amd.yml"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+# What ci_minutes_estimate.py models: jobs on GitHub's public AMD runners, default versions only.
+# Self-hosted (RunsOn) runs and all-versions runs take different times and would skew the medians.
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 
 # Job-name patterns for each job group of ci_minutes_estimate.py; the first match wins.
 JOB_GROUPS = [
     ("docs", r"^CI image checks / (Build documentation|Publish documentation)"),
     ("core", r"^(MySQL|Postgres|Sqlite|Non-DB) tests: core|^Low dep tests:core"),
     ("special", r"^Special tests"),
-    (
-        "providers",
-        r"^Provider distributions tests|tests: providers|^Low dep tests: providers|^MyPy providers checks",
-    ),
+    ("mypy-providers", r"^MyPy providers checks"),
+    ("providers", r"^Provider distributions tests|tests: providers|^Low dep tests: providers"),
     ("prod", r"^Build PROD images|^Additional PROD image tests"),
     ("kubernetes", r"^Kubernetes tests"),
     ("helm", r"^Helm tests"),
@@ -64,6 +66,7 @@ JOB_GROUPS = [
     ("agent-framework", r"^Agent framework tests"),
     ("java-sdk", r"^Java SDK"),
     ("go-sdk", r"^Go SDK"),
+    ("ts-sdk-docs", r"^TypeScript SDK docs"),
     ("ts-sdk", r"^TypeScript SDK"),
     ("airflow-ctl", r"^Airflow CTL"),
     ("base", r".*"),
@@ -151,6 +154,15 @@ def count_provider_test_files(provider_id: str) -> int:
     return sum(1 for _ in tests_path.rglob("test_*.py"))
 
 
+def get_unmodelled_reason(outputs: dict[str, str]) -> str | None:
+    """Why a run cannot calibrate the estimate, or None when it matches what the estimate models."""
+    if outputs.get("runner-type") != PUBLIC_AMD_RUNNERS:
+        return f"it ran on {outputs.get('runner-type', 'unknown runners')}"
+    if outputs.get("all-versions") != "false":
+        return "it ran all Python and database versions"
+    return None
+
+
 def build_rows(run_ids: list[int], cache_dir: Path) -> list[dict]:
     rows = []
     for run_id in run_ids:
@@ -160,6 +172,10 @@ def build_rows(run_ids: list[int], cache_dir: Path) -> list[dict]:
             continue
         outputs = read_outputs(log_file)
         if "full-tests-needed" not in outputs:
+            continue
+        reason = get_unmodelled_reason(outputs)
+        if reason is not None:
+            print(f"skipping run {run_id}: {reason}")
             continue
         minutes: dict[str, float] = defaultdict(float)
         longest: dict[str, float] = defaultdict(float)

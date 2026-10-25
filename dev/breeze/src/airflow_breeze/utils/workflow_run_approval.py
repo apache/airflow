@@ -49,6 +49,8 @@ from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, estimate
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.fork_ci_gate import (
     GATED_REASONS,
+    LABEL_USE_FORK_CI,
+    LABEL_USE_PROJECT_CI,
     GateConfig,
     GateEvent,
     decide,
@@ -59,6 +61,16 @@ from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER, ci_change_ap
 from airflow_breeze.utils.fork_ci_reconcile import changes_ci_definition
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.selective_checks import (
+    ALL_VERSIONS_LABEL,
+    AREA_E2E_TESTS_LABEL,
+    AREA_KUBERNETES_TESTS_LABEL,
+    CANARY_LABEL,
+    DEFAULT_VERSIONS_ONLY_LABEL,
+    FULL_TESTS_NEEDED_LABEL,
+    LATEST_VERSIONS_ONLY_LABEL,
+    UPGRADE_TO_NEWER_DEPENDENCIES_LABEL,
+)
 
 NEED_WORKFLOW_APPROVAL_LABEL = "need workflow approval"
 
@@ -104,6 +116,27 @@ NON_SOURCE_FILE_PATTERN = re.compile(
 
 GITHUB_API_URL = "https://api.github.com"
 
+# Labels with which selective checks select a different set of tests or versions. Selective checks
+# read the labels of the run's event, so a run started before one was added or removed still runs
+# the selection of the labels it started with, which the current labels do not show.
+TEST_SELECTION_LABELS = frozenset(
+    {
+        ALL_VERSIONS_LABEL,
+        AREA_E2E_TESTS_LABEL,
+        AREA_KUBERNETES_TESTS_LABEL,
+        CANARY_LABEL,
+        DEFAULT_VERSIONS_ONLY_LABEL,
+        FULL_TESTS_NEEDED_LABEL,
+        LATEST_VERSIONS_ONLY_LABEL,
+        UPGRADE_TO_NEWER_DEPENDENCIES_LABEL,
+    }
+)
+
+# Labels that move a PR between project CI and fork CI. The gate reads them when it runs, but falls
+# back to the labels of the run's event when it cannot, so a run started before one changed could
+# still run project CI.
+GATE_OVERRIDE_LABELS = frozenset({LABEL_USE_FORK_CI, LABEL_USE_PROJECT_CI})
+
 # Read from the trusted main checkout, which is also the base branch whose gate job decides the
 # PRs that are approved automatically.
 FORK_CI_GATE_CONFIG_PATH = AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"
@@ -122,6 +155,8 @@ class ApprovalDecision:
     estimate: CiMinutesEstimate | None = None
     # Posted on the PR once, when the runs are left for a maintainer.
     comment: str | None = None
+    # The labels the decision depends on: runs started before one of them changed are not approved.
+    decision_labels: frozenset[str] = TEST_SELECTION_LABELS
 
 
 def count_source_lines(changed_files: list[ChangedFile]) -> int:
@@ -190,6 +225,7 @@ def decide_gated_approval(*, changed_files: list[ChangedFile]) -> ApprovalDecisi
     return ApprovalDecision(
         approve=True,
         reasons=["its CI runs in the contributor's fork, so its project CI run only executes the gate"],
+        decision_labels=GATE_OVERRIDE_LABELS,
     )
 
 
@@ -287,6 +323,7 @@ class GitHubApi:
     def __init__(self, *, github_repository: str, github_token: str, report_only: bool):
         self.github_repository = github_repository
         self.report_only = report_only
+        self._timelines: dict[int, list[dict[str, Any]]] = {}
         self._session = requests.Session()
         self._session.headers.update(
             {
@@ -356,12 +393,26 @@ class GitHubApi:
         )
         response.raise_for_status()
 
+    def _get_timeline(self, pr_number: int) -> list[dict[str, Any]]:
+        if pr_number not in self._timelines:
+            self._timelines[pr_number] = self._get_paginated(f"issues/{pr_number}/timeline?per_page=100")
+        return self._timelines[pr_number]
+
     def get_last_base_change(self, pr_number: int) -> datetime | None:
-        events = self._get_paginated(f"issues/{pr_number}/timeline?per_page=100")
         changes = [
             parse_github_time(event["created_at"])
-            for event in events
+            for event in self._get_timeline(pr_number)
             if event.get("event") == "base_ref_changed"
+        ]
+        return max(changes, default=None)
+
+    def get_last_label_change(self, pr_number: int, labels: frozenset[str]) -> datetime | None:
+        """When one of ``labels`` was last added to or removed from the PR."""
+        changes = [
+            parse_github_time(event["created_at"])
+            for event in self._get_timeline(pr_number)
+            if event.get("event") in ("labeled", "unlabeled")
+            and (event.get("label") or {}).get("name") in labels
         ]
         return max(changes, default=None)
 
@@ -543,11 +594,16 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                     decision = decide_for_pull_request(api=api, pr=pr)
                 pr_run_ids = run_ids
                 if decision.approve:
-                    pr_run_ids = find_runs_started_for_current_pr(api=api, pr=pr, runs=head_runs)
+                    pr_run_ids = find_runs_started_for_current_pr(
+                        api=api, pr=pr, runs=head_runs, decision_labels=decision.decision_labels
+                    )
                     if not pr_run_ids:
                         decision = ApprovalDecision(
                             approve=False,
-                            reasons=["its waiting runs started before the PR was opened or retargeted"],
+                            reasons=[
+                                "its waiting runs started before the PR was opened, retargeted "
+                                "or changed a label its decision depends on"
+                            ],
                             estimate=decision.estimate,
                         )
                         pr_run_ids = run_ids
@@ -583,7 +639,11 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
 
 
 def find_runs_started_for_current_pr(
-    *, api: GitHubApi, pr: dict[str, Any], runs: list[dict[str, Any]]
+    *,
+    api: GitHubApi,
+    pr: dict[str, Any],
+    runs: list[dict[str, Any]],
+    decision_labels: frozenset[str] = TEST_SELECTION_LABELS,
 ) -> list[int]:
     """
     Return the runs started after the PR was opened and after its base branch last changed.
@@ -591,11 +651,18 @@ def find_runs_started_for_current_pr(
     Retargeting a PR does not start new runs, and a closed PR can leave runs with the same head behind.
     Such runs were started for another base branch, so the decision about the current PR must not
     approve them.
+
+    :param decision_labels: the labels the decision depends on. It is made from the current labels,
+        while a run can act on those of its event: with ``full tests needed`` removed, or
+        ``default versions only`` added to a run of all versions, the estimate is smaller than the
+        run, and without ``use fork ci`` in its event a run can fall back to project CI.
     """
     started_after = parse_github_time(pr["created_at"])
-    last_base_change = api.get_last_base_change(pr["number"])
-    if last_base_change is not None:
-        started_after = max(started_after, last_base_change)
+    changes = [
+        api.get_last_base_change(pr["number"]),
+        api.get_last_label_change(pr["number"], decision_labels),
+    ]
+    started_after = max([started_after, *(change for change in changes if change is not None)])
     return [run["id"] for run in runs if parse_github_time(run["created_at"]) >= started_after]
 
 

@@ -55,6 +55,9 @@ AGENT_FRAMEWORK_ESTIMATE = (11, 5)
 JAVA_SDK_ESTIMATE = (7, 4)
 GO_SDK_ESTIMATE = (1, 1)
 TS_SDK_ESTIMATE = (1, 1)
+TS_SDK_DOCS_ESTIMATE = (1, 1)
+# The provider mypy job runs whenever provider code changes, also without provider unit tests.
+MYPY_PROVIDERS_ESTIMATE = (8, 8)
 AIRFLOW_CTL_ESTIMATE = (1, 1)
 
 # Core tests: about 38 job-minutes for the first test type and 61 for each further one, up to
@@ -65,13 +68,14 @@ CORE_ALL_TEST_TYPES_MINUTES = 222
 CORE_LONGEST_JOB_MINUTES = {1: 11, 2: 29}
 CORE_LONGEST_JOB_MINUTES_DEFAULT = 32
 
-# Provider tests (DB/non-DB, lowest dependencies, compatibility, distributions, mypy) scale with the
-# size of the tested providers' test suites: amazon or google cost far more than a small provider.
-# Fitted on 224 runs testing 2 to 22 providers: job-minutes ~= 105 + 0.161 per provider test file, and
-# the longest provider job ~= 16 + 0.015 per test file, both capped at the cost of testing all providers.
-PROVIDERS_BASE_MINUTES = 105
+# Provider tests (DB/non-DB, lowest dependencies, compatibility, distributions) scale with the size of
+# the tested providers' test suites: amazon or google cost far more than a small provider. Fitted on
+# 224 runs testing 2 to 22 providers, together with the provider mypy job: job-minutes ~= 105 + 0.161
+# per provider test file, and the longest provider job ~= 16 + 0.015 per test file, both capped at the
+# cost of testing all providers. The mypy job's median is taken off the base and the all-providers cost.
+PROVIDERS_BASE_MINUTES = 105 - MYPY_PROVIDERS_ESTIMATE[0]
 PROVIDERS_MINUTES_PER_TEST_FILE = 0.161
-PROVIDERS_ALL_MINUTES = 315
+PROVIDERS_ALL_MINUTES = 315 - MYPY_PROVIDERS_ESTIMATE[0]
 PROVIDERS_LONGEST_JOB_BASE_MINUTES = 16
 PROVIDERS_LONGEST_JOB_MINUTES_PER_TEST_FILE = 0.015
 PROVIDERS_ALL_LONGEST_JOB_MINUTES = 36
@@ -153,10 +157,34 @@ def estimate_providers_group(provider_test_types: list[str]) -> EstimatedJobGrou
     )
 
 
+# Jobs that need only build-info, so they also run when no CI image is built. The Java SDK group
+# includes its docs job.
+IMAGE_INDEPENDENT_GROUPS = (
+    ("run_java_sdk_tests", "Java SDK tests", JAVA_SDK_ESTIMATE),
+    ("run_go_sdk_tests", "Go SDK tests", GO_SDK_ESTIMATE),
+    ("run_ts_sdk_tests", "TypeScript SDK tests", TS_SDK_ESTIMATE),
+    ("run_ts_sdk_docs", "TypeScript SDK docs", TS_SDK_DOCS_ESTIMATE),
+    ("run_airflow_ctl_tests", "Airflow CTL tests", AIRFLOW_CTL_ESTIMATE),
+)
+
+
+def estimate_image_independent_groups(selective_checks: Any) -> list[EstimatedJobGroup]:
+    return [
+        EstimatedJobGroup(name, *estimate)
+        for flag, name, estimate in IMAGE_INDEPENDENT_GROUPS
+        if getattr(selective_checks, flag)
+    ]
+
+
 def estimate_ci_minutes(selective_checks: Any) -> CiMinutesEstimate:
     """Estimate the job groups, job-minutes and wall-clock time of a ``Tests (AMD)`` PR run."""
     if selective_checks.basic_checks_only:
-        return CiMinutesEstimate([EstimatedJobGroup("Basic checks only", *BASIC_CHECKS_ONLY_ESTIMATE)])
+        return CiMinutesEstimate(
+            [
+                EstimatedJobGroup("Basic checks only", *BASIC_CHECKS_ONLY_ESTIMATE),
+                *estimate_image_independent_groups(selective_checks),
+            ]
+        )
     groups = [EstimatedJobGroup("CI image, basic tests and static checks", *BASE_ESTIMATE)]
     if selective_checks.docs_build:
         groups.append(EstimatedJobGroup("Documentation build", *DOCS_ESTIMATE))
@@ -172,12 +200,15 @@ def estimate_ci_minutes(selective_checks: Any) -> CiMinutesEstimate:
                 )
             )
         groups.append(EstimatedJobGroup("Integration and system tests", *INTEGRATION_ESTIMATE))
-    if not selective_checks.skip_providers_tests:
+    # Like the provider test jobs of ci-amd.yml, which all need run-unit-tests.
+    if selective_checks.run_unit_tests and not selective_checks.skip_providers_tests:
         providers_group = estimate_providers_group(
             selective_checks._get_providers_test_types_to_run(split_to_individual_providers=True)
         )
         if providers_group:
             groups.append(providers_group)
+    if selective_checks.run_mypy_providers:
+        groups.append(EstimatedJobGroup("Provider mypy checks", *MYPY_PROVIDERS_ESTIMATE))
     if selective_checks.full_tests_needed:
         groups.append(EstimatedJobGroup("Special tests", *SPECIAL_TESTS_ESTIMATE))
     optional_groups = (
@@ -187,12 +218,9 @@ def estimate_ci_minutes(selective_checks: Any) -> CiMinutesEstimate:
         ("run_kustomize_overlays_tests", "Kustomize overlays tests", KUSTOMIZE_ESTIMATE),
         ("run_task_sdk_tests", "Task SDK tests", TASK_SDK_ESTIMATE),
         ("run_agent_framework_tests", "Agent framework tests", AGENT_FRAMEWORK_ESTIMATE),
-        ("run_java_sdk_tests", "Java SDK tests", JAVA_SDK_ESTIMATE),
-        ("run_go_sdk_tests", "Go SDK tests", GO_SDK_ESTIMATE),
-        ("run_ts_sdk_tests", "TypeScript SDK tests", TS_SDK_ESTIMATE),
-        ("run_airflow_ctl_tests", "Airflow CTL tests", AIRFLOW_CTL_ESTIMATE),
     )
     for flag, name, estimate in optional_groups:
         if getattr(selective_checks, flag):
             groups.append(EstimatedJobGroup(name, *estimate))
+    groups.extend(estimate_image_independent_groups(selective_checks))
     return CiMinutesEstimate(groups)

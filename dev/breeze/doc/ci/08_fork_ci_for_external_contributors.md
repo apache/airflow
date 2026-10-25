@@ -367,6 +367,10 @@ applies instead:
   `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
   workflow that does run, so such a run must not start without a review.
 
+A run started before `use fork ci` or `use project ci` was last added or removed is not approved
+automatically: the gate falls back to the labels of the run's event when it cannot read the current
+ones, and those can still send the run to project CI. The next push is decided afresh.
+
 Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
 approved automatically is also one whose green fork run is trusted, and one that changes CI is both
 left waiting for approval and labelled `needs project ci` once its fork run is green. The gate

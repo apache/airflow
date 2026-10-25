@@ -24,9 +24,11 @@ from airflow_breeze.utils.ci_minutes_estimate import (
     BASE_ESTIMATE,
     BASIC_CHECKS_ONLY_ESTIMATE,
     CORE_ALL_TEST_TYPES_MINUTES,
+    MYPY_PROVIDERS_ESTIMATE,
     PROVIDERS_ALL_LONGEST_JOB_MINUTES,
     PROVIDERS_ALL_MINUTES,
     RUN_OVERHEAD_MINUTES,
+    TS_SDK_DOCS_ESTIMATE,
     estimate_ci_minutes,
     estimate_core_job_minutes,
     estimate_providers_group,
@@ -47,7 +49,9 @@ OPTIONAL_FLAGS = (
     "run_java_sdk_tests",
     "run_go_sdk_tests",
     "run_ts_sdk_tests",
+    "run_ts_sdk_docs",
     "run_airflow_ctl_tests",
+    "run_mypy_providers",
 )
 
 
@@ -118,6 +122,32 @@ def test_estimate_basic_checks_only():
     assert estimate.wall_clock_minutes == BASIC_CHECKS_ONLY_ESTIMATE[1]
 
 
+@pytest.mark.parametrize(
+    ("flags", "expected_groups"),
+    [
+        pytest.param(
+            {"run_ts_sdk_docs": True}, ["Basic checks only", "TypeScript SDK docs"], id="ts-sdk docs"
+        ),
+        pytest.param(
+            {"run_java_sdk_tests": True, "run_go_sdk_tests": True, "run_airflow_ctl_tests": True},
+            ["Basic checks only", "Java SDK tests", "Go SDK tests", "Airflow CTL tests"],
+            id="sdk tests",
+        ),
+    ],
+)
+def test_estimate_basic_checks_only_counts_jobs_that_need_no_ci_image(flags, expected_groups):
+    estimate = estimate_ci_minutes(_selective_checks(basic_checks_only=True, **flags))
+
+    assert [group.name for group in estimate.job_groups] == expected_groups
+
+
+def test_estimate_counts_ts_sdk_docs_with_the_ci_image():
+    estimate = estimate_ci_minutes(_selective_checks(run_ts_sdk_docs=True))
+
+    assert estimate.job_groups[-1].name == "TypeScript SDK docs"
+    assert estimate.job_minutes == BASE_ESTIMATE[0] + TS_SDK_DOCS_ESTIMATE[0]
+
+
 @mock.patch("airflow_breeze.utils.ci_minutes_estimate.count_provider_test_files", return_value=100)
 def test_estimate_lists_the_job_groups_that_run(mock_count):
     estimate = estimate_ci_minutes(
@@ -166,3 +196,34 @@ def test_estimate_without_unit_tests_has_only_base_group():
     estimate = estimate_ci_minutes(_selective_checks())
 
     assert estimate.job_minutes == BASE_ESTIMATE[0]
+
+
+@pytest.mark.parametrize(
+    ("run_unit_tests", "expected_groups"),
+    [
+        pytest.param(
+            False, ["CI image, basic tests and static checks", "Provider mypy checks"], id="metadata only"
+        ),
+        pytest.param(
+            True,
+            [
+                "CI image, basic tests and static checks",
+                "Integration and system tests",
+                "Provider tests (1 providers, 100 test files)",
+                "Provider mypy checks",
+            ],
+            id="with unit tests",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.ci_minutes_estimate.count_provider_test_files", return_value=100)
+def test_estimate_charges_provider_tests_only_with_unit_tests(mock_count, run_unit_tests, expected_groups):
+    estimate = estimate_ci_minutes(
+        _selective_checks(
+            provider_test_types=["Providers[google]"], run_unit_tests=run_unit_tests, run_mypy_providers=True
+        )
+    )
+
+    assert [group.name for group in estimate.job_groups] == expected_groups
+    if not run_unit_tests:
+        assert estimate.job_minutes == BASE_ESTIMATE[0] + MYPY_PROVIDERS_ESTIMATE[0]
