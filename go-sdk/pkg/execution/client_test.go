@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -393,6 +394,46 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 				assert.NotContains(t, sentMap, "map_index",
 					"map_index must be omitted for unmapped task instances")
 			}
+		})
+	}
+}
+
+// The supervisor drops a SetXCom it cannot decode without replying, so a value
+// that is not JSON must be rejected before it is sent or the task hangs.
+func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		wantErr string
+	}{
+		{
+			name:    "datetime",
+			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "uuid", value: uuid.New(), wantErr: "[]byte is not JSON representable"},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{
+			// Regression: a key that decodes to a slice used to panic the decoder.
+			name:    "uuid map key",
+			value:   map[uuid.UUID]string{uuid.New(): "a"},
+			wantErr: "map keys must be strings",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			err := client.PushXCom(context.Background(), ti, "return_value", tc.value)
+
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Zero(t, requestBuf.Len(), "a rejected value must not reach the supervisor")
 		})
 	}
 }
