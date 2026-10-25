@@ -755,12 +755,12 @@ class DagRunType(str, Enum):
 
     The supported run types are:
 
-    * ``backfill``: A run created by a backfill operation.
-    * ``scheduled``: A run created according to the Dag's timetable, including catchup runs.
-    * ``manual``: A manually triggered run, such as through the UI, CLI, or REST API.
-    * ``operator_triggered``: A run triggered by an operator.
-    * ``asset_triggered``: A run triggered by asset updates.
-    * ``asset_materialization``: A run created to materialize assets.
+    * backfill: A run created by a backfill operation.
+    * scheduled: A run created according to the Dag's timetable, including catchup runs.
+    * manual: A manually triggered run, such as through the UI, CLI, or REST API.
+    * operator_triggered: A run triggered by an operator.
+    * asset_triggered: A run triggered by asset updates.
+    * asset_materialization: A run created to materialize assets.
     """
 
     BACKFILL = "backfill"
