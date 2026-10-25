@@ -997,6 +997,11 @@ They are deprecated and will be removed in Airflow 3.5.0. You can build one with
 
 The flavor an image was built with is recorded in its ``org.apache.airflow.image.flavor`` label.
 
+Docker does not publish hardened images for every Python version Airflow supports - Python 3.15, for
+example, has none yet. Breeze builds images for such versions with the ``legacy`` flavor on the default
+Debian version instead, and warns about it (as an annotation on GitHub Actions), unless ``--python-image``
+points at a base image to use.
+
 .. _image-build-fips:
 
 Build images in FIPS-compliant environments

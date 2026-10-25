@@ -96,3 +96,30 @@ def test_mirror_also_copies_a_newer_published_patchlevel(newer_available):
         assert "ghcr.io/apache/airflow/base/python:3.14.99-debian13-dev" in run.call_args_list[1].args[0]
     else:
         assert sources == [f"dhi.io/python:{pinned}-debian13-dev", f"dhi.io/python:{pinned}-debian12-dev"]
+
+
+@pytest.mark.parametrize(
+    "args", [pytest.param([], id="all-current-versions"), pytest.param(["--python", "3.15"], id="explicit")]
+)
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES", ["3.15"]
+)
+def test_mirror_skips_python_versions_without_hardened_images(args):
+    with (
+        mock.patch(
+            "airflow_breeze.commands.release_management_commands.get_latest_hardened_python_patchlevel",
+            autospec=True,
+            return_value=None,
+        ),
+        mock.patch(
+            "airflow_breeze.commands.release_management_commands.run_command",
+            autospec=True,
+            return_value=CompletedProcess(args=[], returncode=0),
+        ) as run,
+    ):
+        result = CliRunner().invoke(mirror_base_images, args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    sources = [call.args[0][-1] for call in run.call_args_list]
+    assert not any(source.startswith("dhi.io/python:3.15") for source in sources)
+    assert bool(sources) == (args == [])

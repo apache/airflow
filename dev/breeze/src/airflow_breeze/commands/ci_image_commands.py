@@ -868,6 +868,7 @@ def run_build_ci_image(
         get_console(output=output).print(
             f"\n[info]Building CI image of airflow from {AIRFLOW_ROOT_PATH}: {param_description}[/]\n"
         )
+    ci_image_params.warn_if_hardened_image_unavailable(output)
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
             image_params=ci_image_params,

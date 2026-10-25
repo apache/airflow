@@ -924,6 +924,10 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
 HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
 HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
 DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"trixie": "debian13", "bookworm": "debian12"}
+# Python versions Docker publishes no hardened image for yet - check the catalog at
+# https://github.com/docker-hardened-images/catalog/tree/main/image/python before removing one.
+# Images for them fall back to the legacy flavor, which compiles Python from source.
+PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES = ["3.15"]
 
 
 def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
