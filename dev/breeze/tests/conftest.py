@@ -68,6 +68,12 @@ def clear_clearable_cache():
     clear_all_cached_functions()
 
 
+@pytest.fixture(autouse=True)
+def unset_github_repository(monkeypatch):
+    # `--github-repository` reads this variable, which is a fork's name when CI runs in a fork.
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+
+
 @pytest.fixture
 def make_worktree(tmp_path):
     """Create a linked git worktree whose ``.git`` file points at an existing gitdir."""
