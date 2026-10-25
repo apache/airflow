@@ -28,8 +28,11 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
+    JOB_NAME_MAX_LENGTH,
+    JOB_STATUS_CONTEXT_PREFIX,
     Marker,
     inactivity_close_comment,
+    job_status_context,
     nudge_comment,
     parse_marker,
     released_comment,
@@ -43,7 +46,11 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
 
 @pytest.mark.parametrize(
     "marker",
-    [pytest.param(MARKER, id="without-behind"), pytest.param(replace(MARKER, behind=12), id="behind")],
+    [
+        pytest.param(MARKER, id="without-behind"),
+        pytest.param(replace(MARKER, behind=12), id="behind"),
+        pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+    ],
 )
 def test_marker_round_trip(marker):
     assert parse_marker(f"text before\n{render_marker(marker)}\ntext after") == marker
@@ -51,6 +58,7 @@ def test_marker_round_trip(marker):
 
 def test_marker_without_behind_keeps_its_rendering():
     assert "behind" not in render_marker(MARKER)
+    assert "jobs" not in render_marker(MARKER)
 
 
 @pytest.mark.parametrize(
@@ -123,3 +131,15 @@ def test_setup_texts_give_the_exact_command(text):
 def test_status_descriptions_fit_github_limit():
     descriptions = [*_STATUS_DESCRIPTIONS.values(), CI_PASSED_DESCRIPTION, CI_PASSED_REVOKED_DESCRIPTION]
     assert all(len(description) < 140 for description in descriptions)
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Static checks", "Static checks"),
+        ("a\nb\tc", "a b c"),
+        ("x" * (JOB_NAME_MAX_LENGTH + 5), "x" * (JOB_NAME_MAX_LENGTH - 1) + "…"),
+    ],
+)
+def test_job_status_context(name, expected):
+    assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"

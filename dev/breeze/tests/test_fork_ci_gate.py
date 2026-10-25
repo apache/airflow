@@ -320,6 +320,11 @@ def test_parse_config_defaults():
     assert config.close_after_days == 7
     assert config.allowlist == {}
     assert config.pilot == {}
+    assert config.job_statuses is True
+
+
+def test_parse_config_turns_job_statuses_off():
+    assert parse_config("job_statuses = false\n").job_statuses is False
 
 
 def test_parse_config_lowercases_pilot_logins():
@@ -334,6 +339,7 @@ def test_parse_config_lowercases_pilot_logins():
     ("text", "message"),
     [
         pytest.param("enabled = 1\n", "enabled must be", id="enabled-not-bool"),
+        pytest.param('job_statuses = "no"\n', "job_statuses must be", id="job-statuses-not-bool"),
         pytest.param(
             "enabled_since = 2026-01-01T00:00:00\n", "enabled_since must be", id="enabled-since-naive"
         ),
