@@ -287,16 +287,18 @@ class PineconeHook(BaseHook):
         self.pinecone_client.delete_index(name=index_name, timeout=timeout)
 
     def configure_index(
-        self, index_name: str, replicas: int | None = None, pod_type: str | None = ""
+        self, index_name: str, replicas: int | None = None, pod_type: str | None = None
     ) -> None:
         """
         Change the current configuration of the index.
 
         :param index_name: The name of the index to configure.
         :param replicas: The new number of replicas.
-        :param pod_type: the new pod_type for the index.
+        :param pod_type: the new pod_type for the index. If not set, the pod type is not changed.
         """
-        self.pinecone_client.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
+        # The pinecone>=9 SDK sends every non-None value in the PATCH request, so an empty
+        # pod_type has to become None to leave the current pod type unchanged.
+        self.pinecone_client.configure_index(name=index_name, replicas=replicas, pod_type=pod_type or None)
 
     def create_collection(self, collection_name: str, index_name: str) -> None:
         """

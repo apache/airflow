@@ -107,13 +107,22 @@ class TestPineconeHook:
         self.pinecone_hook.create_collection(collection_name="test_collection")
         mock_create_collection.assert_called_once_with(collection_name="test_collection")
 
-    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.configure_index")
-    def test_configure_index(self, mock_configure_index):
-        """
-        Test that the configure_index method of PineconeHook is called correctly.
-        """
-        self.pinecone_hook.configure_index(index_configuration={})
-        mock_configure_index.assert_called_once_with(index_configuration={})
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_replicas", "expected_pod_type"),
+        [
+            ({"replicas": 2}, 2, None),
+            ({"replicas": 2, "pod_type": ""}, 2, None),
+            ({"pod_type": "p1.x2"}, None, "p1.x2"),
+            ({"replicas": 3, "pod_type": "p1.x2"}, 3, "p1.x2"),
+        ],
+    )
+    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.pinecone_client", new_callable=Mock)
+    def test_configure_index(self, mock_pinecone_client, kwargs, expected_replicas, expected_pod_type):
+        """Test that configure_index does not send an empty pod_type when it is not set."""
+        self.pinecone_hook.configure_index(index_name="test_index", **kwargs)
+        mock_pinecone_client.configure_index.assert_called_once_with(
+            name="test_index", replicas=expected_replicas, pod_type=expected_pod_type
+        )
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.describe_collection")
     def test_describe_collection(self, mock_describe_collection):
