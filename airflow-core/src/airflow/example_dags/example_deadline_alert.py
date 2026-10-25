@@ -25,7 +25,7 @@ from datetime import timedelta
 import pendulum
 
 # [START example_deadline_alert]
-from airflow.sdk import DAG, AsyncCallback, DeadlineAlert, DeadlineReference, task
+from airflow.sdk import DAG, AsyncCallback, DagRunType, DeadlineAlert, DeadlineReference, task
 
 log = logging.getLogger(__name__)
 
@@ -59,3 +59,23 @@ with DAG(
 
     hello_deadline()
 # [END example_deadline_alert]
+
+# [START example_deadline_alert_run_type_filter]
+with DAG(
+    dag_id="example_deadline_alert_run_type_filter",
+    description="Applies deadline alerts to scheduled and manual runs, excluding backfills.",
+    schedule="@daily",
+    start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+    catchup=False,
+    is_paused_upon_creation=True,
+    tags=["example", "deadline"],
+    deadline=DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(seconds=30),
+        callback=AsyncCallback("airflow.example_dags.example_deadline_alert.notify_deadline_missed"),
+        name="scheduled_and_manual_runs",
+        run_type_filter={DagRunType.SCHEDULED, DagRunType.MANUAL},
+    ),
+) as filtered_dag:
+    hello_deadline()
+# [END example_deadline_alert_run_type_filter]
