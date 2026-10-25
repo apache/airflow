@@ -4912,14 +4912,23 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
 
 RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]'
 RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
+RUNS_ON_AMD_IN_MEMORY = (
+    '["runs-on=42/family=m7a+m7i+m6a+m6i+r7a+r7i+r6a+r6i/image=ubuntu22-full-x64/volume=150gb'
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
+RUNS_ON_ARM_IN_MEMORY = (
+    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb'
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
 
 
 HEAD_SHA = "a" * 40
 
 
 @pytest.fixture(autouse=True)
-def _no_use_public_runners_variable(monkeypatch):
+def _no_runner_variables(monkeypatch):
     monkeypatch.delenv("USE_PUBLIC_RUNNERS", raising=False)
+    monkeypatch.delenv("USE_IN_MEMORY_DOCKER", raising=False)
 
 
 def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
@@ -5123,6 +5132,133 @@ def test_runner_type(
         platform=platform,
     )
     assert selective_checks.runner_type == expected
+
+
+@pytest.mark.parametrize(
+    ("github_event", "github_repository", "github_context_dict", "pr_labels", "platform", "env", "expected"),
+    [
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            RUNS_ON_ARM_IN_MEMORY,
+            id="ARM RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "true"},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="true keeps docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "False"},
+            RUNS_ON_AMD,
+            id="false keeps docker on disk",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "false"},
+            RUNS_ON_ARM,
+            id="false keeps docker on disk on ARM",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="fork PR stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_PUBLIC_RUNNERS": "true"},
+            '["ubuntu-22.04"]',
+            id="public runners variable wins",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            ("use public runners",),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="public runners label wins",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="no run id stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "someone/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            '["ubuntu-22.04-arm"]',
+            id="fork repository stays on public ARM runners",
+        ),
+    ],
+)
+def test_in_memory_runner_type(
+    monkeypatch,
+    github_event: GithubEvents,
+    github_repository: str,
+    github_context_dict: dict[str, Any],
+    pr_labels: tuple[str, ...],
+    platform: str,
+    env: dict[str, str],
+    expected: str,
+):
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    selective_checks = SelectiveChecks(
+        github_event=github_event,
+        github_repository=github_repository,
+        github_context_dict=github_context_dict,
+        pr_labels=pr_labels,
+        platform=platform,
+    )
+    assert selective_checks.in_memory_runner_type == expected
 
 
 @pytest.mark.parametrize(
