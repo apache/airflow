@@ -221,7 +221,7 @@ it out for a Dag that only runs when triggered. A cron schedule runs in UTC.
 
 Every task of the Dag runs on the Node.js coordinator, so it needs a queue that
 :ref:`queue_to_coordinator <typescript-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag and
-each task inherits it. A task's own ``queue`` wins over the Dag's.
+each task inherits it. A task's own ``queue`` wins over the Dag's. A ``queue`` that is set cannot be blank.
 
 Order-only dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
