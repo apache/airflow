@@ -1593,37 +1593,33 @@ jobs:
       !cancelled() &&
       github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
-      needs.check-run-needed.outputs.run-needed != 'false' &&
-      github.run_attempt == 1
+      needs.check-run-needed.outputs.run-needed != 'false'
     runs-on: ["ubuntu-slim"]
+    permissions:
+      # The run's jobs, the previous notification state, and the annotations RunsOn puts on jobs
+      # stopped by an EC2 Spot interruption.
+      actions: read
+      checks: read
+      contents: read
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      # Skips re-runs started by maintainers, and failures that are only EC2 Spot interruptions
+      # RunsOn will re-run; those leave the notification state alone, and the re-run reports.
       - name: "Get failing jobs"
         id: get-failures
         shell: bash
-        run: |
-          FAILED_JOBS=$(gh run view "${{ github.run_id }}" \
-            --repo "${{ github.repository }}" \
-            --json jobs \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]')
-          echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
-          echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
-          # A literal newline would end the double-quoted YAML scalar the Slack payload
-          # interpolates job names into, and the action would reject the whole payload.
-          echo "failed-jobs-text=${FAILED_JOBS//$'\n'/\\n}" >> "${GITHUB_OUTPUT}"
-          if [[ -n "${FAILED_JOBS}" ]]; then
-            echo "has-failures=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has-failures=false" >> "${GITHUB_OUTPUT}"
-          fi
+        run: python3 scripts/ci/spot_interruptions.py slack
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       - name: "Determine notification action"
         id: notification
+        if: steps.get-failures.outputs.skip != 'true'
         shell: bash
         run: |
           command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
@@ -1634,6 +1630,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
+        if: steps.get-failures.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-amd"
