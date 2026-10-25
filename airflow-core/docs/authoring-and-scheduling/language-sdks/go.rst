@@ -498,23 +498,45 @@ The Dag run conf
 ``actx.DagRun().Conf`` is the conf the run was triggered with, a ``map[string]any`` whose values have the Go
 types listed in :ref:`the XCom type mapping <go-sdk/types>`. It is ``nil`` for a run triggered without a conf.
 
+``UnmarshalConf`` reads the conf into a struct with typed fields, so a task does not assert a Go type per key:
+
 .. code-block:: go
 
+    type etlConf struct {
+        TargetTable string
+        Limit       int
+        Since       time.Time
+    }
+
     func load(actx airflow.Context) error {
-        table, ok := actx.DagRun().Conf["target_table"].(string)
-        if !ok {
-            return errors.New("this Dag run needs a target_table in its conf")
+        etl := etlConf{Limit: 100}
+        if err := actx.DagRun().UnmarshalConf(&etl); err != nil {
+            return err
         }
         ...
     }
 
-An integer arrives as a Go integer type whose width depends on the value, so round-trip a number, or an object
-nested in the conf, through ``json.Marshal`` and ``json.Unmarshal`` into a typed Go value rather than asserting
-one integer type.
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31T00:00:00Z"}``,
+``etl.TargetTable`` is ``"sales"``, ``etl.Since`` is that date, and ``etl.Limit`` stays ``100``.
 
-The conf holds only the values the run was triggered with. In a Python task, ``params`` combines the conf with
-the defaults of the Dag's params; ``Conf`` does not carry those defaults, so a scheduled run usually has no
-conf at all.
+* Each key goes to the field whose name matches it when case and underscores are ignored, so ``target_table``
+  reaches ``TargetTable``. A ``json:`` tag renames the field, and the tag name matches the same way. Objects
+  nested in the conf follow the same rule, including objects in slices and objects that are map values. The
+  keys of a map field stay as written, because they are data rather than field names.
+* The ``arg:`` tag that binds a TaskFlow argument has no effect here. Read a key that no field name can match,
+  such as ``target-table``, from ``Conf``, or name it in a ``json:`` tag.
+* Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
+  key keeps the value the struct already holds, so set the defaults before the call, as ``Limit`` does above.
+* The conf holds only the values the run was triggered with. In a Python task, ``params`` combines the conf
+  with the defaults of the Dag's params. ``UnmarshalConf`` does not add those defaults, so in a scheduled run
+  every field keeps the value it came in with.
+* It returns an error when a value does not fit the type of its field, when two keys such as ``target_table``
+  and ``TARGET_TABLE`` match one field and neither names it exactly, or when two fields of the struct differ
+  only in case or underscores.
+
+Reading ``Conf`` directly gives the value of a key as an ``any``. An integer then arrives as a Go integer type
+whose width depends on the value, so assert the type of a string or a bool, and use ``UnmarshalConf`` for a
+number or for an object nested in the conf.
 
 .. _go-sdk/client:
 
