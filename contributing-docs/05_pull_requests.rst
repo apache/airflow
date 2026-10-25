@@ -94,8 +94,14 @@ these guidelines:
 
     The Airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`_ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`_ to track
-    coverage. You can set up both for free on your fork. It will help you make sure you do not
-    break the build with your PR and that you help increase coverage.
+    coverage. Fork CI is being piloted: it applies to pilot participants and to pull requests a
+    maintainer labels ``use fork ci``, and to every external contributor only once it is switched
+    on for everyone. Until then, enabling the ``Tests (AMD)`` workflow in your fork outside the
+    pilot runs CI twice for each pull request, in your fork and in apache/airflow. When fork CI
+    applies to you, enable that workflow and every push to your fork runs CI for free; pull
+    requests labelled ``fork ci required`` take their CI result from your fork and stay in draft
+    until that run is green. See `CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__
+    and run ``breeze ci audit``, which tells you whether fork CI applies to you yet.
     Also we advise to install locally `prek hooks <08_static_code_checks.rst#prek-hooks>`_ to
     apply various checks, code generation and formatting at the time you make a local commit - which
     gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
