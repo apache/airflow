@@ -1,0 +1,42 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fork CI gate (AIP-120). See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md
+
+# Master switch. When false the gate job lets every pull request run project CI, except
+# pull requests labelled `use fork ci` and pull requests of [pilot] participants. Push
+# filtering for apache/airflow branches applies regardless.
+enabled = false
+
+# Pull requests created before this instant are never gated, whatever their author.
+# Moving the date back is how the backlog reset (AIP-120 §9.1) would be applied.
+enabled_since = 2026-01-01T00:00:00Z
+
+# Days without any fork CI activity after which a gated pull request is closed.
+close_after_days = 7
+
+# Organisations exempted under AIP-120 §2.2. Keys are display names used in comments,
+# values are GitHub logins. Changes go through a reviewed pull request.
+[allowlist]
+# "Example Org" = ["login-one", "login-two"]
+
+# Opt-in pilot participants. Keys are GitHub logins, values are the instant they joined.
+# Their pull requests created at or after that instant are gated whether or not `enabled`
+# is set. Use a future instant such as the next day at 00:00 UTC; the
+# check-fork-ci-gate-config hook rejects a new or changed instant that is in the past.
+[pilot]
+# "login-three" = 2026-10-20T00:00:00Z
