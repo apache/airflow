@@ -478,7 +478,8 @@ that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``c
 ``airflow.Context`` back with ``airflow.FromContext``.
 
 ``Conf`` is a ``map[string]any`` whose values follow the :ref:`XCom type mapping <go-sdk/types>`. Use a map lookup
-or ``len`` to check for configuration entries.
+or ``len`` to check for configuration entries, or :ref:`read the conf into a struct <go-sdk/dag-run-conf>` with
+typed fields.
 
 A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
 retries it if the task has retries.
@@ -493,6 +494,52 @@ retries it if the task has retries.
         airflow.DagRun{DagID: "simple_dag", RunID: "run1"},
     )
     require.NoError(t, transform(actx, "uk", map[string]any{"rows": 42}))
+
+.. _go-sdk/dag-run-conf:
+
+Reading the Dag run conf
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Reading ``Conf`` directly gives the value of a key as an ``any``, so a task that reads several keys asserts a Go
+type per key. ``UnmarshalConf`` reads the conf into a struct with typed fields instead:
+
+.. code-block:: go
+
+    type etlConf struct {
+        TargetTable string
+        Limit       int
+        Since       time.Time
+    }
+
+    func load(actx airflow.Context) error {
+        etl := etlConf{Limit: 100}
+        if err := actx.DagRun().UnmarshalConf(&etl); err != nil {
+            return err
+        }
+        ...
+    }
+
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31T00:00:00Z"}``,
+``etl.TargetTable`` is ``"sales"``, ``etl.Since`` is that date, and ``etl.Limit`` stays ``100``.
+
+* Each key goes to the field whose name matches it when case and underscores are ignored, so ``target_table``
+  reaches ``TargetTable``. A ``json:`` tag renames the field, and the tag name matches the same way. Objects
+  nested in the conf follow the same rule, including objects in slices and objects that are map values. The
+  keys of a map field stay as written, because they are data rather than field names.
+* The ``arg:`` tag that binds a TaskFlow argument has no effect here. Read a key that no field name can match,
+  such as ``target-table``, from ``Conf``, or name it in a ``json:`` tag.
+* A field of type ``any``, and the values of a ``map[string]any`` or ``[]any`` field, take the types
+  ``encoding/json`` decodes to rather than the ones ``Conf`` carries, so a number reaches such a field as a
+  ``float64``, and an integer whose magnitude is above 2\ :sup:`53` can lose digits. Give a field that
+  takes an integer a Go integer type, or read the key from ``Conf``.
+* Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
+  key keeps the value the struct already holds, so set the defaults before the call, as ``Limit`` does above.
+* The conf holds only the values the run was triggered with. In a Python task, ``params`` combines the conf
+  with the defaults of the Dag's params. ``UnmarshalConf`` does not add those defaults, so in a scheduled run
+  every field keeps the value it came in with.
+* It returns an error when a value does not fit the type of its field, when two keys such as ``target_table``
+  and ``TARGET_TABLE`` match one field and neither names it exactly, or when two fields of the struct differ
+  only in case or underscores.
 
 .. _go-sdk/client:
 
