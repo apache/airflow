@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "خطأ",
     "errorAndWarning": "1 خطأ و{{warningText}}",
+    "types": {
+      "asset conflict": "تعارض في الأصل",
+      "duplicate dag id": "تكرار Dag ID",
+      "non-existent pool": "مجموعة موارد غير موجودة",
+      "runtime varying value": "قيمة متغيّرة أثناء التشغيل",
+      "task group cycle": "دورة في مجموعة المهام"
+    },
     "warning_few": "{{count, number}} تحذيرات",
     "warning_many": "{{count, number}} تحذير",
     "warning_one": "1 تحذير",
