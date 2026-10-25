@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class DagScheduleAssetReference(StrictBaseModel):
+class DagScheduleAssetReference(BaseModel):
     """Dag schedule reference serializer for assets."""
 
     dag_id: str
@@ -41,7 +41,7 @@ class DagScheduleAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
-class TaskInletAssetReference(StrictBaseModel):
+class TaskInletAssetReference(BaseModel):
     """Task inlet reference serializer for assets."""
 
     dag_id: str
@@ -50,7 +50,7 @@ class TaskInletAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
-class TaskOutletAssetReference(StrictBaseModel):
+class TaskOutletAssetReference(BaseModel):
     """Task outlet reference serializer for assets."""
 
     dag_id: str
@@ -119,7 +119,7 @@ class AssetAliasCollectionResponse(BaseModel):
     total_entries: int
 
 
-class DagRunAssetReference(StrictBaseModel):
+class DagRunAssetReference(BaseModel):
     """DagRun serializer for asset responses."""
 
     run_id: str
