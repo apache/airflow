@@ -1977,6 +1977,30 @@ class TestTaskInstance:
         assert ti.log_url == expected_url
 
     @pytest.mark.parametrize(
+        ("mapped", "mapped_path"),
+        [
+            pytest.param(False, "", id="loop_iteration"),
+            pytest.param(True, "/mapped/1", id="mapped"),
+            pytest.param(None, "", id="task_not_attached"),
+        ],
+    )
+    def test_log_url_selects_a_task_instance_in_a_region_by_its_region(self, dag_maker, mapped, mapped_path):
+        with dag_maker("my_dag", serialized=True):
+            if mapped:
+                BashOperator.partial(task_id="op").expand(bash_command=["echo 1", "echo 2"])
+            else:
+                EmptyOperator(task_id="op")
+        ti = dag_maker.create_dagrun(run_id="test").task_instances[0]
+        ti.region_id, ti.region_index, ti.try_number = uuid6.uuid7(), 1, 2
+        if mapped is None:
+            ti.task = None
+
+        assert ti.log_url == (
+            f"http://localhost:8080/dags/my_dag/runs/test/tasks/op{mapped_path}"
+            f"?region_id={ti.region_id}&region_index=1&try_number=2"
+        )
+
+    @pytest.mark.parametrize(
         "kwargs",
         [
             {"inlets": [Asset(uri="file://some.txt")]},

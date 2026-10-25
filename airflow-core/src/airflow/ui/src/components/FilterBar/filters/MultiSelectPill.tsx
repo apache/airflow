@@ -103,7 +103,14 @@ export const MultiSelectPill = ({
       // act on Enter tears the filter down before the value it just created commits.
       renderInput={({ onBlur, onFocus, ref }) => (
         <Box
-          _focusWithin={{ outlineColor: "colorPalette.solid", outlineStyle: "solid", outlineWidth: "1px" }}
+          // Drawn inside the pill's edge: an outer ring is covered by whatever sits right below
+          // the filter row, such as the sticky header of the Dags table.
+          _focusWithin={{
+            outlineColor: "colorPalette.solid",
+            outlineOffset: "-1px",
+            outlineStyle: "solid",
+            outlineWidth: "1px",
+          }}
           alignItems="center"
           bg="bg"
           border="0.5px solid"

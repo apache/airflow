@@ -1162,6 +1162,50 @@ class PluginImportErrorResponse(BaseModel):
     error: Annotated[str, Field(title="Error")]
 
 
+class Destination1(str, Enum):
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK_INSTANCE = "task_instance"
+
+
+class PluginLinkActionResponse(BaseModel):
+    """
+    Serializer for a UI action that opens a URL.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["link"], Field(title="Action Type")]
+    href: Annotated[str, Field(title="Href")]
+
+
+class PluginReactActionResponse(BaseModel):
+    """
+    Serializer for a UI action that mounts a React component behind a button.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["react"], Field(title="Action Type")]
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
+
+
+class UiActions(RootModel[PluginLinkActionResponse | PluginReactActionResponse]):
+    root: Annotated[PluginLinkActionResponse | PluginReactActionResponse, Field(discriminator="action_type")]
+
+
 class PoolBody(BaseModel):
     """
     Pool serializer for post bodies.
@@ -1236,7 +1280,7 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
-class Destination1(str, Enum):
+class Destination3(str, Enum):
     NAV = "nav"
     DAG = "dag"
     DAG_RUN = "dag_run"
@@ -1265,7 +1309,7 @@ class ReactAppResponse(BaseModel):
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
     bundle_url: Annotated[str, Field(title="Bundle Url")]
-    destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
+    destination: Annotated[Destination3 | None, Field(title="Destination")] = "nav"
 
 
 class ReprocessBehavior(str, Enum):
@@ -2586,6 +2630,13 @@ class PluginResponse(BaseModel):
         ),
     ]
     react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    ui_actions: Annotated[
+        list[UiActions] | None,
+        Field(
+            description="User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.",
+            title="Ui Actions",
+        ),
+    ] = None
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[
         list[AppBuilderMenuItemResponse], Field(deprecated=True, title="Appbuilder Menu Items")

@@ -225,6 +225,16 @@ def get_callback_ti(ti):
     )
 
 
+def _attempt_states(ti, session):
+    attempts = session.scalars(
+        select(TaskInstance)
+        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.task_id == ti.task_id)
+        .execution_options(include_all_attempts=True)
+        .order_by(TaskInstance.try_number)
+    )
+    return [(attempt.try_number, attempt.state, attempt.working_set) for attempt in attempts]
+
+
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
@@ -361,6 +371,12 @@ def make_pool_stats(
             open=total - running - queued,
         )
     }
+
+
+def assign_executor_to_team(executor: MagicMock, team_name: str) -> None:
+    # ExecutorLoader.load_executor sets the team on both; the scheduler reads it from the name.
+    executor.team_name = team_name
+    executor.name.team_name = team_name
 
 
 @patch.dict(
@@ -1240,6 +1256,84 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    @pytest.mark.parametrize(
+        "callback_kwargs",
+        [
+            pytest.param({"on_failure_callback": lambda context: None}, id="on_failure_callback"),
+            pytest.param({"email": "test@example.com"}, id="email"),
+        ],
+    )
+    def test_process_executor_events_callback_for_running_ti_with_retries_moves_it_to_retry(
+        self, callback_kwargs, dag_maker, session
+    ):
+        """Sending the callback must not close the session and detach the TI before its retry is set up."""
+        with dag_maker(dag_id="executor_event_running_ti_with_retries", fileloc="/test_path1/"):
+            EmptyOperator(task_id="task", retries=1, **callback_kwargs)
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti.state = State.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        session.merge(ti)
+        session.commit()
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, State.FAILED, None),
+            (2, State.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
+
+    def test_process_executor_events_dag_lookup_failure_keeps_session_for_rest_of_batch(
+        self, dag_maker, session
+    ):
+        """A failed Dag lookup must not close the session and detach the rest of the batch."""
+        with dag_maker(dag_id="executor_event_dag_lookup_failure"):
+            EmptyOperator(task_id="first", retries=1)
+            EmptyOperator(task_id="second", retries=1)
+        dr = dag_maker.create_dagrun()
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        for ti in dr.task_instances:
+            ti.state = State.RUNNING
+            ti.try_number = 1
+            ti.queued_by_job_id = scheduler_job.id
+            session.merge(ti)
+            executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+        session.commit()
+        real_get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+        lookup_errors = [AirflowException("Dag lookup failed")]
+
+        def get_dag_for_run(*, dag_run, session):
+            if lookup_errors:
+                raise lookup_errors.pop()
+            return real_get_dag_for_run(dag_run=dag_run, session=session)
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, side_effect=get_dag_for_run
+        ):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        live_states = sorted(
+            session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
+        )
+        assert live_states == [State.SUCCESS, State.UP_FOR_RETRY]
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(
@@ -2392,8 +2486,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             op1 = EmptyOperator(task_id="task_a_default")  # No explicit executor - should use team's default
@@ -4653,6 +4747,8 @@ class TestSchedulerJob:
         dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
 
         mock_executor = MagicMock()
+        mock_executor.name = ExecutorName(module_path="mock.executor.module.path")
+        mock_executor.team_name = None
         scheduler_job = Job()
 
         ti = dag_run.get_task_instance(task_id="task", session=session)
@@ -10624,6 +10720,33 @@ class TestSchedulerJob:
         )
         assert dispatched_callback == expected_dispatched_callback
 
+    def test_heartbeat_timeout_with_retries_moves_ti_to_retry(self, dag_maker, session):
+        """Sending the heartbeat-timeout callback must not close the purge's session and detach the TI."""
+        with dag_maker(dag_id="hb_timeout_with_retries", session=session):
+            EmptyOperator(task_id="test_task", retries=1)
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti = dag_run.get_task_instance(task_id="test_task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, TaskInstanceState.FAILED, None),
+            (2, TaskInstanceState.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
+
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),
         [
@@ -11950,7 +12073,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure one executor to be team-specific
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task")  # No explicit executor
@@ -12016,7 +12139,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure executor for the team
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task", executor="secondary_exec")
@@ -12050,7 +12173,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure one executor for the team, but keep default as global
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task", executor="default_exec")  # Global executor
@@ -12085,7 +12208,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure executors for different teams
-        mock_executors[1].team_name = "team_b"  # Different team!
+        assign_executor_to_team(mock_executors[1], "team_b")  # Different team!
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):  # DAG belongs to team_a
             task = EmptyOperator(
@@ -12144,7 +12267,7 @@ class TestSchedulerJob:
         session.add(bundle)
         session.flush()
 
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task")
@@ -12194,6 +12317,61 @@ class TestSchedulerJob:
         assert result == mock_executors[0]
 
     @conf_vars({("core", "multi_team"): "true"})
+    @pytest.mark.parametrize(
+        ("task_executor", "expected_index"),
+        [
+            pytest.param("CeleryExecutor", 1, id="classname-resolves-to-team"),
+            pytest.param(
+                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                1,
+                id="module-path-resolves-to-team",
+            ),
+            pytest.param("team_celery_exec", 1, id="team-alias"),
+            pytest.param("global_celery_exec", 0, id="global-alias"),
+        ],
+    )
+    def test_multi_team_try_to_load_executor_prefers_team_over_global_with_same_name(
+        self, dag_maker, mock_executors, session, task_executor, expected_index
+    ):
+        """A team task naming an executor that exists both globally and for its team gets the team one.
+
+        Mirrors ``global_celery_exec:CeleryExecutor;team_a=team_celery_exec:CeleryExecutor`` from the
+        multi-team docs. Global executors come first in ``self.executors``, so only the global alias
+        should reach the global executor.
+        """
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        celery_module_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+        mock_executors[0].name = ExecutorName(alias="global_celery_exec", module_path=celery_module_path)
+        mock_executors[1].name = ExecutorName(
+            alias="team_celery_exec", module_path=celery_module_path, team_name="team_a"
+        )
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task", executor=task_executor)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session=session)
+
+        assert result == mock_executors[expected_index]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_scheduling_loop_batch_optimization(self, dag_maker, mock_executors, session):
         """Test that the scheduling loop uses batch team resolution optimization."""
         clear_db_teams()
@@ -12211,8 +12389,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             EmptyOperator(task_id="task_a")
@@ -12261,8 +12439,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             EmptyOperator(task_id="task_a")

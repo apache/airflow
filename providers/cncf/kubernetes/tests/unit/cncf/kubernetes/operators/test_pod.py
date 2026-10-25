@@ -627,7 +627,7 @@ class TestKubernetesPodOperator:
             k.build_pod_request_obj()
 
     @patch(HOOK_CLASS)
-    def test_dry_run_method_does_not_require_live_kube_client(self, hook_mock):
+    def test_dry_run_method_prints_pod_without_live_kube_client(self, hook_mock, capsys):
         type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
             side_effect=RuntimeError("kube config not available")
         )
@@ -637,6 +637,8 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
         k.dry_run()
+
+        assert "kind: Pod" in capsys.readouterr().out
 
     def test_find_custom_pod_labels(self):
         k = KubernetesPodOperator(

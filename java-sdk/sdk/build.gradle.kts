@@ -284,7 +284,14 @@ abstract class GenerateDagDslTask : DefaultTask() {
         val attrDefault: String,
         val defaultJson: String?,
         val doc: String,
+        val notBlank: Boolean = false,
     )
+
+    // Schema keys whose value cannot be blank, in every table that holds them.
+    private val notBlankKeys = setOf("queue")
+
+    private fun constrained(fields: List<DslField>): List<DslField> =
+        fields.map { if (it.key in notBlankKeys) it.copy(notBlank = true) else it }
 
     private fun camelCase(key: String): String =
         key
@@ -461,6 +468,22 @@ abstract class GenerateDagDslTask : DefaultTask() {
                         "`\"@once\"`, `\"@continuous\"`, a cron expression, or empty for no schedule.",
                     ),
                 )
+                // The schema has no Dag-level queue; a Python Dag sets one through default_args instead.
+                // Every task of a Java Dag runs on the Java coordinator, so one queue on the Dag routes all of them there.
+                if (!dagProps.path("queue").isMissingNode) {
+                    throw GradleException("The schema now has a Dag-level 'queue'; resolve it from the schema instead")
+                }
+                add(
+                    DslField(
+                        "queue",
+                        "queue",
+                        "STRING",
+                        "String",
+                        quote(""),
+                        null,
+                        "Queue each task of the Dag runs on, unless the task sets its own `queue`. It cannot be blank.",
+                    ),
+                )
                 dagAllowlist.forEach { key ->
                     val prop = dagProps.path(key)
                     if (prop.isMissingNode) {
@@ -471,7 +494,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                             ?: throw GradleException("Dag allowlist key '$key' is not a scalar the DSL can express"),
                     )
                 }
-            }
+            }.let(::constrained)
 
         val excludedSeen = mutableSetOf<String>()
         val taskFields =
@@ -490,7 +513,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                     val override = if (key == "retry_exponential_backoff") "Double" else null
                     resolveField(key, prop, override)?.let { add(it) }
                 }
-            }
+            }.let(::constrained)
         (excludedTaskKeys - excludedSeen).takeIf { it.isNotEmpty() }?.let {
             throw GradleException("Excluded task keys match no eligible schema property; remove or fix: $it")
         }
@@ -756,6 +779,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                     "          \"${f.attribute}\",",
                     "          FieldType.${f.fieldType},",
                     "          $defaultRepr,",
+                    "          ${f.notBlank},",
                     "        ),",
                 ).joinToString("\n")
             }

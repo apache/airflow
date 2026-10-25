@@ -79,7 +79,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     permissions:
       contents: read
       packages: write
@@ -149,7 +149,7 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     permissions:
       contents: read
       packages: write

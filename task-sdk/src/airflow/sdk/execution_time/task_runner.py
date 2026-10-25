@@ -37,7 +37,7 @@ from functools import cached_property
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, Protocol, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import attrs
@@ -999,12 +999,14 @@ class RuntimeTaskInstance(TaskInstance):
         map_index = (
             f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
         )
-        try_number_value = self.try_number
-        try_number = (
-            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-        )
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-        return _log_uri
+        query: dict[str, Any] = {}
+        # The UI selects a task instance in a region by its region, which tells loop iterations apart
+        if self.region_id is not None and self.region_id.int != 0:
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number is not None and self.try_number > 0:
+            query["try_number"] = self.try_number
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}"
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:
