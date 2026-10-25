@@ -93,7 +93,6 @@ export const Tasks = () => {
   const {
     data,
     error: tasksError,
-    isFetching,
     isLoading,
   } = useTaskServiceGetTasks({
     dagId,
@@ -138,10 +137,9 @@ export const Tasks = () => {
         data={filteredTasks}
         displayMode="card"
         filterActions={<TaskFilters tasksData={data} />}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:task"
-        total={data ? data.total_entries : 0}
+        total={filteredTasks.length}
       />
     </>
   );

@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
+import type { SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -27,14 +29,22 @@ import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 
+import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
 import { TabEntity } from "src/constants/tab";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
 import { SEARCH_LIMIT, buildDagOption } from "./searchOptions";
+
+const ADVANCED_SEARCH_KEY = "breadcrumb-dags";
+
+/** Match anywhere in the name, or only at the start — the same choice the Dags list offers. */
+const buildNameArg = (value: string, matchAnywhere: boolean) =>
+  matchAnywhere ? { dagDisplayNamePattern: value } : { dagDisplayNamePrefixPattern: value };
 
 const formatOptionLabel = (option: DagSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -52,6 +62,11 @@ export const SearchDags = ({
   readonly onClose: () => void;
 }) => {
   const { t: translate } = useTranslation(["dags", "common"]);
+  const [text, setText] = useState("");
+  const [found, setFound] = useState<Array<DagSearchOption>>();
+  // Its own key rather than the Dags list's: toggling here should not quietly change what that
+  // page does. A user who wants it everywhere has the global default setting for that.
+  const { enabled: matchAnywhere, onToggle } = useAdvancedSearch(ADVANCED_SEARCH_KEY);
   const queryClient = useQueryClient();
   const matches = useMatches();
   const navigate = useNavigate();
@@ -66,41 +81,56 @@ export const SearchDags = ({
     }
   };
 
-  const searchDagDebounced = useDebouncedCallback(
-    (
-      inputValue: string,
-      callback: (options: OptionsOrGroups<DagSearchOption, GroupBase<DagSearchOption>>) => void,
-    ) => {
-      void queryClient.fetchQuery({
+  // The mode is an argument rather than read from the closure, so toggling can re-run the search
+  // it is already showing without waiting for the state it just set.
+  const search = useDebouncedCallback((value: string, anywhere: boolean) => {
+    void queryClient
+      .fetchQuery({
         queryFn: () =>
           DagService.getDagsUi({
-            dagDisplayNamePrefixPattern: inputValue,
+            ...buildNameArg(value, anywhere),
             dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
-          }).then((found: DAGWithLatestDagRunsCollectionResponse) => {
-            const options = found.dags.map(buildDagOption);
-
-            callback(options);
-
-            return options;
           }),
         queryKey: UseDagServiceGetDagsUiKeyFn({
-          dagDisplayNamePrefixPattern: inputValue,
+          ...buildNameArg(value, anywhere),
           dagRunsLimit: 1,
         }),
         staleTime: 0,
-      });
-    },
-    300,
-  );
+      })
+      .then((matched: DAGWithLatestDagRunsCollectionResponse) => setFound(matched.dags.map(buildDagOption)));
+  }, 300);
+
+  const onInputChange = (value: string) => {
+    setText(value);
+
+    if (value === "") {
+      search.cancel();
+      setFound(undefined);
+    } else {
+      search(value, matchAnywhere);
+    }
+  };
+
+  // Switching how the text is matched is a new search for the same text, not a different text.
+  const onToggleMatchAnywhere = (next: boolean) => {
+    onToggle(next);
+
+    if (text !== "") {
+      search(text, next);
+    }
+  };
 
   return (
     <SearchSelect
-      defaultOptions={dags}
+      controlEnd={
+        <AdvancedSearchToggle enabled={matchAnywhere} onToggle={onToggleMatchAnywhere} variant="addon" />
+      }
       formatOptionLabel={formatOptionLabel}
-      loadingMessage={translate("common:loading")}
-      loadOptions={searchDagDebounced}
+      inputValue={text}
       onChange={onSelect}
+      onInputChange={onInputChange}
+      options={text === "" ? dags : (found ?? dags)}
       placeholder={translate("search.dags")}
     />
   );

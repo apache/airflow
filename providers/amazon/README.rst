@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.38.0``
+Release: ``9.39.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.38.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0/>`_.
 
 Installation
 ------------
@@ -54,11 +54,11 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.18.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.42.79``
-``botocore``                                ``>=1.42.79``
+``boto3``                                   ``>=1.42.93``
+``botocore``                                ``>=1.42.93``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
@@ -107,9 +107,9 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 Extra                 Dependencies
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
@@ -124,6 +124,7 @@ Extra                 Dependencies
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
 ``mongo``             ``apache-airflow-providers-mongo``
 ``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``parquet``           ``pyarrow>=16.1.0; python_version < '3.13'``, ``pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ``salesforce``        ``apache-airflow-providers-salesforce``
 ``ssh``               ``apache-airflow-providers-ssh``
@@ -132,7 +133,7 @@ Extra                 Dependencies
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.38.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0/changelog.html>`_.

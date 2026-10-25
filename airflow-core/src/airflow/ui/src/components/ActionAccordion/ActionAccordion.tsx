@@ -52,7 +52,11 @@ const TasksTable = ({
   readonly tasks: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation();
-  const columns = getColumns(translate, selection);
+  const columns = getColumns(
+    translate,
+    selection,
+    tasks.some((task) => task.loop_iteration !== null && task.loop_iteration !== undefined),
+  );
 
   return (
     <DataTable

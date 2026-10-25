@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.kinesis_analytics import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -263,7 +264,7 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
@@ -273,7 +274,8 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == {"ApplicationARN": self.APPLICATION_ARN}
         assert kinesis_analytics_v2_hook.get_waiter.call_count == wait_for_completion
@@ -431,7 +433,7 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
@@ -441,7 +443,8 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == {"ApplicationARN": self.APPLICATION_ARN}
         assert kinesis_analytics_v2_hook.get_waiter.call_count == wait_for_completion

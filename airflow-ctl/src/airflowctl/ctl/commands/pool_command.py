@@ -68,6 +68,7 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
                 "scheduled_slots": pool.scheduled_slots,
                 "open_slots": pool.open_slots,
                 "deferred_slots": pool.deferred_slots,
+                "team_name": pool.team_name,
             }
             for pool in pools_response.pools
         ]
@@ -105,6 +106,7 @@ def _import_helper(api_client: Client, filepath: Path, action_on_existence: Bulk
                 slots=pool_config["slots"],
                 description=pool_config.get("description", ""),
                 include_deferred=pool_config.get("include_deferred", False),
+                team_name=pool_config.get("team_name"),
             )
         )
 

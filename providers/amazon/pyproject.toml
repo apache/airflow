@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.38.0"
+version = "9.39.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -59,14 +59,14 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.18.0",
+    "apache-airflow-providers-common-compat>=1.23.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     "apache-airflow-providers-http",
     # The boto3/botocore floors are raised automatically by `breeze ci upgrade` to limit `pip` backtracking
     # (see [tool.airflow.dependency-floors] in the root pyproject.toml). The mypy-boto3-* stubs in
     # `devel-dependencies` below are not covered by that automation and are raised by hand.
-    "boto3>=1.42.79",
-    "botocore>=1.42.79",
+    "boto3>=1.42.93",
+    "botocore>=1.42.93",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
@@ -136,6 +136,11 @@ dependencies = [
     'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
     'pandas>=2.3.3; python_version >="3.14"',
 ]
+"parquet" = [
+    "pyarrow>=16.1.0; python_version < '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'",
+    "pyarrow>=22.0.0; python_version >= '3.14'",
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]
@@ -201,6 +206,7 @@ dev = [
     "responses>=0.25.0",
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-amazon[sqlalchemy]",
+    "apache-airflow-providers-amazon[parquet]",
     "apache-airflow-providers-duckdb"
 ]
 
@@ -230,8 +236,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.38.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.38.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

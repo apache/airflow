@@ -24,6 +24,7 @@ import { useAssetServiceGetAsset } from "openapi/queries";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 
 import { useIframeUrlSync } from "src/hooks/useIframeUrlSync";
+import { applyPluginTemplate } from "src/utils/pluginTemplate";
 
 export const Iframe = ({
   externalView,
@@ -51,25 +52,14 @@ export const Iframe = ({
   let src = externalView.href;
 
   if (externalView.destination !== undefined && externalView.destination !== "nav") {
-    // Check if the href contains placeholders that need to be replaced
-    if (dagId !== undefined) {
-      src = src.replaceAll("{DAG_ID}", encodeURIComponent(dagId));
-    }
-    if (runId !== undefined) {
-      src = src.replaceAll("{RUN_ID}", encodeURIComponent(runId));
-    }
-    if (taskId !== undefined) {
-      src = src.replaceAll("{TASK_ID}", encodeURIComponent(taskId));
-    }
-    if (mapIndex !== undefined) {
-      src = src.replaceAll("{MAP_INDEX}", mapIndex);
-    }
-    if (assetId !== undefined) {
-      src = src.replaceAll("{ASSET_ID}", encodeURIComponent(assetId));
-    }
-    if (asset?.uri !== undefined) {
-      src = src.replaceAll("{ASSET_URI}", encodeURIComponent(asset.uri));
-    }
+    src = applyPluginTemplate(src, {
+      assetId,
+      assetUri: asset?.uri,
+      dagId,
+      mapIndex,
+      runId,
+      taskId,
+    });
   }
 
   if (src.startsWith("http://") || src.startsWith("https://")) {

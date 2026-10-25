@@ -1,12 +1,14 @@
 {
   "name": "apache-airflow-ts-sdk-example",
   "private": true,
-  "version": "0.1.0-beta1",
+  "version": "1.0.0-beta1",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
     "build": "airflow-ts-pack src/main.ts --outdir dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:hitl": "airflow-ts-pack src/hitl.ts --outfile dist/hitl.min.mjs",
+    "build:ai-approval": "airflow-ts-pack src/ai-approval.ts --outfile dist/ai-approval.min.mjs"
   },
   "dependencies": {
     "apache-airflow-ts-sdk": "file:.."
@@ -14,6 +16,7 @@
   "devDependencies": {
     "@types/node": "^26.1.2",
     "esbuild": "^0.28.2",
+    "js-yaml": "^5.4.1",
     "typescript": "^6.0.2"
   }
 }

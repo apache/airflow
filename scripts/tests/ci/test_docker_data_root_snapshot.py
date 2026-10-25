@@ -361,7 +361,11 @@ def test_snapshot_creation_uses_builder_after_cache_publication():
     workflow = yaml.safe_load(WORKFLOW.read_text())
     steps = workflow["jobs"]["build-ci-images"]["steps"]
     snapshot = next(i for i, step in enumerate(steps) if step.get("id") == "snapshot-export")
-    cache_publishers = [i for i, step in enumerate(steps) if "/stash/save@" in step.get("uses", "")]
+    cache_publishers = [
+        i
+        for i, step in enumerate(steps)
+        if "/stash/save@" in step.get("uses", "") or step.get("uses", "").endswith("/stash-save")
+    ]
     assert cache_publishers
     assert all(publisher < snapshot for publisher in cache_publishers)
 
@@ -404,6 +408,9 @@ def test_loader_checks_snapshot_before_downloading_it():
     assert "name" not in by_id["snapshot-meta"]["with"]
     assert by_id["snapshot-meta"]["with"]["merge-multiple"] is True
     assert "breeze ci-image load" in by_id["snapshot"]["run"]
+    stash = [step for step in loader if "stash" in step.get("uses", "")]
+    assert [step["uses"] for step in stash] == ["./.github/actions/stash-restore"]
+    assert stash[0]["if"] == "steps.snapshot.outputs.restored != 'true'"
     assert "--snapshot-file" in by_id["snapshot"]["run"]
 
 
@@ -436,4 +443,4 @@ def test_image_preparing_actions_share_the_loader(action):
         "./.github/actions/load_image"
     ]
     assert not [step for step in action_steps if "image load" in step.get("run", "")]
-    assert not [step for step in action_steps if "stash/restore@" in step.get("uses", "")]
+    assert not [step for step in action_steps if "stash" in step.get("uses", "")]

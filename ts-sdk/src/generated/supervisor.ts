@@ -190,6 +190,8 @@ export type RunId3 = string;
 export type TryNumber = number;
 export type DagVersionId = string;
 export type MapIndex = number;
+export type RegionId = string;
+export type RegionIndex = number;
 export type Hostname = string | null;
 export type ContextCarrier = {
   [k: string]: unknown;
@@ -229,7 +231,18 @@ export type TaskInstanceState =
   | "skipped"
   | "deferred"
   | "awaiting_input";
+export type NodeId = string;
+export type Index = number;
+export type MaxIterations = number;
+export type TerminalTaskId = string;
+export type TerminalIsMapped = boolean;
+export type RegionId1 = string;
+export type Trajectory = number;
+export type ForkedFromRegionId = string;
+export type ResumesFromIndex = number;
+export type ExpandedTiCount = number;
 export type TaskRescheduleCount = number;
+export type FirstTaskRescheduleStartDate = string | null;
 export type MaxTries = number;
 export type Key = string;
 export type Value = string | null;
@@ -257,6 +270,7 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
@@ -471,6 +485,7 @@ export type Prefix = string | null;
 export type Limit2 = number;
 export type Offset = number;
 export type Type49 = "GetVariableKeys";
+export type PreviousIteration = boolean;
 export type Key10 = string;
 export type DagId16 = string;
 export type RunId9 = string;
@@ -478,17 +493,20 @@ export type TaskId4 = string;
 export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
+export type PreviousIteration1 = boolean;
 export type Key11 = string;
 export type DagId17 = string;
 export type RunId10 = string;
 export type TaskId5 = string;
 export type Type51 = "GetXComCount";
+export type PreviousIteration2 = boolean;
 export type Key12 = string;
 export type DagId18 = string;
 export type RunId11 = string;
 export type TaskId6 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
+export type PreviousIteration3 = boolean;
 export type Key13 = string;
 export type DagId19 = string;
 export type RunId12 = string;
@@ -514,6 +532,8 @@ export type AssignedUsers1 = HITLUser[] | null;
 export type Type54 = "HITLDetailRequestResult";
 export type InactiveAssets = AssetProfile[] | null;
 export type Type55 = "InactiveAssetsResult";
+export type Stop1 = boolean;
+export type Reason = string | null;
 export type Name14 = string | null;
 export type Type56 = "MaskSecret";
 export type Ok = boolean;
@@ -533,6 +553,8 @@ export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
 export type MapIndex6 = number | null;
+export type RegionId2 = string | null;
+export type RegionIndex1 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
 export type Key14 = string;
@@ -558,15 +580,13 @@ export type Type66 = "SetAssetStateStoreByName";
 export type Uri9 = string;
 export type Key16 = string;
 export type Type67 = "SetAssetStateStoreByUri";
-export type TimeoutSeconds = number;
-export type Type68 = "SetExecutionTimeout";
-export type Type69 = "SetRenderedFields";
+export type Type68 = "SetRenderedFields";
 export type RenderedMapIndex3 = string;
-export type Type70 = "SetRenderedMapIndex";
+export type Type69 = "SetRenderedMapIndex";
 export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
-export type Type71 = "SetTaskStateStore";
+export type Type70 = "SetTaskStateStore";
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
@@ -574,9 +594,10 @@ export type TaskId9 = string;
 export type MapIndex7 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
-export type Type72 = "SetXCom";
+export type Type71 = "SetXCom";
 export type Tasks = (string | [unknown, unknown])[];
-export type Type73 = "SkipDownstreamTasks";
+export type Type72 = "SkipDownstreamTasks";
+export type Type73 = "StartExecutionTimeout";
 export type DagRelPath = string;
 export type StartDate6 = string;
 export type SentryIntegration = string;
@@ -984,6 +1005,8 @@ export interface TaskInstance {
   try_number: TryNumber;
   dag_version_id: DagVersionId;
   map_index?: MapIndex;
+  region_id?: RegionId;
+  region_index?: RegionIndex;
   hostname?: Hostname;
   context_carrier?: ContextCarrier;
   queue?: Queue;
@@ -1032,7 +1055,10 @@ export interface TaskCallbackRequest {
  */
 export interface TIRunContext {
   dag_run: DagRun;
+  loop?: LoopContext | null;
+  expanded_ti_count?: ExpandedTiCount;
   task_reschedule_count?: TaskRescheduleCount;
+  first_task_reschedule_start_date?: FirstTaskRescheduleStartDate;
   max_tries: MaxTries;
   variables?: Variables;
   connections?: Connections;
@@ -1042,7 +1068,25 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  execution_timeout?: ExecutionTimeout;
   multi_team?: MultiTeam;
+}
+/**
+ * Pinned loop definition and enclosing iteration for a task execution.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LoopContext".
+ */
+export interface LoopContext {
+  node_id: NodeId;
+  index: Index;
+  max_iterations: MaxIterations;
+  terminal_task_id: TerminalTaskId;
+  terminal_is_mapped: TerminalIsMapped;
+  region_id: RegionId1;
+  trajectory: Trajectory;
+  forked_from_region_id?: ForkedFromRegionId;
+  resumes_from_index?: ResumesFromIndex;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.
@@ -1508,6 +1552,7 @@ export interface GetVariableKeys {
  * via the `definition` "GetXCom".
  */
 export interface GetXCom {
+  previous_iteration?: PreviousIteration;
   key: Key10;
   dag_id: DagId16;
   run_id: RunId9;
@@ -1523,6 +1568,7 @@ export interface GetXCom {
  * via the `definition` "GetXComCount".
  */
 export interface GetXComCount {
+  previous_iteration?: PreviousIteration1;
   key: Key11;
   dag_id: DagId17;
   run_id: RunId10;
@@ -1534,6 +1580,7 @@ export interface GetXComCount {
  * via the `definition` "GetXComSequenceItem".
  */
 export interface GetXComSequenceItem {
+  previous_iteration?: PreviousIteration2;
   key: Key12;
   dag_id: DagId18;
   run_id: RunId11;
@@ -1546,6 +1593,7 @@ export interface GetXComSequenceItem {
  * via the `definition` "GetXComSequenceSlice".
  */
 export interface GetXComSequenceSlice {
+  previous_iteration?: PreviousIteration3;
   key: Key13;
   dag_id: DagId19;
   run_id: RunId12;
@@ -1582,6 +1630,16 @@ export interface HITLDetailRequestResult {
 export interface InactiveAssetsResult {
   inactive_assets?: InactiveAssets;
   type?: Type55;
+}
+/**
+ * A loop gate's evaluation of its ``until`` callable.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LoopDecisionPayload".
+ */
+export interface LoopDecisionPayload {
+  stop: Stop1;
+  reason?: Reason;
 }
 /**
  * Add a new value to be redacted in task logs.
@@ -1639,6 +1697,8 @@ export interface PreviousTIResponse {
   state?: State4;
   try_number: TryNumber2;
   map_index?: MapIndex6;
+  region_id?: RegionId2;
+  region_index?: RegionIndex1;
   duration?: Duration;
 }
 /**
@@ -1723,16 +1783,6 @@ export interface SetAssetStateStoreByUri {
   type?: Type67;
 }
 /**
- * Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.
- *
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "SetExecutionTimeout".
- */
-export interface SetExecutionTimeout {
-  timeout_seconds: TimeoutSeconds;
-  type?: Type68;
-}
-/**
  * Payload for setting RTIF for a task instance.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1740,7 +1790,7 @@ export interface SetExecutionTimeout {
  */
 export interface SetRenderedFields {
   rendered_fields: RenderedFields;
-  type?: Type69;
+  type?: Type68;
 }
 export interface RenderedFields {
   [k: string]: JsonValue;
@@ -1753,7 +1803,7 @@ export interface RenderedFields {
  */
 export interface SetRenderedMapIndex {
   rendered_map_index: RenderedMapIndex3;
-  type?: Type70;
+  type?: Type69;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1764,7 +1814,7 @@ export interface SetTaskStateStore {
   key: Key17;
   value: JsonValue;
   expires_at: ExpiresAt;
-  type?: Type71;
+  type?: Type70;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1779,7 +1829,7 @@ export interface SetXCom {
   map_index?: MapIndex7;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
-  type?: Type72;
+  type?: Type71;
 }
 /**
  * Update state of downstream tasks within a task instance to 'skipped', while updating current task to success state.
@@ -1789,6 +1839,15 @@ export interface SetXCom {
  */
 export interface SkipDownstreamTasks {
   tasks: Tasks;
+  type?: Type72;
+}
+/**
+ * Tell the supervisor to start enforcing the run context's ``execution_timeout`` from outside the task process.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "StartExecutionTimeout".
+ */
+export interface StartExecutionTimeout {
   type?: Type73;
 }
 /**
@@ -1816,6 +1875,7 @@ export interface SucceedTask {
   task_outlets?: TaskOutlets;
   outlet_events?: OutletEvents;
   rendered_map_index?: RenderedMapIndex4;
+  loop_decision?: LoopDecisionPayload | null;
   type?: Type75;
 }
 /**
@@ -1862,6 +1922,7 @@ export interface TaskState {
   type?: Type79;
   rendered_map_index?: RenderedMapIndex5;
   retry_reason?: RetryReason1;
+  loop_decision?: LoopDecisionPayload | null;
 }
 /**
  * Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.

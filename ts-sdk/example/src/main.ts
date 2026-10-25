@@ -17,13 +17,17 @@
  * under the License.
  */
 
-// The bundle entry point: one bundle, two Python-owned Dags.
+// The bundle entry point: one bundle, three Dags, both authoring modes.
 //
-// Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
-// coordinator, so this side only supplies the task bodies.
+// The two Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
+// coordinator, so this side only supplies their task bodies. The third, in `native.ts`, is
+// declared in TypeScript outright — graph, schedule and all. `dynamic.ts` adds a native Dag for
+// each entry of a YAML file next to the bundle.
 
 import { Bundle, getClient, getContext, NEVER_EXPIRE, TaskHandler } from "apache-airflow-ts-sdk";
 
+import { loadDynamicDags } from "./dynamic.js";
+import { dag as nativeDag } from "./native.js";
 import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
@@ -64,7 +68,7 @@ export async function writeAndReadTaskState() {
   const store = getClient().taskStateStore;
   const { runId, tryNumber } = getContext();
 
-  await store.set(JOB_ID_KEY, runId, { retentionMs: NEVER_EXPIRE });
+  await store.set(JOB_ID_KEY, runId, { retention: NEVER_EXPIRE });
   await store.set(STATE_SCRATCH_KEY, { attempt: tryNumber });
 
   const jobId = await store.get<string>(JOB_ID_KEY);
@@ -104,8 +108,14 @@ export async function readConnection() {
 // One register call lists everything this bundle provides.
 // `build_message` appears under both Dags: two different handlers, told apart by the dag_id each
 // is bound to and never by the task_id alone.
+//
+// One bundle serves both authoring modes: handlers for the Dags a Python file declares, and the
+// natively declared Dag from `native.ts`, whose graph this side owns outright. It also serves the
+// native Dags `dynamic.ts` generates from a YAML file next to the bundle, when there is one.
 const bundle = new Bundle();
 bundle.register(
+  nativeDag,
+  ...loadDynamicDags(),
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
   new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),

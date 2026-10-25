@@ -46,6 +46,7 @@ import type {
   GetTaskStateStore,
   SetTaskStateStore,
   ConnectionResult as WireConnectionResult,
+  CreateHITLDetailPayload,
 } from "./protocol.js";
 
 /**
@@ -115,6 +116,12 @@ export interface CoordinatorClient extends TaskClient {
   getDagRunState(dagId: string, runId: string): Promise<string>;
   /** Whether a Dag is paused. */
   isDagPaused(dagId: string): Promise<boolean>;
+
+  /**
+   * Write the Human-in-the-loop request of a task instance. Writing it again replaces the
+   * request and drops any response already given, so a resumed task must never call this.
+   */
+  createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void>;
 }
 
 const VARIABLE_ABSENT_POLICY: AbsentRowPolicy = {
@@ -135,7 +142,8 @@ const TASK_STATE_STORE_ABSENT_POLICY: AbsentRowPolicy = {
 // `[state_store] default_retention_days` at launch
 // (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
 const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_DAY = 24 * 60 * 60;
 
 function assertKey(key: string): void {
   if (typeof key !== "string") {
@@ -150,28 +158,29 @@ function assertKey(key: string): void {
 // past 9999, and the supervisor silently drops a frame it cannot decode
 // rather than replying with an error, so the task would hang instead of
 // failing fast. Route both retention paths through this check.
-function toExpiresAt(ms: number): string {
-  const at = new Date(Date.now() + ms);
+function toExpiresAt(seconds: number): string {
+  const at = new Date(Date.now() + seconds * MS_PER_SECOND);
   if (Number.isNaN(at.getTime()) || at.getUTCFullYear() > 9999) {
     throw new RangeError(
-      `retention of ${ms}ms overflows the wire timestamp; use NEVER_EXPIRE instead`,
+      `a retention that ends ${seconds}s from now overflows the wire timestamp; ` +
+        "use NEVER_EXPIRE instead",
     );
   }
   return at.toISOString();
 }
 
-/** Resolve `retentionMs` (or the deployment default) to a wire `expires_at`. */
-function resolveExpiresAt(retentionMs: number | typeof NEVER_EXPIRE | undefined): string | null {
-  if (retentionMs === undefined) {
+/** Resolve `retention` (or the deployment default) to a wire `expires_at`. */
+function resolveExpiresAt(seconds: number | typeof NEVER_EXPIRE | undefined): string | null {
+  if (seconds === undefined) {
     return resolveDefaultExpiresAt();
   }
-  if (retentionMs === NEVER_EXPIRE) {
+  if (seconds === NEVER_EXPIRE) {
     return null;
   }
-  if (!Number.isFinite(retentionMs) || retentionMs < 0) {
-    throw new RangeError(`retentionMs must be >= 0 or NEVER_EXPIRE, got ${String(retentionMs)}`);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new RangeError(`retention must be >= 0 or NEVER_EXPIRE, got ${String(seconds)}`);
   }
-  return toExpiresAt(retentionMs);
+  return toExpiresAt(seconds);
 }
 
 // The coordinator always passes the setting, so an absent or malformed value is
@@ -182,8 +191,8 @@ function resolveDefaultExpiresAt(): string | null {
   if (raw === undefined) {
     throw new Error(
       `${RETENTION_DAYS_ENV_VAR} is not set, so the default retention is unknown. It carries ` +
-        "[state_store] default_retention_days to the runtime; pass retentionMs or NEVER_EXPIRE to " +
-        "set the expiry explicitly.",
+        "[state_store] default_retention_days to the runtime; pass retention or " +
+        "NEVER_EXPIRE to set the expiry explicitly.",
     );
   }
   const days = Number(raw);
@@ -195,7 +204,7 @@ function resolveDefaultExpiresAt(): string | null {
       `[state_store] default_retention_days must be >= 0, got ${raw}. Set to 0 to disable expiry.`,
     );
   }
-  return days === 0 ? null : toExpiresAt(days * MS_PER_DAY);
+  return days === 0 ? null : toExpiresAt(days * SECONDS_PER_DAY);
 }
 
 export function createCoordinatorClient(
@@ -265,15 +274,12 @@ export function createCoordinatorClient(
       ) {
         throw new TypeError("task state store value must not be null, NaN, or Infinity");
       }
-      // TODO: warn when the serialized value exceeds the deployment's
-      // [state_store] max_value_storage_bytes, as Python's task store setter
-      // does, once the coordinator passes that setting to the runtime.
       const msg: SetTaskStateStore = {
         type: "SetTaskStateStore",
         ti_id: tiId,
         key,
         value,
-        expires_at: resolveExpiresAt(opts.retentionMs),
+        expires_at: resolveExpiresAt(opts.retention),
       };
       await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },
@@ -423,6 +429,18 @@ export function createCoordinatorClient(
     // ---- Task state store ----
 
     taskStateStore,
+    // ---- Human-in-the-loop ----
+
+    async createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void> {
+      const request: CreateHITLDetailPayload = { type: "CreateHITLDetailPayload", ...msg };
+      await rpc(
+        "CreateHITLDetailPayload",
+        "HITLDetailRequestResult",
+        request,
+        () => undefined,
+        "throw",
+      );
+    },
 
     // ---- Connections ----
 

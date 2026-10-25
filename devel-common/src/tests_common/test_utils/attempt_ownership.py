@@ -31,6 +31,12 @@ HISTORY_ID = UUID("01960000-0000-7000-8000-000000000001")
 DANGLING_VERSION = UUID("01960000-0000-7000-8000-000000000099")
 NOW = datetime(2026, 9, 29, tzinfo=UTC)
 COORDINATES = {"dag_id": "ownership", "task_id": "task", "run_id": "manual", "map_index": -1}
+PHYSICAL_COORDINATES = {
+    "dag_id": "ownership",
+    "task_id": "task",
+    "run_id": "manual",
+    "region_index": -1,
+}
 
 
 def table(connection, name, *uuid_columns):
@@ -92,7 +98,7 @@ def ownership_session(session):
     attempts = TaskInstance.__table__
     session.execute(
         attempts.insert().values(
-            **COORDINATES,
+            **PHYSICAL_COORDINATES,
             id=CURRENT_ID,
             try_number=2,
             pool="default_pool",
@@ -104,7 +110,7 @@ def ownership_session(session):
     )
     session.execute(
         attempts.insert().values(
-            **COORDINATES,
+            **PHYSICAL_COORDINATES,
             id=HISTORY_ID,
             try_number=1,
             pool="default_pool",

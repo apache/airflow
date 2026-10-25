@@ -248,7 +248,7 @@ ARG_AUTH_URL = Arg(
     type=str,
     default="http://localhost:8080",
     dest="api_url",
-    help="The URL of the metadata database API",
+    help="The URL of the Airflow API server",
 )
 ARG_AUTH_TOKEN = Arg(
     flags=("--api-token",),
@@ -827,19 +827,23 @@ class CommandFactory:
         ):
             params["logical_date"] = datetime.datetime.now(datetime.UTC)
 
-        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
-        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
-        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
-            raw_task_ids = params["task_ids"]
-            if raw_task_ids.lstrip().startswith("["):
-                try:
-                    params["task_ids"] = json.loads(raw_task_ids)
-                except json.JSONDecodeError as e:
-                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
-            else:
-                params["task_ids"] = [
-                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
-                ]
+        # Handle ClearTaskInstancesBody: list options arrive as a single string but the API expects
+        # lists (--task-ids items are a task_id or [task_id, map_index]); accept comma-separated
+        # values or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody":
+            for field in ("task_ids", "task_instance_ids", "whole_expansion_ids"):
+                raw_value = params.get(field)
+                if not isinstance(raw_value, str):
+                    continue
+                if raw_value.lstrip().startswith("["):
+                    try:
+                        params[field] = json.loads(raw_value)
+                    except json.JSONDecodeError as e:
+                        raise SystemExit(
+                            f"Invalid JSON list for --{field.replace('_', '-')} {raw_value!r}: {e}"
+                        )
+                else:
+                    params[field] = [item.strip() for item in raw_value.split(",") if item.strip()]
 
         return params
 
@@ -1070,8 +1074,12 @@ command_factory = CommandFactory()
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
-        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
-        description="Login to the metadata database",
+        help="Log in to the Airflow API server with an API token or a username and password",
+        description=(
+            "Log in to the Airflow API server and store the credentials for the selected environment. "
+            "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
+            "missing credentials are prompted for when running in a terminal."
+        ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
             ARG_AUTH_URL,

@@ -39,6 +39,10 @@ import "dayjs/locale/zh-cn";
 import "dayjs/locale/zh-tw";
 import type { i18n as I18nInstance } from "i18next";
 
+import { applyArabicPluralForms } from "./dayjsArabicPlurals";
+
+applyArabicPluralForms();
+
 // dayjs holds a single global locale and bundles only `en`, so `.humanize()` and
 // `.fromNow()` rendered English durations ("2 hours") inside otherwise translated
 // sentences. The locale data is registered eagerly rather than fetched per language:
