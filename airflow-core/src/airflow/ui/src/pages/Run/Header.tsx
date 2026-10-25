@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
+import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
@@ -46,6 +46,7 @@ import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useDagRunNote } from "src/queries/useDagRunNote";
 import { hasDagRunConfig, useDurationFormat } from "src/utils";
+import { isDeadlineAlertApplicable } from "src/utils/deadlines";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
@@ -60,8 +61,16 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
-  const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 });
+  const { data: deadlineData } = useDeadlinesServiceGetDeadlines({
+    dagId,
+    dagRunId,
+    limit: 10,
+    orderBy: ["deadline_time"],
+  });
+  const hasDeadlineAlerts =
+    (deadlineData?.total_entries ?? 0) > 0 ||
+    (alertData?.deadline_alerts ?? []).some((alert) => isDeadlineAlertApplicable(alert, dagRun.run_type));
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
@@ -161,7 +170,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? [
                 {
                   label: translate("dag:deadlineStatus.label"),
-                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} endDate={dagRun.end_date} />,
+                  value: (
+                    <DeadlineStatus
+                      dagId={dagId}
+                      dagRunId={dagRunId}
+                      endDate={dagRun.end_date}
+                      runType={dagRun.run_type}
+                    />
+                  ),
                 },
               ]
             : []),
