@@ -18,15 +18,18 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import socket
 import warnings
+from collections.abc import Callable
 from typing import Any
 
 import urllib3.util
 from urllib3.connection import HTTPConnection
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
@@ -188,6 +191,7 @@ def get_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    team_name: str | None = None,
 ) -> client.CoreV1Api:
     """
     Retrieve Kubernetes client.
@@ -195,22 +199,31 @@ def get_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param team_name: team whose ``[kubernetes_executor]`` connection settings to use. Like all team
+        config, they don't fall back to the un-prefixed section.
     :return: kubernetes client
     """
+    team_kwargs = _team_kwargs(team_name)
     if in_cluster is None:
-        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
+        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster", **team_kwargs)
     if not has_kubernetes:
         raise _import_err
 
     configuration = _get_default_configuration()
 
+    # Keepalive stays a global setting, so it is not read from the team's config.
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         configure_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
-        "kubernetes_executor", "api_client_retry_configuration", fallback={}
+        "kubernetes_executor", "api_client_retry_configuration", fallback={}, **team_kwargs
     )
 
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    verify_ssl = conf.getboolean("kubernetes_executor", "verify_ssl", **team_kwargs)
+    if team_name:
+        # The default configuration is shared by the whole process, so a team's client sets its
+        # own value rather than changing the default or inheriting another executor's change.
+        configuration.verify_ssl = verify_ssl
+    elif not verify_ssl:
         _disable_verify_ssl()
 
     if isinstance(api_client_retry_configuration, dict):
@@ -222,17 +235,17 @@ def get_kube_client(
         config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
-            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None, **team_kwargs)
         if config_file is None:
-            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None, **team_kwargs)
         config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=configuration
         )
 
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    if not verify_ssl:
         configuration.verify_ssl = False
 
-    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert", **team_kwargs)
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
@@ -244,6 +257,7 @@ async def get_async_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    team_name: str | None = None,
 ) -> async_client.CoreV1Api:
     """
     Retrieve an asynchronous Kubernetes client.
@@ -256,29 +270,31 @@ async def get_async_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param team_name: team whose connection settings to use, as in :func:`get_kube_client`
     :return: asynchronous kubernetes client
     """
     if not has_kubernetes:
         raise _import_err
+    team_kwargs = _team_kwargs(team_name)
     if in_cluster is None:
-        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
+        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster", **team_kwargs)
 
     configuration = async_client.Configuration()
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    if not conf.getboolean("kubernetes_executor", "verify_ssl", **team_kwargs):
         configuration.verify_ssl = False
 
     if in_cluster:
         async_config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
-            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None, **team_kwargs)
         if config_file is None:
-            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None, **team_kwargs)
         await async_config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=configuration
         )
 
-    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert", **team_kwargs)
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
@@ -290,39 +306,60 @@ def _team_kwargs(team_name: str | None) -> dict[str, str]:
     return {"team_name": team_name} if team_name else {}
 
 
-def _get_executor_kube_client(team_name: str | None = None) -> client.CoreV1Api:
+def _call_client_factory(factory: Callable[..., Any], team_name: str | None) -> Any:
+    """Pass ``team_name`` only to a factory that takes it, since factories used to take no arguments."""
+    parameters = inspect.signature(factory).parameters.values()
+    if any(p.name == "team_name" or p.kind is p.VAR_KEYWORD for p in parameters):
+        return factory(team_name=team_name)
+    return factory()
+
+
+def _get_executor_kube_client(
+    team_name: str | None = None, executor_client_factory: str | None = None
+) -> client.CoreV1Api:
     """
     Retrieve the Kubernetes client for the KubernetesExecutor.
 
-    Uses the ``client_factory`` setting when it is set, and :func:`get_kube_client` otherwise.
+    Uses the executor's own factory when it has one, then the ``client_factory`` setting, and
+    :func:`get_kube_client` otherwise.
 
     :param team_name: team the executor is running for, so a team can point its executor at its
-        own cluster; a team that sets no factory gets the default client rather than the one
-        configured in the un-prefixed section, matching how team config resolves everywhere else
+        own cluster. Like all team config, the team's settings don't fall back to the un-prefixed
+        section. A factory that takes ``team_name`` is told the team.
+    :param executor_client_factory: import path of the executor's own factory, see
+        ``KubernetesExecutor.client_factory``
     :return: kubernetes client
     """
-    # Config only stores strings, so the factory is an import path; the pod watcher runs in its
-    # own process and resolves it there itself.
+    # Factories are import paths, since the pod watcher runs in its own process and resolves its
+    # factory there itself.
+    if executor_client_factory:
+        return _call_client_factory(import_string(executor_client_factory), team_name)
     if client_factory := conf.getimport(
         "kubernetes_executor", "client_factory", fallback=None, **_team_kwargs(team_name)
     ):
-        return client_factory()
-    return get_kube_client()
+        return _call_client_factory(client_factory, team_name)
+    return get_kube_client(team_name=team_name)
 
 
-async def _get_executor_async_kube_client(team_name: str | None = None) -> async_client.CoreV1Api:
+async def _get_executor_async_kube_client(
+    team_name: str | None = None, executor_client_factory: str | None = None
+) -> async_client.CoreV1Api:
     """
     Retrieve the asynchronous Kubernetes client for the KubernetesExecutor.
 
-    Uses the ``async_client_factory`` setting when it is set, and :func:`get_async_kube_client`
-    otherwise.
+    Uses the executor's own factory when it has one, then the ``async_client_factory`` setting,
+    and :func:`get_async_kube_client` otherwise.
 
-    :param team_name: team the executor is running for, resolved the same way as in
+    :param team_name: team the executor is running for, used the same way as in
         :func:`_get_executor_kube_client`
+    :param executor_client_factory: import path of the executor's own factory, see
+        ``KubernetesExecutor.async_client_factory``
     :return: asynchronous kubernetes client
     """
+    if executor_client_factory:
+        return _call_client_factory(import_string(executor_client_factory), team_name)
     if async_client_factory := conf.getimport(
         "kubernetes_executor", "async_client_factory", fallback=None, **_team_kwargs(team_name)
     ):
-        return async_client_factory()
-    return await get_async_kube_client()
+        return _call_client_factory(async_client_factory, team_name)
+    return await get_async_kube_client(team_name=team_name)

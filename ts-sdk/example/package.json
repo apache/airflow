@@ -16,6 +16,7 @@
   "devDependencies": {
     "@types/node": "^26.1.2",
     "esbuild": "^0.28.2",
+    "js-yaml": "^5.4.1",
     "typescript": "^6.0.2"
   }
 }
