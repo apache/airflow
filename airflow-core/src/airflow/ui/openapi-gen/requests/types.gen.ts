@@ -6016,6 +6016,7 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 
 export type GetDagDeadlineAlertsData = {
     dagId: string;
+    dagRunId?: string | null;
     limit?: number;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -10537,6 +10538,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

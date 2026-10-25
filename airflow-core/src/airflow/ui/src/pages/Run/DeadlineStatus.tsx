@@ -56,6 +56,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
 
   const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
     dagId,
+    dagRunId,
     limit: 100,
   });
 
