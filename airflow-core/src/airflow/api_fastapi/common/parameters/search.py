@@ -45,67 +45,38 @@ class _PrefixPatternParam(BaseParam[str], ABC):
     Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), Unicode prefix range.
 
     .. note::
-        Trailing non-alphanumeric characters in a search term are stripped before the range
-        is computed. A range scan with a punctuation-terminated upper bound is unsafe under
+        Trailing non-alphanumeric characters in a search term are stripped before the
+        predicate is built. A range scan with a punctuation-terminated bound is unsafe under
         PostgreSQL's default locale-aware collation (``en_US.utf8`` sorts punctuation in a
-        way that breaks the range), and additionally stopping the range at an alphanumeric
-        character keeps the upper bound alphanumeric too, so the predicate stays usable by
-        default btree indexes. A user who asks for prefix ``"test_"`` gets matches starting
-        with ``"test"`` — a small over-match trade-off made explicit in the public
-        ``*_prefix_pattern`` query-param description.
+        way that breaks the range), so the term is stripped first. A user who asks for prefix
+        ``"test_"`` gets matches starting with ``"test"`` — a small over-match trade-off made
+        explicit in the public ``*_prefix_pattern`` query-param description.
     """
 
     pipe_as_or: bool = True
 
     @staticmethod
-    def _prefix_range_upper(term: str) -> str | None:
-        """
-        Compute the exclusive upper bound for a prefix range scan.
-
-        Returns ``None`` if the term has no alphanumeric characters. Trailing non-alphanumeric
-        characters are dropped before bumping the last character so the resulting upper bound
-        is itself alphanumeric and behaves predictably under locale-aware collations. If
-        incrementing would land outside the alphanumeric range (e.g. ``'z' → '{'``), we drop
-        that character and retry.
-        """
-        while term and not term[-1].isalnum():
-            term = term[:-1]
-        if not term:
-            return None
-        last = ord(term[-1])
-        if last >= 0x10FFFF:
-            return _PrefixPatternParam._prefix_range_upper(term[:-1])
-        bumped = chr(last + 1)
-        if not bumped.isalnum():
-            return _PrefixPatternParam._prefix_range_upper(term[:-1])
-        return term[:-1] + bumped
-
-    @staticmethod
     def _prefix_lower_bound(term: str) -> str:
-        """Return the matching lower bound: strip trailing non-alphanumeric chars to pair with the upper."""
+        """Return the matching lower bound: ``term`` without trailing non-alphanumeric chars."""
         while term and not term[-1].isalnum():
             term = term[:-1]
         return term
 
     @staticmethod
     def _build_prefix_range_clauses(
-        column: ColumnElement | InstrumentedAttribute, lower: str, upper: str | None
+        column: ColumnElement | InstrumentedAttribute, lower: str
     ) -> list[ColumnElement[bool]]:
         """
         Return the predicates matching values that start with ``lower`` on ``column``.
 
-        The bounds keep a B-tree index usable but are wider than the prefix: bumping the last
-        character out of the alphanumeric range derives the upper bound from a shorter prefix
-        (``"a9"`` yields ``< "b"``, ``"z"`` yields none at all). The substring equality narrows
-        that back. It is an equality and not ``LIKE 'lower%'`` so it resolves under the same
-        collation as the bounds — ``LIKE`` is case-insensitive on SQLite and MySQL ``_ci``
-        columns, and would keep leaking case variants.
+        There is deliberately no upper bound: bumping the last character is unsafe under
+        collations with contractions. In Postgres ICU ``cs-CZ-x-icu`` the digraph ``ch`` sorts
+        after ``h``, so ``'chata' < 'd'`` is false and prefix ``c`` would miss it (#74724).
+        ``column >= lower`` keeps the scan start index-friendly and the ``substr`` equality
+        enforces the exact prefix. ``LIKE 'lower%'`` is avoided because it is case-insensitive
+        on SQLite.
         """
-        clauses: list[ColumnElement[bool]] = [column >= lower]
-        if upper is not None:
-            clauses.append(column < upper)
-        clauses.append(func.substr(column, 1, len(lower)) == lower)
-        return clauses
+        return [column >= lower, func.substr(column, 1, len(lower)) == lower]
 
     @abstractmethod
     def _prefix_clause(self, term: str):
@@ -215,8 +186,7 @@ class _PrefixSearchParam(_PrefixPatternParam):
         lower = self._prefix_lower_bound(term)
         if not lower:
             return self.attribute.is_not(None)
-        upper = self._prefix_range_upper(term)
-        return and_(*self._build_prefix_range_clauses(self.attribute, lower, upper))
+        return and_(*self._build_prefix_range_clauses(self.attribute, lower))
 
     @classmethod
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
@@ -236,15 +206,14 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
         lower = self._prefix_lower_bound(term)
         if not lower:
             return sql_true()
-        upper = self._prefix_range_upper(term)
         return or_(
             and_(
                 TaskInstance._task_display_property_value.is_(None),
-                *self._build_prefix_range_clauses(TaskInstance.task_id, lower, upper),
+                *self._build_prefix_range_clauses(TaskInstance.task_id, lower),
             ),
             and_(
                 TaskInstance._task_display_property_value.is_not(None),
-                *self._build_prefix_range_clauses(TaskInstance._task_display_property_value, lower, upper),
+                *self._build_prefix_range_clauses(TaskInstance._task_display_property_value, lower),
             ),
         )
 

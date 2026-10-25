@@ -42,7 +42,6 @@ from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
 from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
-    _PrefixPatternParam,
     _TaskDisplayNamePrefixPatternParam,
     regex_param_factory,
 )
@@ -368,7 +367,19 @@ class TestNonSearchFilterEscaping:
 
 
 class TestPrefixSearchParam:
-    """Prefix search using range comparison (``attribute >= lower AND < upper``)."""
+    """Prefix search: lower-bound range scan narrowed by a collation-safe substr equality."""
+
+    def test_no_upper_bound_for_collation_safety(self):
+        """No ``col < upper`` clause must be emitted.
+
+        Bumping the last character is unsafe under collations with contractions.
+        In Postgres ICU ``cs-CZ-x-icu`` the digraph ``ch`` sorts after ``h``,
+        so ``'chata' < 'd'`` is false and prefix ``c`` would miss it (#74724).
+        The ``substr`` equality enforces the exact prefix without an upper bound.
+        """
+        param = _PrefixSearchParam(DagModel.dag_id).set_value("c")
+        sql = _compile(param.to_orm(select(DagModel)))
+        assert "dag_id < " not in sql
 
     def test_to_orm_single_value(self):
         param = _PrefixSearchParam(DagModel.dag_id).set_value("example_bash")
@@ -377,40 +388,17 @@ class TestPrefixSearchParam:
 
         sql = _compile(statement)
         assert "dag_id >= 'example_bash'" in sql
-        assert "dag_id < 'example_basi'" in sql
-
-    def test_prefix_range_upper_boundary(self):
-        """Prefix range bumps the last alphanumeric character."""
-        assert _PrefixPatternParam._prefix_range_upper("xy") == "xz"
-        assert _PrefixPatternParam._prefix_range_upper("test_dag") == "test_dah"
-        assert _PrefixPatternParam._prefix_range_upper("") is None
-
-    def test_prefix_range_upper_strips_trailing_punctuation(self):
-        """Trailing non-alphanumeric characters are dropped before bumping."""
-        assert _PrefixPatternParam._prefix_range_upper("test_") == "tesu"
-        assert _PrefixPatternParam._prefix_range_upper("s3://") == "s4"
-        assert _PrefixPatternParam._prefix_range_upper("bbc!!") == "bbd"
-        # All-punctuation → no usable range
-        assert _PrefixPatternParam._prefix_range_upper("///") is None
-
-    def test_prefix_range_upper_cascades_past_non_alnum_bump(self):
-        """If bumping would produce a non-alphanumeric char, strip and retry."""
-        # 'z' → '{' (non-alphanumeric), so fall back to incrementing the previous char.
-        assert _PrefixPatternParam._prefix_range_upper("abz") == "ac"
-        # 'Z' → '[' (non-alphanumeric), so fall back.
-        assert _PrefixPatternParam._prefix_range_upper("abZ") == "ac"
-        # '9' → ':' (non-alphanumeric), so fall back.
-        assert _PrefixPatternParam._prefix_range_upper("a9") == "b"
+        assert "substr(dag.dag_id, 1, 12) = 'example_bash'" in sql
 
     def test_to_orm_strips_trailing_underscore_prefix(self):
-        """``'test_'`` is treated as the prefix ``'test'`` so the range is locale-safe."""
+        """``'test_'`` is stripped to ``'test'`` as the effective prefix."""
         param = _PrefixSearchParam(DagModel.dag_id).set_value("test_")
         statement = select(DagModel)
         statement = param.to_orm(statement)
 
         sql = _compile(statement)
         assert "dag_id >= 'test'" in sql
-        assert "dag_id < 'tesu'" in sql
+        assert "substr(dag.dag_id, 1, 4) = 'test'" in sql
 
     def test_to_orm_empty_value_matches_all(self):
         """An empty value matches all non-null rows (used via the ``~`` alias)."""
@@ -477,14 +465,12 @@ class TestPrefixSearchParam:
         assert "2026-01-01|us" in sql
 
     def test_to_orm_narrows_the_range_with_a_leading_substring(self):
-        """The index-friendly bounds are wider than the prefix, so an equality pins the prefix down."""
+        """The substr equality pins the exact prefix regardless of the range scan bounds."""
         param = _PrefixSearchParam(DagModel.dag_id).set_value("dag_9")
         statement = param.to_orm(select(DagModel))
 
         sql = _compile(statement)
-        # '9' bumps to ':' (non-alphanumeric), so the upper bound comes from the shorter 'dag'.
         assert "dag_id >= 'dag_9'" in sql
-        assert "dag_id < 'dah'" in sql
         assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
 
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
@@ -567,7 +553,7 @@ class TestTaskDisplayNamePrefixPatternParam:
         sql = _compile(statement)
         assert "task_display_name is null" in sql
         assert "task_id >=" in sql
-        assert "task_id <" in sql
+        assert "task_id < " not in sql
         assert "task_display_name is not null" in sql
 
     def test_to_orm_narrows_both_branches_with_a_leading_substring(self):
