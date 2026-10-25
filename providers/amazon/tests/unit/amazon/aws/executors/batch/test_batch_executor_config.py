@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from json import JSONDecodeError
 from unittest import mock
 
 import pytest
@@ -42,9 +41,7 @@ class TestFetchTemplatedKwargs:
 
         result = _fetch_templated_kwargs(conf)
 
-        conf.get.assert_called_once_with(
-            CONFIG_GROUP_NAME, AllBatchConfigKeys.SUBMIT_JOB_KWARGS, fallback={}
-        )
+        conf.get.assert_called_once_with(CONFIG_GROUP_NAME, AllBatchConfigKeys.SUBMIT_JOB_KWARGS, fallback={})
         assert result == payload
 
     def test_fallback_empty_dict(self):
@@ -65,9 +62,7 @@ class TestFetchConfigValues:
             BatchSubmitJobKwargsConfigKeys.EKS_PROPERTIES_OVERRIDE: None,
             BatchSubmitJobKwargsConfigKeys.NODE_OVERRIDE: None,
         }
-        conf.get.side_effect = lambda group, key, fallback=None: test_values.get(
-            key, fallback
-        )
+        conf.get.side_effect = lambda group, key, fallback=None: test_values.get(key, fallback)
 
         result = _fetch_config_values(conf)
 
@@ -87,9 +82,7 @@ class TestBuildSubmitKwargs:
             BatchSubmitJobKwargsConfigKeys.JOB_DEFINITION: "my-def",
         }
         conf.get.side_effect = lambda group, key, fallback=None: (
-            "{}"
-            if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS
-            else test_values.get(key, fallback)
+            "{}" if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else test_values.get(key, fallback)
         )
 
         result = build_submit_kwargs(conf)
@@ -119,31 +112,23 @@ class TestBuildSubmitKwargs:
         assert result["jobName"] == "templated-job"
         assert result["shareIdentifier"] == "share-123"
         assert result["containerOverrides"]["command"] == []
-        assert result["containerOverrides"]["environment"] == [
-            {"name": "FOO", "value": "BAR"}
-        ]
+        assert result["containerOverrides"]["environment"] == [{"name": "FOO", "value": "BAR"}]
 
     def test_rejects_node_overrides(self):
         conf = mock.MagicMock()
         templated = {"nodeOverrides": {"numNodes": 2}}
         conf.get.side_effect = lambda group, key, fallback=None: (
-            json.dumps(templated)
-            if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS
-            else None
+            json.dumps(templated) if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
         )
 
-        with pytest.raises(
-            KeyError, match="Multi-node jobs are not currently supported."
-        ):
+        with pytest.raises(KeyError, match="Multi-node jobs are not currently supported."):
             build_submit_kwargs(conf)
 
     def test_rejects_eks_properties_override(self):
         conf = mock.MagicMock()
         templated = {"eksPropertiesOverride": {"podProperties": {}}}
         conf.get.side_effect = lambda group, key, fallback=None: (
-            json.dumps(templated)
-            if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS
-            else None
+            json.dumps(templated) if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
         )
 
         with pytest.raises(KeyError, match="Eks jobs are not currently supported."):
@@ -155,22 +140,20 @@ class TestBuildSubmitKwargs:
             "{}" if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
         )
 
+        class DroppingCommandDict(dict):
+            def __getitem__(self, key):
+                val = super().__getitem__(key)
+                if key == "containerOverrides" and isinstance(val, dict):
+                    val.pop("command", None)
+                return val
+
         with mock.patch(
-            "airflow.providers.amazon.aws.executors.batch.batch_executor_config._fetch_templated_kwargs"
-        ) as mock_templated:
-
-            class BadDict(dict):
-                def __setitem__(self, key, value):
-                    if key == "containerOverrides":
-                        # Simulate missing command field
-                        super().__setitem__(key, {})
-                        return
-                    super().__setitem__(key, value)
-
-            mock_templated.return_value = BadDict()
+            "airflow.providers.amazon.aws.executors.batch.batch_executor_config._fetch_config_values",
+            return_value=DroppingCommandDict(),
+        ):
             with pytest.raises(
                 KeyError,
-                match='SubmitJob API needs kwargs\\["containerOverrides"\\]\\["command"\\] field',
+                match=r'SubmitJob API needs kwargs\["containerOverrides"\]\["command"\] field',
             ):
                 build_submit_kwargs(conf)
 
@@ -181,9 +164,9 @@ class TestBuildSubmitKwargs:
         )
 
         with mock.patch(
-            "airflow.providers.amazon.aws.executors.batch.batch_executor_config.json.loads"
-        ) as mock_loads:
-            mock_loads.side_effect = JSONDecodeError("msg", "doc", 0)
+            "airflow.providers.amazon.aws.executors.batch.batch_executor_config.json.dumps",
+            return_value="not valid json",
+        ):
             with pytest.raises(
                 ValueError,
                 match="AWS Batch Executor config values must be JSON serializable.",

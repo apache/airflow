@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from json import JSONDecodeError
 from unittest import mock
 
 import pytest
@@ -44,9 +43,7 @@ class TestFetchTemplatedKwargs:
 
         result = _fetch_templated_kwargs(conf)
 
-        conf.get.assert_called_once_with(
-            CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_KWARGS, fallback={}
-        )
+        conf.get.assert_called_once_with(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_KWARGS, fallback={})
         assert result == payload
 
     def test_fallback_empty_dict(self):
@@ -65,9 +62,7 @@ class TestFetchConfigValues:
             RunTaskKwargsConfigKeys.CONTAINER_NAME: "test-container",
             RunTaskKwargsConfigKeys.PLATFORM_VERSION: None,
         }
-        conf.get.side_effect = lambda group, key, fallback=None: test_values.get(
-            key, fallback
-        )
+        conf.get.side_effect = lambda group, key, fallback=None: test_values.get(key, fallback)
 
         result = _fetch_config_values(conf)
 
@@ -77,15 +72,11 @@ class TestFetchConfigValues:
 
 
 class TestBuildTaskKwargs:
-    def _mock_conf(
-        self, config_values: dict[str, str | None], templated: dict | None = None
-    ):
+    def _mock_conf(self, config_values: dict[str, str | None], templated: dict | None = None):
         conf = mock.MagicMock()
         templated_str = json.dumps(templated or {})
         conf.get.side_effect = lambda group, key, fallback=None: (
-            templated_str
-            if key == AllEcsConfigKeys.RUN_TASK_KWARGS
-            else config_values.get(key, fallback)
+            templated_str if key == AllEcsConfigKeys.RUN_TASK_KWARGS else config_values.get(key, fallback)
         )
         return conf
 
@@ -111,7 +102,7 @@ class TestBuildTaskKwargs:
                 AllEcsConfigKeys.PLATFORM_VERSION: "1.4.0",
                 AllEcsConfigKeys.SUBNETS: "subnet-1,subnet-2",
                 AllEcsConfigKeys.SECURITY_GROUPS: "sg-1,sg-2",
-                AllEcsConfigKeys.ASSIGN_PUBLIC_IP: "ENABLED",
+                AllEcsConfigKeys.ASSIGN_PUBLIC_IP: "True",
             }
         )
         result = build_task_kwargs(conf)
@@ -125,13 +116,8 @@ class TestBuildTaskKwargs:
             "subnet-1",
             "subnet-2",
         ]
-        assert result["networkConfiguration"]["awsvpcConfiguration"][
-            "securityGroups"
-        ] == ["sg-1", "sg-2"]
-        assert (
-            result["networkConfiguration"]["awsvpcConfiguration"]["assignPublicIp"]
-            == "ENABLED"
-        )
+        assert result["networkConfiguration"]["awsvpcConfiguration"]["securityGroups"] == ["sg-1", "sg-2"]
+        assert result["networkConfiguration"]["awsvpcConfiguration"]["assignPublicIp"] == "ENABLED"
 
     def test_ec2_launch_type_drops_platform_version(self):
         conf = self._mock_conf(
@@ -148,9 +134,7 @@ class TestBuildTaskKwargs:
         assert "platformVersion" not in result
         assert "networkConfiguration" not in result
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.EcsHook"
-    )
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.EcsHook")
     def test_cluster_without_launch_type_falls_back_to_fargate_when_no_default_capacity_provider(
         self, mock_ecs_hook
     ):
@@ -170,20 +154,14 @@ class TestBuildTaskKwargs:
         mock_conn.describe_clusters.assert_called_once_with(clusters=["c1"])
         assert result["launchType"] == ECS_LAUNCH_TYPE_FARGATE
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.EcsHook"
-    )
-    def test_cluster_retains_default_capacity_provider_when_present(
-        self, mock_ecs_hook
-    ):
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.EcsHook")
+    def test_cluster_retains_default_capacity_provider_when_present(self, mock_ecs_hook):
         mock_conn = mock.MagicMock()
         mock_conn.describe_clusters.return_value = {
             "clusters": [
                 {
                     "clusterName": "c1",
-                    "defaultCapacityProviderStrategy": [
-                        {"capacityProvider": "FARGATE"}
-                    ],
+                    "defaultCapacityProviderStrategy": [{"capacityProvider": "FARGATE"}],
                 }
             ]
         }
@@ -207,9 +185,7 @@ class TestBuildTaskKwargs:
                 AllEcsConfigKeys.SECURITY_GROUPS: "sg-1",
             }
         )
-        with pytest.raises(
-            ValueError, match="At least one subnet is required to run a task."
-        ):
+        with pytest.raises(ValueError, match="At least one subnet is required to run a task."):
             build_task_kwargs(conf)
 
     def test_json_decode_error_raises_value_error(self):
@@ -220,9 +196,9 @@ class TestBuildTaskKwargs:
             }
         )
         with mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.json.loads"
-        ) as mock_loads:
-            mock_loads.side_effect = JSONDecodeError("msg", "doc", 0)
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.json.dumps",
+            return_value="not valid json",
+        ):
             with pytest.raises(
                 ValueError,
                 match="AWS ECS Executor config values must be JSON serializable.",
