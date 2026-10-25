@@ -43,6 +43,7 @@ vi.mock("openapi/queries", async (importOriginal) => {
   return {
     ...actual,
     useDeadlinesServiceGetDagDeadlineAlerts: vi.fn(),
+    useDeadlinesServiceGetDeadlines: vi.fn(),
   };
 });
 
@@ -52,7 +53,8 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
 }));
 
-const { useDeadlinesServiceGetDagDeadlineAlerts } = await import("openapi/queries");
+const { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } =
+  await import("openapi/queries");
 
 const baseDagRun = {
   bundle_version: null,
@@ -81,9 +83,77 @@ const baseDagRun = {
 describe("Header", () => {
   beforeEach(() => {
     mockConfig.multi_team = false;
+    vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
+      data: { deadlines: [], total_entries: 0 },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: undefined,
     } as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+  });
+
+  it.each([
+    { filters: [["scheduled"]], runType: "backfill", visible: false },
+    { filters: [["scheduled"]], runType: "scheduled", visible: true },
+    { filters: [null], runType: "backfill", visible: true },
+    { filters: [["scheduled"], ["manual"]], runType: "backfill", visible: false },
+    { filters: [["scheduled"], ["backfill"]], runType: "backfill", visible: true },
+  ] as const)(
+    "shows deadline status=$visible for $runType with $filters",
+    ({ filters, runType, visible }) => {
+      vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+        data: {
+          deadline_alerts: filters.map((filter, index) => ({
+            id: String(index),
+            interval: 25,
+            reference_type: "DagRunQueuedAtDeadline",
+            run_type_filter: filter,
+          })),
+          total_entries: filters.length,
+        },
+        isLoading: false,
+      } as unknown as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+
+      render(<Header dagRun={{ ...baseDagRun, run_type: runType }} />, { wrapper: Wrapper });
+
+      expect(screen.queryByText(i18n.t("dag:deadlineStatus.label")))[
+        visible ? "toBeInTheDocument" : "toBeNull"
+      ]();
+      expect(screen.queryByText(i18n.t("dag:deadlineStatus.met")))[
+        visible ? "toBeInTheDocument" : "toBeNull"
+      ]();
+    },
+  );
+
+  it("keeps stored deadlines visible when the current filter excludes the run", () => {
+    vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+      data: {
+        deadline_alerts: [
+          {
+            id: "alert",
+            interval: 25,
+            reference_type: "DagRunQueuedAtDeadline",
+            run_type_filter: ["scheduled"],
+          },
+        ],
+        total_entries: 1,
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+    vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
+      data: {
+        deadlines: [
+          { alert_id: "alert", deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true },
+        ],
+        total_entries: 1,
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
+
+    render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.label"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
   });
 
   it("shows the partition key stat using the dagRun.partitionKey label when partition_key is set", () => {

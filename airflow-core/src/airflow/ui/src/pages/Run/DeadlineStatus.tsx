@@ -24,14 +24,14 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
-import { translateCompletionRule } from "src/utils/deadlines";
+import { isDeadlineAlertApplicable, translateCompletionRule } from "src/utils/deadlines";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
 
@@ -39,9 +39,10 @@ type DeadlineStatusProps = {
   readonly dagId: string;
   readonly dagRunId: string;
   readonly endDate: string | null;
+  readonly runType: DAGRunResponse["run_type"];
 };
 
-export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps) => {
+export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
   const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,7 +54,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     orderBy: ["deadline_time"],
   });
 
-  // Used to detect whether the DAG has any deadline alerts at all, so we can show "Met" when there are alerts configured but no active deadline instances.
   const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
     dagId,
     limit: 100,
@@ -69,11 +69,12 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     return undefined;
   }
 
-  // Active instances for this run; hasAlerts = DAG has deadline alerts configured.
   const deadlines = deadlineData?.deadlines ?? [];
-  const hasAlerts = (alertData?.total_entries ?? 0) > 0;
+  const applicableAlerts = (alertData?.deadline_alerts ?? []).filter((deadlineAlert) =>
+    isDeadlineAlertApplicable(deadlineAlert, runType),
+  );
+  const hasAlerts = applicableAlerts.length > 0;
 
-  // No deadline alerts configured on the DAG at all
   if (deadlines.length === 0 && !hasAlerts) {
     return undefined;
   }
@@ -83,7 +84,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   if (deadlines.length === 0 && hasAlerts) {
     const tooltipContent = (
       <VStack alignItems="flex-start" gap={0.5}>
-        {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
+        {applicableAlerts.map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
             {translateCompletionRule(translate, deadlineAlert, locale)}
           </Text>
