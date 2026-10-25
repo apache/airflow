@@ -166,7 +166,8 @@ def released_comment(marker: Marker) -> str:
     return (
         f"{render_marker(marker)}\n\n"
         "**Project CI in use.** A maintainer added the `use project ci` label, so CI for this pull "
-        "request runs in apache/airflow. It starts on the next push or re-run." + FOOTER
+        "request runs in apache/airflow. It starts on the next push, or when a maintainer closes and "
+        "reopens this pull request." + FOOTER
     )
 
 

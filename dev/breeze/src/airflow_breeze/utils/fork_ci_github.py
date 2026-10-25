@@ -187,6 +187,13 @@ class GitHubClient:
             {"state": "closed"},
         )
 
+    def delete_run(self, pr: int, run_id: int) -> None:
+        self._mutate(
+            f"#{pr}: delete workflow run {run_id}",
+            ["api", "-X", "DELETE", f"repos/{self.repo}/actions/runs/{run_id}"],
+            None,
+        )
+
     def set_status(
         self,
         pr: int,

@@ -79,14 +79,17 @@ GATE_JOB_NAME = "Fork CI gate"
 # Jobs that also run, without needing the gate, in a run the gate left to fork CI: main's
 # check-run-needed (no steps outside schedule and push runs) and the "CI passed" gate job of the
 # merge ruleset, which reports as "CI passed (project CI not run)" when project CI was skipped and
-# as "CI passed" when a newer push cancelled the run before build-info started. Like the gate, each
-# must finish within GATE_MAX_DURATION, so project CI work moved under one of these names counts.
-# Each runs once, so the names of one job are grouped: repeating short jobs under them counts too.
+# as "CI passed (run cancelled)" when a newer push cancelled the run before build-info started --
+# "CI passed" in a workflow from before that name. Like the gate, each must finish within
+# GATE_MAX_DURATION, so project CI work moved under one of these names counts. Each runs once, so
+# the names of one job are grouped: repeating short jobs under them counts too.
 GATED_RUN_JOBS = (
     frozenset({"Check if the run is needed"}),
-    frozenset({"CI passed (project CI not run)", "CI passed"}),
+    frozenset({"CI passed (project CI not run)", "CI passed (run cancelled)", "CI passed"}),
 )
 GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
+CHECK_RUN_NEEDED_JOB_NAME = "Check if the run is needed"
+PROJECT_CI_NOT_RUN_JOB_NAME = "CI passed (project CI not run)"
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
@@ -155,6 +158,7 @@ class WorkflowRun:
     updated_at: datetime
     status: str
     event: str = "pull_request"
+    run_attempt: int = 1
 
     @property
     def workflow_file(self) -> str:
@@ -306,6 +310,25 @@ def jobs_show_project_ci(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
     return any(
         job["name"] not in expected_names and has_job_started(job) and job.get("conclusion") != "skipped"
         for job in jobs
+    )
+
+
+def is_gated_skip_run(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
+    """
+    Whether a completed ci-amd.yml run is only the gate leaving the pull request to fork CI.
+
+    Such a run lists every project CI job as a skipped check on the pull request, next to the
+    fork's result in the `Fork CI / Tests (AMD)` status. The gate and the check-run-needed job
+    succeeded, CI passed reported as not run, and every other job was skipped.
+    """
+    jobs = list(jobs)
+    if jobs_show_project_ci(jobs, now):
+        return False
+    succeeded = {GATE_JOB_NAME, CHECK_RUN_NEEDED_JOB_NAME, PROJECT_CI_NOT_RUN_JOB_NAME}
+    if sorted(job["name"] for job in jobs if job["name"] in succeeded) != sorted(succeeded):
+        return False
+    return all(
+        job.get("conclusion") == ("success" if job["name"] in succeeded else "skipped") for job in jobs
     )
 
 
@@ -919,6 +942,7 @@ def parse_workflow_run(run: dict[str, Any]) -> WorkflowRun:
         updated_at=parse_github_datetime(run["updated_at"]),  # type: ignore[arg-type]
         status=run["status"],
         event=run["event"],
+        run_attempt=run.get("run_attempt") or 1,
     )
 
 
@@ -987,6 +1011,16 @@ class BypassFinder:
         )
         self._did_project_ci: dict[int, bool] = {}
         self._changes_workflows: dict[tuple[str, str], bool | None] = {}
+        self._jobs: dict[int, list[dict[str, Any]]] = {}
+
+    def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
+        if run.id not in self._jobs:
+            self._jobs[run.id] = self._client.rest_get(
+                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
+                paginate=True,
+                items_key="jobs",
+            )
+        return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
         if run.id not in self._did_project_ci:
@@ -997,14 +1031,32 @@ class BypassFinder:
             elif run.workflow_file != CI_WORKFLOW_FILE or not run.is_long_running(self._now):
                 result = False
             else:
-                jobs = self._client.rest_get(
-                    f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                    paginate=True,
-                    items_key="jobs",
-                )
-                result = jobs_show_project_ci(jobs, self._now)
+                result = jobs_show_project_ci(self._get_jobs(run), self._now)
             self._did_project_ci[run.id] = result
         return self._did_project_ci[run.id]
+
+    def find_gated_runs(self, pr: PullRequestSnapshot) -> list[WorkflowRun]:
+        """
+        Completed ci-amd.yml pull_request runs of the pull request's branch that only gated it.
+
+        A commit that changes workflows could do project CI work under the gate's name within its
+        time limit, so its runs are kept as evidence, as are runs whose change set is too large
+        to check. The jobs read are those of the latest attempt, and deleting a run deletes every
+        attempt, so a re-run is kept: an earlier attempt may have run project CI.
+        """
+        if not pr.head_repo:
+            return []
+        return [
+            run
+            for run in self._runs_by_branch.get((pr.head_repo.casefold(), pr.head_ref), [])
+            if run.workflow_file == CI_WORKFLOW_FILE
+            and run.event == "pull_request"
+            and run.status == "completed"
+            and run.run_attempt == 1
+            and not self._did_run_project_ci(run)
+            and is_gated_skip_run(self._get_jobs(run), self._now)
+            and self._commit_changes_workflows(run, pr.base_ref) is False
+        ]
 
     def _commit_changes_workflows(self, run: WorkflowRun, base_ref: str) -> bool | None:
         """Whether the run's commit changes workflows against the base; None when not knowable."""
@@ -1269,6 +1321,12 @@ def run_reconcile(
                 count_behind=functools.partial(count_commits_behind, client, repo, pr),
             )
             apply_plan(client, pr, plan)
+            # The fork's result is in the `Fork CI / Tests (AMD)` status; the gated run's skipped
+            # checks only clutter the pull request. Runs with any project CI work stay for the
+            # tampering check.
+            if plan.state != ForkState.GATE_BYPASSED:
+                for run in bypass_finder.find_gated_runs(pr):
+                    client.delete_run(pr.number, run.id)
             unknown.extend((pr.number, reason) for reason in plan.unknown)
             attention.extend((pr.number, item) for item in plan.attention)
         except Exception as e:
