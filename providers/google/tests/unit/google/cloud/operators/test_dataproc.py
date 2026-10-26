@@ -1898,8 +1898,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
@@ -1969,8 +1969,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -2028,8 +2028,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3120,8 +3120,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
         mock_op.return_value.result.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
@@ -3315,8 +3315,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3425,8 +3425,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -4124,8 +4124,8 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch with given id already exists.")
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -4182,8 +4182,8 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link)
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
@@ -4250,8 +4250,8 @@ class TestDataprocCreateBatchOperator:
             logs_link,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))

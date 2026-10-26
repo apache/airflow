@@ -102,7 +102,7 @@ everything after it, so the run finishes in seconds; see
 
 GitHub holds the runs of a fork PR in `action_required` until someone with write access approves
 them, for the contributors the repository's approval setting covers. The
-`auto-approve-workflow-runs.yml` workflow runs every 30 minutes on `main` and calls
+`auto-approve-workflow-runs.yml` workflow runs every 15 minutes on `main` and calls
 `breeze ci approve-workflow-runs`, which approves the waiting runs of a commit when all of these hold:
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
@@ -138,9 +138,9 @@ run started before a label that changes which tests run was added or removed
 (`full tests needed`, `all versions`, `default versions only`, `latest versions only`, `canary`,
 `upgrade to newer dependencies`, `area:e2e-tests`, `area:kubernetes-tests`) is left for a
 maintainer, since it still runs the selection it started with; the next push is decided afresh.
-For a PR whose CI runs in the fork the selection does not matter, but the gate falls back to the
-labels a run started with when it cannot read the current ones, so a run started before
-`use fork ci` or `use project ci` was added or removed is left for a maintainer instead. Other PRs get the
+For a PR whose CI runs in the fork neither the selection nor the labels a run started with matter:
+the gate reads the current labels when the run starts and fails when it cannot, so a run started
+before `use fork ci` or `use project ci` was added or removed is approved too. Other PRs get the
 `need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
 a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
 failure stays visible even if the label could not be added. The label is removed when a later commit
