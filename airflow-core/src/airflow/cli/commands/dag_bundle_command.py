@@ -22,6 +22,7 @@ from contextlib import contextmanager
 
 from airflow._shared.module_loading import import_string
 from airflow.cli.simple_table import AirflowConsole
+from airflow.dag_processing.bundles.artifact_store import BundleManifestRefDurabilityError
 from airflow.dag_processing.bundles.manager import get_configured_bundle_config
 from airflow.dag_processing.bundles.manifest import BundleManifestError, is_valid_bundle_version
 from airflow.dag_processing.bundles.manifest_local import (
@@ -72,15 +73,20 @@ def dag_bundle_publish_local(args) -> None:
     with _exit_on_error(args, load_error, TypeError):
         bundle = bundle_class(name=args.bundle_name, version=None, **bundle_config.kwargs)
 
-    # ValueError: the source, published root and cache paths overlap.
-    with _exit_on_error(
-        args, f"Failed to publish Dag bundle {args.bundle_name!r}", BundleManifestError, OSError, ValueError
-    ):
+    try:
         result = publish_manifest_local_dag_bundle(
             bundle=bundle,
             source_path=args.source_path,
             expected_current_version=expected_current_version,
         )
+    except BundleManifestRefDurabilityError as e:
+        if args.verbose:
+            raise
+        raise SystemExit(f"Cannot confirm publication of Dag bundle {args.bundle_name!r}: {e}") from None
+    except (BundleManifestError, OSError, ValueError) as e:
+        if args.verbose:
+            raise
+        raise SystemExit(f"Failed to publish Dag bundle {args.bundle_name!r}: {e}") from None
 
     # No colour: FORCE_COLOR, often set in CI, would otherwise put ANSI codes into JSON output.
     AirflowConsole(color_system=None).print_as(

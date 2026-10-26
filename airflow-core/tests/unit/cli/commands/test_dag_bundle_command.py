@@ -16,14 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import errno
 import json
 import os
 import subprocess
 import sys
+from unittest import mock
 
 import pytest
 
 from airflow.cli.commands import dag_bundle_command
+from airflow.dag_processing.bundles import filesystem_artifact_store
+from airflow.dag_processing.bundles.artifact_store import BundleManifestRefDurabilityError
 
 from tests_common.test_utils.config import conf_vars
 
@@ -224,6 +228,64 @@ def test_publish_local_keeps_traceback_when_verbose(parser, source):
     args = parser.parse_args(["dag-bundles", "publish-local", "missing", str(source), "--verbose"])
 
     with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured."):
+        dag_bundle_command.dag_bundle_publish_local(args)
+
+
+@mock.patch.object(filesystem_artifact_store, "fsync_directory", autospec=True)
+@pytest.mark.parametrize("verbose", [False, True])
+def test_publish_local_reports_uncertain_durability_after_reference_replacement(
+    mock_fsync_directory, parser, capsys, source, published_root, verbose
+):
+    first = _publish(parser, capsys, "manifest-local", source)
+    manifest_ref_path = published_root / "refs" / "manifest-local" / "latest.json"
+    (source / "dag.py").write_text("print('new release')")
+    sync_error = OSError(errno.EIO, "directory sync failed")
+
+    def fail_after_reference_replacement(path):
+        if path == manifest_ref_path.parent:
+            current_version = json.loads(manifest_ref_path.read_text())["version"]
+            if current_version != first["version"]:
+                raise sync_error
+
+    mock_fsync_directory.side_effect = fail_after_reference_replacement
+    args = parser.parse_args(
+        [
+            "dag-bundles",
+            "publish-local",
+            "manifest-local",
+            str(source),
+            "--expected-current-version",
+            first["version"],
+            "--output",
+            "json",
+        ]
+    )
+    args.verbose = verbose
+    error_type = BundleManifestRefDurabilityError if verbose else SystemExit
+    message = (
+        "Release reference .* was replaced, but durability could not be confirmed"
+        if verbose
+        else "Cannot confirm publication of Dag bundle 'manifest-local': Release reference"
+    )
+
+    with pytest.raises(error_type, match=message) as exc_info:
+        dag_bundle_command.dag_bundle_publish_local(args)
+
+    current_version = json.loads(manifest_ref_path.read_text())["version"]
+    assert current_version != first["version"]
+    assert (published_root / "versions" / "manifest-local" / current_version / "dag.py").read_text() == (
+        "print('new release')"
+    )
+    assert "Check the current reference before retrying publication" in str(exc_info.value)
+    assert capsys.readouterr().out == ""
+    if verbose:
+        assert exc_info.value.__cause__ is sync_error
+        assert exc_info.value.ref_path == manifest_ref_path
+        assert exc_info.value.version == current_version
+
+    mock_fsync_directory.side_effect = None
+    args.verbose = False
+    with pytest.raises(SystemExit, match="manifest reference changed: expected"):
         dag_bundle_command.dag_bundle_publish_local(args)
 
 

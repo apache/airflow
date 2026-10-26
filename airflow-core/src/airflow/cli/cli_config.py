@@ -1250,7 +1250,9 @@ DAG_BUNDLES_COMMANDS = (
         description=(
             "Copy the source directory into an immutable, content-addressed snapshot under the "
             "bundle's published_root, then point the bundle's release reference at it. The "
-            "previous release stays current if publication fails. Does not use the metadata database."
+            "previous release is unchanged if publication fails before replacing the reference. "
+            "If the final disk sync fails after replacement, the new release may already be active; "
+            "check the current reference before retrying. Does not use the metadata database."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_bundle_command.dag_bundle_publish_local"),
         args=(
