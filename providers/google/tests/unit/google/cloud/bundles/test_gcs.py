@@ -22,7 +22,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, PreconditionFailed
 
 import airflow.version
 from airflow.models import Connection
@@ -55,19 +55,25 @@ class _FakeBlob:
         self.name = name
         self.etag: str | None = None
         self.size: int | None = None
-
-    def exists(self) -> bool:
-        return self.name in self._store
+        self.generation: int | None = None
 
     def reload(self) -> None:
+        if self.name not in self._store:
+            raise NotFound(self.name)
         data, etag = self._store[self.name]
         self.etag = etag
         self.size = len(data)
+        self.generation = 1
 
-    def download_to_filename(self, filename: str) -> None:
+    def download_to_filename(self, filename: str, if_generation_match: int | None = None) -> None:
+        if self.name not in self._store:
+            raise NotFound(self.name)
         data, etag = self._store[self.name]
+        if if_generation_match is not None and if_generation_match != 1:
+            raise PreconditionFailed("generation mismatch")
         self.etag = etag
         self.size = len(data)
+        self.generation = 1
         Path(filename).write_bytes(data)
 
 
@@ -349,9 +355,9 @@ class TestGCSDagBundleArchive:
             blob = original_blob(self, blob_name)
             real_download = blob.download_to_filename
 
-            def download(filename):
+            def download(filename, if_generation_match=None):
                 calls["download"] += 1
-                return real_download(filename)
+                return real_download(filename, if_generation_match=if_generation_match)
 
             blob.download_to_filename = download
             return blob
@@ -398,6 +404,34 @@ class TestGCSDagBundleArchive:
         with pytest.raises(ValueError, match="does not exist"):
             bundle.initialize()
         mock_gcs_hook_property.return_value.sync_to_local_dir.assert_not_called()
+
+    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    def test_generation_mismatch_keeps_previous_tree(self, mock_gcs_hook_property):
+        store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
+        mock_gcs_hook_property.return_value = _archive_hook(store)
+
+        bundle = GCSDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        bundle.initialize()
+        store[GCS_ARCHIVE_OBJECT] = (_make_archive({"dag_02.py": b"print(2)\n"}), "etag-2")
+
+        with (
+            patch.object(
+                _FakeBlob,
+                "download_to_filename",
+                side_effect=PreconditionFailed("generation mismatch"),
+            ),
+            pytest.raises(PreconditionFailed, match="generation mismatch"),
+        ):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert not (bundle.path / "dag_02.py").exists()
+        assert list(bundle.path.parent.glob(".gcs-archive-*")) == []
 
     @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
     def test_corrupt_archive_keeps_previous_tree(self, mock_gcs_hook_property):
