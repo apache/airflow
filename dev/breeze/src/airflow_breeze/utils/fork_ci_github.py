@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import time
 from collections import Counter
@@ -31,6 +32,10 @@ from airflow_breeze.utils.fork_ci_messages import STATUS_CONTEXT
 
 RATE_LIMIT_MARKERS = ("rate limit", "secondary rate", "abuse detection")
 MAX_ATTEMPTS = 4
+# GitHub answers with these while overloaded, and GraphQL searches that take too long end in HTTP 504;
+# the same call usually succeeds shortly after.
+SERVER_ERROR = re.compile(r"\bHTTP 5\d\d\b")
+SERVER_ERROR_WAIT_SECONDS = 10
 # A hung `gh` would otherwise hold the job until its timeout-minutes.
 GH_TIMEOUT_SECONDS = 120
 
@@ -46,14 +51,23 @@ class GitHubClient:
         self.calls: Counter[str] = Counter()
 
     def _gh(
-        self, args: Sequence[str], body: dict[str, Any] | None, kind: str, *, allow_error_output: bool = False
+        self,
+        args: Sequence[str],
+        body: dict[str, Any] | None,
+        kind: str,
+        *,
+        allow_error_output: bool = False,
+        retry_server_errors: bool = True,
     ) -> Any:
         """
         :param allow_error_output: return the JSON output of a failed call when it has any. ``gh api
             graphql`` exits non-zero when some fields of the response errored, with the data GitHub
             could resolve still on stdout.
+        :param retry_server_errors: repeat a call that failed with a server error. Off for a call that
+            may have taken effect anyway and must not be repeated, such as creating a comment.
         """
         payload = json.dumps(body) if body is not None else None
+        rate_limited = False
         for attempt in range(MAX_ATTEMPTS):
             self.calls[kind] += 1
             try:
@@ -69,11 +83,13 @@ class GitHubClient:
                 raise GitHubError(f"gh {' '.join(args)} timed out after {GH_TIMEOUT_SECONDS}s")
             if result.returncode == 0:
                 return json.loads(result.stdout) if result.stdout.strip() else None
-            if any(marker in result.stderr.lower() for marker in RATE_LIMIT_MARKERS):
+            rate_limited = any(marker in result.stderr.lower() for marker in RATE_LIMIT_MARKERS)
+            if rate_limited or (retry_server_errors and SERVER_ERROR.search(result.stderr)):
                 if attempt == MAX_ATTEMPTS - 1:
                     break
-                wait = 30 * 2**attempt
-                console_print(f"[warning]GitHub rate limit, retrying in {wait}s[/]")
+                reason = "rate limit" if rate_limited else "server error"
+                wait = (30 if rate_limited else SERVER_ERROR_WAIT_SECONDS) * 2**attempt
+                console_print(f"[warning]GitHub {reason}, retrying in {wait}s[/]")
                 time.sleep(wait)
                 continue
             if allow_error_output and result.stdout.strip():
@@ -82,7 +98,11 @@ class GitHubClient:
                 except json.JSONDecodeError:
                     pass
             raise GitHubError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
-        raise GitHubError(f"gh {' '.join(args)} still rate limited after {MAX_ATTEMPTS} attempts")
+        if rate_limited:
+            raise GitHubError(f"gh {' '.join(args)} still rate limited after {MAX_ATTEMPTS} attempts")
+        raise GitHubError(
+            f"gh {' '.join(args)} still failing after {MAX_ATTEMPTS} attempts: {result.stderr.strip()}"
+        )
 
     def graphql(
         self, query: str, variables: dict[str, Any] | None = None, *, allow_partial: bool = False
@@ -123,12 +143,19 @@ class GitHubClient:
         """GET every page of a paginated REST path, keeping page-level fields such as ``total_count``."""
         return self._gh(["api", path, "--paginate", "--slurp"], None, "rest")
 
-    def _mutate(self, description: str, args: Sequence[str], body: dict[str, Any] | None) -> None:
+    def _mutate(
+        self,
+        description: str,
+        args: Sequence[str],
+        body: dict[str, Any] | None,
+        *,
+        retry_server_errors: bool = True,
+    ) -> None:
         if self.dry_run:
             console_print(f"[info][dry-run] {description}[/]")
             return
         console_print(f"[info]{description}[/]")
-        self._gh(args, body, "mutation")
+        self._gh(args, body, "mutation", retry_server_errors=retry_server_errors)
 
     def add_labels(self, pr: int, labels: Sequence[str]) -> None:
         self._mutate(
@@ -144,33 +171,12 @@ class GitHubClient:
             None,
         )
 
-    def convert_to_draft(self, pr: int, node_id: str) -> None:
-        self._mutate(
-            f"#{pr}: convert to draft",
-            ["api", "graphql"],
-            {
-                "query": "mutation($id: ID!) { convertPullRequestToDraft(input: {pullRequestId: $id}) "
-                "{ clientMutationId } }",
-                "variables": {"id": node_id},
-            },
-        )
-
-    def mark_ready(self, pr: int, node_id: str) -> None:
-        self._mutate(
-            f"#{pr}: mark ready for review",
-            ["api", "graphql"],
-            {
-                "query": "mutation($id: ID!) { markPullRequestReadyForReview(input: {pullRequestId: $id}) "
-                "{ clientMutationId } }",
-                "variables": {"id": node_id},
-            },
-        )
-
     def create_comment(self, pr: int, body: str) -> None:
         self._mutate(
             f"#{pr}: create comment",
             ["api", "-X", "POST", f"repos/{self.repo}/issues/{pr}/comments"],
             {"body": body},
+            retry_server_errors=False,
         )
 
     def update_comment(self, pr: int, comment_id: int, body: str) -> None:

@@ -60,7 +60,7 @@
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
-    "count_one": "{{count, number}} 個期限",
+    "count_one": "1 個期限",
     "count_other": "{{count, number}} 個期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均執行時間",
@@ -76,12 +76,12 @@
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",
-    "missedCount_one": "{{count, number}} 個已逾期的期限",
+    "missedCount_one": "1 個已逾期的期限",
     "missedCount_other": "{{count, number}} 個已逾期的期限",
     "mixedCount": "{{missedCount, number}} 個已逾期，{{upcomingCount, number}} 個即將到期",
     "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
-    "upcomingCount_one": "{{count, number}} 個即將到期的期限",
+    "upcomingCount_one": "1 個即將到期的期限",
     "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
@@ -263,7 +263,7 @@
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
-    "mappedTaskInstances_one": "任務實例 [{{count, number}}]",
+    "mappedTaskInstances_one": "任務實例 [1]",
     "mappedTaskInstances_other": "任務實例 [{{count, number}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
@@ -356,7 +356,7 @@
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
     "summary_one": "1 項變更",
     "summary_other": "{{count, number}} 項變更",
-    "summaryAtLeast_one": "至少 {{count, number}} 項變更",
+    "summaryAtLeast_one": "至少 1 項變更",
     "summaryAtLeast_other": "至少 {{count, number}} 項變更",
     "target": "比較對象",
     "unavailable": {

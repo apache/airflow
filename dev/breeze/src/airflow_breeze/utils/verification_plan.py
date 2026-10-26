@@ -98,6 +98,8 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
         "run_openlineage_e2e_tests",
         "run_openlineage_e2e_compat_tests",
         "run_ts_sdk_e2e_tests",
+        "run_generic_prod_image_tests",
+        "run_generic_basic_tests",
     }
 )
 

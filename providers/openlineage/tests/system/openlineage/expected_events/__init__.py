@@ -14,6 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Expected OpenLineage events of the system test Dags, in a JSON file per Dag and Airflow version.
+
+The identity of a task event, which a Dag can check for every task event: taskInstance's `id`,
+`dag_version_id` (Airflow 3.1+) and bundle, the absence of fields that don't apply, task's `task_id`,
+`trigger_rule`, `retries` and `retry_delay`, the Dag and Dag run, and the parent run.
+"""
+
 from __future__ import annotations
 
 import os

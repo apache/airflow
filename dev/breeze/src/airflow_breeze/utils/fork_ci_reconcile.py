@@ -28,7 +28,7 @@ import base64
 import functools
 import json
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
@@ -57,11 +57,15 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
+    JOB_STATUS_CONTEXT_PREFIX,
+    JOB_STATUSES,
+    STALE_JOB_STATUS,
     STATUS_CONTEXT,
     STATUS_STATES,
     Marker,
     fork_actions_url,
     inactivity_close_comment,
+    job_status_context,
     nudge_comment,
     parse_marker,
     released_comment,
@@ -121,6 +125,22 @@ SLACK_ITEM_LIMIT = 500
 # Events whose runs use the workflow files of the pull request's merge commit, so a pull request
 # can change what they run. pull_request_target and issue_comment use the base branch's files.
 MERGE_REF_EVENTS = ("pull_request", "pull_request_review", "pull_request_review_comment")
+
+# Jobs of every fork run whose outcome the `Fork CI / Tests (AMD)` status already shows.
+UNREPORTED_JOB_NAMES = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME, "Platform: AMD"}
+RUNNING_JOB_STATUSES = frozenset({"queued", "waiting", "pending", "requested", "in_progress"})
+JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
+# Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
+# every workflow of the repository. At four runs an hour this keeps job statuses to at most about
+# half of it; the rest follow on the next run, failures first. See "Job statuses" in the design doc.
+MAX_JOB_STATUSES_PER_RUN = 60
+# Fixed text, so the note is posted to Slack once while deferrals persist; the run log lists the pull
+# requests.
+JOB_STATUSES_DEFERRED_NOTE = (
+    f"job statuses did not fit in the budget of {MAX_JOB_STATUSES_PER_RUN} writes per run and are "
+    "posted by later runs; if this persists, set `job_statuses = false` in .github/fork-ci-gate.toml "
+    "(see dev/AGENTS.md)"
+)
 
 RUNNING_STATUSES = frozenset({"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"})
 FAILED_CONCLUSIONS = frozenset({"FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"})
@@ -212,6 +232,8 @@ class ForkObservation:
     suite_status: str | None = None
     suite_conclusion: str | None = None
     run_url: str | None = None
+    run_id: int | None = None
+    run_attempt: int | None = None
     workflow_state: str | None = None
     error: str | None = None
 
@@ -429,6 +451,7 @@ def classify(
     find_bypass_run: Callable[[], str | None],
     changes_ci_files: Callable[[], bool | None],
     count_behind: Callable[[], int | None] = lambda: None,
+    jobs_reported: str | None = None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -443,6 +466,8 @@ def classify(
         commit the answer may not belong to.
     :param count_behind: how many commits the head commit is behind the base branch, None when
         unknown; called at the same time as ``changes_ci_files``.
+    :param jobs_reported: the completed fork run whose jobs are all reported as statuses, recorded
+        in the marker so that later runs do not read its jobs again.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -598,7 +623,7 @@ def classify(
         plan,
         pr,
         state_comment(
-            Marker(state.value, pr.head_sha, since, behind=behind if green else None),
+            Marker(state.value, pr.head_sha, since, behind=behind if green else None, jobs=jobs_reported),
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
@@ -888,7 +913,7 @@ def fetch_fork_observations(
             fields.append(
                 f"pr{index}: repository(owner: $o{index}, name: $n{index}) {{ object(oid: $s{index}) {{ "
                 "... on Commit { checkSuites(first: 30) { nodes { createdAt status conclusion "
-                "workflowRun { url event workflow { resourcePath } } } } } } }"
+                "workflowRun { databaseId runAttempt url event workflow { resourcePath } } } } } } }"
             )
             variables.update({f"o{index}": owner, f"n{index}": name, f"s{index}": pr.head_sha})
         query = f"query({', '.join(declarations)}) {{ {' '.join(fields)} }}"
@@ -916,8 +941,111 @@ def fetch_fork_observations(
                 suite_status=latest["status"],
                 suite_conclusion=latest["conclusion"],
                 run_url=latest["workflowRun"]["url"],
+                run_id=latest["workflowRun"].get("databaseId"),
+                run_attempt=latest["workflowRun"].get("runAttempt"),
             )
     return observations
+
+
+def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
+    """The ``(state, target URL, description)`` to report for each queued or started fork job, by context."""
+    statuses: dict[str, tuple[str, str, str]] = {}
+    # GitHub compares contexts case-insensitively, so differently capitalised names are one context.
+    contexts: dict[str, str] = {}
+    for job in jobs:
+        if job["name"] in UNREPORTED_JOB_NAMES:
+            continue
+        if job.get("status") in RUNNING_JOB_STATUSES:
+            outcome = "running"
+        else:
+            outcome = job.get("conclusion") or ""
+        if outcome not in JOB_STATUSES:
+            # Skipped and neutral jobs did no work worth a check on the pull request.
+            continue
+        state, description = JOB_STATUSES[outcome]
+        context = contexts.setdefault(
+            job_status_context(job["name"]).casefold(), job_status_context(job["name"])
+        )
+        # Jobs can share a name, or two names can be the same once shortened; the worst one counts.
+        reported = statuses.get(context)
+        if reported is None or JOB_STATE_RANKS[state] < JOB_STATE_RANKS[reported[0]]:
+            statuses[context] = (state, job["html_url"], description)
+    return statuses
+
+
+class JobStatusReporter:
+    """Reports each job of a pull request's fork run as a commit status, within a per-run budget."""
+
+    def __init__(self, client: GitHubClient, *, repo: str, budget: int = MAX_JOB_STATUSES_PER_RUN):
+        self._client = client
+        self._repo = repo
+        self.remaining = budget
+        self.deferred: list[int] = []
+
+    def report(self, pr: PullRequestSnapshot, fork: ForkObservation) -> str | None:
+        """
+        Post the job statuses that changed; return the completed run's key once all are reported.
+
+        The key is recorded in the marker, so a completed run's jobs are read once. A run in
+        progress, or one whose statuses did not all fit in the budget, is read again next time. The
+        key holds the run attempt, so a re-run in the fork is read again even when it ends with the
+        same conclusion.
+        """
+        if fork.run_id is None or not pr.head_repo:
+            return None
+        key = (
+            f"{fork.run_id}:{fork.run_attempt}:{fork.suite_conclusion}"
+            if fork.suite_status == "COMPLETED"
+            else None
+        )
+        recorded = pr.marker.jobs if pr.marker is not None and pr.marker.sha == pr.head_sha else None
+        if key is not None and key == recorded:
+            return key
+        # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
+        # would otherwise cost two reads each on every run.
+        if self.remaining == 0:
+            self.deferred.append(pr.number)
+            return None
+        jobs = self._client.rest_get(
+            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
+            paginate=True,
+            items_key="jobs",
+        )
+        # By the case-folded context, as GitHub compares them.
+        current = {
+            status["context"].casefold(): (
+                status["context"],
+                (status["state"], status.get("target_url") or "", status.get("description") or ""),
+            )
+            for status in self._client.rest_get(
+                f"repos/{self._repo}/commits/{pr.head_sha}/status?per_page=100",
+                paginate=True,
+                items_key="statuses",
+            )
+        }
+        desired = build_job_statuses(jobs)
+        if key is not None:
+            # Jobs of an earlier run of this commit that the completed run did not run, or skipped.
+            wanted = {context.casefold() for context in desired}
+            for folded, (context, (_, target_url, _)) in current.items():
+                if context.startswith(JOB_STATUS_CONTEXT_PREFIX) and folded not in wanted:
+                    desired[context] = (STALE_JOB_STATUS[0], target_url, STALE_JOB_STATUS[1])
+        changes = sorted(
+            (
+                (context, status)
+                for context, status in desired.items()
+                if current.get(context.casefold(), ("", None))[1] != status
+            ),
+            key=lambda change: (JOB_STATE_RANKS[change[1][0]], change[0]),
+        )
+        for context, (state, target_url, description) in changes:
+            if self.remaining == 0:
+                self.deferred.append(pr.number)
+                return None
+            self._client.set_status(pr.number, pr.head_sha, state, target_url, description, context=context)
+            # Charged per write, so writes made before a later one fails still count.
+            self.remaining -= 1
+        return key
 
 
 def fetch_workflow_state(client: GitHubClient, fork: str) -> str:
@@ -1135,8 +1263,14 @@ def find_state_comment(client: GitHubClient, repo: str, pr: PullRequestSnapshot)
 
 def read_head_status(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> PullRequestSnapshot:
     """Read the reconciler's statuses from the head commit, for a snapshot that could not."""
-    combined = client.rest_get(f"repos/{repo}/commits/{pr.head_sha}/status?per_page=100")
-    statuses = {status["context"]: status for status in combined.get("statuses") or []}
+    # Every page: with job statuses a commit can carry more than 100 contexts, and a missed `CI passed`
+    # success would not be revoked.
+    statuses = {
+        status["context"]: status
+        for status in client.rest_get(
+            f"repos/{repo}/commits/{pr.head_sha}/status?per_page=100", paginate=True, items_key="statuses"
+        )
+    }
     status = statuses.get(STATUS_CONTEXT)
     ci_passed = statuses.get(CI_PASSED_CONTEXT)
     return replace(
@@ -1179,9 +1313,29 @@ def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapsho
     return compare.get("behind_by")
 
 
-def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> None:
-    if plan.draft is True:
-        client.convert_to_draft(pr.number, pr.node_id)
+@dataclass(frozen=True)
+class DraftChange:
+    """A draft state change, applied by the monitor's draft-state job rather than the reconciler."""
+
+    number: int
+    node_id: str
+    draft: bool
+    # Remove `fork ci required` once the pull request is undrafted.
+    release: bool = False
+
+
+def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> DraftChange | None:
+    """
+    Apply the plan, except for the draft state change, which is returned.
+
+    GitHub authorises draft changes against `contents: write`, which the reconciler, running
+    Breeze and its dependencies, does not get; a separate job with no other code applies them.
+    """
+    draft_change = None
+    if plan.draft is not None:
+        verb = "convert to draft" if plan.draft else "mark ready for review"
+        console_print(f"[info]#{pr.number}: {verb} (left to the draft-state job)[/]")
+        draft_change = DraftChange(pr.number, pr.node_id, plan.draft)
     if plan.add_labels:
         client.add_labels(pr.number, plan.add_labels)
     for label in plan.remove_labels:
@@ -1198,14 +1352,17 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
         client.set_status(pr.number, pr.head_sha, *plan.ci_passed, context=CI_PASSED_CONTEXT)
     for comment in plan.new_comments:
         client.create_comment(pr.number, comment)
-    if plan.draft is False:
-        client.mark_ready(pr.number, pr.node_id)
     if plan.close:
         client.close(pr.number)
     # Last, because the label is what brings the pull request back to the next run: when an
     # earlier mutation fails, the next run retries the release instead of losing track of it.
+    # A release that undrafts leaves it to the draft-state job, for the same reason.
     if LABEL_FORK_CI_REQUIRED in plan.remove_labels:
-        client.remove_label(pr.number, LABEL_FORK_CI_REQUIRED)
+        if draft_change is not None and not draft_change.draft:
+            draft_change = replace(draft_change, release=True)
+        else:
+            client.remove_label(pr.number, LABEL_FORK_CI_REQUIRED)
+    return draft_change
 
 
 def _escape_slack(text: str) -> str:
@@ -1255,6 +1412,41 @@ def build_slack_payload(
     }
 
 
+def drop_reported(
+    reported_file: Path,
+    *,
+    unknown: list[tuple[int, str]],
+    attention: list[tuple[int, str]],
+    notes: list[str],
+    record: bool = True,
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
+    """
+    Leave out the items the previous run already reported, and record this run's items.
+
+    Only the previous run's items are kept, so an item that went away and comes back is posted
+    again. A missing or unreadable file reports everything.
+    """
+    current: dict[str, list[Any]] = {
+        "unknown": [list(item) for item in unknown],
+        "attention": [list(item) for item in attention],
+        "notes": notes,
+    }
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        previous = {}
+    if not isinstance(previous, dict):
+        previous = {}
+    if record:
+        reported_file.write_text(json.dumps(current, indent=2))
+
+    def drop(key: str, items: list[Any]) -> list[Any]:
+        seen = previous.get(key) or []
+        return [item for item, stored in zip(items, current[key]) if stored not in seen]
+
+    return drop("unknown", unknown), drop("attention", attention), drop("notes", notes)
+
+
 def run_reconcile(
     client: GitHubClient,
     config: GateConfig,
@@ -1263,6 +1455,8 @@ def run_reconcile(
     run_url: str,
     output_file: Path,
     workflows_dir: Path,
+    reported_file: Path | None = None,
+    draft_changes_file: Path | None = None,
     channel: str = "internal-airflow-ci-cd",
     default_branch: str = "main",
 ) -> bool:
@@ -1272,10 +1466,16 @@ def run_reconcile(
     :param config: the gate configuration of the default branch's checkout.
     :param workflows_dir: ``.github/workflows`` of a checkout of the default branch, whose
         triggers decide which recorded runs were legitimate.
+    :param reported_file: the items of the previous run, replaced by this run's. Items in it are
+        left out of the Slack message, so an item that persists is posted once. A dry run reads
+        it but leaves it unchanged, because it posts nothing.
+    :param draft_changes_file: where the draft state changes for the draft-state job are written,
+        as a JSON list; always written, empty when there are none.
     """
     repo = client.repo
     unknown: list[tuple[int, str]] = []
     attention: list[tuple[int, str]] = []
+    draft_changes: list[DraftChange] = []
     configs = BaseGateConfigs(client, repo=repo, default_branch=default_branch, default_config=config)
 
     discover(client, configs, repo=repo, now=now, unknown=unknown)
@@ -1293,6 +1493,7 @@ def run_reconcile(
     bypass_finder = BypassFinder(
         client, repo=repo, now=now, base_triggers=load_workflow_triggers(workflows_dir)
     )
+    job_reporter = JobStatusReporter(client, repo=repo)
 
     for listed in prs:
         try:
@@ -1307,6 +1508,15 @@ def run_reconcile(
                 and needs_workflow_state(pr.marker)
             ):
                 fork = ForkObservation(workflow_state=fetch_workflow_state(client, pr.head_repo))
+            jobs_reported = None
+            if config.job_statuses:
+                # Job statuses are informational; failing to post them must not keep the pull request
+                # from being reconciled, such as a `CI passed` that no longer holds being revoked.
+                try:
+                    jobs_reported = job_reporter.report(pr, fork)
+                except Exception as e:
+                    console_print(f"[warning]#{pr.number}: reporting job statuses failed: {e}[/]")
+                    unknown.append((pr.number, f"reporting job statuses failed: {type(e).__name__}: {e}"))
 
             plan = classify(
                 pr,
@@ -1319,8 +1529,11 @@ def run_reconcile(
                     pull_request_changes_ci_files, client, repo, pr.number, pr.head_sha
                 ),
                 count_behind=functools.partial(count_commits_behind, client, repo, pr),
+                jobs_reported=jobs_reported,
             )
-            apply_plan(client, pr, plan)
+            draft_change = apply_plan(client, pr, plan)
+            if draft_change is not None:
+                draft_changes.append(draft_change)
             # The fork's result is in the `Fork CI / Tests (AMD)` status; the gated run's skipped
             # checks only clutter the pull request. Runs with any project CI work stay for the
             # tampering check.
@@ -1334,10 +1547,22 @@ def run_reconcile(
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
+    if job_reporter.deferred:
+        console_print(
+            f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run: "
+            f"{job_reporter.deferred}[/]"
+        )
+        notes.append(JOB_STATUSES_DEFERRED_NOTE)
     # The full list for the run log; Slack may show only part of a very long one.
     for number, reason in [*unknown, *attention]:
         console_print(f"[warning]#{number}: {reason}[/]")
     console_print(f"[info]Reconciled {len(prs)} pull requests; GitHub calls: {dict(client.calls)}[/]")
+    if draft_changes_file is not None:
+        draft_changes_file.write_text(json.dumps([asdict(change) for change in draft_changes]))
+    if reported_file is not None:
+        unknown, attention, notes = drop_reported(
+            reported_file, unknown=unknown, attention=attention, notes=notes, record=not client.dry_run
+        )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:
         payload = build_slack_payload(

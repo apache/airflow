@@ -233,7 +233,6 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
-          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         # A base branch with neither gate file predates the gate (the pull request adding it,
         # or a release branch cut before it) and keeps running project CI. With only one of
         # them present, the missing file fails the job instead of opening the gate.
@@ -306,6 +305,7 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
+      newsfragment-pr-number: ${{ steps.newsfragment-pr.outputs.pr-number }}
       # platform is hardcoded per workflow file (this is the
       # AMD copy). The matching ARM copy lives in ci-arm.yml.
       platform: "linux/amd64"
@@ -323,6 +323,8 @@ jobs:
       run-agent-framework-tests: ${{ steps.selective-checks.outputs.run-agent-framework-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      run-generic-prod-image-tests: ${{ steps.selective-checks.outputs.run-generic-prod-image-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
@@ -349,6 +351,7 @@ jobs:
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      in-memory-runner-type: ${{ steps.selective-checks.outputs.in-memory-runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -423,6 +426,32 @@ jobs:
         env:
           SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+      # The newsfragment check of static checks fails a newsfragment of the pull request that is
+      # named after another number. A push in a fork (AIP-120) has no pull request in its event,
+      # so the open pull request of the pushed branch is looked up; without one, any number passes.
+      - name: "Find the pull request for the newsfragment check"
+        id: newsfragment-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          number=""
+          # A pull request inside a fork has a number of the fork's, not of apache/airflow.
+          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" \
+              && "${REPOSITORY}" == "apache/airflow" ]]; then
+            number="${EVENT_PR_NUMBER}"
+          elif [[ "${EVENT_NAME}" == "push" && "${REPOSITORY}" != "apache/airflow" ]]; then
+            number=$(gh api -X GET repos/apache/airflow/pulls -f head="${OWNER}:${REF_NAME}" \
+              -f state=open -f base=main --jq '.[0].number // empty' || true)
+          fi
+          if [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "pr-number=${number}" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Selective checks
         id: selective-checks
         env:
@@ -432,6 +461,8 @@ jobs:
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
           # Repository variable: "true" moves every run, pushes included, back to public runners.
           USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+          # Repository variable: "false" keeps docker of the RunsOn jobs on disk instead of in RAM.
+          USE_IN_MEMORY_DOCKER: "${{ vars.USE_IN_MEMORY_DOCKER }}"
           PLATFORM: "linux/amd64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
@@ -454,6 +485,7 @@ jobs:
     needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
@@ -464,6 +496,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
+      run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -539,6 +572,7 @@ jobs:
       id-token: write
       contents: read
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -732,7 +766,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -761,7 +795,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -790,7 +824,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -820,7 +854,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -849,7 +883,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -880,7 +914,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -978,6 +1012,7 @@ jobs:
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       runners: ${{ needs.build-info.outputs.runner-type }}
+      in-memory-runners: ${{ needs.build-info.outputs.in-memory-runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
@@ -1027,7 +1062,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1135,6 +1170,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-prod-image-tests: ${{ needs.build-info.outputs.run-generic-prod-image-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
@@ -1227,6 +1263,19 @@ jobs:
       - name: Run Go tests with the race detector
         working-directory: ./go-sdk
         run: gotestsum --format github-actions -- -race ./...
+      # Nothing else builds for a 32-bit `int` (386, arm, mipsle), where 2^32-1 constants overflow
+      # and int64 values wrap. Vet type-checks on any host; the tests need one that runs 386.
+      - name: Vet Go SDK for a 32-bit target
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: go vet ./...
+      - name: Run Go tests on a 32-bit target
+        if: runner.arch == 'X64'
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: gotestsum --format github-actions ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version
@@ -1564,37 +1613,33 @@ jobs:
       !cancelled() &&
       github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
-      needs.check-run-needed.outputs.run-needed != 'false' &&
-      github.run_attempt == 1
+      needs.check-run-needed.outputs.run-needed != 'false'
     runs-on: ["ubuntu-slim"]
+    permissions:
+      # The run's jobs, the previous notification state, and the annotations RunsOn puts on jobs
+      # stopped by an EC2 Spot interruption.
+      actions: read
+      checks: read
+      contents: read
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      # Skips re-runs started by maintainers, and failures that are only EC2 Spot interruptions
+      # RunsOn will re-run; those leave the notification state alone, and the re-run reports.
       - name: "Get failing jobs"
         id: get-failures
         shell: bash
-        run: |
-          FAILED_JOBS=$(gh run view "${{ github.run_id }}" \
-            --repo "${{ github.repository }}" \
-            --json jobs \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]')
-          echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
-          echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
-          # A literal newline would end the double-quoted YAML scalar the Slack payload
-          # interpolates job names into, and the action would reject the whole payload.
-          echo "failed-jobs-text=${FAILED_JOBS//$'\n'/\\n}" >> "${GITHUB_OUTPUT}"
-          if [[ -n "${FAILED_JOBS}" ]]; then
-            echo "has-failures=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has-failures=false" >> "${GITHUB_OUTPUT}"
-          fi
+        run: python3 scripts/ci/spot_interruptions.py slack
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       - name: "Determine notification action"
         id: notification
+        if: steps.get-failures.outputs.skip != 'true'
         shell: bash
         run: |
           command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
@@ -1605,6 +1650,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
+        if: steps.get-failures.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-amd"
