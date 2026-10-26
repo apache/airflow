@@ -447,7 +447,7 @@ implemented in a future release.
   be scheduled on an asset (see `Scheduling`_).
 * **Task groups.** Tasks cannot be nested into groups (see `Reserved
   arguments`_).
-* **Dynamic task mapping.** There is no equivalent of ``.expand()``.
+* **Mapped tasks.** There is no equivalent of ``.expand()``.
 * **Arguments that must be a Python object.** This particularly affects
   callbacks (which need a Python function). Note that using ``PythonOperator``
   is generally not needed in a YAML Dag; implement a Python task handler to use
