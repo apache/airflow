@@ -1146,6 +1146,19 @@ jobs:
       - name: Run Go tests with the race detector
         working-directory: ./go-sdk
         run: gotestsum --format github-actions -- -race ./...
+      # Nothing else builds for a 32-bit `int` (386, arm, mipsle), where 2^32-1 constants overflow
+      # and int64 values wrap. Vet type-checks on any host; the tests need one that runs 386.
+      - name: Vet Go SDK for a 32-bit target
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: go vet ./...
+      - name: Run Go tests on a 32-bit target
+        if: runner.arch == 'X64'
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: gotestsum --format github-actions ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version
