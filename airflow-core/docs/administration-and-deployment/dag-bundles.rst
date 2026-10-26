@@ -321,9 +321,21 @@ A malformed ``--expected-current-version`` value, such as an empty string from a
 rejected before anything is written.
 
 When publication fails, for example because of a stale ``--expected-current-version``, a missing or empty
-source, overlapping paths, an invalid bundle configuration, or a filesystem error, the command prints the reason
-on standard error and exits with status 1, and the previous release stays current. Add ``--verbose`` to see the
-full traceback instead.
+source, overlapping paths, an invalid bundle configuration, or a filesystem error, the command prints the
+reason on standard error and exits with status 1. A failure before replacing the release reference leaves
+that reference unchanged. Add ``--verbose`` to see the full traceback instead.
+
+The final directory sync can fail **after** the release reference has been replaced. In this case, the
+command reports ``Cannot confirm publication`` and exits with status 1. The new release is already visible,
+but the filesystem has not confirmed that the reference change will survive a crash. Airflow does not roll
+the reference back, because other components may already have observed the new release.
+
+Before retrying, investigate the storage error and inspect the ``version`` in the release reference file
+named in the error (``<published_root>/refs/<bundle>/latest.json``). Another publisher may have advanced it
+again. Reading this file identifies the currently visible release; it does not confirm crash durability.
+Decide which release to publish, and pass the version currently recorded in the reference as
+``--expected-current-version`` to guard against another publisher changing it in the meantime. Reusing the
+old expected version fails if the reference has already advanced.
 
 Deployment behavior
 ~~~~~~~~~~~~~~~~~~~
