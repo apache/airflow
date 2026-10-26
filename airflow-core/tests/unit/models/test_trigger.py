@@ -180,44 +180,15 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
 
-@pytest.mark.parametrize("reference_type", ["task-instance", "asset-watcher", "callback"])
-def test_clean_unused_rechecks_new_references(session, create_task_instance, reference_type):
-    """A trigger referenced after the unused ids are read must not be deleted (#72061)."""
+def _create_unused_trigger(session) -> int:
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     session.add(trigger)
     session.commit()
-    trigger_id = trigger.id
+    return trigger.id
 
-    if reference_type == "task-instance":
-        task_instance = create_task_instance(
-            session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
-        )
-        session.commit()
-        add_reference = (
-            update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id)
-        )
-        reference_count = (
-            select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
-        )
-    elif reference_type == "asset-watcher":
-        asset = AssetModel("race-test")
-        session.add(asset)
-        session.commit()
-        add_reference = insert(AssetWatcherModel).values(
-            name="race-test-watcher", asset_id=asset.id, trigger_id=trigger_id
-        )
-        reference_count = (
-            select(func.count())
-            .select_from(AssetWatcherModel)
-            .where(AssetWatcherModel.asset_id == asset.id, AssetWatcherModel.trigger_id == trigger_id)
-        )
-    else:
-        callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
-        session.add(callback)
-        session.commit()
-        add_reference = update(Callback).where(Callback.id == callback.id).values(trigger_id=trigger_id)
-        reference_count = select(func.count()).select_from(Callback).where(Callback.id == callback.id)
 
+def _clean_unused_adding_reference_before_delete(session, trigger_id, add_reference):
+    """Run clean_unused, executing ``add_reference`` right before its DELETE (#72061)."""
     reference_added = False
 
     def add_reference_before_delete(connection, cursor, statement, parameters, context, executemany):
@@ -236,7 +207,67 @@ def test_clean_unused_rechecks_new_references(session, create_task_instance, ref
 
     assert reference_added
     assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger_id)) == 1
-    assert session.scalar(reference_count) == 1
+
+
+def test_clean_unused_keeps_trigger_deferred_onto_during_cleanup(session, create_task_instance):
+    """A task deferring onto a trigger after the unused ids are read must not be deleted."""
+    trigger_id = _create_unused_trigger(session)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    session.commit()
+
+    _clean_unused_adding_reference_before_delete(
+        session,
+        trigger_id,
+        update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id),
+    )
+
+    assert (
+        session.scalar(
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
+        )
+        == 1
+    )
+
+
+def test_clean_unused_keeps_trigger_watched_during_cleanup(session):
+    """An asset watcher added to a trigger after the unused ids are read must keep it."""
+    trigger_id = _create_unused_trigger(session)
+    asset = AssetModel("race-test")
+    session.add(asset)
+    session.commit()
+
+    _clean_unused_adding_reference_before_delete(
+        session,
+        trigger_id,
+        insert(AssetWatcherModel).values(name="race-test-watcher", asset_id=asset.id, trigger_id=trigger_id),
+    )
+
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(AssetWatcherModel)
+            .where(AssetWatcherModel.asset_id == asset.id, AssetWatcherModel.trigger_id == trigger_id)
+        )
+        == 1
+    )
+
+
+def test_clean_unused_keeps_trigger_used_by_callback_during_cleanup(session):
+    """A callback attached to a trigger after the unused ids are read must keep it."""
+    trigger_id = _create_unused_trigger(session)
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    session.add(callback)
+    session.commit()
+
+    _clean_unused_adding_reference_before_delete(
+        session,
+        trigger_id,
+        update(Callback).where(Callback.id == callback.id).values(trigger_id=trigger_id),
+    )
+
+    assert session.scalar(select(func.count()).select_from(Callback).where(Callback.id == callback.id)) == 1
 
 
 @patch.object(TriggererCallback, "handle_event")
