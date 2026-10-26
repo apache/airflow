@@ -273,6 +273,10 @@ automatically unless the PR changes files that define CI: anything under ``.gith
 or ``.pre-commit-config.yaml``. Then the runs wait for a maintainer and a comment on the PR explains
 why. CI in your fork runs either way.
 
+The runs of PRs opened from the repositories of trusted stakeholders (``astronomer/airflow``,
+``aws-mwaa/upstream-to-airflow`` and ``VladaZakharova/airflow``) are always approved, so none of
+the rules above apply to them.
+
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
 qualify, it gets the ``need workflow approval`` label and a maintainer approves the runs after
