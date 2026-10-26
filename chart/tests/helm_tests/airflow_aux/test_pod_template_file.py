@@ -1130,7 +1130,7 @@ class TestPodTemplateFile:
             }
         ]
 
-    def test_should_add_pod_labels(self):
+    def test_should_add_pod_labels(self, chart_app_version):
         docs = render_chart(
             values={"labels": {"label1": "value1", "label2": "value2"}},
             show_only=["templates/pod-template-file.yaml"],
@@ -1142,7 +1142,7 @@ class TestPodTemplateFile:
             "app.kubernetes.io/instance": "release-name",
             "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
-            "app.kubernetes.io/version": "3.3.1",
+            "app.kubernetes.io/version": chart_app_version,
             "label1": "value1",
             "label2": "value2",
         }

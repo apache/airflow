@@ -131,7 +131,7 @@ class TestExtraConfigMapsSecrets:
             assert configmap_obj["data"] == expected_data
             assert configmap_obj["stringData"] == expected_string_data
 
-    def test_extra_configmaps_secrets_labels(self):
+    def test_extra_configmaps_secrets_labels(self, chart_app_version):
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -146,7 +146,7 @@ class TestExtraConfigMapsSecrets:
             "app.kubernetes.io/managed-by": "Helm",
             "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
-            "app.kubernetes.io/version": "3.3.1",
+            "app.kubernetes.io/version": chart_app_version,
             "helm.sh/chart": mock.ANY,
             "label1": "value1",
             "label2": "value2",
@@ -162,7 +162,7 @@ class TestExtraConfigMapsSecrets:
             ({"label1": "value1", "label2": "value2"}, {"label3": "value3", "label4": "value4"}),
         ],
     )
-    def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
+    def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels, chart_app_version):
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -187,7 +187,7 @@ class TestExtraConfigMapsSecrets:
             "app.kubernetes.io/managed-by": "Helm",
             "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
-            "app.kubernetes.io/version": "3.3.1",
+            "app.kubernetes.io/version": chart_app_version,
             "helm.sh/chart": mock.ANY,
         }
         for k8s_object in k8s_objects:

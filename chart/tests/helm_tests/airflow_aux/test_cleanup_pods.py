@@ -322,7 +322,7 @@ class TestCleanupPods:
         ]
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
-    def test_should_set_labels_to_jobs_from_cronjob(self):
+    def test_should_set_labels_to_jobs_from_cronjob(self, chart_app_version):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -337,7 +337,7 @@ class TestCleanupPods:
             "app.kubernetes.io/instance": "release-name",
             "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
-            "app.kubernetes.io/version": "3.3.1",
+            "app.kubernetes.io/version": chart_app_version,
             "project": "airflow",
         }
 
