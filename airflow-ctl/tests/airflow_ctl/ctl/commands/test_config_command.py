@@ -27,8 +27,8 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import config_command
 from airflowctl.ctl.commands.config_command import ConfigChange, ConfigParameter
 
-# Section and option names where one name is a prefix of another, mirroring real pairs in
-# CONFIGS_CHANGES such as auth_backend/auth_backends and sql_alchemy_conn/sql_alchemy_connect_args.
+# auth_backend/auth_backends mirrors a real substring pair in CONFIGS_CHANGES; the api/api_auth
+# sections collide the same way, and sql_alchemy_conn overlaps neither.
 CONFUSABLE_CONFIGS_CHANGES = [
     ConfigChange(config=ConfigParameter("api", "auth_backend")),
     ConfigChange(config=ConfigParameter("api_auth", "auth_backends")),
@@ -43,14 +43,9 @@ CONFUSABLE_CONFIG_RESPONSE = Config(
 )
 
 
-def get_printed_lines(mock_rich_print) -> list[str]:
-    """Return the strings lint passed to rich.print."""
-    return [call.args[0] for call in mock_rich_print.call_args_list]
-
-
 def find_reported_options(mock_rich_print) -> list[str]:
     """Return the CONFUSABLE_CONFIGS_CHANGES option names that lint reported, sorted."""
-    printed = get_printed_lines(mock_rich_print)
+    printed = [call[0][0] for call in mock_rich_print.call_args_list]
     return sorted(
         change.config.option
         for change in CONFUSABLE_CONFIGS_CHANGES
@@ -541,7 +536,7 @@ class TestCliConfigCommands:
             ),
         ],
     )
-    @patch("rich.print")
+    @patch("rich.print", autospec=True)
     @patch("airflowctl.ctl.commands.config_command.CONFIGS_CHANGES", CONFUSABLE_CONFIGS_CHANGES)
     def test_lint_filters_match_whole_names(
         self, mock_rich_print, lint_args, expected_options, confusable_api_client
@@ -553,7 +548,7 @@ class TestCliConfigCommands:
 
         assert find_reported_options(mock_rich_print) == expected_options
 
-    @patch("rich.print")
+    @patch("rich.print", autospec=True)
     @patch("airflowctl.ctl.commands.config_command.CONFIGS_CHANGES", CONFUSABLE_CONFIGS_CHANGES)
     def test_lint_verbose_lists_ignored_names(self, mock_rich_print, confusable_api_client):
         config_command.lint(
@@ -563,9 +558,9 @@ class TestCliConfigCommands:
             api_client=confusable_api_client,
         )
 
-        printed = get_printed_lines(mock_rich_print)
-        assert "Ignored sections: [green]api[/green]" in printed
-        assert "Ignored options: [green]auth_backend[/green]" in printed
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "Ignored sections: [green]api[/green]" in calls
+        assert "Ignored options: [green]auth_backend[/green]" in calls
 
     @patch("airflowctl.api.client.Credentials.load")
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
