@@ -158,11 +158,18 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         refresh_histories = self.hook.run_sync(
             self.hook.get_refresh_history(dataset_id=self.dataset_id, group_id=self.group_id)
         )
-        for refresh_details in refresh_histories:
-            if refresh_details[PowerBIDatasetRefreshFields.REQUEST_ID.value] == external_id:
-                return refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
-        # Power BI keeps a limited refresh history; a refresh that dropped out of it is not resumable.
-        return _REFRESH_NOT_IN_HISTORY
+        if not any(
+            details[PowerBIDatasetRefreshFields.REQUEST_ID.value] == external_id
+            for details in refresh_histories
+        ):
+            # Power BI keeps a limited refresh history; a refresh that dropped out of it is not resumable.
+            return _REFRESH_NOT_IN_HISTORY
+        refresh_details = self.hook.run_sync(
+            self.hook.get_refresh_details_by_refresh_id(
+                dataset_id=self.dataset_id, group_id=self.group_id, refresh_id=str(external_id)
+            )
+        )
+        return refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
 
     def is_job_active(self, status: str) -> bool:
         return status == PowerBIDatasetRefreshStatus.IN_PROGRESS

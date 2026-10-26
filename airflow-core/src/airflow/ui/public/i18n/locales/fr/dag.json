@@ -263,7 +263,6 @@
     "title": "Stockage d'état de tâche"
   },
   "versions": {
-    "aboutThisComparison": "À propos de cette comparaison",
     "base": "Comparer depuis",
     "categories": {
       "asset": "Asset",
@@ -298,7 +297,6 @@
     "maxChanges": "Changements max.",
     "maxChangesDefault": "Par défaut",
     "noChanges": "Ces versions ont le même état.",
-    "observedStateBoundary": "Compare l'état actuellement stocké, et non les preuves au moment de la création. La comparaison des sources n'est pas disponible pour les versions historiques ; utilisez l'onglet Code pour comparer les sources.",
     "operations": {
       "added": "Ajouté",
       "changed": "Modifié",

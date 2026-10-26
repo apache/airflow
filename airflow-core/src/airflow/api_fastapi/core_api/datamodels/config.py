@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class ConfigOption(StrictBaseModel):
+class ConfigOption(BaseModel):
     """Config option."""
 
     key: str
@@ -32,7 +32,7 @@ class ConfigOption(StrictBaseModel):
         return f"{self.key} = {self.value}"
 
 
-class ConfigSection(StrictBaseModel):
+class ConfigSection(BaseModel):
     """Config Section Schema."""
 
     name: str
@@ -53,7 +53,7 @@ class ConfigSection(StrictBaseModel):
         return f"[{self.name}]\n" + "\n".join(option.text_format for option in self.options) + "\n"
 
 
-class Config(StrictBaseModel):
+class Config(BaseModel):
     """List of config sections with their options."""
 
     sections: list[ConfigSection]
