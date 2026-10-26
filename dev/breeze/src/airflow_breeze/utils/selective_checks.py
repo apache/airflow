@@ -902,8 +902,9 @@ def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[
 # The release branches of a single component (the Helm chart, airflow-ctl) only ever get backports of that
 # component, so CI there runs that component's tests, whatever changed, and nothing else. Per branch prefix,
 # the outputs decorated with `_scoped_to_component_branch` that run: True forces one on, None leaves it to
-# its usual computation, and an output missing from the table is off. Static checks and docs still run.
-# The PROD image is built for those tests alone: `run_generic_prod_image_tests` stays off.
+# its usual computation, and an output missing from the table is off. Static checks still run, and docs
+# too where the CI image is built. The PROD image is built for those tests alone:
+# `run_generic_prod_image_tests` stays off.
 COMPONENT_BRANCH_OUTPUTS: dict[str, dict[str, bool | None]] = {
     "chart": {
         "run_helm_tests": True,
@@ -913,16 +914,15 @@ COMPONENT_BRANCH_OUTPUTS: dict[str, dict[str, bool | None]] = {
         "ci_image_build": True,
         "prod_image_build": True,
     },
+    # The airflow-ctl tests run in a local virtualenv, so no image is built: static checks run on the host
+    # and the integration tests, which need the PROD image, do not run.
     "airflow-ctl": {
         "run_airflow_ctl_tests": True,
-        "run_airflow_ctl_integration_tests": True,
-        # The airflow-ctl integration tests run against the PROD image, built from the CI image.
-        "ci_image_build": True,
-        "prod_image_build": True,
     },
 }
-# The documentation built on a component's branch, when documentation changed.
-COMPONENT_BRANCH_DOCS = {"chart": "helm-chart", "airflow-ctl": "apache-airflow-ctl"}
+# The documentation built on a component's branch, when documentation changed. Docs build in the CI image,
+# so a component without an image builds none.
+COMPONENT_BRANCH_DOCS = {"chart": "helm-chart"}
 # The release branches of each component, as in the pull_request branch filters of ci-amd.yml. A feature
 # branch named after a component, say chart/fix-ingress, is not one of them.
 COMPONENT_BRANCH_PATTERNS = {
@@ -1546,6 +1546,8 @@ class SelectiveChecks:
 
     @cached_property
     def docs_build(self) -> bool:
+        if self._component_branch is not None and self._component_branch not in COMPONENT_BRANCH_DOCS:
+            return False
         return self._should_be_run(FileGroupForCi.DOC_FILES)
 
     @cached_property
@@ -2037,6 +2039,9 @@ class SelectiveChecks:
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
+        # The dependency upgrade summary runs in the CI image.
+        if not self.ci_image_build:
+            return False
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True

@@ -228,11 +228,13 @@ match one of those names: a feature branch named `chart/...` is not a component 
 any push in a fork, which is selected against `main`. On such a branch every
 output decorated with `_scoped_to_component_branch` is off, except those `COMPONENT_BRANCH_OUTPUTS` lists
 for the component: on `chart/`, Helm and Kubernetes tests always run (kustomize overlays as usual) with
-the CI and PROD images they need; on `airflow-ctl/`, the airflow-ctl tests and its integration tests run,
-with both images. The PROD image is built for those tests only, so `run-generic-prod-image-tests` (Docker
+the CI and PROD images they need; on `airflow-ctl/`, only the airflow-ctl tests run, in a local
+virtualenv, so no image is built there: static checks run on the host (`basic-checks-only`), and the
+airflow-ctl integration tests, the docs and the dependency upgrade check, which need an image, do not run. The PROD image is built for
+the chart's tests only, so `run-generic-prod-image-tests` (Docker
 Compose, image-building examples, basic and canary end-to-end tests) is off, and so is
-`run-generic-basic-tests` (the standalone Airflow and shared distributions tests). Provider tests are skipped, and docs, when they changed, build only the component's
-package. Static checks, scripts and Breeze integration tests, and the CodeQL scans run as usual. A test
+`run-generic-basic-tests` (the standalone Airflow and shared distributions tests). Provider tests are skipped, and on `chart/` docs, when they changed, build only the
+chart's package. Static checks, scripts and Breeze integration tests, and the CodeQL scans run as usual. A test
 in `test_selective_checks.py` fails when a new `run_*` output is neither scoped nor listed as a general
 check, so a new job does not start running on these branches by accident.
 
@@ -503,8 +505,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.
 * On a component's release branch (`chart/...`, `airflow-ctl/...`) only that component's tests run, always,
-  with the images they need; other tests do not run, provider tests are skipped, and docs build only the
-  component's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
+  with the images they need (none for airflow-ctl); other tests do not run, provider tests are skipped,
+  and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
 * `PROD Image building` is enabled when kubernetes tests are run.
@@ -719,7 +721,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
-| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)          | false                                    |      |
+| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 
 
 ## Self-hosted (RunsOn) vs. public runners
