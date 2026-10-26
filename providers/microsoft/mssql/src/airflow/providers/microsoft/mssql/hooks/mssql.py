@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pymssql
@@ -72,7 +73,7 @@ class MsSqlHook(DbApiHook):
     def dialect_name(self) -> str:
         return "mssql"
 
-    @property
+    @cached_property
     def dialect(self) -> Dialect:
         return MsSqlDialect(self)
 
