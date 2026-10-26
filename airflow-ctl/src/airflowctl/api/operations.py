@@ -25,6 +25,11 @@ import httpx
 import structlog
 from pydantic import BaseModel, ValidationError
 
+from airflowctl.api.datamodels.asset_state_store import (
+    AssetStateStoreBody,
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
+)
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
@@ -32,9 +37,6 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
-    AssetStateStoreBody,
-    AssetStateStoreCollectionResponse,
-    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,

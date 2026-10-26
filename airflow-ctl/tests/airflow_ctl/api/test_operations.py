@@ -29,6 +29,10 @@ import pytest
 from pydantic import BaseModel
 
 from airflowctl.api.client import Client, ClientKind
+from airflowctl.api.datamodels.asset_state_store import (
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
+)
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
@@ -36,8 +40,6 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
-    AssetStateStoreCollectionResponse,
-    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
