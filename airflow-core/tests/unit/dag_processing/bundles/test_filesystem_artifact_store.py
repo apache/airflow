@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import multiprocessing
 import os
@@ -32,7 +33,10 @@ from unittest import mock
 import pytest
 
 from airflow.dag_processing.bundles import filesystem_artifact_store as store_module
-from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
+from airflow.dag_processing.bundles.artifact_store import (
+    BundleManifestNotFoundError,
+    BundleManifestRefDurabilityError,
+)
 from airflow.dag_processing.bundles.filesystem_artifact_store import (
     FilesystemArtifactStore,
     read_json_file,
@@ -514,18 +518,80 @@ class TestFilesystemPublication:
                 validate_existing=lambda tree: None,
             )
 
-    def test_write_ref_removes_temp_file_when_replace_fails(self, store):
+    @pytest.mark.parametrize(
+        ("previous_payload", "payload", "expected_version"),
+        [
+            pytest.param(None, {"version": "v2"}, "v2", id="first-publication"),
+            pytest.param({"version": "v1"}, {"version": "v2"}, "v2", id="replacement"),
+            pytest.param({"version": "v1"}, {"schema_version": 1}, None, id="missing-version"),
+            pytest.param({"version": "v1"}, {"version": 2}, None, id="non-string-version"),
+        ],
+    )
+    @mock.patch.object(
+        store_module, "fsync_directory", autospec=True, side_effect=store_module.fsync_directory
+    )
+    def test_write_ref_reports_durability_failure_after_replacement(
+        self, mock_fsync, store, previous_payload, payload, expected_version
+    ):
+        if previous_payload is not None:
+            store.write_ref(previous_payload)
+        original_error = OSError(errno.EIO, "reference directory sync failed")
+        real_fsync_directory = mock_fsync.side_effect
+
+        def fail_after_replacement(path):
+            if (
+                path == store.ref_path.parent
+                and store.ref_path.exists()
+                and store.read_ref(missing_message="missing", invalid_message="invalid") == payload
+            ):
+                raise original_error
+            real_fsync_directory(path)
+
+        mock_fsync.side_effect = fail_after_replacement
+
+        with pytest.raises(
+            BundleManifestRefDurabilityError, match="was replaced, but durability could not be confirmed"
+        ) as raised:
+            store.write_ref(payload)
+
+        assert isinstance(raised.value, BundleManifestError)
+        assert raised.value.ref_path == store.ref_path
+        assert raised.value.version == expected_version
+        assert raised.value.__cause__ is original_error
+        assert str(store.ref_path) in str(raised.value)
+        assert store.read_ref(missing_message="missing", invalid_message="invalid") == payload
+        assert list(store.ref_path.parent.iterdir()) == [store.ref_path]
+
+    @pytest.mark.parametrize(
+        ("existing_reference", "cleanup_fails"), [(False, False), (True, False), (True, True)]
+    )
+    @mock.patch.object(Path, "unlink", autospec=True, side_effect=Path.unlink)
+    @mock.patch.object(store_module.os, "replace", autospec=True, side_effect=store_module.os.replace)
+    def test_write_ref_preserves_original_error_when_replace_fails(
+        self, mock_replace, mock_unlink, store, existing_reference, cleanup_fails
+    ):
         store.prepare_publish_areas()
+        if existing_reference:
+            store.write_ref({"version": "v1"})
+        original_error = OSError(errno.EIO, "replace failed")
+        mock_replace.side_effect = original_error
+        if cleanup_fails:
+            mock_unlink.side_effect = PermissionError("cleanup failed")
 
-        with (
-            mock.patch.object(
-                store_module.os, "replace", autospec=True, side_effect=OSError("replace failed")
-            ),
-            pytest.raises(OSError, match="replace failed"),
-        ):
-            store.write_ref({"schema_version": 1})
+        with pytest.raises(OSError, match="replace failed") as raised:
+            store.write_ref({"version": "v2"})
 
-        assert list(store.ref_path.parent.iterdir()) == []
+        assert raised.value is original_error
+        if existing_reference:
+            assert store.read_ref(missing_message="missing", invalid_message="invalid") == {"version": "v1"}
+        else:
+            assert not store.ref_path.exists()
+        temp_path = mock_replace.call_args.args[0]
+        mock_unlink.assert_called_once_with(temp_path, missing_ok=True)
+        assert temp_path.exists() is cleanup_fails
+        assert set(store.ref_path.parent.iterdir()) == (
+            ({store.ref_path} if existing_reference else set()) | ({temp_path} if cleanup_fails else set())
+        )
 
     def test_sweep_publish_temps_removes_read_only_orphan_and_keeps_other_hidden_dirs(self, store):
         store.prepare_publish_areas()
