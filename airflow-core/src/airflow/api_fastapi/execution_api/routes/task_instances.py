@@ -115,7 +115,7 @@ from airflow.models.xcom import build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, is_deadlock_error
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter()
@@ -685,8 +685,9 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
-        if loop_gate is not None:
+    except Exception as e:
+        # A deadlock is transient: return a 5xx so the Task SDK client retries instead of failing the TI.
+        if loop_gate is not None or is_deadlock_error(e):
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
