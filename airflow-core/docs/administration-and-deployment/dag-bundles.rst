@@ -247,11 +247,12 @@ execution without Git, much as ``GitDagBundle`` does with commits:
   executable flag. Publishing the same content again gives the same version.
 - Airflow **materializes** a verified, read-only copy of the snapshot into its bundle cache and parses and runs
   only that copy, never the source directory.
-- Retries and reruns **pin** the version recorded on the Dag run. If the cache copy was removed, Airflow rebuilds
-  it from the published snapshot.
+- Retries and reruns **pin** the version recorded on the Dag run, unless bundle versioning is disabled (see
+  `Relationship with disable_bundle_versioning`_). If the cache copy was removed, Airflow rebuilds it from the
+  published snapshot.
 
-Configure the bundle with the shared ``published_root`` that publishers write to and every Airflow component
-reads from:
+Configure the bundle with the shared ``published_root`` that publishers write to and that Dag processors and
+workers read from:
 
 .. code-block:: ini
 
@@ -268,8 +269,8 @@ reads from:
       ]
 
 ``published_root`` is required and must be a filesystem path. ``allow_empty_source`` (default ``false``) lets
-a publication remove every Dag; it is off so that a failed or incomplete sync cannot empty the release by
-accident.
+a publication contain no files at all; it is off so that a sync that delivered nothing cannot empty the
+release. It does not catch a partial sync that delivered only some files.
 
 The Dag processor cannot initialize the bundle until its first release is published. Until then it logs the
 missing release reference and retries on later loops; other bundles are not affected.
@@ -283,24 +284,27 @@ After the deployment pipeline has delivered every source file, publish them:
 
     airflow dag-bundles publish-local my-dags /path/to/dag-source
 
-The command reads the named bundle from ``dag_bundle_config_list``, so the publishing host needs the same
-bundle configuration as the Airflow components. It also imports the class of every configured bundle, so
-packages providing those classes must be installed there. It does not use the metadata database, so it can run
-on a CI/CD host that has no database access, as long as that host can read the source directory and write to
-``published_root``.
+The command reads the named bundle from ``dag_bundle_config_list``, so the publishing host needs that
+bundle's configuration. It imports only that bundle's class, so the packages of other configured bundles need
+not be installed there. It does not use the metadata database, so it can run on a CI/CD host that has no
+database access, as long as that host can read the source directory and write to ``published_root``.
 
 The source directory, ``published_root`` and :ref:`config:dag_processor__dag_bundle_storage_path` must not
-overlap. Files in ``.git`` and ``__pycache__`` directories and ``.pyc`` files are not published, and a source
-containing a symlink is rejected.
+overlap. ``.git`` and ``__pycache__`` directories, files named ``.git``, ``.pyc`` files and any
+``.airflow-bundle-manifest.json`` file are left out of the release. A symlink or other non-regular file
+anywhere else in the source makes the publication fail.
 
-The command prints the version, the snapshot and release reference paths, the manifest hash, the file count,
-the total size, and whether this publication created the snapshot (``False`` when the same content was
-published before). Use ``--output json`` to read the result in a script; as in other ``airflow`` commands that
-print JSON, every value is a string:
+The command prints the bundle name, the version, the snapshot and release reference paths, the manifest hash,
+the file count, the total size, and whether this publication created the snapshot (``False`` when the same
+content was published before). Use ``--output json`` to read the result in a script:
 
 .. code-block:: bash
 
     version=$(airflow dag-bundles publish-local my-dags /path/to/dag-source --output json | jq -r '.[0].version')
+
+As in other ``airflow`` commands that print JSON, every value is a string; ``created_snapshot`` is ``"True"``
+or ``"False"``, so compare it as a string. Do not add ``--verbose`` when parsing the output, because it lets
+log lines through to standard output.
 
 A deployment pipeline whose runs can finish out of order can stop an older run from replacing a newer release.
 Pass the version that the run expects to replace:
@@ -313,9 +317,13 @@ Pass the version that the run expects to replace:
 The command then publishes only if that version is still the current release. Omit the option for the first
 release, when there is no current version to compare with.
 
-When publication fails (a stale ``--expected-current-version``, an empty source, overlapping paths, or a
-filesystem error), the command prints the reason and exits with status 1, and the previous release stays
-current.
+A malformed ``--expected-current-version`` value, such as an empty string from an unset pipeline variable, is
+rejected before anything is written.
+
+When publication fails, for example because of a stale ``--expected-current-version``, a missing or empty
+source, overlapping paths, an invalid bundle configuration, or a filesystem error, the command prints the reason
+on standard error and exits with status 1, and the previous release stays current. Add ``--verbose`` to see the
+full traceback instead.
 
 Deployment behavior
 ~~~~~~~~~~~~~~~~~~~
@@ -325,14 +333,26 @@ happens only after the snapshot is complete and verified. Concurrent publishers 
 through a lock under ``published_root``. Publishing content that is already published reuses its snapshot and
 only moves the release reference.
 
-Each Dag processor picks up a new release on its next bundle refresh, controlled by
-:ref:`config:dag_processor__refresh_interval`. Pinned work -- retries, reruns that keep their original version,
-deferred tasks and callbacks -- uses the snapshot for the recorded version, never the current release, and never
-publishes.
+Each Dag processor picks up a new release on its next refresh of the bundle, every ``refresh_interval``
+seconds: the bundle's ``refresh_interval`` kwarg if set, otherwise
+:ref:`config:dag_processor__refresh_interval`. Pinned work -- retries, reruns that keep their original
+version, deferred tasks and callbacks -- uses the snapshot for the recorded version, never the current release,
+and never publishes.
 
 Airflow never deletes snapshots from ``published_root``. Pruning old ``versions/<bundle>/sha256-*`` directories
-is up to you, and it must keep every version that a Dag run can still request for a retry, rerun, deferred task
-or callback. The bundle cache is disposable and is rebuilt from ``published_root`` as needed.
+is up to you:
+
+- Keep the current release (the ``version`` in ``refs/<bundle>/latest.json``) and every version still recorded
+  on a Dag run that can be retried or rerun, or that has deferred tasks or callbacks pending. Pinned work for a
+  removed version fails until the snapshot is restored.
+- Prune while holding the bundle's publication lock, for example with ``flock _locks/<bundle>.lock``, so that a
+  publisher cannot reuse a snapshot while it is being removed.
+- Snapshots are read-only: make one writable (``chmod -R u+w``) before removing it. A removal that stops
+  part-way leaves a damaged snapshot, and publishing the same content again then fails until the rest of it is
+  removed.
+
+The bundle cache on each host is disposable. Airflow rebuilds it from ``published_root`` when it is missing, so
+you can delete it while no Airflow component on that host is using it.
 
 Storage layout and permissions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -349,19 +369,24 @@ The publisher creates this layout below ``published_root``:
 
 Airflow materializes the copy it parses and runs below
 ``<dag_bundle_storage_path>/my-dags/versions/sha256-<hex>/``. A ``.sha256-<hex>.validated`` marker next to
-each copy lets later checks skip re-hashing its files; delete the marker to force a full re-validation.
+each copy lets later checks skip re-hashing its files. Deleting the marker makes the next process on that host
+that loads the copy re-hash it.
 
 Published snapshot directories are mode ``0555`` and their files ``0444``, or ``0555`` when executable, so
 publishers and Airflow components can run as different OS users. In the cache, files stay read-only while
-directories are ``0755`` so that Airflow's stale-version cleanup can remove them. Publishers need write access
-to the bundle's directories under ``published_root`` and read/write access to its lock file; when publishers
-run as different OS users, give them a shared group with group read/write access. Airflow components need only
+directories are ``0755`` so that Airflow's stale-version cleanup can remove them. Airflow components need only
 read access to ``published_root``.
+
+Publishers need write access to the bundle's ``versions/<bundle>``, ``refs/<bundle>`` and ``_locks``
+directories and read/write access to its lock file. A publisher creates any of these directories that are
+missing with mode ``0755``, which only its own OS user can write to. When publishers run as different OS users,
+create the directories in advance, owned by a group the publishers share, with group write access and the
+setgid bit (``chmod 2775``); the lock file is created group-writable.
 
 ``published_root`` must be one filesystem shared by every publisher and Airflow component that serves the
 bundle. It must support POSIX advisory file locking (``flock``), atomic rename, and durable ``fsync`` of files
-and directories. A disk local to one host or replica is not suitable. Use a network filesystem only if it keeps
-those guarantees across hosts.
+and directories. A disk local to one host works only when every publisher and Airflow component that serves the
+bundle runs on that host. Use a network filesystem only if it keeps those guarantees across hosts.
 
 Verifying a deployment
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -371,7 +396,8 @@ After a Dag processor refreshes the bundle, the version shown for it on the **Da
 command, and Dag versions recorded from that release carry it as their bundle version.
 
 To check that a release parses without waiting for a Dag processor, list its Dags from any host that has the
-bundle configuration and a migrated metadata database:
+bundle configuration, a migrated metadata database, and write access to its own
+:ref:`config:dag_processor__dag_bundle_storage_path`:
 
 .. code-block:: bash
 

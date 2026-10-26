@@ -55,14 +55,18 @@ def bundle_config(tmp_path, source, published_root, caplog):
             "classpath": MANIFEST_LOCAL_CLASSPATH,
             "kwargs": {"published_root": str(published_root)},
         },
+        # Publishing any other bundle must not need this class to be importable.
+        {"name": "not-installed", "classpath": "not_installed_module.Bundle", "kwargs": {}},
+        # Constructing this bundle fails, so it shows the type is checked first.
         {
             "name": "plain-local",
             "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-            "kwargs": {"path": str(source)},
+            "kwargs": {"unknown_kwarg": True},
         },
+        {"name": "not-a-class", "classpath": "os.getcwd", "kwargs": {}},
         {"name": "no-published-root", "classpath": MANIFEST_LOCAL_CLASSPATH, "kwargs": {}},
         {
-            "name": "unwritable",
+            "name": "published-root-under-file",
             "classpath": MANIFEST_LOCAL_CLASSPATH,
             "kwargs": {"published_root": str(tmp_path / "not-a-dir" / "published")},
         },
@@ -107,56 +111,119 @@ def test_publish_local_releases_source_snapshot(parser, capsys, source, publishe
 
 
 @pytest.mark.parametrize(
-    ("bundle_name", "extra_args", "message"),
+    ("bundle_name", "source_name", "extra_args", "message"),
     [
         pytest.param(
             "missing",
+            "source",
             [],
             "Cannot load Dag bundle 'missing': Requested bundle 'missing' is not configured.",
             id="unconfigured",
         ),
         pytest.param(
+            "not-installed",
+            "source",
+            [],
+            "Cannot load Dag bundle 'not-installed': No module named 'not_installed_module'",
+            id="class-not-importable",
+        ),
+        pytest.param(
             "no-published-root",
+            "source",
             [],
             "Cannot load Dag bundle 'no-published-root': published_root must be provided",
             id="invalid-kwargs",
         ),
         pytest.param(
             "plain-local",
+            "source",
             [],
-            "Dag bundle 'plain-local' is a LocalDagBundle, not a ManifestLocalDagBundle",
+            "Dag bundle 'plain-local' is configured with airflow.dag_processing.bundles.local.LocalDagBundle, "
+            "not a ManifestLocalDagBundle",
             id="not-manifest-local",
         ),
         pytest.param(
-            "manifest-local",
-            ["--expected-current-version", STALE_VERSION],
-            "Failed to publish Dag bundle 'manifest-local': Bundle 'manifest-local' has no published version",
-            id="stale-expected-version",
+            "not-a-class",
+            "source",
+            [],
+            "Dag bundle 'not-a-class' is configured with os.getcwd, not a ManifestLocalDagBundle",
+            id="not-a-class",
         ),
         pytest.param(
-            "unwritable",
+            "manifest-local",
+            "source",
+            ["--expected-current-version", STALE_VERSION],
+            "Failed to publish Dag bundle 'manifest-local': Bundle 'manifest-local' has no published version",
+            id="expected-version-before-first-release",
+        ),
+        pytest.param(
+            "published-root-under-file",
+            "source",
             [],
-            "Failed to publish Dag bundle 'unwritable': .*Not a directory",
+            "Failed to publish Dag bundle 'published-root-under-file': .*Not a directory",
             id="os-error",
+        ),
+        pytest.param(
+            "manifest-local",
+            "missing-source",
+            [],
+            "Failed to publish Dag bundle 'manifest-local': Bundle source path does not exist",
+            id="missing-source",
+        ),
+        pytest.param(
+            "manifest-local",
+            "published/source",
+            [],
+            "Failed to publish Dag bundle 'manifest-local': source_path must not be inside published_root",
+            id="overlapping-paths",
         ),
     ],
 )
 def test_publish_local_reports_expected_failures_without_traceback(
-    parser, source, bundle_name, extra_args, message
+    parser, tmp_path, bundle_name, source_name, extra_args, message
 ):
-    args = parser.parse_args(["dag-bundles", "publish-local", bundle_name, str(source), *extra_args])
+    source_path = tmp_path / source_name
+    if source_name != "missing-source":
+        source_path.mkdir(parents=True, exist_ok=True)
+        (source_path / "dag.py").write_text("print('dag')")
+    args = parser.parse_args(["dag-bundles", "publish-local", bundle_name, str(source_path), *extra_args])
 
     with pytest.raises(SystemExit, match=message):
         dag_bundle_command.dag_bundle_publish_local(args)
 
 
-def test_publish_local_reports_overlapping_paths(parser, published_root):
-    source = published_root / "source"
-    source.mkdir(parents=True)
-    (source / "dag.py").write_text("print('dag')")
+@conf_vars({("dag_processor", "dag_bundle_config_list"): "[{"})
+def test_publish_local_reports_invalid_bundle_config(parser, source):
     args = parser.parse_args(["dag-bundles", "publish-local", "manifest-local", str(source)])
 
-    with pytest.raises(SystemExit, match="source_path must not be inside published_root"):
+    with pytest.raises(SystemExit, match="Cannot load Dag bundle 'manifest-local': Unable to parse"):
+        dag_bundle_command.dag_bundle_publish_local(args)
+
+
+@pytest.mark.parametrize("expected_current_version", ["", "latest", STALE_VERSION.upper()])
+def test_publish_local_rejects_malformed_expected_version_before_writing(
+    parser, source, published_root, expected_current_version
+):
+    args = parser.parse_args(
+        [
+            "dag-bundles",
+            "publish-local",
+            "manifest-local",
+            str(source),
+            "--expected-current-version",
+            expected_current_version,
+        ]
+    )
+
+    with pytest.raises(SystemExit, match="--expected-current-version .* is not a bundle version"):
+        dag_bundle_command.dag_bundle_publish_local(args)
+    assert not published_root.exists()
+
+
+def test_publish_local_keeps_traceback_when_verbose(parser, source):
+    args = parser.parse_args(["dag-bundles", "publish-local", "missing", str(source), "--verbose"])
+
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured."):
         dag_bundle_command.dag_bundle_publish_local(args)
 
 
@@ -179,6 +246,9 @@ def test_publish_local_outputs_pure_json_without_metadata_db(tmp_path, source, p
                 }
             ]
         ),
+        # CI systems commonly force colour, which must not reach JSON output.
+        "FORCE_COLOR": "1",
+        "TTY_COMPATIBLE": "1",
     }
 
     process = subprocess.run(
@@ -188,6 +258,7 @@ def test_publish_local_outputs_pure_json_without_metadata_db(tmp_path, source, p
         capture_output=True,
         text=True,
         check=False,
+        timeout=60,
     )
 
     assert process.returncode == 0, process.stderr
