@@ -49,8 +49,9 @@ const (
 	FooterVersion = 1
 
 	// MaxRegionSize is the largest source or metadata region this footer
-	// format can address (uint32 length field).
-	MaxRegionSize = math.MaxUint32
+	// format can address (uint32 length field). Typed so that a use site
+	// never turns it into an int, which overflows where int is 32 bits.
+	MaxRegionSize int64 = math.MaxUint32
 )
 
 // Magic is the 8-byte ASCII tag that identifies a file as a bundle.
@@ -84,14 +85,14 @@ func Append(execPath string, source, metadata []byte) error {
 		return fmt.Errorf(
 			"bundlefooter: source region too large (%d bytes, max %d)",
 			len(source),
-			uint64(MaxRegionSize),
+			MaxRegionSize,
 		)
 	}
 	if int64(len(metadata)) > MaxRegionSize {
 		return fmt.Errorf(
 			"bundlefooter: metadata region too large (%d bytes, max %d)",
 			len(metadata),
-			uint64(MaxRegionSize),
+			MaxRegionSize,
 		)
 	}
 
