@@ -12378,6 +12378,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/auth/cli/metadata:
+    get:
+      tags:
+      - Login
+      summary: Get Cli Login Metadata
+      description: Return the login methods the AuthManager configured offers to command-line
+        clients.
+      operationId: get_cli_login_metadata
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliLoginMetadataResponse'
   /api/v2/auth/logout:
     get:
       tags:
@@ -14213,6 +14228,43 @@ components:
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
+    CliLoginMetadataResponse:
+      properties:
+        grant_types_supported:
+          items:
+            type: string
+          type: array
+          title: Grant Types Supported
+        code_challenge_methods_supported:
+          items:
+            type: string
+          type: array
+          title: Code Challenge Methods Supported
+        authorization_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization Endpoint
+        device_authorization_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Device Authorization Endpoint
+        token_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token Endpoint
+      type: object
+      required:
+      - grant_types_supported
+      - code_challenge_methods_supported
+      - authorization_endpoint
+      - device_authorization_endpoint
+      - token_endpoint
+      title: CliLoginMetadataResponse
+      description: Login methods the auth manager offers to command-line clients,
+        named as in RFC 8414.
     Config:
       properties:
         sections:

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Literal
@@ -109,6 +109,24 @@ class ExtraMenuItem:
 
     text: str
     href: str
+
+
+@dataclass
+class CliLoginMethods:
+    """
+    Login methods an auth manager offers to command-line clients such as airflowctl.
+
+    Field names follow the OAuth 2.0 Authorization Server Metadata (RFC 8414). An empty
+    ``grant_types_supported`` means the auth manager offers no login method to these clients.
+    Unlike RFC 8414, endpoints are paths relative to the API server root URL, because the auth
+    manager may not know the public URL clients use to reach the API server.
+    """
+
+    grant_types_supported: list[str] = field(default_factory=list)
+    code_challenge_methods_supported: list[str] = field(default_factory=list)
+    authorization_endpoint: str | None = None
+    device_authorization_endpoint: str | None = None
+    token_endpoint: str | None = None
 
 
 class MenuItem(Enum):

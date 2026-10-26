@@ -2152,6 +2152,13 @@ export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }:
   next?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }), queryFn: () => LoginService.login({ next }) });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseLoginServiceGetCliLoginMetadata = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(), queryFn: () => LoginService.getCliLoginMetadata() });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response

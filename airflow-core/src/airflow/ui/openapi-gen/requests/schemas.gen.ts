@@ -2577,6 +2577,62 @@ export const $ClearTaskInstancesBody = {
     description: 'Request body for Clear Task Instances endpoint.'
 } as const;
 
+export const $CliLoginMetadataResponse = {
+    properties: {
+        grant_types_supported: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Grant Types Supported'
+        },
+        code_challenge_methods_supported: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Code Challenge Methods Supported'
+        },
+        authorization_endpoint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Authorization Endpoint'
+        },
+        device_authorization_endpoint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Device Authorization Endpoint'
+        },
+        token_endpoint: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Token Endpoint'
+        }
+    },
+    type: 'object',
+    required: ['grant_types_supported', 'code_challenge_methods_supported', 'authorization_endpoint', 'device_authorization_endpoint', 'token_endpoint'],
+    title: 'CliLoginMetadataResponse',
+    description: 'Login methods the auth manager offers to command-line clients, named as in RFC 8414.'
+} as const;
+
 export const $Config = {
     properties: {
         sections: {

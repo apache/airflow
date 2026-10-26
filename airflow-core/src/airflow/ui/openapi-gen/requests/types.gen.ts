@@ -801,6 +801,17 @@ export type ClearTaskInstancesBody = {
 };
 
 /**
+ * Login methods the auth manager offers to command-line clients, named as in RFC 8414.
+ */
+export type CliLoginMetadataResponse = {
+    grant_types_supported: Array<(string)>;
+    code_challenge_methods_supported: Array<(string)>;
+    authorization_endpoint: string | null;
+    device_authorization_endpoint: string | null;
+    token_endpoint: string | null;
+};
+
+/**
  * List of config sections with their options.
  */
 export type Config = {
@@ -5448,6 +5459,8 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
+export type GetCliLoginMetadataResponse = CliLoginMetadataResponse;
+
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
@@ -9730,6 +9743,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/auth/cli/metadata': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CliLoginMetadataResponse;
             };
         };
     };

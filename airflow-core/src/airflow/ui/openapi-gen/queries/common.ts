@@ -1083,6 +1083,10 @@ export const useLoginServiceLoginKey = "LoginServiceLogin";
 export const UseLoginServiceLoginKeyFn = ({ next }: {
   next?: string;
 } = {}, queryKey?: Array<unknown>) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
+export type LoginServiceGetCliLoginMetadataDefaultResponse = Awaited<ReturnType<typeof LoginService.getCliLoginMetadata>>;
+export type LoginServiceGetCliLoginMetadataQueryResult<TData = LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useLoginServiceGetCliLoginMetadataKey = "LoginServiceGetCliLoginMetadata";
+export const UseLoginServiceGetCliLoginMetadataKeyFn = (queryKey?: Array<unknown>) => [useLoginServiceGetCliLoginMetadataKey, ...(queryKey ?? [])];
 export type LoginServiceLogoutDefaultResponse = Awaited<ReturnType<typeof LoginService.logout>>;
 export type LoginServiceLogoutQueryResult<TData = LoginServiceLogoutDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useLoginServiceLogoutKey = "LoginServiceLogout";

@@ -2152,6 +2152,13 @@ export const useLoginServiceLogin = <TData = Common.LoginServiceLoginDefaultResp
   next?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey), queryFn: () => LoginService.login({ next }) as TData, ...options });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceGetCliLoginMetadata = <TData = Common.LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(queryKey), queryFn: () => LoginService.getCliLoginMetadata() as TData, ...options });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response
