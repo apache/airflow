@@ -1222,7 +1222,7 @@ export type DAGWarningResponse = {
     warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
-    dag_display_name: string;
+    dag_display_name?: string | null;
 };
 
 /**
