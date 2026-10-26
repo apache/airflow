@@ -24,7 +24,8 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
+from airflow.api_fastapi.common.types import CliLoginMethods
 from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.config import conf_vars
@@ -96,6 +97,50 @@ class TestGetLogin(TestAuthEndpoint):
         response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
+
+
+class TestGetCliLoginMetadata:
+    @pytest.mark.parametrize(
+        ("methods", "expected"),
+        [
+            pytest.param(
+                CliLoginMethods(),
+                {
+                    "grant_types_supported": [],
+                    "code_challenge_methods_supported": [],
+                    "authorization_endpoint": None,
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": None,
+                },
+                id="no-method",
+            ),
+            pytest.param(
+                CliLoginMethods(
+                    grant_types_supported=["password", "authorization_code"],
+                    code_challenge_methods_supported=["S256"],
+                    authorization_endpoint="http://localhost:8080/auth/login/cli",
+                    token_endpoint="http://localhost:8080/auth/token/cli",
+                ),
+                {
+                    "grant_types_supported": ["password", "authorization_code"],
+                    "code_challenge_methods_supported": ["S256"],
+                    "authorization_endpoint": "http://localhost:8080/auth/login/cli",
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": "http://localhost:8080/auth/token/cli",
+                },
+                id="authorization-code",
+            ),
+        ],
+    )
+    def test_should_respond_200_without_authentication(self, unauthenticated_test_client, methods, expected):
+        auth_manager_mock = MagicMock(spec=BaseAuthManager)
+        auth_manager_mock.get_cli_login_methods.return_value = methods
+        unauthenticated_test_client.app.state.auth_manager = auth_manager_mock
+
+        response = unauthenticated_test_client.get("/auth/cli/metadata")
+
+        assert response.status_code == 200
+        assert response.json() == expected
 
 
 class TestLogout(TestAuthEndpoint):
