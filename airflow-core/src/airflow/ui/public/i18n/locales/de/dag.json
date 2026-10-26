@@ -346,7 +346,7 @@
       "changed": "Geändert",
       "removed": "Entfernt"
     },
-    "pathOccurrences_one": "{{count, number}} Änderungen in diesem Pfad",
+    "pathOccurrences_one": "{{count, number}} Änderung in diesem Pfad",
     "pathOccurrences_other": "{{count, number}} Änderungen in diesem Pfad",
     "pathOccurrencesAtLeast_one": "Mindestens {{count, number}} Änderungen in diesem Pfad",
     "pathOccurrencesAtLeast_other": "Mindestens {{count, number}} Änderungen in diesem Pfad",
