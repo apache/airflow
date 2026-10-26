@@ -80,11 +80,14 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   const isPending = isHITLPending(hitlDetail.task_instance.state);
 
   const chosenOptionsValue = paramsDict.chosen_options?.value;
+  const isChosenOptionsEmpty = Array.isArray(chosenOptionsValue)
+    ? chosenOptionsValue.length === 0
+    : chosenOptionsValue === undefined || chosenOptionsValue === null || chosenOptionsValue === "";
   const isSelectionMissing =
-    hitlDetail.multiple &&
+    !(shouldRenderOptionButton || isApprovalTask) &&
     isPending &&
     !hitlDetail.response_received &&
-    (!Array.isArray(chosenOptionsValue) || chosenOptionsValue.length === 0);
+    isChosenOptionsEmpty;
 
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,

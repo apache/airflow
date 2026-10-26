@@ -275,4 +275,25 @@ describe("HITLResponseForm – multiple requires a selection", () => {
     expect(screen.getByRole("button", { name: /response\.respond/u })).toBeEnabled();
     expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
   });
+
+  it("disables Respond and shows the hint when multiple=false with 5 options and nothing is selected", () => {
+    renderForm(["A", "B", "C", "D", "E"]);
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeDisabled();
+    expect(screen.getByText("response.selectAtLeastOne")).toBeInTheDocument();
+  });
+
+  it("does not block a single-select Respond when defaults preselect an option", () => {
+    renderForm(["A", "B", "C", "D", "E"], { defaults: ["A"] });
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeEnabled();
+    expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
+  });
+
+  it("keeps option buttons enabled for 4 options or fewer", () => {
+    renderForm(["A", "B", "C", "D"]);
+
+    expect(screen.getByTestId("hitl-option-A")).toBeEnabled();
+    expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
+  });
 });
