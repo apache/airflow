@@ -94,6 +94,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -656,6 +657,38 @@ class ConnectionAccessor:
             raise
         except AirflowNotFoundException:
             return default_conn
+
+
+class MappedArgsAccessor:
+    """Arguments of the enclosing mapped task group for this task instance. Available as ``context['mapped_args']``."""
+
+    # Not a Mapping: Jinja looks up attributes before keys, so methods such as ``items`` or
+    # ``keys`` would hide arguments with those names in ``{{ mapped_args.items }}``.
+
+    def __init__(self, expand_input: ExpandInput, context: Mapping[str, Any]) -> None:
+        self._expand_input = expand_input
+        self._context = context
+        self._data: Mapping[str, Any] | None = None
+
+    def __repr__(self) -> str:
+        return "<MappedArgsAccessor (dynamic access)>"
+
+    def __getitem__(self, key: str) -> Any:
+        data = self._get_data()
+        try:
+            return data[key]
+        except KeyError:
+            # Stays a KeyError so Jinja still renders an unknown name as undefined.
+            raise KeyError(f"{key!r} is not a mapped argument; available: {sorted(data)}") from None
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._get_data()
+
+    def _get_data(self) -> Mapping[str, Any]:
+        # Resolving pulls XComs, so it waits until a template reads an argument.
+        if self._data is None:
+            self._data, _ = self._expand_input.resolve(self._context)
+        return self._data
 
 
 class VariableAccessor:

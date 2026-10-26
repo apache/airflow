@@ -54,6 +54,7 @@ from airflow.sdk.definitions.mappedoperator import (
     ensure_xcomarg_return_value,
     prevent_duplicates,
 )
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
@@ -69,11 +70,14 @@ if TYPE_CHECKING:
 
 
 def _context_keys_for_task_group(task_group: TaskGroup | None) -> set[str]:
+    keys = set(KNOWN_CONTEXT_KEYS)
     while task_group is not None:
         if isinstance(task_group, LoopTaskGroup):
-            return KNOWN_CONTEXT_KEYS | {"loop"}
+            keys.add("loop")
+        elif isinstance(task_group, MappedTaskGroup):
+            keys.add("mapped_args")
         task_group = task_group.parent_group
-    return KNOWN_CONTEXT_KEYS
+    return keys
 
 
 class ExpandableFactory(Protocol):
