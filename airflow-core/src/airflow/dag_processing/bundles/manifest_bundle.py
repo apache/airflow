@@ -27,7 +27,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
 from airflow.dag_processing.bundles.base import (
@@ -144,10 +144,6 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
     supports_versioning = True
 
-    # Per-process record of fully validated cache trees, keyed by
-    # (bundle name, version, cache path). Safe because snapshots are immutable.
-    _validated_version_paths: ClassVar[set[tuple[str, str, str]]] = set()
-
     def __init__(
         self,
         *,
@@ -180,6 +176,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         if not isinstance(allow_empty_source, bool):
             raise TypeError("allow_empty_source must be a boolean")
         self.allow_empty_source = allow_empty_source
+        self._validated_version_paths: set[tuple[str, str, str]] = set()
         self._current_manifest_ref: BundleManifestRef | None = None
         self._release_version_in_use: weakref.finalize | None = None
 
@@ -223,6 +220,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
     def initialize(self) -> None:
         if self.version:
+            self._validated_version_paths.clear()
             version = validate_bundle_version(self.version, source="pinned version")
             with _reraise_oserror_as_manifest_error():
                 if not self._has_validated_cache(version, manifest_ref=None):
@@ -236,6 +234,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         if self.version:
             raise ValueError("Refreshing a specific bundle version is not supported")
 
+        self._validated_version_paths.clear()
         with _reraise_oserror_as_manifest_error():
             manifest_ref = self._read_current_manifest_ref()
             version_lock = self._acquire_version_in_use(manifest_ref.version)
@@ -313,7 +312,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         except FileNotFoundError:
             return False
 
-    def _validation_marker_path(self, version: str) -> Path:
+    def _get_validation_marker_path(self, version: str) -> Path:
         # A file, not a directory: the orphan sweep only matches temp snapshot directories.
         # Airflow's stale-version cleanup does not know about the marker; a marker without
         # its version dir is reaped by _remove_orphaned_validation_markers.
@@ -327,7 +326,8 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         Airflow's stale cleanup can leave a truncated tree behind (an interrupted plain rmtree
         that knows nothing about the marker), and cache directories are owner-writable (a
         stale-cleanup requirement), so structure -- file set, types, no symlinks -- is
-        re-checked once per process even when the marker vouches for the content hashes.
+        re-checked on each initialization or refresh even when the marker vouches for the
+        content hashes. Only repeated path lookups within that instance reuse the result.
         """
         cached_version_path = self.versions_dir / version
         if not cached_version_path.exists():
@@ -335,7 +335,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         cache_key = (self.name, version, str(cached_version_path))
         if cache_key in self._validated_version_paths:
             return True
-        if not self._validation_marker_path(version).exists():
+        if not self._get_validation_marker_path(version).exists():
             return False
         try:
             self._validate_materialized_version(
@@ -359,7 +359,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
     def _record_validated_cache(self, version: str, cache_key: tuple[str, str, str]) -> None:
         """Persist a marker after the cache tree and its parent entry are durable."""
-        marker_path = self._validation_marker_path(version)
+        marker_path = self._get_validation_marker_path(version)
         marker_path.write_text(version)
         with suppress(OSError):
             marker_path.chmod(0o644)
@@ -455,7 +455,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
     def _move_cached_version_aside(self, cached_version_path: Path, *, version: str) -> None:
         # Rename instead of delete: a concurrent task may still read the old tree, and a
         # POSIX rename keeps its already-open files valid. The orphan sweep removes it later.
-        self._validation_marker_path(version).unlink(missing_ok=True)
+        self._get_validation_marker_path(version).unlink(missing_ok=True)
         # Also drop Airflow's usage-tracking file: its stale cleanup rmtree's the tracked
         # path catching only BlockingIOError, so a tracking file pointing at a version dir
         # this rename removes would crash every future cleanup sweep (and, on a scheduler
@@ -526,9 +526,9 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             ),
             invalid_message=f"Bundle manifest reference is not valid JSON: {self.manifest_ref_path}",
         )
-        return self._manifest_ref_from_payload(payload, source=str(self.manifest_ref_path))
+        return self._build_manifest_ref_from_payload(payload, source=str(self.manifest_ref_path))
 
-    def _manifest_ref_from_payload(self, payload: dict[str, Any], source: str) -> BundleManifestRef:
+    def _build_manifest_ref_from_payload(self, payload: dict[str, Any], source: str) -> BundleManifestRef:
         schema_version = payload.get("schema_version")
         if schema_version != MANIFEST_SCHEMA_VERSION:
             raise BundleManifestError(
@@ -876,7 +876,7 @@ def _publish_manifest_result(
 ) -> BundlePublishResult:
     """Publish a precomputed manifest while the caller holds the publication lock."""
     ref_payload = dict(manifest_result.ref_payload)
-    manifest_ref = bundle._manifest_ref_from_payload(ref_payload, source="publisher")
+    manifest_ref = bundle._build_manifest_ref_from_payload(ref_payload, source="publisher")
     version_path = bundle._store.snapshot_path(manifest_result.version)
 
     bundle._store.sweep_publish_temps()
