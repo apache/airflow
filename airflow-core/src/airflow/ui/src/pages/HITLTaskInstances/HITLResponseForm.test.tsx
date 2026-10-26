@@ -17,9 +17,10 @@
  * under the License.
  */
 /// <reference types="@testing-library/jest-dom" />
+import { QueryClient } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
@@ -302,32 +303,97 @@ describe("HITLResponseForm – multiple requires a selection", () => {
   });
 });
 
-describe("useUpdateHITLDetail – a refused answer", () => {
-  it("shows the reason the backend gave instead of the bare status text", async () => {
-    const detail =
-      "The Task Instance is no longer waiting for a response, so this Human-in-the-loop response was not recorded.";
-    const { useUpdateHITLDetail: useRealUpdateHITLDetail } = await vi.importActual<{
-      useUpdateHITLDetail: typeof UseUpdateHITLDetail;
-    }>("src/queries/useUpdateHITLDetail");
+const submitRejectedAnswer = async (rejection: unknown) => {
+  const { useUpdateHITLDetail: useRealUpdateHITLDetail } = await vi.importActual<{
+    useUpdateHITLDetail: typeof UseUpdateHITLDetail;
+  }>("src/queries/useUpdateHITLDetail");
 
-    vi.spyOn(TaskInstanceService, "updateHitlDetail").mockRejectedValue({
-      body: { detail },
+  vi.spyOn(TaskInstanceService, "updateHitlDetail").mockRejectedValue(rejection);
+  const createToast = vi.spyOn(toaster, "create").mockImplementation(() => "toast-id");
+  const invalidateQueries = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+  const { result } = renderHook(
+    () =>
+      useRealUpdateHITLDetail({ dagId: "test_dag", dagRunId: "run_1", mapIndex: -1, taskId: "test_task" }),
+    { wrapper: Wrapper },
+  );
+
+  result.current.updateHITLResponse({ chosen_options: ["Approve"], params_input: {} });
+
+  return { createToast, invalidateQueries };
+};
+
+describe("useUpdateHITLDetail – a refused answer", () => {
+  const refusalDetail =
+    "The Task Instance is no longer waiting for a response, so this Human-in-the-loop response was not recorded.";
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows the reason the backend gave instead of the bare status text", async () => {
+    const { createToast } = await submitRejectedAnswer({
+      body: { detail: refusalDetail },
       message: "Conflict",
       status: 409,
     });
-    const createToast = vi.spyOn(toaster, "create").mockImplementation(() => "toast-id");
-    const { result } = renderHook(
-      () =>
-        useRealUpdateHITLDetail({ dagId: "test_dag", dagRunId: "run_1", mapIndex: -1, taskId: "test_task" }),
-      { wrapper: Wrapper },
-    );
-
-    result.current.updateHITLResponse({ chosen_options: ["Approve"], params_input: {} });
 
     await waitFor(() =>
       expect(createToast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: detail, type: "error" }),
+        expect.objectContaining({ description: refusalDetail, type: "error" }),
       ),
     );
+  });
+
+  it.each([
+    {
+      detail: [
+        { loc: ["body", "chosen_options"], msg: "Field required", type: "missing" },
+        { loc: ["body", "params_input", "name"], msg: "Input should be a string", type: "string_type" },
+      ],
+      expected: "body.chosen_options Field required, body.params_input.name Input should be a string",
+      name: "validation entries",
+    },
+    {
+      detail: { reason: "stale request" },
+      expected: "reason: stale request",
+      name: "a mapping",
+    },
+  ])("joins $name detail into one description", async ({ detail, expected }) => {
+    const { createToast } = await submitRejectedAnswer({
+      body: { detail },
+      message: "Unprocessable Entity",
+      status: 422,
+    });
+
+    await waitFor(() =>
+      expect(createToast).toHaveBeenCalledWith({
+        description: expected,
+        title: "response.error",
+        type: "error",
+      }),
+    );
+  });
+
+  it("falls back to the error message when the backend gave no detail", async () => {
+    const { createToast } = await submitRejectedAnswer({ message: "Internal Server Error", status: 500 });
+
+    await waitFor(() =>
+      expect(createToast).toHaveBeenCalledWith({
+        description: "Internal Server Error",
+        title: "hitl:response.error",
+        type: "error",
+      }),
+    );
+  });
+
+  it("leaves a 403 to the MutationCache handler but still reloads the stale request", async () => {
+    const { createToast, invalidateQueries } = await submitRejectedAnswer({
+      body: { detail: "Forbidden" },
+      message: "Forbidden",
+      status: 403,
+    });
+
+    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(3));
+    expect(createToast).not.toHaveBeenCalled();
   });
 });
