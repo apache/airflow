@@ -1147,7 +1147,8 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == OrderedDict()
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_prepare_file_queue_skips_file_when_versioned_stat_is_at_run_limit(self):
+    def test_prepare_file_queue_ignores_versioned_stat_at_run_limit(self):
+        """A callback's versioned stat doesn't stand for a parse, so it doesn't count towards the run limit."""
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
@@ -1156,10 +1157,11 @@ class TestDagFileProcessorManager:
 
         manager.prepare_file_queue(known_files={"testing": {known_file}})
 
-        assert manager._file_queue == OrderedDict()
+        assert manager._file_queue == OrderedDict.fromkeys([known_file])
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_prepare_file_queue_skips_recently_processed_file_with_versioned_stats(self):
+    def test_prepare_file_queue_ignores_recent_versioned_stat(self):
+        """A callback's versioned stat doesn't stand for a parse, so a recent one doesn't hold the file back."""
         manager = DagFileProcessorManager(max_runs=3)
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
@@ -1171,11 +1173,11 @@ class TestDagFileProcessorManager:
 
         manager.prepare_file_queue(known_files={"testing": {known_file}})
 
-        assert manager._file_queue == OrderedDict()
+        assert manager._file_queue == OrderedDict.fromkeys([known_file])
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_recently_modified_file_uses_versioned_stats_without_creating_duplicate_entries(
+    def test_recently_modified_file_ignores_versioned_stats_without_creating_duplicate_entries(
         self, mock_getmtime
     ):
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
@@ -1221,6 +1223,7 @@ class TestDagFileProcessorManager:
             if not callback_first:
                 manager._file_stats[known_file] = scan_stat
             manager.handle_parsing_result(versioned_file, processor)
+            assert manager._file_stats[versioned_file].last_finish_time is None
             if callback_first:
                 manager._file_stats[known_file] = scan_stat
             manager.prepare_file_queue(known_files={"testing": {known_file}})
@@ -1228,7 +1231,7 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == OrderedDict()
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    @mock.patch.object(DagFileProcessorProcess, "kill")
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
     def test_timed_out_callback_does_not_delay_due_parse(self, mock_kill):
         """A callback processor that times out must not make a due file look recently parsed."""
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
@@ -1244,12 +1247,14 @@ class TestDagFileProcessorManager:
 
         with time_machine.travel(freezed_base_time):
             manager._kill_timed_out_processors()
+            mock_kill.assert_called_once_with(processor, signal.SIGKILL)
+            assert manager._file_stats[versioned_file].last_finish_time is not None
             manager.prepare_file_queue(known_files={"testing": {known_file}})
 
         assert known_file in manager._file_queue
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch.object(DagFileProcessorProcess, "kill")
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_timed_out_callback_does_not_hide_an_edit(self, mock_getmtime, mock_kill):
         """An edit after the last parse is picked up even if a callback processor times out later."""
@@ -1267,10 +1272,32 @@ class TestDagFileProcessorManager:
 
         with time_machine.travel(freezed_base_time - timedelta(seconds=5)):
             manager._kill_timed_out_processors()
+        mock_kill.assert_called_once_with(processor, signal.SIGKILL)
+        assert manager._file_stats[versioned_file].last_finish_time is not None
         with time_machine.travel(freezed_base_time):
             manager.prepare_file_queue(known_files={"testing": {known_file}})
 
         assert known_file in manager._file_queue
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.stats.gauge")
+    def test_timed_out_callback_is_not_reported_as_an_import_error(self, mock_gauge, mock_kill):
+        """The ``import_errors=1`` a timeout leaves on a callback's entry must not reach the gauge."""
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(1, 2, timezone.datetime(2020, 1, 5), 1.0, 1, 1)
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
+
+        manager._kill_timed_out_processors()
+        assert manager._file_stats[versioned_file].import_errors == 1
+        manager._parsing_start_time = time.perf_counter()
+        manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        mock_gauge.assert_any_call("dag_processing.import_errors", 2)
 
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
