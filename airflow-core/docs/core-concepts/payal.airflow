@@ -20,9 +20,50 @@
 Debugging Airflow Dags
 ======================
 
-Testing Dags with dag.test()
-Debugging DAGs with Real-World Testing Techniques
+Testing Dags with dag.test() 
+
 --------------------------------------------------
+Debugging DAGs with Real-World Testing Techniques
+-------------------------------------------------
+
+While ``dag.test()`` is useful for testing a DAG locally, real-world
+debugging often requires investigating individual tasks and their
+execution results.
+
+Running an individual task
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a DAG contains multiple tasks, it can be useful to focus on a
+single task instead of repeatedly running the complete DAG. The
+Airflow UI allows users to inspect task instances, view their logs,
+and clear and re-run individual tasks.
+
+This is useful for identifying whether a problem is related to the
+task itself, its inputs, dependencies, or its execution environment.
+
+Inspecting XCom values
+~~~~~~~~~~~~~~~~~~~~~~
+
+XComs can be useful when debugging tasks that exchange small amounts
+of data. The Airflow UI can be used to inspect XCom values associated
+with task instances.
+
+Inspecting XCom values helps verify whether a task produced the
+expected value and whether downstream tasks received the expected
+data.
+
+Re-running failed tasks
+~~~~~~~~~~~~~~~~~~~~~~~
+
+When a task fails, first inspect its logs to understand the cause.
+After making the required correction, the task instance can be
+cleared and re-run from the Airflow UI.
+
+Re-running only the affected task can make debugging faster and
+avoids unnecessarily re-running unrelated tasks.
+
+These techniques are particularly useful for DAGs with many tasks,
+complex dependencies, and production-like execution environments.
 
 While ``dag.test()`` is useful for testing a DAG locally, real-world
 debugging often requires investigating individual tasks and their
