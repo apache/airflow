@@ -3179,7 +3179,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._queued_run_dag_load_failures[load_failure_id] += 1
                 failure_counter = self._queued_run_dag_load_failures[load_failure_id]
                 max_failures = self._max_dag_load_failures_per_queued_run
-                if max_failures > 0 and failure_counter >= max_failures:
+                if max_failures:
                     dag_run.set_state(DagRunState.FAILED)
                     self.log.error(
                         "Marking queued run %s of Dag %s as failed after %d consecutive Dag load failures",
