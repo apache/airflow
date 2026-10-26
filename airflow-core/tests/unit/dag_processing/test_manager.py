@@ -48,7 +48,7 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleNotReadyError, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
@@ -4322,6 +4322,59 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
 
         healthy_bundle.refresh.assert_called_once()
+
+    @mock.patch.object(DagFileProcessorManager, "_add_new_files_to_queue", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_resort_file_queue", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "clear_orphaned_import_errors", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "deactivate_deleted_dags", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=set())
+    @mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "get_bundle_state",
+        autospec=True,
+        return_value=BundleState(last_refreshed=None, version=None),
+    )
+    @mock.patch("airflow.dag_processing.manager.time.monotonic")
+    def test_refresh_dag_bundles_retries_not_ready_bundle_after_its_hint(
+        self,
+        mock_monotonic,
+        mock_get_bundle_state,
+        mock_update_bundle_state,
+        mock_find_files,
+        mock_deactivate,
+        mock_clear_import_errors,
+        mock_handle_removed,
+        mock_resort,
+        mock_add_files,
+        caplog,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.bundle_refresh_check_interval = 5
+        settling_bundle = self._make_refresh_bundle()
+        settling_bundle.name = "settling_bundle"
+        settling_bundle.is_initialized = False
+        settling_bundle.initialize.side_effect = BundleNotReadyError("source is settling", retry_after=12)
+        healthy_bundle = self._make_refresh_bundle()
+        healthy_bundle.name = "healthy_bundle"
+        manager._dag_bundles = [settling_bundle, healthy_bundle]
+        manager._force_refresh_bundles = set()
+
+        for now in (1000, 1006, 1012):
+            mock_monotonic.return_value = now
+            manager._refresh_dag_bundles({})
+
+        # Not retried at the 1006 check, before the 12-second hint ran out.
+        assert settling_bundle.initialize.call_count == 2
+        settling_bundle.refresh.assert_not_called()
+        assert healthy_bundle.refresh.call_count == 3
+        assert {
+            "event": "Bundle settling_bundle is not ready yet; retrying initialization in 12 seconds: "
+            "source is settling",
+            "log_level": "info",
+        } in caplog
+        assert not [entry for entry in caplog.entries if entry["log_level"] == "error"]
 
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.

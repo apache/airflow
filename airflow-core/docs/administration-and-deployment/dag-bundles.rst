@@ -443,6 +443,12 @@ In addition to the abstract methods, you may choose to override the following me
 
     When a worker starts a task, Airflow sets the Dag parsing context before calling ``initialize()``. See **Parsing context** under Other Considerations.
 
+    If the bundle is configured correctly but has nothing to serve yet, raise
+    ``airflow.dag_processing.bundles.base.BundleNotReadyError`` with a ``retry_after`` hint in seconds instead of
+    waiting inside ``initialize()``. The Dag processor logs it at info level, skips the bundle without delaying
+    the others, and retries initialization at the first bundle refresh check after ``retry_after`` seconds.
+    Other callers, such as workers and CLI commands, treat it as an ordinary initialization error.
+
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
 

@@ -51,6 +51,7 @@ from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     unpack_bundle_version,
 )
@@ -283,6 +284,7 @@ class DagFileProcessorManager(LoggingMixin):
     _bundles_last_refreshed: float = attrs.field(default=0, init=False)
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
+    _bundle_initialization_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
 
     _file_parsing_sort_mode: str = attrs.field(
@@ -898,9 +900,26 @@ class DagFileProcessorManager(LoggingMixin):
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
+                retry_at = self._bundle_initialization_retry_at.get(bundle.name)
+                if retry_at is not None and now_seconds < retry_at:
+                    self.log.debug(
+                        "Bundle %s is not ready yet; retrying initialization in %.0f seconds",
+                        bundle.name,
+                        retry_at - now_seconds,
+                    )
+                    continue
                 try:
                     bundle.initialize()
                     any_refreshed = True
+                except BundleNotReadyError as e:
+                    self._bundle_initialization_retry_at[bundle.name] = now_seconds + e.retry_after
+                    self.log.info(
+                        "Bundle %s is not ready yet; retrying initialization in %.0f seconds: %s",
+                        bundle.name,
+                        e.retry_after,
+                        e,
+                    )
+                    continue
                 except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
