@@ -506,3 +506,35 @@ class TestKeda:
         assert "KEDA_DB_CONN" in self._env_names(triggerer)
         assert "KEDA_DB_CONN" not in self._env_names(worker)
         assert "KEDA_DB_CONN" not in self._env_names(scheduler)
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"data": {"metadataConnection": {"protocol": "mysql", "port": 3306}}},
+            {"pgbouncer": {"enabled": True}},
+        ],
+    )
+    def test_worker_keda_db_conn_not_set_with_authentication_ref(self, values):
+        docs = render_chart(
+            values={
+                **values,
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "usePgbouncer": False,
+                            "authenticationRef": {"name": "airflow-keda-db"},
+                        }
+                    }
+                },
+                "triggerer": {"keda": {"enabled": True, "usePgbouncer": False}},
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        worker, triggerer = docs
+        assert "KEDA_DB_CONN" not in self._env_names(worker)
+        assert "KEDA_DB_CONN" in self._env_names(triggerer)
