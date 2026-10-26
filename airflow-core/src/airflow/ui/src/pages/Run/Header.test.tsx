@@ -163,7 +163,11 @@ describe("Header", () => {
     },
   );
 
-  it("keeps stored deadlines visible without an applicable alert", () => {
+  it.each([
+    { filter: ["scheduled"], visible: false },
+    { filter: ["backfill"], visible: true },
+    { filter: null, visible: true },
+  ])("shows stored deadline status=$visible for backfill with $filter", ({ filter, visible }) => {
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: {
         deadline_alerts: [
@@ -171,7 +175,7 @@ describe("Header", () => {
             id: "alert",
             interval: 25,
             reference_type: "DagRunQueuedAtDeadline",
-            run_type_filter: ["scheduled"],
+            run_type_filter: filter,
           },
         ],
         total_entries: 1,
@@ -190,8 +194,12 @@ describe("Header", () => {
 
     render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
 
-    expect(screen.getByText(i18n.t("dag:deadlineStatus.label"))).toBeInTheDocument();
-    expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("dag:deadlineStatus.label")))[
+      visible ? "toBeInTheDocument" : "toBeNull"
+    ]();
+    expect(screen.queryByText(i18n.t("dag:deadlineStatus.missed")))[
+      visible ? "toBeInTheDocument" : "toBeNull"
+    ]();
   });
 
   it("shows the partition key stat using the dagRun.partitionKey label when partition_key is set", () => {
