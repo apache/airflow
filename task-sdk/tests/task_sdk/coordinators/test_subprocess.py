@@ -1412,7 +1412,7 @@ class TestResolveArtifactBundle:
         mock_initialize.return_value = _make_bundle(tmp_path / "nope", version="v1")
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        with pytest.raises(FileNotFoundError, match="does not exist"):
+        with pytest.raises(TaskLaunchError, match="does not exist"):
             coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
 
 
@@ -1440,16 +1440,17 @@ class TestExecuteTaskLaunchFailure:
         assert raised.value.retryable is True
         assert isinstance(raised.value.__cause__, FileNotFoundError)
 
-    @patch.object(
-        SubprocessCoordinator,
-        "_resolve_artifact_bundle",
+    @patch(
+        "airflow.sdk.coordinators._subprocess.initialize_ti_bundle",
         autospec=True,
-        side_effect=FileNotFoundError("Dag bundle 'artifacts' resolved to /nope, which does not exist."),
+        side_effect=RuntimeError("Error cloning repository"),
     )
     def test_fails_with_a_retry_when_the_artifact_bundle_cannot_be_read(self, _, mock_client):
         coordinator = _StubSubprocessCoordinator(command=["/runtime"], task_handler_bundle_name="artifacts")
 
-        with pytest.raises(TaskLaunchError, match="resolved to /nope, which does not exist") as raised:
+        with pytest.raises(
+            TaskLaunchError, match="Dag bundle 'artifacts' cannot be read: Error cloning repository"
+        ) as raised:
             coordinator.execute_task(
                 what=_make_ti(),
                 dag_rel_path="dag.py",

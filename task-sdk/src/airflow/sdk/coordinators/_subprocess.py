@@ -584,9 +584,9 @@ def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) 
     return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
-def _resolve_task_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
     """
-    Materialize the Dag bundle of a task, pinned to a concrete version.
+    Materialize the Dag bundle of *bundle_info*, pinned to a concrete version.
 
     *logger* is the task logger, so materialization failures surface in the task log.
 
@@ -668,17 +668,14 @@ class SubprocessCoordinator(BaseCoordinator):
         That is the bundle named by ``task_handler_bundle_name``, or the task's own
         bundle when it is unset. *logger* is the task logger, so materialization
         failures surface in the task log.
+
+        :raises TaskLaunchError: when the bundle cannot be read.
         """
         if self.task_handler_bundle_name is None:
             target = bundle_info
         else:
             target = BundleInfo(name=self.task_handler_bundle_name)
-
-        bundle = _initialize_pinned_bundle(target, logger)
-        path = bundle.path
-        if not path.exists():
-            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
-        return bundle
+        return _resolve_bundle(target, logger)
 
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
         """Return the artifact roots resolved for the active task or Dag parse."""
@@ -873,7 +870,7 @@ class SubprocessCoordinator(BaseCoordinator):
             ):
                 is_native = self._is_native_dag_file(rel_path, bundle_info.name)
                 if is_native:
-                    bundle = _resolve_task_bundle(bundle_info, task_logger)
+                    bundle = _resolve_bundle(bundle_info, task_logger)
                 else:
                     bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
                 # Hold the version lock across start()/wait() so bundle cleanup cannot
