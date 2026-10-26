@@ -15,7 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Extend dag_warning for parse-time failures (file scope, no dag FK)."""
+"""
+Extend dag_warning for parse-time failures (file scope, no dag FK).
+
+Revision ID: b8f2c1d04e91
+Revises: c71065a1b14f
+Create Date: 2026-10-26 00:00:00.000000
+
+"""
 
 from __future__ import annotations
 
@@ -28,7 +35,7 @@ revision = "b8f2c1d04e91"
 down_revision = "c71065a1b14f"
 branch_labels = None
 depends_on = None
-airflow_version = "3.4.0"
+airflow_version = "3.5.0"
 
 
 def upgrade():
