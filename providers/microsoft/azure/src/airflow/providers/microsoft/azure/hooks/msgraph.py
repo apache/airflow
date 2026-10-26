@@ -33,7 +33,7 @@ import re
 import warnings
 from ast import literal_eval
 from base64 import b64encode
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from email.utils import parseaddr
 from http import HTTPStatus
@@ -676,6 +676,59 @@ class KiotaRequestAdapterHook(BaseHook):
                 f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
             )
 
+    async def iter_paginated_run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+        pagination_function: PaginationCallable | None = None,
+    ) -> AsyncIterator[Any]:
+        """
+        Yield the pages of a paginated request one at a time.
+
+        The caller handles each page before the next one is requested, so a collection of any size passes
+        through in page-sized steps instead of the single list ``paginated_run`` builds. The next page is
+        resolved by ``pagination_function`` (``default_pagination`` by default: ``@odata.nextLink``, or
+        ``$skip`` on counted queries) and its host is checked with ``assert_allowed_host`` before it is
+        fetched. ``pagination_function`` receives the same arguments as in ``paginated_run`` except
+        ``responses``: nothing keeps the pages already yielded.
+        """
+        if pagination_function is None:
+            pagination_function = self.default_pagination
+
+        while url:
+            response = await self.run(
+                url=url,
+                response_type=response_type,
+                path_parameters=path_parameters,
+                method=method,
+                query_parameters=query_parameters,
+                headers=headers,
+                data=data,
+            )
+
+            if not response:
+                return
+
+            yield response
+
+            url, query_parameters = execute_callable(
+                pagination_function,
+                response=response,
+                url=url,
+                response_type=response_type,
+                path_parameters=path_parameters,
+                method=method,
+                query_parameters=query_parameters,
+                headers=headers,
+                data=data,
+            )
+            await self.assert_allowed_host(url)
+
     async def paginated_run(
         self,
         url: str = "",
@@ -686,49 +739,33 @@ class KiotaRequestAdapterHook(BaseHook):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         pagination_function: PaginationCallable | None = None,
-    ):
+    ) -> list[Any]:
+        """
+        Collect the pages of a paginated request in a list.
+
+        The pages come from ``iter_paginated_run``; use that directly when the collection should be handled
+        page by page. ``pagination_function`` additionally receives ``responses``, a callable returning the
+        pages collected so far, the one being paginated included.
+        """
         if pagination_function is None:
             pagination_function = self.default_pagination
 
-        responses: list[dict] = []
+        responses: list[Any] = []
 
-        async def run(
-            url: str = "",
-            query_parameters: dict[str, Any] | None = None,
+        def paginate(**kwargs: Any) -> tuple[str, dict[str, Any] | None]:
+            return execute_callable(pagination_function, responses=lambda: responses, **kwargs)
+
+        async for response in self.iter_paginated_run(
+            url=url,
+            response_type=response_type,
+            path_parameters=path_parameters,
+            method=method,
+            query_parameters=query_parameters,
+            headers=headers,
+            data=data,
+            pagination_function=paginate,
         ):
-            while url:
-                response = await self.run(
-                    url=url,
-                    response_type=response_type,
-                    path_parameters=path_parameters,
-                    method=method,
-                    query_parameters=query_parameters,
-                    headers=headers,
-                    data=data,
-                )
-
-                if response:
-                    responses.append(response)
-
-                    if pagination_function:
-                        next_url, query_parameters = execute_callable(
-                            pagination_function,
-                            response=response,
-                            url=url,
-                            response_type=response_type,
-                            path_parameters=path_parameters,
-                            method=method,
-                            query_parameters=query_parameters,
-                            headers=headers,
-                            data=data,
-                            responses=lambda: responses,
-                        )
-                        await self.assert_allowed_host(next_url)
-                        url = next_url
-                else:
-                    break
-
-        await run(url=url, query_parameters=query_parameters)
+            responses.append(response)
 
         return responses
 
