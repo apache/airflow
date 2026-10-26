@@ -92,7 +92,6 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagRunState": "Dag 執行狀態",
-  "dagWarnings": "Dag 警告 / 錯誤",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -229,7 +228,7 @@
     "receivedAssetEvents": "收到的資源事件"
   },
   "pause": "暫停",
-  "pendingDagRun_one": "{{count, number}} 個待執行的 Dag 執行",
+  "pendingDagRun_one": "1 個待執行的 Dag 執行",
   "pendingDagRun_other": "{{count, number}} 個待執行的 Dag 執行",
   "presetFilters": {
     "deleteTitle": "刪除預設篩選條件",
@@ -508,8 +507,8 @@
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
   "teams": {
-    "more_one": "還有 {{count, number}} 個",
-    "more_other": "還有 {{count, number}} 個",
+    "more_one": "及其他 1 個團隊",
+    "more_other": "及其他 {{count, number}} 個團隊",
     "none": "沒有團隊",
     "title": "團隊"
   },

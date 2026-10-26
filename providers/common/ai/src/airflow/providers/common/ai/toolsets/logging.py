@@ -42,15 +42,8 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class LoggingToolset(WrapperToolset[Any]):
-    """
-    Wrap a toolset to log each tool call with timing.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
-    """
+class _LoggingToolset(WrapperToolset[Any]):
+    """Wrap a toolset to log each tool call with timing; applied through ``ToolLoggingCapability``."""
 
     logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
@@ -98,7 +91,11 @@ class LoggingToolset(WrapperToolset[Any]):
 
 @dataclass
 class ToolLoggingCapability(AbstractCapability[Any]):
-    """Apply tool-call logging to the assembled function toolset for an agent run."""
+    """
+    Apply tool-call logging to the assembled function toolset for an agent run.
+
+    .. note:: Experimental; see :ref:`howto/stability`.
+    """
 
     logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
@@ -111,4 +108,4 @@ class ToolLoggingCapability(AbstractCapability[Any]):
         return CapabilityOrdering(position="innermost")
 
     def get_wrapper_toolset(self, toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
-        return LoggingToolset(wrapped=toolset, logger=self.logger)
+        return _LoggingToolset(wrapped=toolset, logger=self.logger)

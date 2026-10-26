@@ -49,6 +49,13 @@
     "error_other": "{{count, number}} Erros",
     "error_zero": "Nenhum erro",
     "errorAndWarning": "1 Erro e {{warningText}}",
+    "types": {
+      "asset conflict": "Conflito de Asset",
+      "duplicate dag id": "Dag ID duplicado",
+      "non-existent pool": "Pool inexistente",
+      "runtime varying value": "Valor variável em tempo de execução",
+      "task group cycle": "Ciclo no grupo de tarefas"
+    },
     "warning_many": "{{count, number}} Avisos",
     "warning_one": "1 Aviso",
     "warning_other": "{{count, number}} Avisos",

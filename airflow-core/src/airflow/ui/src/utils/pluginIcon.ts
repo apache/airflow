@@ -16,18 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { describe, expect, it } from "vitest";
 
-import { countDagWarnings } from "./DAGWarningsModal";
+/** A plugin contribution that may carry its own icon: a view, a React app or an action. */
+type IconBearing = {
+  icon?: string | null;
+  icon_dark_mode?: string | null;
+};
 
-describe("countDagWarnings", () => {
-  it.each([
-    [undefined, null, 0],
-    [3, null, 3],
-    [undefined, new Error("boom"), 1],
-    [0, new Error("boom"), 1],
-    [3, new Error("boom"), 4],
-  ])("counts %s warnings and error %s as %s", (warningsTotal, error, expected) => {
-    expect(countDagWarnings(warningsTotal, error)).toBe(expected);
-  });
-});
+/**
+ * The icon URL to render for a plugin contribution, or `undefined` to fall back to a default.
+ *
+ * `icon_dark_mode` is optional, so a plugin supplying only `icon` uses it in both themes.
+ */
+export const getPluginIconSrc = (
+  contribution: IconBearing,
+  colorMode: string | undefined,
+): string | undefined => {
+  const preferred =
+    colorMode === "dark" && contribution.icon_dark_mode !== undefined && contribution.icon_dark_mode !== null
+      ? contribution.icon_dark_mode
+      : contribution.icon;
+
+  return preferred ?? undefined;
+};
