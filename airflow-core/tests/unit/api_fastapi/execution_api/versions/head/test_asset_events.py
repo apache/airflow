@@ -19,11 +19,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import httpx2
 import pytest
+from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.dagrun import DagRun
+from airflow.models.trigger import Trigger
+from airflow.sdk.api.client import Client as ExecutionAPIClient
+from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -96,6 +101,52 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
 
 class TestGetAssetEventByAsset:
+    @pytest.mark.parametrize("partition_key", [None, "2026-10-16"])
+    def test_get_watcher_event_through_task_sdk(self, client, session, test_asset, partition_key, request):
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+
+        def cleanup():
+            session.execute(delete(AssetEvent).where(AssetEvent.asset_id == test_asset.id))
+            session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+            session.execute(delete(Trigger).where(Trigger.id == trigger.id))
+            session.commit()
+
+        request.addfinalizer(cleanup)
+        test_asset.add_trigger(trigger, "partition_watcher")
+        session.flush()
+        payload = {"partition_key": "payload-only", "changed": True}
+        event = (
+            TriggerEvent(payload)
+            if partition_key is None
+            else AssetTriggerEvent(payload, partition_key=partition_key)
+        )
+        Trigger.submit_event(trigger.id, event, session=session)
+        session.commit()
+        session.expire_all()
+
+        def read_event(request: httpx2.Request) -> httpx2.Response:
+            response = client.get(
+                request.url.path,
+                params=list(request.url.params.multi_items()),
+                headers=dict(request.headers),
+            )
+            return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
+
+        with ExecutionAPIClient(
+            base_url="http://testserver/execution/",
+            token="fake",
+            transport=httpx2.MockTransport(read_event),
+        ) as sdk_client:
+            result = sdk_client.asset_events.get(name=test_asset.name)
+
+        assert len(result.asset_events) == 1
+        returned_event = result.asset_events[0]
+        assert returned_event.partition_key == partition_key
+        assert returned_event.extra == {"from_trigger": True, "payload": payload}
+        assert isinstance(returned_event.timestamp, datetime)
+
     @pytest.mark.usefixtures("test_asset")
     def test_get_by_asset_with_created_dagrun_without_start_date(self, client, session, test_asset_events):
         created_dagrun = DagRun(
