@@ -89,8 +89,10 @@ dependencies = [
 # 2.47.0 is the first release that accepts the httpx2 client pydantic-ai-slim>=2.33 hands it
 # (2.45 and 2.46 raise TypeError on it); pydantic-ai-slim[openai]>=2.33.0 itself asks for
 # openai>=3, so this floor only matters where that requirement is overridden, as in this
-# repository's lock.
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.36.0", "anthropic>=1.1.0"]
+# repository's lock. anthropic is capped below 2 because pydantic-ai's Anthropic model
+# (up to 2.59.0) calls BetaMessageParam(...), which anthropic 2 turned into a Union that
+# cannot be instantiated.
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.36.0", "anthropic>=1.1.0,<2"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.36.0"]
 "google" = ["pydantic-ai-slim[google]>=2.36.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.36.0", "openai>=2.47.0"]
@@ -200,7 +202,7 @@ dev = [
     # @task.llm_batch's OpenAI/Anthropic adapters call these SDKs directly. The dev group
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
-    "anthropic>=1.1.0",
+    "anthropic>=1.1.0,<2",
     # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
     "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
