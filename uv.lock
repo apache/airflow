@@ -2137,7 +2137,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=22.1.0,!=25.2.0" },
     { name = "cachetools", specifier = ">=6.0.0" },
-    { name = "cadwyn", specifier = ">=6.1.1" },
+    { name = "cadwyn", specifier = ">=8.1.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
     { name = "croniter", specifier = ">=6.2.2" },
@@ -2145,7 +2145,7 @@ requires-dist = [
     { name = "deprecated", specifier = ">=1.2.13" },
     { name = "dill", specifier = ">=0.2.2" },
     { name = "eventlet", marker = "extra == 'async'", specifier = ">=0.37.0" },
-    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.129.0,<0.137.0" },
+    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.137.2" },
     { name = "gevent", marker = "extra == 'async'", specifier = ">=25.4.1" },
     { name = "graphviz", marker = "sys_platform != 'darwin' and extra == 'graphviz'", specifier = ">=0.20" },
     { name = "greenback", marker = "extra == 'async'", specifier = ">=1.2.1" },
@@ -9503,7 +9503,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=24.2.0,!=25.2.0" },
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "cadwyn", specifier = ">=6.1.1" },
+    { name = "cadwyn", specifier = ">=8.1.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "datadog", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
@@ -11032,7 +11032,7 @@ wheels = [
 
 [[package]]
 name = "cadwyn"
-version = "7.0.0"
+version = "8.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -11042,9 +11042,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/31/9a986a9fe20c6b52bde0dd23c9fc002388ab0c8f7b30a37217b07aa1875f/cadwyn-7.0.0.tar.gz", hash = "sha256:3b57549a37e218dffb55ac5d188639de0516207f05642b084f23627c5a44d614", size = 662353, upload-time = "2026-06-06T16:34:39.492Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/68/1f66b4f862aa678d41d7d84f16b0058b10fe65cf6d79d42693c3c9d1d64e/cadwyn-8.1.0.tar.gz", hash = "sha256:f5fab5014c9375550844e09c0bd010108d0423972a096f0d7151d74f891ceeec", size = 909665, upload-time = "2026-10-22T06:42:59.275Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/c4/efee5781dc8b3a50fd876d413cad6db6ee69e1f21d5a07ca469cec03cd22/cadwyn-7.0.0-py3-none-any.whl", hash = "sha256:727d3c444ae992bb2a238246d13f173e4802c92e1c901458975549e6f0522560", size = 61194, upload-time = "2026-06-06T16:34:37.768Z" },
+    { url = "https://files.pythonhosted.org/packages/23/52/c3af911a71c38e596f2f5f6c91fa9cdd92f595a0e8ded71b731a4347a675/cadwyn-8.1.0-py3-none-any.whl", hash = "sha256:6a90765af1ce1b6ca677b358f0987ed1626495162ee0d53c82ddc32ef8d7f6fa", size = 120961, upload-time = "2026-10-22T06:43:00.384Z" },
 ]
 
 [[package]]
@@ -12675,18 +12675,19 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.136.3"
+version = "0.161.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
+    { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/2d/ff8d91d7b564d464629a0fd50a4489c97fcb836ac230bf3a7269232a9b1f/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab", size = 396410, upload-time = "2026-05-23T18:53:15.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/12/f5a074dd4efd40898b1270551fdba19202f17591895dbc8429755128bd1b/fastapi-0.161.0.tar.gz", hash = "sha256:c65a5226b55061349a5d5f4940a1c45da6c08ec40e58211aed9e3e1baa4e7ba5", size = 527298, upload-time = "2026-10-22T18:30:43.421Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/82/45359b62a067409bd929ae8a56b8ed13e5a8c8a61194b3c236920999ab83/fastapi-0.136.3-py3-none-any.whl", hash = "sha256:3d2a69bdf04b7e9f3afa292c3bc7a98816bbfafa10bc9b45f3f3700d2f761620", size = 117481, upload-time = "2026-05-23T18:53:16.924Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/48/3cd6f8f30857fef456c03ae1ef89c1a82aba8a3a229896c28967b49849e1/fastapi-0.161.0-py3-none-any.whl", hash = "sha256:843d71746b18a3349e2c0b56993631788e6d89381c1973d7d8f4aa098f623ecb", size = 149008, upload-time = "2026-10-22T18:30:41.955Z" },
 ]
 
 [package.optional-dependencies]
@@ -12694,7 +12695,10 @@ standard-no-fastapi-cloud-cli = [
     { name = "email-validator" },
     { name = "fastapi-cli", extra = ["standard-no-fastapi-cloud-cli"] },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "jinja2" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
     { name = "pydantic-extra-types" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },

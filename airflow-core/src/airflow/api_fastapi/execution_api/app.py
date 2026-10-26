@@ -28,7 +28,7 @@ from cadwyn import (
     current_dependency_solver,
     generate_versioned_models,
 )
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from opentelemetry import context as otel_context, propagate as otel_propagate
@@ -44,6 +44,8 @@ from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from airflow.models.dagbag import DBDagBag
 
 import structlog
@@ -265,25 +267,44 @@ async def _extract_w3c_trace_context(
             otel_context.detach(token)
 
 
-def _inject_trace_context_dep(routes, mode: str) -> None:
-    dep = Depends(_extract_w3c_trace_context)
+def _iter_api_routes(routes, routers: tuple[APIRouter, ...] = ()) -> Iterator[tuple[APIRoute, tuple]]:
+    """
+    Yield every ``APIRoute`` in ``routes`` with the routers it is included through.
+
+    FastAPI includes routers lazily: ``router.routes`` holds an entry wrapping the
+    included router instead of copies of its routes (with the router's dependencies merged
+    in), so the routes have to be reached through ``original_router``.
+    """
     for route in routes:
-        if not isinstance(route, APIRoute):
-            continue
+        if isinstance(route, APIRoute):
+            yield route, routers
+        elif (included := getattr(route, "original_router", None)) is not None:
+            yield from _iter_api_routes(included.routes, (*routers, included))
+
+
+def _is_trace_context_dep(dependency) -> bool:
+    return getattr(dependency, "dependency", None) is _extract_w3c_trace_context
+
+
+def _inject_trace_context_dep(routes, mode: str) -> None:
+    """
+    Add trace-context extraction to the authenticated routes in ``only-authenticated`` mode.
+
+    ``unsafe-always`` mode is handled with an app-level dependency instead, so extraction runs
+    before authentication declared on any enclosing router.
+    """
+    from airflow.api_fastapi.execution_api.security import require_auth
+
+    for route, routers in _iter_api_routes(routes):
         # Idempotent: create_task_execution_api_app() runs more than once per process
         # (cached_app + InProcessExecutionAPI), and execution_api_router is shared
         # module state, so strip any prior injection first.
-        route.dependencies[:] = [
-            d for d in route.dependencies if getattr(d, "dependency", None) is not _extract_w3c_trace_context
-        ]
-        match mode:
-            case "unsafe-always":
-                route.dependencies.insert(0, dep)
-            case "only-authenticated":
-                from airflow.api_fastapi.execution_api.security import require_auth
-
-                if any(getattr(d, "dependency", None) is require_auth for d in route.dependencies):
-                    route.dependencies.append(dep)
+        route.dependencies[:] = [d for d in route.dependencies if not _is_trace_context_dep(d)]
+        if mode != "only-authenticated":
+            continue
+        inherited = [d for router in routers for d in router.dependencies]
+        if any(getattr(d, "dependency", None) is require_auth for d in (*inherited, *route.dependencies)):
+            route.dependencies.append(Depends(_extract_w3c_trace_context))
 
 
 def create_task_execution_api_app(
@@ -308,6 +329,7 @@ def create_task_execution_api_app(
         return route.name
 
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
+    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     app = CadwynWithOpenAPICustomization(
         title="Airflow Task Execution API",
         description="The private Airflow Task Execution API.",
@@ -316,13 +338,13 @@ def create_task_execution_api_app(
         api_version_parameter_name="Airflow-API-Version",
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,
+        dependencies=[Depends(_extract_w3c_trace_context)] if mode == "unsafe-always" else None,
     )
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(JWTReissueMiddleware)
 
-    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     _inject_trace_context_dep(execution_api_router.routes, mode)
 
     app.generate_and_include_versioned_routers(execution_api_router)

@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
+from typing import Any
 from uuid import UUID
 
 from airflow.models import DagRun, Log
@@ -102,3 +104,19 @@ def _check_task_instance_note(session, ti_id, note_data):
         session.refresh(ti_note)
         assert ti_note.content == note_data["content"]
         assert ti_note.user_id == note_data["user_id"]
+
+
+def iter_api_routes(routes: Iterable[Any]) -> Iterator[Any]:
+    """
+    Yield the effective ``APIRoute``s of a router or app, with included routers flattened.
+
+    FastAPI 0.137 includes routers lazily, so ``router.routes`` holds ``_IncludedRouter`` entries
+    instead of the prefixed ``APIRoute`` objects. ``iter_route_contexts`` walks them and exposes
+    each route with its full path. Use the result to read routes; custom attributes and
+    mutations belong on ``context.original_route``.
+    """
+    from fastapi.routing import APIRoute, iter_route_contexts
+
+    for context in iter_route_contexts(list(routes)):
+        if isinstance(context.original_route, APIRoute):
+            yield context

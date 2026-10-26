@@ -38,6 +38,7 @@ from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
+    _iter_api_routes,
     create_jwt_generator,
     create_task_execution_api_app,
 )
@@ -400,15 +401,14 @@ class TestTraceContextPropagation:
     def _restore_router_dependencies(self):
         from airflow.api_fastapi.execution_api.routes import execution_api_router
 
-        snapshot = {
-            id(route): list(route.dependencies)
-            for route in execution_api_router.routes
-            if isinstance(route, APIRoute)
-        }
+        owners = {}
+        for route, routers in _iter_api_routes(execution_api_router.routes):
+            for owner in (*routers, route):
+                owners[id(owner)] = owner
+        snapshot = {key: list(owner.dependencies) for key, owner in owners.items()}
         yield
-        for route in execution_api_router.routes:
-            if isinstance(route, APIRoute):
-                route.dependencies[:] = snapshot[id(route)]
+        for key, owner in owners.items():
+            owner.dependencies[:] = snapshot[key]
 
     @staticmethod
     def _build_app(mode: str):
