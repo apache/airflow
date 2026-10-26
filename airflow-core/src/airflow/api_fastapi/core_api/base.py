@@ -41,7 +41,10 @@ class StrictBaseModel(BaseModel):
     """
     StrictBaseModel is a base Pydantic model for REST API that does not allow any extra fields.
 
-    Use this class for models that should not have any extra fields in the payload.
+    Use this class for request bodies only. A response model is instantiated from a
+    source object that holds more than the model returns, which ``extra="forbid"``
+    rejects; it also sets ``additionalProperties: false`` in the spec, which makes
+    generated clients such as airflowctl reject fields that a newer server adds.
 
     :meta private:
     """
