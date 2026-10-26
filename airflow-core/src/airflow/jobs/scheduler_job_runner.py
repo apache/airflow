@@ -254,7 +254,8 @@ class ConcurrencyMap:
     to # of task instances in the given state list in each DAG run.
     """
 
-    def __init__(self):
+    def __init__(self, *, dag_run_active_states: Collection[TaskInstanceState] = EXECUTION_STATES):
+        self.dag_run_active_states = dag_run_active_states
         self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
         self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
         self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
@@ -275,8 +276,9 @@ class ConcurrencyMap:
             self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
             # Only count states that hold a worker slot towards DAG-run active tasks
             # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
-            # are in-flight but parked, holding no worker slot.
-            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
+            # are in-flight but parked, holding no worker slot, unless
+            # [core] max_active_tasks_include_deferred adds DEFERRED.
+            if state in self.dag_run_active_states:
                 self.dag_run_active_tasks_map[dag_id, run_id] += count
 
 
@@ -381,6 +383,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._dag_run_active_states: set[TaskInstanceState] = (
+            {*EXECUTION_STATES, TaskInstanceState.DEFERRED}
+            if conf.getboolean("core", "max_active_tasks_include_deferred")
+            else EXECUTION_STATES
+        )
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
@@ -796,7 +803,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = ConcurrencyMap()
+        concurrency_map = ConcurrencyMap(dag_run_active_states=self._dag_run_active_states)
         concurrency_map.load(session=session)
 
         executor_slots_available: dict[ExecutorName, int] = {}
@@ -956,7 +963,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
                 dag_max_active_tasks = task_instance.dag_model.max_active_tasks
                 self.log.info(
-                    "Dag run %s of Dag %s has %s/%s running and queued tasks",
+                    "Dag run %s of Dag %s has %s/%s active tasks",
                     task_instance.run_id,
                     dag_id,
                     current_active_tasks_per_dag_run,
@@ -1106,7 +1113,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         object is built here and executed as part of the main query, so any state
         changes between construction and execution are naturally ignored.
         """
-        dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
+        dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=self._dag_run_active_states)
 
         query = (
             select(TI)

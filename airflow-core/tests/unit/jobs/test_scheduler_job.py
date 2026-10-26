@@ -2320,6 +2320,46 @@ class TestSchedulerJob:
 
         assert [queued_ti.key for queued_ti in queued_tis] == [ti.key]
 
+    @pytest.mark.parametrize(("include_deferred", "expected_queued"), [("False", 2), ("True", 1)])
+    def test_find_executable_task_instances_max_active_tasks_include_deferred(
+        self, dag_maker, session, include_deferred, expected_queued
+    ):
+        with dag_maker(dag_id="test_max_active_tasks_include_deferred", max_active_tasks=2, session=session):
+            for task_id in ("deferred", "task_1", "task_2"):
+                EmptyOperator(task_id=task_id)
+        with conf_vars({("core", "max_active_tasks_include_deferred"): include_deferred}):
+            self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.DEFERRED if ti.task_id == "deferred" else TaskInstanceState.SCHEDULED
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
+
+        assert len(queued_tis) == expected_queued
+
+    @pytest.mark.parametrize(("include_deferred", "expected_task_ids"), [("False", ["task"]), ("True", [])])
+    def test_build_schedulable_tis_query_max_active_tasks_include_deferred(
+        self, dag_maker, session, include_deferred, expected_task_ids
+    ):
+        with dag_maker(dag_id="test_query_include_deferred", max_active_tasks=1, session=session):
+            for task_id in ("deferred", "task"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.DEFERRED if ti.task_id == "deferred" else TaskInstanceState.SCHEDULED
+        session.flush()
+        with conf_vars({("core", "max_active_tasks_include_deferred"): include_deferred}):
+            runner = SchedulerJobRunner(job=Job())
+
+        query = runner._build_schedulable_tis_query(set(), set(), set(), set(), 32)
+
+        assert [ti.task_id for ti in session.scalars(query)] == expected_task_ids
+
     @conf_vars({("core", "multi_team"): "true"})
     def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):
         """Tasks using a pool owned by another team are not scheduled."""
