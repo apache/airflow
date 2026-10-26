@@ -33,7 +33,7 @@
   - [Skipping prek hooks (Static checks)](#skipping-prek-hooks-static-checks)
   - [Suspended providers](#suspended-providers)
   - [Selective check outputs](#selective-check-outputs)
-  - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
+  - [Self-hosted (RunsOn) vs. public runners](#self-hosted-runson-vs-public-runners)
   - [Changing behaviours of the CI runs by setting labels](#changing-behaviours-of-the-ci-runs-by-setting-labels)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -204,6 +204,8 @@ turned on):
 
 ```mermaid
 flowchart TD
+    CB{target branch chart/... or airflow-ctl/...?} -->|yes| COMP[only that component's tests ON,<br/>whatever changed; see below]
+    CB -->|no| FTN
     FTN{full_tests_needed?} -->|yes| ALL[every run_* area = ON<br/>all versions, all test types]
     FTN -->|no| SEL[selective: gate each area on its file group]
     SEL --> RUT{run_unit_tests?}
@@ -217,7 +219,24 @@ flowchart TD
     PROD --> IMG
 ```
 
-`*` Helm tests only run on the `main` branch.
+`*` Helm tests only run on the `main` branch and on `chart/` branches.
+
+The release branches of a single component (`chart/vX-Yx-test|stable`, `airflow-ctl/vX-Y-test|stable`)
+only ever get backports of that component, so their runs are scoped to it. The target branch comes from
+the GitHub context (`base_ref` for a pull request, `ref_name` for a push or a dispatched run) and must
+match one of those names: a feature branch named `chart/...` is not a component branch, and neither is
+any push in a fork, which is selected against `main`. On such a branch every
+output decorated with `_scoped_to_component_branch` is off, except those `COMPONENT_BRANCH_OUTPUTS` lists
+for the component: on `chart/`, Helm and Kubernetes tests always run (kustomize overlays as usual) with
+the CI and PROD images they need; on `airflow-ctl/`, only the airflow-ctl tests run, in a local
+virtualenv, so no image is built there: static checks run on the host (`basic-checks-only`), and the
+airflow-ctl integration tests, the docs and the dependency upgrade check, which need an image, do not run. The PROD image is built for
+the chart's tests only, so `run-generic-prod-image-tests` (Docker
+Compose, image-building examples, basic and canary end-to-end tests) is off, and so is
+`run-generic-basic-tests` (the standalone Airflow and shared distributions tests). Provider tests are skipped, and on `chart/` docs, when they changed, build only the
+chart's package. Static checks, scripts and Breeze integration tests, and the CodeQL scans run as usual. A test
+in `test_selective_checks.py` fails when a new `run_*` output is neither scoped nor listed as a general
+check, so a new job does not start running on these branches by accident.
 
 ### Stage 3 — choose which test types
 
@@ -485,6 +504,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.
+* On a component's release branch (`chart/...`, `airflow-ctl/...`) only that component's tests run, always,
+  with the images they need (none for airflow-ctl); other tests do not run, provider tests are skipped,
+  and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
 * `PROD Image building` is enabled when kubernetes tests are run.
@@ -651,6 +673,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
 | helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
+| in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
@@ -676,6 +699,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
 | run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
+| run-generic-prod-image-tests                            | Whether the PROD image's own tests run (Docker Compose, examples, basic e2e): off on component branches | true                                     |      |
+| run-generic-basic-tests                                 | Whether the standalone Airflow and shared distributions tests run: off on component branches          | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
@@ -689,36 +714,102 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
+| runner-type                                             | Runner labels for the CI jobs on this platform: public, or a RunsOn template jobs fill with cpu/ram     | \["ubuntu-22.04"\]                       |      |
 | selected-providers-list-as-string                       | List of providers affected when they are selectively affected.                                          | airbyte http                             | *    |
 | skip-prek-hooks                                         | Which prek hooks should be skipped during the static-checks run                                         | flynt,identity                           |      |
 | skip-providers-tests                                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)         | true                                     |      |
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
-| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)          | false                                    |      |
+| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 
 
-## Committer vs. Non-committer PRs
+## Self-hosted (RunsOn) vs. public runners
 
-There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
-The main reason is security; we do not want to run untrusted code on our infrastructure for self-hosted runners.
+The `Tests (AMD)` / `Tests (ARM)` jobs run either on GitHub-hosted ("public") runners or on self-hosted
+[RunsOn](https://runs-on.com) EC2 runners in the Airflow AWS account. Selective checks route runs of
+code from `apache/airflow` itself there; this is a routing preference, not what keeps fork code off
+RunsOn (see below). The `runner-type` output is decided as follows, first match wins:
 
-Currently there is no difference because we are not using `self-hosted` runners (until we implement `Action
-Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
-while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR.
+1. Runs in any repository other than `apache/airflow` (forks running their own CI) use public runners.
+2. Any run uses public runners while the repository variable `USE_PUBLIC_RUNNERS` is `true`: the
+   switch for moving `main` off RunsOn without a PR, e.g. when the stack is unavailable.
+3. PRs with the `use public runners` label use public runners.
+4. Any `push`, `schedule` or `workflow_dispatch` in `apache/airflow` (canary runs and the release
+   branch pushes, all triggered by people with write access) uses RunsOn.
+5. Other events than `pull_request` use public runners.
+6. PRs with the `use self-hosted runners` label use RunsOn, if a committer's (`COMMITTERS` in
+   `global_constants.py`) latest review of the PR's head commit is an approval and no committer's
+   request for changes stands. The label outlives the commit it was added for, so on its own it would
+   vouch for every later push: a new push sends the PR back to public runners until the head commit is
+   approved again, and so does a dismissed approval if no other committer's approval of the head commit
+   remains. A committer's request for changes keeps the PR on public runners across pushes, as it blocks
+   a merge on GitHub, until that committer reviews again or the review is dismissed. The label must
+   also still be on the PR: a re-run reuses the labels of its original event, so they are checked
+   against the PR's current ones. If the PR or its reviews cannot be read, the label is ignored as well.
+7. PRs with the `non committer build` label use public runners.
+8. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
+   they carry code nobody has reviewed yet.
+9. PRs from a branch of `apache/airflow` use RunsOn; PRs from forks use public runners.
+
+Labels are read from the event that started the run, and the CI workflows do not run on `labeled`. After
+adding or removing a label, push a commit or close and reopen the PR; re-running an earlier run reuses
+its original labels, and "Re-run failed jobs" also reuses that run's runner decision. A push voids the
+approval `use self-hosted runners` needs, so for that label approve the head commit and then close and
+reopen the PR.
+
+The RunsOn value is a label template such as
+`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
+picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
+or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
+on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
+gated on `runner.environment == 'self-hosted'`:
+
+* The EC2 cost summary of each job.
+* The image stashes (`.github/actions/stash-restore` / `stash-save`). On RunsOn the image tarballs go to
+  the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
+  Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by
+  the same run, branch and repository (or, for a PR, its base branch). The smaller caches (mount cache, prek, docs inventory) use
+  the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save;
+  the price is that every RunsOn canary uploads the mount cache from AWS to GitHub.
+
+The `in-memory-runner-type` output is the same decision with a second RunsOn template, used by the
+jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test jobs, the lowest-dependencies
+core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
+[`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
+`/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
+r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
+runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
+back to disk without a PR.
+
+The decision above is not a security boundary. Under the `pull_request` event the code that
+evaluates it is the PR's own: a fork PR runs its own workflow files and breeze sources, and can name
+RunsOn labels in `runs-on:` directly. RunsOn launches a runner for any job of a repository its GitHub
+App is installed on, so nothing in this repository can prevent that. Keeping untrusted code away from
+anything that matters has to be enforced outside the repository, by:
+
+* The repository's Actions setting "Approval for running fork pull request workflows from
+  contributors", which must be "Require approval for all external contributors". That still exempts
+  members of the `apache` GitHub organization (ASF committers of any project who linked their GitHub
+  account) and repository collaborators, but every exempt person is identifiable.
+* The RunsOn stack, which must be dedicated to this repository and give the runners an instance role
+  that reaches nothing beyond the stack's own cache bucket (whose contents are never trusted, see the
+  stash actions), no EBS permissions, no SSH, network isolation between runners and a maximum run
+  time. RunsOn has no cap on instance sizes or counts and its budget only alerts, so the AWS account's
+  EC2 vCPU quotas are the cost ceiling.
 
 Pushes in a contributor fork are never committer builds, whoever pushes, because forks have no
 self-hosted runners.
 
 ## Changing behaviours of the CI runs by setting labels
 
-Also, currently for most of the jobs, committer builds by default use "Self-hosted" runners, while
-non-committer builds use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR. In the future when we might also switch committers to public runners.
-Committers will be able to use `use self-hosted runners` label in the PR to force using self-hosted runners.
-The `use public runners` label will still be available for committers and they will be able to set it for
-builds that also have `canary` label set to also switch the `canary` builds to public runners.
+PRs from `apache/airflow` branches run on self-hosted RunsOn runners and PRs from forks run on public
+runners (see above). Set `use public runners` to move a PR to public runners; a committer can set
+`use self-hosted runners` and approve the PR's head commit to move a fork PR to RunsOn, provided no
+committer's request for changes stands, then close and reopen the PR (a push would need a fresh
+approval; a committer should do the reopen, since an external author's reopen still needs a maintainer
+to approve the workflow run).
 
 If you are testing CI workflow changes and want to test it for more complete matrix combinations generated by
 the jobs - you can set `all versions` label in the PR. This will run the PRs with the same combinations
@@ -726,7 +817,7 @@ of versions as the `canary` main build. Using `all versions` is automatically se
 change in `pyproject.toml`.
 
 If you are running an `apache` PR, you can also set `canary` label for such PR and in this case, all the
-`canary` properties of build will be used: `self-hosted` runners, `full tests needed` mode, `all versions`
+`canary` properties of build will be used: `full tests needed` mode, `all versions`
 as well as all canary-specific jobs will run there. You can modify this behaviour of the `canary` run by
 applying `use public runners`, and `default versions only` labels to the PR as well which will still run
 a `canary` equivalent build but with public runners an default Python/K8S versions only - respectively.

@@ -24,7 +24,7 @@ from collections.abc import Callable, Collection, Mapping
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import attrs
@@ -87,6 +87,11 @@ except ImportError:
         MappedOperator as SerializedMappedOperator,
     )
 
+try:
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+except ImportError:  # Airflow 2
+    from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
+
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -135,6 +140,8 @@ log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
+_JOB_TYPE_DAG: Literal["DAG"] = "DAG"
+_JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 
 
 def try_import_from_string(string: str) -> Any:
@@ -354,12 +361,28 @@ def build_task_event_job_facets(
 
     return {
         **(additional_job_facets or {}),
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="TASK", integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
-        ),
+        **_get_job_type_facets(get_airflow_job_type(_JOB_TYPE_TASK)),
         **documentation_facet,
         **ownership_facet,
         **tags_facet,
+    }
+
+
+def get_airflow_job_type(job_type: Literal["DAG", "TASK"]) -> dict[str, str]:
+    """Return the job type facet fields of an Airflow Dag or task."""
+    return {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": job_type}
+
+
+def _get_job_type_facets(job_type: dict[str, str] | None) -> dict[str, JobFacet]:
+    if not job_type:
+        return {}
+    return {
+        "jobType": job_type_job.JobTypeJobFacet(
+            processingType=job_type["processingType"],
+            integration=job_type["integration"],
+            jobType=job_type["jobType"],
+            producer=_PRODUCER,
+        )
     }
 
 
@@ -370,18 +393,30 @@ def _get_parent_run_facet(
     root_parent_run_id: str | None = None,
     root_parent_job_name: str | None = None,
     root_parent_job_namespace: str | None = None,
+    parent_job_type: dict[str, str] | None = None,
+    root_parent_job_type: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Create the parent run facet from identifiers."""
+    if not any((root_parent_run_id, root_parent_job_name, root_parent_job_namespace)):
+        root_parent_job_type = parent_job_type
     root_parent_run_id = root_parent_run_id or parent_run_id
     root_parent_job_name = root_parent_job_name or parent_job_name
     root_parent_job_namespace = root_parent_job_namespace or parent_job_namespace
     return {
         "parent": parent_run.ParentRunFacet(
             run=parent_run.Run(runId=parent_run_id),
-            job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
+            job=parent_run.Job(
+                namespace=parent_job_namespace,
+                name=parent_job_name,
+                facets=_get_job_type_facets(parent_job_type),
+            ),
             root=parent_run.Root(
                 run=parent_run.RootRun(runId=root_parent_run_id),
-                job=parent_run.RootJob(namespace=root_parent_job_namespace, name=root_parent_job_name),
+                job=parent_run.RootJob(
+                    namespace=root_parent_job_namespace,
+                    name=root_parent_job_name,
+                    facets=_get_job_type_facets(root_parent_job_type),
+                ),
             ),
         )
     }
@@ -397,6 +432,7 @@ def get_task_parent_run_facet(
     dr_conf: dict | None = None,
 ) -> dict[str, Any]:
     """Retrieve the parent run facet."""
+    root_parent_job_type = None
     all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
     # If not all root identifiers are provided explicitly, try to get them from dagrun conf.
     if not all(all_root_info):
@@ -417,11 +453,13 @@ def get_task_parent_run_facet(
                 root_parent_run_id = root_info["root_parent_run_id"]
                 root_parent_job_namespace = root_info["root_parent_job_namespace"]
                 root_parent_job_name = root_info["root_parent_job_name"]
+                root_parent_job_type = root_info.get("root_parent_job_type")
             # If not present, check for parent identifiers in dagrun conf and use them as root
             elif parent_info := get_parent_information_from_dagrun_conf(dr_conf):
                 root_parent_run_id = parent_info["parent_run_id"]
                 root_parent_job_namespace = parent_info["parent_job_namespace"]
                 root_parent_job_name = parent_info["parent_job_name"]
+                root_parent_job_type = parent_info.get("parent_job_type")
 
     return _get_parent_run_facet(
         parent_run_id=parent_run_id,
@@ -430,6 +468,8 @@ def get_task_parent_run_facet(
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
+        parent_job_type=get_airflow_job_type(_JOB_TYPE_DAG),
+        root_parent_job_type=root_parent_job_type,
     )
 
 
@@ -441,7 +481,29 @@ def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
     return ol_data if isinstance(ol_data, dict) else {}
 
 
-def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def _get_job_type_from_ol_data(ol_data: dict, key: str) -> dict[str, str] | None:
+    """Return the job type facet fields stored under ``key`` if they are all valid, otherwise None."""
+    job_type = ol_data.get(key)
+    if job_type is None:
+        return None
+    required_fields = ("processingType", "integration", "jobType")
+    # The spec allows partial job type, but only complete information is supported for now.
+    # Other fields (e.g. `_producer` of a serialized facet) are ignored.
+    if not isinstance(job_type, dict) or not all(
+        isinstance(job_type.get(field), str) and job_type[field] for field in required_fields
+    ):
+        log.warning(
+            "Invalid OpenLineage %s '%s' in DAG run config - expected a dictionary with non-empty "
+            "string values for all of: %s.",
+            key,
+            job_type,
+            ", ".join(required_fields),
+        )
+        return None
+    return {field: job_type[field] for field in required_fields}
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract root parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -483,14 +545,17 @@ def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str
         root_parent_job_namespace,
         root_parent_job_name,
     )
-    return {
+    root_info: dict[str, Any] = {
         "root_parent_run_id": root_parent_run_id,
         "root_parent_job_namespace": root_parent_job_namespace,
         "root_parent_job_name": root_parent_job_name,
     }
+    if root_parent_job_type := _get_job_type_from_ol_data(ol_data, "rootParentJobType"):
+        root_info["root_parent_job_type"] = root_parent_job_type
+    return root_info
 
 
-def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -533,11 +598,14 @@ def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, s
         parent_job_name,
     )
 
-    return {
+    parent_info: dict[str, Any] = {
         "parent_run_id": parent_run_id,
         "parent_job_namespace": parent_job_namespace,
         "parent_job_name": parent_job_name,
     }
+    if parent_job_type := _get_job_type_from_ol_data(ol_data, "parentJobType"):
+        parent_info["parent_job_type"] = parent_job_type
+    return parent_info
 
 
 def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
@@ -572,10 +640,12 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
         return {}
 
     root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+    root_parent_job_type = None
     if root_info := get_root_information_from_dagrun_conf(dr_conf):
         root_parent_run_id = root_info["root_parent_run_id"]
         root_parent_job_namespace = root_info["root_parent_job_namespace"]
         root_parent_job_name = root_info["root_parent_job_name"]
+        root_parent_job_type = root_info.get("root_parent_job_type")
     else:
         log.debug(
             "Missing OpenLineage root identifiers in DAG run config, "
@@ -590,6 +660,8 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
+        parent_job_type=parent_info.get("parent_job_type"),
+        root_parent_job_type=root_parent_job_type,
     )
 
 
@@ -627,25 +699,16 @@ def get_task_documentation(operator: AnyOperator | None) -> tuple[str | None, st
     if not operator:
         return None, None
 
-    doc, mime_type = None, None
-    if operator.doc:
-        doc = operator.doc
-        mime_type = "text/plain"
-    elif operator.doc_md:
-        doc = operator.doc_md
-        mime_type = "text/markdown"
-    elif operator.doc_json:
-        doc = operator.doc_json
-        mime_type = "application/json"
-    elif operator.doc_yaml:
-        doc = operator.doc_yaml
-        mime_type = "application/x-yaml"
-    elif operator.doc_rst:
-        doc = operator.doc_rst
-        mime_type = "text/x-rst"
-
-    if doc:
-        return _truncate_string_to_byte_size(doc), mime_type
+    for attribute, mime_type in (
+        ("doc", "text/plain"),
+        ("doc_md", "text/markdown"),
+        ("doc_json", "application/json"),
+        ("doc_yaml", "application/x-yaml"),
+        ("doc_rst", "text/x-rst"),
+    ):
+        # The scheduler's mapped operator leaves the ones its task doesn't set undefined
+        if doc := getattr(operator, attribute, None):
+            return _truncate_string_to_byte_size(doc), mime_type
     return None, None
 
 
@@ -1125,21 +1188,90 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "log_url", "pool", "queued_dttm", "try_number"]
+    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
-        "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
+        "dag_version_id": lambda ti: (
+            str(dag_version_id) if (dag_version_id := getattr(ti, "dag_version_id", None)) else None
+        ),
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
         ),
         "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
+    @staticmethod
+    def get_rendered_map_index(ti: TaskInstance | RuntimeTaskInstance) -> str | None:
+        """Return the label a mapped task rendered with ``map_index_template``, as the worker sends it."""
+        if AIRFLOW_V_3_0_PLUS and isinstance(ti, TaskInstance):
+            # Its rendered_map_index falls back to the map index when no label was rendered, the worker's doesn't
+            return safe_getattr(ti, "_rendered_map_index")
+        return getattr(ti, "rendered_map_index", None)
+
+    def __init__(
+        self, obj, position: TaskInstancePosition | None = None, dag: Any = None, dag_run: Any = None
+    ):
+        # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
+        # with get_task_instance_position; it is then used as is.
+        self._position = position
+        # A stored task instance's bundle comes from these, as the worker's does, without a query
+        self._dag = dag
+        self._dag_run = dag_run
+        super().__init__(obj)
+
     def _extend_fields(self) -> None:
-        map_index = get_task_instance_map_index(self.obj)
+        position = self._position
+        if position is None:
+            # A stored task instance whose task isn't attached can't be placed without its region, and a facet
+            # must not fail the whole event, so then it describes the task instance without its position.
+            position = _get_task_instance_position(self.obj)
+            if position is not None:
+                position = _add_runtime_loop_iteration(self.obj, position)
+        map_index = position.map_index if position else -1
         self.map_index = map_index if map_index != -1 else None
-        self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
+        self.rendered_map_index = self.get_rendered_map_index(self.obj) if map_index != -1 else None
         self._fields.extend(("map_index", "rendered_map_index"))
+        is_stored = isinstance(self.obj, TaskInstance)
+        if is_stored and AIRFLOW_V_3_0_PLUS:
+            # The worker gets the bundle name of the Dag and the bundle version of the Dag run
+            self.dag_bundle_name = getattr(self._dag, "bundle_name", None)
+            self.dag_bundle_version = getattr(self._dag_run, "bundle_version", None)
+        if position and position.expanded_ti_count is not None:
+            self.expanded_ti_count = position.expanded_ti_count
+            self._fields.append("expanded_ti_count")
+        # Before Airflow 3.4, a stored task instance failing with retries left already holds its next attempt's id
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and (AIRFLOW_V_3_4_PLUS or not is_stored)
+            and (ti_id := getattr(self.obj, "id", None)) is not None
+        ):
+            self.id = str(ti_id)
+            self._fields.append("id")
+        loop: dict[str, Any] = {}
+        if position and position.in_loop:
+            for name, value in (
+                ("index", position.loop_index),
+                ("region_id", position.loop_region_id),
+                ("trajectory", position.loop_trajectory),
+                ("forked_from_region_id", position.loop_forked_from_region_id),
+                ("resumes_from_index", position.loop_resumes_from_index),
+            ):
+                if value is not None:
+                    loop[name] = str(value) if isinstance(value, UUID) else value
+        # Only a loop gate's runtime task instance has one, once it has evaluated ``until``
+        if (decision := getattr(self.obj, "loop_decision", None)) is not None:
+            loop["decision"] = {"stop": getattr(decision, "stop", None)}
+            if (reason := getattr(decision, "reason", None)) is not None:
+                loop["decision"]["reason"] = reason
+        if loop:
+            self.loop = loop
+            self._fields.append("loop")
+        # A runtime task instance in no region carries the sentinel region id instead of None
+        region_id = getattr(self.obj, "region_id", None)
+        if isinstance(region_id, UUID) and region_id.int != 0:
+            self.region_id = str(region_id)
+            self.region_index = getattr(self.obj, "region_index", None)
+            self._fields.extend(("region_id", "region_index"))
 
 
 class AssetInfo(InfoJsonEncodable):
@@ -1244,6 +1376,7 @@ class TaskInfo(InfoJsonEncodable):
         "priority_weight",
         "queue",
         "retries",
+        "retry_delay",
         "retry_exponential_backoff",
         "run_as_user",
         "sla",
@@ -1290,6 +1423,12 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
+        # task_group is the task's own group, without loop fields, and loop the loop around the task, so each is
+        # described once. For a loop "body", alone or in a task group "outer" (task_group's unique_group_id):
+        #   task "body.work":           task_group "body", the loop itself      loop "body"
+        #   task "body.inner.work":     task_group "body.inner"                 loop "body"
+        #   task "outer.body.work":     task_group "outer.body", the loop       loop "outer.body"
+        "loop": lambda task: get_task_loop_info(task),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
         "operator_provider_version": lambda task: get_operator_provider_version(task),
@@ -1337,7 +1476,6 @@ class TaskInfoComplete(TaskInfo):
         "handler",
         "params",
         "python_callable",
-        "retry_delay",
     ]
 
 
@@ -1346,6 +1484,10 @@ class TaskGroupInfo(InfoJsonEncodable):
 
     renames = {
         "_group_id": "group_id",
+    }
+    casts = {
+        # group_id is the group's own id, while the job facet and task.loop name groups by their unique id
+        "unique_group_id": lambda tg: getattr(tg, "group_id", None),
     }
     includes = [
         "downstream_group_ids",
@@ -1409,13 +1551,14 @@ def get_airflow_run_facet(
     task: BaseOperator,
     task_uuid: str,
     include_full_task_info: bool = False,
+    ti_position: TaskInstancePosition | None = None,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
-            taskInstance=TaskInstanceInfo(task_instance),
+            taskInstance=TaskInstanceInfo(task_instance, position=ti_position, dag=dag, dag_run=dag_run),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
                 if include_full_task_info
@@ -1461,6 +1604,8 @@ def get_airflow_state_run_facet(
         return {
             "airflowState": AirflowStateRunFacet(
                 dagRunState=dag_run_state,
+                # TODO: keyed by task_id only, so the mapped instances and loop iterations of one task collapse
+                #  into a single entry (the last one by region wins). Needs the map index and loop iteration here.
                 tasksState={ti.task_id: ti.state for ti in tis},
                 tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
             )
@@ -1489,28 +1634,68 @@ def is_dag_run_asset_triggered(
 @attrs.frozen
 class TaskInstancePosition:
     """
-    Where a task instance runs: inside a loop body or not, and the map index users see.
+    Where a task instance runs: in a loop or not, the map index users see, and its loop iteration.
 
-    A plain mapped task keeps the region of its own expansion, so its dag, task, try, logical date and
-    map index stay unique; inside a loop they repeat on every pass, so only the execution UUID identifies
-    the run.
+    The loop fields are ``None`` outside a loop, and also when they can't be known. A runtime task instance
+    tells all of them, and ``expanded_ti_count`` for a mapped task, through its ``loop`` and
+    ``expanded_ti_count``, read by ``get_task_instance_position``. A stored one tells only what its task and
+    region rows do: the iteration of a task that isn't mapped, from its ``region_index``.
+    ``AirflowRunFacet.json`` describes what these fields mean in events.
     """
 
     in_loop: bool
     map_index: int
+    loop_index: int | None = None
+    loop_region_id: UUID | None = None
+    loop_trajectory: int | None = None
+    loop_forked_from_region_id: UUID | None = None
+    loop_resumes_from_index: int | None = None
+    expanded_ti_count: int | None = None
 
 
-def _is_task_in_loop(task: Any) -> bool:
+def _is_loop_task_group(task_group: Any) -> bool:
+    if not AIRFLOW_V_3_4_PLUS:
+        return False
+    # Loops only exist from Airflow 3.4 on
     from airflow.sdk.definitions._internal.loop import LoopTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+    return isinstance(task_group, (LoopTaskGroup, SerializedLoopTaskGroup))
+
+
+def _find_enclosing_loop(task: Any) -> tuple[bool, Any | None]:
+    """Tell whether a task runs in a loop, and return that loop's group when it is known."""
     from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
     group = getattr(task, "task_group", None)
     while isinstance(group, (TaskGroup, SerializedTaskGroup)):
-        if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
-            return True
+        if _is_loop_task_group(group):
+            return True, group
         group = group.parent_group
-    return group is not None
+    if group is None:
+        return False, None
+    # A group of an unknown type could be a loop. Assuming one only gives each iteration its own runId, while
+    # missing one would merge the runs of all its iterations, which share every coordinate but the UUID.
+    log.warning(
+        "OpenLineage can't tell whether task `%s` runs in a loop, as its task group has an unknown type `%s`; "
+        "assuming it does",
+        getattr(task, "task_id", None),
+        type(group).__name__,
+    )
+    return True, None
+
+
+def get_task_loop_info(task: Any) -> dict[str, Any] | None:
+    """Describe the loop around a task as ``task.loop``, or return None for a task outside a known loop."""
+    if not AIRFLOW_V_3_4_PLUS:
+        return None
+    if (loop_group := _find_enclosing_loop(task)[1]) is None:
+        return None
+    return {
+        field: getattr(loop_group, field, None)
+        for field in ("group_id", "max_iterations", "has_until", "gate_task_id", "terminal_task_id")
+    }
 
 
 def _get_task_instance_position(
@@ -1526,9 +1711,17 @@ def _get_task_instance_position(
         return TaskInstancePosition(in_loop=False, map_index=map_index)
     if (task := getattr(task_instance, "task", None)) is None:
         return None
+    # A worker parses a bundle without versions as it is when the attempt starts, which may no longer have the
+    # task in the loop of the Dag version the attempt pins, while Airflow places the attempt with that version
+    in_loop = _find_enclosing_loop(task)[0] or getattr(task_instance, "loop", None) is not None
+    loop_index: int | None = None
     if is_stored and not task.get_needs_expansion():
+        # The stored region_index means a map index only for a mapped task. A task that isn't mapped has none,
+        # and inside a loop its region_index is the iteration instead.
+        if in_loop:
+            loop_index = map_index
         map_index = -1
-    return TaskInstancePosition(in_loop=_is_task_in_loop(task), map_index=map_index)
+    return TaskInstancePosition(in_loop=in_loop, map_index=map_index, loop_index=loop_index)
 
 
 def _require_task_instance_position(
@@ -1542,11 +1735,50 @@ def _require_task_instance_position(
     return position
 
 
+def _add_runtime_loop_iteration(
+    task_instance: TaskInstance | RuntimeTaskInstance, position: TaskInstancePosition
+) -> TaskInstancePosition:
+    if isinstance(task_instance, TaskInstance):
+        return position
+    # Only runtime task instances of Airflow 3.4+ expose these
+    position = attrs.evolve(position, expanded_ti_count=getattr(task_instance, "expanded_ti_count", None))
+    if not position.in_loop or position.loop_index is not None:
+        return position
+    if (loop := getattr(task_instance, "loop", None)) is None:
+        return position
+    return attrs.evolve(
+        position,
+        loop_index=loop.index,
+        loop_region_id=loop.region_id,
+        loop_trajectory=loop.trajectory,
+        loop_forked_from_region_id=loop.forked_from_region_id,
+        loop_resumes_from_index=loop.resumes_from_index,
+    )
+
+
+def get_task_instance_position(task_instance: TaskInstance | RuntimeTaskInstance) -> TaskInstancePosition:
+    """Place a task instance with its loop iteration, once per event, to pass to ``get_airflow_run_facet``."""
+    return _add_runtime_loop_iteration(task_instance, _require_task_instance_position(task_instance))
+
+
+def _holds_another_dag_version(task_instance: TaskInstance) -> bool:
+    """Tell whether a stored task instance in a region holds its task from another Dag version than its own."""
+    region_id = getattr(task_instance, "region_id", None)
+    if not isinstance(region_id, UUID) or region_id.int == 0:
+        return False
+    dag = getattr(getattr(task_instance, "task", None), "dag", None)
+    held_dag_version_id = getattr(dag, "dag_version_id", None)
+    return held_dag_version_id is not None and held_dag_version_id != task_instance.dag_version_id
+
+
 def get_orm_task_instance_positions(
     task_instances: Collection[TaskInstance], *, session: Session | None
 ) -> dict[UUID, TaskInstancePosition]:
     """
     Place stored task instances, reading the regions of those without their task in one query.
+
+    With a session, an instance whose task comes from another Dag version than its own, as the scheduler holds
+    the latest one for a Dag edited since, is placed from its region too.
 
     Server side only: workers never hold a session, and an instance that needs its region read without one
     raises instead of opening a connection.
@@ -1554,7 +1786,11 @@ def get_orm_task_instance_positions(
     positions: dict[UUID, TaskInstancePosition] = {}
     unplaced: list[TaskInstance] = []
     for task_instance in task_instances:
-        if (position := _get_task_instance_position(task_instance)) is None:
+        position = None
+        # Another version may have moved the task in or out of a loop, while its region rows can't have changed
+        if session is None or not _holds_another_dag_version(task_instance):
+            position = _get_task_instance_position(task_instance)
+        if position is None:
             unplaced.append(task_instance)
         else:
             positions[task_instance.id] = position
@@ -1586,12 +1822,6 @@ def get_orm_task_instance_positions(
     return positions
 
 
-def get_regional_task_instance_run_id(task_instance: TaskInstance | RuntimeTaskInstance) -> str | None:
-    if _require_task_instance_position(task_instance).in_loop:
-        return str(task_instance.id)
-    return None
-
-
 def build_task_instance_ol_run_id(
     dag_id: str,
     task_id: str,
@@ -1617,6 +1847,31 @@ def build_task_instance_ol_run_id(
             instant=logical_date,
             data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
         )
+    )
+
+
+def get_task_instance_run_id(
+    task_instance: TaskInstance | RuntimeTaskInstance,
+    *,
+    logical_date: datetime.datetime,
+    position: TaskInstancePosition | None = None,
+) -> str:
+    """
+    Return the OpenLineage ``runId`` of a task instance's attempt, which all its events must share.
+
+    In a loop the iterations share every coordinate but the attempt UUID, so that is the ``runId``. Otherwise
+    it is built from the coordinates.
+    """
+    if position is None:
+        position = _require_task_instance_position(task_instance)
+    if position.in_loop:
+        return str(task_instance.id)
+    return build_task_instance_ol_run_id(
+        dag_id=task_instance.dag_id,
+        task_id=task_instance.task_id,
+        try_number=task_instance.try_number,
+        logical_date=logical_date,
+        map_index=position.map_index,
     )
 
 
@@ -2022,9 +2277,21 @@ def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict,
     tasks = {}
     for single_task in sorted(dag.tasks, key=lambda x: x.task_id):
         task_edges, group_edges = edge_map.get(single_task.task_id, ({}, {}))
+        task_loop = get_task_loop_info(single_task)
+        get_needs_expansion = getattr(single_task, "get_needs_expansion", None)
+        is_mapped = bool(get_needs_expansion()) if callable(get_needs_expansion) else None
+        trigger_rule = getattr(single_task, "trigger_rule", None)
         tasks[single_task.task_id] = {
             "operator": get_fully_qualified_class_name(single_task),
             "task_group": single_task.task_group.group_id if single_task.task_group else None,
+            # The loop around the task, which is not task_group for a task in a task group inside the loop
+            "loop_group": task_loop["group_id"] if task_loop else None,
+            # Expanded by itself or by a mapped task group around it
+            "is_mapped": is_mapped,
+            "parse_time_mapped_count": _get_parse_time_mapped_count(single_task) if is_mapped else None,
+            "trigger_rule": getattr(trigger_rule, "value", trigger_rule),
+            "depends_on_past": getattr(single_task, "depends_on_past", None),
+            "retries": getattr(single_task, "retries", None),
             "emits_ol_events": _emits_ol_events(single_task),
             "ui_color": single_task.ui_color,
             "ui_fgcolor": single_task.ui_fgcolor,
@@ -2042,15 +2309,44 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
     result = {}
     for tg_id, tg in dag.task_group_dict.items():
         task_edges, group_edges = edge_map.get(tg_id, ({}, {}))
+        is_mapped = _is_mapped_task_group(tg)
+        is_loop = _is_loop_task_group(tg)
         result[tg_id] = {
             "parent_group": tg.parent_group.group_id if tg.parent_group else None,
+            # Independent, so a group could be both
+            "is_mapped": is_mapped,
+            "is_loop": is_loop,
+            "parse_time_mapped_count": _get_parse_time_mapped_count(tg) if is_mapped else None,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
             "downstream_task_edges": task_edges,
             "downstream_group_edges": group_edges,
+            **{
+                field: getattr(tg, field)
+                for field in ("gate_task_id", "has_until", "max_iterations", "terminal_task_id")
+                if is_loop and hasattr(tg, field)
+            },
         }
     return result
+
+
+def _is_mapped_task_group(task_group: Any) -> bool:
+    if (is_mapped := getattr(task_group, "is_mapped", None)) is not None:
+        return bool(is_mapped)
+    # Only the scheduler's serialized task groups tell it themselves
+    return isinstance(task_group, MappedTaskGroup)
+
+
+def _get_parse_time_mapped_count(node: Any) -> int | None:
+    """Return how many instances a mapped task or task group expands to, when it's known before the Dag runs."""
+    # The scheduler's serialized Dag and Airflow 2's count, while a Task SDK Dag doesn't
+    if (get_count := getattr(node, "get_parse_time_mapped_ti_count", None)) is None:
+        return None
+    try:
+        return get_count()
+    except RuntimeError:  # NotFullyPopulated, as the size depends on the results of upstream tasks
+        return None
 
 
 def _emits_ol_events(task: AnyOperator) -> bool:

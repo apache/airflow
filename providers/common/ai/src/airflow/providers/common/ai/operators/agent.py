@@ -326,9 +326,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         ``agent_params`` still works, but stores each capability's repr
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
-    :param enable_tool_logging: When ``True`` (default), wraps the agent's
-        assembled function toolset in a ``LoggingToolset`` that logs tool calls
-        with timing at INFO level and arguments at DEBUG level. This includes
+    :param enable_tool_logging: When ``True`` (default), the operator appends a
+        ``ToolLoggingCapability``, whose ``get_wrapper_toolset`` wraps the agent's
+        assembled function toolset so that tool calls are logged
+        with timing at INFO level and arguments at DEBUG level. If ``capabilities``
+        already holds a ``ToolLoggingCapability``, the operator adds none and that
+        one's ``logger`` is used. Logging includes
         tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
         capabilities, but not output tools, provider-native tools that run
         server-side, or tools another capability adds through its own wrapper

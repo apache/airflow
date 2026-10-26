@@ -320,6 +320,16 @@ def test_parse_config_defaults():
     assert config.close_after_days == 7
     assert config.allowlist == {}
     assert config.pilot == {}
+    assert config.job_statuses is True
+    assert config.cancel_merged_runs is True
+
+
+def test_parse_config_turns_job_statuses_off():
+    assert parse_config("job_statuses = false\n").job_statuses is False
+
+
+def test_parse_config_turns_cancelling_merged_runs_off():
+    assert parse_config("cancel_merged_runs = false\n").cancel_merged_runs is False
 
 
 def test_parse_config_lowercases_pilot_logins():
@@ -334,6 +344,10 @@ def test_parse_config_lowercases_pilot_logins():
     ("text", "message"),
     [
         pytest.param("enabled = 1\n", "enabled must be", id="enabled-not-bool"),
+        pytest.param('job_statuses = "no"\n', "job_statuses must be", id="job-statuses-not-bool"),
+        pytest.param(
+            "cancel_merged_runs = 0\n", "cancel_merged_runs must be", id="cancel-merged-runs-not-bool"
+        ),
         pytest.param(
             "enabled_since = 2026-01-01T00:00:00\n", "enabled_since must be", id="enabled-since-naive"
         ),

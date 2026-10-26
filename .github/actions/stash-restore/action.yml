@@ -1,0 +1,137 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# apache/infrastructure-actions/stash/restore on GitHub-hosted runners. On RunsOn (the only
+# self-hosted runners) multi-GB image tarballs stay in the RunsOn stack's in-region S3 cache
+# bucket instead of leaving AWS as GitHub artifacts.
+#
+# Every RunsOn job can write anywhere in that bucket, so the bucket is not trusted: objects are
+# named by their sha256, and the digest itself travels as a small ASF stash artifact, which
+# GitHub scopes to the run / branch exactly like a regular stash. A blob that does not match the
+# digest the ASF restore found for this run, branch and repository is never extracted. The bucket's
+# lifecycle rule (S3CacheExpirationInDays) must outlive the longest retention-days of a digest
+# (6 days today), or a digest hit finds no blob.
+name: 'Restore stash'
+description: 'Restore a stash from GitHub artifacts, or from S3 on RunsOn runners.'
+inputs:
+  key:
+    description: 'Stash key.'
+    required: true
+  path:
+    description: >
+      Directory to restore into (GitHub-hosted only; the S3 tarball restores entries to the
+      paths they were saved from, and the restore then fails if any of them is outside this directory).
+    required: false
+    default: ${{ github.workspace }}
+  only-current-branch:
+    description: 'Do not fall back to the base branch stash.'
+    required: false
+    default: 'false'
+  fail-on-download:
+    description: 'Fail when a stash was found but could not be restored.'
+    required: false
+    default: 'false'
+outputs:
+  stash-hit:
+    description: "'true' if a stash was restored, 'false' otherwise."
+    value: ${{ steps.s3.outputs.stash-hit || steps.artifact.outputs.stash-hit }}
+runs:
+  using: 'composite'
+  steps:
+    - name: "Restore stash from GitHub artifacts"
+      id: artifact
+      if: runner.environment != 'self-hosted'
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
+      with:
+        key: ${{ inputs.key }}
+        path: ${{ inputs.path }}
+        only-current-branch: ${{ inputs.only-current-branch }}
+        fail-on-download: ${{ inputs.fail-on-download }}
+    - name: "Restore stash digest from GitHub artifacts"
+      id: digest
+      if: runner.environment == 'self-hosted'
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
+      with:
+        key: ${{ inputs.key }}-s3
+        path: ${{ runner.temp }}/stash-digest-restore/${{ inputs.key }}
+        only-current-branch: ${{ inputs.only-current-branch }}
+        fail-on-download: ${{ inputs.fail-on-download }}
+    - name: "Restore stash from S3"
+      id: s3
+      if: runner.environment == 'self-hosted'
+      shell: bash
+      env:
+        STASH_KEY: ${{ inputs.key }}
+        STASH_PATH: ${{ inputs.path }}
+        DIGEST_HIT: ${{ steps.digest.outputs.stash-hit }}
+        DIGEST_FILE: ${{ runner.temp }}/stash-digest-restore/${{ inputs.key }}/sha256
+        FAIL_ON_DOWNLOAD: ${{ inputs.fail-on-download }}
+      run: |
+        set -uo pipefail
+        payload="${RUNNER_TEMP}/stash-restore-$$.tar"
+        entries="${RUNNER_TEMP}/stash-restore-$$.entries"
+        miss() {
+          rm -f "${payload}" "${entries}"
+          echo "stash-hit=false" >> "${GITHUB_OUTPUT}"
+          if [[ "${FAIL_ON_DOWNLOAD}" == "true" && "${DIGEST_HIT}" == "true" ]]; then
+            echo "::error::$1"
+            exit 1
+          fi
+          echo "$1"
+          exit 0
+        }
+        if [[ "${DIGEST_HIT}" != "true" ]]; then
+          miss "No stash '${STASH_KEY}'"
+        fi
+        digest="$(cat "${DIGEST_FILE}")"
+        if [[ ! "${digest}" =~ ^[0-9a-f]{64}$ ]]; then
+          miss "Malformed digest for stash '${STASH_KEY}'"
+        fi
+        bucket="${RUNS_ON_S3_BUCKET_CACHE:?not running on a RunsOn runner}"
+        export AWS_DEFAULT_REGION="${RUNS_ON_AWS_REGION:?not running on a RunsOn runner}"
+        object="s3://${bucket}/cache/airflow-stash/sha256/${digest}.tar"
+        if ! aws s3 cp --only-show-errors "${object}" "${payload}"; then
+          miss "Could not download ${object} for stash '${STASH_KEY}'"
+        fi
+        if ! echo "${digest}  ${payload}" | sha256sum --check --status; then
+          miss "${object} does not match the digest recorded for stash '${STASH_KEY}'"
+        fi
+        # GNU tar detects the compression stash-save chose.
+        if ! tar -xPvf "${payload}" > "${entries}"; then
+          miss "Could not extract ${object} for stash '${STASH_KEY}'"
+        fi
+        rm -f "${payload}"
+        # The S3 tarball ignores `path`: fail loudly if a caller saves and restores different
+        # directories, which would work on GitHub-hosted runners only.
+        restore_dir="$(realpath -ms "${STASH_PATH}")"
+        restore_dir="${restore_dir%/}"
+        outside=()
+        while IFS= read -r entry; do
+          [[ "${entry}" == /* ]] || entry="${GITHUB_WORKSPACE}/${entry}"
+          [[ "${entry}" == "${restore_dir}/"* ]] || outside+=("${entry}")
+        done < "${entries}"
+        rm -f "${entries}"
+        if [[ ${#outside[@]} -gt 0 ]]; then
+          printf '%s\n' "${outside[@]}"
+          echo "::error::Stash '${STASH_KEY}' restored the entries above outside of ${restore_dir}/"
+          exit 1
+        fi
+        echo "stash-hit=true" >> "${GITHUB_OUTPUT}"
+        echo "Restored stash '${STASH_KEY}' from ${object}"
