@@ -26,7 +26,7 @@ import structlog
 from google.api_core.exceptions import NotFound
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -105,7 +105,7 @@ class GCSDagBundle(BaseDagBundle):
             if self.archive_object:
                 blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(self.archive_object)
                 if not blob.exists():
-                    raise AirflowNotFoundException(
+                    raise ValueError(
                         f"GCS archive 'gs://{self.bucket_name}/{self.archive_object}' does not exist."
                     )
             elif self.prefix:
