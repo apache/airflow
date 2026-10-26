@@ -31,7 +31,6 @@ from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
-    GATE_OVERRIDE_LABELS,
     MAX_AUTO_APPROVED_JOB_MINUTES,
     MAX_AUTO_APPROVED_SOURCE_LINES,
     MAX_ERROR_TEXT_LENGTH,
@@ -995,13 +994,11 @@ def test_get_last_label_change_ignores_other_labels_and_reads_the_timeline_once(
 @mock.patch(f"{MODULE}.load_config", autospec=True, return_value=GATE_ENABLED)
 @mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=CORE_CHANGE)
 @mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
-def test_gated_approval_depends_on_the_gate_override_labels(
-    mock_fetch, mock_get_changed_files, mock_load_config
-):
+def test_gated_approval_depends_on_no_label(mock_fetch, mock_get_changed_files, mock_load_config):
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
 
-    assert decide_for_pull_request(api=api, pr=_gated_pr()).decision_labels == GATE_OVERRIDE_LABELS
+    assert decide_for_pull_request(api=api, pr=_gated_pr()).decision_labels == frozenset()
 
 
 @pytest.mark.parametrize("event", ["labeled", "unlabeled"])
@@ -1016,14 +1013,14 @@ def test_get_last_label_change_counts_every_test_selection_label(label, event):
 
 
 @mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
-def test_process_waiting_runs_leaves_gated_runs_started_before_use_fork_ci_was_added(mock_decide):
+def test_process_waiting_runs_approves_gated_runs_started_before_use_fork_ci_was_added(mock_decide):
     api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
     timeline = [
         {"event": "labeled", "created_at": "2026-10-22T10:30:00Z", "label": {"name": "use fork ci"}},
         {"event": "unlabeled", "created_at": "2026-10-22T10:40:00Z", "label": {"name": "full tests needed"}},
     ]
     mock_decide.return_value = ApprovalDecision(
-        approve=True, reasons=["fork CI"], decision_labels=GATE_OVERRIDE_LABELS
+        approve=True, reasons=["fork CI"], decision_labels=frozenset()
     )
     with (
         mock.patch.object(
@@ -1041,4 +1038,4 @@ def test_process_waiting_runs_leaves_gated_runs_started_before_use_fork_ci_was_a
     ):
         process_waiting_runs(api, created_since=CREATED_SINCE)
 
-    assert approve_run.call_args_list == [mock.call(3)]
+    assert approve_run.call_args_list == [mock.call(2), mock.call(3)]
