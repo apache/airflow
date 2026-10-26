@@ -167,6 +167,20 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
+ARG_DAG_BUNDLE_NAME = Arg(("bundle_name",), help="Name of the configured Dag bundle")
+ARG_DAG_BUNDLE_SOURCE_PATH = Arg(
+    ("source_path",),
+    metavar="DIRPATH",
+    help="Local directory containing the Dag files to publish",
+)
+ARG_EXPECTED_CURRENT_BUNDLE_VERSION = Arg(
+    ("--expected-current-version",),
+    default=None,
+    help=(
+        "Publish only if this is still the bundle's current version, so that an "
+        "out-of-order deployment cannot replace a newer release. Omit it for the first release."
+    ),
+)
 ARG_START_DATE = Arg(
     ("-s", "--start-date"),
     help=(
@@ -1227,6 +1241,25 @@ BACKFILL_COMMANDS = (
         ),
     ),
 )
+DAG_BUNDLES_COMMANDS = (
+    ActionCommand(
+        name="publish-local",
+        help="Publish a local directory as a new release of a manifest-backed local Dag bundle",
+        description=(
+            "Copy the source directory into an immutable, content-addressed snapshot under the "
+            "bundle's published_root, then point the bundle's release reference at it. The "
+            "previous release stays current if publication fails. Does not use the metadata database."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_bundle_command.dag_bundle_publish_local"),
+        args=(
+            ARG_DAG_BUNDLE_NAME,
+            ARG_DAG_BUNDLE_SOURCE_PATH,
+            ARG_EXPECTED_CURRENT_BUNDLE_VERSION,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 DAGS_COMMANDS = (
     ActionCommand(
         name="details",
@@ -2181,6 +2214,11 @@ core_commands: list[CLICommand] = [
         name="backfill",
         help="Manage backfills",
         subcommands=BACKFILL_COMMANDS,
+    ),
+    GroupCommand(
+        name="dag-bundles",
+        help="Manage Dag bundles",
+        subcommands=DAG_BUNDLES_COMMANDS,
     ),
     GroupCommand(
         name="partitions",

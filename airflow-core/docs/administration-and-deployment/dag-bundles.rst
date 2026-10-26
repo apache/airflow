@@ -47,6 +47,10 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
 **airflow.dag_processing.bundles.local.LocalDagBundle**
     These bundles reference a local directory containing Dag files. They are ideal for development and testing environments, but do not support versioning of the bundle, meaning tasks always run using the latest code.
 
+**airflow.dag_processing.bundles.manifest_local.ManifestLocalDagBundle**
+    These bundles serve Dag files published from a local directory as immutable, content-addressed releases on a
+    shared filesystem. They support versioning without requiring Git. See :ref:`manifest-local-dag-bundles`.
+
 **airflow.providers.git.bundles.git.GitDagBundle**
     These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository. The `GitDagBundle` does support versioning.
 
@@ -228,6 +232,153 @@ Starting with Airflow 3.0.2, git is pre-installed in the base image. However, if
   ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
   ENV GIT_PYTHON_REFRESH=quiet
 
+.. _manifest-local-dag-bundles:
+
+Manifest-backed local Dag bundles
+---------------------------------
+
+A ``LocalDagBundle`` cannot tell which files a retry or rerun used, because the files can change after the Dag
+run is created. ``ManifestLocalDagBundle`` gives a local or shared-filesystem deployment reproducible, pinned
+execution without Git, much as ``GitDagBundle`` does with commits:
+
+- A deployment pipeline **publishes** a release with ``airflow dag-bundles publish-local``. The command copies
+  the source directory into an immutable snapshot and updates the bundle's release reference as its last step.
+- The **version** is ``sha256-<hex>``, a hash of every included file's relative path, SHA-256 digest, size and
+  executable flag. Publishing the same content again gives the same version.
+- Airflow **materializes** a verified, read-only copy of the snapshot into its bundle cache and parses and runs
+  only that copy, never the source directory.
+- Retries and reruns **pin** the version recorded on the Dag run. If the cache copy was removed, Airflow rebuilds
+  it from the published snapshot.
+
+Configure the bundle with the shared ``published_root`` that publishers write to and every Airflow component
+reads from:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my-dags",
+          "classpath": "airflow.dag_processing.bundles.manifest_local.ManifestLocalDagBundle",
+          "kwargs": {
+            "published_root": "/shared/dag-releases",
+            "refresh_interval": 30
+          }
+        }
+      ]
+
+``published_root`` is required and must be a filesystem path. ``allow_empty_source`` (default ``false``) lets
+a publication remove every Dag; it is off so that a failed or incomplete sync cannot empty the release by
+accident.
+
+The Dag processor cannot initialize the bundle until its first release is published. Until then it logs the
+missing release reference and retries on later loops; other bundles are not affected.
+
+Publishing a release
+~~~~~~~~~~~~~~~~~~~~
+
+After the deployment pipeline has delivered every source file, publish them:
+
+.. code-block:: bash
+
+    airflow dag-bundles publish-local my-dags /path/to/dag-source
+
+The command reads the named bundle from ``dag_bundle_config_list``, so the publishing host needs the same
+bundle configuration as the Airflow components. It also imports the class of every configured bundle, so
+packages providing those classes must be installed there. It does not use the metadata database, so it can run
+on a CI/CD host that has no database access, as long as that host can read the source directory and write to
+``published_root``.
+
+The source directory, ``published_root`` and :ref:`config:dag_processor__dag_bundle_storage_path` must not
+overlap. Files in ``.git`` and ``__pycache__`` directories and ``.pyc`` files are not published, and a source
+containing a symlink is rejected.
+
+The command prints the version, the snapshot and release reference paths, the manifest hash, the file count,
+the total size, and whether this publication created the snapshot (``False`` when the same content was
+published before). Use ``--output json`` to read the result in a script; as in other ``airflow`` commands that
+print JSON, every value is a string:
+
+.. code-block:: bash
+
+    version=$(airflow dag-bundles publish-local my-dags /path/to/dag-source --output json | jq -r '.[0].version')
+
+A deployment pipeline whose runs can finish out of order can stop an older run from replacing a newer release.
+Pass the version that the run expects to replace:
+
+.. code-block:: bash
+
+    airflow dag-bundles publish-local my-dags /path/to/dag-source \
+        --expected-current-version sha256-<current-hex>
+
+The command then publishes only if that version is still the current release. Omit the option for the first
+release, when there is no current version to compare with.
+
+When publication fails (a stale ``--expected-current-version``, an empty source, overlapping paths, or a
+filesystem error), the command prints the reason and exits with status 1, and the previous release stays
+current.
+
+Deployment behavior
+~~~~~~~~~~~~~~~~~~~
+
+Publication is atomic: Airflow keeps serving the previous release until the release reference moves, which
+happens only after the snapshot is complete and verified. Concurrent publishers of the same bundle take turns
+through a lock under ``published_root``. Publishing content that is already published reuses its snapshot and
+only moves the release reference.
+
+Each Dag processor picks up a new release on its next bundle refresh, controlled by
+:ref:`config:dag_processor__refresh_interval`. Pinned work -- retries, reruns that keep their original version,
+deferred tasks and callbacks -- uses the snapshot for the recorded version, never the current release, and never
+publishes.
+
+Airflow never deletes snapshots from ``published_root``. Pruning old ``versions/<bundle>/sha256-*`` directories
+is up to you, and it must keep every version that a Dag run can still request for a retry, rerun, deferred task
+or callback. The bundle cache is disposable and is rebuilt from ``published_root`` as needed.
+
+Storage layout and permissions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The publisher creates this layout below ``published_root``:
+
+.. code-block:: text
+
+    versions/my-dags/sha256-<hex>/           immutable snapshot
+        <Dag files>
+        .airflow-bundle-manifest.json        snapshot manifest
+    refs/my-dags/latest.json                 current release reference
+    _locks/my-dags.lock                      publication lock
+
+Airflow materializes the copy it parses and runs below
+``<dag_bundle_storage_path>/my-dags/versions/sha256-<hex>/``. A ``.sha256-<hex>.validated`` marker next to
+each copy lets later checks skip re-hashing its files; delete the marker to force a full re-validation.
+
+Published snapshot directories are mode ``0555`` and their files ``0444``, or ``0555`` when executable, so
+publishers and Airflow components can run as different OS users. In the cache, files stay read-only while
+directories are ``0755`` so that Airflow's stale-version cleanup can remove them. Publishers need write access
+to the bundle's directories under ``published_root`` and read/write access to its lock file; when publishers
+run as different OS users, give them a shared group with group read/write access. Airflow components need only
+read access to ``published_root``.
+
+``published_root`` must be one filesystem shared by every publisher and Airflow component that serves the
+bundle. It must support POSIX advisory file locking (``flock``), atomic rename, and durable ``fsync`` of files
+and directories. A disk local to one host or replica is not suitable. Use a network filesystem only if it keeps
+those guarantees across hosts.
+
+Verifying a deployment
+~~~~~~~~~~~~~~~~~~~~~~
+
+After a Dag processor refreshes the bundle, the version shown for it on the **Dag Bundles** page and by
+``GET /api/v2/dagBundles`` (see `Monitoring Dag bundles`_) matches the ``version`` printed by the publish
+command, and Dag versions recorded from that release carry it as their bundle version.
+
+To check that a release parses without waiting for a Dag processor, list its Dags from any host that has the
+bundle configuration and a migrated metadata database:
+
+.. code-block:: bash
+
+    airflow dags list --local --bundle-name my-dags
+
+``--local`` parses the materialized cache copy of the current release, not the source directory.
+
 
 Monitoring Dag bundles
 ----------------------
@@ -308,8 +459,8 @@ have to make that decision manually every time. The same setting also governs th
 
 .. note::
 
-    This only applies to versioned bundle types (like ``GitDagBundle``). Local bundles
-    (``LocalDagBundle``) do not support versioning and will always use the latest code.
+    This only applies to versioned bundle types (like ``GitDagBundle`` and ``ManifestLocalDagBundle``).
+    Local bundles (``LocalDagBundle``) do not support versioning and will always use the latest code.
 
 How It Works
 ~~~~~~~~~~~~
