@@ -20,7 +20,9 @@ from __future__ import annotations
 import gc
 import importlib
 import json
+import logging
 import os
+import pickle
 import shutil
 import stat
 import sys
@@ -29,13 +31,19 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import time_machine
 
 from airflow.dag_processing.bundles import (
     filesystem_artifact_store as store_module,
+    manifest as manifest_module,
     manifest_bundle as bundle_module,
 )
-from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
+from airflow.dag_processing.bundles.artifact_store import (
+    BundleManifestNotFoundError,
+    BundleManifestRefDurabilityError,
+)
 from airflow.dag_processing.bundles.base import (
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     BundleVersion,
     get_bundle_tracking_file,
@@ -1375,3 +1383,713 @@ class TestStaleVersionCleanup:
         _set_tracking_timestamp(_make_bundle(tmp_path), published.version, self.STALE)
         BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
         assert not tracking_file.exists()
+
+
+def _make_auto_bundle(tmp_path: Path, *, source: Path | None = None, stability: float | None = 0, **kwargs):
+    source = source or tmp_path / "source"
+    source.mkdir(parents=True, exist_ok=True)
+    return _make_bundle(tmp_path, source_path=str(source), source_stability_seconds=stability, **kwargs)
+
+
+def _read_state(bundle: ManifestLocalDagBundle) -> dict:
+    return json.loads(Path(bundle.auto_publish_state_path).read_text())
+
+
+def _point_symlink(link: Path, target: Path) -> None:
+    link.unlink()
+    _create_symlink_or_skip(target, link, target_is_directory=True)
+
+
+def _has_event(caplog, fragment: str, level: str) -> bool:
+    return any(fragment in entry["event"] and entry["log_level"] == level for entry in caplog.entries)
+
+
+class TestAutomaticPublication:
+    @pytest.fixture
+    def changed_source(self, tmp_path):
+        """A source whose explicitly published release no longer matches it."""
+        source = tmp_path / "source"
+        source_file = _write_file(source, "dags/example.py", "print('old')")
+        released = _publish(_make_bundle(tmp_path), source)
+        source_file.write_text("print('new version')")
+        return source, released.version
+
+    def test_source_stability_defaults_to_refresh_interval(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path, stability=None, refresh_interval=42)
+
+        assert bundle.source_path == tmp_path / "source"
+        assert bundle.source_stability_seconds == 42
+
+    @pytest.mark.parametrize("value", [-1, float("inf"), float("nan"), 10**400, True, "30"])
+    def test_rejects_invalid_source_stability_seconds(self, tmp_path, value):
+        with pytest.raises(TypeError, match="source_stability_seconds"):
+            _make_auto_bundle(tmp_path, stability=value)
+
+    @pytest.mark.parametrize(
+        ("source_position", "match"),
+        [
+            ("inside-published-root", "source_path must not be inside published_root"),
+            ("contains-cache", "source_path and versions_dir must not overlap"),
+        ],
+    )
+    def test_rejects_overlapping_source_path_as_type_error(self, tmp_path, source_position, match):
+        source = tmp_path / ("published/source" if source_position == "inside-published-root" else "bundles")
+
+        with pytest.raises(TypeError, match=match):
+            _make_bundle(tmp_path, source_path=str(source))
+
+    def test_explicit_publish_rejects_automatic_bundle(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        explicit_source = tmp_path / "explicit-source"
+        _write_file(explicit_source, "dags/example.py", "print('dag')")
+
+        with pytest.raises(BundleManifestError, match="source_path configured for automatic publication"):
+            publish_manifest_local_dag_bundle(bundle=bundle, source_path=explicit_source)
+
+        assert not Path(bundle.manifest_ref_path).exists()
+
+    def test_bootstrap_reports_not_ready_without_blocking(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError) as raised:
+                bundle.initialize()
+
+            assert isinstance(raised.value, BundleManifestError)
+            assert raised.value.retry_after == 30
+            assert pickle.loads(pickle.dumps(raised.value)).retry_after == 30
+            assert not bundle.is_initialized
+            assert not Path(bundle.manifest_ref_path).exists()
+
+            traveller.move_to(110)
+            with pytest.raises(BundleNotReadyError) as raised:
+                bundle.initialize()
+            assert raised.value.retry_after == 20
+
+            traveller.move_to(130)
+            bundle.initialize()
+
+        assert bundle.is_initialized
+        assert _read_state(bundle)["first_observed_at"] == 100
+        assert (bundle.path / "dags/example.py").read_text() == "print('dag')"
+
+    def test_bootstrap_source_change_before_retry_stays_unpublished(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+        source_file = _write_file(tmp_path / "source", "dags/example.py", "print('incomplete')")
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
+                bundle.initialize()
+
+            source_file.write_text("print('complete')")
+            traveller.move_to(130)
+            with pytest.raises(BundleNotReadyError) as raised:
+                bundle.initialize()
+
+        assert raised.value.retry_after == 30
+        assert not Path(bundle.manifest_ref_path).exists()
+        assert _read_state(bundle)["first_observed_at"] == 130
+
+    def test_fresh_instance_uses_shared_stability_candidate(self, tmp_path):
+        source = tmp_path / "source"
+        source_file = _write_file(source, "dags/example.py", "print('old')")
+        first = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
+                first.initialize()
+            traveller.move_to(130)
+            first.initialize()
+            first_version = first.get_current_version().version
+
+            source_file.write_text("print('new version')")
+            second = _make_auto_bundle(tmp_path, stability=30)
+            traveller.move_to(140)
+            second.refresh()
+
+            state_payload = _read_state(second)
+            assert state_payload == {
+                "schema_version": bundle_module.AUTO_PUBLISH_STATE_SCHEMA_VERSION,
+                "bundle_name": BUNDLE_NAME,
+                "source_type": "local",
+                "source_identity": state_payload["source_identity"],
+                "source_signature": manifest_module.collect_bundle_source_snapshot(source).signature,
+                "first_observed_at": 140,
+            }
+            assert state_payload["source_identity"].startswith("sha256:")
+            assert second.get_current_version().version == first_version
+
+            third = _make_auto_bundle(tmp_path, stability=30)
+            traveller.move_to(170)
+            third.initialize()
+
+        assert third.get_current_version().version != first_version
+        assert (third.path / "dags/example.py").read_text() == "print('new version')"
+
+    def test_different_instance_can_publish_shared_stable_candidate(self, tmp_path, changed_source):
+        _, old_version = changed_source
+        first = _make_auto_bundle(tmp_path, stability=30)
+        second = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+            assert first.get_current_version().version == old_version
+
+            traveller.move_to(130)
+            second.refresh()
+
+        assert second.get_current_version().version != old_version
+        assert (second.path / "dags/example.py").read_text() == "print('new version')"
+
+    def test_immediate_refresh_after_initialize_does_not_satisfy_stability_window(
+        self, tmp_path, changed_source
+    ):
+        _, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            bundle.initialize()
+            bundle.refresh()
+            assert bundle.get_current_version().version == old_version
+
+            traveller.move_to(130)
+            bundle.refresh()
+
+        assert bundle.get_current_version().version != old_version
+        assert (bundle.path / "dags/example.py").read_text() == "print('new version')"
+
+    def test_changed_candidate_restarts_stability_timer(self, tmp_path, changed_source, caplog):
+        source, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            bundle.refresh()
+
+            traveller.move_to(120)
+            _write_file(source, "dags/example.py", "print('candidate two')")
+            bundle.refresh()
+
+            traveller.move_to(149)
+            bundle.refresh()
+            assert bundle.get_current_version().version == old_version
+            assert _has_event(caplog, "waiting until it has remained unchanged for 30 seconds", "info")
+
+            traveller.move_to(150)
+            bundle.refresh()
+
+        assert _has_event(caplog, "Automatically published bundle source", "info")
+        assert bundle.get_current_version().version != old_version
+        assert (bundle.path / "dags/example.py").read_text() == "print('candidate two')"
+
+    def test_different_instances_share_candidate_reset(self, tmp_path, changed_source):
+        source, old_version = changed_source
+        first, second, third = (_make_auto_bundle(tmp_path, stability=30) for _ in range(3))
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+
+            traveller.move_to(120)
+            _write_file(source, "dags/example.py", "print('candidate two')")
+            second.refresh()
+
+            traveller.move_to(149)
+            first.refresh()
+            assert first.get_current_version().version == old_version
+
+            traveller.move_to(150)
+            third.refresh()
+
+        assert third.get_current_version().version != old_version
+        assert (third.path / "dags/example.py").read_text() == "print('candidate two')"
+
+    def test_revert_to_confirmed_source_resets_shared_candidate(self, tmp_path):
+        source_a = tmp_path / "source-a"
+        source_b = tmp_path / "source-b"
+        source_link = tmp_path / "source"
+        _write_file(source_a, "dags/example.py", "print('source a')")
+        _write_file(source_b, "dags/example.py", "print('source b, longer')")
+        _create_symlink_or_skip(source_a, source_link, target_is_directory=True)
+        bundle = _make_auto_bundle(tmp_path, source=source_link, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
+                bundle.initialize()
+            traveller.move_to(130)
+            bundle.initialize()
+            confirmed_version = bundle.get_current_version().version
+
+            _point_symlink(source_link, source_b)
+            traveller.move_to(140)
+            bundle.refresh()
+
+            _point_symlink(source_link, source_a)
+            traveller.move_to(150)
+            bundle.refresh()
+            assert _read_state(bundle)["first_observed_at"] == 150
+
+            _point_symlink(source_link, source_b)
+            traveller.move_to(170)
+            bundle.refresh()
+
+        assert _read_state(bundle)["first_observed_at"] == 170
+        assert bundle.get_current_version().version == confirmed_version
+
+    def test_delayed_observation_cannot_overwrite_newer_candidate(self, tmp_path):
+        source_a = tmp_path / "source-a"
+        source_b = tmp_path / "source-b"
+        source_link = tmp_path / "source"
+        _write_file(source_a, "dags/example.py", "print('source a')")
+        _write_file(source_b, "dags/example.py", "print('source b, longer')")
+        _create_symlink_or_skip(source_a, source_link, target_is_directory=True)
+        bundle = _make_auto_bundle(tmp_path, source=source_link, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
+                bundle.initialize()
+            traveller.move_to(130)
+            bundle.initialize()
+            original_state = _read_state(bundle)
+
+            _point_symlink(source_link, source_b)
+            delayed_source = bundle._prepare_publish_source()
+            _point_symlink(source_link, source_a)
+            traveller.move_to(140)
+            with pytest.raises(BundleManifestSourceChangedError, match="source changed"):
+                bundle._get_auto_publish_candidate_readiness(delayed_source)
+
+        assert _read_state(bundle) == original_state
+
+    def test_publishers_of_different_sources_keep_current_release(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        first = _make_auto_bundle(tmp_path, stability=30)
+        other_source = tmp_path / "other-source"
+        _write_file(other_source, "dags/example.py", "print('other')")
+        second = _make_auto_bundle(tmp_path, source=other_source, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+            state_payload = _read_state(first)
+            traveller.move_to(130)
+            second.refresh()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert second.get_current_version().version == old_version
+        assert _read_state(second) == state_payload
+
+    def test_relative_and_absolute_source_paths_share_a_candidate(
+        self, tmp_path, changed_source, monkeypatch
+    ):
+        _, old_version = changed_source
+        monkeypatch.chdir(tmp_path)
+        relative = _make_auto_bundle(tmp_path, source=Path("source"), stability=30)
+        absolute = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            relative.refresh()
+            traveller.move_to(130)
+            absolute.refresh()
+
+        assert absolute.get_current_version().version != old_version
+
+    def test_zero_stability_still_rejects_publishers_of_a_different_source(self, tmp_path, caplog):
+        first = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        first.initialize()
+        version = first.get_current_version().version
+        state_payload = _read_state(first)
+        other_source = tmp_path / "other-source"
+        _write_file(other_source, "dags/example.py", "print('other')")
+        second = _make_auto_bundle(tmp_path, source=other_source)
+
+        second.initialize()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert second.get_current_version().version == version
+        assert _read_state(second) == state_payload
+
+    def test_moved_reference_returns_to_the_source_release(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+        other_source = tmp_path / "other-source"
+        _write_file(other_source, "dags/example.py", "print('other')")
+        other = _publish(_make_bundle(tmp_path), other_source)
+
+        bundle.refresh()
+
+        assert other.version != version
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert bundle.get_current_version().version == version
+
+    def test_failed_first_publication_serves_a_release_published_meanwhile(self, tmp_path, caplog):
+        other_source = tmp_path / "other-source"
+        _write_file(other_source, "dags/example.py", "print('other')")
+        other = _publish(_make_bundle(tmp_path), other_source)
+        ref_path = Path(_make_bundle(tmp_path).manifest_ref_path)
+        ref_path.unlink()
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+
+        def release_elsewhere_then_fail(**kwargs):
+            # The caller holds the publication lock, so stand in for the other publisher's
+            # final step instead of publishing through the lock again.
+            _write_manifest_ref(ref_path, other.ref_payload)
+            raise BundleManifestError("publish failed")
+
+        with mock.patch.object(
+            bundle_module, "_publish_manifest_result", autospec=True, side_effect=release_elsewhere_then_fail
+        ):
+            bundle.initialize()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert bundle.get_current_version().version == other.version
+
+    @mock.patch.object(ManifestLocalDagBundle, "_get_auto_publish_candidate_readiness", autospec=True)
+    def test_not_ready_bundle_serves_a_release_published_meanwhile(self, mock_readiness, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        other_source = tmp_path / "other-source"
+        _write_file(other_source, "dags/example.py", "print('other')")
+        published = []
+
+        def publish_elsewhere(*args):
+            published.append(_publish(_make_bundle(tmp_path), other_source))
+            return False, 30.0
+
+        mock_readiness.side_effect = publish_elsewhere
+
+        bundle.initialize()
+
+        assert bundle.get_current_version().version == published[0].version
+        assert not any(entry["log_level"] == "warning" for entry in caplog.entries)
+
+    def test_bootstrap_source_change_during_publication_reports_not_ready(self, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path)
+        source_file = _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        materialize = store_module._materialize_manifest_snapshot
+
+        def materialize_then_change_source(**kwargs):
+            materialize(**kwargs)
+            source_file.write_text("print('changed again')")
+
+        with mock.patch.object(
+            store_module,
+            "_materialize_manifest_snapshot",
+            autospec=True,
+            side_effect=materialize_then_change_source,
+        ):
+            with pytest.raises(BundleNotReadyError, match="changed while its first release") as raised:
+                bundle.initialize()
+
+        assert isinstance(raised.value.__cause__, BundleManifestSourceChangedError)
+        assert raised.value.retry_after == 0
+        assert not Path(bundle.manifest_ref_path).exists()
+
+    @mock.patch.object(store_module.FilesystemArtifactStore, "write_ref", autospec=True)
+    def test_unconfirmed_reference_durability_serves_the_replacement(self, mock_write_ref, tmp_path, caplog):
+        def replace_without_confirming_durability(store, payload):
+            store_module._replace_json_atomically(store.ref_path, payload)
+            raise BundleManifestRefDurabilityError(ref_path=store.ref_path, version=payload["version"])
+
+        bundle = _make_auto_bundle(tmp_path)
+        source_file = _write_file(tmp_path / "source", "dags/example.py", "print('old')")
+        mock_write_ref.side_effect = lambda store, payload: store_module._write_ref_atomically(
+            store.ref_path, payload
+        )
+        bundle.initialize()
+        old_version = bundle.get_current_version().version
+        source_file.write_text("print('new version')")
+        mock_write_ref.side_effect = replace_without_confirming_durability
+
+        bundle.refresh()
+
+        new_version = json.loads(Path(bundle.manifest_ref_path).read_text())["version"]
+        assert new_version != old_version
+        assert bundle.get_current_version().version == new_version
+        assert _has_event(
+            caplog, "durability could not be confirmed; serving the current reference", "warning"
+        )
+
+    @mock.patch.object(
+        store_module.FilesystemArtifactStore, "write_state", autospec=True, side_effect=PermissionError
+    )
+    def test_publisher_without_write_access_keeps_current_release(
+        self, mock_write_state, tmp_path, changed_source, caplog
+    ):
+        _, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+
+        bundle.refresh()
+
+        mock_write_state.assert_called_once()
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert bundle.get_current_version().version == old_version
+
+    def test_missing_reference_is_restored_from_confirmed_source(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+
+        Path(bundle.manifest_ref_path).unlink()
+        bundle.refresh()
+
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert bundle.get_current_version().version == version
+
+    def test_missing_published_snapshot_is_restored_from_confirmed_source(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+        published_version_path = Path(bundle.published_versions_dir) / version
+
+        remove_bundle_tree_forcefully(published_version_path)
+        bundle.refresh()
+
+        assert published_version_path.is_dir()
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+
+    def test_publish_failure_keeps_serving_current_release(self, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('old')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+        _write_file(tmp_path / "source", "dags/example.py", "print('new version')")
+
+        with mock.patch.object(
+            bundle_module,
+            "_publish_manifest_result",
+            autospec=True,
+            side_effect=BundleManifestError("publish failed"),
+        ):
+            bundle.refresh()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert bundle.get_current_version().version == version
+        assert (bundle.path / "dags/example.py").read_text() == "print('old')"
+
+    def test_another_instance_retries_failed_ready_candidate_without_delay(self, tmp_path, changed_source):
+        _, old_version = changed_source
+        first, second, third = (_make_auto_bundle(tmp_path, stability=30) for _ in range(3))
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+
+            traveller.move_to(130)
+            with mock.patch.object(
+                bundle_module,
+                "_publish_manifest_result",
+                autospec=True,
+                side_effect=BundleManifestError("publish failed"),
+            ):
+                second.refresh()
+            assert second.get_current_version().version == old_version
+
+            traveller.move_to(131)
+            third.refresh()
+
+        assert third.get_current_version().version != old_version
+        assert (third.path / "dags/example.py").read_text() == "print('new version')"
+
+    def test_candidate_is_rechecked_before_publication(self, tmp_path, changed_source):
+        _, old_version = changed_source
+        first = _make_auto_bundle(tmp_path, stability=30)
+        second = _make_auto_bundle(tmp_path, stability=30)
+        build_manifest = bundle_module.build_bundle_version_manifest
+
+        def build_manifest_then_replace_candidate(**kwargs):
+            result = build_manifest(**kwargs)
+            state_payload = _read_state(second)
+            state_payload["source_signature"] = "sha256:another-candidate"
+            Path(second.auto_publish_state_path).write_text(json.dumps(state_payload))
+            return result
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+
+            traveller.move_to(130)
+            with mock.patch.object(
+                bundle_module,
+                "build_bundle_version_manifest",
+                autospec=True,
+                side_effect=build_manifest_then_replace_candidate,
+            ):
+                second.refresh()
+
+        assert second.get_current_version().version == old_version
+        assert _read_state(second)["source_signature"] == "sha256:another-candidate"
+
+    @pytest.mark.parametrize(
+        ("replace_state", "level"),
+        [
+            pytest.param(lambda payload: "{", "warning", id="invalid-json"),
+            pytest.param(lambda payload: "{}", "warning", id="missing-schema-version"),
+            pytest.param(lambda payload: {**payload, "schema_version": True}, "warning", id="bool-schema"),
+            pytest.param(lambda payload: {**payload, "schema_version": 1}, "info", id="older-schema"),
+            pytest.param(lambda payload: {**payload, "bundle_name": "other"}, "warning", id="other-bundle"),
+            pytest.param(lambda payload: {**payload, "source_type": ""}, "warning", id="empty-source-type"),
+            pytest.param(
+                lambda payload: {**payload, "source_identity": ""}, "warning", id="empty-source-identity"
+            ),
+            pytest.param(
+                lambda payload: {**payload, "source_signature": ""}, "warning", id="empty-source-signature"
+            ),
+            pytest.param(lambda payload: {**payload, "first_observed_at": -1}, "warning", id="negative-time"),
+            pytest.param(lambda payload: {**payload, "first_observed_at": True}, "warning", id="bool-time"),
+            pytest.param(
+                lambda payload: {**payload, "first_observed_at": float("nan")}, "warning", id="nan-time"
+            ),
+            pytest.param(
+                lambda payload: {**payload, "first_observed_at": 10**400}, "warning", id="huge-time"
+            ),
+        ],
+    )
+    def test_unusable_shared_state_restarts_stability_period(
+        self, tmp_path, changed_source, replace_state, level, caplog
+    ):
+        _, old_version = changed_source
+        first = _make_auto_bundle(tmp_path, stability=30)
+        second = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            first.refresh()
+            replacement = replace_state(_read_state(first))
+            if not isinstance(replacement, str):
+                replacement = json.dumps(replacement)
+            Path(first.auto_publish_state_path).write_text(replacement)
+
+            traveller.move_to(130)
+            second.refresh()
+
+        assert _has_event(caplog, "restarting the source stability period", level)
+        assert _read_state(second)["first_observed_at"] == 130
+        assert second.get_current_version().version == old_version
+
+    def test_newer_shared_state_schema_keeps_current_release(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30)
+        state_path = Path(bundle.auto_publish_state_path)
+        state_path.parent.mkdir(parents=True)
+        future_state = {
+            "schema_version": bundle_module.AUTO_PUBLISH_STATE_SCHEMA_VERSION + 1,
+            "bundle_name": bundle.name,
+            "first_observed_at": 100,
+        }
+        state_path.write_text(json.dumps(future_state))
+
+        with time_machine.travel(130, tick=False):
+            bundle.refresh()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert json.loads(state_path.read_text()) == future_state
+        assert bundle.get_current_version().version == old_version
+
+    def test_future_shared_timestamp_does_not_publish_early(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        first = _make_auto_bundle(tmp_path, stability=30)
+        second = _make_auto_bundle(tmp_path, stability=30)
+
+        with time_machine.travel(200, tick=False) as traveller:
+            first.refresh()
+            traveller.move_to(130)
+            second.refresh()
+            assert second._get_auto_publish_candidate_readiness(second._prepare_publish_source()) == (
+                False,
+                30,
+            )
+
+        assert _has_event(caplog, "timestamp is in the future", "warning")
+        assert second.get_current_version().version == old_version
+        assert _read_state(second)["first_observed_at"] == 200
+
+    def test_source_change_during_publication_keeps_serving_current_release(self, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path)
+        source_file = _write_file(tmp_path / "source", "dags/example.py", "print('old')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+        source_file.write_text("print('candidate')")
+        materialize = store_module._materialize_manifest_snapshot
+
+        def materialize_then_change_source(**kwargs):
+            materialize(**kwargs)
+            source_file.write_text("print('changed again')")
+
+        with (
+            caplog.at_level(logging.DEBUG),
+            mock.patch.object(
+                store_module,
+                "_materialize_manifest_snapshot",
+                autospec=True,
+                side_effect=materialize_then_change_source,
+            ),
+        ):
+            bundle.refresh()
+
+        assert _has_event(caplog, "Bundle source changed while publishing it automatically", "debug")
+        assert not any(entry["log_level"] == "warning" for entry in caplog.entries)
+        assert bundle.get_current_version().version == version
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert (bundle.path / "dags/example.py").read_text() == "print('old')"
+
+    @mock.patch.object(
+        manifest_module, "compute_file_sha256", autospec=True, side_effect=manifest_module.compute_file_sha256
+    )
+    def test_confirmed_source_uses_metadata_only_until_it_changes(self, mock_sha256, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        source_file = _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        source_stat = source_file.stat()
+        mock_sha256.reset_mock()
+
+        bundle.refresh()
+        assert mock_sha256.call_count == 0
+
+        os.utime(source_file, ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns + 1_000_000_000))
+        bundle.refresh()
+        assert mock_sha256.call_count == 1
+
+        bundle.refresh()
+        assert mock_sha256.call_count == 1
+
+    @mock.patch.object(ManifestLocalDagBundle, "_maybe_publish_from_source", autospec=True)
+    def test_pinned_bundle_never_publishes_dirty_source(self, mock_publish, tmp_path):
+        source = tmp_path / "source"
+        _write_file(source, "dags/example.py", "print('old')")
+        released = _publish(_make_bundle(tmp_path), source)
+        _write_file(source, "dags/new.py", "print('new')")
+
+        pinned = _make_auto_bundle(tmp_path, version=released.version)
+        pinned.initialize()
+
+        mock_publish.assert_not_called()
+        assert not (pinned.path / "dags/new.py").exists()
+        assert not Path(pinned.auto_publish_state_path).exists()
+
+    def test_empty_source_requires_explicit_opt_in(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        with pytest.raises(BundleManifestError, match="Refusing to auto-publish empty"):
+            bundle.initialize()
+        assert not Path(bundle.manifest_ref_path).exists()
+
+        allowed = _make_auto_bundle(tmp_path, allow_empty_source=True)
+        allowed.initialize()
+        assert json.loads(Path(allowed.manifest_ref_path).read_text())["file_count"] == 0
+
+    def test_retargeted_source_overlap_keeps_current_release(self, tmp_path, caplog):
+        real_source = tmp_path / "real-source"
+        source_link = tmp_path / "source-link"
+        _write_file(real_source, "dags/example.py", "print('dag')")
+        _create_symlink_or_skip(real_source, source_link, target_is_directory=True)
+        bundle = _make_auto_bundle(tmp_path, source=source_link)
+        bundle.initialize()
+        version = bundle.get_current_version().version
+
+        _point_symlink(source_link, Path(bundle.published_root))
+        bundle.refresh()
+
+        assert _has_event(caplog, "keeping the current release", "warning")
+        assert bundle.get_current_version().version == version
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
