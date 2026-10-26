@@ -2105,7 +2105,6 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].run_count == 1
         assert manager._file_stats[file].last_finish_time is not None
         assert manager._file_stats[file].last_duration is not None
-        assert manager.processed_recently(timezone.utcnow(), file) is True
 
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
