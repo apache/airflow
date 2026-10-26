@@ -128,6 +128,15 @@ the `need workflow approval` label and one comment telling the author that the C
 maintainer; see
 [Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
 
+The runs of PRs whose head repository belongs to a trusted stakeholder (`astronomer/airflow` for
+Astronomer, `aws-mwaa/upstream-to-airflow` for Amazon, `VladaZakharova/airflow` for Google; listed in
+`TRUSTED_STAKEHOLDER_REPOSITORIES`) are approved whatever the PR changes or targets: only people with
+write access to those repositories can push the PR's commits. The repositories are matched by their
+numeric id, so a repository that later takes over one of these names is not trusted. None of the
+rules above apply to them, and of the rules below only the 24-hour window does: their runs are
+approved even when several open PRs share the head commit, or when the runs started before the PR
+was opened, retargeted or relabelled.
+
 Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
 approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
 head of several open PRs is never approved automatically, because its runs cannot be told apart by
