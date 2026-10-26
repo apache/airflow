@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
@@ -62,15 +62,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagRunId = dagRun.dag_run_id;
 
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, dagRunId, limit: 100 });
-  const { data: deadlineData } = useDeadlinesServiceGetDeadlines({
-    dagId,
-    dagRunId,
-    limit: 10,
-    orderBy: ["deadline_time"],
-  });
-  const hasDeadlineAlerts =
-    (deadlineData?.total_entries ?? 0) > 0 ||
-    (alertData?.deadline_alerts ?? []).some((alert) => isDeadlineAlertApplicable(alert, dagRun.run_type));
+  const hasDeadlineAlerts = (alertData?.deadline_alerts ?? []).some((alert) =>
+    isDeadlineAlertApplicable(alert, dagRun.run_type),
+  );
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
