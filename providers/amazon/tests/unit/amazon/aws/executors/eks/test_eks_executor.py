@@ -68,7 +68,7 @@ def eks_config():
 @pytest.fixture
 def mock_aws():
     with (
-        mock.patch.object(_client_factory, "EksHook") as eks_hook_cls,
+        mock.patch.object(_client_factory, "_EksExecutorHook") as eks_hook_cls,
         mock.patch.object(_client_factory, "StsHook") as sts_hook_cls,
         mock.patch.object(_client_factory, "fetch_access_token_for_cluster", autospec=True) as fetch_token,
     ):
