@@ -296,14 +296,15 @@ class BaseSQLOperator(BaseOperator):
             # OpenLineage provider release < 1.8.0 - we always use connection
             use_external_connection = True
 
-        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
+        conn_id = getattr(hook, hook.conn_name_attr)
+        connection = hook.get_connection(conn_id)
         get_database_info = getattr(hook, "get_openlineage_database_info", None)
         database_info = None
         if get_database_info is not None:
             try:
                 database_info = get_database_info(connection)
             except Exception as e:
-                self.log.warning("Failed to get OpenLineage database info for %s: %s", hook, e)
+                self.log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
                 self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_info is None:
@@ -318,16 +319,24 @@ class BaseSQLOperator(BaseOperator):
         try:
             sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
         except Exception as e:
-            self.log.warning("Failed to get OpenLineage database dialect for %s: %s", hook, e)
+            self.log.warning(
+                "Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e
+            )
             self.log.debug("OpenLineage failure details:", exc_info=True)
             return None
+
+        sqlalchemy_engine = None
+        try:
+            sqlalchemy_engine = hook.get_sqlalchemy_engine()
+        except Exception as e:
+            self.log.debug("Failed to get sql alchemy engine: %s", e)
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
             sql=sql,
             hook=hook,
             database_info=database_info,
             database=self.database,
-            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            sqlalchemy_engine=sqlalchemy_engine,
             use_connection=use_external_connection,
         )
 
@@ -351,7 +360,11 @@ class BaseSQLOperator(BaseOperator):
             try:
                 database_specific_lineage = get_specific_lineage(task_instance)
             except Exception as e:
-                self.log.warning("Failed to get OpenLineage database specific lineage for %s: %s", hook, e)
+                self.log.warning(
+                    "Failed to get OpenLineage database specific lineage for %s: %s",
+                    getattr(hook, hook.conn_name_attr),
+                    e,
+                )
                 self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_specific_lineage is None:

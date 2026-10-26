@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import importlib
-import sys
-import types
 from unittest import mock
 
 import pytest
@@ -33,13 +31,14 @@ def test_import():
 
 
 @pytest.fixture
-def fallback_get_openlineage_facets_with_sql():
+def fallback_get_openlineage_facets_with_sql(monkeypatch):
     """Load the module as if the OpenLineage provider was too old to ship ``get_openlineage_facets_with_sql``."""
-    old_sqlparser = types.ModuleType("airflow.providers.openlineage.sqlparser")
-    old_sqlparser.SQLParser = mock.MagicMock(name="SQLParser")
-    with mock.patch.dict(sys.modules, {"airflow.providers.openlineage.sqlparser": old_sqlparser}):
-        module = importlib.reload(importlib.import_module(_MODULE))
-        yield module.get_openlineage_facets_with_sql
+    from airflow.providers.openlineage import sqlparser
+
+    monkeypatch.delattr(sqlparser, "get_openlineage_facets_with_sql")
+    module = importlib.reload(importlib.import_module(_MODULE))
+    yield module.get_openlineage_facets_with_sql
+    monkeypatch.undo()
     importlib.reload(module)
 
 
@@ -62,6 +61,7 @@ def test_fallback_error_from_database_info_is_logged_as_warning(
 
     assert fallback_get_openlineage_facets_with_sql(hook, "SELECT 1", "conn", None) is None
     mock_log.warning.assert_called_once()
+    assert mock_log.warning.call_args.args[1] == "conn"
     assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
 
@@ -79,4 +79,5 @@ def test_fallback_error_from_dialect_is_logged_as_warning(mock_log, fallback_get
 
     assert fallback_get_openlineage_facets_with_sql(hook, "SELECT 1", "conn", None) is None
     mock_log.warning.assert_called_once()
+    assert mock_log.warning.call_args.args[1] == "conn"
     assert str(mock_log.warning.call_args.args[2]) == "broken import"

@@ -430,6 +430,7 @@ class TestGetOpenlineageFacetsWithSql:
 
         assert result is None
         mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1] == "conn"
         assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
     @mock.patch("airflow.providers.openlineage.sqlparser.log", autospec=True)
@@ -442,6 +443,7 @@ class TestGetOpenlineageFacetsWithSql:
 
         assert result is None
         mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1] == "conn"
         assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
     def test_returns_none_when_no_dialect(self):

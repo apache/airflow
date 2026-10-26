@@ -57,7 +57,7 @@ else:
                 try:
                     database_info = get_database_info(connection)
                 except Exception as e:
-                    log.warning("Failed to get OpenLineage database info for %s: %s", hook, e)
+                    log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
                     log.debug("OpenLineage failure details:", exc_info=True)
 
             if database_info is None:
@@ -72,7 +72,9 @@ else:
             try:
                 sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
             except Exception as e:
-                log.warning("Failed to get OpenLineage database dialect for %s: %s", hook, e)
+                log.warning(
+                    "Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e
+                )
                 log.debug("OpenLineage failure details:", exc_info=True)
                 return None
 
