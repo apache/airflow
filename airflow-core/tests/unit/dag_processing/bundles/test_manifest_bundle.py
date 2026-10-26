@@ -187,6 +187,31 @@ class _MemoryManifestDagBundle(ManifestDagBundleBase):
         pass
 
 
+class _AutoPublishingMemoryManifestDagBundle(_MemoryManifestDagBundle):
+    """Publishes its local ``source`` automatically, recording one object version id per file."""
+
+    def __init__(self, *, source: Path, **kwargs) -> None:
+        self.source = source
+        super().__init__(**kwargs)
+
+    @property
+    def _has_publish_source(self) -> bool:
+        return True
+
+    @property
+    def _publish_source_description(self) -> str:
+        return str(self.source)
+
+    def _prepare_publish_source(self) -> PreparedPublishSource:
+        return PreparedPublishSource(
+            root=self.source,
+            source_snapshot=collect_bundle_source_snapshot(self.source),
+            file_version_ids={DAG_FILE: "object-version-auto"},
+            source_type="memory-test",
+            source_identity=f"sha256:{self.source.name}",
+        )
+
+
 def _write_source(root: Path, content: str = "print('dag')") -> Path:
     path = root / DAG_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -303,6 +328,21 @@ class TestStoreWithoutPublishedRoot:
 
         assert isinstance(raised.value.__cause__, ArtifactStoreConflictError)
         assert json.loads(bucket.ref) == rival_results[0].ref_payload
+
+    def test_automatic_publication_records_object_version_ids(self, tmp_path):
+        bucket = _VersionedBucket()
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=0,
+        )
+
+        bundle.initialize()
+
+        committed = json.loads(bucket.manifests[bundle.get_current_version().version])
+        assert [file_info["version_id"] for file_info in committed["files"]] == ["object-version-auto"]
+        assert (bundle.path / DAG_FILE).read_text() == "print('dag')"
 
 
 class TestFilesystemStoreRepublish:
