@@ -18,14 +18,29 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
+from airflow._shared.module_loading import import_string
 from airflow.cli.simple_table import AirflowConsole
-from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.bundles.manifest import BundleManifestError
+from airflow.dag_processing.bundles.manager import get_configured_bundle_config
+from airflow.dag_processing.bundles.manifest import BundleManifestError, is_valid_bundle_version
 from airflow.dag_processing.bundles.manifest_local import (
     ManifestLocalDagBundle,
     publish_manifest_local_dag_bundle,
 )
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import suppress_logs_and_warning
+
+
+@contextmanager
+def _exit_on_error(args, message: str, *error_types: type[Exception]):
+    """Turn an expected failure into a one-line error, or keep its traceback with ``--verbose``."""
+    try:
+        yield
+    except error_types as e:
+        if args.verbose:
+            raise
+        raise SystemExit(f"{message}: {e}")
 
 
 # Not wrapped in action_cli: its audit-log hook writes to the metadata database, which a
@@ -33,29 +48,42 @@ from airflow.utils.cli import suppress_logs_and_warning
 @suppress_logs_and_warning
 def dag_bundle_publish_local(args) -> None:
     """Publish a local source directory as a new release of a manifest-backed local Dag bundle."""
-    try:
-        # Bundle classes raise TypeError for invalid kwargs; get_bundle raises ValueError for
-        # an unconfigured name.
-        bundle = DagBundlesManager().get_bundle(args.bundle_name)
-    except (TypeError, ValueError) as e:
-        raise SystemExit(f"Cannot load Dag bundle {args.bundle_name!r}: {e}")
-    if not isinstance(bundle, ManifestLocalDagBundle):
+    expected_current_version = args.expected_current_version
+    if expected_current_version is not None and not is_valid_bundle_version(expected_current_version):
         raise SystemExit(
-            f"Dag bundle {args.bundle_name!r} is a {type(bundle).__name__}, not a ManifestLocalDagBundle. "
-            "Only manifest-backed local Dag bundles can be published with this command."
+            f"--expected-current-version {expected_current_version!r} is not a bundle version; "
+            "expected 'sha256-' followed by 64 lowercase hex digits."
         )
 
-    try:
+    load_error = f"Cannot load Dag bundle {args.bundle_name!r}"
+    # Import only the named bundle's class: the publishing host need not have the packages of
+    # the other configured bundles installed.
+    with _exit_on_error(args, load_error, AirflowConfigException, ImportError, ValueError):
+        bundle_config = get_configured_bundle_config(args.bundle_name)
+        bundle_class = import_string(bundle_config.classpath)
+    # Checked before construction, which can fail for other bundle types, e.g. on a missing connection.
+    if not (isinstance(bundle_class, type) and issubclass(bundle_class, ManifestLocalDagBundle)):
+        raise SystemExit(
+            f"Dag bundle {args.bundle_name!r} is configured with {bundle_config.classpath}, not a "
+            "ManifestLocalDagBundle. Only manifest-backed local Dag bundles can be published with "
+            "this command."
+        )
+    # Bundle classes raise TypeError for invalid kwargs.
+    with _exit_on_error(args, load_error, TypeError):
+        bundle = bundle_class(name=args.bundle_name, version=None, **bundle_config.kwargs)
+
+    # ValueError: the source, published root and cache paths overlap.
+    with _exit_on_error(
+        args, f"Failed to publish Dag bundle {args.bundle_name!r}", BundleManifestError, OSError, ValueError
+    ):
         result = publish_manifest_local_dag_bundle(
             bundle=bundle,
             source_path=args.source_path,
-            expected_current_version=args.expected_current_version,
+            expected_current_version=expected_current_version,
         )
-    # ValueError: the source, published root and cache paths overlap.
-    except (BundleManifestError, OSError, ValueError) as e:
-        raise SystemExit(f"Failed to publish Dag bundle {args.bundle_name!r}: {e}")
 
-    AirflowConsole().print_as(
+    # No colour: FORCE_COLOR, often set in CI, would otherwise put ANSI codes into JSON output.
+    AirflowConsole(color_system=None).print_as(
         data=[
             {
                 "bundle_name": result.bundle_name,

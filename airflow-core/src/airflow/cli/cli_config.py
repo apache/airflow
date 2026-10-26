@@ -167,10 +167,12 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
-ARG_DAG_BUNDLE_NAME = Arg(("bundle_name",), help="Name of the configured Dag bundle")
+ARG_DAG_BUNDLE_NAME = Arg(("bundle_name",), metavar="BUNDLE_NAME", help="Name of the configured Dag bundle")
+# Not the DIRPATH metavar: its argparse check would exit 2 with the usage text on stdout, while
+# the publisher reports a missing or non-directory source as a publication failure.
 ARG_DAG_BUNDLE_SOURCE_PATH = Arg(
     ("source_path",),
-    metavar="DIRPATH",
+    metavar="SOURCE_DIR",
     help="Local directory containing the Dag files to publish",
 )
 ARG_EXPECTED_CURRENT_BUNDLE_VERSION = Arg(
