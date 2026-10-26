@@ -244,6 +244,31 @@ Each composite workflow is stored in `.github/workflows/` and gets called using 
 
 GitHub Actions includes a concurrency feature that we use to prevent wasted resources. If you push new commits while tests are already running, the system cancels the old test run and starts over with your latest code. This saves time and compute resources.
 
+### Cancelling runs of merged pull requests
+
+Merging a pull request does not stop its `pull_request` runs, and the concurrency group does not
+help, because the merge starts no new run in the pull request's group. Maintainers often merge
+once the checks they need are green, while slower jobs are still queued or running for a result
+nobody reads.
+
+Merging pushes to the target branch, which starts `cancel-merged-pr-runs.yml`. It looks up the
+merged pull request of the pushed commit and cancels its `pull_request` runs that are `queued`,
+`in_progress`, `waiting`, `pending` or `requested`. A push run has a token that can write to
+`apache/airflow`, so it cancels the runs of fork pull requests too. A run is cancelled when:
+
+- its head repository and commit are the merged pull request's (runs of pull requests from forks
+  do not list their pull request, so they are matched this way);
+- no open pull request has the same head commit; such runs are left to finish, since no later push
+  revisits them;
+- it was created before the merge. A workflow triggered by the merge itself, such as one on the
+  `closed` event, is meant to run.
+
+A run still not finished five minutes after the cancel, for example because a step ignores the
+cancellation, is force-cancelled. A run of an earlier commit of the pull request is normally
+cancelled by its concurrency group when the next commit is pushed. A push runs the workflow file
+of the pushed branch, so the cancellation works on a release branch only once the workflow is on
+that branch.
+
 ## Branch-Specific Behavior
 
 Different branches in our repository serve different purposes, so they get different levels of testing.
