@@ -148,7 +148,7 @@ class GCSDagBundle(BaseDagBundle):
 
         with self.lock():
             if self.archive_object:
-                self._refresh_from_archive()
+                self._refresh_from_archive(self.archive_object)
                 return
             self._log.debug(
                 "Downloading Dags from gs://%s/%s to %s", self.bucket_name, self.prefix, self.gcs_dags_dir
@@ -160,11 +160,8 @@ class GCSDagBundle(BaseDagBundle):
                 delete_stale=True,
             )
 
-    def _refresh_from_archive(self) -> None:
+    def _refresh_from_archive(self, archive_object: str) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive object."""
-        archive_object = self.archive_object
-        if not archive_object:
-            raise ValueError("GCSDagBundle archive refresh called without 'archive_object'.")
         blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(archive_object)
         try:
             blob.reload()
