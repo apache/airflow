@@ -303,8 +303,8 @@ If you want to defer your task directly to the triggerer without going into the 
 * ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
-The scheduler defers these tasks in the same step where it queues other tasks, so they follow the same
-limits: pool slots, ``max_active_tasks``, ``max_active_tis_per_dag`` and ``max_active_tis_per_dagrun``.
+The scheduler defers these tasks in the same step where it queues other tasks, so pool slots,
+``max_active_tasks``, ``max_active_tis_per_dag`` and ``max_active_tis_per_dagrun`` must allow it.
 They do not use executor slots. A task is deferred one scheduler loop after it becomes ``SCHEDULED``,
 once these limits allow it.
 
@@ -314,6 +314,10 @@ once these limits allow it.
     With ``include_deferred=False`` the slot is released as soon as the task is deferred, so the pool only
     limits how many tasks are deferred at a time, not how many run in the triggerer. To limit how many of
     these tasks run in the triggerer at once, set ``include_deferred=True`` on the pool.
+
+    ``max_active_tasks`` works the same way: deferred tasks do not count towards it, unless
+    :ref:`config:core__max_active_tasks_include_deferred` is enabled. ``max_active_tis_per_dag`` and
+    ``max_active_tis_per_dagrun`` always count deferred tasks.
 
 In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``trigger_cls``.
 
