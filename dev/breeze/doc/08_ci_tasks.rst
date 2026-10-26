@@ -203,7 +203,7 @@ These are all available flags of ``fork-ci-reconcile`` command:
 Approving workflow runs of external contributors
 ------------------------------------------------
 
-The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 30 minutes. It approves
+The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 15 minutes. It approves
 the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
 than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. PRs whose CI runs in
 the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are

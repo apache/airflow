@@ -29,7 +29,7 @@
 name: Auto approve workflow runs
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       report-only:
