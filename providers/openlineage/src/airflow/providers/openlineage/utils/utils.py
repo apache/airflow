@@ -24,7 +24,7 @@ from collections.abc import Callable, Collection, Mapping
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import attrs
@@ -135,6 +135,8 @@ log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
+_JOB_TYPE_DAG: Literal["DAG"] = "DAG"
+_JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 
 
 def try_import_from_string(string: str) -> Any:
@@ -354,13 +356,16 @@ def build_task_event_job_facets(
 
     return {
         **(additional_job_facets or {}),
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="TASK", integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
-        ),
+        **_get_job_type_facets(get_airflow_job_type(_JOB_TYPE_TASK)),
         **documentation_facet,
         **ownership_facet,
         **tags_facet,
     }
+
+
+def get_airflow_job_type(job_type: Literal["DAG", "TASK"]) -> dict[str, str]:
+    """Return the job type facet fields of an Airflow Dag or task."""
+    return {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": job_type}
 
 
 def _get_job_type_facets(job_type: dict[str, str] | None) -> dict[str, JobFacet]:
@@ -458,6 +463,7 @@ def get_task_parent_run_facet(
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
+        parent_job_type=get_airflow_job_type(_JOB_TYPE_DAG),
         root_parent_job_type=root_parent_job_type,
     )
 
@@ -471,26 +477,25 @@ def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
 
 
 def _get_job_type_from_ol_data(ol_data: dict, key: str) -> dict[str, str] | None:
-    """Return a copy of the job type facet fields stored under ``key`` if they are valid, otherwise None."""
+    """Return the job type facet fields stored under ``key`` if they are all valid, otherwise None."""
     job_type = ol_data.get(key)
     if job_type is None:
         return None
-    expected_fields = {"processingType", "integration", "jobType"}
+    required_fields = ("processingType", "integration", "jobType")
     # The spec allows partial job type, but only complete information is supported for now.
-    if (
-        not isinstance(job_type, dict)
-        or job_type.keys() != expected_fields
-        or not all(isinstance(value, str) and value for value in job_type.values())
+    # Other fields (e.g. `_producer` of a serialized facet) are ignored.
+    if not isinstance(job_type, dict) or not all(
+        isinstance(job_type.get(field), str) and job_type[field] for field in required_fields
     ):
         log.warning(
             "Invalid OpenLineage %s '%s' in DAG run config - expected a dictionary with non-empty "
             "string values for all of: %s.",
             key,
             job_type,
-            ", ".join(sorted(expected_fields)),
+            ", ".join(required_fields),
         )
         return None
-    return dict(job_type)
+    return {field: job_type[field] for field in required_fields}
 
 
 def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:

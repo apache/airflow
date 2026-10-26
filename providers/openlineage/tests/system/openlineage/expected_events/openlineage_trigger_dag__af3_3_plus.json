@@ -348,7 +348,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_child__notrigger"
+                        "name": "openlineage_trigger_dag_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -385,7 +392,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_child__notrigger"
+                        "name": "openlineage_trigger_dag_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -428,7 +442,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag"
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -436,7 +457,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -464,7 +492,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag"
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -472,7 +507,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"

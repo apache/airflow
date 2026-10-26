@@ -126,9 +126,11 @@ def _inject_openlineage_parent_info_to_dagrun_conf(
             "parentRunId",
             "parentJobName",
             "parentJobNamespace",
+            "parentJobType",
             "rootParentRunId",
-            "rootJobName",
-            "rootJobNamespace",
+            "rootParentJobName",
+            "rootParentJobNamespace",
+            "rootParentJobType",
         )
 
         if existing := [k for k in forbidden_keys if k in current_ol_dr_conf]:

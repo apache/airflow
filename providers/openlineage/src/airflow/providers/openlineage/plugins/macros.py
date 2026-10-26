@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_DAG,
+    _JOB_TYPE_TASK,
+    get_airflow_job_type,
     get_job_name,
     get_parent_information_from_dagrun_conf,
     get_regional_task_instance_run_id,
@@ -61,12 +64,13 @@ def lineage_job_type() -> dict[str, str]:
 
     The result has the ``processingType``, ``integration`` and ``jobType`` fields of the ``JobTypeJobFacet``
     and can be forwarded to a child job together with the parent information.
+    Note that a dictionary is returned, not a string - see the guide for how to use it in templates.
 
     .. seealso::
         For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    return _build_airflow_job_type("TASK")
+    return get_airflow_job_type(_JOB_TYPE_TASK)
 
 
 def lineage_run_id(task_instance: TaskInstance):
@@ -165,7 +169,7 @@ def lineage_root_job_type(task_instance: TaskInstance) -> dict[str, str] | None:
         return ol_root_info.get("root_parent_job_type")
     if ol_parent_info := get_parent_information_from_dagrun_conf(dr_conf=dr_conf):
         return ol_parent_info.get("parent_job_type")
-    return _build_airflow_job_type("DAG")
+    return get_airflow_job_type(_JOB_TYPE_DAG)
 
 
 def lineage_root_job_namespace(task_instance: TaskInstance):
@@ -187,10 +191,6 @@ def _get_ol_root_id(id_key: str, task_instance: TaskInstance) -> str | None:
     if ol_root_info and ol_root_info.get(id_key):
         return ol_root_info[id_key]
     return None
-
-
-def _build_airflow_job_type(job_type: Literal["DAG", "TASK"]) -> dict[str, str]:
-    return {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": job_type}
 
 
 def _get_dagrun_from_ti(task_instance: TaskInstance):
