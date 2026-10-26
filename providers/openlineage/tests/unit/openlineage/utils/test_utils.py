@@ -5495,3 +5495,190 @@ class TestNextQueryCounterFromContext:
         assert len(second) == 8
         assert first != second  # random per call
         assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text
+
+
+_FULL_JOB_TYPE = {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"}
+
+
+@pytest.mark.parametrize(
+    ("prefix", "get_information"),
+    [
+        pytest.param("parent", get_parent_information_from_dagrun_conf, id="parent"),
+        pytest.param("rootParent", get_root_information_from_dagrun_conf, id="root"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("job_type", "expected"),
+    [
+        pytest.param(_FULL_JOB_TYPE, _FULL_JOB_TYPE, id="full"),
+        pytest.param(None, None, id="missing"),
+        pytest.param("invalid", None, id="not-a-dict"),
+        pytest.param({}, None, id="empty"),
+        pytest.param({"integration": "CUSTOM", "jobType": "PIPELINE"}, None, id="no-processing-type"),
+        pytest.param({"processingType": "STREAMING", "jobType": "PIPELINE"}, None, id="no-integration"),
+        pytest.param({"processingType": "STREAMING", "integration": "CUSTOM"}, None, id="no-job-type"),
+        pytest.param({"processingType": "STREAMING"}, None, id="only-processing-type"),
+        pytest.param({**_FULL_JOB_TYPE, "jobType": 1}, None, id="non-string-value"),
+        pytest.param({**_FULL_JOB_TYPE, "jobType": ""}, None, id="empty-value"),
+        pytest.param({**_FULL_JOB_TYPE, "jobType": None}, None, id="null-value"),
+        pytest.param({**_FULL_JOB_TYPE, "other": "x"}, _FULL_JOB_TYPE, id="unknown-field-ignored"),
+        pytest.param(
+            {
+                **_FULL_JOB_TYPE,
+                "_producer": "https://example.com/producer",
+                "_schemaURL": "https://openlineage.io/spec/facets/2-0-3/JobTypeJobFacet.json",
+            },
+            _FULL_JOB_TYPE,
+            id="serialized-facet-metadata-ignored",
+        ),
+    ],
+)
+def test_get_information_from_dagrun_conf_job_type(prefix, get_information, job_type, expected):
+    ol_conf = {
+        f"{prefix}RunId": "11111111-1111-1111-1111-111111111111",
+        f"{prefix}JobNamespace": "ns",
+        f"{prefix}JobName": "jobX",
+    }
+    if job_type is not None:
+        ol_conf[f"{prefix}JobType"] = job_type
+    result = get_information({"openlineage": ol_conf})
+    key = "parent_job_type" if prefix == "parent" else "root_parent_job_type"
+    assert result.get(key) == expected
+    if expected is not None:
+        assert result[key] is not job_type
+
+
+_PARENT_IDS = {
+    "parentRunId": "11111111-1111-1111-1111-111111111111",
+    "parentJobNamespace": "ns",
+    "parentJobName": "jobA",
+}
+_ROOT_IDS = {
+    "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+    "rootParentJobNamespace": "rootns",
+    "rootParentJobName": "rootjob",
+}
+_PARENT_JOB_TYPE = {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "TASK"}
+_ROOT_JOB_TYPE = {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"}
+
+
+def _get_job_type_facets(job: parent_run.Job | parent_run.RootJob) -> dict | None:
+    job_type_facet = (job.facets or {}).get("jobType")
+    if job_type_facet is None:
+        return None
+    return {field: getattr(job_type_facet, field) for field in ("processingType", "integration", "jobType")}
+
+
+@pytest.mark.parametrize(
+    ("ol_conf", "expected_parent_type", "expected_root_type"),
+    [
+        pytest.param(_PARENT_IDS, None, None, id="no-types"),
+        pytest.param(
+            {**_PARENT_IDS, "parentJobType": _PARENT_JOB_TYPE},
+            _PARENT_JOB_TYPE,
+            _PARENT_JOB_TYPE,
+            id="parent-type-used-as-root-type",
+        ),
+        pytest.param(
+            {
+                **_PARENT_IDS,
+                "parentJobType": _PARENT_JOB_TYPE,
+                **_ROOT_IDS,
+                "rootParentJobType": _ROOT_JOB_TYPE,
+            },
+            _PARENT_JOB_TYPE,
+            _ROOT_JOB_TYPE,
+            id="parent-and-root-types",
+        ),
+        pytest.param(
+            {**_PARENT_IDS, "parentJobType": _PARENT_JOB_TYPE, **_ROOT_IDS},
+            _PARENT_JOB_TYPE,
+            None,
+            id="root-without-type-does-not-get-parent-type",
+        ),
+        pytest.param(
+            {**_PARENT_IDS, "parentJobType": "invalid", **_ROOT_IDS, "rootParentJobType": "invalid"},
+            None,
+            None,
+            id="invalid-types",
+        ),
+        pytest.param(
+            {
+                **_PARENT_IDS,
+                "parentJobType": {"processingType": "BATCH", "integration": "AIRFLOW"},
+                **_ROOT_IDS,
+                "rootParentJobType": {"processingType": "STREAMING", "integration": "CUSTOM"},
+            },
+            None,
+            None,
+            id="partial-types-ignored",
+        ),
+    ],
+)
+def test_get_dag_parent_run_facet_job_types(ol_conf, expected_parent_type, expected_root_type):
+    parent_facet = get_dag_parent_run_facet({"openlineage": ol_conf})["parent"]
+
+    assert _get_job_type_facets(parent_facet.job) == expected_parent_type
+    assert _get_job_type_facets(parent_facet.root.job) == expected_root_type
+
+
+_DAG_JOB_TYPE = {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DAG"}
+
+
+@pytest.mark.parametrize(
+    ("ol_conf", "expected_root_type"),
+    [
+        pytest.param({}, _DAG_JOB_TYPE, id="no-conf-root-is-dag"),
+        pytest.param({**_ROOT_IDS, "rootParentJobType": _ROOT_JOB_TYPE}, _ROOT_JOB_TYPE, id="root-type"),
+        pytest.param({**_ROOT_IDS}, None, id="root-without-type"),
+        pytest.param(
+            {**_PARENT_IDS, "parentJobType": _PARENT_JOB_TYPE},
+            _PARENT_JOB_TYPE,
+            id="parent-type-as-root-type",
+        ),
+        pytest.param({**_PARENT_IDS}, None, id="parent-without-type-as-root"),
+        pytest.param(
+            {**_ROOT_IDS, "rootParentJobType": {"processingType": "STREAMING", "integration": "CUSTOM"}},
+            None,
+            id="partial-root-type-ignored",
+        ),
+        pytest.param(
+            {**_ROOT_IDS, "rootParentRunId": "not-a-uuid", "rootParentJobType": _ROOT_JOB_TYPE},
+            _DAG_JOB_TYPE,
+            id="rejected-root-type-ignored-root-is-dag",
+        ),
+    ],
+)
+def test_get_task_parent_run_facet_job_types(ol_conf, expected_root_type):
+    parent_facet = get_task_parent_run_facet(
+        parent_run_id="33333333-3333-3333-3333-333333333333",
+        parent_job_name="dag_id",
+        dr_conf={"openlineage": ol_conf},
+    )["parent"]
+
+    assert _get_job_type_facets(parent_facet.job) == _DAG_JOB_TYPE
+    assert _get_job_type_facets(parent_facet.root.job) == expected_root_type
+
+
+def test_get_task_parent_run_facet_without_dr_conf_parent_and_root_are_dag():
+    parent_facet = get_task_parent_run_facet(
+        parent_run_id="33333333-3333-3333-3333-333333333333", parent_job_name="dag_id"
+    )["parent"]
+
+    assert _get_job_type_facets(parent_facet.job) == _DAG_JOB_TYPE
+    assert _get_job_type_facets(parent_facet.root.job) == _DAG_JOB_TYPE
+
+
+def test_get_task_parent_run_facet_explicit_root_ignores_dr_conf_job_type():
+    parent_facet = get_task_parent_run_facet(
+        parent_run_id="33333333-3333-3333-3333-333333333333",
+        parent_job_name="dag_id",
+        root_parent_run_id="44444444-4444-4444-4444-444444444444",
+        root_parent_job_name="explicit_root",
+        root_parent_job_namespace="explicit_ns",
+        dr_conf={"openlineage": {**_ROOT_IDS, "rootParentJobType": _ROOT_JOB_TYPE}},
+    )["parent"]
+
+    assert parent_facet.root.job.name == "explicit_root"
+    assert _get_job_type_facets(parent_facet.job) == _DAG_JOB_TYPE
+    assert _get_job_type_facets(parent_facet.root.job) is None
