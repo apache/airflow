@@ -158,14 +158,15 @@ Parameters
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
-- ``serialize_output``: If ``True``, a Pydantic ``BaseModel`` output, or a
-  list, tuple, set or dict holding models, is dumped with ``model_dump()``-style
-  Python values before being pushed to XCom (JSON-compatible values if a set holds
-  the models). A model the worker cannot register from ``output_type`` (for example
-  one in a list of output types) is dumped to JSON-compatible values even when
-  this is ``False``. Default ``False``
-  -- a registered Pydantic instance flows through XCom unchanged. Set to
-  ``True`` when a downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with ``model_dump()``
+  before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types. A model inside a
+  list, tuple, set or dict is left for the XCom serializer when the worker registers its class. A
+  model whose class the worker cannot register from ``output_type`` (for example ``[MyModel, int]``,
+  an output marker or function, a ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible
+  values with ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the
+  output itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
+  whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows through
+  XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
 
 ``decision_policy`` is not supported here: the operator runs its own ``execute``
 without the confidence gate and rejects a policy with a bar at construction.

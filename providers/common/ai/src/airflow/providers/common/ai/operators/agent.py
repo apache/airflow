@@ -496,12 +496,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
-    :param serialize_output: If ``True``, a Pydantic ``BaseModel`` output, or a
-        list, tuple or dict holding models, is dumped to JSON-compatible
-        values before being pushed to XCom. A model the worker cannot register from ``output_type`` (for example
-        one in a list of output types) is dumped even when this is ``False``.
-        Default ``False`` -- a registered Pydantic instance flows through XCom
-        unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+        ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their
+        types. A model inside a list, tuple or dict is left for the XCom serializer when the worker
+        registers its class. A model whose class the worker cannot register from ``output_type``
+        (for example ``[MyModel, int]``, an output marker or function, a ``TypeAliasType`` or a
+        ``NewType``) is dumped with ``model_dump(mode="json")``: always when it is inside a list,
+        tuple or dict, and as the output itself when this is ``False``. Default ``False`` -- a
+        registered Pydantic instance flows through XCom unchanged. Set to ``True`` when a downstream
+        consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)

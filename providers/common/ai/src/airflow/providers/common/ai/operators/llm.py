@@ -222,14 +222,16 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
         like ``require_approval``. Default ``None``: no gate, behaviour unchanged.
-    :param serialize_output: If ``True``, a Pydantic ``BaseModel`` output, or a
-        list, tuple, set or dict holding models, is dumped to JSON-compatible
-        values with ``pydantic_core.to_jsonable_python`` before being pushed to
-        XCom. A model the worker cannot register from ``output_type`` (for example
-        one in a list of output types) is dumped even when this is ``False``.
-        Default ``False`` -- a registered Pydantic instance flows through XCom
-        unchanged. Set to ``True`` when a downstream consumer needs the dict shape
-        (e.g. sending to an external system that expects JSON-style payloads).
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+        ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their
+        types. A model inside a list, tuple, set or dict is left for the XCom serializer when the
+        worker registers its class. A model whose class the worker cannot register from
+        ``output_type`` (for example ``[MyModel, int]``, an output marker or function, a
+        ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible values with
+        ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the output
+        itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
+        whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows
+        through XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)

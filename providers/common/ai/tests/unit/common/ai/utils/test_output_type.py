@@ -99,7 +99,7 @@ class Link(BaseModel):
     url: HttpUrl
 
 
-LINK = Link(url="https://example.com/a")
+LINK = Link(url=HttpUrl("https://example.com/a"))
 LINK_SERIALIZED = {
     "__classname__": f"{Link.__module__}.Link",
     "__version__": 1,
