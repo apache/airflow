@@ -398,17 +398,14 @@ class TestTraceContextPropagation:
     """Exercise ``execution_api.otel_trace_propagation`` on the real Execution API app."""
 
     @pytest.fixture(autouse=True)
-    def _restore_router_dependencies(self):
+    def _restore_route_dependencies(self):
         from airflow.api_fastapi.execution_api.routes import execution_api_router
 
-        owners = {}
-        for route, routers in _iter_api_routes(execution_api_router.routes):
-            for owner in (*routers, route):
-                owners[id(owner)] = owner
-        snapshot = {key: list(owner.dependencies) for key, owner in owners.items()}
+        routes = [route for route, _ in _iter_api_routes(execution_api_router.routes)]
+        snapshot = [list(route.dependencies) for route in routes]
         yield
-        for key, owner in owners.items():
-            owner.dependencies[:] = snapshot[key]
+        for route, dependencies in zip(routes, snapshot):
+            route.dependencies[:] = dependencies
 
     @staticmethod
     def _build_app(mode: str):

@@ -114,7 +114,7 @@ DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
 }
 
 
-def _original(route) -> APIRoute:
+def _get_original_route(route) -> APIRoute:
     """Return the ``APIRoute`` itself; custom attributes are not forwarded by FastAPI's route contexts."""
     return getattr(route, "original_route", route)
 
@@ -145,7 +145,7 @@ def _get_path_and_query_param_names(dependant: Dependant) -> set[str]:
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     return {
-        key: set(getattr(_original(route), "allowed_token_types", {"execution"}))
+        key: set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
         for key, route in _get_api_routes().items()
     }
 
@@ -212,7 +212,7 @@ class TestDagProcessorMessageRoutes:
         skipping = {
             key
             for key, route in _get_api_routes().items()
-            if not getattr(_original(route), "requires_open_job", True)
+            if not getattr(_get_original_route(route), "requires_open_job", True)
         }
 
         assert skipping == JOB_UNCHECKED_ROUTES

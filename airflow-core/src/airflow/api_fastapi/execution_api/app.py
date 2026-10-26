@@ -40,8 +40,9 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
-from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY, require_auth
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -293,8 +294,6 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
     ``unsafe-always`` mode is handled with an app-level dependency instead, so extraction runs
     before authentication declared on any enclosing router.
     """
-    from airflow.api_fastapi.execution_api.security import require_auth
-
     for route, routers in _iter_api_routes(routes):
         # Idempotent: create_task_execution_api_app() runs more than once per process
         # (cached_app + InProcessExecutionAPI), and execution_api_router is shared
@@ -339,6 +338,7 @@ def create_task_execution_api_app(
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,
         dependencies=[Depends(_extract_w3c_trace_context)] if mode == "unsafe-always" else None,
+        telemetry=NATIVE_TELEMETRY_DISABLED,
     )
 
     # Add correlation-id middleware for request tracing
