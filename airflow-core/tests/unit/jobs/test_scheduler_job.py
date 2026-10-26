@@ -3588,6 +3588,85 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_starves_run_not_whole_dag_on_deserialization_error(
+        self, dag_maker, caplog, session
+    ):
+        """A deserialization failure must starve only the affected Dag run.
+
+        Starving ``(dag_id, task_id)`` would also block the same task in healthy runs of the
+        same Dag, and every task of the broken run would try to load and log the Dag again.
+        """
+        dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_starves_run_not_whole_dag_"
+            "on_deserialization_error"
+        )
+        with dag_maker(dag_id=dag_id):
+            first_task = EmptyOperator(task_id="first_task", priority_weight=2, max_active_tis_per_dag=1)
+            second_task = EmptyOperator(task_id="second_task", priority_weight=1, max_active_tis_per_dag=1)
+
+        older_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        newer_run = dag_maker.create_dagrun_after(older_run, run_type=DagRunType.SCHEDULED)
+
+        for operator in (first_task, second_task):
+            older_run.get_task_instance(operator.task_id, session=session).state = TaskInstanceState.SCHEDULED
+            newer_run.get_task_instance(operator.task_id, session=session).state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_older_run(dag_run, session):
+            if dag_run.run_id == older_run.run_id:
+                raise DeserializationError(dag_id) from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(
+                self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_older_run
+            ),
+        ):
+            result = self.job_runner._select_task_instances_to_queue(
+                1, make_pool_stats(), set(), session=session
+            )
+
+        assert [ti.run_id for ti in result] == [newer_run.run_id]
+        selected_task_id = result[0].task_id
+        session.expire_all()
+        assert (
+            newer_run.get_task_instance(selected_task_id, session=session).state == TaskInstanceState.QUEUED
+        )
+        assert (
+            older_run.get_task_instance(first_task.task_id, session=session).state
+            == TaskInstanceState.SCHEDULED
+        )
+        # The failure is logged once for the starved run, not once per task in that run.
+        assert sum(dag_id in record.getMessage() for record in caplog.records) == 1
+
+        session.rollback()
+
+    def test_find_executable_task_instances_reraises_db_errors_from_dag_load(self, dag_maker, session):
+        """DBAPIError while loading a Dag must propagate for transaction retry handling."""
+        from sqlalchemy.exc import DBAPIError
+
+        with dag_maker(dag_id="db_error_dag_load"):
+            EmptyOperator(task_id="task", max_active_tis_per_dag=1)
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        run.get_task_instance("task", session=session).state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        with patch.object(
+            self.job_runner.scheduler_dag_bag,
+            "get_dag_for_run",
+            side_effect=DBAPIError("select 1", None, Exception("connection lost")),
+        ):
+            with pytest.raises(DBAPIError):
+                self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+
+        session.rollback()
+
     @pytest.fixture
     def interleaved_blocked_and_runnable_tis(self, dag_maker, session):
         """
