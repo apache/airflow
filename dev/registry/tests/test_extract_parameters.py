@@ -383,16 +383,26 @@ class TestIsDurableCapable:
 
         assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
 
-    def test_comment_mentioning_execute_resumable_is_not_mistaken_for_a_call(self):
-        """The mixin walk strips comments the same way the delegation walk does, or a
-        subclass that only names `execute_resumable` in a comment reports capable."""
+    def test_mentioning_execute_resumable_is_not_mistaken_for_a_call(self):
+        """Only a real `execute_resumable()` call counts: a whole-line comment, a trailing
+        comment or a docstring naming it would otherwise report the subclass capable."""
 
-        class CommentedNonResumableOperator(FullyImplementedResumableOperator):
+        class WholeLineComment(FullyImplementedResumableOperator):
             def execute(self, context):
                 # this path deliberately skips execute_resumable(context)
                 return None
 
-        assert is_durable_capable(CommentedNonResumableOperator, FakeResumableJobMixin) is False
+        class TrailingComment(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return None  # deliberately skips execute_resumable(context)
+
+        class Docstring(FullyImplementedResumableOperator):
+            def execute(self, context):
+                """Deliberately skips execute_resumable()."""
+                return None
+
+        for operator_cls in (WholeLineComment, TrailingComment, Docstring):
+            assert is_durable_capable(operator_cls, FakeResumableJobMixin) is False, operator_cls.__name__
 
     def test_non_class_execute_call_does_not_shadow_real_delegation(self):
         """A local name that is not a class in the MRO (e.g. a DB cursor) is skipped rather
@@ -782,11 +792,17 @@ class TestSupportsDeferrable:
     def test_comment_mentioning_defer_is_not_mistaken_for_deferral(self):
         assert supports_deferrable(DeferralCommentOnlyOperator) is False
 
-    def test_helper_is_resolved_against_the_class_under_test_not_the_hop_target(self):
-        assert supports_deferrable(SubclassOverridingHelperToDefer) is True
-
-    def test_helper_reached_again_with_more_depth_budget_is_rewalked(self):
-        assert supports_deferrable(SharedHelperReachedAtTwoBudgets) is True
+    @pytest.mark.parametrize(
+        "operator_cls",
+        [
+            pytest.param(SubclassOverridingHelperToDefer, id="helper-resolved-against-class-under-test"),
+            pytest.param(SharedHelperReachedAtTwoBudgets, id="helper-rewalked-with-more-depth-budget"),
+        ],
+    )
+    # SharedHelperReachedAtTwoBudgets only exercises the depth-aware `visited` key at this budget.
+    @patch("extract_parameters._MAX_DEFERRAL_WALK_DEPTH", 6)
+    def test_helper_call_is_walked_to_the_deferral(self, operator_cls):
+        assert supports_deferrable(operator_cls) is True
 
 
 # ---------------------------------------------------------------------------
