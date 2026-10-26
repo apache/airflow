@@ -125,10 +125,11 @@ func parseRetentionDays(raw string) (int, error) {
 	days, err := strconv.Atoi(raw)
 	if err != nil {
 		f, floatErr := strconv.ParseFloat(raw, 64)
-		// A float outside int64 range (an infinity included) converts with an
+		// A float outside int range (an infinity included) converts with an
 		// implementation-defined result, so it is rejected rather than turned
-		// into whatever day count this platform happens to produce.
-		if floatErr != nil || f != math.Trunc(f) || f >= math.MaxInt64 || f <= math.MinInt64 {
+		// into whatever day count this platform happens to produce. int is
+		// 32 bits on 386 and arm, so the bound is not int64's.
+		if floatErr != nil || f != math.Trunc(f) || f >= math.MaxInt || f <= math.MinInt {
 			return 0, fmt.Errorf(
 				"failed to convert value to int. Please check %q key in %q section. Current value: %q",
 				"default_retention_days",

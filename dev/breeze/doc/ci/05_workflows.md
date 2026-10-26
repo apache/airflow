@@ -23,6 +23,7 @@
 
 - [CI run types](#ci-run-types)
   - [Pull request run](#pull-request-run)
+  - [Fork push run](#fork-push-run)
   - [Canary run](#canary-run)
 - [Workflows](#workflows)
   - [Workflow Architecture Overview](#workflow-architecture-overview)
@@ -91,6 +92,92 @@ where instead  of using constraints to build images, attempt is made to upgrade
 all dependencies to latest versions and build images with them. This way we check how Airflow behaves when the
 dependencies are upgraded. This can also be forced by setting the `upgrade to newer dependencies`
 label in the PR if you are a committer and want to force dependency upgrade.
+
+Every pull request run of `ci-amd.yml` starts with the `Fork CI gate` job. For pull requests
+whose CI runs in the contributor's fork (AIP-120), the gate skips `build-info` and therefore
+everything after it, so the run finishes in seconds; see
+[Fork CI for external contributors](08_fork_ci_for_external_contributors.md).
+
+### Approval of pull request runs
+
+GitHub holds the runs of a fork PR in `action_required` until someone with write access approves
+them, for the contributors the repository's approval setting covers. The
+`auto-approve-workflow-runs.yml` workflow runs every 15 minutes on `main` and calls
+`breeze ci approve-workflow-runs`, which approves the waiting runs of a commit when all of these hold:
+
+- the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
+  branches' own workflows and always wait for a maintainer
+- the PR changes nothing under `.github/`, `dev/breeze/` or `scripts/ci/`, which define the workflows
+  and choose the runners
+- the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
+  `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
+  run from `main`'s tree and do not know it)
+- selective checks for the PR's merge commit succeed, and do not need the full set of tests, all Python
+  and database versions, a canary build or upgraded dependencies (the estimate does not model them)
+- the jobs selective checks select are estimated at no more than 310 job-minutes on public runners
+  (about 23% of a full-tests run, just above the cluster of single core areas and the Helm chart)
+- the PR changes at most 100 lines of source code; tests (including e2e tests), docs, newsfragments,
+  translations, lock files and images are not counted
+
+A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
+project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
+gate: its runs are approved whatever its size, cost or dependency changes, unless it changes a file
+the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`, `scripts/ci/`,
+`scripts/docker/`, `scripts/in_container/`, `Dockerfile*`, `.pre-commit-config.yaml`). Such a PR gets
+the `need workflow approval` label and one comment telling the author that the CI change needs a
+maintainer; see
+[Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
+
+Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
+approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
+head of several open PRs is never approved automatically, because its runs cannot be told apart by
+PR, and only runs started after the PR was opened and after its base branch last changed are
+approved (retargeting a PR does not start new runs). A run selects its jobs from the labels the PR
+had when it started, while the decision uses the current labels, so for PRs that run project CI a
+run started before a label that changes which tests run was added or removed
+(`full tests needed`, `all versions`, `default versions only`, `latest versions only`, `canary`,
+`upgrade to newer dependencies`, `area:e2e-tests`, `area:kubernetes-tests`) is left for a
+maintainer, since it still runs the selection it started with; the next push is decided afresh.
+For a PR whose CI runs in the fork neither the selection nor the labels a run started with matter:
+the gate reads the current labels when the run starts and fails when it cannot, so a run started
+before `use fork ci` or `use project ci` was added or removed is approved too. Other PRs get the
+`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
+a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
+failure stays visible even if the label could not be added. The label is removed when a later commit
+of the PR is approved automatically.
+
+The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
+objects to list the changed files; it never checks out or runs the PR's code. The merge commit must
+have been built from the head commit whose runs get approved, so a push after the check cannot slip
+into an approved run. Approving with the workflow's `GITHUB_TOKEN` starts the runs right away, and
+`workflow_run` workflows that follow them still trigger.
+
+The estimate comes from `dev/breeze/src/airflow_breeze/utils/ci_minutes_estimate.py`, which turns the
+selective-check outputs into job groups with job-minutes and a wall-clock estimate, weighting
+providers by the size of their test suites. The job summary lists every waiting PR with its decision,
+the expected job groups and the estimated time. The numbers are medians of recent `Tests (AMD)` PR
+runs on public runners; refresh them with `dev/calibrate_ci_minutes_estimates.py`, as
+`.github/AGENTS.md` describes. Run `breeze ci approve-workflow-runs --report-only` (or dispatch the
+workflow with `report-only`) to see the decisions without approving or labelling anything.
+
+## Fork push run
+
+These runs are triggered by a push to any branch of a contributor's fork in which the
+`Tests (AMD)` workflow is enabled. They run in the fork, on GitHub's public runners and with the
+fork's token, and are how pull requests labelled `fork ci required` get their CI result. They are
+selected like a pull request run: the changed files come from comparing the pushed commit with
+`apache/airflow` (`main`, or the release branch the pushed code was cut from, as breeze's default
+branch at that commit records it), so a fork whose `main` is behind does not make the run bigger,
+and they never use self-hosted runners. The `schedule` trigger is skipped in forks, so enabling
+the workflow does not start the canary matrix there. The fork CI reconciler reads the result of these runs and reports it on the pull
+request as the `Fork CI / Tests (AMD)` status.
+
+In `apache/airflow` itself, pushes still only run CI for the release-prep and providers branches
+(`CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`, the branches `release-branch-ci.yml` starts
+full runs for), and they test only the changes since the last successful run of the branch. That
+incremental base is looked up only in `apache/airflow`: a fork's push is always compared with
+`apache/airflow` as described above. A push to any other branch produces a run in which only the
+gate executes.
 
 ## Canary run
 
@@ -425,6 +512,49 @@ unprivileged, which constrains what can go on it:
 
 When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
 `ubuntu-22.04` otherwise.
+
+### Spot interruptions of self-hosted runners
+
+Runs of `apache/airflow` committers and the canary run on self-hosted
+[RunsOn](https://runs-on.com) runners, which are EC2 Spot instances. When AWS reclaims
+one, RunsOn fails the job with an error annotation titled "EC2 Spot interruption", and
+once the run finishes it re-runs the failed jobs, after attempts 1 and 2; attempt 3 is
+its last. An interrupted job ends with exit code 137 and no test failure in its log.
+
+- **Pull requests.** `spot-interruption-notice.yml` checks the newest "Tests (AMD)" run of
+  each pull request every 10 minutes, including runs still in progress, and keeps one
+  comment on the pull request: which jobs were interrupted and that RunsOn re-runs them,
+  and, once the re-run finished, whether it passed. It runs on a schedule, not on the
+  runs' events, so no pull request run gets write access.
+- **Slack.** The `notify-slack` job of a canary does not post when every failure is a Spot
+  interruption that RunsOn re-runs, and leaves the notification state alone; it posts for
+  RunsOn's re-run instead, including when the re-run passed. It still posts for attempt
+  3, and for any other failure. A re-run started by a maintainer does not post.
+
+Both use `scripts/ci/spot_interruptions.py`, which recognises an interruption only by the
+annotation on a job that ran on a RunsOn runner: a pull request's run executes the pull
+request's workflow file, which could add such an annotation, but external contributors'
+runs use GitHub-hosted runners. A notice names the run it is about, and only that run's
+re-run reports into it. Completed runs are looked at for 7 days after they were created,
+so the outcome of a re-run of an older run is not reported.
+
+**API budget of the notice.** Each poll uses the workflow's `GITHUB_TOKEN`, whose limit for
+`apache/airflow`, a repository of an Enterprise Cloud account, is 15,000 requests an hour,
+shared by every workflow of the repository (it would be 1,000 outside an enterprise). Measured
+in October 2026, with 120-340 pull request runs of "Tests (AMD)" completing a day, a poll makes
+about 45-55 requests:
+
+| Requests | Per poll |
+|---|---|
+| Runs in progress | 1 |
+| Runs completed in the last 7 days, listed a day at a time (100 per page) | ~22 |
+| Jobs of each run in progress or changed in the last 2 hours (50 per page; ~140 jobs in a full run) | ~15-27 |
+| Annotations of failed jobs on RunsOn runners, pull request lookups, comments | ~5, more while runs are interrupted |
+
+That is about 270-330 requests an hour at one poll every 10 minutes, about 2% of the limit.
+Most of it is the listing of completed runs, which grows with the 7-day window: shortening
+it to 3 days saves about 12 requests a poll. A day with more than 1,000 completed runs would
+exceed what GitHub lists for one query, and the script then warns that older runs are missed.
 
 ## Implementation Details
 

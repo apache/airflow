@@ -111,7 +111,6 @@
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
   "dagRunId": "معرف تشغيل الDag",
   "dagRunState": "حالة تشغيل Dag",
-  "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
   "delete": "حذف",

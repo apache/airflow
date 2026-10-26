@@ -147,17 +147,23 @@
                 "airflow": {
                     "taskGroups": {
                         "section_1": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_1"
                         },
                         "section_1.section_2": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_2"
                         },
                         "section_1.section_2.section_3": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1.section_2",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
@@ -167,6 +173,8 @@
                     "taskTree": {},
                     "tasks": {
                         "section_1.section_2.section_3.task_7": {
+                            "is_mapped": false,
+                            "loop_group": null,
                             "downstream_task_ids": [
                                 "check_events"
                             ],
@@ -193,6 +201,8 @@
                             "ui_label": "task_6"
                         },
                         "section_1.task_5": {
+                            "is_mapped": true,
+                            "loop_group": null,
                             "downstream_task_ids": [
                                 "section_1.section_2.task_6"
                             ],
@@ -2119,6 +2129,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_2",
+                            "unique_group_id": "section_1.section_2",
                             "prefix_group_id": "{{ result == true }}",
                             "tooltip": "group_tooltip",
                             "upstream_group_ids": "[]",
@@ -2300,6 +2311,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_2",
+                            "unique_group_id": "section_1.section_2",
                             "prefix_group_id": "{{ result == true }}",
                             "tooltip": "group_tooltip",
                             "upstream_group_ids": "[]",
@@ -2479,6 +2491,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_3",
+                            "unique_group_id": "section_1.section_2.section_3",
                             "prefix_group_id": "{{ result == true }}",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "[]"
@@ -2658,6 +2671,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_3",
+                            "unique_group_id": "section_1.section_2.section_3",
                             "prefix_group_id": "{{ result == true }}",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "[]"

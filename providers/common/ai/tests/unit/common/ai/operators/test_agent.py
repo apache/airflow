@@ -2784,7 +2784,7 @@ class TestAgentOperatorSandboxHandleTemplating:
 
     def test_execute_runs_against_the_rendered_handle(self):
         """
-        The whole seam: render, wrap in LoggingToolset, pydantic-ai's for_run copy,
+        The whole seam: render, wrap in _LoggingToolset, pydantic-ai's for_run copy,
         attach on enter, the command on the given handle, release on exit.
         """
 

@@ -302,7 +302,6 @@
     "title": "Task State Store"
   },
   "versions": {
-    "aboutThisComparison": "About this comparison",
     "base": "Compare from",
     "categories": {
       "asset": "Asset",
@@ -342,7 +341,6 @@
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
-    "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "operations": {
       "added": "Added",
       "changed": "Changed",

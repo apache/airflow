@@ -63,6 +63,12 @@ columns alone:
 With Object Storage or a Database Table
 ---------------------------------------
 
+.. note::
+
+    A source whose connection is not a ``DbApiHook`` runs on the DataFusion
+    engine of ``common.sql``, which pins ``datafusion`` below 52 because the DataFusion
+    52 crate is not supported with ``iceberg-core``.
+
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
 object-storage sources (S3, GCS, Azure Blob Storage, Parquet, CSV, Iceberg, etc.) in the comparison.

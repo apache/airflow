@@ -36,8 +36,10 @@ from airflow.providers.openlineage.plugins.macros import (
     _get_logical_date,
     lineage_job_name,
     lineage_job_namespace,
+    lineage_job_type,
     lineage_root_job_name,
     lineage_root_job_namespace,
+    lineage_root_job_type,
     lineage_root_run_id,
     lineage_run_id,
 )
@@ -267,6 +269,8 @@ def _create_ol_event_pair(
         root_parent_run_id=lineage_root_run_id(task_instance),
         root_parent_job_name=lineage_root_job_name(task_instance),
         root_parent_job_namespace=lineage_root_job_namespace(task_instance),
+        parent_job_type=lineage_job_type(),
+        root_parent_job_type=lineage_root_job_type(task_instance),
     )
     job_type_facet: dict = {
         "jobType": job_type_job.JobTypeJobFacet(
