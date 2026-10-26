@@ -208,3 +208,71 @@ describe("HITLResponseForm – the answer names the request it was given for", (
     expect(updateHITLResponse).toHaveBeenCalledWith(expect.objectContaining({ request_created_at: loaded }));
   });
 });
+
+const selectOption = (option: string) => {
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
+  fireEvent.click(screen.getByText(option));
+};
+
+const clearLastSelection = () => {
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Backspace" });
+};
+
+describe("HITLResponseForm – multiple requires a selection", () => {
+  it("disables Respond and shows the hint when multiple=true and nothing is selected", () => {
+    renderForm(["A", "B", "C", "D", "E"], { multiple: true });
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeDisabled();
+    expect(screen.getByText("response.selectAtLeastOne")).toBeInTheDocument();
+  });
+
+  it("disables Respond and shows the hint for multiple=true with 2 options", () => {
+    renderForm(["A", "B"], { multiple: true });
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeDisabled();
+    expect(screen.getByText("response.selectAtLeastOne")).toBeInTheDocument();
+  });
+
+  it("enables Respond and hides the hint once an option is selected", () => {
+    renderForm(["A", "B", "C", "D", "E"], { multiple: true });
+    selectOption("B");
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeEnabled();
+    expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
+  });
+
+  it("sends the selected options when Respond is clicked", () => {
+    updateHITLResponse.mockClear();
+    renderForm(["A", "B", "C", "D", "E"], { multiple: true });
+    selectOption("B");
+    fireEvent.click(screen.getByRole("button", { name: /response\.respond/u }));
+
+    expect(updateHITLResponse).toHaveBeenCalledWith(expect.objectContaining({ chosen_options: ["B"] }));
+  });
+
+  it("does not submit an empty chosen_options", () => {
+    updateHITLResponse.mockClear();
+    renderForm(["A", "B", "C", "D", "E"], { multiple: true });
+    fireEvent.click(screen.getByRole("button", { name: /response\.respond/u }));
+
+    expect(updateHITLResponse).not.toHaveBeenCalled();
+  });
+
+  it("re-disables Respond after the last selection is cleared", () => {
+    renderForm(["A", "B", "C", "D", "E"], { multiple: true });
+    selectOption("B");
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeEnabled();
+
+    clearLastSelection();
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeDisabled();
+    expect(screen.getByText("response.selectAtLeastOne")).toBeInTheDocument();
+  });
+
+  it("does not show the hint when defaults preselect an option", () => {
+    renderForm(["A", "B", "C", "D", "E"], { defaults: ["A"], multiple: true });
+
+    expect(screen.getByRole("button", { name: /response\.respond/u })).toBeEnabled();
+    expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
+  });
+});
