@@ -26,6 +26,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -1695,6 +1696,20 @@ def set_milestone(
     help="Where the Slack message is written when there are items for maintainers.",
 )
 @click.option(
+    "--reported-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="REPORTED_FILE",
+    help="The items the previous run reported, left out of the Slack message, and replaced by "
+    "this run's items. Without it every item is reported on every run.",
+)
+@click.option(
+    "--draft-changes-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="DRAFT_CHANGES_FILE",
+    help="Where the draft state changes are written, as JSON, for the job that applies them with "
+    "the permission the reconciler does not get. Without it they are only logged.",
+)
+@click.option(
     "--run-url",
     default="",
     envvar="RUN_URL",
@@ -1703,7 +1718,14 @@ def set_milestone(
 @option_github_repository
 @option_verbose
 @option_dry_run
-def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str, github_repository: str):
+def fork_ci_reconcile(
+    config_path: Path | None,
+    output_file: Path,
+    reported_file: Path | None,
+    draft_changes_file: Path | None,
+    run_url: str,
+    github_repository: str,
+):
     from datetime import UTC, datetime
 
     from airflow_breeze.utils.fork_ci_gate import load_config
@@ -1719,6 +1741,8 @@ def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str,
         run_url=run_url,
         output_file=output_file,
         workflows_dir=AIRFLOW_ROOT_PATH / ".github" / "workflows",
+        reported_file=reported_file,
+        draft_changes_file=draft_changes_file,
     )
     github_output = os.environ.get("GITHUB_OUTPUT")
     if github_output:
@@ -1774,3 +1798,56 @@ def audit(fix: bool):
                     run_command(shlex.split(command), check=False)
         failed = [result for result in report() if result.status == CheckStatus.FAIL]
     sys.exit(1 if failed else 0)
+
+
+@ci_group.command(
+    name="approve-workflow-runs",
+    help="Approve the waiting workflow runs of external contributors' PRs whose changes are safe "
+    "to run without a maintainer's look, and label the others 'need workflow approval'. "
+    "Used by the auto-approve-workflow-runs workflow.",
+)
+@click.option(
+    "--github-token",
+    help="GitHub token able to approve workflow runs and label PRs.",
+    envvar="GITHUB_TOKEN",
+    required=True,
+)
+@click.option(
+    "--max-run-age-hours",
+    help="Only decide on workflow runs created within this many hours; older waiting runs are left alone.",
+    type=click.IntRange(min=1),
+    default=24,
+    show_default=True,
+    envvar="MAX_RUN_AGE_HOURS",
+)
+@click.option(
+    "--report-only",
+    is_flag=True,
+    help="Only report the decisions and estimates, without approving runs or changing labels.",
+    envvar="REPORT_ONLY",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def approve_workflow_runs(
+    github_token: str, max_run_age_hours: int, report_only: bool, github_repository: str
+):
+    from airflow_breeze.utils.shared_options import get_dry_run
+    from airflow_breeze.utils.workflow_run_approval import (
+        GitHubApi,
+        process_waiting_runs,
+        write_step_summary,
+    )
+
+    api = GitHubApi(
+        github_repository=github_repository,
+        github_token=github_token,
+        report_only=report_only or get_dry_run(),
+    )
+    created_since = datetime.now(UTC) - timedelta(hours=max_run_age_hours)
+    results = process_waiting_runs(api, created_since=created_since)
+    write_step_summary(results, github_repository)
+    failed_prs = [result.pr_number for result in results if result.failed]
+    if failed_prs:
+        console_print(f"[error]Processing failed for PRs: {', '.join(f'#{n}' for n in failed_prs)}[/]")
+        sys.exit(1)

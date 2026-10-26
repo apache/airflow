@@ -204,6 +204,8 @@ turned on):
 
 ```mermaid
 flowchart TD
+    CB{target branch chart/... or airflow-ctl/...?} -->|yes| COMP[only that component's tests ON,<br/>whatever changed; see below]
+    CB -->|no| FTN
     FTN{full_tests_needed?} -->|yes| ALL[every run_* area = ON<br/>all versions, all test types]
     FTN -->|no| SEL[selective: gate each area on its file group]
     SEL --> RUT{run_unit_tests?}
@@ -217,7 +219,24 @@ flowchart TD
     PROD --> IMG
 ```
 
-`*` Helm tests only run on the `main` branch.
+`*` Helm tests only run on the `main` branch and on `chart/` branches.
+
+The release branches of a single component (`chart/vX-Yx-test|stable`, `airflow-ctl/vX-Y-test|stable`)
+only ever get backports of that component, so their runs are scoped to it. The target branch comes from
+the GitHub context (`base_ref` for a pull request, `ref_name` for a push or a dispatched run) and must
+match one of those names: a feature branch named `chart/...` is not a component branch, and neither is
+any push in a fork, which is selected against `main`. On such a branch every
+output decorated with `_scoped_to_component_branch` is off, except those `COMPONENT_BRANCH_OUTPUTS` lists
+for the component: on `chart/`, Helm and Kubernetes tests always run (kustomize overlays as usual) with
+the CI and PROD images they need; on `airflow-ctl/`, only the airflow-ctl tests run, in a local
+virtualenv, so no image is built there: static checks run on the host (`basic-checks-only`), and the
+airflow-ctl integration tests, the docs and the dependency upgrade check, which need an image, do not run. The PROD image is built for
+the chart's tests only, so `run-generic-prod-image-tests` (Docker
+Compose, image-building examples, basic and canary end-to-end tests) is off, and so is
+`run-generic-basic-tests` (the standalone Airflow and shared distributions tests). Provider tests are skipped, and on `chart/` docs, when they changed, build only the
+chart's package. Static checks, scripts and Breeze integration tests, and the CodeQL scans run as usual. A test
+in `test_selective_checks.py` fails when a new `run_*` output is neither scoped nor listed as a general
+check, so a new job does not start running on these branches by accident.
 
 ### Stage 3 — choose which test types
 
@@ -485,6 +504,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.
+* On a component's release branch (`chart/...`, `airflow-ctl/...`) only that component's tests run, always,
+  with the images they need (none for airflow-ctl); other tests do not run, provider tests are skipped,
+  and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
 * `PROD Image building` is enabled when kubernetes tests are run.
@@ -651,6 +673,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
 | helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
+| in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
@@ -676,6 +699,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
 | run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
+| run-generic-prod-image-tests                            | Whether the PROD image's own tests run (Docker Compose, examples, basic e2e): off on component branches | true                                     |      |
+| run-generic-basic-tests                                 | Whether the standalone Airflow and shared distributions tests run: off on component branches          | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
@@ -696,7 +721,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
-| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)          | false                                    |      |
+| upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 
 
 ## Self-hosted (RunsOn) vs. public runners
@@ -747,6 +772,16 @@ gated on `runner.environment == 'self-hosted'`:
   the same run, branch and repository (or, for a PR, its base branch). The smaller caches (mount cache, prek, docs inventory) use
   the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save;
   the price is that every RunsOn canary uploads the mount cache from AWS to GitHub.
+
+The `in-memory-runner-type` output is the same decision with a second RunsOn template, used by the
+jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test jobs, the lowest-dependencies
+core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
+[`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
+`/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
+r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
+runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
+back to disk without a PR.
 
 The decision above is not a security boundary. Under the `pull_request` event the code that
 evaluates it is the PR's own: a fork PR runs its own workflow files and breeze sources, and can name

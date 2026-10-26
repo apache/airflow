@@ -128,6 +128,8 @@ class GateConfig:
     close_after_days: int = DEFAULT_CLOSE_AFTER_DAYS
     allowlist: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     pilot: Mapping[str, datetime] = field(default_factory=dict)
+    job_statuses: bool = True
+    cancel_merged_runs: bool = True
 
     def is_allowlisted(self, login: str) -> bool:
         wanted = login.casefold()
@@ -173,12 +175,20 @@ def parse_config(text: str) -> GateConfig:
         login.casefold(): _require_aware_datetime(joined_at, f"pilot entry {login!r}")
         for login, joined_at in data.get("pilot", {}).items()
     }
+    job_statuses = data.get("job_statuses", True)
+    if not isinstance(job_statuses, bool):
+        raise ValueError(f"job_statuses must be true or false, got {job_statuses!r}")
+    cancel_merged_runs = data.get("cancel_merged_runs", True)
+    if not isinstance(cancel_merged_runs, bool):
+        raise ValueError(f"cancel_merged_runs must be true or false, got {cancel_merged_runs!r}")
     return GateConfig(
         enabled=enabled,
         enabled_since=enabled_since,
         close_after_days=close_after_days,
         allowlist=allowlist,
         pilot=pilot,
+        job_statuses=job_statuses,
+        cancel_merged_runs=cancel_merged_runs,
     )
 
 

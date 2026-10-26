@@ -48,6 +48,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    COMPONENT_BRANCH_OUTPUTS,
     LONG_RUNNING_TEST_PROVIDERS,
     PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
     SelectiveChecks,
@@ -4911,14 +4912,23 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
 
 RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]'
 RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
+RUNS_ON_AMD_IN_MEMORY = (
+    '["runs-on=42/family=m7a+m7i+m6a+m6i+r7a+r7i+r6a+r6i/image=ubuntu22-full-x64/volume=150gb'
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
+RUNS_ON_ARM_IN_MEMORY = (
+    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb'
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
 
 
 HEAD_SHA = "a" * 40
 
 
 @pytest.fixture(autouse=True)
-def _no_use_public_runners_variable(monkeypatch):
+def _no_runner_variables(monkeypatch):
     monkeypatch.delenv("USE_PUBLIC_RUNNERS", raising=False)
+    monkeypatch.delenv("USE_IN_MEMORY_DOCKER", raising=False)
 
 
 def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
@@ -5125,6 +5135,133 @@ def test_runner_type(
 
 
 @pytest.mark.parametrize(
+    ("github_event", "github_repository", "github_context_dict", "pr_labels", "platform", "env", "expected"),
+    [
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            RUNS_ON_ARM_IN_MEMORY,
+            id="ARM RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "true"},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="true keeps docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "False"},
+            RUNS_ON_AMD,
+            id="false keeps docker on disk",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "false"},
+            RUNS_ON_ARM,
+            id="false keeps docker on disk on ARM",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="fork PR stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_PUBLIC_RUNNERS": "true"},
+            '["ubuntu-22.04"]',
+            id="public runners variable wins",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            ("use public runners",),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="public runners label wins",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="no run id stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "someone/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            '["ubuntu-22.04-arm"]',
+            id="fork repository stays on public ARM runners",
+        ),
+    ],
+)
+def test_in_memory_runner_type(
+    monkeypatch,
+    github_event: GithubEvents,
+    github_repository: str,
+    github_context_dict: dict[str, Any],
+    pr_labels: tuple[str, ...],
+    platform: str,
+    env: dict[str, str],
+    expected: str,
+):
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    selective_checks = SelectiveChecks(
+        github_event=github_event,
+        github_repository=github_repository,
+        github_context_dict=github_context_dict,
+        pr_labels=pr_labels,
+        platform=platform,
+    )
+    assert selective_checks.in_memory_runner_type == expected
+
+
+@pytest.mark.parametrize(
     ("value", "expected"),
     [
         pytest.param("true", '["ubuntu-22.04"]', id="true moves a push to public runners"),
@@ -5316,3 +5453,156 @@ def test_self_hosted_label_ignored_when_reviews_cannot_be_read(
         pr_labels=("use self-hosted runners",),
     )
     assert selective_checks.runner_type == expected
+
+
+# The outputs that stay as computed on the branch of a single component: they are general checks rather
+# than another component's tests. Any other new `run_*` output must be scoped, so that it does not run there.
+GENERAL_CHECKS = {
+    "run_breeze_integration_tests",
+    "run_javascript_scans",
+    "run_python_scans",
+    "run_scripts_tests",
+    "run_system_tests",  # follows run_unit_tests
+}
+
+
+def test_every_test_output_is_scoped_to_component_branches():
+    names = [
+        name for name in dir(SelectiveChecks) if name.startswith("run_") or name.endswith("_image_build")
+    ]
+    unscoped = [
+        name
+        for name in names
+        if name not in GENERAL_CHECKS
+        and not getattr(getattr(SelectiveChecks, name).func, "scoped_to_component_branch", False)
+    ]
+    assert unscoped == []
+    for outputs in COMPONENT_BRANCH_OUTPUTS.values():
+        assert set(outputs) <= set(names)
+
+
+def _component_branch_checks(context: dict, files: tuple[str, ...]) -> SelectiveChecks:
+    # Component branches are cut from main, whatever the default branch of the checkout running the test.
+    return SelectiveChecks(
+        files=files,
+        default_branch="main",
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST if "base_ref" in context else GithubEvents.PUSH,
+        github_context_dict=context,
+    )
+
+
+@pytest.mark.parametrize(
+    ("context", "expected_on", "expected_docs"),
+    [
+        pytest.param(
+            {"base_ref": "chart/v1-2x-test"},
+            {"run_helm_tests", "run_kubernetes_tests", "ci_image_build", "prod_image_build"},
+            "helm-chart",
+            id="pull-request-to-chart-branch",
+        ),
+        pytest.param(
+            {"ref_name": "chart/v1-2x-test"},
+            # A push runs in full, so the kustomize overlays, selected as usual, run too.
+            {
+                "run_helm_tests",
+                "run_kubernetes_tests",
+                "run_kustomize_overlays_tests",
+                "ci_image_build",
+                "prod_image_build",
+            },
+            "helm-chart",
+            id="push-to-chart-branch",
+        ),
+        pytest.param(
+            {"base_ref": "airflow-ctl/v0-1-test"},
+            {"run_airflow_ctl_tests"},
+            None,
+            id="pull-request-to-airflow-ctl-branch",
+        ),
+    ],
+)
+def test_component_branch_runs_only_its_component(context, expected_on, expected_docs):
+    # A change that would run nearly everything on main.
+    checks = _component_branch_checks(
+        context, ("airflow-core/src/airflow/models/dag.py", "airflow-core/docs/index.rst")
+    )
+    scoped = {
+        name
+        for name in dir(SelectiveChecks)
+        if (name.startswith("run_") or name.endswith("_image_build")) and name not in GENERAL_CHECKS
+    }
+
+    assert {name for name in scoped if getattr(checks, name)} == expected_on
+    assert checks.skip_providers_tests is True
+    assert checks.has_migrations is False
+    assert checks.docs_list_as_string == expected_docs
+    assert checks.docs_build is (expected_docs is not None)
+    assert checks.basic_checks_only is ("ci_image_build" not in expected_on)
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-test"}, True, id="chart-branch-builds-the-image"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-test"}, False, id="airflow-ctl-branch-has-no-image"),
+    ],
+)
+def test_component_branch_upgrades_dependencies_only_with_the_ci_image(context, expected):
+    checks = _component_branch_checks(context, ("airflow-ctl/pyproject.toml", "chart/pyproject.toml"))
+
+    assert checks.upgrade_to_newer_dependencies is expected
+
+
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        pytest.param(("chart/kustomize-overlays/base/kustomization.yaml",), True, id="overlay-changed"),
+        pytest.param(("chart/values.yaml",), False, id="overlay-unchanged"),
+    ],
+)
+def test_chart_branch_keeps_the_kustomize_overlay_selection(files, expected):
+    checks = _component_branch_checks({"base_ref": "chart/v1-2x-test"}, files)
+
+    assert checks.run_kustomize_overlays_tests is expected
+
+
+@pytest.mark.parametrize(
+    ("context", "fork_push", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-stable"}, False, "chart", id="chart-stable-branch"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-stable"}, False, "airflow-ctl", id="airflow-ctl-stable"),
+        pytest.param({"base_ref": "v3-4-test"}, False, None, id="airflow-release-branch"),
+        pytest.param({"base_ref": "main"}, False, None, id="main"),
+        # A feature branch named after a component is not its release branch.
+        pytest.param({"ref_name": "chart/fix-ingress"}, False, None, id="chart-feature-branch"),
+        # A fork push is selected against main, whatever its branch is called.
+        pytest.param({"ref_name": "chart/v1-2x-test"}, True, None, id="fork-push"),
+    ],
+)
+def test_component_branch_detection(context, fork_push, expected):
+    checks = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH if fork_push else GithubEvents.PULL_REQUEST,
+        github_context_dict=context,
+        fork_push=fork_push,
+    )
+
+    assert checks._component_branch == expected
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "main"}, True, id="main"),
+        # The PROD image is built there for the Kubernetes tests alone.
+        pytest.param({"base_ref": "chart/v1-2x-test"}, False, id="chart-branch"),
+    ],
+)
+def test_generic_tests_run_outside_component_branches(context, expected):
+    checks = _component_branch_checks(context, ("kubernetes-tests/tests/kubernetes_tests/test_base.py",))
+
+    assert checks.prod_image_build is True
+    assert checks.run_generic_prod_image_tests is expected
+    assert checks.run_generic_basic_tests is expected

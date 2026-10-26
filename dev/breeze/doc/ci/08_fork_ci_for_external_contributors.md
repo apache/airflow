@@ -337,6 +337,49 @@ where `*` is any characters except `/`).
 The `check-ci-workflows-in-sync` prek hook allowlist is extended to permit the `gate` job and
 the `build-info` dependency to exist only in the AMD workflow.
 
+### Approving gated runs
+
+GitHub holds the `pull_request` runs of a fork pull request in `action_required` until someone with
+write access approves them, for the contributors the repository's approval setting covers. Until
+then the gate job does not run either. A gated pull request would stay in the maintainers' approval
+queue even though its project CI run only executes the gate, and the reconciler could not delete a
+gated run that never ran.
+
+`breeze ci approve-workflow-runs`, run every 30 minutes by `auto-approve-workflow-runs.yml` (see
+[CI workflows](05_workflows.md#approval-of-pull-request-runs)), handles them. For a pull request to
+`main` it calls `fork_ci_gate.decide` with the configuration of its own `main` checkout and the
+pull request's author, association, creation time, head repository and current labels, the inputs
+the gate job of the waiting run uses. When the reason is gated (`external`, `pilot` or
+`label_fork_ci`), the rules for pull requests that run project CI (estimated job-minutes, lines of
+source code, dependency files, full tests) do not apply, because none of those jobs run. One rule
+applies instead:
+
+- The waiting runs of the head commit are approved when the pull request's merge commit changes no
+  file that the reconciler counts as CI-defining: `.github/`, `dev/breeze/`, `scripts/ci/`,
+  `scripts/docker/`, `scripts/in_container/`, `Dockerfile*` and `.pre-commit-config.yaml` (see
+  "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
+  `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
+  review) run on GitHub-hosted runners.
+- Otherwise the runs wait for a maintainer, the pull request is labelled `need workflow approval`,
+  and the workflow posts one comment explaining that the change to the listed CI files needs a
+  maintainer to review it and approve the runs. The comment starts with the marker
+  `<!-- workflow-approval: ci-change -->` and is posted once per pull request; only comments by
+  `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
+  workflow that does run, so such a run must not start without a review.
+
+A run started before `use fork ci` or `use project ci` was last added or removed is not approved
+automatically: the gate falls back to the labels of the run's event when it cannot read the current
+ones, and those can still send the run to project CI. The next push is decided afresh.
+
+Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
+approved automatically is also one whose green fork run is trusted, and one that changes CI is both
+left waiting for approval and labelled `needs project ci` once its fork run is green. The gate
+tampering check still applies to every run a maintainer approves by hand.
+
+The approval reads only API metadata and the git objects of the merge commit; it never checks out or
+runs the pull request's code. Pull requests to other branches keep the rules for project CI, which
+leave them to a maintainer.
+
 ## Fork mode CI
 
 ### Trigger
@@ -661,6 +704,87 @@ Commit statuses were chosen over check runs because a check run created with the
 token is attached to the creating workflow's check suite and its details link then opens the
 monitor run rather than `details_url`. A status honours `target_url`.
 
+### Job statuses
+
+Next to the aggregate status, each job of the fork run is reported as its own commit status, so
+the pull request shows which jobs run, failed or passed, each linking to the job in the fork.
+The run is the one `Fork CI / Tests (AMD)` reports (its `databaseId` is fetched with the check
+suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`.
+
+- The context is `Fork CI job / <job name>`, with non-printable characters replaced and the name
+  shortened to 100 characters. Job names come from the workflow of the contributor's commit, so
+  the prefix is what keeps a job from posting `Fork CI / Tests (AMD)`, from which the reconciler
+  reads its decisions back, or `CI passed`, which the merge ruleset requires. Jobs that share a
+  context, which GitHub compares case-insensitively, are reported as the worst of them.
+- A queued or running job is `pending` ("Running in the fork"), a successful one `success`, and a
+  failed, timed-out, cancelled or unstartable one `failure`. Skipped and neutral jobs, and the jobs
+  every run has (`Fork CI gate`, `Check if the run is needed`, `Platform: AMD` and `CI passed`), are
+  not reported. Queued and running share one status so that starting a job costs no write.
+- The desired statuses are compared with the head commit's current ones
+  (`GET /repos/apache/airflow/commits/<sha>/status`), and only differences are posted, failures
+  first. GraphQL has no mutation for commit statuses (`createCheckRun` exists, but see above for
+  why check runs do not fit), so each one is a REST call, and they count towards GitHub's limits on
+  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (60) of
+  them, each write charged as it is made. What does not fit is posted by the next run, and once
+  the budget is spent no further pull request's jobs or statuses are read in that run. A run that
+  defers job statuses adds a note to the Slack message, with fixed wording so it is posted once
+  while deferrals persist; the run log lists the pull requests.
+- Commit statuses cannot be deleted and have no neutral state. When a run has completed, a job
+  context posted for an earlier run of the same commit that the completed run does not have, or
+  skipped, is overwritten with `success` and the description "Not in the latest fork run - see
+  Fork CI / Tests (AMD)", so it no longer shows as running or failed.
+- Once every job of a completed run is reported, the run is recorded in the marker as
+  `jobs: "<run id>:<attempt>:<conclusion>"` (`runAttempt` is fetched with the check suites), so
+  later runs do not read its jobs again. A run in progress is read on every run, and a re-run in
+  the fork is read again because its attempt changes, even when it ends with the same conclusion.
+- Reporting job statuses is caught on its own: when it fails, the failure is listed with the
+  unknown items for Slack, and the pull request is still classified, so for example a `CI passed`
+  that no longer holds is still revoked.
+
+The job statuses are informational. Merging still depends on `CI passed`, and the state machine
+on `Fork CI / Tests (AMD)`; a job status never changes either.
+
+`job_statuses = false` in `.github/fork-ci-gate.toml` turns them off; the reconciler then posts
+only `Fork CI / Tests (AMD)` and `CI passed`, as before. Statuses already posted stay on their
+commits. Turn them off when the fork CI monitor's runs hit GitHub's rate limits (rate-limit
+retries in the run log, or "still rate limited" errors in Slack); `dev/AGENTS.md` records this for
+agents.
+
+#### Write budget
+
+Measured on 2026-10-25 from `apache/airflow`'s own `Tests (AMD)` pull request runs (the same
+workflow runs in the forks; `GET /repos/apache/airflow/actions/runs/<id>/jobs?filter=latest`,
+jobs whose conclusion is not `skipped`, minus the four jobs that are not reported):
+
+| Pull request | Run | Started jobs | Reported job statuses |
+|---|---|---|---|
+| Breeze test fix | [40138784120](https://github.com/apache/airflow/actions/runs/40138784120) | 11 | 7 |
+| Documentation fix | [40169750323](https://github.com/apache/airflow/actions/runs/40169750323) | 16 | 12 |
+| Google provider change | [40158907296](https://github.com/apache/airflow/actions/runs/40158907296) | 43 | 39 |
+| CI change (full tests) | [40207881565](https://github.com/apache/airflow/actions/runs/40207881565) | 131 | 127 |
+
+`apache/airflow` had 1898 `Tests (AMD)` pull request runs from 2026-10-18 to 2026-10-24, about 270 a
+day or 11 an hour. Each reported job costs at most two writes (running, then its result) and one
+when it starts and finishes between two reconciler runs; a fork run of 30-60 minutes spans two to
+four of them, so most jobs cost two.
+
+The limits that matter are GitHub's documented ones for the `GITHUB_TOKEN` of `apache/airflow`,
+shared by every workflow of the repository: 1000 REST requests an hour, and 80 content-creating
+requests a minute and 500 an hour. Assuming about 35 reported jobs for an average push:
+
+- **Contributor pilot**, a few gated pushes a day: about 70 writes a push, under 20 an hour, under
+  5% of the content-creating limit.
+- **Gate enabled**, assuming about half of the pull request runs come from gated pull requests
+  (about 5-6 pushes an hour): about 400 writes an hour without a cap, 80% of the content-creating
+  limit and more at peaks. The cap of 60 writes a run, four runs an hour, holds job statuses to at
+  most 240 an hour: 48% of the content-creating limit and 24% of the REST limit, plus two reads per
+  pull request with a run in progress. Job statuses then lag behind at busy times, the aggregate
+  status does not.
+
+These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
+are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
+the gate, and turn `job_statuses` off if they approach the limits.
+
 ### Relationship to the triage skill
 
 The `pr-management-triage` skill described in `contributing-docs/25_maintainer_pr_triage.md`
@@ -706,6 +830,36 @@ name within its time limit, and its run is the evidence. A re-run is kept too: d
 deletes every attempt, and an earlier attempt may have run project CI. Nothing is deleted for a
 pull request in the `gate_bypassed` state. A dry run only reports the deletions.
 
+### Cancelling runs of merged pull requests
+
+Merging a pull request does not stop its `pull_request` runs. They keep using `apache/airflow`'s
+capacity, GitHub-hosted minutes from the ASF's allocation and the self-hosted runners, for a
+result nobody reads once the change is on its target branch. This is not specific to fork CI; the
+monitor does it because it already runs every 15 minutes with `actions: write`.
+
+Each monitor run lists the `pull_request` runs of `apache/airflow` that are `queued`,
+`in_progress`, `waiting`, `pending` or `requested`, and looks up the pull requests of their head
+branches in one GraphQL query per 25 branches, paging through every pull request of a branch: a
+common branch name such as `main` has pull requests from many forks, and an open one with the
+run's head must not be missed. A run is cancelled when:
+
+- a merged pull request has the run's head repository, branch and commit (runs of pull requests
+  from forks do not list their pull request, so they are matched this way);
+- no open pull request has the same head, since a branch can be reused for a new pull request;
+- the run was created before the merge. A workflow triggered by the merge itself, such as one
+  on the `closed` event, is meant to run.
+
+It applies to the pull requests of every author, not only gated ones. A run is cancelled with
+`POST /repos/apache/airflow/actions/runs/<id>/cancel`; one still `in_progress` 30 minutes after the
+merge, for example because a step ignores the cancellation, is force-cancelled
+(`.../force-cancel`). A run that finished in the meantime (HTTP 409) is not a problem; any other
+failure is reported to Slack with the pull request, and a failure of the whole pass is reported
+as a note, without affecting the reconciliation of gated pull requests. A dry run only reports
+the cancellations. `cancel_merged_runs = false` in `.github/fork-ci-gate.toml` turns it off.
+
+Only runs of the merged head commit are matched. A run of an earlier commit of the pull request is
+normally cancelled by the workflow's concurrency group when the next commit is pushed.
+
 ### Far behind the base branch
 
 A fork run tests the pushed commit as it is, while project CI tests it merged with the base
@@ -727,6 +881,14 @@ over 3000 characters or more than 50 blocks, so items are split across sections,
 shortened to 500 characters, and sections past the 50th are replaced by a pointer to the run
 log, which always lists every item in full.
 
+Each item is posted once while it persists. The run records its items in a file
+(`--reported-file`) that the workflow carries to the next run through the Actions cache, and the
+message holds only the items the previous run did not report. The workflow keeps the new record
+only once Slack accepted the message, so a failed post is retried by the next run. An item that
+goes away and comes back is posted again; a lost cache entry re-posts everything once. The
+message for a run that failed before writing its message is posted for the first of consecutive
+failed runs only. A dry run saves nothing, so it never suppresses the next message.
+
 Attention items are expected outcomes that a maintainer should still see: a pull request
 closed for gate tampering, and a pull request carrying both override labels. They are listed
 in their own section of the message so they are not mistaken for reconciler failures.
@@ -737,7 +899,7 @@ Unknown means any of:
 - A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
   conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
-- A mutation that returned an error (label, draft, undraft, comment, close, status).
+- A mutation that returned an error (label, comment, close, status).
 - A head repository that no longer exists.
 - A state comment whose marker cannot be parsed.
 
@@ -752,7 +914,10 @@ Per run, with ~700 gated pull requests: ~28 GraphQL calls for pass 2, ~14 for fo
 calls for the recent `pull_request` runs, one REST call per base branch for its workflow
 files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated pull request,
 one changed-files call per head commit that turns green, plus one mutation per actual state
-change. Well inside
+change. Cancelling runs of merged pull requests adds five paginated run listings, one GraphQL
+query per 25 head branches with unfinished runs, and one mutation per cancelled run. Job statuses add a jobs call and a status call per pull request with a fork run in
+progress or a completed run not yet reported, and up to two status mutations per job, at most
+`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Well inside
 the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
 budget stays observable.
 
@@ -761,18 +926,35 @@ budget stays observable.
 `.github/workflows/fork-ci-monitor.yml`:
 
 - `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
-- `permissions: actions: write, contents: read, pull-requests: write, statuses: write` with a
-  justification comment. Comments and labels on pull requests are covered by
-  `pull-requests: write`; the commit status needs `statuses: write`; the gate tampering check
-  lists runs and their jobs, and the reconciler deletes gated runs, which needs `actions: write`
-  because every scope a `permissions` block leaves out is `none`.
+- Two jobs, each with its own `permissions` block and a justification comment; the workflow
+  grants nothing by default.
+- The `reconcile` job: `actions: write, contents: read, pull-requests: write, statuses: write`.
+  Comments and labels on pull requests are covered by `pull-requests: write`; the commit status
+  needs `statuses: write`; the gate tampering check lists runs and their jobs, and the
+  reconciler deletes gated runs, which needs `actions: write` because every scope a
+  `permissions` block leaves out is `none`.
+- The `draft-state` job: `contents: write, pull-requests: write`. GitHub authorises the draft
+  and undraft mutations (`convertPullRequestToDraft`, `markPullRequestReadyForReview`) against
+  `contents: write` and refuses them with `contents: read` ("Resource not accessible by
+  integration"). That scope also allows pushing to the repository, so the reconciler, which
+  installs and runs Breeze and its dependencies, does not get it: it writes the draft changes
+  as a job output (`--draft-changes-file`), and this job applies them with `gh` and `jq` only,
+  without a checkout. On a release that undrafts, it also removes `fork ci required` after
+  the undraft, so a failed undraft keeps the label and the next run retries it. Pull requests
+  whose change failed are posted to Slack once while the same set keeps failing. It validates
+  every entry before acting on it, runs even when only the reconciler's Slack post failed, and
+  runs with an empty list too, so a failure set that cleared is recorded as cleared. It is
+  skipped on a dry run. The draft state is advisory: the commit statuses
+  keep a pull request from merging, so a failed draft change does not weaken the gate.
 - `runs-on: ubuntu-latest` (the breeze setup action frees disk space with `sudo` and `docker`,
   which `ubuntu-slim` does not provide), `timeout-minutes: 20`, `concurrency: fork-ci-monitor`
   with `cancel-in-progress: false` so runs never overlap.
-- Steps: checkout `main` with `persist-credentials: false`, `./.github/actions/breeze`,
-  `breeze ci fork-ci-reconcile` with `GH_TOKEN`, then the Slack post step guarded by
-  `has-alerts` and skipped on a dry run, whose alerts describe changes it did not make, and a
-  second Slack step that reports a run failing before it could write its message.
+- Steps: restoring the reported items from the Actions cache into `$RUNNER_TEMP`, checkout
+  `main` with `persist-credentials: false`, `./.github/actions/breeze`, `breeze ci fork-ci-reconcile` with `GH_TOKEN`,
+  then the Slack post step guarded by `has-alerts` and skipped on a dry run, whose alerts
+  describe changes it did not make, a second Slack step that reports the first of consecutive
+  runs failing before they could write their message, and saving what Slack accepted to the
+  cache.
 - Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
   four attempts, without waiting after the last one.
 
@@ -881,6 +1063,11 @@ as a failed check rather than a crash.
   workflow files on the base branch.
 - A green fork run is trusted only for pull requests that do not change what fork CI runs;
   see "Trusting a green fork run".
+- Job statuses carry names from the contributor's workflow under their own `Fork CI job / <name>`
+  prefix, so they cannot post the reconciler's own contexts or `CI passed`; see "Job statuses".
+- Workflow runs of a gated pull request are approved without a maintainer only when it changes no
+  CI-defining file, so a pull request that edits the gate away still waits for a maintainer before
+  any run starts; see "Approving gated runs".
 - The reconciler runs on `main` with `pull-requests: write` and never checks out or executes
   pull request content. Its inputs are API data; its comment templates are static.
 - Fork runs get the fork's `GITHUB_TOKEN` only. Nothing in project CI trusts a fork run's

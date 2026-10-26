@@ -20,6 +20,11 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -42,6 +47,12 @@ on:  # yamllint disable-line rule:truthy
         type: string
       run-scripts-tests:
         description: "Whether to run scripts tests (true/false)"
+        required: true
+        type: string
+      run-generic-basic-tests:
+        description: >-
+          Whether to run the standalone Airflow and shared distributions tests (true/false): not on the
+          release branch of a single component
         required: true
         type: string
       basic-checks-only:
@@ -132,6 +143,7 @@ jobs:
   tests-shared-distributions:
     timeout-minutes: 10
     name: Shared distributions tests
+    if: inputs.run-generic-basic-tests == 'true'
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
@@ -316,6 +328,8 @@ jobs:
           PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
+          GITHUB_TOKEN: ${{ github.token }}
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
 
@@ -387,6 +401,7 @@ jobs:
   test-airflow-standalone:
     timeout-minutes: 30
     name: "Test Airflow standalone commands"
+    if: inputs.run-generic-basic-tests == 'true'
     runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
     env:
       AIRFLOW_HOME: ~/airflow

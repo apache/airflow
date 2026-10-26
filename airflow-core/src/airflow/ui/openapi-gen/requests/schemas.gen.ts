@@ -2587,7 +2587,6 @@ export const $Config = {
             title: 'Sections'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['sections'],
     title: 'Config',
@@ -2622,7 +2621,6 @@ export const $ConfigOption = {
             title: 'Value'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['key', 'value'],
     title: 'ConfigOption',
@@ -2643,7 +2641,6 @@ export const $ConfigSection = {
             title: 'Options'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['name', 'options'],
     title: 'ConfigSection',
@@ -5203,7 +5200,6 @@ export const $DagRunAssetReference = {
             description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
@@ -5270,7 +5266,6 @@ export const $DagScheduleAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
@@ -7843,7 +7838,6 @@ export const $TaskInletAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskInletAssetReference',
@@ -8994,7 +8988,6 @@ export const $TaskOutletAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskOutletAssetReference',
