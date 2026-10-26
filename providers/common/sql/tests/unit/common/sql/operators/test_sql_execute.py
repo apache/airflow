@@ -384,11 +384,16 @@ def test_openlineage_hook_without_database_info_method_returns_empty_lineage():
     assert op.get_openlineage_facets_on_start() == OperatorLineage()
 
 
-def test_openlineage_attribute_error_from_database_info_is_not_swallowed():
-    hook = mock.MagicMock()
+def test_openlineage_error_from_database_info_is_logged_and_does_not_lose_other_lineage():
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=DbApiHook)
     hook.conn_name_attr = "conn_id"
     hook.conn_id = "sql_default"
     hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+    hook.get_openlineage_database_specific_lineage.return_value = OperatorLineage(
+        run_facets={"externalQuery": mock.sentinel.facet}
+    )
 
     class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
         def get_db_hook(self):
@@ -396,10 +401,35 @@ def test_openlineage_attribute_error_from_database_info_is_not_swallowed():
 
     op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT 1;")
 
-    with pytest.raises(AttributeError, match="broken import"):
-        op.get_openlineage_facets_on_start()
-    with pytest.raises(AttributeError, match="broken import"):
-        op.get_openlineage_facets_on_complete(None)
+    with mock.patch.object(SQLExecuteQueryOperatorForTest, "log", autospec=True) as mock_log:
+        assert op.get_openlineage_facets_on_start() == OperatorLineage()
+        lineage = op.get_openlineage_facets_on_complete(None)
+
+    assert lineage.run_facets == {"externalQuery": mock.sentinel.facet}
+    assert mock_log.warning.call_count == 2
+    assert str(mock_log.warning.call_args.args[2]) == "broken import"
+
+
+def test_openlineage_error_from_database_specific_lineage_is_logged_and_falls_back():
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=DbApiHook)
+    hook.conn_name_attr = "conn_id"
+    hook.conn_id = "sql_default"
+    hook.get_openlineage_database_info.return_value = None
+    hook.get_openlineage_database_specific_lineage.side_effect = AttributeError("broken import")
+
+    class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
+        def get_db_hook(self):
+            return hook
+
+    op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT 1;")
+
+    with mock.patch.object(SQLExecuteQueryOperatorForTest, "log", autospec=True) as mock_log:
+        assert op.get_openlineage_facets_on_complete(None) == OperatorLineage()
+
+    mock_log.warning.assert_called_once()
+    assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
 
 def test_with_no_openlineage_provider():

@@ -298,19 +298,28 @@ class BaseSQLOperator(BaseOperator):
 
         connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
         get_database_info = getattr(hook, "get_openlineage_database_info", None)
-        database_info = get_database_info(connection) if get_database_info is not None else None
+        database_info = None
+        if get_database_info is not None:
+            try:
+                database_info = get_database_info(connection)
+            except Exception as e:
+                self.log.warning("Failed to get OpenLineage database info for %s: %s", hook, e)
+                self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_info is None:
             self.log.debug("OpenLineage could not retrieve database information. Skipping.")
             return OperatorLineage()
 
-        try:
-            sql_parser = SQLParser(
-                dialect=hook.get_openlineage_database_dialect(connection),
-                default_schema=hook.get_openlineage_default_schema(),
-            )
-        except AttributeError:
+        get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
+        get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
+        if get_dialect is None or get_default_schema is None:
             self.log.debug("%s failed to get database dialect", hook)
+            return None
+        try:
+            sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
+        except Exception as e:
+            self.log.warning("Failed to get OpenLineage database dialect for %s: %s", hook, e)
+            self.log.debug("OpenLineage failure details:", exc_info=True)
             return None
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
@@ -334,11 +343,16 @@ class BaseSQLOperator(BaseOperator):
 
         operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
         hook = self.get_db_hook()
-        try:
-            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
-        except AttributeError:
+        get_specific_lineage = getattr(hook, "get_openlineage_database_specific_lineage", None)
+        database_specific_lineage = None
+        if get_specific_lineage is None:
             self.log.debug("%s has no database specific lineage provided", hook)
-            database_specific_lineage = None
+        else:
+            try:
+                database_specific_lineage = get_specific_lineage(task_instance)
+            except Exception as e:
+                self.log.warning("Failed to get OpenLineage database specific lineage for %s: %s", hook, e)
+                self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_specific_lineage is None:
             if not self.check_results:

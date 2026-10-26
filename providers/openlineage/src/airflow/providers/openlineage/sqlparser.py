@@ -490,19 +490,27 @@ def get_openlineage_facets_with_sql(
 
     if database_info is None:
         get_database_info = getattr(hook, "get_openlineage_database_info", None)
-        database_info = get_database_info(connection) if get_database_info is not None else None
+        if get_database_info is not None:
+            try:
+                database_info = get_database_info(connection)
+            except Exception as e:
+                log.warning("Failed to get OpenLineage database info for %s: %s", hook, e)
+                log.debug("OpenLineage failure details:", exc_info=True)
 
     if database_info is None:
         log.debug("%s has no database info provided", hook)
         return None
 
-    try:
-        sql_parser = SQLParser(
-            dialect=hook.get_openlineage_database_dialect(connection),
-            default_schema=hook.get_openlineage_default_schema(),
-        )
-    except AttributeError:
+    get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
+    get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
+    if get_dialect is None or get_default_schema is None:
         log.debug("%s failed to get database dialect", hook)
+        return None
+    try:
+        sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
+    except Exception as e:
+        log.warning("Failed to get OpenLineage database dialect for %s: %s", hook, e)
+        log.debug("OpenLineage failure details:", exc_info=True)
         return None
 
     sqlalchemy_engine = None

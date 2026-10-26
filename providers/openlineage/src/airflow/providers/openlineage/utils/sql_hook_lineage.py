@@ -141,8 +141,11 @@ def emit_lineage_from_sql_extras(
     @cache
     def _get_database_info(hook_id: int):
         hook, conn_id = _hook_info[hook_id]
+        get_database_info = getattr(hook, "get_openlineage_database_info", None)
+        if get_database_info is None:
+            return None
         try:
-            return hook.get_openlineage_database_info(_get_connection(hook_id))
+            return get_database_info(_get_connection(hook_id))
         except Exception as e:
             log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
             log.debug("OpenLineage failure details:", exc_info=True)

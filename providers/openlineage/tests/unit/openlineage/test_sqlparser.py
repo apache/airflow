@@ -24,6 +24,7 @@ from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset
 from openlineage.common.sql import DbTableMeta
 
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.openlineage.sqlparser import (
     DatabaseInfo,
     GetTableSchemasParams,
@@ -420,17 +421,32 @@ class TestGetOpenlineageFacetsWithSql:
         result = get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
         assert result is None
 
-    def test_attribute_error_from_database_info_is_not_swallowed(self):
-        hook = MagicMock()
+    @mock.patch("airflow.providers.openlineage.sqlparser.log", autospec=True)
+    def test_error_from_database_info_is_logged_as_warning(self, mock_log):
+        hook = MagicMock(spec=DbApiHook)
         hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
 
-        with pytest.raises(AttributeError, match="broken import"):
-            get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
+        result = get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
+
+        assert result is None
+        mock_log.warning.assert_called_once()
+        assert str(mock_log.warning.call_args.args[2]) == "broken import"
+
+    @mock.patch("airflow.providers.openlineage.sqlparser.log", autospec=True)
+    def test_error_from_dialect_is_logged_as_warning(self, mock_log):
+        hook = MagicMock(spec=DbApiHook)
+        hook.get_openlineage_database_info.return_value = DatabaseInfo(scheme="myscheme")
+        hook.get_openlineage_database_dialect.side_effect = AttributeError("broken import")
+
+        result = get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
+
+        assert result is None
+        mock_log.warning.assert_called_once()
+        assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
     def test_returns_none_when_no_dialect(self):
-        hook = MagicMock()
+        hook = MagicMock(spec=["get_connection", "get_openlineage_database_info"])
         hook.get_openlineage_database_info.return_value = DatabaseInfo(scheme="myscheme")
-        hook.get_openlineage_database_dialect.side_effect = AttributeError
 
         result = get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
         assert result is None

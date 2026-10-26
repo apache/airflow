@@ -25,6 +25,7 @@ from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import external_query_run, sql_job
 
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.sqlparser import SQLParser
 from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, Rule
@@ -221,32 +222,35 @@ class TestEmitLineageFromSqlExtras:
         assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT broken(")
         assert call.kwargs["run_facets"]["externalQuery"].externalQueryId == "qid-1"
 
-    def test_sql_parsing_failure_is_logged_as_warning(self, caplog):
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_sql_parsing_failure_is_logged_as_warning(self, mock_log):
         self.mock_ns.return_value = "ns"
         self.mock_facets_fn.side_effect = Exception("parse error")
         mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
 
-        with caplog.at_level(logging.WARNING, logger=_MODULE):
-            emit_lineage_from_sql_extras(
-                task_instance=mock_ti,
-                sql_extras=[_make_extra(sql="SELECT broken(", job_id="qid-1")],
-            )
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT broken(", job_id="qid-1")],
+        )
 
-        assert "Failed to parse SQL for query 1: parse error" in caplog.text
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1:] == (1, self.mock_facets_fn.side_effect)
 
-    def test_database_info_failure_is_logged_as_warning_and_event_still_emitted(self, caplog):
-        hook = mock.MagicMock()
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_database_info_failure_is_logged_as_warning_and_event_still_emitted(self, mock_log):
+        hook = mock.MagicMock(spec=DbApiHook)
         hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
         self.mock_ns.return_value = "ns"
         mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
 
-        with caplog.at_level(logging.WARNING, logger=_MODULE):
-            emit_lineage_from_sql_extras(
-                task_instance=mock_ti,
-                sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
-            )
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
+        )
 
-        assert "Failed to get OpenLineage database info for my_conn: broken import" in caplog.text
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1] == "my_conn"
+        assert str(mock_log.warning.call_args.args[2]) == "broken import"
         # Without database info SQL is not parsed, but the query event is still built and emitted
         # with just the SQL facet (and no externalQuery facet, as namespace is unknown).
         self.mock_facets_fn.assert_not_called()
@@ -256,6 +260,20 @@ class TestEmitLineageFromSqlExtras:
         assert call.kwargs["outputs"] == []
         assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT 1")
         assert "externalQuery" not in call.kwargs["run_facets"]
+
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_hook_without_database_info_method_is_not_a_failure(self, mock_log):
+        hook = mock.MagicMock(spec=["get_connection"])
+        self.mock_ns.return_value = None
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
+        )
+
+        mock_log.warning.assert_not_called()
+        self.mock_build.assert_called_once()
 
     def test_no_namespace_skips_external_query_facet(self):
         """When namespace cannot be resolved, no externalQuery facet is added."""
