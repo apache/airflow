@@ -73,6 +73,7 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -128,6 +129,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
@@ -1808,11 +1810,25 @@ class TestTriggerRunner:
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
-    def test_shared_stream_ack_mode_integration(self) -> None:
-        """A BaseEventTrigger whose producer factory is overridden advances only after the event's derived trigger event is confirmed persisted."""
-        advanced: list[Any] = []
-        # Container lets _drive() write trigger_runner back for post-run assertions.
-        state: dict[str, Any] = {}
+    @pytest.mark.parametrize("partition_key", [None, "2026-10-16"])
+    @pytest.mark.parametrize("commit_fails", [False, True])
+    def test_shared_stream_ack_mode_integration(
+        self, session, request, jobless_supervisor, partition_key: str | None, commit_fails: bool
+    ) -> None:
+        """Broker advancement requires successful commit of the event's native partition key."""
+        trigger_model = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger_model)
+        session.flush()
+        asset = AssetModel("shared-stream-event")
+        asset.add_trigger(trigger_model, "shared-stream-watcher")
+        session.add(asset)
+        session.commit()
+        trigger_id, asset_id = trigger_model.id, asset.id
+        request.addfinalizer(clear_db_assets)
+
+        advanced: list[str] = []
+        advance_called = asyncio.Event()
+        event_queued = asyncio.Event()
 
         class _AckSharedProducer(SharedStreamProducer):
             async def open_stream(self):
@@ -1822,7 +1838,7 @@ class TestTriggerRunner:
 
             async def advance(self, batch):
                 advanced.extend(item.broker_payload for item in batch)
-                state["advance_called"].set()
+                advance_called.set()
 
         class _AckSharedTrigger(BaseEventTrigger):
             def __init__(self, queue_url: str, region: str | None = None):
@@ -1846,62 +1862,83 @@ class TestTriggerRunner:
             async def filter_shared_stream(self, shared_stream):
                 async for raw in shared_stream:
                     if self.region is None or raw["region"] == self.region:
-                        yield TriggerEvent(raw)
+                        if partition_key is None:
+                            yield TriggerEvent(raw)
+                        else:
+                            yield AssetTriggerEvent(raw, partition_key=partition_key)
+                        event_queued.set()
 
             async def run(self):  # pragma: no cover - replaced by filter_shared_stream
                 yield TriggerEvent({})
 
         async def _drive():
-            advance_called = asyncio.Event()
-            state["advance_called"] = advance_called
-
             trigger_runner = TriggerRunner()
             trigger_runner.triggers = {
-                1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+                trigger_id: {
+                    "task": MagicMock(spec=asyncio.Task),
+                    "is_watcher": True,
+                    "name": "us",
+                    "events": 0,
+                }
             }
             trigger = _AckSharedTrigger(queue_url="https://ack-q", region="us")
             trigger.task_instance = MagicMock()
             trigger.task_instance.map_index = -1
-            state["trigger_runner"] = trigger_runner
 
-            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
-            # Wait until the event lands on the outbound queue with its
-            # persist-confirmation seq.
-            for _ in range(100):
-                if trigger_runner.events:
-                    break
-                await asyncio.sleep(0.01)
-            assert trigger_runner.events, "the trigger event must reach the outbound queue"
-            _trigger_id, _event, seq = trigger_runner.events[0]
-            assert seq is not None, "a shared ack trigger's event must carry a seq"
+            async def exchange(msg: messages.TriggerStateChanges) -> messages.TriggerStateSync:
+                wire = _new_encoder().encode(msg.model_dump())
+                decoded = TypeAdapter(ToTriggerSupervisor).validate_python(msgspec.msgpack.decode(wire))
+                with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as send_msg:
+                    jobless_supervisor._handle_request(decoded, log=jobless_supervisor.process_log, req_id=0)
+                response = send_msg.call_args.args[1]
+                wire = _new_encoder().encode(response.model_dump())
+                decoded_response = TypeAdapter(ToTriggerRunner).validate_python(msgspec.msgpack.decode(wire))
+                assert isinstance(decoded_response, messages.TriggerStateSync)
+                return decoded_response
 
-            # The subscriber moved past the event, but the advance is gated
-            # on persistence: nothing may advance before the confirmation arrives.
-            assert advanced == [], "advance must not run before the persist confirmation"
+            run_task = asyncio.create_task(trigger_runner.run_trigger(trigger_id, trigger))
+            try:
+                await asyncio.wait_for(event_queued.wait(), timeout=2.0)
+                assert trigger_runner.events[0].persist_seq is not None
+                with mock.patch.object(trigger_runner, "asend", autospec=True, side_effect=exchange):
+                    await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+                    assert advanced == []
+                    if commit_fails:
+                        with mock.patch(
+                            "sqlalchemy.orm.Session.commit",
+                            autospec=True,
+                            side_effect=RuntimeError("commit failed"),
+                        ):
+                            with pytest.raises(RuntimeError, match="commit failed"):
+                                jobless_supervisor.handle_events()
+                    else:
+                        jobless_supervisor.handle_events()
 
-            # Simulate the supervisor confirming the persist on the next sync.
-            trigger_runner._shared_streams.confirm_persisted([seq])
-            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+                    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset_id))
+                    if commit_fails:
+                        assert asset_event is None
+                        assert list(jobless_supervisor.persisted_event_seqs) == []
+                    else:
+                        assert asset_event is not None
+                        assert asset_event.partition_key == partition_key
+                        assert asset_event.extra == {"from_trigger": True, "payload": {"region": "us"}}
 
-            run_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await run_task
+                    assert advanced == []
+                    await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+                    if commit_fails:
+                        assert advanced == []
+                        assert not advance_called.is_set()
+                    else:
+                        await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+            finally:
+                run_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await run_task
+
+            assert trigger_runner._shared_streams._groups == {}
 
         asyncio.run(_drive())
-        trigger_runner = state["trigger_runner"]
-
-        events = list(trigger_runner.events)
-        assert len(events) == 1
-        trigger_id, event, _seq = events[0]
-        assert trigger_id == 1
-        assert event.payload == {"region": "us"}
-
-        # The producer's advance must have been called with the broker_payload.
-        assert advanced == ["receipt-handle-1"], (
-            "producer.advance must be called once the event's persistence is confirmed"
-        )
-        # Group is torn down on unsubscribe.
-        assert trigger_runner._shared_streams._groups == {}
+        assert advanced == ([] if commit_fails else ["receipt-handle-1"])
 
     def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
