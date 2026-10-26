@@ -484,7 +484,9 @@ def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monke
 )
 def test_decide_approval_with_real_selective_checks(paths, approve):
     changed_files = [ChangedFile(path, 10) for path in paths]
-    selective_checks = SelectiveChecks(files=tuple(paths), commit_ref="HEAD", pr_labels=())
+    selective_checks = SelectiveChecks(
+        files=tuple(paths), default_branch="main", commit_ref="HEAD", pr_labels=()
+    )
 
     decision = decide_approval(
         base_branch="main", changed_files=changed_files, selective_checks=selective_checks
