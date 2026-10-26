@@ -868,7 +868,8 @@ in their own section of the message so they are not mistaken for reconciler fail
 
 Unknown means any of:
 
-- GraphQL or REST error that is not a rate-limit wait (rate limits back off and retry).
+- GraphQL or REST error that is not a rate limit or a GitHub server error, or one of those
+  that outlasted its retries.
 - A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
   conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
@@ -927,8 +928,10 @@ budget stays observable.
   describe changes it did not make, a second Slack step that reports the first of consecutive
   runs failing before they could write their message, and saving what Slack accepted to the
   cache.
-- Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
-  four attempts, without waiting after the last one.
+- Every `gh` call times out after 120 seconds, and a rate limit or a GitHub server error
+  (HTTP 5xx, such as a GraphQL search ending in 504) is retried with backoff up to four
+  attempts, without waiting after the last one. Creating a comment is not retried after a
+  server error, because the comment may have been created anyway.
 
 The workflow does not exit early when `enabled` is false, because both pilots rely on it.
 With `enabled = false`, an empty `[pilot]` and no `use fork ci` labels, every pull request
