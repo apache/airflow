@@ -148,7 +148,7 @@ jobs:
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
-          --include-not-ready-providers --distribution-format wheel
+          --include-not-ready-providers --distribution-format wheel --github-repository apache/airflow
         if: inputs.generate-pypi-constraints == 'true' && inputs.pypi-providers-only != 'true'
       - name: "Prepare airflow distributions"
         shell: bash
