@@ -96,7 +96,6 @@
   "dagRun_one": "Запуск Dag-а",
   "dagRun_other": "Запуски Dag-а",
   "dagRunId": "ID запуска Dag-а",
-  "dagWarnings": "Предупреждения/ошибки Dag-а",
   "defaultToGraphView": "По умолчанию открывать граф",
   "defaultToGridView": "По умолчанию отображать в сетке",
   "delete": "Удалить",
@@ -207,10 +206,10 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
-  "pendingDagRun_few": "{{count}} Dag-а ожидают запуска",
-  "pendingDagRun_many": "{{count}} Dag-ов ожидают запуска",
-  "pendingDagRun_one": "{{count}} Dag ожидает запуска",
-  "pendingDagRun_other": "{{count}} Dag-ов ожидают запуска",
+  "pendingDagRun_few": "{{count, number}} Dag-а ожидают запуска",
+  "pendingDagRun_many": "{{count, number}} Dag-ов ожидают запуска",
+  "pendingDagRun_one": "{{count, number}} Dag ожидает запуска",
+  "pendingDagRun_other": "{{count, number}} Dag-ов ожидают запуска",
   "presetFilters": {
     "deleteTitle": "Удалить предустановленный фильтр",
     "deleteWarning": "Предустановленные фильтры хранятся только в этом браузере.",
@@ -427,21 +426,21 @@
     "bulkClear": {
       "error": "Ошибка запроса на массовую очистку {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} успешно очищены. Ключи: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} успешно очищены. Ключи: {{keys}}",
         "title": "Запрос на массовую очистку {{resourceName}} отправлен"
       }
     },
     "bulkDelete": {
       "error": "Ошибка массового удаления {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
         "title": "Запрос на массовое удаление {{resourceName}} отправлен"
       }
     },
     "bulkUpdate": {
       "error": "Ошибка запроса на массовое обновление {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} успешно обновлены. Ключи: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} успешно обновлены. Ключи: {{keys}}",
         "title": "Запрос на массовое обновление {{resourceName}} отправлен"
       }
     },
@@ -462,7 +461,7 @@
     "import": {
       "error": "Ошибка импорта {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} успешно импортированы.",
+        "description": "{{count, number}} {{resourceName}} успешно импортированы.",
         "title": "Запрос на импорт {{resourceName}} отправлен"
       }
     },

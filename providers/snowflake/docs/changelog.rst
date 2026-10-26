@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+6.20.0
+......
+
+.. note::
+
+    The Cortex Agent hook and operator modules are now ``hooks.cortex_agent`` and
+    ``operators.cortex_agent``, and the SQL API hook module is ``hooks.sql_api`` under
+    ``airflow.providers.snowflake``. Previously released imports continue to work with
+    deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
+
+.. note::
+
+    **Significant change: OpenLineage query lineage events**
+
+    The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
+    instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
+    or later; with an older version it is skipped and only a log message is written.
+    Users on OpenLineage provider 2.5.0 through 2.15.x must upgrade to retain query lineage.
+
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``SNOWFLAKE`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
+Features
+~~~~~~~~
+
+* ``Add password grant type to Snowflake OAuth token requests (#74804)``
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
+* ``Add Snowflake Cortex Agent management operators (#70930)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+* ``Remove redundant Snowflake prefixes from Cortex Agent and SQL API modules (#74300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
+* ``Add create and update support to Snowflake Cortex Agent hook (#70703)``
+* ``Add key-pair JWT authentication to Snowflake Cortex Agent hook (#73815)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Snowflake SQL API wait_for_query timing out on finished queries (#73761)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Snowflake UTC usage in TestSnowflakeRestTokenProvider (#74393)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 6.18.0
 ......
 

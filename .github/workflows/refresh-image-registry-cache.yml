@@ -20,7 +20,7 @@ name: Refresh image registry cache
 # Refreshes the CI image cache in the GitHub registry, in a run of its own.
 #
 # It has to be its own workflow rather than a job inside `ci-amd.yml` / `ci-arm.yml`, because a
-# job cannot opt out of its run being cancelled, and those runs are cancelled by the next push.
+# job cannot opt out of its run being cancelled, and those runs are cancelled by the next run.
 # With no cache a branch builds cold (~20 minutes per Python version), which widens the window in
 # which the next push cancels the run, which leaves the cache missing. `v3-3-test` sat in that
 # loop -- its `linux/amd64` cache covered the default Python version alone, the single matrix
@@ -41,10 +41,11 @@ on:  # yamllint disable-line rule:truthy
           - "linux/arm64"
         default: "both"
   push:
-    # Release-prep and providers branches only -- they are built on push, so the CI run that
-    # would have refreshed their cache is also the run that keeps being cancelled. `main` is not
-    # built on push; its cache is refreshed by the Push Image Cache job at the end of the
-    # scheduled canary, which runs to completion.
+    # Release-prep and providers branches only -- their CI runs are no longer started on push but
+    # by `release-branch-ci.yml` a few times a day, and a newer run can still cancel the one in
+    # flight, so the cache is refreshed here on every merge instead. `main` is not built on push;
+    # its cache is refreshed by the Push Image Cache job at the end of the scheduled canary,
+    # which runs to completion.
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+

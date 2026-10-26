@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
+
 import pytest
 
-from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
 from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, ErrorType
@@ -309,9 +312,25 @@ class TestContextDetection:
         assert "MetastoreBackend" not in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
 
+    def test_does_not_import_task_runner_outside_task_execution(self):
+        code = textwrap.dedent(
+            """
+            import sys
+            from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+            ensure_secrets_backend_loaded()
+            print("airflow.sdk.execution_time.task_runner" in sys.modules)
+            """
+        )
+
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip().splitlines()[-1] == "False"
+
 
 class TestSecretsBackendMemoisation:
-    BACKEND = secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH
+    BACKEND = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
 
     def test_nothing_is_memoised_until_a_custom_backend_is_configured(self):
         first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)

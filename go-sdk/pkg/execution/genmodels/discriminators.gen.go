@@ -95,6 +95,7 @@ const (
 	TypeSetTaskStateStore           = "SetTaskStateStore"
 	TypeSetXCom                     = "SetXCom"
 	TypeSkipDownstreamTasks         = "SkipDownstreamTasks"
+	TypeStartExecutionTimeout       = "StartExecutionTimeout"
 	TypeStartupDetails              = "StartupDetails"
 	TypeSucceedTask                 = "SucceedTask"
 	TypeTICount                     = "TICount"
@@ -105,6 +106,7 @@ const (
 	TypeTaskStateStoreResult        = "TaskStateStoreResult"
 	TypeTaskStatesResult            = "TaskStatesResult"
 	TypeTriggerDagRun               = "TriggerDagRun"
+	TypeUpdateDagRunNote            = "UpdateDagRunNote"
 	TypeUpdateHITLDetail            = "UpdateHITLDetail"
 	TypeValidateInletsAndOutlets    = "ValidateInletsAndOutlets"
 	TypeVariableKeysResult          = "VariableKeysResult"
@@ -334,6 +336,9 @@ func EnsureType(m any) any {
 	case SkipDownstreamTasks:
 		b.Type = TypeSkipDownstreamTasks
 		return b
+	case StartExecutionTimeout:
+		b.Type = TypeStartExecutionTimeout
+		return b
 	case StartupDetails:
 		b.Type = TypeStartupDetails
 		return b
@@ -363,6 +368,9 @@ func EnsureType(m any) any {
 		return b
 	case TriggerDagRun:
 		b.Type = TypeTriggerDagRun
+		return b
+	case UpdateDagRunNote:
+		b.Type = TypeUpdateDagRunNote
 		return b
 	case UpdateHITLDetail:
 		b.Type = TypeUpdateHITLDetail

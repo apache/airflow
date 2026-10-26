@@ -39,7 +39,7 @@ on:  # yamllint disable-line rule:truthy
       default-python-version:
         description: "Which version of python should be used by default"
         type: string
-        default: '3.10'
+        default: '3.11'
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
         type: string
@@ -88,9 +88,9 @@ jobs:
   test-ui-e2e-tests:
     timeout-minutes: 90
     name: ${{ inputs.workflow-name || 'UI E2E Tests' }}
-    runs-on: ${{ fromJSON(inputs.runners || '["ubuntu-24.04"]') }}
+    runs-on: ${{ format(fromJSON(inputs.runners || '["ubuntu-24.04"]')[0], 8, 32) }}
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.10' }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.11' }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -126,7 +126,7 @@ jobs:
           version: 9
           run_install: false
       - name: "Setup node"
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 24
           cache: 'pnpm'
@@ -159,7 +159,7 @@ jobs:
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag || '' }}"
       - name: "Upload test results"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "playwright-report-${{ env.BROWSER }}"
           path: |
@@ -178,7 +178,7 @@ jobs:
           RUN_ATTEMPT: "${{ github.run_attempt }}"
         if: always()
       - name: "Upload E2E test report"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "e2e-test-report-${{ env.BROWSER }}"
           path: e2e-test-report/

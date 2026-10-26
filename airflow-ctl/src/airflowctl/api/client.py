@@ -35,7 +35,7 @@ import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
 from tenacity import (
-    before_log,
+    before_sleep_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -113,7 +113,9 @@ def get_json_error(response: httpx.Response):
         # This part is used in integration tests to verify the error message
         # If you are updating here don't forget to update the airflow-ctl-tests
         if not response.request.extensions.get("airflowctl_suppress_error_log"):
-            log.warning("Server error ", extra=dict(err.response.json()))
+            detail = err.response.json()
+            # ``extra`` needs a mapping, but a JSON error body can be any JSON value.
+            log.warning("Server error ", extra=detail if isinstance(detail, dict) else {"detail": detail})
         raise err
 
 
@@ -398,7 +400,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def request(self, *args, **kwargs):

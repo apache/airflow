@@ -22,7 +22,7 @@ import logging
 import posixpath
 import threading
 import time
-from contextlib import contextmanager, suppress
+from contextlib import closing, contextmanager, suppress
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -32,13 +32,16 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Generator, Iterator
+    from typing import BinaryIO
 
     from opensandbox import SandboxSync
     from opensandbox.config import ConnectionConfigSync
@@ -60,6 +63,8 @@ _LIST_DIRECTORY_MAX_ENTRIES = 10_000
 # through ``SandboxFilter(metadata=...)``; the sbx backend uses the sandbox name
 # for the same purpose.
 _CREATED_BY_METADATA = {"created-by": "airflow"}
+# The egress sidecar's "dns" mode filters name resolution only, not connections.
+_ADDRESS_LAYER_EGRESS_MODE = "dns+nft"
 
 
 def _get_status_code(error: Exception) -> int | None:
@@ -159,6 +164,11 @@ class OpenSandboxBackend(SandboxBackend):
     """
     Run sandbox tools through an OpenSandbox server.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     OpenSandbox supports Docker and Kubernetes runtimes behind the same API.
     Airflow workers need only network access to that API; the OpenSandbox
     deployment owns container provisioning and isolation.
@@ -174,6 +184,12 @@ class OpenSandboxBackend(SandboxBackend):
     sandbox if it differs from what
     :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` asked for. The
     fail-closed contract is this backend's to keep, not the server's.
+
+    The check also reads the sidecar's enforcement mode. Only
+    ``[egress] mode = "dns+nft"`` in the server configuration drops connections
+    at the address layer; in ``dns`` mode the sidecar filters name resolution
+    alone and a deny-all sandbox can still connect to numeric addresses, so the
+    backend destroys the sandbox on any mode but ``dns+nft``.
 
     Command deadlines are enforced by execd. If its event stream stalls, the
     call is abandoned ``_EXEC_GRACE`` seconds past the budget, the sandbox is
@@ -277,10 +293,9 @@ class OpenSandboxBackend(SandboxBackend):
             return None
         if spec.allow_egress_to_cidrs:
             raise SandboxTerminalError(
-                "SandboxSpec names allow_egress_to_cidrs, which this backend cannot safely enforce: "
-                "OpenSandbox CIDR rules require the egress sidecar's dns+nft mode, but the SDK "
-                "does not expose that enforcement mode on policy read-back. Use allow_egress_to "
-                "with hostnames or a backend with verifiable address-layer enforcement."
+                "SandboxSpec names allow_egress_to_cidrs, which this backend does not support yet. "
+                "Use allow_egress_to with hostnames, or a backend that enforces address ranges, "
+                "such as ModalSandboxBackend."
             )
         if not spec.block_network:
             if spec.allow_egress_to:
@@ -300,23 +315,73 @@ class OpenSandboxBackend(SandboxBackend):
         return NetworkPolicy(defaultAction="deny", egress=rules or None)
 
     @staticmethod
+    def _get_egress_enforcement_mode(sandbox: SandboxSync) -> str | None:
+        """Return the mode the sandbox's egress sidecar enforces its policy in, or ``None`` if unreported."""
+        import httpx
+        from opensandbox.adapters.converter.response_handler import handle_api_error, require_parsed
+        from opensandbox.api.egress import Client
+        from opensandbox.api.egress.api.policy import get_policy
+        from opensandbox.api.egress.models import PolicyStatusResponse
+        from opensandbox.constants import DEFAULT_EGRESS_PORT
+
+        # get_egress_policy() keeps only the rules from the sidecar's /policy response and drops
+        # its enforcementMode, so read that response with the SDK's generated egress client.
+        config = sandbox.connection_config
+        endpoint = sandbox.get_endpoint(DEFAULT_EGRESS_PORT)
+        # OpenSandbox 1.1.0 has no new_owned_transport(); give this client its own SDK transport.
+        transport = config.model_copy(update={"transport": None}).with_transport_if_missing().transport
+        with Client(
+            base_url=f"{config.protocol}://{endpoint.endpoint}",
+            headers=endpoint.build_request_headers(config),
+            timeout=httpx.Timeout(config.request_timeout.total_seconds()),
+            httpx_args={"transport": transport},
+        ) as client:
+            response = get_policy.sync_detailed(client=client)
+        handle_api_error(response, "Get egress policy")
+        mode = require_parsed(response, PolicyStatusResponse, "Get egress policy").enforcement_mode
+        return mode if isinstance(mode, str) else None
+
+    @staticmethod
     def _verify_network_policy(sandbox: SandboxSync, requested: NetworkPolicy) -> None:
         wanted = {rule.target for rule in requested.egress or ()}
         try:
             enforced = sandbox.get_egress_policy()
             allowed = {rule.target for rule in enforced.egress or () if rule.action == "allow"}
-            matches = enforced.default_action == "deny" and allowed == wanted
-            detail = f"enforced policy is default {enforced.default_action!r} with allow {sorted(allowed)}"
+            if enforced.default_action != "deny" or allowed != wanted:
+                problem = (
+                    f"the enforced policy is default {enforced.default_action!r} with allow "
+                    f"{sorted(allowed)}. The server may be running without its egress sidecar."
+                )
+            else:
+                mode = OpenSandboxBackend._get_egress_enforcement_mode(sandbox)
+                if mode == _ADDRESS_LAYER_EGRESS_MODE:
+                    return
+                if mode is None:
+                    problem = (
+                        "its egress sidecar does not report an enforcement mode. Upgrade the egress "
+                        "sidecar to v1.0.1 or later and configure it to run in dns+nft mode."
+                    )
+                else:
+                    problem = (
+                        f"its egress sidecar enforces it in {mode!r} mode, and only "
+                        f'"{_ADDRESS_LAYER_EGRESS_MODE}" stops connections to numeric addresses '
+                        "rather than name resolution alone. Set "
+                        f'[egress] mode = "{_ADDRESS_LAYER_EGRESS_MODE}" in the server configuration.'
+                    )
+                problem += (
+                    " Or pass SandboxSpec(block_network=False) for a sandbox that may reach the network."
+                )
         except Exception as e:
-            matches = False
-            detail = f"the policy could not be read back ({type(e).__name__})"
-        if matches:
-            return
+            code = _get_status_code(e)
+            status = f", HTTP {code}" if code is not None else ""
+            problem = (
+                f"the policy could not be read back ({type(e).__name__}{status}). The server may be "
+                "running without its egress sidecar."
+            )
         with suppress(Exception):
             sandbox.destroy()
         raise SandboxTerminalError(
-            f"OpenSandbox did not enforce the requested network policy ({detail}), so the sandbox was "
-            "destroyed. The server may be running without its egress sidecar."
+            f"OpenSandbox did not enforce the requested network policy, so the sandbox was destroyed: {problem}"
         )
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
@@ -454,21 +519,68 @@ class OpenSandboxBackend(SandboxBackend):
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         _validate_positive_finite(max_bytes, "max_bytes")
         sandbox_client = self._get_sandbox(sandbox)
-        chunks = None
         data = bytearray()
+        with closing(self._download(sandbox_client, path, max_bytes=max_bytes)) as chunks:
+            for chunk in chunks:
+                data.extend(chunk[: max_bytes + 1 - len(data)])
+                if len(data) > max_bytes:
+                    size = self._get_file_size(sandbox_client, path, at_least=len(data))
+                    raise SandboxFileTooLargeError(path, size, max_bytes)
+        return bytes(data)
+
+    def export_file(self, sandbox: str, path: str, dest: BinaryIO, *, max_bytes: int) -> int:
+        """Override: stream the file through the SDK's ranged download, one chunk at a time."""
+        _validate_positive_finite(max_bytes, "max_bytes")
+        sandbox_client = self._get_sandbox(sandbox)
+        try:
+            info = sandbox_client.files.get_file_info([path])
+            entry = info.get(path) or next(iter(info.values()))
+        except Exception as e:
+            if _get_status_code(e) == 404 or isinstance(e, StopIteration):
+                self._confirm_sandbox_exists(sandbox_client)
+                raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.") from e
+            with _translate_opensandbox_errors(
+                "inspect a sandbox file", recoverable_statuses=frozenset({400})
+            ):
+                raise
+        if entry.entry_type == "directory":
+            raise SandboxError(f"{path!r} is a directory; only a regular file can be exported.")
+        if entry.entry_type == "other":
+            raise SandboxError(f"{path!r} is not a regular file; only a regular file can be exported.")
+        if entry.size > max_bytes:
+            raise SandboxFileTooLargeError(path, entry.size, max_bytes)
+        deadline = _export_deadline(max_bytes)
+        written = 0
+        with closing(self._download(sandbox_client, path, max_bytes=max_bytes)) as chunks:
+            for chunk in chunks:
+                _check_export_deadline(path, deadline, max_bytes)
+                written += len(chunk)
+                if written > max_bytes:
+                    raise SandboxFileTooLargeError(path, written, max_bytes)
+                dest.write(chunk)
+        if entry.entry_type == "file":
+            # A symlink reports the link's own size, not its target's, so there is
+            # nothing to compare against for one.
+            self._check_export_size(path, expected=entry.size, written=written)
+        return written
+
+    def _download(
+        self, sandbox_client: SandboxSync, path: str, *, max_bytes: int
+    ) -> Generator[bytes, None, None]:
+        """
+        Yield the first ``max_bytes + 1`` bytes of a sandbox file, with the SDK's errors translated.
+
+        A generator, so a failure in whatever the caller does with a chunk is raised in
+        the caller and never mistaken for a failed download.
+        """
+        chunks = None
         try:
             chunks = sandbox_client.files.read_bytes_stream(
                 path,
                 chunk_size=min(65536, max_bytes + 1),
                 range_header=f"bytes=0-{max_bytes}",
             )
-            for chunk in chunks:
-                data.extend(chunk[: max_bytes + 1 - len(data)])
-                if len(data) > max_bytes:
-                    size = self._get_file_size(sandbox_client, path, at_least=len(data))
-                    raise SandboxFileTooLargeError(path, size, max_bytes)
-        except SandboxFileTooLargeError:
-            raise
+            yield from chunks
         except Exception as e:
             if _get_status_code(e) == 404:
                 self._confirm_sandbox_exists(sandbox_client)
@@ -480,7 +592,6 @@ class OpenSandboxBackend(SandboxBackend):
             if close is not None:
                 with suppress(Exception):
                     close()
-        return bytes(data)
 
     def write_file(self, sandbox: str, path: str, content: bytes) -> None:
         sandbox_client = self._get_sandbox(sandbox)

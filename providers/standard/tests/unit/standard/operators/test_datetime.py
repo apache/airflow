@@ -149,8 +149,8 @@ class TestBranchDateTimeOperator:
     @pytest.mark.parametrize(
         "date",
         (
-            datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
-            datetime.datetime(2020, 6, 7, 9, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.UTC),
+            datetime.datetime(2020, 6, 7, 9, 0, 0, tzinfo=datetime.UTC),
         ),
     )
     def test_branch_datetime_operator_falls_outside_range(self, date, target_lower, target_upper):

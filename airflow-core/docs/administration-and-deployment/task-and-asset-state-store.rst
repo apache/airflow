@@ -60,6 +60,10 @@ Number of days after which task state store rows expire. When a key is written w
 ``clear_on_success``
 ~~~~~~~~~~~~~~~~~~~~
 
+Retention and ``clear_on_success`` are not the only ways task state store entries get removed:
+clearing a task instance through the REST API, the UI, or ``airflowctl`` also discards them by
+default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
+
 When ``True``, all task state store keys for a task instance are automatically deleted when that task instance moves to the ``success`` state. Defaults to ``False``, which preserves task state store entries after success for observability (e.g. the submitted job ID or the last row count is still readable from the UI or REST API after the run completes).
 
 .. important::
@@ -199,7 +203,9 @@ Example skeleton:
     class S3StateBackend(BaseStoreBackend):
 
         def _task_ref(self, scope: TaskScope, key: str) -> str:
-            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
+            # Two regions can hold the same task_id and map_index, so region_id must be part of the ref.
+            region = f"region={scope.region_id}/" if scope.region_id.int else ""
+            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{region}{scope.task_id}/{scope.map_index}/{key}"
 
         def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib

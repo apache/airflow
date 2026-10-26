@@ -22,11 +22,13 @@ description: |
   AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 state: ready
-lifecycle: incubation
-source-date-epoch: 1790023613
+lifecycle: production
+source-date-epoch: 1792489528
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
+  - 1.0.0
   - 0.10.0
   - 0.9.0
   - 0.8.0
@@ -73,8 +75,17 @@ integrations:
   - integration-name: Modal Sandboxes
     external-doc-url: https://modal.com/docs/guide/sandbox
     tags: [service]
+  - integration-name: Islo
+    external-doc-url: https://docs.islo.dev/
+    tags: [service]
   - integration-name: OpenSandbox
     external-doc-url: https://open-sandbox.ai/
+    tags: [software]
+  - integration-name: Boat
+    external-doc-url: https://docs.boat.dev/
+    tags: [service]
+  - integration-name: NVIDIA OpenShell
+    external-doc-url: https://github.com/NVIDIA/OpenShell
     tags: [software]
 
 hooks:
@@ -94,6 +105,8 @@ hooks:
 plugins:
   - name: hitl_review
     plugin-class: airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin
+  - name: ai_model_panel
+    plugin-class: airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin
 
 
 config:
@@ -147,9 +160,11 @@ config:
           finish reason are recorded, never message text. Turning this on exports
           model inputs and outputs to your tracing backend without redaction. Airflow's
           secret masking applies to logs and rendered template fields, not to
-          OpenTelemetry span attributes, so it does not scrub this content.
-          Enable it only for debugging in a trusted environment. Has no effect
-          unless ``otel_export_enabled`` is ``True``.
+          OpenTelemetry span attributes. The exception is what a function tool
+          returns or raises while it runs in an agent this provider builds, which
+          is masked before the span records it. Enable it only for debugging in
+          a trusted environment. Has no effect unless ``otel_export_enabled`` is
+          ``True``.
         version_added: 0.4.0
         type: boolean
         example: "False"
@@ -161,15 +176,41 @@ connection-types:
     hook-name: "Pydantic AI"
     connection-type: pydanticai
     external-services:
-      - OpenAI
+      - Alibaba Cloud Model Studio
       - Anthropic
-      - Google
       - AWS Bedrock
-      - Groq
-      - Mistral AI
+      - AWS Bedrock Mantle
+      - Azure OpenAI
+      - Cerebras
+      - Cohere
+      - Crusoe
       - DeepSeek
+      - Fireworks AI
+      - GitHub Copilot
+      - Google Gemini
+      - Google Vertex AI
+      - Groq
+      - Heroku
+      - Hugging Face
+      - LiteLLM
+      - Mistral AI
+      - Moonshot AI
+      - Nebius
       - Ollama
+      - OpenAI
+      - OpenAI Decisions
+      - OpenRouter
+      - OVHcloud
+      - Pydantic AI Gateway
+      - SambaNova
+      - Snowflake Cortex
+      - System One
+      - Together AI
+      - TypeSafe
+      - Vercel AI Gateway
       - vLLM
+      - xAI
+      - Z.AI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -385,7 +426,7 @@ connection-types:
             - 'null'
       vertexai:
         label: Force Vertex AI Mode
-        description: "Ignored (kept for compatibility); mode is now selected via the Model field's prefix."
+        description: "Deprecated and ignored; the Model field's prefix selects the mode."
         schema:
           type:
             - boolean
@@ -414,6 +455,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.mcp.MCPHook
     hook-name: "MCP Server"
     connection-type: mcp
+    external-services:
+      - Any MCP server (user-supplied endpoint)
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -551,6 +594,7 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.object_storage
       - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge

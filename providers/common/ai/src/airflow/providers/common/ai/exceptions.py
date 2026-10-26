@@ -23,6 +23,16 @@ class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
 
 
+class ToolRunnerMaxIterationsError(RuntimeError):
+    """
+    Raised when an Anthropic tool runner reaches ``max_iterations`` while the model is still calling tools.
+
+    The runner's last message asks for tools and holds no answer. Airflow's default retry
+    behaviour retries it like any other exception, and a fresh attempt may finish within
+    the limit.
+    """
+
+
 class ToolApprovalError(RuntimeError):
     """
     Raised when a run paused for tool approval cannot resume safely.
@@ -34,11 +44,12 @@ class ToolApprovalError(RuntimeError):
 
 class ToolApprovalAlreadyRequestedError(AirflowFailException):
     """
-    Raised when a task instance asks for a second tool approval.
+    Raised on Airflow 3.3 when a task instance asks for a second tool approval.
 
-    Airflow keeps one approval request per task instance, across retries and clears, and a
-    second request would show the reviewer the first one's details. The task fails without
-    retrying, since a retry would ask again.
+    Airflow 3.3 keeps one approval request per task instance, across retries and clears, and
+    a second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again. Airflow 3.4 replaces a repeat request's details,
+    so there the run pauses again instead.
     """
 
 
@@ -48,8 +59,18 @@ class UnsupportedToolDeferralError(AirflowFailException):
 
     Either the tool hands its work to an external system, or it needs approval where
     approval is not available (before Airflow 3.3, or with ``durable``,
-    ``enable_hitl_review``, ``code_mode`` or a ``SandboxToolset``). A retry would repeat
+    ``enable_hitl_review``, code mode or a ``SandboxToolset``). A retry would repeat
     the same call, so the task fails without retrying.
+    """
+
+
+class DurableJournalError(AirflowFailException):
+    """
+    Raised when durable execution cannot record or replay a step.
+
+    A step's result is not JSON-serializable, or the journal holds a result this version
+    cannot replay. The same step fails the same way on every attempt, so the task fails
+    without retrying.
     """
 
 
@@ -69,6 +90,15 @@ class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatErr
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
 
 
+class ReviewedOutputValidationError(ValueError):
+    """
+    Raised when a reviewer-approved output cannot be converted back into the operator's ``output_type``.
+
+    Typically the reviewer edited the output into something the type rejects, for example free text
+    for an ``int``. The task fails instead of passing a value of the wrong type to downstream tasks.
+    """
+
+
 class LowConfidenceError(ValueError):
     """
     Raised by an LLM operator whose ``DecisionPolicy`` says ``on_uncertain="fail"``.
@@ -85,8 +115,19 @@ class ManagedAgentInvocationError(RuntimeError):
 
     Reserved for terminal conditions -- bad credentials, a missing agent, a
     revoked quota. Transient failures should propagate unchanged so Airflow's
-    task-level retry handles them, and requests the model could fix by
-    rephrasing should raise ``pydantic_ai.exceptions.ModelRetry`` instead.
+    task-level retry handles them, and requests the agent rejected in a way the
+    calling model could fix by rephrasing should raise
+    :class:`ManagedAgentRejected` instead.
+    """
+
+
+class ManagedAgentRejected(Exception):
+    """
+    Raised when a managed agent rejected a request in a way rephrasing could fix.
+
+    Vendor hooks raise this instead of pydantic-ai's ``ModelRetry`` so that the contract
+    module stays free of pydantic-ai; the managed-agent toolset translates it to
+    ``ModelRetry`` at the boundary, and the calling model sees the message and tries again.
     """
 
 

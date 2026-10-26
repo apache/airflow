@@ -32,6 +32,7 @@ from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
     _mask_variable_fields,
+    _mask_xcom_fields,
     _sanitize_for_stdlib_log,
     action_logging,
 )
@@ -39,6 +40,7 @@ from airflow.models import Connection, Log, Pool, Variable
 from airflow.models.dag import DagModel, clear_team_name_cache
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -47,9 +49,11 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
     clear_db_pools,
+    clear_db_runs,
     clear_db_teams,
     clear_db_variables,
 )
+from tests_common.test_utils.mock_operators import MockOperator
 
 
 class TestSanitizeForStdlibLog:
@@ -147,6 +151,20 @@ class TestMaskVariableFields:
     def test_value_without_key_is_still_masked(self):
         result = _mask_variable_fields({"value": "secretval"})
         assert result == {"value": "***"}
+
+
+class TestMaskXComFields:
+    """The XCom value is masked unconditionally in the audit log; the key and map index are kept."""
+
+    def test_masks_value(self):
+        result = _mask_xcom_fields({"key": "report_rows", "value": "payload", "map_index": -1})
+        assert result == {"key": "report_rows", "value": "***", "map_index": -1}
+
+    def test_masks_structured_value(self):
+        assert _mask_xcom_fields({"value": {"nested": ["payload"]}}) == {"value": "***"}
+
+    def test_body_without_value_is_unchanged(self):
+        assert _mask_xcom_fields({"xcom_key": "k", "map_index": 0}) == {"xcom_key": "k", "map_index": 0}
 
 
 class TestMaskBulkFields:
@@ -444,6 +462,58 @@ class TestActionLoggingResourceTeamName:
 
         assert log.team_name == "infra"
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_a_query_param_dag_id_does_not_hijack_the_resource_team(self, session):
+        """A ``?dag_id=`` query parameter must not scope the row to that Dag, so the team still comes
+        from the resource being acted on rather than being deferred to the unrelated Dag."""
+        self._create_resources_owned_by_a_team(session)
+        request = Request(
+            {
+                "type": "http",
+                "method": "DELETE",
+                "headers": [],
+                "query_string": b"dag_id=some_unrelated_dag",
+                "path_params": {"connection_id": "team_conn"},
+            }
+        )
+
+        asyncio.run(action_logging(event="delete_connection")(request=request, session=session, user=None))
+
+        log = session.scalar(select(Log).order_by(Log.id.desc()))
+        assert log.dag_id is None
+        assert log.team_name == "payments"
+
+
+class TestActionLoggingDagScope:
+    """``dag_id``/``task_id``/``run_id`` scope an audit row to a Dag, so a query parameter must not
+    set them: a query filter must not file an unrelated write (a connection, a variable) among a
+    Dag's audit rows, which the per-Dag audit endpoints then expose to anyone who can read that Dag.
+
+    Scoping from the route path and the request body is unchanged, and stays covered by the endpoint
+    tests -- ``test_favorite_dag`` for a path-named dag_id, ``test_create_backfill`` for a body-named
+    one.
+    """
+
+    @staticmethod
+    def _logged_row(*, event, query_string):
+        request = Request(
+            {"type": "http", "method": "POST", "headers": [], "query_string": query_string, "path_params": {}}
+        )
+        session = MagicMock(spec=Session)
+        asyncio.run(action_logging(event=event)(request=request, session=session, user=None))
+        (logged,) = session.add.call_args.args
+        return logged
+
+    def test_query_param_dag_id_does_not_scope_the_row(self):
+        # POST /connections?dag_id=victim_dag must not land the connection write among victim_dag's rows.
+        logged = self._logged_row(event="post_connection", query_string=b"dag_id=victim_dag")
+        assert logged.dag_id is None
+
+    def test_query_param_task_id_and_run_id_do_not_scope_the_row(self):
+        logged = self._logged_row(event="post_connection", query_string=b"task_id=t1&run_id=r1")
+        assert logged.task_id is None
+        assert logged.run_id is None
+
 
 class TestActionLoggingUnparsableBody:
     """
@@ -575,3 +645,67 @@ class TestNoActionLoggingRouteRejectsAnUnparsableBody:
         assert not failures, f"an unparsable body ({payload_name}) must not fail these routes:\n" + "\n".join(
             failures
         )
+
+
+@pytest.mark.db_test
+class TestActionLoggingAddressedAttempt:
+    """A request naming one task instance records the attempt it acted on, so that attempt's events list it."""
+
+    def teardown_method(self):
+        clear_db_logs()
+        clear_db_runs()
+
+    @pytest.fixture
+    def task_instances(self, dag_maker, session):
+        with dag_maker("audit_dag", serialized=True):
+            EmptyOperator(task_id="plain")
+            MockOperator.partial(task_id="mapped").expand(arg2=[1, 2])
+        dag_run = dag_maker.create_dagrun(run_id="audit_run")
+        return {(ti.task_id, ti.region_index): ti for ti in dag_run.get_task_instances(session=session)}
+
+    @staticmethod
+    def _log_action(session, path_params, query_string=b""):
+        request = Request(
+            {
+                "type": "http",
+                "method": "PATCH",
+                "headers": [],
+                "query_string": query_string,
+                "path_params": {"dag_id": "audit_dag", "dag_run_id": "audit_run", **path_params},
+            }
+        )
+        asyncio.run(action_logging(event="patch_task_instance")(request=request, session=session, user=None))
+        return session.scalar(select(Log).order_by(Log.id.desc()))
+
+    @pytest.mark.parametrize(
+        ("path_params", "query", "addressed"),
+        [
+            pytest.param({"task_id": "plain"}, "", ("plain", -1), id="unmapped"),
+            pytest.param({"task_id": "mapped", "map_index": "1"}, "", ("mapped", 1), id="map-index"),
+            pytest.param({"task_id": "mapped"}, "region_index=0", ("mapped", 0), id="region"),
+        ],
+    )
+    def test_records_the_attempt_of_the_addressed_task_instance(
+        self, session, task_instances, path_params, query, addressed
+    ):
+        target = task_instances[addressed]
+        if query:
+            query = f"region_id={target.region_id}&{query}"
+
+        logged = self._log_action(session, path_params, query.encode())
+
+        assert logged.task_instance_id == target.id
+        assert logged.map_index == addressed[1]
+
+    @pytest.mark.parametrize(
+        "path_params",
+        [
+            pytest.param({}, id="bulk"),
+            pytest.param({"task_id": "mapped"}, id="ambiguous"),
+            pytest.param({"task_id": "plain", "map_index": "not-a-number"}, id="malformed"),
+        ],
+    )
+    def test_names_no_attempt_unless_exactly_one_task_instance_is_addressed(
+        self, session, task_instances, path_params
+    ):
+        assert self._log_action(session, path_params).task_instance_id is None

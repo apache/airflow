@@ -18,6 +18,11 @@
 Sandbox configuration and lifecycle
 ===================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 .. _sandbox-configuring:
 
 Configuring a sandbox
@@ -49,8 +54,17 @@ egress there is a host-level ``sbx policy``, so the backend honors the default b
 refusing to provision unless the Deployment Manager has declared
 ``host_network_policy="deny-all"``, which means a bare ``SandboxSpec()`` is refused
 under the default ``host_network_policy="unknown"`` rather than silently getting
-an open sandbox. ``allow_egress_to`` names hosts the sandbox may reach, and both
-backends refuse it until you have said something that makes it enforceable:
+an open sandbox. On OpenSandbox the default and ``allow_egress_to`` become a policy
+for the server's egress sidecar, and the backend destroys the sandbox and fails the task unless that
+sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
+addresses rather than only name resolution (see
+:ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). On OpenShell they become
+a policy the sandbox runtime enforces, which the backend reads back before every
+operation and after each one that succeeds; a name lookup there is answered with a synthetic address instead of
+failing, though no query leaves the sandbox (see
+:ref:`the OpenShell backend <sandbox-backend-openshell>`). ``allow_egress_to``
+names hosts the sandbox may reach, and ``sbx`` and Modal refuse it until you have
+said something that makes it enforceable:
 ``sbx`` applies it as a per-sandbox rule on top of that ``deny-all`` host policy,
 since a local rule can narrow egress and never widen it, and Modal matches
 hostnames in the TLS handshake, which is weaker than it sounds and has to be
@@ -58,15 +72,18 @@ opted into with ``egress_enforcement="sni"`` (see
 :ref:`the Modal backend <sandbox-backend-modal>` for exactly what it does and does
 not stop). ``allow_egress_to_cidrs`` names address ranges instead, and on Modal it
 is enforced on the destination address for any port, so it needs no opt-in; it is
-the mode for one service at a fixed public IPv4 address, and ``sbx`` refuses it. A
+the mode for one service at a fixed public IPv4 address, and ``sbx`` and OpenShell refuse it. A
 private address is unreachable from a hosted sandbox whether or not it is listed.
 The two lists can be set together, and traffic matching either is allowed, which
 weakens the address list on port 443.
 ``block_network=False`` opens outbound access; on Modal the cloud metadata
-endpoint and private address ranges stay unreachable even then.
+endpoint and private address ranges stay unreachable even then. OpenShell refuses
+it, because every egress rule there names a host and its ports.
 
 **Packages.** A default sandbox has the Python standard library and no network,
-so an agent that reaches for ``pip install`` gets a DNS failure in a few seconds.
+so an agent that reaches for ``pip install`` gets a DNS failure in a few seconds
+(on OpenShell, where lookups get a synthetic answer, a connection that fails with
+"Permission denied").
 Bake what it needs into the image, which needs no egress at all:
 
 .. code-block:: python
@@ -95,7 +112,8 @@ limit.
 
 **Timeouts.** Three clocks apply. A command has a budget: ``default_command_timeout``
 (60 s) when the model does not ask, up to ``max_command_timeout`` (300 s) when it
-does. The sandbox has a lifetime: ``sandbox_timeout`` on Modal, 3600 s by default,
+does. The sandbox has a lifetime: ``sandbox_timeout`` on Modal and OpenSandbox,
+``ttl_seconds`` on Boat, 3600 s by default on each,
 and the clock runs through the model's thinking time between tool calls, so size it
 against the whole agent run. And Modal can reclaim an idle sandbox after
 ``idle_timeout``, which defaults to ``None`` because a gap for model generation
@@ -132,8 +150,9 @@ Credentials
 ``SandboxSpec.env`` is the only way in. Airflow never populates it: no connection,
 variable or worker environment variable reaches a sandbox unless you name it
 there, and the credential that *provisions* the sandbox never enters it either.
-Modal's token stays on the worker and is used by the client, so code running
-inside cannot call Modal as you or create further sandboxes.
+Modal's token, whether it comes from the ``modal`` connection or the worker
+environment, stays in the task and is used by the client, so code running inside
+cannot call Modal as you or create further sandboxes.
 
 Before you put a real secret in ``env``, four things are true of it.
 
@@ -198,9 +217,49 @@ capped, 50 KiB per stream for ``run_command`` and ``max_read_bytes`` (5 MiB) per
 ``read_file``. Those caps are a budget rather than a transport limit: a 200 MB file
 reads out of a live sandbox in under ten seconds on the same path, but raising the
 cap costs roughly three times the file size in worker memory to show the model 50
-KiB of it. A file leaves through a task instead: give the agent a sandbox a task
-owns, and read the file out through the backend after the run
-(:ref:`sandbox-attach`).
+KiB of it.
+
+A file leaves through ``exports`` instead. Name the paths the agent will write and
+where each should land, and when the run ends the toolset copies them out before
+it destroys the sandbox. The copy streams through the worker in bounded pieces, so
+a file far over ``max_read_bytes`` is never held in worker memory whole, and none
+of it passes through the model's context or XCom. The destinations are templated
+when the toolset is passed through ``AgentOperator``, so each run writes its own,
+and the ``run_command`` tool tells the model which files will be collected so it
+writes them where they are expected. A local destination's missing directories
+are created; on object storage a key needs none:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
+    :language: python
+    :start-after: [START howto_sandbox_agent_export]
+    :end-before: [END howto_sandbox_agent_export]
+
+A destination is anything :class:`~airflow.sdk.ObjectStoragePath` can open, with
+credentials from ``export_conn_id``. Only a regular file is exported, up to
+``max_export_bytes`` (1 GiB by default). Two outcomes are kept apart:
+
+* **A promised file that cannot be exported fails the task.** The file is missing,
+  is a directory, is over the limit, changed size while it was copied, took longer
+  than the limit allows at 1 MiB/s, or the storage refused the write. Every file is
+  first copied to a staging key beside its destination, named after it with a
+  ``.partial`` suffix, and the files are moved into place only once all of them
+  have been copied, so a failed export leaves every destination as it was. The
+  staging keys are removed, and one that cannot be is logged and named in the
+  error. The sandbox is still destroyed.
+* **A sandbox that cannot be destroyed afterwards does not.** The file is delivered,
+  the failure is logged with the sandbox's name, and the backend's lifetime or an
+  operator's sweep reclaims it.
+
+A run that fails exports nothing, and a run that never called a tool has no
+sandbox to export from, which fails the task the same way a missing file does.
+None of these touches the destinations, so a file an earlier try exported is
+still there: a consumer that runs whatever the outcome, such as one with
+``trigger_rule=TriggerRule.ALL_DONE``, should check that the task succeeded before
+it trusts a file. A destination that renders to something other than a storage
+URL fails the task before the model runs.
+``exports`` cannot be combined with ``attach_to``: a sandbox another task owns is
+read out by that task (:ref:`sandbox-attach`), which is also the shape to use when
+the files must survive a failed run.
 
 When the deliverable is a file and the Dag already knows the job, do not use an
 agent for it at all. Drive a backend from a ``@task``: the input goes in through
@@ -220,12 +279,14 @@ A sandbox another task owns
 ---------------------------
 
 The toolset's own sandbox is provisioned from a spec fixed in the Dag file, on the
-model's first tool call, and destroyed when the run ends. Three things cannot be
-done inside that shape: a credential cannot come from a connection, a file the
-agent built cannot leave, and a second run against the same agent, which is what
-:ref:`HITL review <howto:hitl_review>` does when a reviewer asks for changes, cannot
-find the first run's files. All three have the same answer. Let a task create the
-sandbox and hand the agent only the handle.
+model's first tool call, and destroyed when the run ends. Two things cannot be
+done inside that shape: a credential for the code inside the sandbox
+(``SandboxSpec.env``) cannot come from a connection, and a second
+run against the same agent, which is what :ref:`HITL review <howto:hitl_review>`
+does when a reviewer asks for changes, cannot find the first run's files. A file
+the agent built can leave through ``exports`` (:ref:`sandbox-results`), but only
+from a run that succeeded. All of these have the same answer. Let a task create
+the sandbox and hand the agent only the handle.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
     :language: python
@@ -306,8 +367,9 @@ toolset's own.
 
 **Which backends.** Modal sandboxes can be found by id from any process, so
 ``ModalSandboxBackend`` supports this. ``sbx`` runs a microVM on the worker that
-created it and cannot be reached from another task, and ``OpenSandboxBackend``
-has nowhere on a sandbox to keep the owner and holder, so both refuse
+created it and cannot be reached from another task, ``OpenSandboxBackend`` and
+``BoatSandboxBackend`` have nowhere on a sandbox to keep the owner and holder, and
+``OpenShellSandboxBackend`` does not implement attaching yet, so all four refuse
 ``SandboxSpec.owner`` and ``attach_to``. A backend of your own opts in by
 implementing :class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend`
 (:ref:`sandbox-byo`).
@@ -337,10 +399,10 @@ sandbox to be certain the command stopped, and the result then says
 ``[sandbox was replaced; files from earlier calls are gone]`` so the model knows
 to start over. Any other failure that loses the sandbox is reported the same way.
 
-**A run that outlives its sandbox fails the task.** When ``sandbox_timeout`` or
-``idle_timeout`` passes mid-run, the next tool call reaches a sandbox that is gone,
-which is terminal. This is the normal end of any run longer than its sandbox's
-lifetime. For a sandbox the toolset provisions itself, human output review is
+**A run that outlives its sandbox fails the task.** When ``sandbox_timeout``
+(``ttl_seconds`` on Boat) or ``idle_timeout`` passes mid-run, the next tool call
+reaches a sandbox that is gone, which is terminal. This is the normal end of any
+run longer than its sandbox's lifetime. For a sandbox the toolset provisions itself, human output review is
 not part of the run: it starts after the agent has finished and the sandbox's
 teardown has been requested, so the toolset holds no sandbox and no files through
 a review pause. A sandbox another task owns keeps running through the review, and

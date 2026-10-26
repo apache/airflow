@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = []
 # ///
 """Fail when any shared/<dist> workspace member is missing its mypy prek config.
@@ -47,6 +47,8 @@ repos:
     hooks:
       - id: mypy-shared-{dist}
         name: Run mypy for shared-{dist}
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: >-
           ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py

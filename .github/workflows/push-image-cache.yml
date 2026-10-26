@@ -37,9 +37,9 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       debian-version:
-        description: "Base Debian distribution to use for the build (bookworm)"
+        description: "Base Debian distribution to use for the PROD image build (trixie/bookworm)"
         type: string
-        default: "bookworm"
+        default: "trixie"
       install-mysql-client-type:
         description: "MySQL client type to use during build (mariadb/mysql)"
         type: string
@@ -79,7 +79,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     permissions:
       contents: read
       packages: write
@@ -149,7 +149,7 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     permissions:
       contents: read
       packages: write
@@ -194,7 +194,7 @@ jobs:
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Download packages prepared as artifacts"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: prod-packages
           path: ./docker-context-files

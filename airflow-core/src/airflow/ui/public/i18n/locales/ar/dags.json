@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "تم تحديث {{count}} من أصل {{total}}",
+  "assetSchedule": "تم تحديث {{count, number}} من أصل {{total, number}}",
   "dagActions": {
     "delete": {
       "button": "حذف الDag",
@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
     "allStates": "جميع الحالات",
-    "anyRunState": "أي تشغيل",
     "favorite": {
       "all": "الكل",
       "favorite": "تفضيل",
       "unfavorite": "إلغاء التفضيل"
     },
-    "lastRunState": "آخر تشغيل",
     "noTimetableTypesFound": "لم يتم العثور على أنواع جداول زمنية",
     "paused": {
       "active": "مفعّل",
@@ -30,7 +28,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "لم يتم العثور على مهام.",
-      "title": "المهام المتأثرة: {{count}}"
+      "title": "المهام المتأثرة: {{count, number}}"
     },
     "clear": {
       "button": "مسح {{type}}",

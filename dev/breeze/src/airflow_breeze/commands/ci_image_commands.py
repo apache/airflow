@@ -38,7 +38,6 @@ from airflow_breeze.commands.common_image_options import (
     option_airflow_constraints_reference_build,
     option_build_progress,
     option_cache_from_image,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
@@ -252,7 +251,6 @@ option_ci_image_file_to_load = click.option(
 @option_builder
 @option_cache_from_image
 @option_commit_sha
-@option_debian_version
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
@@ -292,7 +290,6 @@ def build(
     builder: str,
     cache_from_image: str | None,
     commit_sha: str | None,
-    debian_version: str,
     debug_resources: bool,
     dev_apt_command: str | None,
     dev_apt_deps: str | None,
@@ -345,7 +342,6 @@ def build(
         builder=builder,
         cache_from_image=cache_from_image,
         commit_sha=commit_sha,
-        debian_version=debian_version,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         disable_airflow_repo_cache=disable_airflow_repo_cache,
@@ -1063,7 +1059,7 @@ def import_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.10-slim-bookworm
+    FROM python:3.11-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz
@@ -1106,7 +1102,9 @@ def import_mount_cache(
     console_print("[info]Built temporary image and copied cache[/]")
     console_print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
-    run_command(["docker", "system", "prune", "-f"], check=True)
+    # Not `docker system prune`: it also removes unused build cache, which includes the cache
+    # mount that was just filled, so the next build would start with an empty uv cache.
+    run_command(["docker", "image", "prune", "-f"], check=True)
     console_print("[info]Built temporary image and copying context[/]")
     console_print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()
