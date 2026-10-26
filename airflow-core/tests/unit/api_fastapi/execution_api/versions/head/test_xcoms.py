@@ -1827,3 +1827,32 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+    def test_callback_requester_team_scoping(self, client, exec_app, session, dag_maker):
+        """An execution token exchanged for a callback resolves its team via Callback.bundle_name."""
+        from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
+        from airflow.sdk.definitions.callback import SyncCallback
+
+        team_a_dag = f"team_a_{uuid4().hex}"
+        team_a_dr, _ = self._make_dag(session, dag_maker, team_a_dag, "team_a")
+        self._insert_xcom(session, team_a_dr, key="k", value="v")
+
+        team_b_dag = f"team_b_{uuid4().hex}"
+        self._make_dag(session, dag_maker, team_b_dag, "team_b")
+
+        callback = ExecutorCallback(
+            callback_def=SyncCallback("os.getpid", kwargs={}),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        )
+        callback.bundle_name = f"bundle-{team_a_dag}"
+        session.add(callback)
+        session.commit()
+        self._authenticate_as(exec_app, callback.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            same_team = client.get(self._url(team_a_dag, key="k"))
+            other_team = client.get(self._url(team_b_dag, key="k"))
+
+        assert same_team.status_code == 200, same_team.json()
+        assert same_team.json() == {"key": "k", "value": "v"}
+        assert other_team.status_code == 403, other_team.json()
