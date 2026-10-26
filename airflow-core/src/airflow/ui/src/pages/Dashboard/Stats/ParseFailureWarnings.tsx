@@ -1,5 +1,4 @@
-/*
-!
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +28,7 @@ const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
 export const ParseFailureWarnings = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
-  const { i18n, t: translate } = useTranslation(["dashboard", "components"]);
+  const { i18n, t: translate } = useTranslation(["dashboard"]);
   const { data, error, isLoading } = useDagWarningServiceListDagWarnings(
     { limit: 100, warningType: PARSE_FAILURE_WARNING_TYPE },
     undefined,
@@ -47,8 +46,7 @@ export const ParseFailureWarnings = () => {
   }
   return (
     <>
-      <
-StatsCard
+      <StatsCard
         colorScheme="failed"
         count={count}
         icon={<LuFileWarning />}
@@ -57,8 +55,7 @@ StatsCard
         label={translate("dashboard:stats.parseFailureWarnings", { count })}
         onClick={onOpen}
       />
-      <
-DAGWarningsModal
+      <DAGWarningsModal
         heading={translate("dashboard:stats.parseFailureWarnings", { count })}
         onClose={onClose}
         open={open}

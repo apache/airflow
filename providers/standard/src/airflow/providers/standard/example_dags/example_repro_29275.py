@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+import traceback
 
 
 from airflow.sdk import dag, task, emit_dag_warning
@@ -25,5 +26,5 @@ for dag_id in "ABCDE":
 
         dynamic_dag()
     except Exception:
-        emit_dag_warning(f"repro_{dag_id}", f"Failed to create dynamic DAG {dag_id}")
+        emit_dag_warning(f"repro_{dag_id}", f"Failed to create dynamic DAG {dag_id}", stacktrace=traceback.format_exc())
         log.exception("Failed to create dynamic DAG %s", dag_id)
