@@ -18,11 +18,15 @@
  */
 /// <reference types="@testing-library/jest-dom" />
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 
+import { toaster } from "src/system-components";
+
+import type { useUpdateHITLDetail as UseUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { HITLResponseForm } from "./HITLResponseForm";
@@ -295,5 +299,35 @@ describe("HITLResponseForm – multiple requires a selection", () => {
 
     expect(screen.getByTestId("hitl-option-A")).toBeEnabled();
     expect(screen.queryByText("response.selectAtLeastOne")).not.toBeInTheDocument();
+  });
+});
+
+describe("useUpdateHITLDetail – a refused answer", () => {
+  it("shows the reason the backend gave instead of the bare status text", async () => {
+    const detail =
+      "The Task Instance is no longer waiting for a response, so this Human-in-the-loop response was not recorded.";
+    const { useUpdateHITLDetail: useRealUpdateHITLDetail } = await vi.importActual<{
+      useUpdateHITLDetail: typeof UseUpdateHITLDetail;
+    }>("src/queries/useUpdateHITLDetail");
+
+    vi.spyOn(TaskInstanceService, "updateHitlDetail").mockRejectedValue({
+      body: { detail },
+      message: "Conflict",
+      status: 409,
+    });
+    const createToast = vi.spyOn(toaster, "create").mockImplementation(() => "toast-id");
+    const { result } = renderHook(
+      () =>
+        useRealUpdateHITLDetail({ dagId: "test_dag", dagRunId: "run_1", mapIndex: -1, taskId: "test_task" }),
+      { wrapper: Wrapper },
+    );
+
+    result.current.updateHITLResponse({ chosen_options: ["Approve"], params_input: {} });
+
+    await waitFor(() =>
+      expect(createToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: detail, type: "error" }),
+      ),
+    );
   });
 });
