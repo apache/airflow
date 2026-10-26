@@ -26,6 +26,7 @@ from google.api_core.exceptions import NotFound, PreconditionFailed
 
 import airflow.version
 from airflow.models import Connection
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 from tests_common.test_utils.config import conf_vars
 
@@ -287,7 +288,7 @@ class TestGCSDagBundle:
 
 
 def _archive_hook(store: dict[str, tuple[bytes, str]]) -> MagicMock:
-    hook = MagicMock()
+    hook = MagicMock(spec=GCSHook)
     hook.get_bucket.return_value = object()
     client = MagicMock()
     client.bucket.return_value = _FakeBucket(store)
@@ -348,26 +349,43 @@ class TestGCSDagBundleArchive:
         sentinel = bundle.path / "local-only.txt"
         sentinel.write_text("keep me")
 
-        calls = {"download": 0}
-        original_blob = _FakeBucket.blob
-
-        def counting_blob(self, blob_name):
-            blob = original_blob(self, blob_name)
-            real_download = blob.download_to_filename
-
-            def download(filename, if_generation_match=None):
-                calls["download"] += 1
-                return real_download(filename, if_generation_match=if_generation_match)
-
-            blob.download_to_filename = download
-            return blob
-
-        with patch.object(_FakeBucket, "blob", counting_blob):
+        with patch.object(
+            _FakeBlob,
+            "download_to_filename",
+            autospec=True,
+            side_effect=_FakeBlob.download_to_filename,
+        ) as spy:
             bundle.refresh()
 
-        assert calls["download"] == 0
+        assert spy.call_count == 0
         assert sentinel.read_text() == "keep me"
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+
+    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    def test_empty_etag_always_restages(self, mock_gcs_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        store = {GCS_ARCHIVE_OBJECT: (archive, "")}
+        mock_gcs_hook_property.return_value = _archive_hook(store)
+
+        bundle = GCSDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        with patch.object(
+            _FakeBlob,
+            "download_to_filename",
+            autospec=True,
+            side_effect=_FakeBlob.download_to_filename,
+        ) as spy:
+            bundle.initialize()
+            assert not (bundle.path / bundle.archive_etag_marker).exists()
+            bundle.refresh()
+
+        assert spy.call_count == 2
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert not (bundle.path / bundle.archive_etag_marker).exists()
 
     @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
     def test_refresh_from_archive_replaces_tree_when_etag_changes(self, mock_gcs_hook_property):
