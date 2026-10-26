@@ -4728,19 +4728,12 @@ export const $DAGWarningResponse = {
             title: 'Timestamp'
         },
         dag_display_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Dag Display Name'
         }
     },
     type: 'object',
-    required: ['dag_id', 'warning_type', 'message', 'timestamp'],
+    required: ['dag_id', 'warning_type', 'message', 'timestamp', 'dag_display_name'],
     title: 'DAGWarningResponse',
     description: 'Dag Warning serializer for responses.'
 } as const;
