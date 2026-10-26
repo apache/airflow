@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 @dataclass
 class DagParseWarningRecord:
-    """A parse-time warning for a single DAG id emitted during Dag file import."""
+    """A parse-time warning for a single DAG id emitted during DAG file import."""
 
     dag_id: str
     message: str
