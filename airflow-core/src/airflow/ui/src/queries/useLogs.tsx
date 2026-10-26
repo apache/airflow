@@ -195,7 +195,7 @@ export const parseLogs = ({
   }
 
   const flatEntries: Array<ParsedLogEntry> = (() => {
-    type Group = { id: number; level: number; name: string };
+    type Group = { headerIndex: number; id: number; level: number; name: string };
     const groupStack: Array<Group> = [];
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
@@ -221,7 +221,7 @@ export const parseLogs = ({
         const level = groupStack.length;
         const parentGroup = groupStack[groupStack.length - 1];
 
-        groupStack.push({ id, level, name: groupName });
+        groupStack.push({ headerIndex: result.length, id, level, name: groupName });
         result.push({
           element: groupName,
           group: { id, level, parentId: parentGroup?.id, type: "header" },
@@ -231,7 +231,12 @@ export const parseLogs = ({
       }
 
       if (text.includes("::endgroup::")) {
-        groupStack.pop();
+        const closedGroup = groupStack.pop();
+
+        // Hide groups that closed with nothing in them.
+        if (closedGroup !== undefined && result.length === closedGroup.headerIndex + 1) {
+          result.pop();
+        }
 
         return;
       }
