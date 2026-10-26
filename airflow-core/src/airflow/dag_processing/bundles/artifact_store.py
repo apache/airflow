@@ -17,8 +17,9 @@
 """
 Contract for the published-artifact backend of manifest-backed Dag bundles.
 
-An artifact store holds a bundle's release reference, the one mutable document naming the
-current version, and one immutable snapshot per published version: the bundle files and the
+An artifact store holds a bundle's release reference, the mutable document naming the current
+version; its automatic-publication state, the mutable document that the bundle's automatic
+publishers share; and one immutable snapshot per published version: the bundle files and the
 manifest that lists them. Manifest-backed Dag bundles access published artifacts only through
 this interface.
 """
@@ -89,7 +90,7 @@ class PublishedSnapshot:
 
 class ArtifactStore(ABC):
     """
-    Storage backend for a bundle's published release reference and snapshots.
+    Storage backend for a bundle's release reference, automatic-publication state and snapshots.
 
     Storage failures raise ``BundleManifestError``, or ``BundleManifestNotFoundError`` when an
     artifact is missing. ``BundleManifestSourceChangedError`` is reserved for reads of the
@@ -107,6 +108,11 @@ class ArtifactStore(ABC):
     @abstractmethod
     def ref_locator(self) -> str:
         """Opaque identifier of the release reference, for messages and results."""
+
+    @property
+    @abstractmethod
+    def state_locator(self) -> str:
+        """Opaque identifier of the automatic-publication state, for messages and results."""
 
     @abstractmethod
     def snapshot_locator(self, version: str) -> str:
@@ -138,14 +144,39 @@ class ArtifactStore(ABC):
         """
 
     @abstractmethod
+    def read_state(self) -> dict[str, Any]:
+        """
+        Read the automatic-publication state payload.
+
+        Raises ``BundleManifestNotFoundError`` when there is no state, and ``BundleManifestError``
+        when it is not a JSON object.
+        """
+
+    @abstractmethod
+    def write_state(self, payload: dict[str, Any]) -> None:
+        """
+        Atomically replace the automatic-publication state.
+
+        Must be called inside ``publication_guard``.
+
+        Returns only once the replacement is durable. Failures, including unconfirmed durability,
+        raise ``BundleManifestError``: the state never selects the served release.
+
+        When ``publication_guard`` is not a lock, the replacement is conditional on the state read
+        inside the same guard being unchanged, or still absent if that read found none; with no
+        such read, on the state read just before writing. Raises ``ArtifactStoreConflictError``
+        when another publisher replaced it first, unless the winner wrote identical content.
+        """
+
+    @abstractmethod
     def publication_guard(self) -> AbstractContextManager[None]:
         """
         Protect a publisher's read-check-write section against concurrent publishers.
 
         Either a lock that serializes the bundle's publishers across hosts and, on acquire,
         removes leftovers of earlier failed publications; or, for a store that writes no
-        temporary artifacts, the scope of the conditions ``write_ref`` applies. Entering such a
-        guard discards conditions from reads made before it.
+        temporary artifacts, the scope of the conditions ``write_ref`` and ``write_state``
+        apply. Entering such a guard discards conditions from reads made before it.
         """
 
     @abstractmethod
