@@ -24,10 +24,17 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
+from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
+from airflow.providers.common.ai.observability import (
+    build_run_identity_attributes,
+    make_task_instance_run_key,
+    stamp_identity_on_agent_spans,
+)
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -43,25 +50,34 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import log_run_summary
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.logging import (
+    MODEL_NAME_XCOM_KEY,
+    format_usage_for_xcom,
+    log_run_summary,
+    log_run_usage,
+)
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
+from airflow.providers.common.ai.utils.usage_budget import copy_run_usage, subtract_run_usage
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 try:
-    # New enough cores register an operator's declared ``output_type`` classes for
-    # XCom deserialization from a worker-side walk over the loaded DAG. On those
-    # cores the model instance flows through XCom unchanged. Older cores lack that
-    # walk, so the operator dumps to a dict instead (still deserializable anywhere).
+    # The worker-side DAG walk registers operator-declared ``output_type`` classes
+    # for XCom deserialization. ``apache-airflow-task-sdk`` versions with this walk
+    # send model instances unchanged; older versions dump them to a dict instead.
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
-except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     from pydantic_ai import Agent
+    from pydantic_ai.agent import AgentRunResult
+    from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -74,7 +90,7 @@ __all__ = ["DecisionPolicy", "LLMOperator"]
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -88,6 +104,26 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
     The Pydantic class must be defined at module scope: classes nested inside
     a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
+    No tool runs in the task: the operator accepts no function tools, toolsets or
+    capabilities, makes one model call (repeated only when the output fails validation)
+    and returns its output. For an agent that calls tools, use
+    :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+
+    Once ``_clear_usage_budget`` has run, nothing may fail the attempt (raising
+    ``DownstreamTasksSkipped`` to signal success is fine): a failure would be retried
+    with a fresh budget. This applies to subclasses that override ``execute`` or
+    ``execute_complete``.
+
+    Alongside the returned output, the run's ``run_id`` and token ``usage``
+    are pushed to XCom under the ``run_id`` and ``usage`` keys, the same shape
+    :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` uses,
+    so a downstream task can reference the run and what it cost. ``usage`` is this
+    attempt's own usage, not the cross-attempt cumulative total described under
+    ``usage_limits`` below. Both are pushed on a failed run too, so a downstream
+    ``all_done`` task or failure callback can read what was spent, and which run,
+    before it raised. The ``run_id`` also ties the task to its GenAI trace (see the
+    provider's observability docs).
+
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
@@ -100,15 +136,18 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
-        See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
-        for the full list.
+    :param model_settings: Pydantic AI :class:`~pydantic_ai.settings.ModelSettings`
+        for the model call, such as ``temperature`` or ``max_tokens``, including
+        provider-specific settings. ``None`` (default) uses the model's defaults.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation against ``output_type``. ``None`` (default) uses Pydantic AI's
+        default.
     :param usage_limits: Optional pydantic-ai
         :class:`~pydantic_ai.usage.UsageLimits` enforced on the run, or a dict
         of the same fields (e.g.
@@ -120,18 +159,21 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         non-numeric string -- fails the task with a ``ValueError`` naming the
         field and the rendered value, instead of silently disabling the
         limit. A ``UsageLimits`` instance passed directly is used as-is and
-        is not templated or validated. ``None`` (default) means no
-        enforcement.
+        is not templated or validated. ``None`` (default) sets no token, cost,
+        or tool-call limits, but pydantic-ai still caps the run at its default
+        ``request_limit`` of ``50`` requests.
 
-        A dict that omits ``request_limit`` still gets pydantic-ai's default of
-        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
-        request cap. This matches building a ``UsageLimits`` directly, but it is
-        easy to miss when moving from ``usage_limits=None`` to a dict that only
-        sets ``cost_limit``. See :ref:`howto/operator:llm` for the full set of
-        caveats.
-    :param require_approval: If ``True``, the task defers after generating
-        output and waits for a human reviewer to approve or reject via the
-        HITL interface.  Default ``False``. Needs Airflow 3.1+.
+        A dict that omits ``request_limit`` gets the same default of ``50``
+        requests -- pass ``"request_limit": None`` explicitly for no request
+        cap. This matches building a ``UsageLimits`` directly.
+
+        On Airflow >= 3.3, a set ``usage_limits`` bounds the whole task instance:
+        usage from earlier attempts counts against it. See
+        :ref:`howto/operator:llm` for the full set of caveats.
+    :param require_approval: If ``True``, the task pauses after generating
+        output (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2)
+        and waits for a human reviewer to approve or reject via the HITL
+        interface.  Default ``False``. Needs Airflow 3.1+.
     :param approval_timeout: Maximum time to wait for a review.  When
         exceeded, ``on_approval_timeout`` decides the outcome.
     :param on_approval_timeout: What to do when ``approval_timeout`` expires
@@ -143,25 +185,31 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         ``decision_policy`` that reviews) and a positive
         ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
-        before approving.  The modified value is returned as the task result.
+        before approving.  The edit is converted back into ``output_type`` and returned
+        as the task result.  For a type pydantic can validate, an edit that does not validate
+        fails the task with ``ReviewedOutputValidationError``; a retry runs the model again.
         Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
-        opened.  A retry re-notifies with the regenerated
-        output while the open review keeps the original subject and body.
-        Default ``None``.
+        opened.  A retry re-notifies with the regenerated output.  On
+        Airflow 3.4+ the reopened review shows it too; on Airflow 3.1 to 3.3
+        the review keeps the original subject, body and editable output, so
+        approving it unedited returns the first attempt's output.  Default
+        ``None``.
     :param approval_assigned_users: Users allowed to answer the review, as
         ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
         user id.  ``None`` (default) lets any user with the permission respond.
-        The list is fixed when the review is first created.  Needs Airflow 3.1+.
-    :param decision_policy: A :class:`~airflow.providers.common.ai.utils.decision.DecisionPolicy`
+        On Airflow 3.1 to 3.3 the list is fixed when the review is first
+        created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
+    :param decision_policy: Experimental. A
+        :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
         itself (``min_confidence``) and what happens otherwise (``on_uncertain``: ``"review"``
         or ``"fail"``). Confidence comes from models that report one per output field, such as
-        a classifier model (TypeSafe's), in ``provider_details``. A structured output is judged
-        by its least confident field among the fields that reported one; a field whose type
-        reports none (a bounded float, where the probability is the answer) is not gated, and
-        the record's ``confidence`` map shows which fields were compared. When no field reports
+        a decision model, in ``provider_details``. A structured output is judged by its least
+        confident field among the fields that reported one; a field whose type reports none (a
+        bounded float, where the probability is the answer) is not gated, and the record's
+        ``confidence`` map shows which fields were compared. When no field reports
         any confidence, as with a text model, the output counts as uncertain, so swapping the
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
@@ -186,7 +234,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         "model_id",
         "fallback_conn_ids",
         "system_prompt",
-        "agent_params",
+        "model_settings",
         "usage_limits",
     )
 
@@ -198,8 +246,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
-        agent_params: dict[str, Any] | None = None,
+        output_type: type | UnionType = str,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -225,24 +274,25 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        # Return the Pydantic instance when the core can register ``output_type``
+        # Return the Pydantic instance when ``apache-airflow-task-sdk`` can register ``output_type``
         # for deserialization (its worker-side DAG walk); otherwise, or when the
         # user opts in, dump to a dict so the value is deserializable anywhere.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
-        self.agent_params = agent_params or {}
+        self.model_settings = model_settings
+        self.output_retries = output_retries
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         if on_approval_timeout not in ("fail", *LLMApprovalMixin.TIMEOUT_DEFAULTS):
             raise ValueError(
                 f"on_approval_timeout must be 'fail', 'approve', or 'reject', got {on_approval_timeout!r}."
             )
-        # Checked before the combination rule so an old core reports the core version
+        # Checked before the combination rule so an older Airflow version reports the Airflow version
         # rather than sending the user to drop an argument that was never the problem.
         if require_approval and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException("require_approval=True needs Airflow 3.1+.")
         if self.decision_policy.reviews and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException(
-                "DecisionPolicy(on_uncertain='review') needs Airflow 3.1+; use on_uncertain='fail' on this core."
+                "DecisionPolicy(on_uncertain='review') needs Airflow 3.1+; use on_uncertain='fail' on Airflow versions older than 3.1."
             )
 
         # A review can open either way; both settings make the approval flow reachable.
@@ -272,27 +322,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         for notifier in self.approval_notifiers:
             if not isinstance(notifier, BaseNotifier):
                 raise TypeError(f"approval_notifiers must contain BaseNotifier instances, got {notifier!r}")
-        assigned_users: list[Any]
-        if approval_assigned_users is None:
-            assigned_users = []
-        elif isinstance(approval_assigned_users, dict):
-            assigned_users = [approval_assigned_users]
-        elif isinstance(approval_assigned_users, str) or not isinstance(approval_assigned_users, Iterable):
-            raise TypeError(
-                "approval_assigned_users must be a {'id': str, 'name': str} dict or an iterable of them, "
-                f"got {approval_assigned_users!r}"
-            )
-        else:
-            assigned_users = list(approval_assigned_users)
-        for user in assigned_users:
-            if (
-                not isinstance(user, dict)
-                or not isinstance(user.get("id"), str)
-                or not isinstance(user.get("name"), str)
-            ):
-                raise TypeError(
-                    f"approval_assigned_users entries must be {{'id': str, 'name': str}} dicts, got {user!r}"
-                )
+        assigned_users = normalize_assigned_users(approval_assigned_users, param="approval_assigned_users")
         if assigned_users and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException("approval_assigned_users needs Airflow 3.1+.")
         self.approval_assigned_users: list[HITLUser] = assigned_users
@@ -313,6 +343,21 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
+    def _create_agent(self, *, output_type: Any, instructions: str) -> Agent[object, Any]:
+        """
+        Build the agent for this operator's model call.
+
+        The only way any LLM operator builds its agent. Only ``model_settings`` and
+        ``output_retries`` reach it, so no function tool, toolset or capability is ever
+        registered; an agent with tools is what ``AgentOperator`` is for.
+        """
+        return self.llm_hook.create_agent(
+            output_type=output_type,
+            instructions=instructions,
+            model_settings=self.model_settings,
+            retries=self.output_retries,
+        )
+
     def execute(self, context: Context) -> Any:
         if self._may_review:
             self.validate_approval_prompt()  # type: ignore[misc]
@@ -320,14 +365,47 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent: Agent[object, Any] = self.llm_hook.create_agent(
-            output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
-        )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
+
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
+        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
+        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
+        ti = self._resolve_task_instance(context)
+        run_kwargs: dict[str, Any] = {}
+        if ti is not None:
+            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
+            run_kwargs["run_id"] = make_task_instance_run_key(ti)
+
+        attempt_usage = RunUsage()
+        try:
+            result = self._run_llm(
+                context, agent, self.prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
+            )
+        except BaseException:
+            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
+            # still reports what it spent: the capped run is the one cost tracking most needs.
+            try:
+                log_run_usage(self.log, attempt_usage, outcome="failed")
+            except Exception:
+                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+            try:
+                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+            except Exception:
+                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+            if ti is not None:
+                try:
+                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
+                except Exception:
+                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
+            raise
         output = result.output
 
+        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+        if ti is not None:
+            self._push_xcom(context, "run_id", result.run_id)
         model_confidence = ModelConfidence.from_result(result)
+        if model_confidence.model is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -359,17 +437,19 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             self._log_review(review, confidence, threshold)
             body = None
             if review != "require_approval":
-                body = f"```\nPrompt: {self.prompt}\n\n{output}\n```\n\n" + "\n\n".join(
+                # The same JSON text the default body and the edit field show, not the object's repr.
+                body = f"```\nPrompt: {self.prompt}\n\n{dump_output_to_json(output)}\n```\n\n" + "\n\n".join(
                     describe_confidence(model_confidence, name, threshold) for name in fields
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
         if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True``, or a core without the worker-side
+            # ``serialize_output=True``, or an ``apache-airflow-task-sdk`` version without the worker-side
             # deserialization-class walk: dump to a dict so XCom carries a plain
             # JSON payload that deserializes without an allow-list entry.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def execute_complete(
@@ -379,12 +459,75 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
     ) -> Any:
-        """Resume after human review and restore the Pydantic model for XCom consumers."""
+        """
+        Resume after human review and convert the output back into ``output_type``.
+
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
+        """
+        output = self._complete_review(context, generated_output, event, decision)
+        self._clear_usage_budget(context)
+        return output
+
+    def _complete_review(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None,
+    ) -> Any:
+        """
+        Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear.
+
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
+        """
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
-            self.output_type, output, serialize_output=self._serialize_model_output
+            self.output_type,
+            output,
+            serialize_output=self._serialize_model_output,
+            # An unedited approval hands back ``generated_output`` as is, and only an edit may fail the task.
+            is_edited=output != generated_output,
         )
+
+    def _run_llm(
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        user_prompt: Any,
+        *,
+        usage_limits: UsageLimits | None,
+        run_usage: RunUsage | None = None,
+        **run_kwargs: Any,
+    ) -> AgentRunResult[Any]:
+        """
+        Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies.
+
+        ``run_usage``, when given, receives this attempt's own usage, also when the run raises
+        partway through. With the usage budget, pydantic-ai is handed the cross-attempt total
+        instead, so the attempt's share is credited to ``run_usage`` once the run ends.
+        """
+        # Contexts built without a ``task_instance`` stay valid for runs that have no ``usage_limits``.
+        ti = context["task_instance"] if usage_limits is not None else None
+        self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
+        if self._usage_budget is None:
+            if run_usage is not None:
+                run_kwargs["usage"] = run_usage
+            result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits, **run_kwargs)
+            log_run_summary(self.log, result)
+            return result
+        cumulative_usage = self._usage_budget.load()
+        base = copy_run_usage(cumulative_usage)
+        try:
+            result, attempt_usage = self._run_tracked(
+                agent, user_prompt, run_usage=cumulative_usage, usage_limits=usage_limits, **run_kwargs
+            )
+        finally:
+            if run_usage is not None:
+                run_usage.incr(subtract_run_usage(cumulative_usage, base))
+        log_run_summary(self.log, result, usage=attempt_usage)
+        self._log_cumulative_usage(cumulative_usage)
+        return result
 
     def _log_review(self, review: ReviewReason, confidence: float | None, threshold: float | None) -> None:
         if review == "below_threshold":
@@ -419,21 +562,34 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
                 self._push_decision(context, timed_out_record(decision))
             raise
 
-    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
-        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
-        if not self.do_xcom_push:
-            return
+    def _resolve_task_instance(self, context: Context) -> Any:
+        """
+        Return ``context["task_instance"]`` if it can push XComs, else ``None``.
+
+        A hand-built context (old tests, custom runners) may carry no task instance, ``None``, or a
+        dict stand-in, none of which has the attributes the run identity is built from either.
+        """
         try:
             ti = context["task_instance"]
         except (KeyError, TypeError):
-            ti = None
-        push = getattr(ti, "xcom_push", None)
-        if not callable(push):
-            # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
-            # record is inspection output, so the run goes on without it.
-            self.log.warning("No task instance in the context; the decision record was not pushed to XCom.")
+            return None
+        return ti if callable(getattr(ti, "xcom_push", None)) else None
+
+    def _push_xcom(self, context: Context, key: str, value: Any) -> None:
+        """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""
+        if not self.do_xcom_push:
             return
-        push(key=DECISION_XCOM_KEY, value=record)
+        ti = self._resolve_task_instance(context)
+        if ti is None:
+            # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
+            # value is inspection output, so the run goes on without it.
+            self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
+            return
+        ti.xcom_push(key=key, value=value)
+
+    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
+        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+        self._push_xcom(context, DECISION_XCOM_KEY, record)
 
     def _finalize_decision(
         self, context: Context, event: dict[str, Any], decision: dict[str, Any] | None, *, action: Any

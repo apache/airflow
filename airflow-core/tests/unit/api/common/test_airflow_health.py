@@ -57,14 +57,14 @@ def _mock_job(
     hostname: str,
     heartbeat: datetime,
     alive: bool,
-    team_name: str | None = None,
+    team_names: list[str] | None = None,
     bundle_names: list[str] | None = None,
 ) -> MagicMock:
     job = MagicMock(spec=Job)
     job.hostname = hostname
     job.latest_heartbeat = heartbeat
     job.is_alive = MagicMock(return_value=alive)
-    job.team_name = team_name
+    job.team_names = team_names or []
     job.bundle_names = bundle_names
     return job
 
@@ -86,7 +86,7 @@ def _create_job(
     heartbeat: datetime,
     state: JobState = JobState.RUNNING,
     end_date: datetime | None = None,
-    team_name: str | None = None,
+    team_names: list[str] | None = None,
     bundle_names: list[str] | None = None,
 ) -> Job:
     job = Job(
@@ -94,7 +94,7 @@ def _create_job(
         latest_heartbeat=heartbeat,
         hostname=hostname,
         end_date=end_date,
-        team_name=team_name,
+        team_names=team_names or [],
         bundle_names=bundle_names,
     )
     if runner_class is TriggererJobRunner:
@@ -118,13 +118,13 @@ ALIVE_TRIGGERER_JOB_MOCK = _mock_job(
     hostname="triggerer-alive",
     heartbeat=datetime(2024, 2, 1),
     alive=True,
-    team_name="team-a",
+    team_names=["team-a"],
 )
 STALE_TRIGGERER_JOB_MOCK = _mock_job(
     hostname="triggerer-stale",
     heartbeat=datetime(2024, 1, 1),
     alive=False,
-    team_name="team-b",
+    team_names=["team-b"],
 )
 
 ALIVE_DAG_PROCESSOR_JOB_MOCK = _mock_job(
@@ -230,7 +230,7 @@ def test_get_airflow_health_all_stale_jobs(mock_get_jobs_health):
 
 
 @patch("airflow.api.common.airflow_health.get_jobs_health")
-def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_health):
+def test_get_airflow_health_mixed_triggerers_include_team_names(mock_get_jobs_health):
     mock_get_jobs_health.side_effect = [[], [ALIVE_TRIGGERER_JOB_MOCK, STALE_TRIGGERER_JOB_MOCK], []]
     health_status = get_airflow_health()
 
@@ -241,7 +241,7 @@ def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_hea
         {
             "hostname": ALIVE_TRIGGERER_JOB_MOCK.hostname,
             "latest_triggerer_heartbeat": ALIVE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-            "team_name": ALIVE_TRIGGERER_JOB_MOCK.team_name,
+            "team_names": ALIVE_TRIGGERER_JOB_MOCK.team_names,
         },
     ]
     assert (
@@ -267,7 +267,7 @@ def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_he
                 {
                     "hostname": ALIVE_TRIGGERER_JOB_MOCK.hostname,
                     "latest_triggerer_heartbeat": ALIVE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-                    "team_name": ALIVE_TRIGGERER_JOB_MOCK.team_name,
+                    "team_names": ALIVE_TRIGGERER_JOB_MOCK.team_names,
                 }
             ],
         },
@@ -300,7 +300,7 @@ def _triggerer(*, alive: bool, team_name: str | None) -> MagicMock:
         hostname=f"triggerer-{team_name}-{'alive' if alive else 'stale'}",
         heartbeat=datetime(2024, 2, 1),
         alive=alive,
-        team_name=team_name,
+        team_names=[team_name] if team_name else [],
     )
 
 
@@ -598,7 +598,7 @@ class TestAirflowHealthFromDb:
         assert health_status["scheduler"]["latest_scheduler_heartbeat"] == first.isoformat()
 
     @provide_session
-    def test_get_airflow_health_mixed_triggerers_include_team_name(self, testing_team, *, session):
+    def test_get_airflow_health_mixed_triggerers_include_team_names(self, testing_team, *, session):
         alive_heartbeat = timezone.utcnow()
         stale_heartbeat = timezone.utcnow() - STALE_HEARTBEAT_AGE
         alive = _create_job(
@@ -606,14 +606,14 @@ class TestAirflowHealthFromDb:
             TriggererJobRunner,
             hostname="triggerer-alive",
             heartbeat=alive_heartbeat,
-            team_name=testing_team.name,
+            team_names=[testing_team.name],
         )
         _create_job(
             session,
             TriggererJobRunner,
             hostname="triggerer-stale",
             heartbeat=stale_heartbeat,
-            team_name=testing_team.name,
+            team_names=[testing_team.name],
         )
         session.commit()
 
@@ -625,7 +625,7 @@ class TestAirflowHealthFromDb:
             {
                 "hostname": alive.hostname,
                 "latest_triggerer_heartbeat": alive_heartbeat.isoformat(),
-                "team_name": testing_team.name,
+                "team_names": [testing_team.name],
             },
         ]
         assert health_status["triggerer"]["latest_triggerer_heartbeat"] == alive_heartbeat.isoformat()

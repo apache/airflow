@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,10 +39,13 @@ const mockDagRun = { dag_id: "my_dag", dag_run_id: "run_1", state: "success" } a
 const mockTaskInstance = { dag_id: "my_dag", task_id: "my_task" } as TaskInstanceResponse;
 
 let mockParams: Record<string, string> = {};
+let mockSearch = new URLSearchParams();
+let taskQuery: unknown;
 
 vi.mock("react-router-dom", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouterDom>()),
   useParams: () => mockParams,
+  useSearchParams: () => [mockSearch],
 }));
 
 type QueryOptions = { enabled?: boolean };
@@ -59,9 +62,11 @@ vi.mock("openapi/queries", () => ({
   useDagServiceGetDagDetails: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
     data: options?.enabled ? mockDag : undefined,
   }),
-  useTaskInstanceServiceGetMappedTaskInstance: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
-    data: options?.enabled ? mockTaskInstance : undefined,
-  }),
+  useTaskInstanceServiceGetMappedTaskInstance: (params: unknown, _key: unknown, options?: QueryOptions) => {
+    taskQuery = params;
+
+    return { data: options?.enabled ? mockTaskInstance : undefined };
+  },
 }));
 
 const reactApp = {
@@ -87,6 +92,7 @@ const renderPlugin = () => {
 describe("ReactPlugin context props", () => {
   beforeEach(() => {
     mockParams = {};
+    mockSearch = new URLSearchParams();
   });
 
   afterEach(() => {
@@ -100,6 +106,22 @@ describe("ReactPlugin context props", () => {
     expect(capturedProps?.dagRun).toBeUndefined();
     expect(capturedProps?.taskInstance).toBeUndefined();
     expect(capturedProps?.asset).toBeUndefined();
+  });
+
+  it("retrieves plugin task context using the selected region instead of the public map index", () => {
+    mockParams = { dagId: "my_dag", runId: "run_1", taskId: "my_task" };
+    mockSearch = new URLSearchParams({ region_id: "region", region_index: "3" });
+    renderPlugin();
+
+    expect(taskQuery).toEqual({
+      dagId: "my_dag",
+      dagRunId: "run_1",
+      mapIndex: -1,
+      regionId: "region",
+      regionIndex: 3,
+      taskId: "my_task",
+    });
+    expect(capturedProps?.taskInstance).toStrictEqual(mockTaskInstance);
   });
 
   it("passes the cached Dag object when dagId is in the route", () => {
@@ -155,6 +177,16 @@ describe("loadPlugin", () => {
     }
   });
 
+  it("renders nothing when the bundle cannot be fetched", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const { default: Component } = await loadPlugin(pluginA, () => Promise.reject(new Error("network down")));
+    const { container } = render(<Component />, { wrapper: Wrapper });
+
+    // An error page here would bury the page the plugin was only decorating.
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("does not let a malformed bundle inherit a previously-loaded plugin's component", async () => {
     // A well-formed bundle sets globalThis.AirflowPlugin on import; a malformed one sets nothing.
     await loadPlugin(pluginA, () => {
@@ -165,5 +197,22 @@ describe("loadPlugin", () => {
     const { default: component } = await loadPlugin(pluginB, () => Promise.resolve());
 
     expect(component).not.toBe(componentA);
+  });
+});
+
+const loading = (destination: ReactAppResponse["destination"]) =>
+  ({ bundle_url: "http://localhost/never-loaded.js", destination, name: "Unloaded" }) as ReactAppResponse;
+
+describe("ReactPlugin loading fallback", () => {
+  it("shows a spinner while a page plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("dag")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).toBeInTheDocument();
+  });
+
+  it("shows nothing while a base plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("base")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).not.toBeInTheDocument();
   });
 });

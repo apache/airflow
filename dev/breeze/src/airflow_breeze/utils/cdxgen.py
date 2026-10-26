@@ -21,7 +21,6 @@ import atexit
 import multiprocessing
 import os
 import signal
-import sys
 import time
 from abc import abstractmethod
 from collections.abc import Generator
@@ -80,41 +79,56 @@ def start_cdxgen_servers(application_root_path: Path, run_in_parallel: bool, par
         print("::endgroup::")
 
 
+def remove_cdxgen_server(name: str) -> None:
+    # `docker run -t` does not forward signals to the container, so terminating the `docker run`
+    # process leaves the server running and holding its memory for the rest of the CI job.
+    run_command(["docker", "rm", "--force", name], check=False, capture_output=True, quiet=True)
+
+
 def fork_cdxgen_server(application_root_path, port=9090):
+    name = f"airflow-cdxgen-server-{port}"
+    remove_cdxgen_server(name)
     pid = os.fork()
     if pid:
-        # Parent process - send signal to process group of the child process
+        # Parent process - send signal to process group of the child process. atexit runs the
+        # handlers in reverse, so the container is removed after its `docker run` is terminated.
+        atexit.register(remove_cdxgen_server, name)
         atexit.register(os.killpg, pid, signal.SIGTERM)
         # Give the server child process some time to start
     else:
-        # Check if we are not a group leader already (We should not be)
-        if os.getpid() != os.getsid(0):
-            # and create a new process group where we are the leader
-            os.setpgid(0, 0)
-        run_command(
-            [
-                "docker",
-                "run",
-                "--init",
-                "--rm",
-                "-p",
-                f"{port}:{port}",
-                "-v",
-                "/tmp:/tmp",
-                "-v",
-                f"{application_root_path}:/app",
-                "-t",
-                "ghcr.io/cyclonedx/cdxgen",
-                "--server",
-                "--server-host",
-                "0.0.0.0",
-                "--server-port",
-                str(port),
-            ],
-            check=True,
-        )
-        # we should get here when the server gets terminated
-        sys.exit(0)
+        try:
+            # Check if we are not a group leader already (We should not be)
+            if os.getpid() != os.getsid(0):
+                # and create a new process group where we are the leader
+                os.setpgid(0, 0)
+            run_command(
+                [
+                    "docker",
+                    "run",
+                    "--init",
+                    "--rm",
+                    "--name",
+                    name,
+                    "-p",
+                    f"{port}:{port}",
+                    "-v",
+                    "/tmp:/tmp",
+                    "-v",
+                    f"{application_root_path}:/app",
+                    "-t",
+                    "ghcr.io/cyclonedx/cdxgen",
+                    "--server",
+                    "--server-host",
+                    "0.0.0.0",
+                    "--server-port",
+                    str(port),
+                ],
+                check=True,
+            )
+        finally:
+            # We get here when the server gets terminated. The child inherited the atexit handlers
+            # of the servers forked before it, which would stop those servers, so they are skipped.
+            os._exit(0)
 
 
 def get_port_mapping(x):

@@ -41,6 +41,17 @@ components. It can automatically create a pull request with the changes.
 The command checks if you are on the correct branch (main or a version test branch like v2-10-test) with a
 clean repository. If not, it will offer to reset your repository to the latest state from apache/airflow.
 
+The upgrade also raises the lower bounds of a curated set of fast-moving dependencies (boto3,
+botocore, Google Cloud and Azure SDKs). The policy lives in ``[tool.airflow.dependency-floors]`` of the
+root ``pyproject.toml``: a floor is raised to the newest release that is at least ``min-age`` (180 days)
+old, members of a group share one floor, and packages that are capped anywhere or listed under
+``exclude`` are never touched. Bumps that make ``uv lock`` fail - with the highest or the lowest-direct
+resolution - are rolled back and listed in the PR description together with everything that was
+raised or skipped. The provider ``README.rst`` and ``docs/index.rst`` requirement tables are then
+regenerated from the changed ``pyproject.toml`` files. Use ``--no-upgrade-dependency-floors`` to skip
+both steps. The design is recorded in
+`ADR 0018 <adr/0018-raise-dependency-floors-automatically.md>`_.
+
 These are all available flags of ``upgrade`` command:
 
 .. image:: ./images/output_ci_upgrade.svg
@@ -149,6 +160,65 @@ If it cannot determine which milestone should be added, it also adds a comment t
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_milestone-tag-assistant.svg
   :width: 100%
   :alt: Milestone Tag Assistant
+
+Checking your fork CI setup
+---------------------------
+
+Pull requests from external contributors can run their CI in the contributor's fork (AIP-120).
+``breeze ci audit`` checks, read-only, whether your checkout and fork are set up for that: ``gh``
+installed and authenticated, the ``upstream`` remote pointing at ``apache/airflow`` and ``origin`` at your
+fork, whether you are a committer, collaborator, member of an exempted organisation, pilot participant or
+external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled (or disabled, for those
+whose pull requests run project CI), how far your fork's ``main`` is behind, and the branch you are on.
+Each failing check prints the command that fixes it; ``--fix`` runs those commands after asking.
+
+These are all available flags of ``audit`` command:
+
+.. image:: ./images/output_ci_audit.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_audit.svg
+  :width: 100%
+  :alt: Breeze ci audit
+
+Reconciling pull requests gated to fork CI
+------------------------------------------
+
+Pull requests from external contributors can run their CI in the contributor's fork instead of in
+``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 15 minutes by the
+``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: it labels newly
+gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
+one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
+pull requests without fork CI activity for a week, closes gated pull requests that made project CI run
+by changing workflows, and writes everything it could not classify to a Slack message. It also cancels
+the unfinished workflow runs of pull requests, of any author, that have already merged. With
+``--dry-run`` it prints the changes instead of applying them. See
+`Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md>`_ for the design.
+
+These are all available flags of ``fork-ci-reconcile`` command:
+
+.. image:: ./images/output_ci_fork-ci-reconcile.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_fork-ci-reconcile.svg
+  :width: 100%
+  :alt: Breeze ci fork-ci-reconcile
+
+Approving workflow runs of external contributors
+------------------------------------------------
+
+The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 30 minutes. It approves
+the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
+than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. PRs whose CI runs in
+the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
+approved whatever their size unless they change CI definition files; such a PR also gets a comment
+explaining that its CI change needs a maintainer. For every PR it also
+estimates the CI jobs selective checks will run and how long they take, and writes them to the job
+summary. Use ``--report-only`` to see the decisions without approving runs or changing labels. The rules
+are described in `CI workflows <ci/05_workflows.md>`_.
+
+These are all available flags of ``approve-workflow-runs`` command:
+
+.. image:: ./images/output_ci_approve-workflow-runs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_approve-workflow-runs.svg
+  :width: 100%
+  :alt: Breeze ci approve-workflow-runs
 
 -----
 

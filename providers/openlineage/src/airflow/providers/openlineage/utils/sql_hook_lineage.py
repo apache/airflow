@@ -46,6 +46,7 @@ from airflow.providers.openlineage.sqlparser import (
     from_table_meta,
     get_openlineage_facets_with_sql,
 )
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, get_hook_class_name
 from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
 
 if TYPE_CHECKING:
@@ -95,7 +96,12 @@ def _parse_query_into_datasets(
     return inputs, outputs
 
 
-def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful: bool = True) -> None:
+def emit_lineage_from_sql_extras(
+    task_instance,
+    sql_extras: list,
+    is_successful: bool = True,
+    dataset_filter: DatasetFilter | None = None,
+) -> None:
     """
     Process ``sql_job`` extras and emit per-query OpenLineage events.
 
@@ -103,8 +109,11 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
 
     * Parse SQL via :func:`get_openlineage_facets_with_sql` to obtain inputs,
       outputs and facets (schema enrichment, column lineage, etc.).
+    * Drop the inputs/outputs that *dataset_filter* excludes for the reporting hook.
     * Emit a separate START + COMPLETE/FAIL event pair (child job of the task).
     """
+    if dataset_filter is None:
+        dataset_filter = DatasetFilter()
     if not sql_extras:
         return None
 
@@ -191,13 +200,14 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                 ),
             )
 
+        hook_class_name = get_hook_class_name(hook)
         events.extend(
             _create_ol_event_pair(
                 task_instance=task_instance,
-                job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{query_count}",
+                job_name=f"{task_instance.dag_id}.{task_instance.task_id}.hll_query.{query_count}",
                 is_successful=is_successful,
-                inputs=query_lineage.inputs,
-                outputs=query_lineage.outputs,
+                inputs=dataset_filter.exclude(query_lineage.inputs, hook_class_name),
+                outputs=dataset_filter.exclude(query_lineage.outputs, hook_class_name),
                 run_facets=query_lineage.run_facets,
                 job_facets=query_lineage.job_facets,
             )
@@ -248,10 +258,12 @@ def _create_ol_event_pair(
     Handles parent-run facet generation, run-ID creation and event timestamps
     so callers only need to supply the query-specific facets and datasets.
     """
+    job_namespace = lineage_job_namespace()
+
     parent_facet = _get_parent_run_facet(
         parent_run_id=lineage_run_id(task_instance),
         parent_job_name=lineage_job_name(task_instance),
-        parent_job_namespace=lineage_job_namespace(),
+        parent_job_namespace=job_namespace,
         root_parent_run_id=lineage_root_run_id(task_instance),
         root_parent_job_name=lineage_root_job_name(task_instance),
         root_parent_job_namespace=lineage_root_job_namespace(task_instance),
@@ -262,28 +274,28 @@ def _create_ol_event_pair(
         )
     }
 
-    run = Run(
-        runId=str(generate_new_uuid(instant=_get_logical_date(task_instance))),
-        facets={**(run_facets or {}), **parent_facet},
-    )
-    job = Job(
-        namespace=lineage_job_namespace(), name=job_name, facets={**(job_facets or {}), **job_type_facet}
-    )
+    run_id = str(generate_new_uuid(instant=_get_logical_date(task_instance)))
+    base_run_facets = {**(run_facets or {}), **parent_facet}
+
+    base_job_facets = {**(job_facets or {}), **job_type_facet}
     now = timezone.utcnow()
 
+    # Each event gets its own `Run`/`Job` `facets` dict (same `runId`/namespace/name) so that facets the
+    # OpenLineage client adds during `emit()` of one event (e.g. environmentVariables, tags,
+    # sourceCodeLocation) can't leak into, or be seen as already-present by, the other event in the pair.
     start = RunEvent(
         eventType=RunState.START,
         eventTime=(start_event_time or now).isoformat(),
-        run=run,
-        job=job,
+        run=Run(runId=run_id, facets=dict(base_run_facets)),
+        job=Job(namespace=job_namespace, name=job_name, facets=dict(base_job_facets)),
         inputs=inputs or [],
         outputs=outputs or [],
     )
     end = RunEvent(
         eventType=RunState.COMPLETE if is_successful else RunState.FAIL,
         eventTime=(end_event_time or now).isoformat(),
-        run=run,
-        job=job,
+        run=Run(runId=run_id, facets=dict(base_run_facets)),
+        job=Job(namespace=job_namespace, name=job_name, facets=dict(base_job_facets)),
         inputs=inputs or [],
         outputs=outputs or [],
     )

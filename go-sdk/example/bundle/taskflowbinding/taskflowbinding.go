@@ -171,34 +171,67 @@ func ViaStructArgTag(actx airflow.Context, input ViaStructArgTagInput) (any, err
 	}, nil
 }
 
-// ViaStructUnmatchedArgInput includes a field no argument supplies.
-type ViaStructUnmatchedArgInput struct {
-	Region  string `arg:"region_code"`
-	Missing string `arg:"does_not_exist"`
+// ViaStructDefaultArgInput claims only the explicitly passed argument.
+type ViaStructDefaultArgInput struct {
+	Region string `arg:"region_code"`
 }
 
-// ViaStructUnmatchedArg exercises unmatched fields and captured defaults.
-func ViaStructUnmatchedArg(
+// ViaStructDefaultArg exercises a captured stub default no struct field claims.
+func ViaStructDefaultArg(
 	actx airflow.Context,
-	input ViaStructUnmatchedArgInput,
+	input ViaStructDefaultArgInput,
 ) (any, error) {
 	if input.Region != "eu-west-1" {
 		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
 	}
-	if input.Missing != "" {
+
+	actx.Logger().
+		InfoContext(actx, "Bound struct (defaulted arg unclaimed)", "region", input.Region)
+	return map[string]any{"region": input.Region}, nil
+}
+
+// ViaStructMoreArgsInput declares fewer fields than its call passes arguments.
+type ViaStructMoreArgsInput struct {
+	Region string `arg:"region_code"`
+}
+
+// ViaStructMoreArgs exercises the Dag passing an argument the struct does not
+// declare: warned about, and the task still runs.
+func ViaStructMoreArgs(actx airflow.Context, input ViaStructMoreArgsInput) (any, error) {
+	if input.Region != "eu-west-1" {
+		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
+	}
+
+	actx.Logger().InfoContext(actx, "Bound struct (call passed more)", "region", input.Region)
+	return map[string]any{"region": input.Region}, nil
+}
+
+// ViaStructFewerArgsInput declares more fields than its call passes arguments.
+type ViaStructFewerArgsInput struct {
+	Region   string `arg:"region_code"`
+	NotInDag string `arg:"not_in_dag"`
+}
+
+// ViaStructFewerArgs exercises the struct declaring an argument the Dag's call
+// does not pass: warned about, and the field keeps its Go zero value.
+func ViaStructFewerArgs(actx airflow.Context, input ViaStructFewerArgsInput) (any, error) {
+	if input.Region != "eu-west-1" {
+		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
+	}
+	if input.NotInDag != "" {
 		return nil, fmt.Errorf(
-			"expected the unmatched field to stay at its Go zero value, got missing=%q",
-			input.Missing,
+			"expected the undeclared field to keep its zero value, got not_in_dag=%q",
+			input.NotInDag,
 		)
 	}
 
-	actx.Logger().InfoContext(actx, "Bound struct (unmatched arg)",
+	actx.Logger().InfoContext(actx, "Bound struct (call passed fewer)",
 		"region", input.Region,
-		"missing_was_empty", input.Missing == "",
+		"not_in_dag_was_empty", input.NotInDag == "",
 	)
 	return map[string]any{
-		"region":            input.Region,
-		"missing_was_empty": input.Missing == "",
+		"region":               input.Region,
+		"not_in_dag_was_empty": input.NotInDag == "",
 	}, nil
 }
 

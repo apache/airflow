@@ -75,4 +75,5 @@ def test_client():
             ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
         }
     ):
-        return TestClient(create_app("core"))
+        with TestClient(create_app("core")) as client:
+            yield client

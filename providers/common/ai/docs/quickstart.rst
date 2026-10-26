@@ -25,7 +25,8 @@ which one task asks a model to summarize release notes and a second task uses th
 At the end you know where the model's output lands and what a successful run looks like.
 
 You need a working :doc:`Airflow installation <apache-airflow:installation/index>` on
-Airflow 3.0 or later and an API key for the model vendor you plan to use. Step 4 makes one
+Airflow 2.11 or later and an API key for the model vendor you plan to use. On Airflow 2,
+see :ref:`howto/installation` for what differs. Step 4 makes one
 real, billed API call.
 
 1. Install the provider
@@ -121,3 +122,5 @@ Where to go next
   files, generating SQL, batch processing.
 - :doc:`operators/agent` gives the model tools built from Airflow hooks, SQL databases or
   MCP servers, so it can act instead of only answering.
+- :doc:`local_development` shows how to iterate on an agent in a notebook and test the
+  Dag without an API key.

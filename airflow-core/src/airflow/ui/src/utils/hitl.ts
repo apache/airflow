@@ -25,6 +25,8 @@ import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParam
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
+  // The created_at of the request the form was loaded for; the server refuses a stale answer.
+  request_created_at?: string;
 };
 
 // A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
@@ -127,21 +129,9 @@ export const getHITLParamsDict = (
       // default is null" from "bare value".
       const isWrapped = paramData !== undefined && "value" in paramData;
 
-      // Check if there's a preloaded value from URL params
-      let finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
-
-      // If preloaded value is a string that might be JSON, try to parse it
-      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
-        try {
-          const parsed: unknown = JSON.parse(finalValue);
-
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            finalValue = parsed;
-          }
-        } catch {
-          // If parsing fails, keep the string value
-        }
-      }
+      // Values arrive as stored JSON, so an object param's value is already an object. A string is
+      // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
+      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";

@@ -33,6 +33,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 func TestDecideMode(t *testing.T) {
@@ -144,6 +145,24 @@ func TestServeRejectsBundleFlagWithReservedName(t *testing.T) {
 	}
 }
 
+// pflag prints a deprecation warning while it parses, so it must not reach the writer that
+// carries the --airflow-metadata manifest.
+func TestServeKeepsDeprecationWarningOutOfTheManifest(t *testing.T) {
+	saved := flag.CommandLine
+	t.Cleanup(func() { flag.CommandLine = saved })
+	flag.CommandLine = flag.NewFlagSet("bundle", flag.ContinueOnError)
+	flag.String("region", "", "a flag the bundle author defined")
+	require.NoError(t, flag.CommandLine.MarkDeprecated("region", "use --zone"))
+
+	var stdout bytes.Buffer
+	args := []string{"--region", "us", "--airflow-metadata", "--format", "json"}
+	require.NoError(t, etlBundle().serve(args, &stdout))
+
+	assert.NotContains(t, stdout.String(), "deprecated")
+	var got manifest
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &got))
+}
+
 func TestServeRejectsBadFlags(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -195,30 +214,27 @@ func TestServeRejectsBadFlags(t *testing.T) {
 }
 
 func TestServeHelpIsNotAnError(t *testing.T) {
-	assert.NoError(t, etlBundle().serve([]string{"--help"}, io.Discard))
+	var stdout bytes.Buffer
+	require.NoError(t, etlBundle().serve([]string{"--help"}, &stdout))
+
+	assert.Contains(t, stdout.String(), "--airflow-metadata")
 }
 
-// A fake supervisor sends StartupDetails over the comm socket, as the Python
-// ExecutableCoordinator does after it starts the bundle with --comm and --logs.
-func TestServeRunsTaskForSupervisor(t *testing.T) {
+// serveForSupervisor runs b.serve with --comm and --logs and returns the supervisor's end of the
+// comm socket and the channel that gets what serve returns.
+func serveForSupervisor(t *testing.T, b *BundleRef) (*execution.CoordinatorComm, <-chan error) {
+	t.Helper()
 	commLn, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer commLn.Close()
+	t.Cleanup(func() { commLn.Close() })
 	logsLn, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer logsLn.Close()
+	t.Cleanup(func() { logsLn.Close() })
 	// Without a deadline, a Serve that never dials would leave Accept blocked until the test
 	// binary times out.
 	deadline := time.Now().Add(10 * time.Second)
 	require.NoError(t, commLn.(*net.TCPListener).SetDeadline(deadline))
 	require.NoError(t, logsLn.(*net.TCPListener).SetDeadline(deadline))
-
-	ran := false
-	b := Bundle()
-	b.Register(TaskHandler("py_etl", "transform", func(Context) error {
-		ran = true
-		return nil
-	}))
 
 	done := make(chan error, 1)
 	go func() {
@@ -230,13 +246,26 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 
 	commConn, err := commLn.Accept()
 	require.NoError(t, err)
-	defer commConn.Close()
+	t.Cleanup(func() { commConn.Close() })
 	logsConn, err := logsLn.Accept()
 	require.NoError(t, err)
-	defer logsConn.Close()
+	t.Cleanup(func() { logsConn.Close() })
 	require.NoError(t, commConn.SetDeadline(deadline))
 
-	supervisor := execution.NewCoordinatorComm(commConn, commConn, discardLogger())
+	return execution.NewCoordinatorComm(commConn, commConn, discardLogger()), done
+}
+
+// A fake supervisor sends StartupDetails over the comm socket, as the Python
+// ExecutableCoordinator does after it starts the bundle with --comm and --logs.
+func TestServeRunsTaskForSupervisor(t *testing.T) {
+	ran := false
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", func(Context) error {
+		ran = true
+		return nil
+	}))
+
+	supervisor, done := serveForSupervisor(t, b)
 	require.NoError(t, supervisor.SendRequest(0, map[string]any{
 		"type": "StartupDetails",
 		"ti": map[string]any{
@@ -262,4 +291,68 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 		t.Fatal("Serve did not return after the task finished")
 	}
 	assert.True(t, ran)
+}
+
+// The Dag processor sends a DagFileParseRequest instead of StartupDetails.
+func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
+	var ran []string
+	record := func(name string) func(Context) error {
+		return func(Context) error {
+			ran = append(ran, name)
+			return nil
+		}
+	}
+	etl := Dag("etl")
+	extracted := etl.Task(func(Context) (int, error) {
+		ran = append(ran, "extract")
+		return 3, nil
+	}, TaskSpec{TaskID: "extract"})
+	loaded := etl.Task(record("load"), TaskSpec{TaskID: "load"})
+	etl.If(func(_ Context, rows int) (bool, error) {
+		ran = append(ran, "has_rows")
+		return rows > 0, nil
+	}, Inputs(extracted), TaskSpec{TaskID: "has_rows"}).Then(loaded)
+	reports := Dag("reports")
+	reports.Task(record("publish"), TaskSpec{TaskID: "publish"})
+
+	b := Bundle()
+	b.Register(etl, TaskHandler("py_etl", "transform", record("transform")), reports)
+
+	supervisor, done := serveForSupervisor(t, b)
+	const requestID = 7
+	require.NoError(t, supervisor.SendRequest(requestID, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	}))
+
+	frame, err := supervisor.ReadMessage()
+	require.NoError(t, err)
+	assert.EqualValues(t, requestID, frame.ID)
+	var result genmodels.DagFileParsingResult
+	require.NoError(t, msgpack.Unmarshal(frame.Body, &result))
+	assert.Equal(t, "DagFileParsingResult", result.Type)
+	assert.Equal(t, "/bundles/go/etl", result.Fileloc)
+	assert.Nil(t, result.ImportErrors)
+	require.Len(t, result.SerializedDags, 2)
+	for i, dag := range []*DagRef{etl, reports} {
+		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl"))
+		assertJSON(t, want, result.SerializedDags[i].Data)
+	}
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after it answered the Dag parse request")
+	}
+	assert.Empty(t, ran)
+}
+
+func jsonOf(t *testing.T, value any) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	require.NoError(t, err)
+	return string(raw)
 }

@@ -92,7 +92,7 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
         """Returns WebHDFSHook."""
         return WebHDFSHook(webhdfs_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"))
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages]:
         logs = []
         messages = []
         file_path = os.path.join(self.remote_base, relative_path)

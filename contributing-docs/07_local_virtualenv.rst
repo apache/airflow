@@ -36,7 +36,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.10, 3.11, 3.12, 3.13, 3.14)
+* Python (One of: 3.11, 3.12, 3.13, 3.14)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -102,11 +102,11 @@ Installing Python versions
 
    This step can be skipped - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
-You can install Python versions using ``uv python install`` command. For example, to install Python 3.10.7, you can run:
+You can install Python versions using ``uv python install`` command. For example, to install Python 3.11.16, you can run:
 
 .. code:: bash
 
-    uv python install 3.10.7
+    uv python install 3.11.16
 
 This is optional step - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
@@ -126,7 +126,7 @@ with a specific Python version by running:
 
 .. code:: bash
 
-    uv venv --python 3.10.7
+    uv venv --python 3.11.16
 
 You can also create a venv with a different venv directory name by running:
 
@@ -287,8 +287,12 @@ or when running tests), you can pass the ``--frozen`` flag:
 
     uv sync --frozen
 
-This will fail if the lock file is out of date with respect to ``pyproject.toml``, rather than
-silently updating it. This is useful when you want to guarantee fully reproducible environments.
+This never resolves or writes to the lock file, even when it is out of date with respect to
+``pyproject.toml``. Use ``--locked`` (or ``uv lock --check``) to fail on a stale lock file instead.
+
+A change to a ``pyproject.toml`` (including a workspace member's version) must be committed together
+with the refreshed ``uv.lock``: run ``uv lock``. The ``update-uv-lock`` prek hook, which also runs in CI,
+fails otherwise. All other prek hooks run ``uv`` frozen and never change ``uv.lock``.
 
 Cooldown via ``exclude-newer``
 ..............................

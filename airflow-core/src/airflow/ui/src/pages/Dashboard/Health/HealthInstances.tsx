@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Table, Text } from "@chakra-ui/react";
+import { HStack, Table, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { TeamName } from "src/components/TeamName";
@@ -26,7 +26,7 @@ import { useConfig } from "src/queries/useConfig";
 
 /**
  * One live component replica, normalised across the three per-component instance payloads so the
- * table does not have to know which ``latest_*_heartbeat`` field the endpoint used. ``teamName``
+ * table does not have to know which ``latest_*_heartbeat`` field the endpoint used. ``teamNames``
  * and ``bundleNames`` are left undefined for components that do not report them at all. There is no
  * per-instance status: the endpoint only lists replicas that are running, and how healthy the set of
  * them is together is what the component badge shows.
@@ -35,7 +35,7 @@ export type HealthInstance = {
   readonly bundleNames?: Array<string> | null;
   readonly hostname: string | null;
   readonly latestHeartbeat: string | null;
-  readonly teamName?: string | null;
+  readonly teamNames?: Array<string> | null;
 };
 
 type Props = {
@@ -47,7 +47,7 @@ export const HealthInstances = ({ instances }: Props) => {
   const isMultiTeam = Boolean(useConfig("multi_team"));
   // Both columns only apply to one component each, and even there every instance may report
   // nothing — an all-empty column is noise, so it is dropped rather than rendered blank.
-  const showTeam = isMultiTeam && instances.some((instance) => Boolean(instance.teamName));
+  const showTeam = isMultiTeam && instances.some((instance) => Boolean(instance.teamNames?.length));
   const showBundles = instances.some((instance) => Boolean(instance.bundleNames?.length));
 
   return (
@@ -77,7 +77,11 @@ export const HealthInstances = ({ instances }: Props) => {
             </Table.Cell>
             {showTeam ? (
               <Table.Cell>
-                <TeamName teamName={instance.teamName} />
+                <HStack gap={2} wrap="wrap">
+                  {instance.teamNames?.map((teamName) => (
+                    <TeamName key={teamName} teamName={teamName} />
+                  ))}
+                </HStack>
               </Table.Cell>
             ) : undefined}
             {showBundles ? <Table.Cell>{instance.bundleNames?.join(", ")}</Table.Cell> : undefined}

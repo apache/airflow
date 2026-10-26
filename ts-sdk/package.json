@@ -1,6 +1,6 @@
 {
   "name": "apache-airflow-ts-sdk",
-  "version": "0.1.0-beta1",
+  "version": "1.0.0-beta1",
   "packageManager": "pnpm@10.28.1",
   "description": "TypeScript Task SDK for Apache Airflow task handlers",
   "license": "Apache-2.0",
@@ -31,6 +31,10 @@
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
       "import": "./dist/coordinator/index.js"
+    },
+    "./hitl": {
+      "types": "./dist/hitl/index.d.ts",
+      "import": "./dist/hitl/index.js"
     }
   },
   "files": [
@@ -51,7 +55,8 @@
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "verify:package": "node scripts/verify-package.mjs",
     "prepack": "pnpm run build",
-    "generate:supervisor": "node scripts/generate-supervisor.mjs"
+    "generate:supervisor": "node scripts/generate-supervisor.mjs",
+    "generate:dag-schema": "node scripts/generate-dag-schema.mjs"
   },
   "keywords": [
     "airflow",
@@ -80,11 +85,12 @@
     "esbuild": "^0.28.2",
     "@types/node": "^26.1.2",
     "eslint": "^10.4.0",
-    "json-schema-to-typescript": "^15.0.4",
+    "json-schema-to-typescript": "^16.0.0",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "vitest": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }

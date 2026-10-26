@@ -20,15 +20,15 @@
 #
 # The stage is derived from the version, so the two cannot be mismatched by hand:
 #
-#   * a candidate (`3.3.1rc1`) pins the providers at the versions PyPI holds - the wave being
-#     voted on exists there only as rc versions - and lands on a branch of its own, so a candidate
-#     never moves the branch every other build reads. Re-running it for the same candidate
-#     replaces that branch and its tag, so the two always describe the run that produced them;
+#   * a pre-release - beta (`3.4.0b1`) or candidate (`3.3.1rc1`) - pins the providers at the versions
+#     PyPI holds (rc provider waves included) and lands on a branch of its own, so it never moves the
+#     branch every other build reads. Re-running it for the same pre-release replaces that branch and
+#     its tag, so the two always describe the run that produced them;
 #   * a final (`3.3.1`) pins the providers at their released versions, ignoring any candidate, and
 #     commits onto `constraints-X-Y` itself, which is what makes the released constraints the
 #     baseline everything downstream reads.
 #
-# A final therefore cannot be produced by retagging a candidate: a released version must never
+# A final therefore cannot be produced by retagging a pre-release: a released version must never
 # pin an rc.
 ---
 name: Release constraints
@@ -36,7 +36,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
       version:
-        description: "Version the constraints belong to, e.g. 3.3.1rc1 or 3.3.1"
+        description: "Version the constraints belong to, e.g. 3.4.0b1, 3.3.1rc1 or 3.3.1"
         required: true
         type: string
       ref:
@@ -109,21 +109,23 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[0-9]+)?$ ]]; then
-            echo "'${VERSION}' is not a release version - expected X.Y.Z or X.Y.ZrcN." >&2
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+((b|rc)[0-9]+)?$ ]]; then
+            echo "'${VERSION}' is not a release version - expected X.Y.Z, X.Y.ZbN or X.Y.ZrcN." >&2
             exit 1
           fi
           major="$(echo "${VERSION}" | cut -d. -f1)"
           minor="$(echo "${VERSION}" | cut -d. -f2)"
           constraints_branch="constraints-${major}-${minor}"
           echo "constraints-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
-          if [[ "${VERSION}" == *rc* ]]; then
+          # A pre-release - beta or rc - pins the providers at the versions PyPI holds (rc provider
+          # waves included); a final pins released providers. Both commit onto the shared
+          # constraints-X-Y branch and are tagged constraints-<VERSION>.
+          if [[ "${VERSION}" =~ (b|rc)[0-9]+$ ]]; then
             echo "allow-pre-releases=true" >> "${GITHUB_OUTPUT}"
-            echo "target-branch=constraints-${VERSION}" >> "${GITHUB_OUTPUT}"
           else
             echo "allow-pre-releases=false" >> "${GITHUB_OUTPUT}"
-            echo "target-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
           fi
+          echo "target-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
       - name: "Parameters summary"
         shell: bash
         env:
@@ -224,34 +226,33 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
       - name: "Download constraints from the generate-constraints job"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           pattern: constraints-*
           path: ./files
-      # A candidate's branch and tag belong to that candidate alone, so re-running for the same
-      # rc replaces them rather than adding to them: the branch would otherwise already hold the
-      # previous run's constraints (making the push a non-fast-forward) and the tag already exist.
-      # A final never gets this - it commits onto the shared constraints-X-Y branch, whose history
-      # every other build reads.
-      - name: "Delete the previous ${{ needs.build-info.outputs.target-branch }} branch and tag"
+      # Re-running for the same pre-release adds a commit on constraints-X-Y and moves its tag, so
+      # the previous run's tag is deleted first. A leftover constraints-<VERSION> branch (from when
+      # pre-releases had a branch of their own) would make that tag name ambiguous, so it fails fast.
+      - name: "Check for a stale constraints-${{ inputs.version }} branch and replace the tag"
         if: needs.build-info.outputs.allow-pre-releases == 'true'
         working-directory: "constraints"
         shell: bash
         run: |
-          if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" > /dev/null; then
-            echo "Deleting the existing '${TARGET_BRANCH}' branch."
-            git push origin --delete "refs/heads/${TARGET_BRANCH}"
+          if git ls-remote --exit-code origin "refs/heads/constraints-${VERSION}" > /dev/null; then
+            echo "ERROR! Branch 'constraints-${VERSION}' must not exist -" \
+              "it would make the 'constraints-${VERSION}' tag ambiguous."
+            echo "Delete it first, e.g.: git push origin --delete 'refs/heads/constraints-${VERSION}'"
+            exit 1
           fi
           if git ls-remote --exit-code origin "refs/tags/constraints-${VERSION}" > /dev/null; then
             echo "Deleting the existing 'constraints-${VERSION}' tag."
             git push origin --delete "refs/tags/constraints-${VERSION}"
           fi
           git tag --delete "constraints-${VERSION}" > /dev/null 2>&1 || true
-          git branch --delete --force "${TARGET_BRANCH}" > /dev/null 2>&1 || true
       - name: "Switch to ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
-        run: git switch -c "${TARGET_BRANCH}" 2>/dev/null || git switch "${TARGET_BRANCH}"
+        run: git switch "${TARGET_BRANCH}"
       - name: "Diff in constraints for Python: ${{ needs.build-info.outputs.python-versions-list-as-string }}"
         run: ./scripts/ci/constraints/ci_diff_constraints.sh
       - name: "Commit changed constraint files"
@@ -259,9 +260,21 @@ jobs:
       - name: "Push ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
-        # Qualify as refs/heads/ -- for a release candidate the branch and the tag share a name
-        # (both constraints-<VERSION>), so a bare refspec is ambiguous ("matches more than one").
-        run: git push origin "refs/heads/${TARGET_BRANCH}"
+        # constraints-X-Y is also written by update-constraints-on-push.yml on every vX-Y-test
+        # uv.lock change, which can land during the beta/rc window this workflow runs in. A
+        # concurrent write makes this push a non-fast-forward, so rebase onto the latest and retry.
+        # Qualify as refs/heads/ so the push never resolves to a same-named tag.
+        run: |
+          for attempt in $(seq 1 5); do
+            if git push origin "refs/heads/${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push of '${TARGET_BRANCH}' rejected (it moved underneath us);" \
+              "rebasing onto the latest and retrying (attempt ${attempt}/5)."
+            git pull --rebase origin "${TARGET_BRANCH}"
+          done
+          echo "ERROR! Could not push '${TARGET_BRANCH}' after 5 attempts."
+          exit 1
       - name: "Tag constraints-${{ inputs.version }}"
         working-directory: "constraints"
         shell: bash

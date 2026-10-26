@@ -119,6 +119,10 @@ Note: the CLI creates groups, resources, permissions, and policies, but **does n
 You must assign the appropriate Keycloak roles (Admin/Op/User/Viewer or SuperAdmin) to each user separately.
 In multi-team mode, the ``Admin`` role is **team-scoped** (group + role). Only ``SuperAdmin`` grants global
 admin access across all teams.
+Views over records that are not tied to a Dag or a team -- audit log entries not tied to a Dag,
+import errors for files with no registered Dag and reparsing such files -- are checked against the
+``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
+the ``View`` resource, which every team role can read.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 

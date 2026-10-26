@@ -1,5 +1,7 @@
 aarch
 abc
+ABI
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -28,6 +30,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -78,6 +81,7 @@ apikey
 apis
 AppBuilder
 appbuilder
+appender
 Appflow
 appflow
 approle
@@ -198,6 +202,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -212,6 +218,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -232,6 +239,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -278,15 +286,18 @@ cmdlet
 cmds
 cncf
 cnf
+CNI
 cnt
 codebase
 codec
 codecov
 codepoints
+colima
 Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat
@@ -325,6 +336,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -333,6 +345,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -363,6 +376,7 @@ Cypher
 cypher
 daemonize
 daemonized
+daemonizing
 dagbag
 DagCallbackRequest
 dagfile
@@ -543,6 +557,7 @@ Drillbit
 driverless
 dropdown
 druidHook
+dryrun
 ds
 dsl
 dsn
@@ -632,6 +647,7 @@ ExaConnection
 Exasol
 exasol
 exc
+execd
 executables
 exitcode
 expanduser
@@ -676,7 +692,9 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
+findutils
 fips
 firebase
 Firehose
@@ -838,6 +856,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
@@ -874,7 +893,9 @@ instafail
 installable
 InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceGroupManager
 InstanceSelection
+InstanceTemplate
 instanceTemplates
 InstanceType
 instanceType
@@ -898,6 +919,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
@@ -947,6 +969,7 @@ Json
 json
 jsonl
 JsonValue
+jti
 juli
 Jupyter
 jupyter
@@ -957,6 +980,7 @@ jwt
 Kafka
 kafka
 Kamil
+Kata
 KEDA
 keepalive
 keepalives
@@ -965,6 +989,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+Kev
 keycloak
 Keyfile
 keyfile
@@ -1001,6 +1026,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+Landlock
 langchain
 Langfuse
 LanguageServiceClient
@@ -1036,6 +1062,7 @@ LocalObjectReference
 localstack
 Lockbox
 lodash
+Logback
 logfile
 logformat
 loglevel
@@ -1099,6 +1126,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1146,6 +1174,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1189,6 +1218,7 @@ objectORfile
 objectstorage
 observability
 od
+OData
 odbc
 odps
 OIDC
@@ -1212,8 +1242,11 @@ openfaas
 OpenID
 openjdk
 openlineage
+opensandbox
 OpenSearch
 opensearch
+OpenShell
+openshell
 OpenTelemetry
 oper
 OperatorLineage
@@ -1278,6 +1311,7 @@ pinecone
 Pinot
 pinot
 PipelineRun
+PKI
 pkill
 plaintext
 pluggable
@@ -1285,6 +1319,7 @@ pluggy
 plyvel
 png
 PoC
+Podman
 PodManager
 PodSpec
 podSpec
@@ -1322,6 +1357,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1385,6 +1421,7 @@ pyproject
 pypsrp
 pyspark
 pytest
+PythonAgentTool
 pythonic
 PythonOperator
 pythonpath
@@ -1447,6 +1484,7 @@ renderers
 renewer
 reparse
 reparsed
+reparsing
 replicaSet
 repo
 repos
@@ -1459,6 +1497,7 @@ requeues
 requeuing
 rerank
 reranking
+rescanning
 reserialize
 Reserializing
 resetdb
@@ -1483,6 +1522,7 @@ rollup
 rom
 romeoandjuliet
 rootcss
+routable
 rowid
 rpc
 rsa
@@ -1492,6 +1532,8 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
+RunContext
 runnable
 RunQueryOperator
 RunQuerySensor
@@ -1528,6 +1570,7 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+seccomp
 secretmanager
 SecretManagerClient
 SecretManagerServiceClient
@@ -1575,6 +1618,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1816,7 +1860,9 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
@@ -1865,6 +1911,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unreferenced
 unsanitized
 unscoped
 untestable
@@ -1912,6 +1959,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1957,12 +2005,14 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

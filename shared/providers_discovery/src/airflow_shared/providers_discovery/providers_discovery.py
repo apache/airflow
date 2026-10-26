@@ -26,6 +26,7 @@ import pathlib
 from collections.abc import Callable, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
+from importlib.metadata import Distribution
 from importlib.resources import files as resource_files
 from time import perf_counter
 from typing import Any, NamedTuple, ParamSpec, Protocol, cast
@@ -299,6 +300,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Calla
 def discover_all_providers_from_packages(
     provider_dict: dict[str, ProviderInfo],
     provider_schema_validator,
+    incompatibility_reason: Callable[[Distribution], str | None] | None = None,
 ) -> None:
     """
     Discover all providers by scanning packages installed.
@@ -323,6 +325,9 @@ def discover_all_providers_from_packages(
             continue
         log.debug("Loading %s from package %s", entry_point, package_name)
         version = dist.version
+        if incompatibility_reason and (reason := incompatibility_reason(dist)):
+            log.warning(reason)
+            continue
         provider_info = entry_point.load()()
         try:
             provider_schema_validator.validate(provider_info)

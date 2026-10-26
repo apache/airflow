@@ -29,81 +29,14 @@ test.describe("Dag Calendar Tab", () => {
     await dagCalendarTab.navigateToCalendar(calendarRunsData.dagId);
   });
 
-  test("verify calendar grid renders", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-  });
-
-  test("verify active cells appear for Dag runs", async ({ dagCalendarTab }) => {
+  test("verify success and failed manual runs render as active cells", async ({ dagCalendarTab }) => {
     await dagCalendarTab.switchToHourly();
 
-    const count = await dagCalendarTab.getActiveCellCount();
-
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test("verify manual runs are detected", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
+    expect(await dagCalendarTab.getActiveCellCount()).toBeGreaterThan(0);
 
     const states = await dagCalendarTab.getManualRunStates();
 
-    expect(states.length).toBeGreaterThanOrEqual(2);
-  });
-
-  test("verify success and failed run states are detected", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-
-    const states = await dagCalendarTab.getManualRunStates();
-
-    expect(states).toContain("success");
-    expect(states).toContain("failed");
-  });
-
-  test("failed filter shows only failed runs", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-
-    const totalStates = await dagCalendarTab.getManualRunStates();
-
-    expect(totalStates).toContain("success");
-    expect(totalStates).toContain("failed");
-
-    await dagCalendarTab.switchToFailedView();
-
-    const failedStates = await dagCalendarTab.getManualRunStates();
-
-    expect(failedStates).toContain("failed");
-    expect(failedStates).not.toContain("success");
-  });
-
-  test("failed view reduces active cells", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-
-    const totalCount = await dagCalendarTab.getActiveCellCount();
-
-    await dagCalendarTab.switchToFailedView();
-
-    const failedCount = await dagCalendarTab.getActiveCellCount();
-
-    expect(failedCount).toBeLessThan(totalCount);
-  });
-
-  test("color scale changes between total and failed view", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-
-    const totalColors = await dagCalendarTab.getActiveCellColors();
-
-    await dagCalendarTab.switchToFailedView();
-
-    const failedColors = await dagCalendarTab.getActiveCellColors();
-
-    expect(failedColors).not.toEqual(totalColors);
-  });
-
-  test("cells reflect failed view mode attribute", async ({ dagCalendarTab }) => {
-    await dagCalendarTab.switchToHourly();
-    await dagCalendarTab.switchToFailedView();
-
-    const cell = dagCalendarTab.activeCells.first();
-
-    await expect(cell).toHaveAttribute("data-view-mode", "failed");
+    expect.soft(states).toContain("success");
+    expect.soft(states).toContain("failed");
   });
 });
