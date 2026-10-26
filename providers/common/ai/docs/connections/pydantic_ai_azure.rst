@@ -52,10 +52,15 @@ Model
     this connection type's own platform, so nothing else needs naming it
     explicitly. Writing the ``azure:`` prefix yourself has the same effect and is
     still accepted. A name prefixed with a *different*, recognized platform (e.g.
-    ``openai:gpt-5``) is used verbatim instead, pinning that platform and
-    bypassing Azure OpenAI entirely -- a name is only treated as already prefixed
-    when the segment before its first ``:`` is itself a real pydantic-ai
-    provider, not merely present.
+    ``openai:gpt-5``) is used verbatim instead -- a name is only treated as
+    already prefixed when the segment before its first ``:`` is itself a real
+    pydantic-ai provider, not merely present. That other platform's provider
+    class is built from the fields this connection forwards (``API Key``,
+    ``Azure Endpoint`` as ``azure_endpoint``, ``API Version``), so it works only
+    if it accepts all of them. ``OpenAIProvider`` does not accept
+    ``azure_endpoint`` or ``api_version``, so ``openai:`` with an endpoint or API
+    version set fails with a ``ValueError`` naming the fields passed; it never
+    silently falls back to environment-variable credentials.
 
 API Key (Password field)
     The Azure OpenAI API key.

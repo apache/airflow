@@ -35,7 +35,7 @@ Start here
 - :doc:`features`: what the provider can do, with the page, extra, minimum Airflow
   version and stability of each feature.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
-- :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
+- :doc:`use_cases/index`: jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
 
 This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
