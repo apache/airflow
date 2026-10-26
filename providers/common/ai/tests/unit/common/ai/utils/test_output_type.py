@@ -81,12 +81,36 @@ class Stamped(BaseModel):
     ident: UUID
 
 
+STAMPED_JSON = {
+    "d": "2026-01-02",
+    "at": "2026-01-02T03:04:05Z",
+    "amount": "1.5",
+    "ident": "12345678-1234-5678-1234-567812345678",
+}
 STAMPED = Stamped(
     d=date(2026, 1, 2),
     at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
     amount=Decimal("1.5"),
     ident=UUID("12345678-1234-5678-1234-567812345678"),
 )
+
+
+class Link(BaseModel):
+    url: HttpUrl
+
+
+LINK = Link(url="https://example.com/a")
+LINK_SERIALIZED = {
+    "__classname__": f"{Link.__module__}.Link",
+    "__version__": 1,
+    "__data__": {"url": "https://example.com/a"},
+}
+
+
+class Key(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    n: int
 
 
 class FromAttributesModel(BaseModel):
@@ -193,6 +217,10 @@ class UnresolvedForwardReference:
     value: Missing  # type: ignore[name-defined]  # noqa: F821
 
 
+class ItemPair(NamedTuple):
+    item: Item
+
+
 class Point(NamedTuple):
     x: int
     y: str
@@ -200,17 +228,16 @@ class Point(NamedTuple):
 
 class TestIsModelDumpRequired:
     @pytest.mark.parametrize(
-        ("output", "output_type", "serialize_output", "expected"),
+        ("output", "output_type", "expected"),
         [
-            (A(x=1), [A, int], False, True),
-            (A(x=1), (A, int), False, True),
-            (A(x=1), ToolOutput(A), False, True),
-            (A(x=1), A, False, False),
-            (A(x=1), A | int, False, False),
-            (A(x=1), list[A], False, False),
-            (A(x=1), A, True, True),
-            (SubA(x=1), A, False, True),
-            (5, [A, int], False, False),
+            (A(x=1), [A, int], True),
+            (A(x=1), (A, int), True),
+            (A(x=1), ToolOutput(A), True),
+            (A(x=1), A, False),
+            (A(x=1), A | int, False),
+            (A(x=1), list[A], False),
+            (SubA(x=1), A, True),
+            (5, [A, int], False),
         ],
         ids=[
             "list-of-types",
@@ -219,23 +246,19 @@ class TestIsModelDumpRequired:
             "single-model",
             "union",
             "generic-list",
-            "serialize-output",
             "subclass-instance",
             "not-a-model",
         ],
     )
     @requires_walker
-    def test_is_true_when_the_worker_registers_no_class_for_the_output(
-        self, output, output_type, serialize_output, expected
-    ):
-        result = is_model_dump_required(output, output_type, serialize_output=serialize_output)
+    def test_is_true_when_the_worker_registers_no_class_for_the_output(self, output, output_type, expected):
+        result = is_model_dump_required(output, output_type)
 
         assert result is expected
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_defers_to_serialize_output_without_the_sdk_walker(self):
-        assert is_model_dump_required(A(x=1), A, serialize_output=False) is False
-        assert is_model_dump_required(A(x=1), A, serialize_output=True) is True
+    def test_is_false_without_the_sdk_walker(self):
+        assert is_model_dump_required(A(x=1), [A, int]) is False
 
 
 class TestIsModelDumpRequiredForContainerOutputs:
@@ -251,7 +274,7 @@ class TestIsModelDumpRequiredForContainerOutputs:
     )
     @requires_walker
     def test_is_false_for_a_registered_shape_or_an_output_without_a_model(self, output, output_type):
-        assert is_model_dump_required(output, output_type, serialize_output=False) is False
+        assert is_model_dump_required(output, output_type) is False
 
     @pytest.mark.parametrize(
         ("output", "output_type"),
@@ -259,19 +282,15 @@ class TestIsModelDumpRequiredForContainerOutputs:
             ([Item(n=1)], [list[Item], str]),
             ({"k": Item(n=1)}, [dict[str, Item], str]),
             ((Item(n=1),), [tuple[Item, ...], str]),
+            (ItemPair(item=Item(n=1)), [ItemPair, str]),
         ],
-        ids=["list", "dict", "tuple"],
+        ids=["list", "dict", "tuple", "named-tuple"],
     )
     @requires_walker
     def test_is_true_for_models_inside_a_container_the_worker_registers_no_class_for(
         self, output, output_type
     ):
-        assert is_model_dump_required(output, output_type, serialize_output=False) is True
-
-    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_defers_to_serialize_output_for_a_container_without_the_sdk_walker(self):
-        assert is_model_dump_required([A(x=1)], list[A], serialize_output=False) is False
-        assert is_model_dump_required([A(x=1)], list[A], serialize_output=True) is True
+        assert is_model_dump_required(output, output_type) is True
 
 
 class TestDumpOutputForXcom:
@@ -317,7 +336,7 @@ class TestDumpOutputForXcom:
     def test_dumps_the_whole_output_when_only_some_of_its_models_are_unregistered(self):
         output = [A(x=1), Item(n=1)]
 
-        assert is_model_dump_required(output, A, serialize_output=False) is True
+        assert is_model_dump_required(output, A) is True
         assert dump_output_for_xcom(output, A, serialize_output=False) == [{"x": 1}, {"n": 1}]
 
     @pytest.mark.parametrize("model_cls", [SerializationAlias, SerializedByAlias])
@@ -331,10 +350,10 @@ class TestDumpOutputForXcom:
         assert dumped == json.loads(dump_output_to_json(model))
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_dumps_a_container_without_the_sdk_walker_only_when_serialize_output(self):
+    def test_keeps_a_container_without_the_sdk_walker(self):
         output = [A(x=1)]
 
-        assert dump_output_for_xcom(output, list[A], serialize_output=True) == [{"x": 1}]
+        assert dump_output_for_xcom(output, list[A], serialize_output=True) is output
         assert dump_output_for_xcom(output, list[A], serialize_output=False) is output
 
     def test_serialize_output_keeps_python_field_types(self):
@@ -345,35 +364,53 @@ class TestDumpOutputForXcom:
         assert [type(value) for value in dumped.values()] == [date, datetime, Decimal, UUID]
 
     @pytest.mark.parametrize(
-        ("output", "container_type"),
-        [([STAMPED], list), ({"k": STAMPED}, dict), ((STAMPED,), tuple)],
-        ids=["list", "dict", "tuple"],
+        ("output", "expected"),
+        [
+            ([STAMPED], [STAMPED_JSON]),
+            ({"k": STAMPED}, {"k": STAMPED_JSON}),
+            ((STAMPED,), [STAMPED_JSON]),
+            ({STAMPED}, [STAMPED_JSON]),
+        ],
+        ids=["list", "dict", "tuple", "set"],
     )
-    def test_serialize_output_keeps_python_field_types_inside_a_container(self, output, container_type):
+    @requires_walker
+    def test_serialize_output_dumps_an_unregistered_container_to_json_values(self, output, expected):
         dumped = dump_output_for_xcom(output, [Stamped, str], serialize_output=True)
 
-        assert type(dumped) is container_type
-        element = next(iter(dumped.values())) if container_type is dict else dumped[0]
-        assert type(element) is dict
-        assert type(element["d"]) is date
-        assert type(element["amount"]) is Decimal
+        assert dumped == expected
+
+    @requires_walker
+    def test_dumps_a_model_used_as_a_dict_key(self):
+        output = {Key(n=1): 1, "k": 2}
+
+        dumped = dump_output_for_xcom(output, [Key, str], serialize_output=True)
+
+        assert dumped == {"n=1": 1, "k": 2}
+        assert json.dumps(dumped)
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_serialize_output_dumps_a_top_level_model_without_the_sdk_walker(self):
+        dumped = dump_output_for_xcom(STAMPED, Stamped, serialize_output=True)
+
+        assert type(dumped) is dict
+        assert type(dumped["d"]) is date
 
     @pytest.mark.parametrize(
-        "output",
+        ("output", "output_type", "expected"),
         [
-            {STAMPED},
-            frozenset({STAMPED}),
-            [{STAMPED}],
-            {"k": frozenset({STAMPED})},
-            {STAMPED: 1, "k": STAMPED},
+            ([LINK], list[Link], [LINK_SERIALIZED]),
+            ({"k": LINK}, dict[str, Link], {"k": LINK_SERIALIZED}),
         ],
-        ids=["set", "frozenset", "set-in-list", "frozenset-in-dict", "model-as-dict-key"],
+        ids=["list", "dict"],
     )
-    def test_serialize_output_dumps_json_values_when_a_set_or_dict_key_holds_the_model(self, output):
-        dumped = dump_output_for_xcom(output, [Stamped, str], serialize_output=True)
+    @requires_walker
+    def test_serialize_output_keeps_registered_models_in_a_container_that_serde_pushes(
+        self, output, output_type, expected
+    ):
+        dumped = dump_output_for_xcom(output, output_type, serialize_output=True)
 
-        assert "2026-01-02" in str(dumped)
-        assert date not in {type(v) for v in _flatten_values(dumped)}
+        assert dumped is output
+        assert serialize(dumped) == expected
 
     @requires_walker
     def test_unregistered_model_is_dumped_to_json_values(self):
@@ -385,19 +422,6 @@ class TestDumpOutputForXcom:
             "amount": "1.5",
             "ident": str(STAMPED.ident),
         }
-
-
-def _flatten_values(dumped):
-    """Yield the leaf values of nested lists and dicts."""
-    stack = [dumped]
-    while stack:
-        item = stack.pop()
-        if isinstance(item, dict):
-            stack.extend(item.values())
-        elif isinstance(item, list):
-            stack.extend(item)
-        else:
-            yield item
 
 
 class TestRehydratePydanticOutput:
