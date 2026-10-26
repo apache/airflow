@@ -170,6 +170,12 @@
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
     "button": "Auslösen",
+    "dagStartEndDate": {
+      "both": "Startdatum des Dags: {{startDate}}, Enddatum: {{endDate}}",
+      "end": "Enddatum des Dags: {{endDate}}",
+      "noTaskWillRun": "Es wird kein Task ausgeführt.",
+      "start": "Startdatum des Dags: {{startDate}}"
+    },
     "dataInterval": "Datenintervall",
     "dataIntervalAuto": "Abgeleitet aus logischem Datum und Zeitplan",
     "dataIntervalManual": "Manuell festgelegt",
