@@ -102,13 +102,7 @@ class GCSDagBundle(BaseDagBundle):
             except NotFound:
                 raise ValueError(f"GCS bucket '{self.bucket_name}' does not exist.")
 
-            if self.archive_object:
-                blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(self.archive_object)
-                if not blob.exists():
-                    raise ValueError(
-                        f"GCS archive 'gs://{self.bucket_name}/{self.archive_object}' does not exist."
-                    )
-            elif self.prefix:
+            if self.prefix:
                 # don't check when prefix is ""
                 if not self.gcs_hook.list(bucket_name=self.bucket_name, prefix=self.prefix):
                     raise ValueError(f"GCS prefix 'gs://{self.bucket_name}/{self.prefix}' does not exist.")
@@ -172,7 +166,10 @@ class GCSDagBundle(BaseDagBundle):
         if not archive_object:
             raise ValueError("GCSDagBundle archive refresh called without 'archive_object'.")
         blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(archive_object)
-        blob.reload()
+        try:
+            blob.reload()
+        except NotFound:
+            raise ValueError(f"GCS archive 'gs://{self.bucket_name}/{archive_object}' does not exist.")
         etag = blob.etag or ""
 
         marker = self.gcs_dags_dir / self.archive_etag_marker
@@ -188,7 +185,13 @@ class GCSDagBundle(BaseDagBundle):
         staging_dir = Path(tempfile.mkdtemp(dir=self.gcs_dags_dir.parent, prefix=".gcs-archive-staging-"))
         try:
             archive_path = staging_dir / "_bundle_archive"
-            blob.download_to_filename(os.fspath(archive_path))
+            # Pin the bytes to the generation just read. An overwrite between reload()
+            # and the download then fails, instead of storing the new bytes under the
+            # old ETag. GCSHook.download cannot pass if_generation_match.
+            download_kwargs = {}
+            if blob.generation is not None:
+                download_kwargs["if_generation_match"] = blob.generation
+            blob.download_to_filename(os.fspath(archive_path), **download_kwargs)
 
             unpack_dir = staging_dir / "unpacked"
             unpack_dir.mkdir()
