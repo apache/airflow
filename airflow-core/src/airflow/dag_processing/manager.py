@@ -64,6 +64,7 @@ from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     DagBundleRefreshError,
     unpack_bundle_version,
@@ -1233,6 +1234,16 @@ class DagFileProcessorManager(LoggingMixin):
                     try:
                         bundle.initialize()
                         any_refreshed = True
+                    except BundleNotReadyError as e:
+                        self._bundle_refresh_retry_at[bundle.name] = now_seconds + e.retry_after
+                        self._bundles_needing_refresh.add(bundle.name)
+                        self.log.info(
+                            "Bundle %s is not ready yet; retrying initialization in %.0f seconds: %s",
+                            bundle.name,
+                            e.retry_after,
+                            e,
+                        )
+                        continue
                     except Exception as e:
                         self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                         self._bundles_needing_refresh.add(bundle.name)
