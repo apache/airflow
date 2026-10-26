@@ -29,6 +29,9 @@ Contract notes for implementations:
 - The release reference is the only mutable artifact. ``publication_guard`` must make the
   read-check-write sections that publishers run inside it safe against concurrent publishers.
 - Snapshots are immutable once committed and must not become visible half-written.
+- A reference replacement that completes without confirmed durability must raise
+  ``BundleManifestRefDurabilityError``. Readers may already have observed the replacement;
+  callers must not roll it back or assume that retrying with the old expected version is safe.
 - Locator properties return ``Path`` for a filesystem store; a store for a remote root may
   return URL strings instead, so callers must not apply Path-only operations to them.
 """
@@ -55,6 +58,25 @@ class BundleManifestNotFoundError(BundleManifestError, FileNotFoundError):
     as a bundle error. It is distinct from ``BundleManifestSourceChangedError``: an artifact
     that is absent is not a source that changed while it was read.
     """
+
+
+class BundleManifestRefDurabilityError(BundleManifestError):
+    """
+    Raised when a release reference was replaced but its durability could not be confirmed.
+
+    ``ref_path`` locates the reference to inspect before retrying publication. ``version``
+    identifies the replacement when the payload contains a string version, otherwise it is
+    ``None``. Another publisher may subsequently replace it; neither this context nor a read
+    of the reference confirms crash durability. The underlying storage error is chained.
+    """
+
+    def __init__(self, *, ref_path: Path | str, version: str | None) -> None:
+        self.ref_path = ref_path
+        self.version = version
+        super().__init__(
+            f"Release reference at {ref_path} was replaced, but durability could not be confirmed. "
+            "Check the current reference before retrying publication."
+        )
 
 
 class ArtifactStore(ABC):
@@ -92,7 +114,14 @@ class ArtifactStore(ABC):
 
     @abstractmethod
     def write_ref(self, payload: dict[str, Any]) -> None:
-        """Atomically replace the release reference. The last step of a publication."""
+        """
+        Atomically replace the release reference, the last step of a publication.
+
+        Return only after confirming durability. Raise ``BundleManifestRefDurabilityError``
+        if replacement completed but durability could not be confirmed. The replacement
+        remains visible and must not be rolled back; inspect the current reference before
+        deciding whether to retry. Failures before replacement retain their original errors.
+        """
 
     @abstractmethod
     def publication_guard(self) -> AbstractContextManager[None]:
