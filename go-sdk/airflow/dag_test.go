@@ -218,6 +218,7 @@ func TestTaskNeedsTaskIDWhenFnHasNoName(t *testing.T) {
 
 func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 	literal := func(Context) error { return nil }
+	var nilSpec *TaskSpec
 
 	tests := []struct {
 		name string
@@ -239,9 +240,21 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 			task: `given`,
 		},
 		{
+			name: "TaskID in a *TaskSpec",
+			fn:   literal,
+			opts: []TaskOption{TaskSpec{}, &TaskSpec{TaskID: "given"}},
+			task: `given`,
+		},
+		{
 			name: "no TaskID",
 			fn:   ExtractRows,
 			opts: []TaskOption{TaskSpec{}, TaskSpec{}},
+			task: `ExtractRows`,
+		},
+		{
+			name: "nil *TaskSpec after the second spec",
+			fn:   ExtractRows,
+			opts: []TaskOption{TaskSpec{}, TaskSpec{}, nilSpec},
 			task: `ExtractRows`,
 		},
 		{
@@ -262,8 +275,8 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := panicMessage(t, func() { Dag("etl").Task(tt.fn, tt.opts...) })
 			assert.Regexp(t,
-				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl" got 2 airflow\.TaskSpec `+
-					`values; set all of the task's attributes in one TaskSpec$`,
+				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl": got more than one `+
+					`airflow\.TaskSpec; set all of the task's attributes in one TaskSpec$`,
 				msg,
 			)
 		})
@@ -302,6 +315,11 @@ func TestTaskPanicsOnBadFunction(t *testing.T) {
 			name: "no leading Context",
 			fn:   func(context.Context) error { return nil },
 			want: "parameter 0 is context.Context, but the first parameter must be airflow.Context",
+		},
+		{
+			name: "error result of a concrete type",
+			fn:   func(Context) (int, *taskError) { return 0, nil },
+			want: "must declare its last result as error, not *airflow.taskError",
 		},
 		{
 			// The name of a method expression keeps a dot, as a function literal's name does.

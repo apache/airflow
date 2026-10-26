@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.hooks.langchain import LangChainHook
 
 
@@ -71,6 +73,78 @@ class TestLangChainHookInit:
         hook = LangChainHook(llm_conn_id="my_conn")
         assert hook.llm_conn_id == "my_conn"
         assert hook.embed_conn_id == "my_conn"
+
+    @pytest.mark.parametrize(
+        ("positional", "expected"),
+        [
+            pytest.param(("llm-pos",), {"llm_model": "llm-pos", "embed_model": None}, id="one"),
+            pytest.param(
+                ("llm-pos", "embed-pos"),
+                {"llm_model": "llm-pos", "embed_model": "embed-pos"},
+                id="two",
+            ),
+        ],
+    )
+    def test_positional_model_emits_deprecation_warning(self, positional, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LangChainHook("c1", "c2", *positional)
+        assert len(record) == len(positional)
+        assert "Parameter `llm_model` passed positionally is deprecated" in str(record[0].message)
+        assert hook.llm_conn_id == "c1"
+        assert hook.embed_conn_id == "c2"
+        assert hook.llm_model == expected["llm_model"]
+        assert hook.embed_model == expected["embed_model"]
+
+    def test_positional_warning_stacklevel_points_to_caller(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LangChainHook("c1", "c2", "llm-pos")
+        assert record[0].filename == __file__
+
+    def test_one_warning_per_positional_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LangChainHook("c1", "c2", "llm-pos", "embed-pos")
+        messages = [str(w.message) for w in record]
+        assert len(messages) == 2
+        assert "`llm_model`" in messages[0]
+        assert "`embed_model`" in messages[1]
+
+    def test_keyword_model_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LangChainHook("c1", "c2", llm_model="llm-pos", embed_model="embed-pos")
+        assert hook.llm_model == "llm-pos"
+        assert hook.embed_model == "embed-pos"
+
+    def test_connection_positional_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LangChainHook("c1", "c2")
+        assert hook.embed_model is None
+        assert hook.llm_model is None
+
+    def test_too_many_positional_arguments_raise_type_error(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            with pytest.raises(TypeError, match="positional argument"):
+                LangChainHook("c1", "c2", "llm-pos", "embed-pos", "extra")
+
+    def test_positional_and_keyword_same_parameter_raise_type_error(self):
+        with pytest.raises(TypeError, match="multiple values for argument 'llm_model'"):
+            LangChainHook("c1", "c2", "llm-pos", llm_model="other")
+
+    def test_second_positional_and_keyword_same_parameter_raise_type_error(self):
+        with (
+            pytest.warns(AirflowProviderDeprecationWarning),
+            pytest.raises(TypeError, match="multiple values for argument 'embed_model'"),
+        ):
+            LangChainHook("c1", "c2", "L", "E", embed_model="X")
+
+    def test_positional_and_keyword_different_parameters_combine(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LangChainHook("c1", "c2", "llm-pos", embed_model="embed-pos")
+        assert len(record) == 1
+        assert hook.llm_model == "llm-pos"
+        assert hook.embed_model == "embed-pos"
 
     def test_explicit_separate_conns_and_models(self):
         hook = LangChainHook(

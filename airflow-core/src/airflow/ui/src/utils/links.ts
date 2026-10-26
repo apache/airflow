@@ -16,18 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { matchRoutes } from "react-router-dom";
+
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { basePath as uiBasePath } from "src/basePath";
 import {
   DEFAULT_TASK_INSTANCE_TAB_PATHS,
   type DefaultTaskInstanceTab,
   type TaskInstanceTabValue,
 } from "src/constants/tab";
-import { taskInstanceRoutes } from "src/router";
+import { routerConfig, taskInstanceRoutes } from "src/router";
 
+// Links address the current execution at these coordinates; a try_number would pin the page to one attempt.
 export const getTaskInstanceLink = (
   tiOrParams:
-    | TaskInstanceResponse
+    | Pick<
+        TaskInstanceResponse,
+        "dag_id" | "dag_run_id" | "map_index" | "region_id" | "region_index" | "task_id"
+      >
     | {
         dagId: string;
         dagRunId: string;
@@ -39,9 +46,19 @@ export const getTaskInstanceLink = (
   const tabPath = tab === undefined ? "" : `/${tab}`;
 
   if ("dag_id" in tiOrParams) {
-    return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
+    const path = `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
     }${tabPath}`;
+
+    if (tiOrParams.region_id === undefined) {
+      return path;
+    }
+    const query = new URLSearchParams({
+      region_id: tiOrParams.region_id,
+      region_index: String(tiOrParams.region_index),
+    });
+
+    return `${path}?${query}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
@@ -66,20 +83,7 @@ export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "sear
   `${location.pathname}${location.search}${location.hash}`;
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
-  const subRoutes = taskInstanceRoutes.flatMap((route) => {
-    if (route.path !== undefined) {
-      return [route.path];
-    }
-
-    // Include paths from children of pathless layout routes (e.g. StoragePage wrapping task-store and xcom)
-    if ("children" in route && Array.isArray(route.children)) {
-      return route.children
-        .filter((child) => "path" in child && typeof child.path === "string")
-        .map((child) => child.path);
-    }
-
-    return [];
-  });
+  const subRoutes = taskInstanceRoutes.flatMap((route) => (route.path === undefined ? [] : [route.path]));
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
   const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
   const mappedMatch = mappedRegex.exec(pathname);
@@ -153,11 +157,7 @@ export const getSafeExternalUrl = (url: string): string | undefined => {
     return trimmed;
   }
 
-  if (SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol)) {
-    return trimmed;
-  }
-
-  return undefined;
+  return SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol) ? trimmed : undefined;
 };
 
 export const buildTaskInstanceUrl = (params: {
@@ -186,4 +186,167 @@ export const buildTaskInstanceUrl = (params: {
   }
 
   return `${basePath}${additionalPath}`;
+};
+
+/**
+ * Where a plugin link should open: in this tab for the UI's own origin, a new one otherwise.
+ *
+ * A URL that cannot be parsed is treated as external, so a malformed plugin link never navigates the
+ * app away from the page the user is on.
+ */
+export const getLinkTarget = (url: string): "_blank" | "_self" => {
+  try {
+    return new URL(url, globalThis.location.origin).origin === globalThis.location.origin
+      ? "_self"
+      : "_blank";
+  } catch {
+    return "_blank";
+  }
+};
+
+const decodeSegments = (path: string) =>
+  path.split("/").map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      // A malformed escape is not decodable; compare it as written.
+      return segment;
+    }
+  });
+
+/**
+ * Whether two paths address the same page, compared segment by segment once decoded.
+ *
+ * A link action's identifiers arrive percent-encoded from `applyPluginTemplate`, while the
+ * router's own `location.pathname` carries them raw -- a run id like
+ * `manual__2026-10-20T12:00:00+00:00` is `...T12%3A00%3A00%2B00%3A00` on one side and keeps its
+ * `:` and `+` on the other. Comparing the strings would call every run-scoped page a different
+ * page. Segments are decoded individually so an encoded `/` stays a value rather than becoming
+ * a boundary.
+ */
+const isSamePath = (left: string, right: string): boolean => {
+  const leftSegments = decodeSegments(left);
+  const rightSegments = decodeSegments(right);
+
+  return (
+    leftSegments.length === rightSegments.length &&
+    leftSegments.every((segment, index) => segment === rightSegments[index])
+  );
+};
+
+/**
+ * The query string a link should navigate with, keeping the current one when it stays put.
+ *
+ * A key the link names replaces every value the page had for it, rather than adding to them,
+ * so a link to `?state=failed` means failed rather than "failed as well as whatever was
+ * already selected" -- while a link that repeats a key keeps all of its own values.
+ */
+const mergeSearch = (
+  pathname: string,
+  linkParams: URLSearchParams,
+  currentLocation?: { pathname: string; search: string },
+): string => {
+  if (currentLocation === undefined || !isSamePath(currentLocation.pathname, pathname)) {
+    return linkParams.toString() === "" ? "" : `?${linkParams}`;
+  }
+
+  const merged = new URLSearchParams(currentLocation.search);
+
+  for (const key of new Set(linkParams.keys())) {
+    merged.delete(key);
+  }
+  for (const [key, value] of linkParams) {
+    merged.append(key, value);
+  }
+
+  return merged.toString() === "" ? "" : `?${merged}`;
+};
+
+/**
+ * Resolve `url` to a path this app's router owns, or `undefined` if it is not one.
+ *
+ * Matched against the router's own route table rather than just the base path, because a
+ * same-origin URL is not necessarily a UI page -- `/api/v2/...` and a plugin's own FastAPI
+ * pages sit under the same prefix and must be followed as ordinary links. The table ends in a
+ * catch-all that renders the error page, so landing on that leaf means "no UI route for this
+ * path", not "internal".
+ *
+ * The result is relative to the base path, ready to hand to a router link, which adds the
+ * prefix back itself.
+ *
+ * Pass `currentLocation` to keep the query string the user already has when the link stays on
+ * the same page. A link's target is fixed when the plugin loads, so without this a button on
+ * the Dags list that only wants to add one parameter would navigate with its own query string
+ * and silently drop every filter, search term and sort the user had set. Keys the link names
+ * win; the rest survive.
+ *
+ * Only when the path is unchanged: across pages the parameters belong to the page being left
+ * -- carrying a Dag Runs `?state=failed` onto Task Instances would filter something the user
+ * never asked to filter.
+ *
+ * Both a relative href and a root-absolute one reach the right page on a deployment served
+ * under a base path, so a plugin does not have to know what that path is to link inside the UI.
+ */
+export const getInternalRouteTo = (
+  url: string,
+  currentLocation?: { pathname: string; search: string },
+): string | undefined => {
+  let parsed: URL;
+
+  try {
+    // Resolved against `<base href>` rather than the bare origin, so a relative href such as
+    // `dags/{DAG_ID}/runs` lands under the deployment's base path -- the same place the browser
+    // would take it -- instead of at the root, where no route matches.
+    //
+    // An href that is only a query or a fragment names no page at all, and a browser resolves
+    // it against the current document rather than `<base>`, so it is resolved that way here
+    // too: otherwise `?tab=graph` would navigate to the deployment root.
+    const pathless = url.startsWith("?") || url.startsWith("#");
+
+    if (pathless && currentLocation === undefined) {
+      return undefined;
+    }
+
+    parsed = new URL(
+      url,
+      pathless
+        ? new URL(`${uiBasePath}${currentLocation?.pathname ?? "/"}`, document.baseURI)
+        : document.baseURI,
+    );
+  } catch {
+    return undefined;
+  }
+
+  if (parsed.origin !== globalThis.location.origin) {
+    return undefined;
+  }
+
+  const matches = (candidate: string) => {
+    const matched = matchRoutes(routerConfig, candidate, uiBasePath || "/");
+
+    return matched !== null && matched.at(-1)?.route.path !== "*";
+  };
+
+  // A root-absolute href is written without knowing the deployment's base path, so try it under
+  // the base path before giving up. Otherwise `/dags/x/runs` on a `/airflow` deployment would
+  // open `host/dags/x/runs` in a new tab -- a blank page, not the Dag it names.
+  let absolute = parsed.pathname;
+
+  if (!matches(absolute) && uiBasePath !== "" && !absolute.startsWith(`${uiBasePath}/`)) {
+    const underBase = `${uiBasePath}${absolute}`;
+
+    if (matches(underBase)) {
+      absolute = underBase;
+    }
+  }
+
+  if (!matches(absolute)) {
+    return undefined;
+  }
+
+  const relative =
+    uiBasePath !== "" && absolute.startsWith(uiBasePath) ? absolute.slice(uiBasePath.length) : absolute;
+  const pathname = relative === "" ? "/" : relative;
+
+  return `${pathname}${mergeSearch(pathname, parsed.searchParams, currentLocation)}${parsed.hash}`;
 };

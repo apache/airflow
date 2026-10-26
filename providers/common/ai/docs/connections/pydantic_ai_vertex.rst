@@ -57,8 +57,12 @@ Model
     mean Vertex AI Express Mode credentials (see "Credentials" below), so its
     presence alone cannot tell the two platforms apart. To reach the
     Generative Language API instead, prefix the model explicitly with
-    ``google:`` -- that spelling routes to a different provider regardless of
-    which fields this connection sets.
+    ``google:``. The ``google:`` provider accepts only the ``API Key`` and
+    ``Custom Endpoint URL`` fields (without an API key it reads ``GOOGLE_API_KEY``), so on this
+    connection type that spelling must not be combined with Vertex-only fields
+    (``GCP Project``, ``Location / Region``, ``Service Account Info``): the
+    connection fails with a ``ValueError`` instead of silently falling back to
+    environment-variable credentials.
 
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
@@ -87,7 +91,7 @@ API Key
     ``project`` / ``location`` / ``service_account_info`` (those select the
     credentials/ADC path instead, which takes precedence and nulls the API
     key). For the Generative Language API
-    (non-Vertex, API-key-only), use the ``google:`` prefix on the generic
+    (non-Vertex; API key or ``GOOGLE_API_KEY``), use the ``google:`` prefix on the generic
     :doc:`pydantic_ai` connection instead.
 
 Service Account Info

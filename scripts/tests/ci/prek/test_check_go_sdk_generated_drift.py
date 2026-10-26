@@ -56,11 +56,18 @@ def test_both_targets_are_checked_and_name_generated_files_not_a_package_directo
         assert all(path.name.endswith(".gen.go") for path in target.committed), target.committed
 
 
+def test_every_target_generates_from_a_schema_vendored_inside_the_go_module():
+    # Reaching across the monorepo for a schema is what sync-go-sdk-schemas replaced:
+    # a path outside go-sdk/ does not exist in the published module or a source release.
+    for target in checker.TARGETS:
+        assert target.schema.startswith("go-sdk/schema/"), target.schema
+
+
 def test_current_files_pass():
     exit_code, report = checker.format_report(SPECS, 0, "", 0, "")
 
     assert exit_code == 0
-    assert "up to date with airflow-core/src/airflow/serialization/schema.json" in report
+    assert "up to date with go-sdk/schema/dag-schema.json" in report
 
 
 def test_drifted_specs_fail_with_the_diff_and_where_to_decide_about_a_property():
@@ -73,11 +80,11 @@ def test_drifted_specs_fail_with_the_diff_and_where_to_decide_about_a_property()
     assert "Deadline string" in report
 
 
-def test_drifted_models_name_the_supervisor_snapshot_and_have_nothing_to_decide():
+def test_drifted_models_name_the_vendored_snapshot_and_have_nothing_to_decide():
     exit_code, report = checker.format_report(MODELS, 0, "", 0, MODELS_DRIFT_DIFF)
 
     assert exit_code == 1
-    assert "task-sdk/src/airflow/sdk/execution_time/schema/schema.json" in report
+    assert "go-sdk/schema/supervisor-schema.json" in report
     assert (
         "git add go-sdk/pkg/execution/genmodels/models.gen.go "
         "go-sdk/pkg/execution/genmodels/discriminators.gen.go "

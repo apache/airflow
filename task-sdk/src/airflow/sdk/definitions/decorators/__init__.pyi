@@ -544,6 +544,7 @@ class TaskDecoratorCollection:
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
+        log_events_on_startup: bool = True,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
@@ -635,6 +636,9 @@ class TaskDecoratorCollection:
         :param full_pod_spec: The complete podSpec
         :param init_containers: Init containers for the launched pod.
         :param log_events_on_failure: Log the pod's events if a failure occurs.
+        :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
+            Each poll makes the API server read every event in the namespace; disable on very
+            large clusters.
         :param do_xcom_push: If *True*, the content of
             ``/airflow/xcom/return.json`` in the container will also be pushed
             to an XCom when the container completes.
@@ -720,6 +724,7 @@ class TaskDecoratorCollection:
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
+        log_events_on_startup: bool = True,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
@@ -808,6 +813,9 @@ class TaskDecoratorCollection:
         :param full_pod_spec: The complete podSpec
         :param init_containers: Init containers for the launched pod.
         :param log_events_on_failure: Log the pod's events if a failure occurs.
+        :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
+            Each poll makes the API server read every event in the namespace; disable on very
+            large clusters.
         :param do_xcom_push: If *True*, the content of
             ``/airflow/xcom/return.json`` in the container will also be pushed
             to an XCom when the container completes.

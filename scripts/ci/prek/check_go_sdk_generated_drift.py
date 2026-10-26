@@ -19,18 +19,23 @@
 Keep the Go SDK's generated files in step with the schemas they generate from.
 
 Two of the Go SDK's surfaces are generated from schemas Python owns, and both are
-committed, so nothing regenerates them when the schema on the Python side moves:
+committed, so nothing regenerates them when the schema moves:
 
-* ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec`` and ``airflow.TaskSpec``, the
-  structs a Dag author fills in, from ``airflow-core``'s Dag serialization schema.
+* ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec``, ``airflow.TaskSpec`` and
+  ``airflow.TaskGroupSpec``, the structs a Dag author fills in, from
+  ``go-sdk/schema/dag-schema.json``. ``go-sdk/airflow/spec_fields.gen.go`` holds the
+  schema key and default of each of their fields, from the same schema.
 * ``go-sdk/pkg/execution/genmodels/*.gen.go`` — the coordinator-protocol messages,
-  from the supervisor wire-schema snapshot the Python Task SDK owns.
+  from ``go-sdk/schema/supervisor-schema.json``.
 
-Without this check a property added, renamed or retyped on the Python side leaves the
-Go side silently behind: a Dag authored in Go keeps serializing the old shape, and
-msgpack drops a message field the Go struct does not declare. That is not theoretical
-— ``models.gen.go`` sat two fields behind its snapshot across two releases, which is
-what #73954 is about.
+Both of those are go-sdk's vendored copies of a schema another distribution owns;
+``sync-go-sdk-schemas`` is what keeps a copy equal to its original. This check takes
+the copy as given and asks only whether the committed Go is what the copy generates.
+
+Without it a property added, renamed or retyped upstream leaves the Go side silently
+behind: a Dag authored in Go keeps serializing the old shape, and msgpack drops a
+message field the Go struct does not declare. That is not theoretical — ``models.gen.go``
+sat two fields behind its snapshot across two releases, which is what #73954 is about.
 
 The check regenerates each target and asks Git whether it changed. A drifted file is
 left regenerated in the working tree, so the fix is to commit it.
@@ -69,8 +74,11 @@ class Target(NamedTuple):
 TARGETS = (
     Target(
         package="./airflow/...",
-        committed=(GO_SDK_MODULE / "airflow" / "spec.gen.go",),
-        schema="airflow-core/src/airflow/serialization/schema.json",
+        committed=(
+            GO_SDK_MODULE / "airflow" / "spec.gen.go",
+            GO_SDK_MODULE / "airflow" / "spec_fields.gen.go",
+        ),
+        schema="go-sdk/schema/dag-schema.json",
         remedy=(
             "Review it — a property that should not reach an author belongs in the "
             "exclusion list in go-sdk/internal/genspec/authoring.go — then commit it:"
@@ -83,7 +91,7 @@ TARGETS = (
             GO_SDK_MODULE / "pkg" / "execution" / "genmodels" / "discriminators.gen.go",
             GO_SDK_MODULE / "pkg" / "execution" / "genmodels" / "defaults.gen.go",
         ),
-        schema="task-sdk/src/airflow/sdk/execution_time/schema/schema.json",
+        schema="go-sdk/schema/supervisor-schema.json",
         remedy="Commit it:",
     ),
 )
@@ -127,7 +135,7 @@ def format_report(
                 f"ERROR: regenerating {written} failed.",
                 "",
                 "A generator fails on a schema construct it has no rule for, which is how a",
-                "change on the Python side that needs a new rule surfaces; the generators also",
+                "newly vendored schema that needs a new rule surfaces; the generators also",
                 "need the Go toolchain and the network to fetch go-jsonschema.",
                 "`go generate` reported:",
                 "",

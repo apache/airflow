@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import AliasPath, Field
 
@@ -30,6 +31,7 @@ class EventLogResponse(BaseModel):
 
     id: int = Field(alias="event_log_id")
     dttm: datetime = Field(alias="when")
+    task_instance_id: UUID | None = None
     dag_id: str | None
     task_id: str | None
     run_id: str | None

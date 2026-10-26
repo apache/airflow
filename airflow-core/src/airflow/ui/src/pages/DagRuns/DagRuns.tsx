@@ -30,6 +30,7 @@ import { RouterLink, ActionBar } from "src/system-components";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -43,6 +44,8 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import { PluginActions } from "src/components/PluginActions";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -52,8 +55,9 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { formatNumber, useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -99,7 +103,12 @@ type ColumnProps = {
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({
+  dagId,
+  multiTeam,
+  open,
+  translate,
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -141,6 +150,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
       </RouterLink>
     ),
     header: translate("dagRun.runAfter"),
+  },
+  {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
   },
   {
     accessorKey: "state",
@@ -215,7 +229,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
-      original.conf && Object.keys(original.conf).length > 0 ? (
+      hasDagRunConfig(original.conf) ? (
         <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
@@ -228,8 +242,10 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />
+        <PluginActions entity={{ dagRun: row.original, destination: "dag_run" }} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
@@ -239,7 +255,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 ];
 
 export const DagRuns = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -253,6 +269,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });
@@ -361,6 +378,8 @@ export const DagRuns = () => {
       getKey: getRowKey,
     });
 
+  const pluginActions = usePluginActions("dag_run");
+
   const selectedDagRuns = dagRuns.filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
@@ -377,35 +396,37 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <DataTable
-        columns={columns}
-        data={dagRuns}
-        errorMessage={<ErrorAlert error={error} />}
-        filterActions={<DagRunsFilters dagId={dagId} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:dagRun"
-        nextCursor={nextCursor}
-        onStateChange={setTableURLState}
-        presentationActions={
-          dagRuns.length > 0 ? (
-            <ExpandCollapseButtons
-              collapseLabel={translate("common:collapseAllExtra")}
-              expandLabel={translate("common:expandAllExtra")}
-              isExpanded={open}
-              onCollapse={onClose}
-              onExpand={onOpen}
-            />
-          ) : undefined
-        }
-        previousCursor={previousCursor}
-        total={data?.total_entries ?? 0}
-        totalEntriesLimit={data?.total_entries_limit ?? undefined}
-      />
+      <PluginActionsProvider value={pluginActions}>
+        <DataTable
+          columns={columns}
+          data={dagRuns}
+          errorMessage={<ErrorAlert error={error} />}
+          filterActions={<DagRunsFilters dagId={dagId} />}
+          initialState={tableURLState}
+          isLoading={isLoading}
+          modelName="common:dagRun"
+          nextCursor={nextCursor}
+          onStateChange={setTableURLState}
+          presentationActions={
+            dagRuns.length > 0 ? (
+              <ExpandCollapseButtons
+                collapseLabel={translate("common:collapseAllExtra")}
+                expandLabel={translate("common:expandAllExtra")}
+                isExpanded={open}
+                onCollapse={onClose}
+                onExpand={onOpen}
+              />
+            ) : undefined
+          }
+          previousCursor={previousCursor}
+          total={data?.total_entries ?? 0}
+          totalEntriesLimit={data?.total_entries_limit ?? undefined}
+        />
+      </PluginActionsProvider>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />

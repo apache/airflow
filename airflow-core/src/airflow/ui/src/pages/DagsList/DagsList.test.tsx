@@ -16,34 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
-import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
-import { handlers } from "src/mocks/handlers";
+import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_RECENT_TASKS_KEY } from "src/constants/localStorage";
 import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
+import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
 afterEach(() => {
-  server.resetHandlers();
   localStorage.clear();
 });
-afterAll(() => server.close());
 
 describe("Dag Filters", () => {
-  it("passes an exact scheduling state from the URL to the API", async () => {
+  it("passes the draining scheduling state from the URL to the API", async () => {
     let requestedSchedulingState: string | null = null;
 
     server.use(
@@ -54,10 +44,11 @@ describe("Dag Filters", () => {
       }),
     );
 
-    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=draining"]} />);
 
-    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
-    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+    await waitFor(() => expect(requestedSchedulingState).toBe("draining"));
+    // Draining is a choice within the Paused state pill, not a pill of its own.
+    expect(await screen.findByTestId("paused-pill")).toHaveTextContent("draining.label");
   });
 
   it("Filter by selected run state, matching the latest run by default", async () => {
@@ -106,8 +97,11 @@ describe("Dag Filters", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/dags", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ dags: [], total_entries: 0 });
@@ -120,7 +114,7 @@ describe("Dag Filters", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("run_state-pill")).toBeInTheDocument();
-      expect(screen.getByRole("progressbar")).toBeVisible();
+      expect(refetchStarted).toBe(true);
     });
 
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
@@ -323,4 +317,181 @@ describe("Dag sorting", () => {
     expect(screen.getByTestId("sort-index-last_run_run_after")).toHaveTextContent("1");
     expect(screen.getByTestId("sort-index-dag_display_name")).toHaveTextContent("2");
   });
+});
+
+describe("Recent tasks setting", () => {
+  it.each([true, false])("fetches and shows the counts only when the setting is %s", async (show) => {
+    let countsRequests = 0;
+    let runStateCountsRequests = 0;
+
+    server.use(
+      http.get("/ui/dags/recent_task_instance_state_counts", () => {
+        countsRequests += 1;
+
+        return HttpResponse.json({ dags: [] });
+      }),
+      http.get("/ui/dags/run_state_counts", () => {
+        runStateCountsRequests += 1;
+
+        return HttpResponse.json({ dags: [] });
+      }),
+    );
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    localStorage.setItem(DAGS_LIST_SHOW_RECENT_TASKS_KEY, JSON.stringify(show));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    // The run state counts are requested from the same Dag list response, so once that request
+    // has arrived, a task state counts request would have been sent too.
+    await waitFor(() => expect(runStateCountsRequests).toBeGreaterThan(0));
+
+    if (show) {
+      await waitFor(() => expect(countsRequests).toBeGreaterThan(0));
+      expect(screen.getAllByTestId("table-cell-recent_task_state_counts").length).toBeGreaterThan(0);
+      expect(screen.getByTestId("recent-task-state-counts-info")).toBeInTheDocument();
+    } else {
+      expect(countsRequests).toBe(0);
+      expect(screen.queryByTestId("table-cell-recent_task_state_counts")).not.toBeInTheDocument();
+    }
+  });
+});
+
+describe("Dags table", () => {
+  it.each([
+    "dag_display_name",
+    "timetable_description",
+    "next_dagrun",
+    "last_run_run_after",
+    "tags",
+    "team_name",
+  ])("keeps the %s cell on one line", async (columnId) => {
+    server.use(
+      http.get("/ui/config", () => HttpResponse.json({ multi_team: true, page_size: 15 })),
+      http.get("/ui/dags", () =>
+        HttpResponse.json({
+          dags: [
+            {
+              ...successDag,
+              next_dagrun_run_after: "2025-01-14T00:00:00Z",
+              team_name: "team_a",
+              timetable_summary: "@daily",
+            },
+          ],
+          total_entries: 1,
+        }),
+      ),
+    );
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cell = await screen.findByTestId(`table-cell-${columnId}`);
+
+    await waitFor(() => expect(cell.firstElementChild).toHaveStyle({ whiteSpace: "nowrap" }));
+  });
+});
+
+describe("Dags display toggle", () => {
+  it("switches between card and table views", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cardList = await screen.findByTestId("card-list");
+
+    await waitFor(() =>
+      expect(within(cardList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleTableView/iu));
+
+    const tableList = await screen.findByTestId("table-list");
+
+    expect(within(tableList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+    expect(screen.queryByTestId("card-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleCardView/iu));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("card-list")).getByText("tutorial_taskflow_api_success"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
+  });
+});
+
+const runningDag = {
+  ...successDag,
+  has_unfinished_runs: true,
+  latest_dag_runs: successDag.latest_dag_runs.map((run) => ({ ...run, end_date: null, state: "running" })),
+};
+
+// A running Dag keeps the list polling, and its run state counts change on every poll like they do
+// while runs progress, so each refresh hands the list new data that must not remount its rows.
+const serveRefreshingDagsList = () => {
+  let countsResponses = 0;
+
+  server.use(
+    http.get("/ui/config", () => HttpResponse.json({ auto_refresh_interval: 1 })),
+    http.get("/ui/dags", () => HttpResponse.json({ dags: [runningDag], total_entries: 1 })),
+    http.get("/ui/dags/run_state_counts", () => {
+      countsResponses += 1;
+
+      return HttpResponse.json({
+        dags: [{ dag_id: runningDag.dag_id, state_counts: { running: countsResponses } }],
+        state_count_limit: 1000,
+      });
+    }),
+    http.get("/ui/dags/recent_task_instance_state_counts", () => HttpResponse.json({ dags: [] })),
+  );
+
+  return async () => {
+    const next = String(countsResponses + 1);
+
+    await waitFor(
+      () =>
+        expect(screen.getByTestId(`run-state-count-running-${runningDag.dag_id}`)).toHaveTextContent(next),
+      { timeout: 3000 },
+    );
+  };
+};
+
+describe("Dags list auto-refresh", () => {
+  // happy-dom never reports an intersection, which would keep card content hidden for good.
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["card", "table"])("keeps the %s rows mounted across a refresh", async (display) => {
+    const waitForRefresh = serveRefreshingDagsList();
+
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify(display));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitForRefresh();
+    const toggle = screen.getByTestId("toggle-pause");
+
+    await waitForRefresh();
+
+    expect(screen.getByTestId("toggle-pause")).toBe(toggle);
+  });
+
+  it.each(["card", "table"])(
+    "keeps the pause dialog open in the %s view across a refresh",
+    async (display) => {
+      const waitForRefresh = serveRefreshingDagsList();
+
+      localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify(display));
+      render(<AppWrapper initialEntries={["/dags"]} />);
+
+      await waitForRefresh();
+      fireEvent.click(screen.getByTestId("toggle-pause"));
+      const drainButton = await screen.findByTestId("drain-dag");
+
+      await waitForRefresh();
+
+      expect(screen.getByTestId("drain-dag")).toBe(drainButton);
+    },
+  );
 });

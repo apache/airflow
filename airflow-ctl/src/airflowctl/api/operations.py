@@ -106,6 +106,14 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
     return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
 
 
+def _has_json_body(response: httpx.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Kept in sync with airflow.sdk.api.client._has_json_body.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -115,16 +123,22 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.status_code < 400:
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         # httpx runs response event hooks before it reads the body, so the body has to be
         # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
         response.read()
 
+        try:
+            detail = response.json()
+        except ValueError:
+            # A JSON content-type does not guarantee a JSON body; leave it to raise_for_status().
+            return None
+
         error_kind = "Client" if response.status_code < 500 else "Server"
         return cls(
-            message=f"{error_kind} error message: {response.json()}",
+            message=f"{error_kind} error message: {detail}",
             request=response.request,
             response=response,
         )
@@ -368,14 +382,15 @@ class BackfillOperations(BaseOperations):
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a backfill."""
         self.response = self.client.post(
-            "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills", json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
-            "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills/dry_run",
+            json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
@@ -540,7 +555,7 @@ class DagsOperations(BaseOperations):
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json", exclude_defaults=True)
         )
         return DAGRunResponse.model_validate_json(self.response.content)
 

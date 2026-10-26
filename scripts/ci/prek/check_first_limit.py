@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["rich>=13.6.0"]
 # ///
 """Require an explicit statement-level limit for core's single-row lookups.

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIn
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DATA_SET_ID = "DemoDataSet"
@@ -93,7 +94,7 @@ class TestQuickSightCreateIngestionOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(QuickSightCreateIngestionOperator, "defer")
@@ -112,7 +113,8 @@ class TestQuickSightCreateIngestionOperator:
             **self.default_op_kwargs, wait_for_completion=wait_for_completion, deferrable=deferrable
         )
 
-        response = op.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = op.execute({})
 
         assert response == MOCK_RESPONSE
         mock_create_ingestion.assert_called_once_with(

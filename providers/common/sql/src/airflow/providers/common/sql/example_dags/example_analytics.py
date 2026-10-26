@@ -34,6 +34,10 @@ datasource_config_gcs = DataSourceConfig(
     conn_id="google_cloud_default", table_name="users_data", uri="gs://bucket/path/", format="parquet"
 )
 
+datasource_config_azure = DataSourceConfig(
+    conn_id="wasb_default", table_name="users_data", uri="az://container/path/", format="parquet"
+)
+
 datasource_config_iceberg = DataSourceConfig(
     conn_id="iceberg_default",
     table_name="users_data",
@@ -84,6 +88,15 @@ with DAG(
     )
     analytics_with_s3 >> analytics_with_gcs
     # [END howto_analytics_operator_with_gcs]
+
+    # [START howto_analytics_operator_with_azure]
+    analytics_with_azure = AnalyticsOperator(
+        task_id="analytics_with_azure",
+        datasource_configs=[datasource_config_azure],
+        queries=["SELECT * FROM users_data", "SELECT count(*) FROM users_data"],
+    )
+    analytics_with_s3 >> analytics_with_azure
+    # [END howto_analytics_operator_with_azure]
 
     # [START howto_analytics_operator_with_local]
     analytics_with_local = AnalyticsOperator(

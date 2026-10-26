@@ -118,7 +118,6 @@ def upgrade():
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.add_column(sa.Column("mapped_length", sa.Integer(), nullable=True))
-            batch_op.create_check_constraint("mapped_length_not_negative", "mapped_length >= 0")
 
         op.execute(build_backfill_statement())
         op.drop_table("task_map")
@@ -154,5 +153,4 @@ def downgrade():
         op.execute(build_restore_statement())
 
         with op.batch_alter_table("xcom", schema=None) as batch_op:
-            batch_op.drop_constraint("mapped_length_not_negative", type_="check")
             batch_op.drop_column("mapped_length")

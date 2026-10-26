@@ -248,7 +248,7 @@ class TestGetRunJobs:
                         "completedAt": "2026-06-10T13:20:00Z",
                         "steps": [
                             {
-                                "name": "Prepare breeze & CI image: 3.10",
+                                "name": "Prepare breeze & CI image: 3.11",
                                 "startedAt": "2026-06-10T13:00:00Z",
                                 "completedAt": "2026-06-10T13:05:00Z",
                             }
@@ -305,7 +305,7 @@ class TestGetRunJobs:
                         "completedAt": "2026-06-10T13:20:00Z",
                         "steps": [
                             {
-                                "name": "Prepare breeze & CI image: 3.10",
+                                "name": "Prepare breeze & CI image: 3.11",
                                 "startedAt": "2026-06-10T13:00:00Z",
                                 "completedAt": "2026-06-10T13:05:00Z",
                             }
@@ -345,9 +345,9 @@ class TestGetImageWorkSeconds:
 
     def test_covers_prod_prepare_and_push_steps(self, durations_module):
         job = self._job(
-            ("Prepare breeze & PROD image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            ("Prepare breeze & PROD image: 3.11", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
             (
-                "Push PROD latest image: 3.10 (linux/amd64 ONLY)",
+                "Push PROD latest image: 3.11 (linux/amd64 ONLY)",
                 "2026-08-13T04:05:00Z",
                 "2026-08-13T04:15:00Z",
             ),
@@ -360,8 +360,8 @@ class TestGetImageWorkSeconds:
 
     def test_ignores_steps_with_unusable_timestamps(self, durations_module):
         job = self._job(
-            ("Prepare breeze & CI image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
-            ("Push CI latest images: 3.10 (linux/amd64 only)", "", ""),
+            ("Prepare breeze & CI image: 3.11", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            ("Push CI latest images: 3.11 (linux/amd64 only)", "", ""),
         )
         assert durations_module.get_image_work_seconds(job) == 5 * 60
 

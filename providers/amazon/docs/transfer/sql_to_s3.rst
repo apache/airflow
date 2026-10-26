@@ -24,6 +24,10 @@ Use ``SqlToS3Operator`` to copy data from a SQL server to an Amazon Simple Stora
 converts the SQL result to `pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`__
 (e.g. MySQL, Hive, ...).
 
+With the default ``df_type="pandas"`` the operator needs the ``pandas`` extra. Writing Parquet files
+(``file_format="parquet"``) or reading with ``read_kwargs={"dtype_backend": "pyarrow"}`` also needs
+pyarrow, which the ``parquet`` extra installs: ``apache-airflow-providers-amazon[pandas,parquet]``.
+
 Prerequisite Tasks
 ------------------
 

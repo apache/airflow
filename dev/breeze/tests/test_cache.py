@@ -37,7 +37,7 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
     [
         ("backend", "mysql", (True, ["sqlite", "mysql", "postgres", "none", "custom"]), None),
         ("backend", "xxx", (False, ["sqlite", "mysql", "postgres", "none", "custom"]), None),
-        ("python_major_minor_version", "3.10", (True, ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), None),
+        ("python_major_minor_version", "3.11", (True, ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), None),
         ("missing", "value", None, AttributeError),
     ],
 )

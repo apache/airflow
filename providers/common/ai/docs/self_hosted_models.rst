@@ -317,11 +317,11 @@ its OpenAI provider, and there's no separate ``ollama`` extra.
 
    ``LiteLLMProvider`` is an exception: its constructor takes ``api_base``
    instead of ``base_url``, so passing ``host`` raises a ``TypeError`` that
-   the hook catches, logs a warning, and falls back to environment-variable
-   auth, ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
-   endpoint via ``openai:<model>`` instead -- this is the same proxy role
-   used in the gateway section above, just addressed through the working
-   prefix rather than the rejected ``litellm:`` one.
+   the hook re-raises as a ``ValueError``: the connection is rejected rather
+   than falling back to environment-variable auth. Point a LiteLLM proxy's
+   OpenAI-compatible endpoint via ``openai:<model>`` instead -- this is the
+   same proxy role used in the gateway section above, just addressed through
+   the working prefix rather than the rejected ``litellm:`` one.
 
 .. _self_hosted_models_other_servers:
 
@@ -374,6 +374,9 @@ Where to go next
 -------------------
 
 - :ref:`howto/connection:pydanticai` -- the full connection field reference.
+- :doc:`decision_models` -- a self-hosted decision model, such as Strands Decider or one
+  Ollama runs, takes ``system-one:<model>`` with the server URL in ``host`` rather than
+  the ``openai:`` or ``ollama:`` prefixes on this page.
 - :doc:`retry_policies` -- the "Local LLM support" section covers pointing
   ``LLMRetryPolicy`` at a self-hosted endpoint.
 - :doc:`examples` -- more runnable Dags against the ``pydanticai``

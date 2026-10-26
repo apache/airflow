@@ -44,7 +44,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.10}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.11}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -200,8 +200,9 @@ SSH_CONFIG
 
         sudo service ssh restart >/dev/null 2>&1
 
-        # Sometimes the server is not quick enough to load the keys!
-        while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        # Sometimes the server is not quick enough to load the keys! OpenSSH 10 also prints a
+        # "# localhost:22 SSH-2.0-..." comment line per connection to stdout, so count only the keys.
+        while [[ $(ssh-keyscan -H localhost 2>/dev/null | grep -cv '^#') != "3" ]] ; do
             echo "Not all keys yet loaded by the server"
             sleep 0.05
         done
@@ -346,16 +347,13 @@ function check_boto_upgrade() {
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
-    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
-    # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
-        --no-python-downloads --no-managed-python
+    uv sync --all-packages --resolution highest --no-python-downloads --no-managed-python
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
@@ -432,7 +430,7 @@ function reinstall_shared_distributions() {
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
 # review every addition to this list as a privileged change. See
 # contributing-docs/12_provider_distributions.rst.
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"
