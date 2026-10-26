@@ -48,6 +48,49 @@ Changelog
   ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
   :doc:`structured_output`.
 
+.. warning::
+  The following changes are breaking for code written against 1.0.0:
+
+  * ``PydanticAIHook``: when a connection supplies credentials (password or host) and the provider class
+    rejects the resulting keyword arguments (``TypeError``), the hook now raises ``ValueError``. In 1.0.0
+    it logged a warning and fell back to environment-variable authentication, which could authenticate
+    as a different identity than the connection. Fix the connection fields for that provider, or remove
+    the credentials from the connection if environment-variable authentication is what you want.
+  * ``airflow.providers.common.ai.policies.retry``: importing it without the Airflow ``RetryPolicy``
+    support (Airflow older than 3.3) now raises ``AirflowOptionalProviderFeatureException`` instead of
+    ``ImportError``. It is not an ``ImportError`` subclass (it derives from ``AirflowException``), so a
+    Dag that guards the import with ``except ImportError:`` as in the 1.0.0 example Dag now fails to
+    parse on those versions. Catch both, importing the exception from
+    ``airflow.providers.common.compat.sdk`` (works on Airflow 2.11 and 3.x)::
+
+      from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+      try:
+          from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
+      except (ImportError, AirflowOptionalProviderFeatureException):
+          LLMRetryPolicy = None
+
+.. note::
+  ``LlamaIndexHook`` and ``LangChainHook`` (both experimental, see :doc:`stability`):
+  passing ``embed_model`` and ``llm_model`` positionally is deprecated. In 1.0.0 they were the third and
+  fourth positional parameters (after ``llm_conn_id`` and ``embed_conn_id``), and the two hooks listed
+  them in opposite order (``embed_model`` then ``llm_model`` for ``LlamaIndexHook``, ``llm_model`` then
+  ``embed_model`` for ``LangChainHook``). Positional calls still work and emit an
+  ``AirflowProviderDeprecationWarning``, but support will be removed in a future release. Pass them by
+  keyword, e.g. ``LlamaIndexHook(llm_model="gpt-5")``, which also avoids the meanings swapping between
+  the two hooks.
+
+.. note::
+  ``LoggingToolset`` is removed from the public API. Importing it from either
+  ``airflow.providers.common.ai.toolsets.LoggingToolset`` (exported from the package since
+  1.0.0, see #74449 under 1.0.0 Features below) or
+  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (public since 0.1.0) now
+  raises ``ImportError``. ``AgentOperator``
+  still logs tool calls through ``enable_tool_logging``. To log tool calls of an agent you
+  build yourself, pass ``capabilities=[ToolLoggingCapability()]`` to the pydantic-ai ``Agent``
+  (import it from ``airflow.providers.common.ai.toolsets.logging``); its ``logger`` argument
+  sets the logger. See :doc:`stability`.
+
 1.1.0
 .....
 
@@ -88,6 +131,7 @@ Misc
   ``capabilities`` or ``spec_file`` move to ``AgentOperator`` or ``@task.agent``. See
   :ref:`howto/operator:llm`.
 
+.. note::
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance

@@ -28,7 +28,17 @@
                                 "parentJobName": "get_files",
                                 "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
                                 "rootParentJobNamespace": "prod_analytics",
-                                "rootParentJobName": "generate_report_sales_e2e"
+                                "rootParentJobName": "generate_report_sales_e2e",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "SPARK",
+                                    "jobType": "JOB"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_child__notrigger",
@@ -45,7 +55,14 @@
                 "parent": {
                     "job": {
                         "namespace": "prod_biz",
-                        "name": "get_files"
+                        "name": "get_files",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "SPARK",
+                                "jobType": "JOB"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
@@ -53,7 +70,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -188,7 +212,17 @@
                                 "parentJobName": "get_files",
                                 "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
                                 "rootParentJobNamespace": "prod_analytics",
-                                "rootParentJobName": "generate_report_sales_e2e"
+                                "rootParentJobName": "generate_report_sales_e2e",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "SPARK",
+                                    "jobType": "JOB"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
                             }
                         },
                         "dag_id": "openlineage_trigger_dag_child__notrigger",
@@ -206,7 +240,14 @@
                 "parent": {
                     "job": {
                         "namespace": "prod_biz",
-                        "name": "get_files"
+                        "name": "get_files",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "SPARK",
+                                "jobType": "JOB"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
@@ -214,7 +255,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -300,7 +348,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_child__notrigger"
+                        "name": "openlineage_trigger_dag_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -308,7 +363,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -330,7 +392,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag_child__notrigger"
+                        "name": "openlineage_trigger_dag_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -338,7 +407,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -366,7 +442,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag"
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -374,7 +457,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -402,7 +492,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_trigger_dag"
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -410,7 +507,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_trigger_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"

@@ -25,11 +25,17 @@ from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
     BEHIND_WARNING_COMMITS,
+    CI_CHANGE_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
+    JOB_NAME_MAX_LENGTH,
+    JOB_STATUS_CONTEXT_PREFIX,
+    MAX_LISTED_CI_FILES,
     Marker,
+    ci_change_approval_comment,
     inactivity_close_comment,
+    job_status_context,
     nudge_comment,
     parse_marker,
     released_comment,
@@ -43,7 +49,11 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
 
 @pytest.mark.parametrize(
     "marker",
-    [pytest.param(MARKER, id="without-behind"), pytest.param(replace(MARKER, behind=12), id="behind")],
+    [
+        pytest.param(MARKER, id="without-behind"),
+        pytest.param(replace(MARKER, behind=12), id="behind"),
+        pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+    ],
 )
 def test_marker_round_trip(marker):
     assert parse_marker(f"text before\n{render_marker(marker)}\ntext after") == marker
@@ -51,6 +61,7 @@ def test_marker_round_trip(marker):
 
 def test_marker_without_behind_keeps_its_rendering():
     assert "behind" not in render_marker(MARKER)
+    assert "jobs" not in render_marker(MARKER)
 
 
 @pytest.mark.parametrize(
@@ -123,3 +134,30 @@ def test_setup_texts_give_the_exact_command(text):
 def test_status_descriptions_fit_github_limit():
     descriptions = [*_STATUS_DESCRIPTIONS.values(), CI_PASSED_DESCRIPTION, CI_PASSED_REVOKED_DESCRIPTION]
     assert all(len(description) < 140 for description in descriptions)
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Static checks", "Static checks"),
+        ("a\nb\tc", "a b c"),
+        ("x" * (JOB_NAME_MAX_LENGTH + 5), "x" * (JOB_NAME_MAX_LENGTH - 1) + "…"),
+    ],
+)
+def test_job_status_context(name, expected):
+    assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"
+
+
+def test_ci_change_approval_comment_lists_the_files():
+    paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
+    comment = ci_change_approval_comment(
+        ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths]
+    )
+
+    assert comment.startswith(CI_CHANGE_MARKER)
+    assert comment.endswith(FOOTER)
+    assert "- `dev/breeze/?evil?.py`" in comment
+    assert "- `.github/a??@someone.yml`" in comment
+    assert "\n@someone" not in comment
+    assert "- and 4 more" in comment
+    assert f"`{paths[-1]}`" not in comment

@@ -132,15 +132,16 @@ DEPRECATED_UPSTREAM_MODULES = {"github"}
 # only `credentials`, `credential_source`, `openai_client`, and `http_client` -- no parameter
 # exists to receive what the hook sends; confirmed empirically (as of pydantic-ai-slim 2.44.0):
 # `OpenAICodexProvider(api_key=..., base_url=...)` raises
-# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`'s
-# `_provider_factory` catches that `TypeError` and retries via `infer_provider(pname)`, i.e.
+# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`
+# re-raises that `TypeError` as a `ValueError` when the connection has a password or host. Only
+# a connection with neither falls through to `infer_model(model_name)`, i.e.
 # `OpenAICodexProvider()` with no arguments, which falls through to its
 # `_read_codex_cli_credentials()` helper: a read-only load of the Codex CLI's on-disk
 # `~/.codex/auth.json`, populated by the OAuth authorization-code + PKCE login flow the Codex CLI
 # itself performs (see `pydantic_ai.providers.openai_codex`'s module docstring and
 # `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. So credentials
 # configured on a `pydanticai` connection (password/host) can never drive this provider; only
-# the ambient Codex CLI login can, via that fallback. The services page lists only vendors a
+# the ambient Codex CLI login can, with no password/host set. The services page lists only vendors a
 # connection's credentials can drive, so these modules stay off it.
 # `test_hook_incompatible_auth_modules_stay_incompatible` below guards the reversal: if
 # pydantic-ai gives one of these providers an `api_key`/`base_url` constructor parameter, this
@@ -422,7 +423,7 @@ TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
     "hook": ("HookToolset", "toolsets/hook"),
     "sql": ("SQLToolset", "toolsets/sql"),
     "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
-    "logging": ("LoggingToolset", "toolsets/logging"),
+    "logging": ("ToolLoggingCapability", "toolsets/logging"),
     "mcp": ("MCPToolset", "toolsets/mcp"),
     "object_storage": ("ObjectStorageToolset", "toolsets/object_storage"),
     "sandbox": ("SandboxToolset", "sandbox/index"),

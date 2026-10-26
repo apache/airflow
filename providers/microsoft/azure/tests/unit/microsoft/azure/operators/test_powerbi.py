@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred, timezone
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshFields,
@@ -388,6 +389,100 @@ class TestPowerBIDatasetRefreshOperator:
         mock_trigger_dataset_refresh.assert_called_once()
         assert exc.value.trigger.dataset_refresh_id == NEW_REFRESH_REQUEST_ID
         assert task_state_store.values == {REFRESH_ID_KEY: NEW_REFRESH_REQUEST_ID}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The task state store arrived in Airflow 3.3")
+    @pytest.mark.parametrize(
+        "execution_status",
+        ["Failed", "Completed", "InProgress", "NotStarted"],
+    )
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    @mock.patch.object(
+        PowerBIHook, "trigger_dataset_refresh", autospec=True, return_value=NEW_REFRESH_REQUEST_ID
+    )
+    def test_execute_uses_enhanced_refresh_status(
+        self, mock_trigger_dataset_refresh, mock_run, execution_status
+    ):
+        history = {
+            "value": [
+                {
+                    "requestId": PREVIOUS_REFRESH_REQUEST_ID,
+                    "status": "Unknown",
+                    "refreshType": PowerBIHook.VIA_ENHANCED_API,
+                }
+            ]
+        }
+        mock_run.side_effect = [history, history, {"status": "Unknown", "extendedStatus": execution_status}]
+        operator = PowerBIDatasetRefreshOperator(**CONFIG)
+        task_state_store = TaskStateStore(**{REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID})
+        context = {
+            "ti": MagicMock(spec=["xcom_push", "stats_tags"], stats_tags={}),
+            "task_state_store": task_state_store,
+        }
+
+        if execution_status == "Completed":
+            assert operator.execute(context) is None
+            context["ti"].xcom_push.assert_any_call(
+                key=f"{TASK_ID}.powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED
+            )
+        else:
+            with pytest.raises(TaskDeferred) as exc:
+                operator.execute(context)
+            assert exc.value.trigger.dataset_refresh_id == (
+                NEW_REFRESH_REQUEST_ID if execution_status == "Failed" else PREVIOUS_REFRESH_REQUEST_ID
+            )
+            assert exc.value.trigger.cancel_on_error is False
+
+        if execution_status == "Failed":
+            mock_trigger_dataset_refresh.assert_awaited_once_with(
+                operator.hook, dataset_id=DATASET_ID, group_id=GROUP_ID, request_body=REQUEST_BODY
+            )
+            assert task_state_store.values == {REFRESH_ID_KEY: NEW_REFRESH_REQUEST_ID}
+        else:
+            mock_trigger_dataset_refresh.assert_not_awaited()
+            assert task_state_store.values == {REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}
+        assert mock_run.await_count == 3
+        mock_run.assert_awaited_with(
+            operator.hook,
+            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{refresh_id}",
+            path_parameters={
+                "group_id": GROUP_ID,
+                "dataset_id": DATASET_ID,
+                "refresh_id": PREVIOUS_REFRESH_REQUEST_ID,
+            },
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The task state store arrived in Airflow 3.3")
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", autospec=True)
+    @mock.patch.object(PowerBIHook, "cancel_dataset_refresh", autospec=True)
+    def test_execute_preserves_refresh_when_execution_details_fail(
+        self, mock_cancel_dataset_refresh, mock_trigger_dataset_refresh, mock_run
+    ):
+        history = {
+            "value": [
+                {
+                    "requestId": PREVIOUS_REFRESH_REQUEST_ID,
+                    "status": "Unknown",
+                    "refreshType": PowerBIHook.VIA_ENHANCED_API,
+                }
+            ]
+        }
+        mock_run.side_effect = [history, history, AirflowException("Execution details unavailable")]
+        operator = PowerBIDatasetRefreshOperator(**CONFIG)
+        task_state_store = TaskStateStore(**{REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID})
+        context = {
+            "ti": MagicMock(spec=["xcom_push", "stats_tags"], stats_tags={}),
+            "task_state_store": task_state_store,
+        }
+
+        with pytest.raises(
+            PowerBIDatasetRefreshException, match="Failed to retrieve refresh execution details"
+        ):
+            operator.execute(context)
+
+        mock_trigger_dataset_refresh.assert_not_awaited()
+        mock_cancel_dataset_refresh.assert_not_awaited()
+        assert task_state_store.values == {REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}
 
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_not_durable_starts_new_refresh_and_cancels_on_error(self, mock_trigger_dataset_refresh):

@@ -30,24 +30,31 @@ from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
+    JOB_STATUS_CONTEXT_PREFIX,
+    STALE_JOB_STATUS,
     STATUS_CONTEXT,
     Marker,
     parse_marker,
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
+    JOB_STATUSES_DEFERRED_NOTE,
     BaseGateConfigs,
     BypassFinder,
+    DraftChange,
     ForkObservation,
     ForkState,
+    JobStatusReporter,
     Plan,
     PullRequestSnapshot,
     apply_plan,
+    build_job_statuses,
     build_slack_payload,
     changes_ci_definition,
     classify,
     count_commits_behind,
     discover,
+    drop_reported,
     fetch_fork_observations,
     fetch_workflow_state,
     find_state_comment,
@@ -1224,15 +1231,26 @@ def test_parse_pull_request_leaves_statuses_of_another_commit_unread():
             id="both-statuses",
         ),
         pytest.param([], None, None, id="no-statuses"),
+        pytest.param(
+            [
+                *({"context": f"{JOB_STATUS_CONTEXT_PREFIX}job {i}", "state": "success"} for i in range(150)),
+                {"context": CI_PASSED_CONTEXT, "state": "success"},
+            ],
+            None,
+            "success",
+            id="ci-passed-after-many-job-statuses",
+        ),
     ],
 )
 def test_read_head_status(client, statuses, expected_status, expected_ci_passed):
-    client.rest_get.return_value = {"statuses": statuses}
+    client.rest_get.return_value = statuses
     pr = dataclasses.replace(parse_pull_request(_pr_node(1)), head_status_unread=True)
 
     read = read_head_status(client, REPO, pr)
 
-    client.rest_get.assert_called_once_with(f"repos/{REPO}/commits/sha1/status?per_page=100")
+    client.rest_get.assert_called_once_with(
+        f"repos/{REPO}/commits/sha1/status?per_page=100", paginate=True, items_key="statuses"
+    )
     assert read.current_status == expected_status
     assert read.ci_passed_state == expected_ci_passed
     assert read.head_status_unread is False
@@ -1330,6 +1348,8 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
                             "status": "COMPLETED",
                             "conclusion": "SUCCESS",
                             "workflowRun": {
+                                "databaseId": 77,
+                                "runAttempt": 2,
                                 "url": "new",
                                 "event": "push",
                                 "workflow": {"resourcePath": "/x/ci-amd.yml"},
@@ -1364,7 +1384,7 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
     observations = fetch_fork_observations(client, [pr])
 
     assert observations[1] == ForkObservation(
-        suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url="new"
+        suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url="new", run_id=77, run_attempt=2
     )
     assert client.graphql.call_args.args[1] == {"o0": "someone", "n0": "my-airflow", "s0": "sha1"}
 
@@ -1440,7 +1460,7 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
-        _search_result(_pr_node(1), _pr_node(2)),
+        _search_result(_pr_node(1), _pr_node(2, isDraft=False)),
         {"pr0": {"object": None}, "pr1": {"object": None}},
     ]
     workflow_state_calls = []
@@ -1456,11 +1476,22 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
 
     client.rest_get.side_effect = rest_get
 
+    draft_changes_file = tmp_path / "draft-changes.json"
+
     has_alerts = run_reconcile(
-        client, CONFIG, now=NOW, run_url="https://run", output_file=output, workflows_dir=tmp_path
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=output,
+        workflows_dir=tmp_path,
+        draft_changes_file=draft_changes_file,
     )
 
     assert has_alerts is True
+    assert json.loads(draft_changes_file.read_text()) == [
+        {"number": 2, "node_id": "PR_2", "draft": True, "release": False}
+    ]
     payload = json.loads(output.read_text())
     assert payload["channel"] == "internal-airflow-ci-cd"
     text = "\n".join(block["text"]["text"] for block in payload["blocks"])
@@ -1521,13 +1552,26 @@ def test_command_writes_has_alerts_output(mock_run, tmp_path, monkeypatch):
     github_output = tmp_path / "github_output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
 
-    result = CliRunner().invoke(fork_ci_reconcile, ["--dry-run", "--output-file", str(tmp_path / "s.json")])
+    result = CliRunner().invoke(
+        fork_ci_reconcile,
+        [
+            "--dry-run",
+            "--output-file",
+            str(tmp_path / "s.json"),
+            "--reported-file",
+            str(tmp_path / "reported.json"),
+            "--draft-changes-file",
+            str(tmp_path / "draft-changes.json"),
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     assert github_output.read_text() == "has-alerts=true\n"
     github_client = mock_run.call_args.args[0]
     assert github_client.dry_run is True
     assert github_client.repo == "apache/airflow"
+    assert mock_run.call_args.kwargs["reported_file"] == tmp_path / "reported.json"
+    assert mock_run.call_args.kwargs["draft_changes_file"] == tmp_path / "draft-changes.json"
 
 
 @pytest.mark.parametrize(
@@ -1557,19 +1601,103 @@ def test_run_reconcile_without_gated_pull_requests(client, tmp_path, total_count
     "fails", [pytest.param(False, id="all-succeed"), pytest.param(True, id="status-fails")]
 )
 def test_fork_ci_required_is_removed_after_everything_else(client, fails):
-    plan, _, _ = _classify(_pr(labels=("fork ci required", "use project ci")), GREEN)
+    pr = _pr(is_draft=False, labels=("fork ci required", "use project ci"))
+    plan, _, _ = _classify(pr, GREEN)
     calls = mock.Mock()
-    client.mark_ready.side_effect = lambda *args: calls("mark_ready")
     client.remove_label.side_effect = lambda pr, label: calls("remove_label", label)
-    client.set_status.side_effect = GitHubError("gh api failed: HTTP 500") if fails else None
+    client.set_status.side_effect = (
+        GitHubError("gh api failed: HTTP 500") if fails else lambda *args, **kwargs: calls("set_status")
+    )
 
     if fails:
         with pytest.raises(GitHubError):
-            apply_plan(client, _pr(), plan)
+            apply_plan(client, pr, plan)
         client.remove_label.assert_not_called()
     else:
-        apply_plan(client, _pr(), plan)
+        apply_plan(client, pr, plan)
         assert calls.call_args_list[-1] == mock.call("remove_label", "fork ci required")
+
+
+@pytest.mark.parametrize(
+    ("plan", "expected", "removes_fork_ci_required"),
+    [
+        pytest.param(
+            Plan(draft=True, remove_labels=["fork ci required"]),
+            DraftChange(42, "PR_node", draft=True),
+            True,
+            id="draft",
+        ),
+        pytest.param(Plan(draft=False), DraftChange(42, "PR_node", draft=False), False, id="undraft"),
+        pytest.param(
+            Plan(draft=False, remove_labels=["fork ci required"]),
+            DraftChange(42, "PR_node", draft=False, release=True),
+            False,
+            id="undraft-on-release",
+        ),
+        pytest.param(Plan(), None, False, id="unchanged"),
+    ],
+)
+def test_apply_plan_leaves_draft_changes_to_the_draft_state_job(
+    client, plan, expected, removes_fork_ci_required
+):
+    assert apply_plan(client, _pr(), plan) == expected
+    assert (mock.call(42, "fork ci required") in client.remove_label.call_args_list) is (
+        removes_fork_ci_required
+    )
+
+
+def test_drop_reported_posts_each_item_once_while_it_persists(tmp_path):
+    reported_file = tmp_path / "reported.json"
+
+    def report(unknown=(), attention=(), notes=()):
+        return drop_reported(
+            reported_file, unknown=list(unknown), attention=list(attention), notes=list(notes)
+        )
+
+    assert report(unknown=[(1, "a")], notes=["n"]) == ([(1, "a")], [], ["n"])
+    assert report(unknown=[(1, "a")], attention=[(2, "b")], notes=["n"]) == ([], [(2, "b")], [])
+    assert report(attention=[(2, "b")]) == ([], [], [])
+    assert report(unknown=[(1, "a")], attention=[(2, "b")]) == ([(1, "a")], [], [])
+
+
+@pytest.mark.parametrize("content", [None, "not json", "[]"])
+def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_path, content):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert drop_reported(reported_file, unknown=[(1, "a")], attention=[], notes=[]) == ([(1, "a")], [], [])
+    assert json.loads(reported_file.read_text()) == {"unknown": [[1, "a"]], "attention": [], "notes": []}
+
+
+@pytest.mark.parametrize(
+    ("first_dry_run", "second_has_alerts"),
+    [
+        pytest.param(False, False, id="posted"),
+        pytest.param(True, True, id="dry-run-posts-nothing"),
+    ],
+)
+def test_run_reconcile_posts_a_persisting_item_once(client, tmp_path, first_dry_run, second_has_alerts):
+    output = tmp_path / "slack-message.json"
+    client.rest_get_pages.return_value = [{"total_count": 1500, "workflow_runs": []}]
+
+    def reconcile(dry_run=False):
+        client.dry_run = dry_run
+        client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+        return run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=output,
+            workflows_dir=tmp_path,
+            reported_file=tmp_path / "reported.json",
+        )
+
+    assert reconcile(dry_run=first_dry_run) is True
+    output.unlink()
+    assert reconcile() is second_has_alerts
+    assert output.exists() is second_has_alerts
 
 
 def test_slack_payload_stays_within_slack_limits():
@@ -1607,3 +1735,381 @@ def test_count_commits_behind(client, side_effect, expected):
 
     assert count_commits_behind(client, REPO, _pr(base_ref="v3-1-test")) == expected
     assert client.rest_get.call_args.args[0] == f"repos/{REPO}/compare/v3-1-test...someone:abc123?per_page=1"
+
+
+def _fork_job(name, status="completed", conclusion="success", url=None):
+    return {
+        "name": name,
+        "status": status,
+        "conclusion": conclusion,
+        "html_url": url or f"https://job/{name}",
+    }
+
+
+def test_build_job_statuses_reports_each_started_or_queued_job():
+    jobs = [
+        _fork_job("Static checks"),
+        _fork_job("Postgres tests: core / A", conclusion="failure"),
+        _fork_job("Helm tests", status="in_progress", conclusion=None),
+        _fork_job("Kubernetes tests", status="queued", conclusion=None),
+        _fork_job("Special tests", conclusion="cancelled"),
+        _fork_job("Java SDK tests", conclusion="skipped"),
+        _fork_job("Fork CI gate"),
+        _fork_job("CI passed"),
+        _fork_job("Check if the run is needed"),
+    ]
+
+    statuses = build_job_statuses(jobs)
+
+    assert {
+        context.removeprefix(JOB_STATUS_CONTEXT_PREFIX): state for context, (state, _, _) in statuses.items()
+    } == {
+        "Static checks": "success",
+        "Postgres tests: core / A": "failure",
+        "Helm tests": "pending",
+        "Kubernetes tests": "pending",
+        "Special tests": "failure",
+    }
+    assert statuses[f"{JOB_STATUS_CONTEXT_PREFIX}Static checks"][1] == "https://job/Static checks"
+
+
+def test_build_job_statuses_reports_the_worst_of_jobs_sharing_a_name():
+    jobs = [
+        _fork_job("Tests", url="ok"),
+        _fork_job("Tests", conclusion="failure", url="bad"),
+        _fork_job("Tests", url="ok2"),
+    ]
+
+    assert build_job_statuses(jobs)[f"{JOB_STATUS_CONTEXT_PREFIX}Tests"][:2] == ("failure", "bad")
+
+
+@pytest.mark.parametrize("name", ["Tests (AMD)", "CI passed (fork)", "x\nCI passed"])
+def test_build_job_statuses_cannot_post_the_reconciler_contexts(name):
+    (context,) = build_job_statuses([_fork_job(name)])
+
+    assert context.startswith(JOB_STATUS_CONTEXT_PREFIX)
+    assert context not in (STATUS_CONTEXT, CI_PASSED_CONTEXT)
+    assert "\n" not in context
+
+
+RUNNING_RUN = ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL, run_id=1)
+COMPLETED_RUN = ForkObservation(
+    suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL, run_id=1, run_attempt=1
+)
+
+
+def _reporter_client(client, jobs, current=()):
+    def rest_get(path, paginate=False, items_key=None):
+        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
+            return jobs
+        if path.startswith(f"repos/{REPO}/commits/abc123/status"):
+            return list(current)
+        raise AssertionError(path)
+
+    client.rest_get.side_effect = rest_get
+    return client
+
+
+def test_job_status_reporter_posts_changed_statuses_failures_first(client):
+    already = {
+        "context": f"{JOB_STATUS_CONTEXT_PREFIX}Static checks",
+        "state": "success",
+        "target_url": "https://job/Static checks",
+        "description": "Passed in the fork - see Details",
+    }
+    _reporter_client(
+        client,
+        [_fork_job("Static checks"), _fork_job("Helm tests"), _fork_job("Unit", conclusion="failure")],
+        [already],
+    )
+
+    key = JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
+
+    assert key == "1:1:FAILURE"
+    assert [(c.args[2], c.kwargs["context"]) for c in client.set_status.call_args_list] == [
+        ("failure", f"{JOB_STATUS_CONTEXT_PREFIX}Unit"),
+        ("success", f"{JOB_STATUS_CONTEXT_PREFIX}Helm tests"),
+    ]
+
+
+def test_job_status_reporter_leaves_what_does_not_fit_in_the_budget_for_the_next_run(client):
+    _reporter_client(client, [_fork_job("A", conclusion="failure"), _fork_job("B"), _fork_job("C")])
+    reporter = JobStatusReporter(client, repo=REPO, budget=2)
+
+    assert reporter.report(_pr(), COMPLETED_RUN) is None
+    assert [c.kwargs["context"] for c in client.set_status.call_args_list] == [
+        f"{JOB_STATUS_CONTEXT_PREFIX}A",
+        f"{JOB_STATUS_CONTEXT_PREFIX}B",
+    ]
+    assert reporter.remaining == 0
+    assert reporter.deferred == [42]
+
+
+def test_job_status_reporter_does_not_record_a_run_in_progress(client):
+    _reporter_client(client, [_fork_job("A", status="in_progress", conclusion=None)])
+
+    assert JobStatusReporter(client, repo=REPO).report(_pr(), RUNNING_RUN) is None
+    client.set_status.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("marker_jobs", "marker_sha", "reads"),
+    [
+        pytest.param("1:1:FAILURE", "abc123", False, id="already-reported"),
+        pytest.param("1:1:SUCCESS", "abc123", True, id="re-run-with-another-conclusion"),
+        pytest.param("1:2:FAILURE", "abc123", True, id="another-attempt-with-the-same-conclusion"),
+        pytest.param("1:1:FAILURE", "other", True, id="marker-of-another-commit"),
+    ],
+)
+def test_job_status_reporter_reads_a_completed_run_once(client, marker_jobs, marker_sha, reads):
+    _reporter_client(client, [])
+    pr = _pr(marker=dataclasses.replace(_marker("failed", sha=marker_sha), jobs=marker_jobs))
+
+    assert JobStatusReporter(client, repo=REPO).report(pr, COMPLETED_RUN) == "1:1:FAILURE"
+    assert client.rest_get.called is reads
+
+
+@pytest.mark.parametrize(
+    "fork",
+    [ForkObservation(), ForkObservation(error="fork not readable"), ForkObservation(workflow_state="active")],
+)
+def test_job_status_reporter_without_a_fork_run(client, fork):
+    assert JobStatusReporter(client, repo=REPO).report(_pr(), fork) is None
+    client.rest_get.assert_not_called()
+
+
+def test_classify_records_the_reported_run_in_the_marker():
+    plan = classify(
+        _pr(marker=_marker("running")),
+        dataclasses.replace(COMPLETED_RUN),
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=mock.Mock(return_value=None),
+        changes_ci_files=mock.Mock(return_value=False),
+        jobs_reported="1:1:FAILURE",
+    )
+
+    assert parse_marker(plan.marker_comment).jobs == "1:1:FAILURE"
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_job_statuses_before_classifying(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = "7:SUCCESS"
+    mock_reporter.return_value.deferred = []
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(_pr_node(1, headRepository={"nameWithOwner": "someone/airflow"})),
+        {"pr0": {"object": None}},
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.return_value = {"state": "active"}
+
+    run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    (pr, fork), _ = mock_reporter.return_value.report.call_args
+    assert pr.number == 1
+    assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
+
+
+def test_build_job_statuses_reports_a_queued_job_like_a_running_one():
+    queued = build_job_statuses([_fork_job("A", status="queued", conclusion=None, url="u")])
+    running = build_job_statuses([_fork_job("A", status="in_progress", conclusion=None, url="u")])
+
+    assert queued == running
+
+
+def _stale(state):
+    return {
+        "context": f"{JOB_STATUS_CONTEXT_PREFIX}Gone",
+        "state": state,
+        "target_url": "https://job/Gone",
+        "description": "Running in the fork - see Details",
+    }
+
+
+@pytest.mark.parametrize(
+    ("fork", "resolved"),
+    [pytest.param(COMPLETED_RUN, True, id="completed"), pytest.param(RUNNING_RUN, False, id="running")],
+)
+def test_job_status_reporter_resolves_jobs_missing_from_a_completed_run(client, fork, resolved):
+    _reporter_client(client, [], [_stale("pending")])
+
+    JobStatusReporter(client, repo=REPO).report(_pr(), fork)
+
+    expected = [
+        mock.call(
+            42,
+            "abc123",
+            STALE_JOB_STATUS[0],
+            "https://job/Gone",
+            STALE_JOB_STATUS[1],
+            context=f"{JOB_STATUS_CONTEXT_PREFIX}Gone",
+        )
+    ]
+    assert client.set_status.call_args_list == (expected if resolved else [])
+
+
+def test_job_status_reporter_leaves_other_contexts_alone(client):
+    other = {"context": STATUS_CONTEXT, "state": "pending", "target_url": "u", "description": "d"}
+    _reporter_client(client, [], [other])
+
+    JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
+
+    client.set_status.assert_not_called()
+
+
+def test_job_status_reporter_charges_each_write_even_when_a_later_one_fails(client):
+    _reporter_client(client, [_fork_job("A", conclusion="failure"), _fork_job("B"), _fork_job("C")])
+    client.set_status.side_effect = [None, GitHubError("HTTP 500")]
+    reporter = JobStatusReporter(client, repo=REPO, budget=10)
+
+    with pytest.raises(GitHubError):
+        reporter.report(_pr(), COMPLETED_RUN)
+
+    assert reporter.remaining == 9
+
+
+def _reconcile_with_reporter(client, tmp_path, config=CONFIG):
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(_pr_node(1, headRepository={"nameWithOwner": "someone/airflow"})),
+        {"pr0": {"object": None}},
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.return_value = {"state": "active"}
+    return run_reconcile(
+        client,
+        config,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.side_effect = GitHubError("HTTP 502")
+    mock_reporter.return_value.deferred = []
+
+    assert _reconcile_with_reporter(client, tmp_path) is True
+
+    assert mock_classify.call_args.kwargs["jobs_reported"] is None
+    assert "reporting job statuses failed" in (tmp_path / "s.json").read_text()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_without_job_statuses(mock_classify, mock_reporter, client, tmp_path):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.deferred = []
+
+    _reconcile_with_reporter(client, tmp_path, config=dataclasses.replace(CONFIG, job_statuses=False))
+
+    mock_reporter.return_value.report.assert_not_called()
+    assert mock_classify.call_args.kwargs["jobs_reported"] is None
+
+
+def test_job_status_reporter_does_not_read_without_writes_left(client):
+    reporter = JobStatusReporter(client, repo=REPO, budget=0)
+
+    assert reporter.report(_pr(), COMPLETED_RUN) is None
+    client.rest_get.assert_not_called()
+    assert reporter.deferred == [42]
+
+
+@pytest.mark.parametrize(("deferred", "has_alerts"), [([1], True), ([], False)])
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_deferred_job_statuses_to_slack(
+    mock_classify, mock_reporter, client, tmp_path, deferred, has_alerts
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = deferred
+
+    assert _reconcile_with_reporter(client, tmp_path) is has_alerts
+
+    if has_alerts:
+        assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
+
+
+def test_build_job_statuses_treats_contexts_case_insensitively():
+    statuses = build_job_statuses(
+        [_fork_job("Tests", conclusion="failure", url="bad"), _fork_job("tests", url="ok")]
+    )
+
+    assert statuses == {
+        f"{JOB_STATUS_CONTEXT_PREFIX}Tests": ("failure", "bad", "Failed in the fork - see Details")
+    }
+
+
+def test_job_status_reporter_compares_contexts_case_insensitively(client):
+    posted = {
+        "context": f"{JOB_STATUS_CONTEXT_PREFIX}TESTS",
+        "state": "failure",
+        "target_url": "https://job/Tests",
+        "description": "Failed in the fork - see Details",
+    }
+    _reporter_client(client, [_fork_job("Tests", conclusion="failure")], [posted])
+
+    assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE"
+    client.set_status.assert_not_called()
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.cancel_merged_pull_request_runs", autospec=True)
+def test_run_reconcile_cancels_runs_of_merged_pull_requests(mock_cancel, client, tmp_path, enabled):
+    mock_cancel.return_value = [(10, "cancelling run 7 failed")]
+    client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+
+    has_alerts = run_reconcile(
+        client,
+        dataclasses.replace(CONFIG, cancel_merged_runs=enabled),
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert mock_cancel.called is enabled
+    assert has_alerts is enabled
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.cancel_merged_pull_request_runs", autospec=True)
+def test_run_reconcile_reports_a_failed_cancellation_pass(mock_cancel, client, tmp_path):
+    mock_cancel.side_effect = GitHubError("HTTP 502")
+    client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+
+    assert (
+        run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=tmp_path / "s.json",
+            workflows_dir=tmp_path,
+        )
+        is True
+    )
+    assert "cancelling runs of merged pull requests failed" in (tmp_path / "s.json").read_text()

@@ -76,6 +76,32 @@
                     "query": "SELECT 1 AS test_col"
                 }
             }
+        },
+        "run": {
+            "facets": {
+                "parent": {
+                    "job": {
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "root": {
+                        "job": {
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -85,6 +111,32 @@
             "facets": {
                 "sql": {
                     "query": "SELECT 1 AS test_col"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "parent": {
+                    "job": {
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "root": {
+                        "job": {
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

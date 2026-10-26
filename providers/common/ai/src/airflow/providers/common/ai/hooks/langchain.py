@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -68,12 +70,13 @@ class LangChainHook(BaseHook):
         single hook instance.
     :param llm_model: Chat model identifier in ``provider:name`` format
         (e.g. ``"openai:gpt-5"``, ``"anthropic:claude-sonnet-5"``).
-        Overrides ``extra["model"]`` on the connection.
+        Overrides ``extra["model"]`` on the connection. Passing it positionally
+        (1.0.0 order: ``llm_model, embed_model``) is deprecated.
     :param embed_model: Embedding model identifier in ``provider:name`` format
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
         ``extra["embed_model"]`` on the connection. When ``embedding_kwargs``
         supplies ``provider`` explicitly, use a model name without the provider
-        prefix.
+        prefix. Passing it positionally (1.0.0 order: ``llm_model, embed_model``) is deprecated.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
         model constructor without filtering. Values can override hook-provided
         settings, including the endpoint and credentials. In particular,
@@ -96,12 +99,32 @@ class LangChainHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
+        *args: Any,
         llm_model: str | None = None,
         embed_model: str | None = None,
-        *,
         embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
+        # ``*args`` only exists to keep the 1.0.0 positional order working: ``llm_model``, ``embed_model``.
+        if len(args) > 2:
+            raise TypeError(
+                f"{type(self).__name__}.__init__() takes from 1 to 5 positional arguments "
+                f"but {3 + len(args)} were given"
+            )
+        legacy_values = dict(zip(("llm_model", "embed_model"), args))
+        keyword_values = {"llm_model": llm_model, "embed_model": embed_model}
+        for name in legacy_values:
+            # A keyword of None counts as not provided, so ``name=None`` plus a positional keeps the positional.
+            if keyword_values[name] is not None:
+                raise TypeError(f"{type(self).__name__}.__init__() got multiple values for argument '{name}'")
+            warnings.warn(
+                f"Parameter `{name}` passed positionally is deprecated. Use `{name}=...` instead; "
+                f"positional support will be removed in a future release.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        llm_model = legacy_values.get("llm_model", llm_model)
+        embed_model = legacy_values.get("embed_model", embed_model)
         super().__init__(**kwargs)
         # Resolve at runtime so a future subclass with its own
         # `default_conn_name` is honoured. A bare `llm_conn_id: str =

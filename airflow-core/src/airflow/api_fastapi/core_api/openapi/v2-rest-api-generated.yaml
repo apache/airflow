@@ -14220,7 +14220,6 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
-      additionalProperties: false
       type: object
       required:
       - sections
@@ -14241,7 +14240,6 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
-      additionalProperties: false
       type: object
       required:
       - key
@@ -14258,7 +14256,6 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
-      additionalProperties: false
       type: object
       required:
       - name
@@ -15872,7 +15869,6 @@ components:
           description: Whether this asset event triggered the referenced dag run.
             Only a run's most recent consumed asset event triggers it; earlier consumed
             events are included in the run but did not trigger it.
-      additionalProperties: false
       type: object
       required:
       - run_id
@@ -15953,7 +15949,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -17799,7 +17794,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -18016,10 +18010,7 @@ components:
           - type: string
           - type: 'null'
           title: State Reason
-          description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
+          description: The reason this try ended, as recorded by a retry policy.
       type: object
       required:
       - id
@@ -18224,9 +18215,9 @@ components:
           - type: 'null'
           title: State Reason
           description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
+            recorded by a retry policy. May describe a previous attempt: a task waiting
+            to be retried still carries the reason its last attempt ended. It is cleared
+            when the task is cleared and when the next attempt is scheduled or deferred.'
       type: object
       required:
       - id
@@ -18517,7 +18508,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
