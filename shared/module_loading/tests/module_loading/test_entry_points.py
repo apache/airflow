@@ -27,9 +27,9 @@ from airflow_shared.module_loading import _get_grouped_entry_points, entry_point
 
 class MockDistribution:
     def __init__(
-        self, name: str | None, entry_points: Iterable[metadata.EntryPoint], version: str = "1.0.0"
+        self, name: str, entry_points: Iterable[metadata.EntryPoint], version: str = "1.0.0"
     ) -> None:
-        self.metadata = {"Name": name}
+        self.metadata: dict[str, str] | None = {"Name": name}
         self.entry_points = entry_points
         self.version = version
 
@@ -97,16 +97,17 @@ def test_entry_points_with_dist_same_dist_in_two_versions_returns_first_only():
     ]
 
 
-@mock.patch(
-    "airflow_shared.module_loading.metadata",
-    MockMetadata(
-        [
-            MockDistribution(None, [metadata.EntryPoint("a", "b", "group_x")]),
-            MockDistribution(None, [metadata.EntryPoint("c", "d", "group_x")]),
-        ]
-    ),
-)
-def test_entry_points_with_dist_without_name_are_not_deduplicated():
-    entries = list(entry_points_with_dist("group_x"))
+# No metadata file at all, or metadata without a Name field (the key is absent, not None).
+@pytest.mark.parametrize("dist_metadata", [None, {"Version": "1.0.0"}], ids=["no-metadata", "no-name"])
+def test_entry_points_with_dist_without_name_are_not_deduplicated(dist_metadata):
+    distributions = [
+        MockDistribution("unnamed", [metadata.EntryPoint("a", "b", "group_x")]),
+        MockDistribution("unnamed", [metadata.EntryPoint("c", "d", "group_x")]),
+    ]
+    for dist in distributions:
+        dist.metadata = dist_metadata
+
+    with mock.patch("airflow_shared.module_loading.metadata", MockMetadata(distributions)):
+        entries = list(entry_points_with_dist("group_x"))
 
     assert [ep.name for ep, _ in entries] == ["a", "c"]
