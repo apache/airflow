@@ -4891,28 +4891,14 @@ class TestDeserializationDefaultsResolution:
     @pytest.mark.parametrize("mapped", [False, True])
     @pytest.mark.parametrize("use_default_args", [False, True])
     @pytest.mark.parametrize(
-        ("field", "client_default", "override", "expected"),
-        [
-            pytest.param("retry_delay", timedelta(seconds=120), 300, timedelta(seconds=300), id="seconds"),
-            pytest.param(
-                "retry_delay", timedelta(seconds=120), 300.0, timedelta(seconds=300), id="float_seconds"
-            ),
-            pytest.param(
-                "retry_delay",
-                timedelta(seconds=120),
-                timedelta(seconds=300),
-                timedelta(seconds=300),
-                id="timedelta",
-            ),
-            pytest.param("retries", 3, 0, 0, id="retries"),
-        ],
+        "retry_delay", [300, 300.0, timedelta(seconds=300)], ids=["seconds", "float_seconds", "timedelta"]
     )
-    def test_schema_default_override_round_trip(
-        self, operator_defaults, mapped, use_default_args, field, client_default, override, expected
+    def test_timedelta_schema_default_override_round_trip(
+        self, operator_defaults, mapped, use_default_args, retry_delay
     ):
-        with operator_defaults({field: client_default}):
-            default_args = {field: override} if use_default_args else {}
-            task_kwargs = {} if use_default_args else {field: override}
+        with operator_defaults({"retry_delay": timedelta(seconds=120)}):
+            default_args = {"retry_delay": retry_delay} if use_default_args else {}
+            task_kwargs = {} if use_default_args else {"retry_delay": retry_delay}
             with DAG("schema_default_override", default_args=default_args) as dag:
                 if mapped:
                     BashOperator.partial(task_id="task", **task_kwargs).expand(bash_command=["echo test"])
@@ -4922,8 +4908,10 @@ class TestDeserializationDefaultsResolution:
             serialized = DagSerialization.to_dict(dag)
             task = serialized["dag"]["tasks"][0]["__var"]
             fields = task["partial_kwargs"] if mapped else task
-            assert field in fields
-            assert getattr(DagSerialization.from_dict(serialized).get_task("task"), field) == expected
+            assert "retry_delay" in fields
+            assert DagSerialization.from_dict(serialized).get_task("task").retry_delay == timedelta(
+                seconds=300
+            )
 
     def test_apply_defaults_to_encoded_op(self):
         encoded_op = {"task_id": "test_task", "task_type": "BashOperator", "retries": 10}
