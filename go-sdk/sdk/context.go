@@ -101,8 +101,7 @@ type DagRun struct {
 	// [github.com/apache/airflow/go-sdk/airflow.DagRunTypeManual].
 	RunType genmodels.DagRunType
 	// Conf is the configuration the run was triggered with. It may be nil or
-	// empty when no configuration was supplied. The runtime copies its nested
-	// maps and slices from the startup details. Integers are int64, except values
+	// empty when no configuration was supplied. Integers are int64, except values
 	// above math.MaxInt64, which are uint64; floating-point values are float64.
 	Conf map[string]any
 }
