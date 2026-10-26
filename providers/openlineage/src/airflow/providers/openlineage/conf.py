@@ -176,6 +176,12 @@ def execute_in_thread() -> bool:
 
 
 @cache
+def sql_use_external_connection() -> bool:
+    """[openlineage] sql_use_external_connection."""
+    return conf.getboolean(_CONFIG_SECTION, "sql_use_external_connection", fallback="True")
+
+
+@cache
 def include_full_task_info() -> bool:
     """[openlineage] include_full_task_info."""
     return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")
