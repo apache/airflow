@@ -21,10 +21,12 @@ import gc
 import json
 import threading
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from unittest import mock
 from uuid import UUID
 
 import httpx2
+import jwt
 import pytest
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
@@ -48,6 +50,10 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.api_fastapi.execution_api.workload_identity import (
+    DagProcessorIdentity,
+    DagProcessorIdentityVerifier,
+)
 from airflow.models.xcom import XComModel
 from airflow.utils.session import create_session_async
 
@@ -485,6 +491,47 @@ class TestTraceContextPropagation:
         _inject_trace_context_dep(parent.routes, "only-authenticated")
 
         assert any(_is_trace_context_dep(d) for d in router.routes[0].dependencies)
+
+    @pytest.mark.parametrize("mode", ["only-authenticated", "unsafe-always", "never"])
+    @pytest.mark.parametrize("valid_identity", [True, False])
+    @mock.patch.object(otel_propagate, "extract", autospec=True)
+    def test_workload_identity_trace_context_extraction(self, extract, mode, valid_identity, time_machine):
+        now = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
+        time_machine.move_to(now, tick=False)
+        events = []
+        verifier = mock.create_autospec(DagProcessorIdentityVerifier, instance=True)
+
+        async def authenticate(token):
+            events.append("authenticate")
+            if not valid_identity:
+                raise jwt.InvalidTokenError("Invalid identity")
+            return DagProcessorIdentity(UUID(int=1), frozenset({"dags-folder"}), now.timestamp() + 600)
+
+        def extract_context(headers):
+            events.append("extract")
+            return otel_context.get_current()
+
+        verifier.authenticate.side_effect = authenticate
+        extract.side_effect = extract_context
+        app = self._build_app(mode)
+        with TestClient(app) as client:
+            app.state.svcs_registry.register_value(DagProcessorIdentityVerifier, verifier)
+            response = client.post(
+                "/dag-processor/session-token",
+                headers={
+                    "Authorization": "Bearer workload-identity",
+                    "traceparent": "00-12345678901234567890123456789012-1234567890123456-01",
+                },
+            )
+
+        assert response.status_code == (200 if valid_identity else 401)
+        expect_extract = mode == "unsafe-always" or (mode == "only-authenticated" and valid_identity)
+        assert extract.call_count == int(expect_extract)
+        assert events[0] == ("extract" if mode == "unsafe-always" else "authenticate")
+        if expect_extract:
+            assert extract.call_args.args[0]["traceparent"] == (
+                "00-12345678901234567890123456789012-1234567890123456-01"
+            )
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""

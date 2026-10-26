@@ -163,10 +163,14 @@ class JWKS:
                 return
 
             try:
-                # PyJWKSet.from_dict raises AttributeError for a JSON array or scalar.
+                # Older PyJWT versions assume the body and every key are objects.
                 if not isinstance(data, dict):
                     raise TypeError(f"JWKS must be a JSON object, not {type(data).__name__}")
-                keyset = jwt.PyJWKSet.from_dict(data)
+                keys = data.get("keys")
+                if not isinstance(keys, list) or any(not isinstance(key, dict) for key in keys):
+                    raise TypeError("JWKS keys must be an array of JSON objects")
+                # PyJWT rejects empty sets, but an issuer can remove all keys with an empty array.
+                keyset = jwt.PyJWKSet.from_dict(data) if keys else None
             except (jwt.PyJWKError, jwt.PyJWKSetError, KeyError, TypeError, ValueError):
                 if not self.raise_on_fetch_error:
                     raise
@@ -174,7 +178,7 @@ class JWKS:
                 return
             self._jwks = keyset
             self._fetch_failed = False
-            log.debug("Fetched JWKS", url=self.url, keys=len(self._jwks.keys))
+            log.debug("Fetched JWKS", url=self.url, keys=len(keyset.keys) if keyset is not None else 0)
 
     async def _fetch_remote_jwks(self) -> dict[str, Any] | None:
         try:
@@ -251,10 +255,11 @@ class JWKS:
             except KeyError:
                 if self.refresh_on_unknown_kid:
                     await self.fetch_jwks(force=True)
-                    try:
-                        return self._jwks[kid]
-                    except KeyError:
-                        pass
+                    if self._jwks is not None:
+                        try:
+                            return self._jwks[kid]
+                        except KeyError:
+                            pass
 
         if self.raise_on_fetch_error and self._fetch_failed:
             raise JWKSUnavailableError("Unable to load the required signing key")

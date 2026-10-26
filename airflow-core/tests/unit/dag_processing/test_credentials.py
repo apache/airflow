@@ -22,10 +22,11 @@ from unittest import mock
 import httpx2
 import pytest
 from pydantic import ValidationError
-from tenacity import wait_none
+from tenacity import wait_none, wait_random_exponential
 
 from airflow.api_fastapi.execution_api.datamodels.job import JobState
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.dag_processing import credentials
 from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.credentials import (
     SessionTokenProvider,
@@ -204,11 +205,21 @@ def test_identity_supplier_errors_are_reported_as_unavailable(make_provider):
 
 
 @pytest.mark.parametrize(
-    ("retry_after", "wait"),
-    [("10", 10), ("3600", API_RETRY_WAIT_MAX), ("Wed, 21 Oct 2026 07:28:00 GMT", API_RETRY_WAIT_MIN)],
+    ("retry_after", "maximum_wait", "wait"),
+    [
+        ("10", API_RETRY_WAIT_MAX, 10),
+        ("10", 1, 10),
+        ("3600", API_RETRY_WAIT_MAX, 3600),
+        ("inf", API_RETRY_WAIT_MAX, API_RETRY_WAIT_MIN),
+        ("Wed, 21 Oct 2026 07:28:00 GMT", API_RETRY_WAIT_MAX, API_RETRY_WAIT_MIN),
+    ],
 )
-def test_exchange_retry_waits_for_retry_after(make_provider, monkeypatch, retry_after, wait):
+def test_exchange_retry_waits_for_retry_after(make_provider, monkeypatch, retry_after, maximum_wait, wait):
     waits = []
+    monkeypatch.setattr(credentials, "API_RETRY_WAIT_MAX", maximum_wait)
+    monkeypatch.setattr(
+        credentials, "_backoff", wait_random_exponential(min=API_RETRY_WAIT_MIN, max=maximum_wait)
+    )
     monkeypatch.setattr(_SessionTokenClient._request_with_retry.retry, "sleep", waits.append)
     provider, requests = make_provider(httpx2.Response(503, headers={"Retry-After": retry_after}), issued())
     assert provider.get_token(retry=True) == "session-1"

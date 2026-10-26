@@ -289,6 +289,8 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
     ``unsafe-always`` mode is handled with an app-level dependency instead, so extraction runs
     before authentication declared on any enclosing router.
     """
+    from airflow.api_fastapi.execution_api.routes.session_tokens import require_workload_identity
+
     for context in iter_route_contexts(routes):
         route = context.original_route
         if not isinstance(route, APIRoute):
@@ -300,7 +302,10 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
         if mode != "only-authenticated":
             continue
         # context.dependencies also holds those of the enclosing routers and include_router() calls.
-        if any(getattr(d, "dependency", None) is require_auth for d in context.dependencies):
+        if any(
+            getattr(d, "dependency", None) in (require_auth, require_workload_identity)
+            for d in context.dependencies
+        ):
             route.dependencies.append(Depends(_extract_w3c_trace_context))
 
 

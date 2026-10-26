@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-import httpx
+import httpx2
 import jwt
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -84,7 +84,7 @@ class _IdentityClaims(BaseModel):
 class DagProcessorIdentityVerifier:
     """Validate external JWTs independently of Airflow's runtime token trust."""
 
-    def __init__(self, config: WorkloadIdentityConfig, *, client: httpx.AsyncClient):
+    def __init__(self, config: WorkloadIdentityConfig, *, client: httpx2.AsyncClient):
         if config.audience in conf.getlist("execution_api", "jwt_audience"):
             raise ValueError("Workload identity must use a dedicated audience")
         configured = get_configured_bundle_names()
@@ -163,5 +163,5 @@ async def create_dag_processor_identity_verifier() -> AsyncIterator[DagProcessor
         yield None
         return
     config = WorkloadIdentityConfig.model_validate_json(raw)
-    async with httpx.AsyncClient(timeout=5.0, follow_redirects=False) as client:
+    async with httpx2.AsyncClient(timeout=5.0, follow_redirects=False) as client:
         yield DagProcessorIdentityVerifier(config, client=client)

@@ -70,9 +70,9 @@ class TestJWKS:
 
         def handle(request):
             requests.append(request)
-            return httpx.Response(200, json={"keys": keys})
+            return httpx2.Response(200, json={"keys": keys})
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
             jwks = JWKS(
                 url="https://example.com/keys", client=client, refresh_on_unknown_kid=refresh_on_unknown_kid
             )
@@ -98,9 +98,9 @@ class TestJWKS:
         async def handle(request):
             requests.append(request)
             await asyncio.sleep(0)
-            return httpx.Response(status, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+            return httpx2.Response(status, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
             jwks = JWKS(
                 url="https://example.com/keys",
                 client=client,
@@ -135,9 +135,9 @@ class TestJWKS:
 
         def handle(request):
             requests.append(request)
-            return httpx.Response(status, json={"keys": keys})
+            return httpx2.Response(status, json={"keys": keys})
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
             jwks = JWKS(
                 url="https://example.com/keys",
                 client=client,
@@ -172,9 +172,9 @@ class TestJWKS:
             if len(requests) > 1:
                 fetching.set()
                 await release.wait()
-            return httpx.Response(200, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+            return httpx2.Response(200, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
             jwks = JWKS(url="https://example.com/keys", client=client, refresh_on_unknown_kid=True)
             known = await jwks.get_key("known")
             clock.return_value = 111
@@ -195,14 +195,15 @@ class TestJWKS:
                 await refresh
             assert len(requests) == 2
 
+    @pytest.mark.parametrize("body", [[{"kty": "OKP"}], {"keys": [None]}, {"keys": ["invalid"]}])
     @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
-    async def test_jwks_body_that_is_not_an_object_is_a_failed_fetch(self, clock, ed25519_private_key):
-        bodies = [[{"kty": "OKP"}]]
+    async def test_malformed_jwks_is_a_failed_fetch(self, clock, ed25519_private_key, body):
+        bodies = [body]
 
         def handle(request):
-            return httpx.Response(200, json=bodies[-1])
+            return httpx2.Response(200, json=bodies[-1])
 
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
             jwks = JWKS(
                 url="https://example.com/keys",
                 client=client,
@@ -216,8 +217,36 @@ class TestJWKS:
             known = await jwks.get_key("known")
             # Once the hourly refresh is due, a bad body must not stop the cached key from validating.
             clock.return_value = 111 + jwks.refresh_interval_secs + 1
-            bodies.append([{"kty": "OKP"}])
+            bodies.append(body)
             assert await jwks.get_key("known") is known
+
+    @pytest.mark.parametrize("refresh", ["initial", "scheduled", "unknown-key"])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_empty_jwks_removes_cached_keys(self, clock, ed25519_private_key, refresh):
+        keys = [] if refresh == "initial" else [key_to_jwk_dict(ed25519_private_key, "known")]
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            return httpx2.Response(200, json={"keys": keys})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=True,
+            )
+            if refresh != "initial":
+                await jwks.get_key("known")
+                keys.clear()
+                clock.return_value += jwks.refresh_interval_secs + 1 if refresh == "scheduled" else 11
+            if refresh == "unknown-key":
+                with pytest.raises(KeyError):
+                    await jwks.get_key("unknown")
+            with pytest.raises(KeyError):
+                await jwks.get_key("known")
+            assert len(requests) == (1 if refresh == "initial" else 2)
 
     @pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
     async def test_fetch_jwks_success(self, private_key):

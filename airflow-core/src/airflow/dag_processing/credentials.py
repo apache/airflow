@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from pathlib import Path
 from time import monotonic
@@ -55,7 +56,9 @@ def _wait_for_retry_after(retry_state: RetryCallState) -> float:
         retry_after = float(error.response.headers["Retry-After"])
     except (KeyError, ValueError):  # Missing, or an HTTP-date rather than seconds.
         return wait
-    return max(wait, min(retry_after, API_RETRY_WAIT_MAX))
+    if not math.isfinite(retry_after):
+        return wait
+    return max(wait, retry_after)
 
 
 class SessionTokenProvider(Protocol):

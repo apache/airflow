@@ -76,6 +76,7 @@ async def require_workload_identity(
 
 @router.post(
     "/dag-processor/session-token",
+    dependencies=[Depends(require_workload_identity)],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_401_UNAUTHORIZED, "The workload identity is missing, invalid, or expired"),

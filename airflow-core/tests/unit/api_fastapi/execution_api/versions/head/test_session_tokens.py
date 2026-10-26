@@ -20,7 +20,6 @@ import json
 from datetime import UTC, datetime
 from unittest import mock
 
-import httpx
 import httpx2
 import jwt
 import pytest
@@ -125,8 +124,8 @@ def verifier(client, exec_app, signing_key, identity_algorithm, monkeypatch):
         }
     else:
         public_key = key_to_jwk_dict(signing_key, kid="key-1")
-    jwks_client = httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"keys": [public_key]}))
+    jwks_client = httpx2.AsyncClient(
+        transport=httpx2.MockTransport(lambda request: httpx2.Response(200, json={"keys": [public_key]}))
     )
     verifier = svcs.Container(exec_app.state.svcs_registry).get(DagProcessorIdentityVerifier)
     monkeypatch.setattr(verifier.validator.jwks, "client", jwks_client)
@@ -305,7 +304,7 @@ def test_rotated_signing_key_refreshes_after_cooldown(
 
     async def get_keys(url):
         requests.append(url)
-        return httpx.Response(200, json={"keys": keys}, request=httpx.Request("GET", url))
+        return httpx2.Response(200, json={"keys": keys}, request=httpx2.Request("GET", url))
 
     monkeypatch.setattr(verifier.validator.jwks.client, "get", get_keys)
     original = decode(exchange(client, identity_token()))
@@ -371,15 +370,15 @@ def test_identity_expiring_during_exchange_is_rejected(
 def test_jwks_outage_is_retryable(client, verifier, identity_token, monkeypatch, failure):
     async def unavailable(url):
         if failure == "connection":
-            raise httpx.ConnectError("offline")
-        request = httpx.Request("GET", url)
+            raise httpx2.ConnectError("offline")
+        request = httpx2.Request("GET", url)
         if failure == "503":
-            return httpx.Response(503, request=request)
+            return httpx2.Response(503, request=request)
         if failure == "invalid-json":
-            return httpx.Response(200, content=b"unavailable", request=request)
+            return httpx2.Response(200, content=b"unavailable", request=request)
         if failure == "json-array":
-            return httpx.Response(200, json=[{"kty": "OKP"}], request=request)
-        return httpx.Response(200, json={"keys": []}, request=request)
+            return httpx2.Response(200, json=[{"kty": "OKP"}], request=request)
+        return httpx2.Response(200, json={"keys": [None]}, request=request)
 
     monkeypatch.setattr(verifier.jwks.client, "get", unavailable)
     response = exchange(client, identity_token())
@@ -388,12 +387,32 @@ def test_jwks_outage_is_retryable(client, verifier, identity_token, monkeypatch,
     assert response.headers["Retry-After"] == "10"
 
 
+@pytest.mark.parametrize("cached", [False, True])
+@mock.patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+def test_empty_jwks_rejects_identities_with_or_without_cached_keys(
+    clock, client, verifier, identity_token, monkeypatch, cached
+):
+    if cached:
+        assert exchange(client, identity_token()).status_code == 200
+        clock.return_value = 3701
+
+    async def get_keys(url):
+        return httpx2.Response(200, json={"keys": []}, request=httpx2.Request("GET", url))
+
+    monkeypatch.setattr(verifier.jwks.client, "get", get_keys)
+    response = exchange(client, identity_token())
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid workload identity"}
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    assert "Retry-After" not in response.headers
+
+
 @mock.patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
 def test_jwks_outage_preserves_cached_key_validation(clock, client, verifier, identity_token, monkeypatch):
     assert exchange(client, identity_token()).status_code == 200
 
     async def unavailable(url):
-        raise httpx.ConnectError("offline")
+        raise httpx2.ConnectError("offline")
 
     monkeypatch.setattr(verifier.jwks.client, "get", unavailable)
     clock.return_value = 3701
@@ -408,10 +427,10 @@ def test_registration_recovers_from_jwks_outage(clock, make_processor, verifier,
 
     async def get_keys(url):
         attempts.append(url)
-        return httpx.Response(
+        return httpx2.Response(
             503 if len(attempts) == 1 else 200,
             json={"keys": [key_to_jwk_dict(signing_key, kid="key-1")]},
-            request=httpx.Request("GET", url),
+            request=httpx2.Request("GET", url),
         )
 
     waits = []
