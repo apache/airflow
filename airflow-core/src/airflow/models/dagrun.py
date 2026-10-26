@@ -2770,6 +2770,8 @@ class DagRun(Base, LoggingMixin):
                         end_date=timezone.utcnow(),
                         duration=0,
                         try_number=next_try_number,
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(
                         synchronize_session=False,

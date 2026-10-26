@@ -2229,7 +2229,7 @@ export type TaskInstanceHistoryResponse = {
     dag_version: DagVersionResponse | null;
     note?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. Describes the attempt that is currently recorded on the row: it is cleared when the task is cleared and when the next attempt is scheduled or deferred.
+     * The reason this try ended, as recorded by a retry policy.
      */
     state_reason?: string | null;
 };
@@ -2280,7 +2280,7 @@ export type TaskInstanceResponse = {
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. Describes the attempt that is currently recorded on the row: it is cleared when the task is cleared and when the next attempt is scheduled or deferred.
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
      */
     state_reason?: string | null;
 };

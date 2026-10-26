@@ -106,7 +106,7 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         default=None,
         validation_alias="retry_reason",
         description=(
-            "The reason the task instance reached its current state, as recorded by a retry policy. Describes the attempt that is currently recorded on the row: it is cleared when the task is cleared and when the next attempt is scheduled or deferred."
+            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred."
         ),
     )
 

@@ -1613,8 +1613,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.log.debug("Setting task state for %s to %s", self, state)
         if self not in session:
             self.refresh_from_db(session=session)
+        previous_state = self.state
         self.state = state
         self.start_date = self.start_date or current_time
+        if previous_state == TaskInstanceState.UP_FOR_RETRY and state != TaskInstanceState.UP_FOR_RETRY:
+            # The pending attempt never runs, so it must not keep the previous one's values:
+            # prepare_db_for_next_try() would otherwise archive them under this try number.
+            self.retry_reason = None
+            self.retry_delay_override = None
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
