@@ -5482,8 +5482,10 @@ def test_every_test_output_is_scoped_to_component_branches():
 
 
 def _component_branch_checks(context: dict, files: tuple[str, ...]) -> SelectiveChecks:
+    # Component branches are cut from main, whatever the default branch of the checkout running the test.
     return SelectiveChecks(
         files=files,
+        default_branch="main",
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST if "base_ref" in context else GithubEvents.PUSH,
         github_context_dict=context,
