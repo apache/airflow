@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import itertools
-import warnings
 from datetime import UTC, datetime, timedelta
 from unittest import mock
 
@@ -25,11 +24,7 @@ import pytest
 from snowflake.connector.errors import ProgrammingError
 
 from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.providers.snowflake.operators.snowpark_containers import (
-    _DURABLE_UNSET,
-    SnowparkContainerJobOperator,
-    _warn_and_disable_durable_pre_3_3,
-)
+from airflow.providers.snowflake.operators.snowpark_containers import SnowparkContainerJobOperator
 from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 from airflow.providers.snowflake.utils.snowpark_containers import (
     NOT_FOUND_STATUS,
@@ -667,18 +662,3 @@ class TestSnowparkContainerJobOperatorDurable:
     def test_durable_false_direct_kwarg_reaches_operator(self):
         op = _make_operator(durable=False)
         assert op.durable is False
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
