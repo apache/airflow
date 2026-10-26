@@ -92,7 +92,6 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagRunState": "Dag 執行狀態",
-  "dagWarnings": "Dag 警告 / 錯誤",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -139,6 +138,7 @@
     "all": "全部",
     "and": "且",
     "any": "任何",
+    "hiddenAsset": "隱藏的資源",
     "or": "或"
   },
   "filter": "篩選",

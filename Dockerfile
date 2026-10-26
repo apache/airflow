@@ -72,7 +72,7 @@ ARG AIRFLOW_PYTHON_VERSION="3.13.16"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.1
+ARG AIRFLOW_UV_VERSION=0.13.4
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -2270,7 +2270,11 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
-ENV PATH="/usr/python/bin:$PATH"
+# The virtualenv must come before /usr/python/bin - same as in the main image. In hardened images
+# /usr/python is /usr, so /usr/python/bin holds Debian's pip, whose Python also sees
+# /usr/lib/python3/dist-packages. Installing with it treats packages there (for example wheel) as
+# already satisfied, so they never land in the virtualenv and are missing from the final image.
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}

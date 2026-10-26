@@ -310,6 +310,7 @@ export const DataTable = <TData extends RowData>({
           data-testid="data-table-header"
           gap={2}
           justifyContent="space-between"
+          mb={2}
           minH={10}
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">

@@ -38,7 +38,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
 from sqlalchemy import delete, select, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
@@ -657,6 +657,7 @@ class TestTIRunState:
         assert response.status_code == 200
         if version == "2026-06-30":
             assert "loop" not in response.json()
+            assert "expanded_ti_count" not in response.json()
             return
         assert response.json()["loop"] == {
             "node_id": loop.group_id,
@@ -664,7 +665,57 @@ class TestTIRunState:
             "max_iterations": 4,
             "terminal_task_id": loop.terminal_task_id,
             "terminal_is_mapped": mapped,
+            "region_id": str(parent.id),
+            "trajectory": 1,
         }
+        assert response.json().get("expanded_ti_count") == (1 if mapped else None)
+
+    def test_startup_loop_context_describes_the_fork_holding_the_iteration(self, client, session, dag_maker):
+        @task_group
+        def body():
+            EmptyOperator(task_id="terminal")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(ti for ti in dr.task_instances if ti.task_id == loop.terminal_task_id)
+        original = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        session.add(original)
+        session.flush()
+        fork = DynamicRegion.fork_family(original.id, 2, {original.id: original}, session=session)
+        session.flush()
+        ti.region_id, ti.region_index = fork.id, 2
+        ti.state = State.QUEUED
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        loop_context = response.json()["loop"]
+        assert loop_context["region_id"] == str(fork.id)
+        assert loop_context["trajectory"] == 2
+        assert loop_context["forked_from_region_id"] == str(original.id)
+        assert loop_context["resumes_from_index"] == 2
+
+    @pytest.mark.parametrize("removed", [0, 1])
+    def test_startup_expanded_ti_count_counts_live_instances_of_the_expansion(
+        self, client, session, dag_maker, removed
+    ):
+        with dag_maker(serialized=True):
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        tis = sorted(dr.task_instances, key=lambda ti: ti.map_index)
+        for ti in tis[3 - removed :]:
+            ti.state = State.REMOVED
+        tis[0].state = State.QUEUED
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{tis[0].id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert response.json()["expanded_ti_count"] == 3 - removed
 
     @pytest.mark.parametrize("regional", [False, True])
     def test_startup_xcom_cleanup_keys_belong_to_the_starting_try(
@@ -1099,6 +1150,53 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+
+    @pytest.mark.parametrize(
+        ("decorator", "expected"),
+        [
+            pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
+            pytest.param(task.stub, None, id="stub-without-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(
+                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+            ),
+            pytest.param(task(execution_timeout=timedelta(seconds=10)), 10.0, id="python-task"),
+        ],
+    )
+    def test_ti_run_returns_execution_timeout(self, client, dag_maker, decorator, expected):
+        with dag_maker("test_execution_timeout_dag", serialized=True):
+
+            @decorator
+            def sleeper(): ...
+
+            sleeper()
+
+        (ti,) = dag_maker.create_dagrun().get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("execution_timeout") == expected
+        assert ("execution_timeout" in body) == (expected is not None)
+
+    def test_ti_run_returns_execution_timeout_for_mapped_stub(self, client, dag_maker):
+        with dag_maker("test_mapped_stub_execution_timeout", serialized=True):
+
+            @task.stub(execution_timeout=timedelta(seconds=90))
+            def transform(country: str): ...
+
+            transform.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["execution_timeout"] == 90.0
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""
@@ -2329,7 +2427,7 @@ class TestTIUpdateState:
         session.expire_all()
         assert session.get(TaskInstance, right_id).state == State.RUNNING
         ready = dr.task_instance_scheduling_decisions(session=session).schedulable_tis
-        assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 1), ("body.right", 1)}
+        assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 2), ("body.right", 2)}
 
     @pytest.fixture
     def started_loop_successor(self, client, session, running_loop_gate):
@@ -2344,11 +2442,11 @@ class TestTIUpdateState:
         running = next(
             ti
             for ti in dr.get_task_instances(session=session)
-            if ti.task_id != gate.task_id and ti.region_index == 1
+            if ti.task_id != gate.task_id and ti.region_index == 2
         )
         running.state = State.QUEUED
         for ti in dr.get_task_instances(session=session):
-            if ti.task_id != gate.task_id and ti.region_index == 0:
+            if ti.task_id != gate.task_id and ti.region_index == 1:
                 ti.state = State.SUCCESS
         session.commit()
         running_id = running.id
@@ -2409,7 +2507,7 @@ class TestTIUpdateState:
         dr.dag = dag_maker.serialized_dag
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert gate.id in {ti.id for ti in decision.schedulable_tis}
-        assert not any(ti.region_index == 1 for ti in dr.get_task_instances(session=session))
+        assert not any(ti.region_index == 2 for ti in dr.get_task_instances(session=session))
 
     def test_restart_ack_locks_run_before_task(self, client, session, create_task_instance, mocker):
         if session.bind.dialect.name == "sqlite":
@@ -2499,17 +2597,17 @@ class TestTIUpdateState:
     @pytest.mark.parametrize(
         ("decision", "state", "max_iterations", "conditional", "rejected", "passes"),
         [
-            ("continue", State.SUCCESS, 3, False, False, [0, 1]),
-            ("stop", State.SUCCESS, 3, False, True, [0]),
-            (None, State.SUCCESS, 3, False, True, [0]),
-            ("continue", State.FAILED, 3, False, False, [0]),
-            ("continue", State.SKIPPED, 3, False, False, [0]),
-            ("stop", State.SUCCESS, 1, False, False, [0]),
-            ("continue", State.SUCCESS, 1, False, True, [0]),
-            ("stop", State.SUCCESS, 3, True, False, [0]),
-            ("stop", State.SUCCESS, 1, True, False, [0]),
-            ("continue", State.SUCCESS, 1, True, True, [0]),
-            (None, State.FAILED, 1, True, False, [0]),
+            ("continue", State.SUCCESS, 3, False, False, [1, 2]),
+            ("stop", State.SUCCESS, 3, False, True, [1]),
+            (None, State.SUCCESS, 3, False, True, [1]),
+            ("continue", State.FAILED, 3, False, False, [1]),
+            ("continue", State.SKIPPED, 3, False, False, [1]),
+            ("stop", State.SUCCESS, 1, False, False, [1]),
+            ("continue", State.SUCCESS, 1, False, True, [1]),
+            ("stop", State.SUCCESS, 3, True, False, [1]),
+            ("stop", State.SUCCESS, 1, True, False, [1]),
+            ("continue", State.SUCCESS, 1, True, True, [1]),
+            (None, State.FAILED, 1, True, False, [1]),
         ],
     )
     def test_loop_gate_completion_consumes_decision_atomically(
@@ -2581,8 +2679,8 @@ class TestTIUpdateState:
                 )
                 == passes
             )
-        if mapped and passes == [0, 1]:
-            successor_region = next(region for region in children if region.parent_region_index == 1)
+        if mapped and passes == [1, 2]:
+            successor_region = next(region for region in children if region.parent_region_index == 2)
             assert [ti.region_index for ti in current if ti.region_id == successor_region.id] == [-1]
             dr.dag = dag_maker.serialized_dag
 
@@ -2637,7 +2735,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 500
         session.expire_all()
-        assert observed == [State.RUNNING, [0]]
+        assert observed == [State.RUNNING, [1]]
         assert gate.state == State.RUNNING
         assert len(dr.get_task_instances(session=session)) == 2
 
@@ -2696,7 +2794,7 @@ class TestTIUpdateState:
         assert gate.state == State.SUCCESS
         assert sorted(
             ti.region_index for ti in dr.get_task_instances(session=session) if ti.task_id == gate.task_id
-        ) == [0, 1]
+        ) == [1, 2]
 
     def test_loop_gate_completion_uses_its_pinned_limit(self, client, session, running_loop_gate, dag_maker):
         gate = running_loop_gate
@@ -2716,7 +2814,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204, response.text
         session.expire_all()
-        successors = [ti for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1]
+        successors = [ti for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2]
         assert len(successors) == 2
         assert all(ti.dag_version_id == original_version for ti in successors)
 
@@ -2746,7 +2844,7 @@ class TestTIUpdateState:
         assert response.status_code == 204, response.text
         session.expire_all()
         assert gate.state == State.FAILED
-        assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [0, 0]
+        assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [1, 1]
 
     def test_loop_gate_state_update_error_rolls_back_next_pass(
         self, client, session, running_loop_gate, mocker
@@ -2822,7 +2920,7 @@ class TestTIUpdateState:
         assert response.status_code == 204
         session.refresh(gate)
         successor_ids = {
-            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2
         }
         archived_id = gate.id
         dag_run = gate.dag_run
@@ -2833,7 +2931,7 @@ class TestTIUpdateState:
                 TaskInstance.dag_id == dag_run.dag_id,
                 TaskInstance.run_id == dag_run.run_id,
                 TaskInstance.task_id == gate.task_id,
-                TaskInstance.region_index == 0,
+                TaskInstance.region_index == 1,
                 TaskInstance.working_set.is_(True),
             )
         )
@@ -2854,7 +2952,7 @@ class TestTIUpdateState:
         session.expire_all()
         assert gate.state == state
         assert {
-            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2
         } == successor_ids
         assert _stored_loop_decision_reasons(session, archived_id) == ["first"]
         assert _stored_loop_decision_reasons(session, gate.id) == []
@@ -3631,6 +3729,45 @@ class TestTIUpdateState:
             detail = response.json()["detail"]
             assert isinstance(detail, dict)
             assert detail.get("reason") == "Database error"
+
+    @pytest.mark.parametrize(
+        ("pgcode", "expected_status", "expected_state"),
+        [
+            pytest.param("40P01", 500, State.RUNNING, id="deadlock-is-retryable"),
+            pytest.param("55P03", 204, State.FAILED, id="other-operational-error-fails-ti"),
+            pytest.param("psycopg3", 500, State.RUNNING, id="psycopg3-deadlock-is-retryable"),
+        ],
+    )
+    def test_ti_update_state_deadlock_returns_5xx_instead_of_failing(
+        self, client, session, create_task_instance, mocker, pgcode, expected_status, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_deadlock_returns_5xx_instead_of_failing",
+            state=State.RUNNING,
+        )
+        session.commit()
+        if pgcode == "psycopg3":
+            errors = pytest.importorskip(
+                "psycopg.errors", reason="Test only runs when psycopg v3 is installed."
+            )
+            orig = errors.DeadlockDetected("deadlock detected")
+        else:
+            orig = mock.Mock(sqlstate=None, pgcode=pgcode, args=("db error",))
+        mocker.patch.object(
+            task_instances_route,
+            "_create_ti_state_update_query_and_update_state",
+            autospec=True,
+            side_effect=OperationalError("statement", {}, orig),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == expected_state
 
     def test_ti_run_database_error(self, client, session, create_task_instance):
         """
@@ -4810,7 +4947,7 @@ class TestTISkipDownstream:
         other_pass = TaskInstance(
             task=dag.get_task(target.task_id), run_id=dr.run_id, dag_version_id=target.dag_version_id
         )
-        other_pass.region_id, other_pass.region_index = region.id, 1
+        other_pass.region_id, other_pass.region_index = region.id, 2
         session.add(other_pass)
         session.commit()
 

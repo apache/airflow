@@ -55,6 +55,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import SetTaskStateStore
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
@@ -938,6 +939,49 @@ class TestPopenActivitySubprocessStart:
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
 
 
+class TestPopenActivitySubprocessSetTaskStateStore:
+    @pytest.mark.parametrize(
+        ("limit", "value", "warns"),
+        [
+            # json.dumps gives '{"a": "\\u00e9"}', 15 bytes; Go's encoding/json gives 11.
+            pytest.param("14", {"a": "é"}, True, id="over-limit"),
+            pytest.param("15", {"a": "é"}, False, id="at-limit"),
+            pytest.param("0", {"a": "é"}, False, id="limit-disabled"),
+        ],
+    )
+    def test_warns_when_value_exceeds_max_value_storage_bytes(self, limit, value, warns):
+        client = MagicMock(spec=Client)
+        process_log = MagicMock()
+        proc = _PopenActivitySubprocess(
+            process_log=process_log,
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+        msg = SetTaskStateStore(ti_id=proc.id, key="k", value=value, expires_at=None)
+
+        with (
+            conf_vars({("state_store", "max_value_storage_bytes"): limit}),
+            patch.object(_PopenActivitySubprocess, "send_msg", autospec=True),
+        ):
+            proc._handle_request(msg, log=MagicMock(), req_id=1)
+
+        client.task_state_store.set.assert_called_once_with(proc.id, "k", value, expires_at=None)
+        if warns:
+            process_log.warning.assert_called_once_with(
+                "Task store value exceeds configured max_value_storage_bytes",
+                key="k",
+                size=15,
+                max_value_storage_bytes=14,
+            )
+        else:
+            process_log.warning.assert_not_called()
+
+
 # This script connects back to the supervisor the way a language SDK runtime does, then waits for
 # StartupDetails. It exits with code 0 as soon as the supervisor sends anything or closes the
 # connection. It exits with code 3 if 10 seconds pass and neither has happened.
@@ -1104,6 +1148,48 @@ class TestPopenActivitySubprocessClearXComs:
             "exc_info": ANY,
             "loc": ANY,
         } in captured_logs
+
+
+class TestPopenActivitySubprocessExecutionTimeout:
+    @pytest.mark.parametrize(
+        ("execution_timeout", "killed"),
+        [
+            pytest.param(30.0, True, id="with-timeout"),
+            pytest.param(None, False, id="without-timeout"),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+    @patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
+    @patch("time.monotonic", autospec=True, return_value=1.0)
+    def test_arms_execution_timeout_from_run_context(
+        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, killed
+    ):
+        client = MagicMock()
+        client.task_instances.start.return_value = TIRunContext.model_construct(
+            should_retry=False, execution_timeout=execution_timeout, xcom_keys_to_clear=[]
+        )
+        proc = _PopenActivitySubprocess(
+            process_log=MagicMock(),
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+
+        proc._on_child_started(
+            ti=_make_ti(),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
+
+        mock_monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        assert mock_kill.called is killed
 
 
 class TestResolveArtifactBundle:

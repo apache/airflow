@@ -54,7 +54,7 @@ class LoopIterationResponse(BaseModel):
     """A task execution's position in an enclosing loop."""
 
     loop_id: str
-    iteration: int
+    iteration: int = Field(ge=1, description="Position in the enclosing loop, counting from one.")
 
 
 class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
@@ -106,7 +106,7 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         default=None,
         validation_alias="retry_reason",
         description=(
-            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended."
+            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred."
         ),
     )
 

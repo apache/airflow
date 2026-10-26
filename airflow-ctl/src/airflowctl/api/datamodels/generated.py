@@ -355,9 +355,6 @@ class ConfigOption(BaseModel):
     Config option.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | Value, Field(title="Value")]
 
@@ -367,9 +364,6 @@ class ConfigSection(BaseModel):
     Config Section Schema.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: Annotated[str, Field(title="Name")]
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
@@ -697,9 +691,6 @@ class DagRunAssetReference(BaseModel):
     DagRun serializer for asset responses.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
@@ -776,9 +767,6 @@ class DagScheduleAssetReference(BaseModel):
     Dag schedule reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
@@ -1098,7 +1086,9 @@ class LoopIterationResponse(BaseModel):
     """
 
     loop_id: Annotated[str, Field(title="Loop Id")]
-    iteration: Annotated[int, Field(title="Iteration")]
+    iteration: Annotated[
+        int, Field(description="Position in the enclosing loop, counting from one.", ge=1, title="Iteration")
+    ]
 
 
 class MaterializeAssetBody(BaseModel):
@@ -1160,6 +1150,50 @@ class PluginImportErrorResponse(BaseModel):
     error: Annotated[str, Field(title="Error")]
 
 
+class Destination1(str, Enum):
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK_INSTANCE = "task_instance"
+
+
+class PluginLinkActionResponse(BaseModel):
+    """
+    Serializer for a UI action that opens a URL.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["link"], Field(title="Action Type")]
+    href: Annotated[str, Field(title="Href")]
+
+
+class PluginReactActionResponse(BaseModel):
+    """
+    Serializer for a UI action that mounts a React component behind a button.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["react"], Field(title="Action Type")]
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
+
+
+class UiActions(RootModel[PluginLinkActionResponse | PluginReactActionResponse]):
+    root: Annotated[PluginLinkActionResponse | PluginReactActionResponse, Field(discriminator="action_type")]
+
+
 class PoolBody(BaseModel):
     """
     Pool serializer for post bodies.
@@ -1168,7 +1202,7 @@ class PoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str, Field(max_length=256, title="Name")]
+    name: Annotated[str, Field(max_length=256, pattern="\\S", title="Name")]
     slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
@@ -1234,7 +1268,7 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
-class Destination1(str, Enum):
+class Destination3(str, Enum):
     NAV = "nav"
     DAG = "dag"
     DAG_RUN = "dag_run"
@@ -1263,7 +1297,7 @@ class ReactAppResponse(BaseModel):
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
     bundle_url: Annotated[str, Field(title="Bundle Url")]
-    destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
+    destination: Annotated[Destination3 | None, Field(title="Destination")] = "nav"
 
 
 class ReprocessBehavior(str, Enum):
@@ -1313,9 +1347,6 @@ class TaskInletAssetReference(BaseModel):
     Task inlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1398,9 +1429,6 @@ class TaskOutletAssetReference(BaseModel):
     Task outlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1540,7 +1568,7 @@ class VariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    key: Annotated[str, Field(max_length=250, title="Key")]
+    key: Annotated[str, Field(max_length=250, pattern="\\S", title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
@@ -1796,7 +1824,7 @@ class BackfillPostBody(BaseModel):
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
-    max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    max_active_runs: Annotated[int | None, Field(ge=1, title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -2172,9 +2200,6 @@ class Config(BaseModel):
     List of config sections with their options.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     sections: Annotated[list[ConfigSection], Field(title="Sections")]
 
 
@@ -2584,6 +2609,13 @@ class PluginResponse(BaseModel):
         ),
     ]
     react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    ui_actions: Annotated[
+        list[UiActions] | None,
+        Field(
+            description="User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.",
+            title="Ui Actions",
+        ),
+    ] = None
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[
         list[AppBuilderMenuItemResponse], Field(deprecated=True, title="Appbuilder Menu Items")
@@ -2679,10 +2711,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
-        Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
-            title="State Reason",
-        ),
+        Field(description="The reason this try ended, as recorded by a retry policy.", title="State Reason"),
     ] = None
 
 
@@ -2733,7 +2762,7 @@ class TaskInstanceResponse(BaseModel):
     state_reason: Annotated[
         str | None,
         Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
         ),
     ] = None

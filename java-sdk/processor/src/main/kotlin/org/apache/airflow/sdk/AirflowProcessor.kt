@@ -712,7 +712,11 @@ class AirflowProcessor : AbstractProcessor() {
     value: AnnotationValue,
   ): CodeBlock =
     when (field.type) {
-      FieldType.STRING -> CodeBlock.of($$"$S", value.value)
+      FieldType.STRING -> {
+        val text = value.value as String
+        field.checkString(text) { "Annotation attribute '${field.attribute}'" }
+        CodeBlock.of($$"$S", text)
+      }
       FieldType.BOOLEAN, FieldType.INTEGER, FieldType.NUMBER -> CodeBlock.of($$"$L", value.value)
       FieldType.STRING_ARRAY -> {
         @Suppress("UNCHECKED_CAST")

@@ -526,13 +526,18 @@ class TestRealBundleArgBindingsDowngrade:
             max_iterations=4,
             terminal_task_id="body.terminal",
             terminal_is_mapped=True,
+            region_id=UUID("0199a8c0-0000-7000-8000-000000000001"),
+            trajectory=1,
         )
+        startup_details.ti_context.expanded_ti_count = 2
         context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]
 
         if version == "2026-06-16":
             assert "loop" not in context
+            assert "expanded_ti_count" not in context
         else:
             assert context["loop"] == startup_details.ti_context.loop.model_dump()
+            assert context["expanded_ti_count"] == 2
 
     @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
     def test_task_coordinates_follow_supervisor_version(self, real_migrator, startup_details, version):
@@ -544,6 +549,16 @@ class TestRealBundleArgBindingsDowngrade:
         else:
             assert ti["region_id"] == startup_details.ti.region_id
             assert ti["region_index"] == 7
+
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    def test_execution_timeout_follows_supervisor_version(self, real_migrator, startup_details, version):
+        startup_details.ti_context.execution_timeout = 90.0
+        context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]
+
+        if version == "2026-06-16":
+            assert "execution_timeout" not in context
+        else:
+            assert context["execution_timeout"] == 90.0
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding

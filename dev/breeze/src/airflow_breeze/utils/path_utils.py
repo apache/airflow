@@ -21,6 +21,7 @@ Useful tools for various Paths used inside Airflow Sources.
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import os
 import platform
@@ -526,6 +527,9 @@ SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH = (
 )
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local-all-sources.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH = (
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-sphinx-airflow-theme.yml"
+)
 SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-ui-dist.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-uv-lock.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml"
@@ -622,6 +626,11 @@ def cleanup_python_generated_files():
                 pass
             except PermissionError:
                 permission_errors.append(Path(dirpath))
+            except OSError as e:
+                # A concurrent breeze process (e.g. parallel prek hooks) can write a fresh .pyc
+                # between rmtree emptying the directory and removing it.
+                if e.errno != errno.ENOTEMPTY:
+                    raise
             dirnames.clear()
     if permission_errors:
         if platform.uname().system.lower() == "linux":
