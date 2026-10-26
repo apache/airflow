@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Approves the waiting workflow runs of external contributors' PRs to main when the change is safe to
+# run without a maintainer's look, and labels the others "need workflow approval". A PR whose CI runs
+# in the contributor's fork (AIP-120) is approved unless it changes CI definition files, and then gets
+# a comment saying why its runs wait. The rules are in
+# dev/breeze/src/airflow_breeze/utils/workflow_run_approval.py and documented in
+# contributing-docs/05_pull_requests.rst.
+#
+# This workflow runs only trusted code from main. It reads the PR's metadata, changed-file list and
+# git objects, and never checks out or runs the PR's code. Approving with GITHUB_TOKEN starts the
+# approved runs right away, and workflow_run workflows that follow them still trigger.
+name: Auto approve workflow runs
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      report-only:
+        description: "Only report the decisions and estimates, without approving or labelling"
+        type: boolean
+        default: false
+permissions:
+  # Approving workflow runs.
+  actions: write
+  # Adding and removing the "need workflow approval" label, and commenting on a fork CI PR whose
+  # CI change keeps its runs waiting.
+  pull-requests: write
+  contents: read
+concurrency:
+  group: auto-approve-workflow-runs
+  cancel-in-progress: false
+jobs:
+  approve-workflow-runs:
+    name: "Approve workflow runs of external contributors"
+    runs-on: ubuntu-latest
+    if: github.repository == 'apache/airflow'
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout main"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          ref: main
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Approve workflow runs"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPORT_ONLY: ${{ inputs.report-only && 'true' || 'false' }}
+        run: breeze ci approve-workflow-runs

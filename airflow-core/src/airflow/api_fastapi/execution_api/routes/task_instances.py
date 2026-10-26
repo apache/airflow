@@ -59,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_ar
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
-    LoopContext,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -93,6 +92,8 @@ from airflow.api_fastapi.execution_api.security import (
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
+    get_execution_timeout,
+    get_task,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
@@ -371,27 +372,21 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
             multi_team=conf.getboolean("core", "multi_team"),
         )
-        resolver = TaskCoordinateResolver(dag_bag, session)
-        if loop_context := resolver.loop_context(ti):
-            group, index = loop_context
-            terminal = resolver.get_task(
-                ti.dag_id, ti.run_id, group.terminal_task_id, dag_version_id=ti.dag_version_id
-            )
-            context.loop = LoopContext(
-                node_id=group.node_id,
-                index=index,
-                max_iterations=group.max_iterations,
-                terminal_task_id=group.terminal_task_id,
-                terminal_is_mapped=terminal.get_needs_expansion(),
-            )
+        if ti.region_id != SENTINEL_REGION_ID:
+            resolver = TaskCoordinateResolver(dag_bag, session)
+            task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            if (expanded_ti_count := resolver.get_expanded_ti_count(ti, task=task)) is not None:
+                context.expanded_ti_count = expanded_ti_count
+            if (loop := resolver.get_loop_context(ti, task=task)) is not None:
+                context.loop = loop
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
+        serialized_task = get_task(dag_bag, ti, session=session)
+
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (
-            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
-        ):
+        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
             except ValidationError:
@@ -408,6 +403,9 @@ def ti_run(
                         "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
                     },
                 )
+
+        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+            context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
         if ti.next_method:

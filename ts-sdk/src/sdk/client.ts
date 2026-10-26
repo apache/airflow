@@ -133,7 +133,7 @@ export interface TaskClient {
  * let jobId = await store.get<string>("job_id");
  * if (jobId == null) {
  *   jobId = await submit();
- *   await store.set("job_id", jobId, { retentionMs: NEVER_EXPIRE });
+ *   await store.set("job_id", jobId, { retention: NEVER_EXPIRE });
  * }
  * ```
  *
@@ -157,9 +157,11 @@ export interface TaskStateStore {
   /**
    * Store a value, replacing any existing value for the key.
    *
+   * `opts.retention` is how long to keep the key, in seconds.
+   *
    * @throws `TypeError` when `key` is not a string, or `value` is null,
    * undefined, NaN, or Infinity.
-   * @throws `RangeError` when `key` is empty; when `retentionMs` is
+   * @throws `RangeError` when `key` is empty; when `retention` is
    * negative, NaN, or Infinity; when the deployment's
    * `[state_store] default_retention_days` is invalid; or when the resolved
    * expiry would overflow the wire timestamp (year 9999).

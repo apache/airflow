@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+4.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.6.3
 .....
 

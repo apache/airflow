@@ -32,8 +32,9 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
-from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex, _drop_null_default
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
@@ -452,10 +453,42 @@ class LoopContext(BaseModel):
     """Pinned loop definition and enclosing iteration for a task execution."""
 
     node_id: str
-    index: int = Field(ge=0)
+    index: int = Field(ge=1)
     max_iterations: int = Field(gt=0)
     terminal_task_id: str
     terminal_is_mapped: bool
+
+    region_id: uuid.UUID
+    """
+    The loop region holding this iteration, which identifies the trajectory it runs in.
+
+    A mapped task's own ``region_id`` is its expansion's, so this is how its instances are tied to the
+    unmapped tasks of the same iteration.
+    """
+
+    trajectory: int = Field(ge=1)
+    """
+    The number of ``region_id`` in the loop's chain of regions: 1 for the original, n + 1 for its n-th fork.
+
+    Clearing a loop gate with the later iterations forks the newest loop region, and the iterations from
+    ``resumes_from_index`` on run again in the fork.
+    """
+
+    forked_from_region_id: Annotated[
+        SkipJsonSchema[None] | uuid.UUID, Field(json_schema_extra=_drop_null_default)
+    ] = None
+    """
+    The region ``region_id`` was forked from, the previous one in the chain. Absent for the original region.
+
+    The fork replaces the iterations from ``resumes_from_index`` on, which can be held by earlier regions of
+    the chain too.
+    """
+
+    resumes_from_index: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 1."""
 
 
 class TIRunContext(BaseModel):
@@ -465,6 +498,16 @@ class TIRunContext(BaseModel):
     """DAG run information for the task instance."""
 
     loop: LoopContext | None = None
+
+    expanded_ti_count: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """
+    Number of live, non-removed instances in the mapped task's expansion this instance belongs to.
+
+    ``None`` for a task that isn't mapped. Inside a loop, it counts the instances of this iteration only.
+    """
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
@@ -510,6 +553,13 @@ class TIRunContext(BaseModel):
     Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
 
     ``None`` for regular tasks and for stub tasks that declare no parameters.
+    """
+
+    execution_timeout: float | None = None
+    """
+    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
+
+    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
     """
 
     multi_team: bool = False

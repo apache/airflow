@@ -81,6 +81,7 @@ apikey
 apis
 AppBuilder
 appbuilder
+appender
 Appflow
 appflow
 approle
@@ -344,6 +345,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -555,6 +557,7 @@ Drillbit
 driverless
 dropdown
 druidHook
+dryrun
 ds
 dsl
 dsn
@@ -1059,6 +1062,7 @@ LocalObjectReference
 localstack
 Lockbox
 lodash
+Logback
 logfile
 logformat
 loglevel
@@ -1528,6 +1532,7 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
 RunContext
 runnable
 RunQueryOperator
@@ -1613,6 +1618,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1854,6 +1860,7 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
 TrustedRouter
 truthy

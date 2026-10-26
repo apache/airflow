@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-spark``
 
-Release: ``6.3.3``
+Release: ``6.3.4``
 
 
 `Apache Spark <https://spark.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.spark`` provider. All classes for this p
 are in ``airflow.providers.apache.spark`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.3.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.3.4/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``pyspark-client``                          ``>=4.0.0``
 ``grpcio-status``                           ``>=1.67.0``
 ``requests``                                ``>=2.32.0``
@@ -92,4 +92,4 @@ Extra                Dependencies
 ===================  ===================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.3.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.3.4/changelog.html>`_.

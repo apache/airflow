@@ -79,7 +79,7 @@ var dagShape = authoringShape{
 		"bundle_name":               "the name of the bundle that carries the Dag, not the Dag's",
 		"tasks":                     "the tasks dag.Task registers",
 		"task_group":                "the groups dag.TaskGroup registers",
-		"edge_info":                 "the labels airflow.Label carries into an edge verb",
+		"edge_info":                 "the edge labels airflow.Label makes",
 		"dag_dependencies":          "derived from the edges and the assets a Dag declares",
 		"timezone":                  "always UTC for a Go Dag, even when StartDate has another location",
 		"timetable":                 "the serialized form of Schedule, which is injected instead",

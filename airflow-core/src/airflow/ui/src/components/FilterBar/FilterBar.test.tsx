@@ -90,6 +90,21 @@ describe("FilterBar boolean filters", () => {
     expect(screen.getByTestId("needs_review-pill")).not.toHaveTextContent(":");
   });
 
+  it("keeps the remove control out of the pill button", () => {
+    const { container } = render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    // Asked of the whole pill rather than of the inner button, so putting `as="button"` back on the
+    // wrapper fails here too. A button inside a button is invalid HTML and React warns at runtime.
+    expect(container.querySelector("button button")).toBeNull();
+  });
+
   it("clears the filter when the pill is clicked", async () => {
     const onFiltersChange = vi.fn();
 
