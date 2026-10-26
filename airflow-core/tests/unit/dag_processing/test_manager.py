@@ -1177,7 +1177,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_recently_modified_file_ignores_versioned_stats_without_creating_duplicate_entries(
+    def test_recently_modified_file_with_versioned_stat_does_not_create_duplicate_entries(
         self, mock_getmtime
     ):
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
