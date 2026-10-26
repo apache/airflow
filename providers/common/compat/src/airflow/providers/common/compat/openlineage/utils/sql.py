@@ -61,13 +61,13 @@ else:
                     log.debug("OpenLineage failure details:", exc_info=True)
 
             if database_info is None:
-                log.debug("%s has no database info provided", hook)
+                log.debug("%s has no database info provided", conn_id)
                 return None
 
             get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
             get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
             if get_dialect is None or get_default_schema is None:
-                log.debug("%s failed to get database dialect", hook)
+                log.debug("%s has no database dialect or default schema provided", conn_id)
                 return None
             try:
                 sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())

@@ -314,7 +314,7 @@ class BaseSQLOperator(BaseOperator):
         get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
         get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
         if get_dialect is None or get_default_schema is None:
-            self.log.debug("%s failed to get database dialect", hook)
+            self.log.debug("%s has no database dialect or default schema provided", conn_id)
             return None
         try:
             sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
@@ -352,19 +352,16 @@ class BaseSQLOperator(BaseOperator):
 
         operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
         hook = self.get_db_hook()
+        conn_id = getattr(hook, hook.conn_name_attr)
         get_specific_lineage = getattr(hook, "get_openlineage_database_specific_lineage", None)
         database_specific_lineage = None
         if get_specific_lineage is None:
-            self.log.debug("%s has no database specific lineage provided", hook)
+            self.log.debug("%s has no database specific lineage provided", conn_id)
         else:
             try:
                 database_specific_lineage = get_specific_lineage(task_instance)
             except Exception as e:
-                self.log.warning(
-                    "Failed to get OpenLineage database specific lineage for %s: %s",
-                    getattr(hook, hook.conn_name_attr),
-                    e,
-                )
+                self.log.warning("Failed to get OpenLineage database specific lineage for %s: %s", conn_id, e)
                 self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_specific_lineage is None:
