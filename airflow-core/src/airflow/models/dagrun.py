@@ -2717,6 +2717,9 @@ class DagRun(Base, LoggingMixin):
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
                         try_number=next_try_number,
+                        # Already archived with the finished try; the new one must not inherit it.
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2767,6 +2770,8 @@ class DagRun(Base, LoggingMixin):
                         end_date=timezone.utcnow(),
                         duration=0,
                         try_number=next_try_number,
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(
                         synchronize_session=False,
