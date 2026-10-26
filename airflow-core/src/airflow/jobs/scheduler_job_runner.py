@@ -4291,9 +4291,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
                 .where(
-                    ~active_assets_query.where(
-                        and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
-                    ).exists()
+                    ~exists().where(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
                 )
             )
 
