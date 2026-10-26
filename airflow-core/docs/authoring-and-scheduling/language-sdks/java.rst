@@ -762,6 +762,9 @@ For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-
   underscores are ignored but neither key matches the field name exactly. A primitive field cannot hold ``null``,
   so ``getConf`` throws the same exception when a key holds ``null`` for a primitive field. To let a field
   receive ``null``, declare it with a boxed type, such as ``Integer``.
+* ``getConf`` also throws ``IllegalArgumentException`` when the class has two fields whose names differ only in
+  case or underscores, such as ``targetTable`` and ``target_table``. It checks the class even when the conf is
+  empty, so a task that passes such a class fails in a scheduled run too.
 
 .. _java-sdk/task-state-store:
 
