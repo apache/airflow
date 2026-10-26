@@ -17,6 +17,12 @@
 from __future__ import annotations
 
 import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if not AIRFLOW_V_3_0_PLUS:
+    pytest.skip("FAB auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
+
 from pydantic import ValidationError
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
