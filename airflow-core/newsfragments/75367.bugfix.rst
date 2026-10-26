@@ -1,1 +1,0 @@
-Restore the ``previously_succeeded`` metric, which stopped being emitted when Airflow 3 workers moved to the Task SDK. It is now counted when a worker is handed a task instance that already succeeded and the Execution API refuses to start it.

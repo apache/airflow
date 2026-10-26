@@ -2167,6 +2167,58 @@ class TestTIRunState:
         else:
             mock_stats.incr.assert_not_called()
 
+    def test_ti_run_previously_succeeded_metric_carries_team_and_dag_tags(
+        self, client, session, dag_maker, time_machine
+    ):
+        """The 409 branch loads the Dag run itself, so the team and Dag tags must survive that query."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, tags=["critical", "env:prod"], session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        session.execute(update(TaskInstance).where(TaskInstance.id == ti.id).values(state=State.SUCCESS))
+
+        bundle_name = f"bundle-{dag_id}"
+        team_name = f"team-{dag_id[:8]}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True", ("metrics", "dag_tags_in_metrics"): "True"}):
+            with mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+            ) as mock_stats:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/run",
+                    json={
+                        "state": "running",
+                        "hostname": "random-hostname",
+                        "unixname": "random-unixname",
+                        "pid": 100,
+                        "start_date": instant.isoformat(),
+                    },
+                )
+
+        assert response.status_code == 409
+        mock_stats.incr.assert_called_once()
+        assert mock_stats.incr.call_args.args == ("previously_succeeded",)
+        tags = mock_stats.incr.call_args.kwargs["tags"]
+        assert tags["dag_id"] == dag_id
+        assert tags["task_id"] == "task"
+        assert tags["team_name"] == team_name
+        assert (tags["critical"], tags["env"]) == ("", "prod")
+
     def test_ti_run_skips_queued_duration_metric_on_duplicate_start(
         self, client, session, create_task_instance, time_machine
     ):
