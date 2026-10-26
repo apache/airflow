@@ -114,7 +114,6 @@ def _call_entry_point(bundle: ManifestLocalDagBundle, entry_point: str):
 
 @pytest.fixture(autouse=True)
 def _isolate_bundle_storage(tmp_path):
-    ManifestLocalDagBundle._validated_version_paths.clear()
     with (
         conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path / "bundles")}),
         # The tracking folder is resolved once at import time, not from the config above.
@@ -123,7 +122,6 @@ def _isolate_bundle_storage(tmp_path):
         ),
     ):
         yield
-    ManifestLocalDagBundle._validated_version_paths.clear()
 
 
 class TestConstruction:
@@ -278,15 +276,32 @@ class TestConsumer:
 
         assert not (bundle.versions_dir / published.version).exists()
 
-    def test_refresh_skips_revalidation_of_validated_cache(self, tmp_path):
-        bundle, _, _ = _published_bundle(tmp_path)
+    @mock.patch.object(
+        bundle_module, "compute_file_sha256", autospec=True, side_effect=bundle_module.compute_file_sha256
+    )
+    @mock.patch.object(
+        ManifestLocalDagBundle,
+        "_validate_snapshot_files",
+        autospec=True,
+        side_effect=ManifestLocalDagBundle._validate_snapshot_files,
+    )
+    def test_refresh_rechecks_structure_without_rehashing_validated_cache(
+        self, mock_validate, mock_hash, tmp_path
+    ):
+        bundle, _, published = _published_bundle(tmp_path)
+        bundle.refresh()
+        mock_validate.reset_mock()
+        mock_hash.reset_mock()
+
         bundle.refresh()
 
-        with mock.patch.object(
-            ManifestLocalDagBundle, "_validate_snapshot_files", autospec=True
-        ) as mock_validate:
-            bundle.refresh()
-        mock_validate.assert_not_called()
+        expected_path = bundle.versions_dir / published.version
+        for _ in range(3):
+            assert bundle.path == expected_path
+        mock_validate.assert_called_once_with(
+            bundle, mock.ANY, expected_path, check_content=False, allow_cached_bytecode=True
+        )
+        mock_hash.assert_not_called()
 
     def test_refresh_sweeps_orphaned_temp_snapshots_from_cache(self, tmp_path):
         bundle, _, _ = _published_bundle(tmp_path)
@@ -327,12 +342,12 @@ class TestConsumer:
 
         assert not orphan_marker.exists()
         # The live version's marker must survive the sweep.
-        assert bundle._validation_marker_path(published.version).exists()
+        assert bundle._get_validation_marker_path(published.version).exists()
 
     def test_cache_tree_and_marker_are_fsynced_in_durability_order(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
         cached_version_path = bundle.versions_dir / published.version
-        marker_path = bundle._validation_marker_path(published.version)
+        marker_path = bundle._get_validation_marker_path(published.version)
         calls: list[tuple[str, Path]] = []
         real_fsync_file = store_module.fsync_file
         real_fsync_directory = store_module.fsync_directory
@@ -409,21 +424,18 @@ class TestPinned:
         cached_dag.write_text("print('corrupt')")
 
         # A host whose validation state was invalidated must detect the corruption.
-        ManifestLocalDagBundle._validated_version_paths.clear()
-        pinned_bundle._validation_marker_path(published.version).unlink()
+        pinned_bundle._get_validation_marker_path(published.version).unlink()
         fresh_pinned_bundle = _make_bundle(tmp_path, version=published.version)
         fresh_pinned_bundle.initialize()
 
         assert cached_dag.read_text() == "print('dag')"
         assert (published.version_path / "dags/example.py").read_text() == "print('dag')"
 
-    def test_validation_marker_lets_fresh_process_skip_revalidation(self, tmp_path):
+    def test_validation_marker_lets_fresh_bundle_skip_hashing(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
         bundle.refresh()
-        assert bundle._validation_marker_path(published.version).exists()
+        assert bundle._get_validation_marker_path(published.version).exists()
 
-        # Simulate a fresh process (e.g. a task runner) on the same host.
-        ManifestLocalDagBundle._validated_version_paths.clear()
         fresh_bundle = _make_bundle(tmp_path, version=published.version)
         # The marker skips only the hashing pass; the structural pass still runs so
         # that truncated or mutated cache trees are detected and rebuilt.
@@ -459,7 +471,6 @@ class TestPinned:
         bundle, _, published = _published_bundle(tmp_path)
         bundle.refresh()
 
-        ManifestLocalDagBundle._validated_version_paths.clear()
         pinned = _make_bundle(tmp_path, version=published.version)
         storage_root = tmp_path / "bundles"
         storage_root.chmod(0o000)
@@ -952,9 +963,8 @@ class TestCacheRecovery:
         cached_bytecode = Path(cache_from_source(str(cached_helper)))
         assert cached_bytecode.exists()
         remove_bundle_tree_forcefully(published.version_path)
-        ManifestLocalDagBundle._validated_version_paths.clear()
         if not has_validation_marker:
-            bundle._validation_marker_path(published.version).unlink()
+            bundle._get_validation_marker_path(published.version).unlink()
 
         fresh = _make_bundle(tmp_path, version=published.version)
         fresh.initialize()
@@ -990,7 +1000,6 @@ class TestCacheRecovery:
 
         if location == "cache":
             remove_bundle_tree_forcefully(published.version_path)
-            ManifestLocalDagBundle._validated_version_paths.clear()
             fresh = _make_bundle(tmp_path, version=published.version)
             fresh.initialize()
             assert (fresh.path / source_file).read_text() == "VALUE = 'helper'\n"
@@ -1030,7 +1039,6 @@ class TestCacheRecovery:
                 pytest.skip(f"mkfifo is not supported in this test environment: {e}")
         else:
             extra_path.write_text("unexpected")
-        ManifestLocalDagBundle._validated_version_paths.clear()
 
         fresh = _make_bundle(tmp_path)
 
@@ -1060,7 +1068,6 @@ class TestCacheRecovery:
         cached_dag = bundle.versions_dir / published.version / "dags/example.py"
         cached_dag.unlink()
 
-        ManifestLocalDagBundle._validated_version_paths.clear()
         _make_bundle(tmp_path).refresh()
 
         assert cached_dag.read_text() == "print('dag')"
@@ -1073,7 +1080,6 @@ class TestCacheRecovery:
         injected = bundle.versions_dir / published.version / "dags/generated.py"
         injected.write_text("print('injected')")
 
-        ManifestLocalDagBundle._validated_version_paths.clear()
         _make_bundle(tmp_path).refresh()
 
         assert not injected.exists()
@@ -1098,7 +1104,6 @@ class TestCacheRecovery:
         bundle.refresh()
         (bundle.versions_dir / published.version / "dags/example.py").unlink()
 
-        ManifestLocalDagBundle._validated_version_paths.clear()
         fresh = _make_bundle(tmp_path)
 
         with pytest.raises(BundleManifestError, match="structurally invalid cache copy"):
@@ -1120,8 +1125,7 @@ class TestCacheRecovery:
         cached_dag = bundle.versions_dir / published.version / "dags/example.py"
         _add_write_bits(cached_dag)
         cached_dag.write_text("corrupted!!")
-        bundle._validation_marker_path(published.version).unlink()
-        ManifestLocalDagBundle._validated_version_paths.clear()
+        bundle._get_validation_marker_path(published.version).unlink()
 
         fresh = _make_bundle(tmp_path)
         fresh.refresh()
@@ -1272,6 +1276,55 @@ class TestStaleVersionCleanup:
 
         assert not (bundle.versions_dir / first.version).exists()
         assert (bundle.versions_dir / second.version).is_dir()
+
+    @pytest.mark.parametrize("pinned", [True, False])
+    @pytest.mark.parametrize("reuse_bundle", [True, False])
+    def test_partial_cleanup_failure_rebuilds_previously_validated_version(
+        self, tmp_path, pinned, reuse_bundle
+    ):
+        bundle, source, first = _published_bundle(tmp_path)
+        bundle.refresh()
+        if reuse_bundle:
+            restored = _make_bundle(tmp_path, version=first.version) if pinned else bundle
+            restored.initialize()
+        _write_file(source, "dags/example.py", "print('dag v2')")
+        second = _publish(bundle, source)
+        bundle.refresh()
+        first_path = bundle.versions_dir / first.version
+        cached_dag = first_path / "dags/example.py"
+        _set_tracking_timestamp(bundle, first.version, self.STALE)
+
+        def remove_cache_partially(path):
+            assert path == first_path
+            cached_dag.unlink()
+            raise PermissionError("partial stale cleanup")
+
+        with (
+            mock.patch(
+                "airflow.dag_processing.bundles.base.shutil.rmtree",
+                autospec=True,
+                side_effect=remove_cache_partially,
+            ),
+            pytest.raises(PermissionError, match="partial stale cleanup"),
+        ):
+            self._remove_stale_versions(bundle)
+
+        assert first_path.is_dir()
+        assert not cached_dag.exists()
+        published_dag = first.version_path / "dags/example.py"
+        assert published_dag.read_text() == "print('dag')"
+        assert bundle.get_current_version().version == second.version
+        assert (bundle.path / "dags/example.py").read_text() == "print('dag v2')"
+        if not reuse_bundle:
+            restored = _make_bundle(tmp_path, version=first.version if pinned else None)
+        if pinned:
+            restored.initialize()
+        else:
+            _write_manifest_ref(bundle.manifest_ref_path, first.ref_payload)
+            restored.refresh()
+
+        assert restored.get_current_version().version == first.version
+        assert (restored.path / "dags/example.py").read_text() == published_dag.read_text()
 
     def test_refresh_retakes_the_lock_after_the_tracking_file_is_replaced(self, tmp_path):
         # A corrupt-cache rebuild in another process deletes the tracking file, leaving the
