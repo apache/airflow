@@ -6125,8 +6125,8 @@ _DURATION_START = datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         pytest.param(
             {"duration": 3.5, "start_date": _DURATION_START},
             _DURATION_START + datetime.timedelta(seconds=10),
-            10.0,
-            id="passed_end_date_wins_over_stored_duration",
+            3.5,
+            id="stored_duration_wins_over_passed_end_date",
         ),
         pytest.param(
             {"duration": None, "start_date": _DURATION_START},

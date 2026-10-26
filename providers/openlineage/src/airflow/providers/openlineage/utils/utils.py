@@ -1222,19 +1222,17 @@ class TaskInstanceInfo(InfoJsonEncodable):
         # A stored task instance's bundle comes from these, as the worker's does, without a query
         self._dag = dag
         self._dag_run = dag_run
-        # Pass the end date when the caller emits a terminal event and the task instance doesn't carry the end
-        # date yet, as is the case for a skipped Airflow 3 runtime task instance.
+        # The end date a terminal event is timed with. The duration is computed from it only when the task
+        # instance has no stored duration, as is the case for an Airflow 3 runtime task instance.
         self._end_date = end_date
         super().__init__(obj)
 
     def _get_duration(self) -> float | None:
-        # A runtime task instance has no ``duration`` -- the API server computes it after the listener ran.
-        if self._end_date is not None:
-            end_date = self._end_date
-        elif (duration := getattr(self.obj, "duration", None)) is not None:
+        # The stored duration is what the UI shows, so it wins. A runtime task instance has none -- the API
+        # server computes it after the listener ran.
+        if (duration := getattr(self.obj, "duration", None)) is not None:
             return duration
-        else:
-            end_date = getattr(self.obj, "end_date", None)
+        end_date = self._end_date if self._end_date is not None else getattr(self.obj, "end_date", None)
         start_date = getattr(self.obj, "start_date", None)
         if not isinstance(end_date, datetime.datetime) or not isinstance(start_date, datetime.datetime):
             return None
