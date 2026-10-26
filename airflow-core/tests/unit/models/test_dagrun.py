@@ -3599,6 +3599,30 @@ def test_schedule_tis_does_not_increment_try_number_if_ti_already_queued_by_othe
     assert refreshed_ti.try_number == 1
 
 
+def test_schedule_tis_empty_operator_clears_retry_policy_columns(dag_maker, session):
+    """The EmptyOperator UPDATE allocates an attempt too, so it must clear like the other one."""
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.commit()
+    ti_id = ti.id
+
+    dr.schedule_tis((ti,), session=session)
+    session.flush()
+    session.expire_all()
+
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.state == TaskInstanceState.SUCCESS
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
+
+
 def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued(dag_maker, session):
     with dag_maker(session=session) as dag:
         EmptyOperator(task_id="empty_task")
@@ -3653,6 +3677,8 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     ti.refresh_from_task(dag.get_task("task"))
     ti.state = state
     ti.try_number = try_number
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
     session.commit()
     ti_id = ti.id
 
@@ -3660,7 +3686,11 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     session.flush()
     session.expire_all()
 
-    assert session.get(TI, ti_id).try_number == try_number
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.try_number == try_number
+    # The finished try keeps these in task_instance_history; the new one must not inherit them.
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
 
 
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
@@ -3844,7 +3874,8 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
 
 
 @pytest.mark.need_serialized_dag
-def test_schedule_tis_start_trigger(dag_maker, session):
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY])
+def test_schedule_tis_start_trigger(dag_maker, session, state):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
     """
@@ -3873,8 +3904,14 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     assert ti.state is None
 
     ti.task = dr.dag.get_task("test_task")
+    ti.state = state
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+    # This path defers before the UPDATE in schedule_tis, so defer_task() has to clear.
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
 
 
 @pytest.mark.need_serialized_dag

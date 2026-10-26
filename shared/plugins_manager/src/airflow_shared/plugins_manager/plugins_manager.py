@@ -121,6 +121,36 @@ class ReactAppDict(_BaseUIDict):
     destination: NotRequired[Literal[BaseDestinationLiteral, "dashboard", "dag_overview", "task_overview"]]
 
 
+PluginActionDestinationLiteral = Literal["dag", "dag_run", "task_instance"]
+
+
+class _BasePluginActionDict(TypedDict):
+    """Shared fields mirroring ``BasePluginActionResponse``."""
+
+    name: str
+    destination: PluginActionDestinationLiteral
+    icon: NotRequired[str | None]
+    icon_dark_mode: NotRequired[str | None]
+    applies_to: NotRequired[AppliesToDict | None]
+
+
+class PluginLinkActionDict(_BasePluginActionDict):
+    """An ``AirflowPlugin.ui_actions`` entry that opens a URL."""
+
+    action_type: Literal["link"]
+    href: str
+
+
+class PluginReactActionDict(_BasePluginActionDict):
+    """An ``AirflowPlugin.ui_actions`` entry that mounts a React component behind a button."""
+
+    action_type: Literal["react"]
+    bundle_url: str
+
+
+PluginActionDict = PluginLinkActionDict | PluginReactActionDict
+
+
 class FastAPIAppDict(TypedDict):
     """Dictionary structure for entries in AirflowPlugin.fastapi_apps."""
 
@@ -158,6 +188,7 @@ class AirflowPlugin:
     fastapi_root_middlewares: list[FastAPIRootMiddlewareDict] = []
     external_views: list[ExternalViewDict] = []
     react_apps: list[ReactAppDict] = []
+    ui_actions: list[PluginActionDict] = []
     ui_translations: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []

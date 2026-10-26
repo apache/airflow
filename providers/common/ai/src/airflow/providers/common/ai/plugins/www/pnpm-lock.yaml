@@ -52,19 +52,22 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react-swc':
         specifier: ^4.2.3
-        version: 4.2.3(@swc/helpers@0.5.19)(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3))
+        version: 4.2.3(@swc/helpers@0.5.19)(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3))
+      happy-dom:
+        specifier: ^21.0.1
+        version: 21.0.4
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
       vite:
         specifier: ^8.1.6
-        version: 8.1.6(esbuild@0.27.7)(yaml@2.8.3)
+        version: 8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)
       vite-plugin-css-injected-by-js:
         specifier: ^3.5.2
-        version: 3.5.2(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3))
+        version: 3.5.2(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3))
       vite-plugin-dts:
         specifier: ^4.5.4
-        version: 4.5.4(rollup@4.59.0)(typescript@5.9.3)(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3))
+        version: 4.5.4(@types/node@26.6.5)(rollup@4.59.0)(typescript@5.9.3)(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3))
 
 packages:
 
@@ -750,6 +753,9 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
+  '@types/node@26.6.5':
+    resolution: {integrity: sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==}
+
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
 
@@ -766,6 +772,12 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
@@ -1080,6 +1092,10 @@ packages:
     resolution: {integrity: sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ==}
     engines: {node: 18 || 20 || >=22}
 
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
+
   callsites@3.1.0:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
@@ -1215,6 +1231,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
+    engines: {node: '>=20.0.0'}
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -1735,6 +1755,9 @@ packages:
   ufo@1.6.3:
     resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
 
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
+
   unified@11.0.5:
     resolution: {integrity: sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==}
 
@@ -1825,6 +1848,22 @@ packages:
 
   vscode-uri@3.1.0:
     resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
+
+  whatwg-mimetype@3.0.0:
+    resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
+    engines: {node: '>=12'}
+
+  ws@8.22.0:
+    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
   yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
@@ -2173,23 +2212,23 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@microsoft/api-extractor-model@7.33.4':
+  '@microsoft/api-extractor-model@7.33.4(@types/node@26.6.5)':
     dependencies:
       '@microsoft/tsdoc': 0.16.0
       '@microsoft/tsdoc-config': 0.18.1
-      '@rushstack/node-core-library': 5.20.3
+      '@rushstack/node-core-library': 5.20.3(@types/node@26.6.5)
     transitivePeerDependencies:
       - '@types/node'
 
-  '@microsoft/api-extractor@7.57.6':
+  '@microsoft/api-extractor@7.57.6(@types/node@26.6.5)':
     dependencies:
-      '@microsoft/api-extractor-model': 7.33.4
+      '@microsoft/api-extractor-model': 7.33.4(@types/node@26.6.5)
       '@microsoft/tsdoc': 0.16.0
       '@microsoft/tsdoc-config': 0.18.1
-      '@rushstack/node-core-library': 5.20.3
+      '@rushstack/node-core-library': 5.20.3(@types/node@26.6.5)
       '@rushstack/rig-package': 0.7.2
-      '@rushstack/terminal': 0.22.3
-      '@rushstack/ts-command-line': 5.3.3
+      '@rushstack/terminal': 0.22.3(@types/node@26.6.5)
+      '@rushstack/ts-command-line': 5.3.3(@types/node@26.6.5)
       diff: 8.0.3
       lodash: 4.18.1
       minimatch: 10.2.4
@@ -2356,7 +2395,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.59.0':
     optional: true
 
-  '@rushstack/node-core-library@5.20.3':
+  '@rushstack/node-core-library@5.20.3(@types/node@26.6.5)':
     dependencies:
       ajv: 8.18.0
       ajv-draft-04: 1.0.0(ajv@8.18.0)
@@ -2366,23 +2405,29 @@ snapshots:
       jju: 1.4.0
       resolve: 1.22.11
       semver: 7.5.4
+    optionalDependencies:
+      '@types/node': 26.6.5
 
-  '@rushstack/problem-matcher@0.2.1': {}
+  '@rushstack/problem-matcher@0.2.1(@types/node@26.6.5)':
+    optionalDependencies:
+      '@types/node': 26.6.5
 
   '@rushstack/rig-package@0.7.2':
     dependencies:
       resolve: 1.22.11
       strip-json-comments: 3.1.1
 
-  '@rushstack/terminal@0.22.3':
+  '@rushstack/terminal@0.22.3(@types/node@26.6.5)':
     dependencies:
-      '@rushstack/node-core-library': 5.20.3
-      '@rushstack/problem-matcher': 0.2.1
+      '@rushstack/node-core-library': 5.20.3(@types/node@26.6.5)
+      '@rushstack/problem-matcher': 0.2.1(@types/node@26.6.5)
       supports-color: 8.1.1
+    optionalDependencies:
+      '@types/node': 26.6.5
 
-  '@rushstack/ts-command-line@5.3.3':
+  '@rushstack/ts-command-line@5.3.3(@types/node@26.6.5)':
     dependencies:
-      '@rushstack/terminal': 0.22.3
+      '@rushstack/terminal': 0.22.3(@types/node@26.6.5)
       '@types/argparse': 1.0.38
       argparse: 1.0.10
       string-argv: 0.3.2
@@ -2473,6 +2518,10 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node@26.6.5':
+    dependencies:
+      undici-types: 8.9.0
+
   '@types/parse-json@4.0.2': {}
 
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
@@ -2487,13 +2536,19 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
+  '@types/whatwg-mimetype@3.0.2': {}
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 26.6.5
+
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-react-swc@4.2.3(@swc/helpers@0.5.19)(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3))':
+  '@vitejs/plugin-react-swc@4.2.3(@swc/helpers@0.5.19)(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.2
       '@swc/core': 1.15.18(@swc/helpers@0.5.19)
-      vite: 8.1.6(esbuild@0.27.7)(yaml@2.8.3)
+      vite: 8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -3135,6 +3190,10 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 26.6.5
+
   callsites@3.1.0: {}
 
   ccount@2.0.1: {}
@@ -3257,6 +3316,19 @@ snapshots:
   function-bind@1.1.2: {}
 
   graceful-fs@4.2.11: {}
+
+  happy-dom@21.0.4:
+    dependencies:
+      '@types/node': 26.6.5
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.2
+      buffer-image-size: 0.6.4
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.22.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   has-flag@4.0.0: {}
 
@@ -4027,6 +4099,8 @@ snapshots:
 
   ufo@1.6.3: {}
 
+  undici-types@8.9.0: {}
+
   unified@11.0.5:
     dependencies:
       '@types/unist': 3.0.3
@@ -4074,13 +4148,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plugin-css-injected-by-js@3.5.2(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3)):
+  vite-plugin-css-injected-by-js@3.5.2(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)):
     dependencies:
-      vite: 8.1.6(esbuild@0.27.7)(yaml@2.8.3)
+      vite: 8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)
 
-  vite-plugin-dts@4.5.4(rollup@4.59.0)(typescript@5.9.3)(vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3)):
+  vite-plugin-dts@4.5.4(@types/node@26.6.5)(rollup@4.59.0)(typescript@5.9.3)(vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)):
     dependencies:
-      '@microsoft/api-extractor': 7.57.6
+      '@microsoft/api-extractor': 7.57.6(@types/node@26.6.5)
       '@rollup/pluginutils': 5.3.0(rollup@4.59.0)
       '@volar/typescript': 2.4.28
       '@vue/language-core': 2.2.0(typescript@5.9.3)
@@ -4091,13 +4165,13 @@ snapshots:
       magic-string: 0.30.21
       typescript: 5.9.3
     optionalDependencies:
-      vite: 8.1.6(esbuild@0.27.7)(yaml@2.8.3)
+      vite: 8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@types/node'
       - rollup
       - supports-color
 
-  vite@8.1.6(esbuild@0.27.7)(yaml@2.8.3):
+  vite@8.1.6(@types/node@26.6.5)(esbuild@0.27.7)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -4105,11 +4179,16 @@ snapshots:
       rolldown: 1.1.5
       tinyglobby: 0.2.17
     optionalDependencies:
+      '@types/node': 26.6.5
       esbuild: 0.27.7
       fsevents: 2.3.3
       yaml: 2.8.3
 
   vscode-uri@3.1.0: {}
+
+  whatwg-mimetype@3.0.0: {}
+
+  ws@8.22.0: {}
 
   yallist@4.0.0: {}
 
