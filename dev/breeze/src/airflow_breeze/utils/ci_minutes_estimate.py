@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from airflow_breeze.global_constants import all_selective_core_test_types
+from airflow_breeze.global_constants import CORE_COMPANION_TEST_TYPES, all_selective_core_test_types
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 # TODO: refresh these estimates periodically with an agent, and always after changing the CI
@@ -61,7 +61,8 @@ MYPY_PROVIDERS_ESTIMATE = (8, 8)
 AIRFLOW_CTL_ESTIMATE = (1, 1)
 
 # Core tests: about 38 job-minutes for the first test type and 61 for each further one, up to
-# the cost of all core test types.
+# the cost of all core test types. Companion test types are not counted: they only split the tests
+# of their parent type, so runs before and after a split stay comparable.
 CORE_FIRST_TEST_TYPE_MINUTES = 38
 CORE_EXTRA_TEST_TYPE_MINUTES = 61
 CORE_ALL_TEST_TYPES_MINUTES = 222
@@ -189,9 +190,11 @@ def estimate_ci_minutes(selective_checks: Any) -> CiMinutesEstimate:
     if selective_checks.docs_build:
         groups.append(EstimatedJobGroup("Documentation build", *DOCS_ESTIMATE))
     if selective_checks.run_unit_tests:
-        core_test_types = len(selective_checks._get_core_test_types_to_run())
+        core_test_types = len(set(selective_checks._get_core_test_types_to_run()) - CORE_COMPANION_TEST_TYPES)
         if core_test_types:
-            all_types = core_test_types >= len(all_selective_core_test_types())
+            all_types = core_test_types >= len(
+                set(all_selective_core_test_types()) - CORE_COMPANION_TEST_TYPES
+            )
             groups.append(
                 EstimatedJobGroup(
                     f"Core tests ({'all' if all_types else core_test_types} test types)",

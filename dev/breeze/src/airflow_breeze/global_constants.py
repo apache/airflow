@@ -375,10 +375,30 @@ class SelectiveTestType(Enum):
 class SelectiveCoreTestType(SelectiveTestType):
     ALWAYS = "Always"
     API = "API"
+    PUBLIC_API = "PublicAPI"
     CLI = "CLI"
+    CLI_TASK = "CLITask"
     CORE = "Core"
+    MODELS = "Models"
+    MODELS_TI = "ModelsTI"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
+
+
+# DB tests run each test type serially in its own container, so a single heavy type is the long pole
+# of its CI job. The heaviest folders are carved out of their parent type into companion types that
+# are always selected together with it, so they can run in parallel.
+CORE_TEST_TYPE_COMPANIONS: dict[str, tuple[str, ...]] = {
+    SelectiveCoreTestType.API.value: (SelectiveCoreTestType.PUBLIC_API.value,),
+    SelectiveCoreTestType.CLI.value: (SelectiveCoreTestType.CLI_TASK.value,),
+    SelectiveCoreTestType.CORE.value: (
+        SelectiveCoreTestType.MODELS.value,
+        SelectiveCoreTestType.MODELS_TI.value,
+    ),
+}
+CORE_COMPANION_TEST_TYPES: frozenset[str] = frozenset(
+    companion for companions in CORE_TEST_TYPE_COMPANIONS.values() for companion in companions
+)
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -962,6 +982,21 @@ NUMBER_OF_LOW_DEP_SLICES = 5
 
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
+
+# Average minutes each core test type takes in a DB test job, measured from CI logs (Postgres, MySQL and
+# SQLite, 2026-10). Only the relative sizes matter: they balance the test types across core slices.
+CORE_TEST_TYPE_ESTIMATED_MINUTES: dict[str, float] = {
+    "Always": 2.5,
+    "API": 10.0,
+    "PublicAPI": 10.0,
+    "CLI": 5.5,
+    "CLITask": 12.0,
+    "Core": 7.0,
+    "Models": 7.5,
+    "ModelsTI": 12.0,
+    "Other": 7.5,
+    "Serialization": 2.0,
+}
 
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone
