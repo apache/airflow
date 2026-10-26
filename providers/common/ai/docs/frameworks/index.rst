@@ -149,10 +149,16 @@ Tested versions
 These are the versions the adapter tests have been run against. Strands and ADK cap
 packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
 releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
-framework at a time. Pull requests test each framework against the versions in
-Airflow's CI image, which for the OpenAI Agents SDK means the newest release that accepts
-``openai`` 2.x; scheduled runs test each framework's newest release with its own
-dependency pins.
+framework at a time.
+
+Outside canary runs, the job holds every package already in the CI image at its
+installed version with ``--override``, so Strands' and ADK's own dependency caps are
+overridden. It installs the newest framework release that is older than the repository's
+``exclude-newer`` window, which for the OpenAI Agents SDK means the newest release that
+accepts ``openai`` 2.x, not the versions in the table above. It therefore does not show
+that those versions work in the environment a user gets. Canary runs, which include
+scheduled and manual runs on ``main`` and pull requests labeled ``canary``, install each
+framework's newest release with its own dependency pins instead.
 
 Choosing a route
 ----------------
