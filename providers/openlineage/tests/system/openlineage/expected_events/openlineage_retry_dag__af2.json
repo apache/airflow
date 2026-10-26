@@ -1,0 +1,227 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_retry_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "flaky_task": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 1,
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "max_tries": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds",
+                        "task_id": "flaky_task",
+                        "trigger_rule": "all_success",
+                        "loop": null,
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_retry_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_retry_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "up_for_retry",
+                        "max_tries": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds",
+                        "task_id": "flaky_task",
+                        "trigger_rule": "all_success",
+                        "loop": null,
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_retry_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_retry_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "running",
+                        "max_tries": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds",
+                        "task_id": "flaky_task",
+                        "trigger_rule": "all_success",
+                        "loop": null,
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_retry_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_retry_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "success",
+                        "max_tries": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds",
+                        "task_id": "flaky_task",
+                        "trigger_rule": "all_success",
+                        "loop": null,
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_retry_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_retry_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    }
+]
