@@ -49,8 +49,6 @@ from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, estimate
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.fork_ci_gate import (
     GATED_REASONS,
-    LABEL_USE_FORK_CI,
-    LABEL_USE_PROJECT_CI,
     GateConfig,
     GateEvent,
     decide,
@@ -131,11 +129,6 @@ TEST_SELECTION_LABELS = frozenset(
         UPGRADE_TO_NEWER_DEPENDENCIES_LABEL,
     }
 )
-
-# Labels that move a PR between project CI and fork CI. The gate reads them when it runs, but falls
-# back to the labels of the run's event when it cannot, so a run started before one changed could
-# still run project CI.
-GATE_OVERRIDE_LABELS = frozenset({LABEL_USE_FORK_CI, LABEL_USE_PROJECT_CI})
 
 # Read from the trusted main checkout, which is also the base branch whose gate job decides the
 # PRs that are approved automatically.
@@ -225,7 +218,9 @@ def decide_gated_approval(*, changed_files: list[ChangedFile]) -> ApprovalDecisi
     return ApprovalDecision(
         approve=True,
         reasons=["its CI runs in the contributor's fork, so its project CI run only executes the gate"],
-        decision_labels=GATE_OVERRIDE_LABELS,
+        # The gate reads `use fork ci` and `use project ci` when the run starts and fails when it
+        # cannot, so runs started before one of them changed are approved too.
+        decision_labels=frozenset(),
     )
 
 
@@ -655,7 +650,7 @@ def find_runs_started_for_current_pr(
     :param decision_labels: the labels the decision depends on. It is made from the current labels,
         while a run can act on those of its event: with ``full tests needed`` removed, or
         ``default versions only`` added to a run of all versions, the estimate is smaller than the
-        run, and without ``use fork ci`` in its event a run can fall back to project CI.
+        run.
     """
     started_after = parse_github_time(pr["created_at"])
     changes = [
