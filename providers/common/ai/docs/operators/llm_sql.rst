@@ -69,7 +69,9 @@ the schema context.
 
     Object-storage schema introspection requires the ``datafusion`` extra of
     ``apache-airflow-providers-common-sql``. Install it with
-    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``. ``common.sql`` pins
+    ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
+    ``iceberg-core``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python

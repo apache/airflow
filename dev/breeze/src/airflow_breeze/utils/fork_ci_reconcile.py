@@ -74,6 +74,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     tamper_close_comment,
     ungated_comment,
 )
+from airflow_breeze.utils.merged_pull_request_runs import cancel_merged_pull_request_runs
 
 CI_WORKFLOW_FILE = "ci-amd.yml"
 # The files the gate job of ci-amd.yml reads from a pull request's base branch.
@@ -1547,6 +1548,13 @@ def run_reconcile(
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
+    if config.cancel_merged_runs:
+        # Not tied to gated pull requests; a failure here must not hide the reconciliation's own.
+        try:
+            unknown.extend(cancel_merged_pull_request_runs(client, repo=repo, now=now))
+        except Exception as e:
+            console_print(f"[error]Cancelling runs of merged pull requests failed: {e}[/]")
+            notes.append(f"cancelling runs of merged pull requests failed: {type(e).__name__}: {e}")
     if job_reporter.deferred:
         console_print(
             f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run: "

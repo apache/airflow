@@ -38,7 +38,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
 from sqlalchemy import delete, select, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
@@ -3729,6 +3729,45 @@ class TestTIUpdateState:
             detail = response.json()["detail"]
             assert isinstance(detail, dict)
             assert detail.get("reason") == "Database error"
+
+    @pytest.mark.parametrize(
+        ("pgcode", "expected_status", "expected_state"),
+        [
+            pytest.param("40P01", 500, State.RUNNING, id="deadlock-is-retryable"),
+            pytest.param("55P03", 204, State.FAILED, id="other-operational-error-fails-ti"),
+            pytest.param("psycopg3", 500, State.RUNNING, id="psycopg3-deadlock-is-retryable"),
+        ],
+    )
+    def test_ti_update_state_deadlock_returns_5xx_instead_of_failing(
+        self, client, session, create_task_instance, mocker, pgcode, expected_status, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_deadlock_returns_5xx_instead_of_failing",
+            state=State.RUNNING,
+        )
+        session.commit()
+        if pgcode == "psycopg3":
+            errors = pytest.importorskip(
+                "psycopg.errors", reason="Test only runs when psycopg v3 is installed."
+            )
+            orig = errors.DeadlockDetected("deadlock detected")
+        else:
+            orig = mock.Mock(sqlstate=None, pgcode=pgcode, args=("db error",))
+        mocker.patch.object(
+            task_instances_route,
+            "_create_ti_state_update_query_and_update_state",
+            autospec=True,
+            side_effect=OperationalError("statement", {}, orig),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == expected_state
 
     def test_ti_run_database_error(self, client, session, create_task_instance):
         """

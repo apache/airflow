@@ -165,7 +165,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-distributions
           --distributions-list-file ./prod_image_installed_providers.txt
-          --distribution-format wheel --include-not-ready-providers
+          --distribution-format wheel --include-not-ready-providers --github-repository apache/airflow
         if: >
           inputs.upload-package-artifact == 'true' && inputs.branch != 'main'
       - name: "Prepare airflow package"
