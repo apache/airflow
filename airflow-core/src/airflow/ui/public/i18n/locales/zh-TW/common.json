@@ -229,8 +229,8 @@
     "receivedAssetEvents": "收到的資源事件"
   },
   "pause": "暫停",
-  "pendingDagRun_one": "1 個待處理的 Dag 執行",
-  "pendingDagRun_other": "{{count, number}} 個待處理的 Dag 執行",
+  "pendingDagRun_one": "1 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count, number}} 個待執行的 Dag 執行",
   "presetFilters": {
     "deleteTitle": "刪除預設篩選條件",
     "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
