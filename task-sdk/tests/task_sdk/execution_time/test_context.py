@@ -2643,8 +2643,8 @@ class TestAssetStateStoreAccessors:
 
 
 class TestTriggerAssetStateStoreAccessors:
-    A1 = Asset(name="asset_one", uri="s3://bucket/key")
-    A2 = Asset(name="asset_two", uri="s3://bucket/key")
+    A1 = Asset(name="asset_one", uri="s3://bucket/one")
+    A2 = Asset(name="asset_two", uri="s3://bucket/two")
     NOT_FOUND = ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND)
 
     def test_single_asset(self, mock_supervisor_comms):
@@ -2662,30 +2662,34 @@ class TestTriggerAssetStateStoreAccessors:
         ]
 
     @pytest.mark.parametrize(
-        ("responses", "expected"),
+        ("stored", "expected", "read"),
         [
-            pytest.param([AssetStateStoreResult(value="etag-1")], "etag-1", id="first-holds-key"),
-            pytest.param([NOT_FOUND, AssetStateStoreResult(value="etag-1")], "etag-1", id="newly-attached"),
-            pytest.param([NOT_FOUND, NOT_FOUND], "seed", id="none-hold-key"),
+            pytest.param(
+                {"asset_one": "etag-one", "asset_two": "etag-two"}, "etag-one", ["asset_one"], id="first-wins"
+            ),
+            pytest.param({"asset_two": "etag-two"}, "etag-two", ["asset_one", "asset_two"], id="first-empty"),
+            pytest.param({}, "seed", ["asset_one", "asset_two"], id="none-hold-key"),
         ],
     )
-    def test_get_multiple_assets(self, mock_supervisor_comms, responses, expected):
-        mock_supervisor_comms.send.side_effect = responses
+    def test_get_multiple_assets(self, mock_supervisor_comms, stored, expected, read):
+        mock_supervisor_comms.send.side_effect = lambda msg: (
+            AssetStateStoreResult(value=stored[msg.name]) if msg.name in stored else self.NOT_FOUND
+        )
 
         # Assets passed out of order: reads still start from the first by name.
         assert TriggerAssetStateStoreAccessors([self.A2, self.A1]).get("etag", "seed") == expected
         assert mock_supervisor_comms.send.call_args_list == [
-            mock.call(GetAssetStateStoreByName(name=name, key="etag"))
-            for name in ["asset_one", "asset_two"][: len(responses)]
+            mock.call(GetAssetStateStoreByName(name=name, key="etag")) for name in read
         ]
 
-    def test_set_delete_clear_multiple_assets(self, mock_supervisor_comms):
+    def test_set_delete_multiple_assets(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
         store = TriggerAssetStateStoreAccessors([self.A1, AssetUriRef(uri="s3://other"), self.A2])
 
         store.set("etag", "etag-2")
         store.delete("etag")
-        store.clear()
+        with pytest.raises(ValueError, match="3 concrete inlets and outlets"):
+            store.clear()
 
         assert mock_supervisor_comms.send.call_args_list == [
             mock.call(SetAssetStateStoreByName(name="asset_one", key="etag", value="etag-2")),
@@ -2694,9 +2698,6 @@ class TestTriggerAssetStateStoreAccessors:
             mock.call(DeleteAssetStateStoreByName(name="asset_one", key="etag")),
             mock.call(DeleteAssetStateStoreByName(name="asset_two", key="etag")),
             mock.call(DeleteAssetStateStoreByUri(uri="s3://other", key="etag")),
-            mock.call(ClearAssetStateStoreByName(name="asset_one")),
-            mock.call(ClearAssetStateStoreByName(name="asset_two")),
-            mock.call(ClearAssetStateStoreByUri(uri="s3://other")),
         ]
 
     @pytest.mark.asyncio
@@ -2704,14 +2705,15 @@ class TestTriggerAssetStateStoreAccessors:
         store = TriggerAssetStateStoreAccessors([self.A1, self.A2])
         mock_supervisor_comms.asend.side_effect = [
             self.NOT_FOUND,
-            AssetStateStoreResult(value="etag-1"),
-            *[OKResponse(ok=True)] * 6,
+            AssetStateStoreResult(value="etag-two"),
+            *[OKResponse(ok=True)] * 4,
         ]
 
-        assert await store.aget("etag") == "etag-1"
+        assert await store.aget("etag") == "etag-two"
         await store.aset("etag", "etag-2")
         await store.adelete("etag")
-        await store.aclear()
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
+            await store.aclear()
 
         assert mock_supervisor_comms.asend.call_args_list == [
             mock.call(GetAssetStateStoreByName(name="asset_one", key="etag")),
@@ -2720,8 +2722,6 @@ class TestTriggerAssetStateStoreAccessors:
             mock.call(SetAssetStateStoreByName(name="asset_two", key="etag", value="etag-2")),
             mock.call(DeleteAssetStateStoreByName(name="asset_one", key="etag")),
             mock.call(DeleteAssetStateStoreByName(name="asset_two", key="etag")),
-            mock.call(ClearAssetStateStoreByName(name="asset_one")),
-            mock.call(ClearAssetStateStoreByName(name="asset_two")),
         ]
 
 

@@ -1154,6 +1154,8 @@ class TriggerAssetStateStoreAccessors(AssetStateStoreAccessors):
     Watchers with the same trigger classpath and kwargs share one trigger, and every event it
     yields goes to all of its assets, so the trigger has one position to keep no matter how many
     assets it serves. Writes go to every asset; reads return the first asset holding the key.
+    ``clear`` is not spread across assets, because it would also wipe keys that tasks wrote, so
+    it still needs exactly one asset.
     """
 
     def _accessors(self) -> list[AssetStateStoreAccessor]:
@@ -1196,16 +1198,6 @@ class TriggerAssetStateStoreAccessors(AssetStateStoreAccessors):
         """Async version of `delete` that awaits instead of blocking the event loop."""
         for accessor in self._accessors():
             await accessor.adelete(key)
-
-    def clear(self) -> None:
-        """Delete all state keys from every asset the trigger watches."""
-        for accessor in self._accessors():
-            accessor.clear()
-
-    async def aclear(self) -> None:
-        """Async version of `clear` that awaits instead of blocking the event loop."""
-        for accessor in self._accessors():
-            await accessor.aclear()
 
 
 class MacrosAccessor:
