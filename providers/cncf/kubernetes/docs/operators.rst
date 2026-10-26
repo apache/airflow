@@ -930,6 +930,11 @@ you to start a Kueue job in a Kubernetes cluster
     :start-after: [START howto_operator_k8s_install_kueue]
     :end-before: [END howto_operator_k8s_install_kueue]
 
+With ``wait_until_job_complete=True``, the operator waits on the Job itself rather than on its pods:
+the Job stays suspended without pods until Kueue admits it, and Kueue may preempt it (suspend it again
+and delete its pods) then admit it again. Once the Job is finished, logs and XCom are read from the pods
+the Job has at that time.
+
 For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__

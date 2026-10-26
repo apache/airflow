@@ -128,23 +128,23 @@ permissions:
      - apiGroups: ["batch"]
        resources: ["jobs"]
        verbs: ["create", "get", "list", "watch", "patch", "delete"]
-     - apiGroups: ["batch"]
-       resources: ["jobs/status"]
-       verbs: ["get", "watch"]
+
+The Job status is read from the Job object itself, so no permission on the
+``jobs/status`` subresource is needed.
 
 When a job operator waits for completion, streams pod logs, reads XCom, or
 cleans up discovered pods, it also needs the relevant pod permissions from
 the pod launch section.
 
 For deferrable job operators, the worker creates the Job before deferring and
-the triggerer polls Job status. If the triggerer uses in-cluster credentials,
-bind the triggerer's ``ServiceAccount`` to the Job status permissions. When
+the triggerer polls the Job. If the triggerer uses in-cluster credentials,
+grant the triggerer's ``ServiceAccount`` permission to get jobs. When
 XCom is enabled, the triggerer also needs permission to get pods and exec into
 the XCom sidecar container. The worker reads pod logs after the task resumes.
 
 ``KubernetesPatchJobOperator`` only needs permission to patch jobs.
-``KubernetesDeleteJobOperator`` reads Job status before deleting a Job, so it
-needs permission to get ``jobs/status`` and delete jobs.
+``KubernetesDeleteJobOperator`` reads the Job before deleting it, so it
+needs permission to get and delete jobs.
 
 Cleanup permissions
 -------------------

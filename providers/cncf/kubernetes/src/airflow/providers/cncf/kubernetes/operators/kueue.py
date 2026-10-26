@@ -19,13 +19,25 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Sequence
 from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 from kubernetes.utils import FailToCreateError
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.triggers.kueue import (
+    JOB_NAME_LABEL,
+    JOB_STATE_MESSAGES,
+    KubernetesKueueJobTrigger,
+    KueueJobState,
+    build_job_event,
+    collect_xcom_results,
+    get_job_state,
+    get_succeeded_pod_xcoms,
+)
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -33,6 +45,9 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models import BaseOperator
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
 
 
 class KubernetesInstallKueueOperator(BaseOperator):
@@ -105,6 +120,11 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
     """
     Executes a Kubernetes Job in Kueue.
 
+    With ``wait_until_job_complete=True``, the operator polls the Job itself until it is finished, instead
+    of waiting on the pods found when the Job started: Kueue keeps the Job suspended without pods until it
+    admits it, and may preempt it (suspending it again and deleting its pods) then admit it again any
+    number of times. Logs and XCom are read from the pods the Job has once it is finished.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:KubernetesStartKueueJobOperator`
@@ -133,3 +153,67 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
             self.suspend = True
         self.labels.update({"kueue.x-k8s.io/queue-name": self.queue_name})
         self.annotations.update({"kueue.x-k8s.io/queue-name": self.queue_name})
+
+    def execute(self, context: Context):
+        if not self.wait_until_job_complete:
+            return super().execute(context)
+
+        self.name = self._set_name(self.name)
+        self.job_request_obj = self.build_job_request_obj(context)
+        self.job = self.create_job(job_request_obj=self.job_request_obj)  # must set `self.job` for `on_kill`
+
+        ti = context["ti"]
+        ti.xcom_push(key="job_name", value=self.job.metadata.name)
+        ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+
+        if self.deferrable:
+            self.defer(
+                trigger=KubernetesKueueJobTrigger(
+                    job_name=self.job.metadata.name,
+                    job_namespace=self.job.metadata.namespace,
+                    base_container_name=self.base_container_name,
+                    kubernetes_conn_id=self.kubernetes_conn_id,
+                    cluster_context=self.cluster_context,
+                    config_file=self.config_file,
+                    in_cluster=self.in_cluster,
+                    poll_interval=self.job_poll_interval,
+                    do_xcom_push=self.do_xcom_push,
+                ),
+                method_name="execute_complete",
+            )
+
+        return self.execute_complete(
+            context, self._wait_until_job_finished(self.job.metadata.name, self.job.metadata.namespace)
+        )
+
+    def _wait_until_job_finished(self, job_name: str, namespace: str) -> dict[str, Any]:
+        """Poll the Job until it is finished, and return the event ``KubernetesKueueJobTrigger`` yields."""
+        state: KueueJobState | None = None
+        xcom_results: dict[str, str] = {}
+        while True:
+            job = self.hook.get_job_status(job_name=job_name, namespace=namespace)
+            if (new_state := get_job_state(job)) != state:
+                state = new_state
+                self.log.info("The job '%s' %s", job_name, JOB_STATE_MESSAGES[state])
+            if state == KueueJobState.FINISHED:
+                return build_job_event(job, xcom_results)
+            if state == KueueJobState.RUNNING and self.do_xcom_push:
+                collect_xcom_results(
+                    self.client, self.pod_manager, job_name, namespace, self.base_container_name, xcom_results
+                )
+            time.sleep(self.job_poll_interval)
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        # The pods found before a preemption by Kueue were deleted: read the ones the Job has now
+        pods = self.client.list_namespaced_pod(
+            namespace=event["namespace"], label_selector=f"{JOB_NAME_LABEL}={event['name']}"
+        ).items
+        for pod in pods:
+            self.log_matching_pod(pod=pod, context=context)
+        event = {
+            **event,
+            "pod_names": [pod.metadata.name for pod in pods],
+            "pod_namespace": event["namespace"],
+            "xcom_result": get_succeeded_pod_xcoms(pods, event["xcom_result"]),
+        }
+        return super().execute_complete(context, event, **kwargs)
