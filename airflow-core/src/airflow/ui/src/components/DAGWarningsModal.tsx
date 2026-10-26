@@ -62,6 +62,7 @@ export const DAGWarningsModal = ({
 
   return (
     <Modal
+      bodyProps={{ gap: 4 }}
       data-testid="dag-warnings-modal"
       headerProps={{
         children: (
@@ -71,7 +72,6 @@ export const DAGWarningsModal = ({
           </HStack>
         ),
       }}
-      bodyProps={{ gap: 4 }}
       onOpenChange={onClose}
       open={open}
       scrollBehavior="inside"
@@ -101,7 +101,7 @@ export const DAGWarningsModal = ({
       <VStack align="stretch" gap={4} w="100%">
         {warnings?.map((warning) => (
           <WarningAlert key={`${warning.dag_id}-${warning.warning_type}`} warning={warning} />
-        ))}  
+        ))}
       </VStack>
     </Modal>
   );

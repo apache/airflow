@@ -24,8 +24,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
-from airflow.models import DagModel
 from airflow.dag_processing.collection import _update_file_scoped_parse_failure_warnings
+from airflow.models import DagModel
 from airflow.models.dagwarning import (
     PARSE_FAILURE_WARNING_TYPE,
     DagWarning,

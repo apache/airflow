@@ -71,11 +71,11 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
+    "parseFailureWarnings_one": "Dag load warning",
+    "parseFailureWarnings_other": "Dag load warnings",
     "queuedDags": "Queued Dags",
     "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
-    "parseFailureWarnings_one": "Dag load warning",
-    "parseFailureWarnings_other": "Dag load warnings",
     "stats": "Stats"
   },
   "uri": "Uri",

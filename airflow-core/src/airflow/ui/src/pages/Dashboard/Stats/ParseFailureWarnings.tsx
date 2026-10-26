@@ -19,12 +19,17 @@
 import { Skeleton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
+
 import { useDagWarningServiceListDagWarnings } from "openapi/queries";
+
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import type { ExpandedApiError } from "src/components/ErrorAlert";
 import { StatsCard } from "src/components/StatsCard";
+
 import { useAutoRefresh } from "src/utils";
+
 const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
+
 export const ParseFailureWarnings = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
@@ -35,6 +40,7 @@ export const ParseFailureWarnings = () => {
     { refetchInterval },
   );
   const count = data?.total_entries ?? 0;
+
   if (isLoading) {
     return <Skeleton borderRadius="lg" height="42px" width="175px" />;
   }
@@ -44,6 +50,7 @@ export const ParseFailureWarnings = () => {
   if (count === 0) {
     return undefined;
   }
+
   return (
     <>
       <StatsCard

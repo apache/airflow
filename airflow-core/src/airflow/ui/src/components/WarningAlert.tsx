@@ -22,7 +22,6 @@ import type { DAGWarningResponse } from "openapi/requests/types.gen";
 
 import { StatusMessage } from "src/components/StatusMessage";
 
-
 const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
 
 type Props = {
@@ -38,13 +37,12 @@ export const WarningAlert = ({ warning }: Props) => {
 
   // The warning's type is its short form, but it arrives as the backend's own lowercase enum value,
   // which has no business being a heading in any language. An unmapped one falls back to the word.
-  const heading = 
-  warning.warning_type === PARSE_FAILURE_WARNING_TYPE
-  ? (warning.dag_display_name ?? warning.dag_id)
-  : translate(`dagWarnings.types.${warning.warning_type}`, {
-    defaultValue: translate("dagWarnings.warning_one")
-  } 
-  );
-  return <StatusMessage body={warning.message} heading={heading} severity="warning" />;
+  const heading =
+    warning.warning_type === PARSE_FAILURE_WARNING_TYPE
+      ? warning.dag_display_name
+      : translate(`dagWarnings.types.${warning.warning_type}`, {
+          defaultValue: translate("dagWarnings.warning_one"),
+        });
 
+  return <StatusMessage body={warning.message} heading={heading} severity="warning" />;
 };
