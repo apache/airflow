@@ -26,7 +26,6 @@ from google.api_core.exceptions import NotFound
 
 import airflow.version
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -396,7 +395,7 @@ class TestGCSDagBundleArchive:
             bucket_name=GCS_BUCKET_NAME,
             archive_object=GCS_ARCHIVE_OBJECT,
         )
-        with pytest.raises(AirflowNotFoundException, match="does not exist"):
+        with pytest.raises(ValueError, match="does not exist"):
             bundle.initialize()
         mock_gcs_hook_property.return_value.sync_to_local_dir.assert_not_called()
 
