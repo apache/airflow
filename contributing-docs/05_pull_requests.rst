@@ -247,7 +247,7 @@ CI workflow runs of external contributors
 
 GitHub does not start the CI workflows of a PR from a fork until a maintainer approves them,
 for the contributors that the repository's approval setting covers. To keep you from waiting
-for a maintainer on every push, a scheduled workflow checks the waiting runs every 30 minutes
+for a maintainer on every push, a scheduled workflow checks the waiting runs every 15 minutes
 and approves them automatically when all of these hold:
 
 * The PR targets ``main``. PRs to release branches, such as ``v3-4-test``, always wait for a
