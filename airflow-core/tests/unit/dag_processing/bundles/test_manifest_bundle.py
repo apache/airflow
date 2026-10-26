@@ -61,21 +61,23 @@ DAG_FILE = "dags/example.py"
 
 @dataclass
 class _VersionedBucket:
-    """What a versioned object store holds: object versions, snapshot manifests and the reference."""
+    """What a versioned object store holds: object versions, snapshot manifests and the two documents."""
 
     objects: dict[str, dict[str, bytes]] = field(default_factory=dict)
     manifests: dict[str, bytes] = field(default_factory=dict)
     ref: bytes | None = None
     ref_generation: int = 0
+    state: bytes | None = None
+    state_generation: int = 0
 
 
 class _InMemoryArtifactStore(ArtifactStore):
     """
     Store with no published root that fetches files by object version id.
 
-    Its guard is not a lock: entering it resets the compare-and-swap baseline, so ``write_ref``
-    is conditioned on the reference read inside the guard, or on the current one when there
-    was no such read.
+    Its guard is not a lock: entering it resets the compare-and-swap baselines, so ``write_ref``
+    and ``write_state`` are conditioned on the document read inside the guard, or on the current
+    one when there was no such read.
     """
 
     backend_type = "memory"
@@ -84,10 +86,15 @@ class _InMemoryArtifactStore(ArtifactStore):
         self.bundle_name = bundle_name
         self._bucket = bucket
         self._ref_baseline: int | None = None
+        self._state_baseline: int | None = None
 
     @property
     def ref_locator(self) -> str:
         return f"memory://{self.bundle_name}/latest.json"
+
+    @property
+    def state_locator(self) -> str:
+        return f"memory://{self.bundle_name}/auto-publish.json"
 
     def snapshot_locator(self, version: str) -> str:
         return f"memory://{self.bundle_name}/versions/{version}"
@@ -107,9 +114,27 @@ class _InMemoryArtifactStore(ArtifactStore):
         self._bucket.ref = content
         self._bucket.ref_generation += 1
 
+    def read_state(self) -> dict[str, Any]:
+        # Set even when there is no state, so the next write requires it to stay absent.
+        self._state_baseline = self._bucket.state_generation
+        if self._bucket.state is None:
+            raise BundleManifestNotFoundError(
+                f"Bundle '{self.bundle_name}' has no automatic-publication state"
+            )
+        return json.loads(self._bucket.state)
+
+    def write_state(self, payload: dict[str, Any]) -> None:
+        content = serialize_bundle_version_manifest(payload)
+        baseline = self._bucket.state_generation if self._state_baseline is None else self._state_baseline
+        if self._bucket.state_generation != baseline and self._bucket.state != content:
+            raise ArtifactStoreConflictError(f"Another publisher updated {self.state_locator}")
+        self._bucket.state = content
+        self._bucket.state_generation += 1
+
     @contextmanager
     def publication_guard(self):
         self._ref_baseline = None
+        self._state_baseline = None
         yield
 
     def prepare_publish_areas(self) -> None:

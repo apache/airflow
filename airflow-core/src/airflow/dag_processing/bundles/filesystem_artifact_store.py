@@ -65,6 +65,7 @@ log = logging.getLogger(__name__)
 DEFAULT_PUBLICATION_LOCK_TIMEOUT = 600.0
 _LOCK_POLL_INTERVAL = 1.0
 _LOCK_WAIT_LOG_INTERVAL = 30.0
+AUTO_PUBLISH_STATE_FILE_NAME = "auto-publish.json"
 
 
 class FilesystemArtifactStore(ArtifactStore):
@@ -72,7 +73,8 @@ class FilesystemArtifactStore(ArtifactStore):
     Artifact store for a ``published_root`` on a filesystem shared by publishers and Airflow.
 
     Layout under ``published_root``: ``refs/<bundle>/latest.json`` (release reference),
-    ``versions/<bundle>/<version>/`` (snapshots) and ``_locks/<bundle>.lock`` (publication lock).
+    ``versions/<bundle>/<version>/`` (snapshots), ``_locks/<bundle>.lock`` (publication lock) and
+    ``_state/<bundle>/auto-publish.json`` (automatic-publication state).
     ``published_root`` must already exist; the store creates only the directories below it.
     Provision it as a dedicated directory inside the shared filesystem so that a missing
     mount also makes it disappear. An existing root, including the mount point itself,
@@ -109,6 +111,7 @@ class FilesystemArtifactStore(ArtifactStore):
         self.bundle_name = bundle_name
         self._root = published_root
         self._ref_path = published_root / "refs" / bundle_name / "latest.json"
+        self._state_path = published_root / "_state" / bundle_name / AUTO_PUBLISH_STATE_FILE_NAME
         self._snapshots_root = published_root / "versions" / bundle_name
         self._lock_path = published_root / "_locks" / f"{bundle_name}.lock"
         self._lock_timeout = lock_timeout
@@ -122,6 +125,10 @@ class FilesystemArtifactStore(ArtifactStore):
     @property
     def ref_locator(self) -> str:
         return str(self._ref_path)
+
+    @property
+    def state_locator(self) -> str:
+        return str(self._state_path)
 
     def snapshot_locator(self, version: str) -> str:
         return str(self._snapshots_root / version)
@@ -139,6 +146,30 @@ class FilesystemArtifactStore(ArtifactStore):
         with _raise_storage_error(f"write release reference {self._ref_path}"):
             self._ensure_publication_dir(self._ref_path.parent)
             _write_json_atomically(self._ref_path, payload)
+
+    def read_state(self) -> dict[str, Any]:
+        return read_json_file(
+            self._state_path,
+            missing_message=(
+                f"Bundle '{self.bundle_name}' has no automatic-publication state at {self._state_path}"
+            ),
+            invalid_message=(
+                f"Bundle '{self.bundle_name}' automatic-publication state {self._state_path} "
+                "is not a JSON object"
+            ),
+        )
+
+    def write_state(self, payload: dict[str, Any]) -> None:
+        with _raise_storage_error(f"write automatic-publication state {self._state_path}"):
+            _ensure_public_dir(self._state_path.parent, root=self._root)
+            try:
+                _write_json_atomically(self._state_path, payload)
+            except BundleManifestRefDurabilityError as e:
+                # The shared writer phrases unconfirmed durability as a release-reference error,
+                # which callers act on as a release that may already be visible.
+                raise BundleManifestError(
+                    f"Cannot confirm that automatic-publication state {self._state_path} was durably written"
+                ) from e
 
     @contextmanager
     def publication_guard(self):
@@ -280,6 +311,7 @@ class FilesystemArtifactStore(ArtifactStore):
     def _remove_publish_leftovers(self) -> None:
         remove_orphaned_temp_snapshots(self._snapshots_root)
         _remove_orphaned_atomic_temp_files(self._ref_path)
+        _remove_orphaned_atomic_temp_files(self._state_path)
 
     def _ensure_publication_dir(self, path: Path) -> None:
         """Create a publication directory, syncing existing ones only on this store's first call for it."""
