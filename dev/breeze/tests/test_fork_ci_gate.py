@@ -320,6 +320,16 @@ def test_parse_config_defaults():
     assert config.close_after_days == 7
     assert config.allowlist == {}
     assert config.pilot == {}
+    assert config.job_statuses is True
+    assert config.cancel_merged_runs is True
+
+
+def test_parse_config_turns_job_statuses_off():
+    assert parse_config("job_statuses = false\n").job_statuses is False
+
+
+def test_parse_config_turns_cancelling_merged_runs_off():
+    assert parse_config("cancel_merged_runs = false\n").cancel_merged_runs is False
 
 
 def test_parse_config_lowercases_pilot_logins():
@@ -334,6 +344,10 @@ def test_parse_config_lowercases_pilot_logins():
     ("text", "message"),
     [
         pytest.param("enabled = 1\n", "enabled must be", id="enabled-not-bool"),
+        pytest.param('job_statuses = "no"\n', "job_statuses must be", id="job-statuses-not-bool"),
+        pytest.param(
+            "cancel_merged_runs = 0\n", "cancel_merged_runs must be", id="cancel-merged-runs-not-bool"
+        ),
         pytest.param(
             "enabled_since = 2026-01-01T00:00:00\n", "enabled_since must be", id="enabled-since-naive"
         ),
@@ -377,28 +391,14 @@ def _outputs(env: dict[str, str]) -> list[str]:
 
 @mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
 @pytest.mark.parametrize(
-    ("returncode", "stdout", "event_labels", "expected"),
+    ("stdout", "expected"),
     [
-        pytest.param(0, "[]\n", "[]", ["project-ci=false", "reason=external"], id="external"),
-        pytest.param(
-            0, '["use project ci"]\n', "[]", ["project-ci=true", "reason=label_project_ci"], id="labelled"
-        ),
-        pytest.param(1, "", "[]", ["project-ci=false", "reason=external"], id="gh-fails-stays-gated"),
-        pytest.param(
-            0, "not json", "[]", ["project-ci=false", "reason=external"], id="bad-output-stays-gated"
-        ),
-        pytest.param(
-            1,
-            "",
-            '["use project ci"]',
-            ["project-ci=true", "reason=label_project_ci"],
-            id="gh-fails-uses-event-labels",
-        ),
+        pytest.param("[]\n", ["project-ci=false", "reason=external"], id="external"),
+        pytest.param('["use project ci"]\n', ["project-ci=true", "reason=label_project_ci"], id="labelled"),
     ],
 )
-def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels, expected):
-    mock_run.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
-    gate_env["PR_EVENT_LABELS"] = event_labels
+def test_main_pull_request(mock_run, gate_env, stdout, expected):
+    mock_run.return_value = subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
 
     assert main(gate_env) == 0
 
@@ -406,15 +406,24 @@ def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels,
     assert mock_run.call_args_list[0].args[0][:3] == ["gh", "api", "repos/apache/airflow/pulls/1"]
 
 
-@mock.patch(
-    "airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True, side_effect=FileNotFoundError("gh")
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "side_effect"),
+    [
+        pytest.param(1, "", None, id="gh-fails"),
+        pytest.param(0, "not json", None, id="bad-output"),
+        pytest.param(0, "", FileNotFoundError("gh"), id="no-gh"),
+    ],
 )
-def test_main_without_gh_uses_the_event_labels(mock_run, gate_env):
-    gate_env["PR_EVENT_LABELS"] = '["use project ci"]'
+def test_main_pull_request_fails_when_labels_cannot_be_read(
+    mock_run, gate_env, returncode, stdout, side_effect
+):
+    mock_run.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
+    mock_run.side_effect = side_effect
 
-    main(gate_env)
+    assert main(gate_env) == 1
 
-    assert _outputs(gate_env) == ["project-ci=true", "reason=label_project_ci"]
+    assert not Path(gate_env["GITHUB_OUTPUT"]).exists()
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)

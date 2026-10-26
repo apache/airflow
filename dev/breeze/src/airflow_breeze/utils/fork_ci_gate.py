@@ -128,6 +128,8 @@ class GateConfig:
     close_after_days: int = DEFAULT_CLOSE_AFTER_DAYS
     allowlist: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     pilot: Mapping[str, datetime] = field(default_factory=dict)
+    job_statuses: bool = True
+    cancel_merged_runs: bool = True
 
     def is_allowlisted(self, login: str) -> bool:
         wanted = login.casefold()
@@ -173,12 +175,20 @@ def parse_config(text: str) -> GateConfig:
         login.casefold(): _require_aware_datetime(joined_at, f"pilot entry {login!r}")
         for login, joined_at in data.get("pilot", {}).items()
     }
+    job_statuses = data.get("job_statuses", True)
+    if not isinstance(job_statuses, bool):
+        raise ValueError(f"job_statuses must be true or false, got {job_statuses!r}")
+    cancel_merged_runs = data.get("cancel_merged_runs", True)
+    if not isinstance(cancel_merged_runs, bool):
+        raise ValueError(f"cancel_merged_runs must be true or false, got {cancel_merged_runs!r}")
     return GateConfig(
         enabled=enabled,
         enabled_since=enabled_since,
         close_after_days=close_after_days,
         allowlist=allowlist,
         pilot=pilot,
+        job_statuses=job_statuses,
+        cancel_merged_runs=cancel_merged_runs,
     )
 
 
@@ -202,6 +212,10 @@ class GateEvent:
 class Decision:
     run: bool
     reason: Reason
+
+
+class LabelsUnavailableError(RuntimeError):
+    """The current labels of a pull request could not be read."""
 
 
 def _is_canonical_branch(ref: str) -> bool:
@@ -290,10 +304,12 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
     if event_name == "pull_request":
         fetched = fetch_pull_request_labels(repository, env.get("PR_NUMBER", ""))
         if fetched is None:
-            # Never fail open: anyone able to exhaust the shared token quota would otherwise switch
-            # the gate off for every pull request. The event's labels miss only labels added since.
-            print("Falling back to the labels of the triggering event", file=sys.stderr)
-            fetched = tuple(json.loads(env.get("PR_EVENT_LABELS") or "[]"))
+            # Neither project CI nor the event's labels: the workflow-run approver approves runs
+            # started before `use fork ci` was added, which the event's labels would send to project
+            # CI, and anyone able to exhaust the shared token quota could force that path.
+            raise LabelsUnavailableError(
+                f"Could not read the labels of pull request #{env.get('PR_NUMBER', '')}; re-run the job"
+            )
         labels = fetched
     event = GateEvent(
         event_name=event_name,
@@ -311,7 +327,11 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
 
 def main(env: Mapping[str, str] | None = None) -> int:
     env = os.environ if env is None else env
-    decision = evaluate_from_env(env)
+    try:
+        decision = evaluate_from_env(env)
+    except LabelsUnavailableError as e:
+        print(e, file=sys.stderr)
+        return 1
     project_ci = "true" if decision.run else "false"
     print(f"project-ci={project_ci} reason={decision.reason.value}")
     _write_line("GITHUB_OUTPUT", f"project-ci={project_ci}", env)
