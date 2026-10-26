@@ -257,13 +257,17 @@ def _raise_as_launch_error(prefix: str) -> Generator[None, None, None]:
 
     Use it only before the task instance is started: the supervisor starts the task instance itself
     when it fails one with a TaskLaunchError. A TaskLaunchError raised in the block is kept as it is.
+    An OSError or ValueError, such as a missing runtime or artifact, or an artifact that cannot run,
+    is retryable. Any other failure, such as a coordinator bug, is not: retrying cannot fix it.
     """
     try:
         yield
     except TaskLaunchError:
         raise
-    except Exception as e:
+    except (OSError, ValueError) as e:
         raise TaskLaunchError(f"{prefix}: {e}") from e
+    except Exception as e:
+        raise TaskLaunchError(f"{prefix}: {e}", retryable=False) from e
 
 
 def _accept_connections(

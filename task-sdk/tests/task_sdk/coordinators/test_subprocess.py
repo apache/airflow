@@ -1421,6 +1421,11 @@ class _MissingArtifactCoordinator(_StubSubprocessCoordinator):
         raise FileNotFoundError("cannot find a JAR with Main-Class metadata in /bundle")
 
 
+class _BrokenCoordinator(_StubSubprocessCoordinator):
+    def _build_execute_task_command(self, *, what):
+        raise RuntimeError("coordinator bug")
+
+
 class TestExecuteTaskLaunchFailure:
     """A task whose runtime cannot be launched fails with TaskLaunchError, so the supervisor reports it."""
 
@@ -1439,6 +1444,22 @@ class TestExecuteTaskLaunchFailure:
 
         assert raised.value.retryable is True
         assert isinstance(raised.value.__cause__, FileNotFoundError)
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_without_a_retry_for_a_coordinator_bug(self, mock_client):
+        coordinator = _BrokenCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="coordinator bug") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is False
+        assert isinstance(raised.value.__cause__, RuntimeError)
 
     @patch(
         "airflow.sdk.coordinators._subprocess.initialize_ti_bundle",
