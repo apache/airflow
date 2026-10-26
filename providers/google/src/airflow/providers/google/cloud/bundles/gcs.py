@@ -199,10 +199,11 @@ class GCSDagBundle(BaseDagBundle):
             if etag:
                 (unpack_dir / self.archive_etag_marker).write_text(etag)
 
-            # Swap the freshly unpacked tree into place so a partially staged bundle is
-            # never observable at self.gcs_dags_dir. The previous tree is kept inside the
-            # staging directory: a failed swap restores it, and the staging cleanup below
-            # removes it once the swap succeeded.
+            # Swap the unpacked tree into place. The previous tree is kept inside the
+            # staging directory and renamed back if the second rename fails, so a
+            # half-unpacked tree is never left at self.gcs_dags_dir. There is a short
+            # gap between the two renames where the directory does not exist. Readers
+            # do not take self.lock(), so a scan during that gap sees nothing.
             backup_dir = staging_dir / "previous"
             if self.gcs_dags_dir.exists():
                 self.gcs_dags_dir.rename(backup_dir)
