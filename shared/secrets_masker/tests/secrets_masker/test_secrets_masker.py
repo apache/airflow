@@ -21,6 +21,7 @@ import inspect
 import logging
 import logging.config
 import os
+import pprint
 import sys
 import textwrap
 from enum import Enum
@@ -1226,6 +1227,38 @@ class TestEdgeCases:
         assert redacted.count("***") == 3
         assert redacted.startswith("Contains ")
         assert " and " in redacted
+
+    def test_multiline_secret_masked_when_wrapped_by_pprint(self):
+        secret = "-----BEGIN KEY-----\nabcDEF123\nxyz789\n-----END KEY-----"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        pod_like = {"spec": {"containers": [{"env": [{"name": "MULTI", "value": secret}]}]}}
+        formatted = pprint.pformat(pod_like)
+        assert "'-----BEGIN KEY-----\\n'\n" in formatted
+
+        redacted = secrets_masker.redact(formatted)
+
+        for line in secret.splitlines():
+            assert line not in redacted
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"])
+    def test_multiline_secret_registers_stripped_lines_longest_first(self, newline):
+        secret = newline.join(["  first-line-1  ", "", "second-line-2"])
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        assert {"first\\-line\\-1", "second\\-line\\-2"} <= secrets_masker.patterns
+        alternatives = secrets_masker.replacer.pattern.split("|")
+        assert alternatives == sorted(alternatives, key=len, reverse=True)
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+        single_line_masker = SecretsMasker()
+        configure_secrets_masker_for_test(single_line_masker)
+        single_line_masker.add_mask("  error  ")
+        assert single_line_masker.patterns == {"\\ \\ error\\ \\ "}
 
 
 class TestDirectMethodCalls:

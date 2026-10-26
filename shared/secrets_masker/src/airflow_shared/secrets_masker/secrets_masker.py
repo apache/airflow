@@ -576,6 +576,14 @@ class SecretsMasker(logging.Filter):
         """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
+        # Formatters such as ``pprint`` (used by ``str()`` of Kubernetes models) split a multi-line
+        # string across several literals, so the secret never appears contiguously in the output.
+        lines = secret.splitlines()
+        if len(lines) > 1:
+            for line in lines:
+                if line.strip():
+                    yield line.strip()
+
         if self.secret_mask_adapter:
             # This can return an iterable of secrets to mask OR a single secret as a string
             secret_or_secrets = self.secret_mask_adapter(secret)
@@ -638,7 +646,8 @@ class SecretsMasker(logging.Filter):
                         self.patterns.add(pattern)
                         new_mask = True
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Longest first, so a line that prefixes the full secret cannot match before it
+                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
