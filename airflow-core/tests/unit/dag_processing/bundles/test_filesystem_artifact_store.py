@@ -132,6 +132,58 @@ class TestFilesystemDocuments:
         assert payload == {"value": "valid UTF-8: ☃"}
         mock_read.assert_called_once_with(path, encoding="utf-8")
 
+    def test_state_roundtrip_and_replace(self, store):
+        store.prepare_state_area()
+        store.write_state({"first_observed_at": 1.0})
+        store.write_state({"first_observed_at": 2.0})
+        payload = store.read_state(missing_message="missing", invalid_message="invalid")
+        assert payload == {"first_observed_at": 2.0}
+
+    def test_read_state_missing_raises_not_found(self, store):
+        with pytest.raises(BundleManifestNotFoundError, match="state is gone"):
+            store.read_state(missing_message="state is gone", invalid_message="invalid")
+
+    def test_read_state_invalid_document_raises_with_message(self, store):
+        store.prepare_state_area()
+        store.state_path.write_bytes(b"{not json")
+        with pytest.raises(BundleManifestError, match="state is invalid"):
+            store.read_state(missing_message="state is gone", invalid_message="state is invalid")
+
+    def test_write_state_creates_readable_document_and_removes_orphaned_temps(self, store):
+        orphan = store.state_path.with_name(f".{store.state_path.name}.abandoned")
+        old_umask = os.umask(0o077)
+        try:
+            store.prepare_state_area()
+            orphan.write_text("{}")
+            store.write_state({"first_observed_at": 1.0})
+        finally:
+            os.umask(old_umask)
+
+        assert stat.S_IMODE(store.state_path.parent.stat().st_mode) == 0o755
+        assert stat.S_IMODE(store.state_path.stat().st_mode) == 0o644
+        assert list(store.state_path.parent.iterdir()) == [store.state_path]
+
+    @mock.patch.object(
+        store_module, "fsync_directory", autospec=True, side_effect=store_module.fsync_directory
+    )
+    def test_write_state_durability_failure_is_not_a_reference_error(self, mock_fsync, store):
+        store.prepare_state_area()
+        original_error = OSError(errno.EIO, "state directory sync failed")
+        real_fsync_directory = mock_fsync.side_effect
+
+        def fail_state_directory_sync(path):
+            if path == store.state_path.parent and store.state_path.exists():
+                raise original_error
+            real_fsync_directory(path)
+
+        mock_fsync.side_effect = fail_state_directory_sync
+
+        with pytest.raises(OSError, match="state directory sync failed") as raised:
+            store.write_state({"version": "v1"})
+
+        assert raised.value is original_error
+        assert store.read_state(missing_message="missing", invalid_message="invalid") == {"version": "v1"}
+
 
 class TestFilesystemSnapshots:
     def test_publish_then_exists_then_fetch(self, store, tmp_path):
@@ -250,6 +302,7 @@ class TestFilesystemCoordination:
         assert str(store.snapshot_path(version)).endswith(f"/{BUNDLE_NAME}/{version}")
         assert str(store.snapshots_root).startswith(str(store.root))
         assert str(store.ref_path).startswith(str(store.root))
+        assert store.state_path == store.root / "_state" / BUNDLE_NAME / "auto-publish.json"
 
 
 class TestFilesystemConstruction:

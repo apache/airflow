@@ -50,13 +50,16 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+AUTO_PUBLISH_STATE_FILE_NAME = "auto-publish.json"
+
 
 class FilesystemArtifactStore(ArtifactStore):
     """
     Artifact store for a ``published_root`` on a filesystem shared by publishers and Airflow.
 
     Layout under ``published_root``: ``refs/<bundle>/latest.json`` (release reference),
-    ``versions/<bundle>/<version>/`` (snapshots) and ``_locks/<bundle>.lock`` (publication lock).
+    ``versions/<bundle>/<version>/`` (snapshots), ``_locks/<bundle>.lock`` (publication lock)
+    and ``_state/<bundle>/auto-publish.json`` (automatic-publication state).
 
     Publishers need write access to the publication directories and read/write access to
     the lock file. For different OS users, provision these with a shared publisher group.
@@ -71,6 +74,7 @@ class FilesystemArtifactStore(ArtifactStore):
             )
         self._root = published_root
         self._ref_path = published_root / "refs" / bundle_name / "latest.json"
+        self._state_path = published_root / "_state" / bundle_name / AUTO_PUBLISH_STATE_FILE_NAME
         self._snapshots_root = published_root / "versions" / bundle_name
         self.lock_path = published_root / "_locks" / f"{bundle_name}.lock"
 
@@ -81,6 +85,10 @@ class FilesystemArtifactStore(ArtifactStore):
     @property
     def ref_path(self) -> Path:
         return self._ref_path
+
+    @property
+    def state_path(self) -> Path:
+        return self._state_path
 
     @property
     def snapshots_root(self) -> Path:
@@ -95,7 +103,17 @@ class FilesystemArtifactStore(ArtifactStore):
         )
 
     def write_ref(self, payload: dict[str, Any]) -> None:
-        _write_json_atomically(self._ref_path, payload)
+        _write_ref_atomically(self._ref_path, payload)
+
+    def read_state(self, *, missing_message: str, invalid_message: str) -> dict[str, Any]:
+        return read_json_file(
+            self._state_path, missing_message=missing_message, invalid_message=invalid_message
+        )
+
+    def write_state(self, payload: dict[str, Any]) -> None:
+        _remove_orphaned_atomic_temp_files(self._state_path)
+        _replace_json_atomically(self._state_path, payload)
+        fsync_directory(self._state_path.parent)
 
     @contextmanager
     def publication_guard(self):
@@ -125,6 +143,9 @@ class FilesystemArtifactStore(ArtifactStore):
     def prepare_publish_areas(self) -> None:
         _ensure_public_dir(self._snapshots_root)
         _ensure_public_dir(self._ref_path.parent)
+
+    def prepare_state_area(self) -> None:
+        _ensure_public_dir(self._state_path.parent)
 
     def validate_source_paths(self, source_path: Path, *, cache_versions_dir: Path) -> None:
         _validate_publish_paths(
@@ -335,7 +356,19 @@ def _remove_orphaned_atomic_temp_files(destination_path: Path) -> None:
             path.unlink()
 
 
-def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> None:
+def _write_ref_atomically(ref_path: Path, payload: dict[str, Any]) -> None:
+    _replace_json_atomically(ref_path, payload)
+    try:
+        fsync_directory(ref_path.parent)
+    except OSError as e:
+        version = payload.get("version")
+        raise BundleManifestRefDurabilityError(
+            ref_path=ref_path, version=version if isinstance(version, str) else None
+        ) from e
+
+
+def _replace_json_atomically(destination_path: Path, payload: dict[str, Any]) -> None:
+    """Replace ``destination_path``; the caller syncs its directory to make the entry durable."""
     _ensure_public_dir(destination_path.parent)
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{destination_path.name}.",
@@ -350,13 +383,6 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
             os.fchmod(file.fileno(), 0o644)
             os.fsync(file.fileno())
         os.replace(tmp_path, destination_path)
-        try:
-            fsync_directory(destination_path.parent)
-        except OSError as e:
-            version = payload.get("version")
-            raise BundleManifestRefDurabilityError(
-                ref_path=destination_path, version=version if isinstance(version, str) else None
-            ) from e
     except Exception:
         # missing_ok: an exists()/unlink() pair could itself raise here (e.g. an external
         # tmp sweeper won the race) and mask the original publish error.

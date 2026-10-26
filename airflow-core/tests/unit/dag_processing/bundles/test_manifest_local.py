@@ -658,26 +658,24 @@ class TestPublish:
         source = tmp_path / "source"
         _write_file(source, "dags/example.py", "print('dag')")
         calls = []
-        real_write_json_atomically = store_module._write_json_atomically
+        real_write_ref_atomically = store_module._write_ref_atomically
 
         def record_fsync_directory(path):
             calls.append(("fsync_directory", Path(path)))
 
-        def record_write_json_atomically(destination_path, payload):
-            calls.append(("write_json", Path(destination_path)))
-            real_write_json_atomically(destination_path, payload)
+        def record_write_ref_atomically(ref_path, payload):
+            calls.append(("write_ref", Path(ref_path)))
+            real_write_ref_atomically(ref_path, payload)
 
         bundle = _make_bundle(tmp_path)
         with (
             mock.patch.object(store_module, "fsync_directory", side_effect=record_fsync_directory),
-            mock.patch.object(
-                store_module, "_write_json_atomically", side_effect=record_write_json_atomically
-            ),
+            mock.patch.object(store_module, "_write_ref_atomically", side_effect=record_write_ref_atomically),
         ):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
         versions_dir_fsync = ("fsync_directory", bundle.published_versions_dir)
-        ref_write = ("write_json", bundle.manifest_ref_path)
+        ref_write = ("write_ref", bundle.manifest_ref_path)
         assert versions_dir_fsync in calls
         assert ref_write in calls
         assert calls.index(versions_dir_fsync) < calls.index(ref_write)

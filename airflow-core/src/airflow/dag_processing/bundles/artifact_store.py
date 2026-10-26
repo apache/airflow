@@ -20,13 +20,15 @@ Contract for the published-artifact backend of manifest-backed Dag bundles.
 An artifact store keeps everything that lives under a bundle's ``published_root``:
 
 - the **release reference** -- one mutable document naming the current version;
+- the **automatic-publication state** -- one mutable document holding the shared
+  source-stability candidate;
 - the **immutable snapshots** -- one content-addressed tree per published version.
 
 Manifest-backed Dag bundles perform all published-artifact access through this interface.
 
 Contract notes for implementations:
 
-- The release reference is the only mutable artifact. ``publication_guard`` must make the
+- The two documents are the only mutable artifacts. ``publication_guard`` must make the
   read-check-write sections that publishers run inside it safe against concurrent publishers.
 - Snapshots are immutable once committed and must not become visible half-written.
 - A reference replacement that completes without confirmed durability must raise
@@ -80,7 +82,7 @@ class BundleManifestRefDurabilityError(BundleManifestError):
 
 
 class ArtifactStore(ABC):
-    """Storage backend for a bundle's published release reference and snapshots."""
+    """Storage backend for a bundle's published release reference, state and snapshots."""
 
     bundle_name: str
 
@@ -93,6 +95,11 @@ class ArtifactStore(ABC):
     @abstractmethod
     def ref_path(self) -> Path | str:
         """Locator of the release reference document."""
+
+    @property
+    @abstractmethod
+    def state_path(self) -> Path | str:
+        """Locator of the automatic-publication state document."""
 
     @property
     @abstractmethod
@@ -124,12 +131,31 @@ class ArtifactStore(ABC):
         """
 
     @abstractmethod
+    def read_state(self, *, missing_message: str, invalid_message: str) -> dict[str, Any]:
+        """Read the automatic-publication state payload, with the errors of ``read_ref``."""
+
+    @abstractmethod
+    def write_state(self, payload: dict[str, Any]) -> None:
+        """
+        Atomically replace the automatic-publication state.
+
+        Callers hold ``publication_guard``, so an implementation may remove leftovers of
+        interrupted writes before writing. The state only coordinates publishers and never
+        selects the served release, so a failure to confirm durability is reported as an
+        ordinary error.
+        """
+
+    @abstractmethod
     def publication_guard(self) -> AbstractContextManager[None]:
         """Serialize publishers for this bundle across hosts."""
 
     @abstractmethod
     def prepare_publish_areas(self) -> None:
         """Create the snapshot and reference areas publishers write to."""
+
+    @abstractmethod
+    def prepare_state_area(self) -> None:
+        """Create the area holding the automatic-publication state document."""
 
     @abstractmethod
     def validate_source_paths(self, source_path: Path, *, cache_versions_dir: Path) -> None:
