@@ -21,51 +21,51 @@ Hook-reported datasets are attributed to the class of the ``context`` they were 
 DAG uses stand-in hooks. Rules use ``match_mode: regex`` because the stand-in classes live in the Dag module.
 
 It checks that an authored list:
-    - replaces the conf lists for every dataset of the task, including hook-scoped conf lists
-    - can clear the conf list with ``[]``
-    - applies to declared inlets
-    - can be set for the whole Dag, but only reaches tasks that already exist at the time of the call
-    - is ignored where a locked conf rule applies, even when a more specific conf rule wins the value
-    - is ignored only for the datasets of the hook a locked hook-scoped rule applies to
 
-Required global conf:
-```
-[
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag"},
-        "controls": {"exclude_datasets": [".*/conf_excluded_.*"]},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "hook": ".*\\.AuthHook"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/conf_hook_excluded_.*"]},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "task_id": "t_locked"},
-        "locked": true,
-        "controls": {"exclude_datasets": [".*/locked_excluded_.*"]},
-    },
-    {
-        "scope": {
-            "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-            "task_id": "t_locked",
-            "hook": ".*\\.AuthHook",
+- replaces the conf lists for every dataset of the task, including hook-scoped conf lists
+- can clear the conf list with ``[]``
+- applies to declared inlets
+- can be set for the whole Dag, but only reaches tasks that already exist at the time of the call
+- is ignored where a locked conf rule applies, even when a more specific conf rule wins the value
+- is ignored only for the datasets of the hook a locked hook-scoped rule applies to
+
+Required global conf::
+
+    [
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag"},
+            "controls": {"exclude_datasets": [".*/conf_excluded_.*"]},
         },
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/specific_excluded_.*"]},
-    },
-    {
-        "scope": {
-            "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-            "task_id": "t_locked_hook",
-            "hook": ".*\\.LockedHook",
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "hook": ".*\\.AuthHook"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/conf_hook_excluded_.*"]},
         },
-        "match_mode": "regex",
-        "locked": true,
-        "controls": {"exclude_datasets": [".*/locked_hook_excluded_.*"]},
-    },
-]
-```
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "task_id": "t_locked"},
+            "locked": true,
+            "controls": {"exclude_datasets": [".*/locked_excluded_.*"]},
+        },
+        {
+            "scope": {
+                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
+                "task_id": "t_locked",
+                "hook": ".*\\.AuthHook",
+            },
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/specific_excluded_.*"]},
+        },
+        {
+            "scope": {
+                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
+                "task_id": "t_locked_hook",
+                "hook": ".*\\.LockedHook",
+            },
+            "match_mode": "regex",
+            "locked": true,
+            "controls": {"exclude_datasets": [".*/locked_hook_excluded_.*"]},
+        },
+    ]
 """
 
 from __future__ import annotations

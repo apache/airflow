@@ -26,48 +26,47 @@ Hook-scoped rules apply only to hook-collected datasets, not to declared inlets.
 ``hook_lineage`` drops (``false``) or keeps (``true``) every dataset the hook reports.
 
 Required global conf (the first rule is the global rule of ``openlineage_policy_exclude_datasets_global_dag``,
-which every dag-scoped rule here replaces):
-```
-[
-    {"scope": {}, "controls": {"exclude_datasets": [".*/exclude_datasets_global_.*"]}},
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag"},
-        "controls": {"exclude_datasets": [".*/dag_excluded_.*"]},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.ConfHook"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/dag_hook_excluded_.*"]},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task"},
-        "controls": {"exclude_datasets": [".*/task_excluded_.*"]},
-    },
-    {
-        "scope": {
-            "dag_id": "openlineage_policy_exclude_datasets_conf_dag",
-            "task_id": "t_task_hook",
-            "hook": ".*\\.ConfHook",
+which every dag-scoped rule here replaces)::
+
+    [
+        {"scope": {}, "controls": {"exclude_datasets": [".*/exclude_datasets_global_.*"]}},
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag"},
+            "controls": {"exclude_datasets": [".*/dag_excluded_.*"]},
         },
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/task_hook_excluded_.*"]},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_clear"},
-        "controls": {"exclude_datasets": []},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.DroppedHook"},
-        "match_mode": "regex",
-        "controls": {"hook_lineage": false},
-    },
-    {
-        "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.KeptHook"},
-        "match_mode": "regex",
-        "controls": {"hook_lineage": true},
-    },
-]
-```
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.ConfHook"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/dag_hook_excluded_.*"]},
+        },
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task"},
+            "controls": {"exclude_datasets": [".*/task_excluded_.*"]},
+        },
+        {
+            "scope": {
+                "dag_id": "openlineage_policy_exclude_datasets_conf_dag",
+                "task_id": "t_task_hook",
+                "hook": ".*\\.ConfHook",
+            },
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/task_hook_excluded_.*"]},
+        },
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_clear"},
+            "controls": {"exclude_datasets": []},
+        },
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.DroppedHook"},
+            "match_mode": "regex",
+            "controls": {"hook_lineage": false},
+        },
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.KeptHook"},
+            "match_mode": "regex",
+            "controls": {"hook_lineage": true},
+        },
+    ]
 """
 
 from __future__ import annotations

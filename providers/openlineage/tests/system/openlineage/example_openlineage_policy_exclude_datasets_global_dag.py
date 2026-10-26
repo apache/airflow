@@ -24,32 +24,34 @@ matching rule replaces broader lists: operator + hook > hook > operator > global
 
 Every pattern and class name is unique to this Dag, so the rules do not affect other Dags.
 
-Required global conf:
-```
-[
-    {"scope": {}, "controls": {"exclude_datasets": [".*/exclude_datasets_global_.*"]}},
-    {
-        "scope": {"hook": ".*\\.ExcludeDatasetsGlobalHook"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/hook_excluded_.*"]},
-    },
-    {
-        "scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/operator_excluded_.*"]},
-    },
-    {
-        "scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator", "hook": ".*\\.ExcludeDatasetsGlobalHook"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": [".*/operator_hook_excluded_.*"]},
-    },
-    {
-        "scope": {"operator": ".*\\.ExcludeDatasetsGlobalClearOperator"},
-        "match_mode": "regex",
-        "controls": {"exclude_datasets": []},
-    },
-]
-```
+Required global conf::
+
+    [
+        {"scope": {}, "controls": {"exclude_datasets": [".*/exclude_datasets_global_.*"]}},
+        {
+            "scope": {"hook": ".*\\.ExcludeDatasetsGlobalHook"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/hook_excluded_.*"]},
+        },
+        {
+            "scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/operator_excluded_.*"]},
+        },
+        {
+            "scope": {
+                "operator": ".*\\.ExcludeDatasetsGlobalOperator",
+                "hook": ".*\\.ExcludeDatasetsGlobalHook",
+            },
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/operator_hook_excluded_.*"]},
+        },
+        {
+            "scope": {"operator": ".*\\.ExcludeDatasetsGlobalClearOperator"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": []},
+        },
+    ]
 """
 
 from __future__ import annotations
