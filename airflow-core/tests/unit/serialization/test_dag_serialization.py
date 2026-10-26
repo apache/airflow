@@ -4980,6 +4980,31 @@ class TestMappedOperatorSerializationAndClientDefaults:
             assert deserialized_task.retries == 5  # Explicitly set value
 
     @pytest.mark.parametrize(
+        ("default_args", "partial_retries", "expected_retries"),
+        [
+            pytest.param({}, 0, 0, id="partial-zero"),
+            pytest.param({"retries": 1}, 0, 0, id="partial-zero-overrides-default-args"),
+            pytest.param({}, None, 3, id="unset-uses-client-default"),
+        ],
+    )
+    def test_mapped_operator_preserves_explicit_schema_default(
+        self, default_args, partial_retries, expected_retries, operator_defaults
+    ):
+        """An explicit partial() value equal to the schema default must survive when client_defaults differ."""
+        partial_kwargs = {} if partial_retries is None else {"retries": partial_retries}
+        with operator_defaults({"retries": 3}):
+            with DAG(dag_id="test_mapped_explicit_schema_default", default_args=default_args) as dag:
+                BashOperator.partial(task_id="mapped_task", **partial_kwargs).expand(
+                    bash_command=["echo 1", "echo 2"]
+                )
+
+            serialized = DagSerialization.to_dict(dag)
+            assert serialized["client_defaults"]["tasks"]["retries"] == 3
+
+            deserialized_task = DagSerialization.from_dict(serialized).get_task("mapped_task")
+            assert deserialized_task.retries == expected_retries
+
+    @pytest.mark.parametrize(
         ("task_config", "dag_id", "task_id", "non_default_fields"),
         [
             # Test case 1: Size optimization with non-default values

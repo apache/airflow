@@ -1509,6 +1509,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                             and op._BaseOperator__init_kwargs[attrname] == var
                         ):
                             return False
+                        # Mapped operators carry explicit values in partial_kwargs, not __init_kwargs.
+                        partial_kwargs = getattr(op, "partial_kwargs", None)
+                        if partial_kwargs and attrname in partial_kwargs and partial_kwargs[attrname] == var:
+                            return False
 
                 # If client_defaults doesn't have this field (matches schema default),
                 # exclude for optimization even if in default_args
