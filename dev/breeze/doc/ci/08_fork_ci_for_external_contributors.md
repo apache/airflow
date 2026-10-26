@@ -310,9 +310,11 @@ directly with the runner's `python3` without installing breeze. The reconciler i
    full project CI as `base_without_gate`.
 2. For pull requests, one read-only API call for the current labels
    (`gh api repos/apache/airflow/pulls/<n> --jq '.labels[].name'`), so override labels added
-   after the event are seen on a re-run. If that call fails, the gate uses the labels of the
-   event payload instead. It never falls back to running project CI: anyone able to exhaust
-   the shared token quota would otherwise switch the gate off for every pull request.
+   after the event are seen on a re-run. If that call fails, the gate job fails and nothing
+   after it runs; re-running the job decides again. It falls back neither to running project
+   CI, since anyone able to exhaust the shared token quota would otherwise switch the gate off
+   for every pull request, nor to the labels of the event payload, since runs started before
+   `use fork ci` was added are approved automatically (see "Approving gated runs").
 3. `python3 dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` with the event payload
    fields and the labels passed as environment variables. It writes `project-ci=true|false`
    and `reason=...` to `GITHUB_OUTPUT`. A base branch with neither file skips the script and
@@ -367,9 +369,10 @@ applies instead:
   `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
   workflow that does run, so such a run must not start without a review.
 
-A run started before `use fork ci` or `use project ci` was last added or removed is not approved
-automatically: the gate falls back to the labels of the run's event when it cannot read the current
-ones, and those can still send the run to project CI. The next push is decided afresh.
+A run started before `use fork ci` or `use project ci` was last added or removed is approved too,
+so a committer can add `use fork ci` after the PR's first runs were created and before they are
+approved. The gate decides from the labels the PR has when the run starts, never from those of the
+run's event, and fails when it cannot read them.
 
 Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
 approved automatically is also one whose green fork run is trusted, and one that changes CI is both
