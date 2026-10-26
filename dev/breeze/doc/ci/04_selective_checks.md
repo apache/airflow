@@ -673,6 +673,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
 | helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
+| in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
@@ -771,6 +772,16 @@ gated on `runner.environment == 'self-hosted'`:
   the same run, branch and repository (or, for a PR, its base branch). The smaller caches (mount cache, prek, docs inventory) use
   the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save;
   the price is that every RunsOn canary uploads the mount cache from AWS to GitHub.
+
+The `in-memory-runner-type` output is the same decision with a second RunsOn template, used by the
+jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test jobs, the lowest-dependencies
+core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
+[`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
+`/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
+r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
+runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
+back to disk without a PR.
 
 The decision above is not a security boundary. Under the `pull_request` event the code that
 evaluates it is the PR's own: a fork PR runs its own workflow files and breeze sources, and can name

@@ -56,7 +56,9 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE,
     RUNS_ON_AMD_RUNNER_TEMPLATE,
+    RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE,
     RUNS_ON_ARM_RUNNER_TEMPLATE,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
@@ -2319,6 +2321,25 @@ class SelectiveChecks:
             RUNS_ON_ARM_RUNNER_TEMPLATE if self._platform == CI_ARM_PLATFORM else RUNS_ON_AMD_RUNNER_TEMPLATE
         )
         return json.dumps([template.format(run_id=run_id)])
+
+    @cached_property
+    def in_memory_runner_type(self) -> str:
+        """Runner labels like ``runner_type``, with docker on a RAM disk when the run is on RunsOn.
+
+        The repository variable ``USE_IN_MEMORY_DOCKER=false`` keeps docker on disk.
+        """
+        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
+        if (
+            self.runner_type in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
+            or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false"
+        ):
+            return self.runner_type
+        template = (
+            RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE
+            if self._platform == CI_ARM_PLATFORM
+            else RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE
+        )
+        return json.dumps([template.format(run_id=self._github_context_dict["run_id"])])
 
     def _use_runs_on_runners(self) -> bool:
         """Whether this run should use the self-hosted RunsOn runners.
