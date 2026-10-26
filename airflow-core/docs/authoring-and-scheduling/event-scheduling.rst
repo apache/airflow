@@ -34,24 +34,6 @@ message queue, and triggers an asset update when a relevant event occurs.
 The ``watchers`` parameter in the ``Asset`` definition allows you to associate multiple ``AssetWatcher`` instances with an
 asset, enabling it to respond to various event sources.
 
-Publishing partitioned asset events
-------------------------------------
-
-A watcher trigger can set a native partition key when yielding an event::
-
-    from airflow.triggers.base import AssetTriggerEvent
-
-    yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
-
-Airflow stores ``partition_key`` on the asset event for use by partition-aware schedules.
-The payload is still stored in ``extra["payload"]``. A ``partition_key`` inside the payload
-alone does not assign a native partition. Keys must contain a non-whitespace character and
-be at most 250 characters long. Omit the argument to publish an ordinary asset event.
-
-Existing watchers yielding ``TriggerEvent`` continue to publish ordinary asset events.
-``AssetTriggerEvent`` carries asset metadata through the triggerer supervisor, which
-registers the update using the existing asset event and partition scheduling models.
-
 See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
@@ -81,6 +63,21 @@ already compatible with event-driven scheduling, then you just need to change th
 event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
+
+Publishing partitioned asset events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To publish an update for a specific asset partition, yield ``AssetTriggerEvent`` with a ``partition_key``::
+
+    from airflow.triggers.base import AssetTriggerEvent
+
+    yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
+
+Airflow uses this key for partition-aware scheduling. Putting ``partition_key`` inside the payload only adds
+metadata and does not assign a native partition. Ordinary ``TriggerEvent`` instances continue to publish
+unpartitioned events.
+
+See :ref:`asset-partitions` for configuring downstream consumers.
 
 Sharing one poll across sibling triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
