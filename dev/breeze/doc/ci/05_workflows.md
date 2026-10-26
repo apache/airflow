@@ -102,7 +102,7 @@ everything after it, so the run finishes in seconds; see
 
 GitHub holds the runs of a fork PR in `action_required` until someone with write access approves
 them, for the contributors the repository's approval setting covers. The
-`auto-approve-workflow-runs.yml` workflow runs every 30 minutes on `main` and calls
+`auto-approve-workflow-runs.yml` workflow runs every 15 minutes on `main` and calls
 `breeze ci approve-workflow-runs`, which approves the waiting runs of a commit when all of these hold:
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those

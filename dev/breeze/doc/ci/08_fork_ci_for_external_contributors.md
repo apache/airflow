@@ -345,7 +345,7 @@ then the gate job does not run either. A gated pull request would stay in the ma
 queue even though its project CI run only executes the gate, and the reconciler could not delete a
 gated run that never ran.
 
-`breeze ci approve-workflow-runs`, run every 30 minutes by `auto-approve-workflow-runs.yml` (see
+`breeze ci approve-workflow-runs`, run every 15 minutes by `auto-approve-workflow-runs.yml` (see
 [CI workflows](05_workflows.md#approval-of-pull-request-runs)), handles them. For a pull request to
 `main` it calls `fork_ci_gate.decide` with the configuration of its own `main` checkout and the
 pull request's author, association, creation time, head repository and current labels, the inputs
