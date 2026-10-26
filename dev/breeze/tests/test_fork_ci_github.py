@@ -128,7 +128,6 @@ def test_dry_run_does_not_mutate(mock_run):
     client.close(1)
     client.remove_label(1, "fork ci required")
     client.delete_run(1, 7)
-    client.cancel_run(1, 7)
 
     mock_run.assert_not_called()
 
@@ -171,19 +170,3 @@ def test_set_status_context(mock_run, kwargs, context):
     GitHubClient().set_status(1, "abc", "success", "https://x", "desc", **kwargs)
 
     assert json.loads(mock_run.call_args.kwargs["input"])["context"] == context
-
-
-@pytest.mark.parametrize(("force", "action"), [(False, "cancel"), (True, "force-cancel")])
-@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
-def test_cancel_run(mock_run, force, action):
-    mock_run.return_value = _completed()
-
-    GitHubClient().cancel_run(1, 7, force=force)
-
-    assert mock_run.call_args.args[0] == [
-        "gh",
-        "api",
-        "-X",
-        "POST",
-        f"repos/apache/airflow/actions/runs/7/{action}",
-    ]

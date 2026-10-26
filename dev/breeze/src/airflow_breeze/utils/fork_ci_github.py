@@ -172,14 +172,6 @@ class GitHubClient:
             None,
         )
 
-    def cancel_run(self, pr: int, run_id: int, *, force: bool = False) -> None:
-        action = "force-cancel" if force else "cancel"
-        self._mutate(
-            f"#{pr}: {action} workflow run {run_id}",
-            ["api", "-X", "POST", f"repos/{self.repo}/actions/runs/{run_id}/{action}"],
-            None,
-        )
-
     def set_status(
         self,
         pr: int,
