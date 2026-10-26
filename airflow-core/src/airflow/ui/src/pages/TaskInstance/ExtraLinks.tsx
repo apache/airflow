@@ -23,31 +23,24 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { getSafeExternalUrl } from "src/utils/links";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { getLinkTarget, getSafeExternalUrl } from "src/utils/links";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
-};
-
-const getTarget = (url: string) => {
-  try {
-    return new URL(url, globalThis.location.origin).origin === globalThis.location.origin
-      ? "_self"
-      : "_blank";
-  } catch {
-    return "_blank";
-  }
 };
 
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const coordinates = useTaskInstanceCoordinates();
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const tryNumber = tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10);
 
   const { data } = useTaskInstanceServiceGetExtraLinks(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),
@@ -75,7 +68,7 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
             return undefined;
           }
 
-          const target = getTarget(safeUrl);
+          const target = getLinkTarget(safeUrl);
 
           return (
             <Button asChild key={key} variant="surface">

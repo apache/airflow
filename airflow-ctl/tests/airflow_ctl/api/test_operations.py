@@ -69,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     DagRunState,
     DagRunTriggeredByType,
     DagRunType,
+    DagScheduleAssetReference,
     DagStatsCollectionResponse,
     DagStatsResponse,
     DagStatsStateResponse,
@@ -97,9 +98,11 @@ from airflowctl.api.datamodels.generated import (
     ReprocessBehavior,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
+    TaskInletAssetReference,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
+    TaskOutletAssetReference,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -403,6 +406,38 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
+    def test_get_asset_ignores_fields_added_by_newer_servers(self):
+        created_at = datetime.datetime(2024, 12, 31, 23, 59, 59)
+        updated_at = datetime.datetime(2025, 1, 1, 0, 0, 0)
+        expected = self.asset_response.model_copy(
+            update={
+                "scheduled_dags": [
+                    DagScheduleAssetReference(
+                        dag_id=self.dag_id, created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "producing_tasks": [
+                    TaskOutletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "consuming_tasks": [
+                    TaskInletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+            }
+        )
+        asset_json = json.loads(expected.model_dump_json())
+        for field in ("scheduled_dags", "producing_tasks", "consuming_tasks"):
+            asset_json[field][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=asset_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.assets.get(self.asset_id) == expected
+
     def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
@@ -464,6 +499,17 @@ class TestAssetsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
         assert response == asset_event_response
+
+    def test_create_event_ignores_fields_added_by_newer_servers(self):
+        event_json = json.loads(self.asset_event_response.model_dump_json())
+        event_json["created_dagruns"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=event_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
+        assert response == self.asset_event_response
 
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -757,6 +803,23 @@ class TestConfigOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.list()
         assert response == response_config
+
+    def test_get_ignores_fields_added_by_newer_servers(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name=self.section, options=[ConfigOption(key=self.option, value="config")])
+            ]
+        )
+        config_json = response_config.model_dump()
+        config_json["field_from_newer_server"] = "value"
+        config_json["sections"][0]["field_from_newer_server"] = "value"
+        config_json["sections"][0]["options"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=config_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.configs.get(section=self.section, option=self.option) == response_config
 
     def test_get_masked_value(self):
         """Verify that masked values from API are preserved in get() operation."""
@@ -1877,6 +1940,7 @@ class TestTaskInstancesOperations:
         dag_id="dag_id",
         dag_run_id="dag_run_id",
         map_index=-1,
+        in_loop=False,
         run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
         state=TaskInstanceState.SUCCESS,
         try_number=1,
@@ -1982,6 +2046,7 @@ class TestTasksOperations:
         dag_id=dag_id,
         dag_run_id="dag_run_id",
         map_index=-1,
+        in_loop=False,
         run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         try_number=1,
         max_tries=2,

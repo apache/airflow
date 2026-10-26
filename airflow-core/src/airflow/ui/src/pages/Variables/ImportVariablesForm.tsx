@@ -24,13 +24,20 @@ import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
-import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
+import type { BulkActionOnExistence, BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { useImportVariables } from "src/queries/useImportVariables";
+import { isOneOf } from "src/utils";
+
+const isActionOnExistence = isOneOf([
+  "fail",
+  "overwrite",
+  "skip",
+] as const satisfies ReadonlyArray<BulkActionOnExistence>);
 
 type ImportVariablesFormProps = {
   readonly onClose: () => void;
@@ -60,7 +67,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     onSuccessConfirm: onClose,
   });
 
-  const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip">("fail");
+  const [actionIfExists, setActionIfExists] = useState<BulkActionOnExistence>("fail");
   const [isParsing, setIsParsing] = useState(false);
   const [fileContent, setFileContent] = useState<Record<string, unknown> | undefined>(undefined);
 
@@ -166,13 +173,13 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         ) : undefined}
       </FileUpload.Root>
       <RadioCardRoot
-        defaultValue="fail"
         mb={6}
-        onChange={(event) => {
-          const target = event.target as HTMLInputElement;
-
-          setActionIfExists(target.value as "fail" | "overwrite" | "skip");
+        onValueChange={(details) => {
+          if (isActionOnExistence(details.value)) {
+            setActionIfExists(details.value);
+          }
         }}
+        value={actionIfExists}
       >
         <RadioCardLabel fontSize="md" mb={3}>
           {translate("variables.import.conflictResolution")}

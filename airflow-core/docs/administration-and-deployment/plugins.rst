@@ -360,6 +360,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
+        # The server preloads the bundle of a "base" app from a plugin with no team, so it downloads alongside the UI's own scripts.
         "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -396,6 +397,8 @@ definitions in Airflow.
 
 .. seealso:: :doc:`/howto/define-extra-link`
 
+.. _plugin-scoping:
+
 Scoping a view to specific Dags and tasks
 -----------------------------------------
 
@@ -411,26 +414,24 @@ relevant instead of appearing on every Dag:
         "dag.dag_id": ["train_pipeline"],
     }
 
-Keys are **dotted field paths** into the records the page has, not a fixed set of criteria, so
-anything the REST API returns for an entity is addressable — ``state``, ``operator``, ``pool``,
-``queue``, ``try_number``, and so on. Values are matched for equality, and are compared as
-strings, so numeric and boolean fields work without quoting rules of their own
+Keys are **dotted field paths** into the records the page has, so any field the REST API
+returns for an entity is addressable. Use the names the API returns, which are not always the
+Python attribute names: a task instance's run is ``dag_run_id``, not ``run_id``, and computed
+fields such as a Dag's ``is_backfillable`` work like any other. Values are matched for equality
+and compared as strings, so numbers and booleans need no quoting rules of their own
 (``"try_number": ["2"]``, ``"is_paused": ["false"]``).
 
 An **unqualified path is rooted at the entity the destination is about** — on ``dag_run``,
 ``state`` is the run's state; on ``task_instance``, the task instance's. A path may instead
-name a related record as its first segment: ``dag``, ``dag_run``, ``task`` or
+name a related record as its first segment: ``asset``, ``dag``, ``dag_run``, ``task`` or
 ``task_instance``. Traversing a list fans out across it, so ``dag.tags.name`` collects every
 tag name and matches if any of them is listed.
 
-Paths combine like Kubernetes label selectors — **OR within a path, AND across paths**. A Dag
-matching any listed tag satisfies ``dag.tags.name``, and a view configured with both
-``dag.tags.name`` and ``state`` requires both to match.
-
-Crucially, the AND applies **only across paths the current page can evaluate**. A
-``task_instance.*`` path cannot be judged on a Dag-level page, so it is skipped there rather
-than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
-task-level destinations. Which records each destination resolves:
+Paths combine like Kubernetes label selectors — **OR within a path, AND across paths** — but
+the AND applies only across paths the page can evaluate. A ``task_instance.*`` path cannot be
+judged on a Dag-level page, so it is skipped there rather than failing the match, which is what
+lets one block be shared across a plugin's destinations. Which records each destination
+resolves:
 
 .. list-table::
    :header-rows: 1
@@ -450,26 +451,39 @@ task-level destinations. Which records each destination resolves:
    * - ``task_instance``
      - ``task_instance``
      - ``dag``, ``dag_run``, ``task``, ``task_instance``
-   * - ``nav``, ``base``, ``dashboard``, ``asset``
+   * - ``asset``
+     - ``asset``
+     - ``asset``
+   * - ``nav``, ``base``, ``dashboard``
      - —
      - none, so every path is skipped
 
 If none of the configured paths can be evaluated on a given page, the view is shown. On task
 group pages the task-level records are absent, since a group is not a task.
 
-A path is also skipped when the record exists but has no such field. That means a **bad path
-widens the scope rather than narrowing it**, so paths are checked against the API response
-models when plugins load and a path naming no field is logged with a suggested correction.
-The check stops at a field whose contents the models do not describe — the dict behind
-``class_ref``, or a Dag Run's ``conf`` — so a path below one of those is still accepted and
-still widens silently. If a view appears in more places than you expect, run
-``airflow plugins list --verbose`` first, then check the path against the REST API response for
-that entity.
+A path is also skipped when the record exists but has no such field, which on its own would mean
+a **typo widens the scope rather than narrowing it**. So paths are checked against the API
+response models when plugins load, and one that names a field *no* record has is treated as a
+misconfiguration: the view is **not loaded at all**, and the reason is logged as an error with a
+suggested correction.
 
-Segments are the field names **the REST API returns**, which are not always the Python
-attribute names: a task instance's run is ``dag_run_id``, not ``run_id``, and computed fields
-such as a Dag's ``is_backfillable`` are addressable like any other. If a field appears in the
-API response for an entity, it can be named here.
+.. code-block:: text
+
+    Plugin 'acme' has an external view 'Incidents' with an 'applies_to' path that matches no
+    field: 'dag.tags.nme' names no field 'nme' on DagTagResponse (did you mean 'name'?). It
+    could never scope the way it asks to, so the view will not be loaded.
+
+Withholding it is deliberate: the author asked to narrow by something that cannot exist, so the
+view can never appear for the reason they intended, and a view that disappears gets noticed
+while one on every page looks deliberate.
+
+A path naming a field some *other* record has is a different matter — that is the shared-block
+pattern, so it is reported as skipped here and the view loads. Neither check can see past a
+field the models do not describe — the dict behind ``class_ref``, or a Dag Run's ``conf`` — so a
+typo below one of those still widens silently.
+
+If a view appears in more places than you expect, run ``airflow plugins --verbose``, then check
+the path against the REST API response for that entity.
 
 An empty list is different from a missing field: a Dag with no tags has definitively answered
 ``dag.tags.name``, so the view is not shown. A path that stops short of a leaf is likewise a
@@ -487,14 +501,30 @@ unqualified path targets an operator on either page**:
 
     "applies_to": {"operator_name": ["KubernetesPodOperator"]}
 
-``operator_name`` is the display name shown in the UI (an operator's
-``custom_operator_name``). For a plain operator it is the class name, but the two differ for
-decorator-based tasks: a ``@task.bash`` task has the display name ``@task.bash`` and the
-private class name ``_BashDecoratedOperator``, so ``operator_name`` is the one to match on.
+``operator_name`` is the display name the UI shows (an operator's ``custom_operator_name``).
+It equals the class name for a plain operator, but not for a decorated one: a ``@task.bash``
+task is named ``@task.bash`` and classed ``_BashDecoratedOperator``.
 
-If you specifically need the operator *class* name, the two records spell it differently — a
-task instance has ``operator``, while a task carries it through ``class_ref.class_name``.
-Leave both paths **unqualified** so that each page reads its own record:
+It is also the only operator field both records carry. The *class* name is spelled differently
+on each — a task instance has ``operator``, a task has ``class_ref.class_name`` — so targeting
+it takes one view per destination, each scoped on its own record:
+
+.. code-block:: python
+
+    external_views = [
+        {
+            # ... name, href, and a url_route of its own
+            "destination": "task_instance",
+            "applies_to": {"operator": ["KubernetesPodOperator"]},
+        },
+        {
+            # ...
+            "destination": "task",
+            "applies_to": {"class_ref.class_name": ["KubernetesPodOperator"]},
+        },
+    ]
+
+One block naming both also works, since whichever field this page's record lacks is skipped:
 
 .. code-block:: python
 
@@ -505,17 +535,14 @@ Leave both paths **unqualified** so that each page reads its own record:
         "class_ref.class_name": ["KubernetesPodOperator"],
     }
 
-.. warning::
-    Do not write these as ``task_instance.operator`` and ``task.class_ref.class_name``. A task
-    instance page resolves **both** records, so both paths would be evaluated and AND-ed — and
-    the task record always carries the Dag's *current* definition. An instance that ran under
-    ``KubernetesPodOperator`` would stop matching the moment the task was changed to a
-    different operator, hiding the view on historical runs.
+Qualifying them — ``task_instance.operator`` and ``task.class_ref.class_name`` — works too, but
+says the same thing twice: a task instance page resolves both records, so both are evaluated and
+AND-ed. The task record is read at the version that instance ran, so the two agree; naming one
+of them is enough.
 
-This is the general rule where records overlap: **prefer an unqualified path**, which always
-reads the entity the page is about. Qualify a path only when you genuinely mean the related
-record — ``dag.tags.name`` from a task instance, say — and not as a way of naming the same
-concept twice.
+The general rule where records overlap: **prefer an unqualified path**, which always reads the
+entity the page is about, and qualify one only when you genuinely mean a different record —
+``dag.tags.name`` from a task instance, say.
 
 A malformed ``applies_to`` — one that is not a dictionary, has a non-string or empty path, or
 gives a path something other than a list of strings — is reported as a warning when plugins
@@ -530,7 +557,7 @@ server log, run:
 
 .. code-block:: bash
 
-    airflow plugins list --verbose
+    airflow plugins --verbose
 
 Each invocation is a fresh process, so every warning for every plugin is reported. The
 ``--verbose`` flag is required: without it the command suppresses log output.
@@ -540,6 +567,53 @@ Each invocation is a fresh process, so every warning for every plugin is reporte
     whether the UI offers the tab, not whether the underlying view can be reached — a user
     who knows the ``url_route`` can still navigate to it directly. Use access control to
     restrict who may view a plugin's data.
+
+.. _plugin-ui-actions:
+
+UI actions
+----------
+
+``ui_actions`` adds a button beside the actions Airflow already draws for an entity, rather
+than a whole page. See :doc:`/howto/custom-action-plugin` for the full guide; the fields are:
+
+.. code-block:: python
+
+    link_action = {
+        # Required. The button's tooltip and its accessible label, so write it as a label.
+        # A React action is also registered on the page under this name, which must therefore
+        # be unique across every React app and React action in the deployment.
+        "name": "Open runbook",
+        # Required. "link" opens a URL; "react" mounts a component of your own.
+        "action_type": "link",
+        # Required. Which entity the button belongs to, and so which surfaces it appears on:
+        # "dag", "dag_run" or "task_instance".
+        "destination": "dag",
+        # Required for "link". Templated with the entity's context, the same
+        # {DAG_ID}-style tokens an external view's href accepts.
+        "href": "https://runbooks.example.com/{DAG_ID}",
+        # Optional icon, url to an svg file. Defaults to a generic action icon.
+        "icon": "https://example.com/icon.svg",
+        # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon"
+        # will be used for both light and dark themes.
+        "icon_dark_mode": "https://example.com/dark_icon.svg",
+        # Optional scoping, the same block external views and React apps take.
+        # See "Scoping a view to specific Dags and tasks" above.
+        "applies_to": {"dag.tags.name": ["production"]},
+    }
+
+    react_action = {
+        "name": "Inspect payload",
+        "action_type": "react",
+        "destination": "task_instance",
+        # Required for "react". Each React action needs its own bundle: the shared global is
+        # cleared before each import, and a browser will not re-execute a module it already has.
+        "bundle_url": "https://example.com/static/js/inspect_payload.js",
+    }
+
+An action naming a field no record has is withheld rather than shown unscoped, and an action
+Airflow cannot render is skipped with a warning while the plugin's other contributions load.
+
+.. _plugin-react-props:
 
 React app context props
 -----------------------

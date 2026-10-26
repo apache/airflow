@@ -54,6 +54,7 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("unit", "cd java-sdk && ./gradlew test", "host"),
         ("docs", "breeze build-docs --sdk-docs-only --sdk=java", "breeze"),
     ),
+    "run_ts_sdk_tests": (("unit", "cd ts-sdk && pnpm install --frozen-lockfile && pnpm test", "host"),),
     "run_ts_sdk_docs": (("docs", "breeze build-docs --sdk-docs-only --sdk=typescript", "breeze"),),
     "run_agent_framework_tests": (
         (
@@ -64,6 +65,11 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         (
             "unit",
             'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh google-adk"',
+            "breeze",
+        ),
+        (
+            "unit",
+            'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh openai-agents"',
             "breeze",
         ),
     ),
@@ -92,6 +98,8 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
         "run_openlineage_e2e_tests",
         "run_openlineage_e2e_compat_tests",
         "run_ts_sdk_e2e_tests",
+        "run_generic_prod_image_tests",
+        "run_generic_basic_tests",
     }
 )
 

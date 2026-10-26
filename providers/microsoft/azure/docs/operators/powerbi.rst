@@ -40,6 +40,16 @@ To trigger a refresh for the specified dataset from the specified workspace, use
     :start-after: [START howto_operator_powerbi_refresh_async]
     :end-before: [END howto_operator_powerbi_refresh_async]
 
+Durable execution
+~~~~~~~~~~~~~~~~~
+
+The operator is :doc:`durable <apache-airflow:core-concepts/resumable-tasks>` by default: it starts the
+refresh from the worker and keeps its id in the
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>` before it defers. A retry reconnects
+to a refresh that is still in progress and does not start a new one once it has completed. A refresh that
+failed, or that is no longer in the dataset's refresh history, is started again. Set ``durable=False`` to
+start a new refresh on every try. Durable execution requires Airflow 3.3 or newer.
+
 .. _howto/operator:PowerBIDatasetListOperator:
 
 PowerBIDatasetListOperator

@@ -38,12 +38,12 @@ from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
     TIRunContext,
 )
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -67,12 +67,14 @@ from airflow.dag_processing.processor import (
     _parse_file,
     _parse_file_entrypoint,
     _pre_import_airflow_modules,
+    _serialize_dags,
 )
 from airflow.models import DagRun
 from airflow.models.dagwarning import DagWarning
-from airflow.sdk import DAG, BaseOperator
+from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -95,6 +97,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -567,6 +570,24 @@ def disable_capturing():
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
 
 
+def test_serialize_dags_reports_loop_dag_with_legacy_xcom_backend_as_import_error(monkeypatch):
+    @task_group
+    def body():
+        BaseOperator(task_id="work")
+
+    with DAG("loop_dag", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+    dag.relative_fileloc = "loop_dag.py"
+    bag = MagicMock(spec=DagBag)
+    bag.dags = {dag.dag_id: dag}
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", SerializeValueOnlyXCom)
+
+    serialized_dags, import_errors = _serialize_dags(bag, structlog.get_logger())
+
+    assert serialized_dags == []
+    assert "uses a loop" in import_errors["loop_dag.py"]
+
+
 @pytest.mark.usefixtures("testing_dag_bundle")
 @pytest.mark.usefixtures("disable_capturing")
 def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
@@ -791,6 +812,41 @@ def test_parse_file_reports_definitions_source_codes_and_dag_warnings(mock_dag_w
     assert result.dag_source_codes == {"member": DagSourceCode(source_code=source, language="python")}
     assert result.warnings == [
         {"dag_id": "member", "warning_type": "test:deprecated_field", "message": "Deprecated field"}
+    ]
+
+
+TASK_GROUP_CYCLE_DAGS = """
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+
+for dag_id in ("cyclic", "acyclic", "unserializable"):
+    with DAG(dag_id, schedule=None):
+        with TaskGroup("group") as group:
+            a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+        a >> BaseOperator(task_id="bridge", task_group=group if dag_id == "acyclic" else None) >> b
+"""
+
+
+def test_parse_file_task_group_cycle_warning(tmp_path):
+    dag_file = tmp_path / "task_group_cycle_dags.py"
+    dag_file.write_text(TASK_GROUP_CYCLE_DAGS)
+    to_dict = DagSerialization.to_dict
+
+    def fail_to_serialize_unserializable(dag):
+        if dag.dag_id == "unserializable":
+            raise ValueError("serialization failed")
+        return to_dict(dag)
+
+    with patch.object(
+        DagSerialization, "to_dict", autospec=True, side_effect=fail_to_serialize_unserializable
+    ):
+        result = _parse_file(
+            DagFileParseRequest(file=str(dag_file), bundle_path=tmp_path, bundle_name="testing"),
+            log=structlog.get_logger(),
+        )
+
+    assert [(warning["dag_id"], warning["warning_type"]) for warning in result.warnings] == [
+        ("cyclic", "task group cycle")
     ]
 
 
@@ -2315,7 +2371,7 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
-            "SetExecutionTimeout",
+            "StartExecutionTimeout",
             # AIP-103 task/asset store — Dag processor has no task execution context.
             "GetTaskStateStore",
             "SetTaskStateStore",

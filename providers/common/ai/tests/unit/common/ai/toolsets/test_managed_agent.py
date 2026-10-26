@@ -233,8 +233,7 @@ class TestCallTool:
     async def test_logs_the_agent_it_consulted(self, caplog):
         with caplog.at_level("INFO"):
             await call(FakeManagedAgentToolset())
-        assert "specialist-1" in caplog.text
-        assert "fake.cloud" in caplog.text
+        assert "Consulted managed agent specialist-1 on fake.cloud" in caplog.messages
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)
@@ -285,7 +284,7 @@ class TestManagedAgentToolset:
     def test_something_that_is_not_a_client_is_refused_at_construction(self):
         # Passing the hook instead of hook.agent(...) is the likely mistake; it must not wait for the first call.
         with pytest.raises(TypeError, match="Pass hook.agent"):
-            ManagedAgentToolset(object(), tool_name="ask")  # type: ignore[arg-type]
+            ManagedAgentToolset(object(), tool_name="ask")
 
     @pytest.mark.asyncio
     async def test_vendor_options_travel_on_every_request(self):
@@ -313,8 +312,10 @@ class TestManagedAgentToolset:
         client = FakeClient(ref_raises=RuntimeError("Connection 'standby' not found"))
         with caplog.at_level("WARNING"):
             assert await call(ManagedAgentToolset(client, tool_name="ask"), "q") == "the answer: q"
-        assert "identity could not be resolved" in caplog.text
-        assert "Connection 'standby' not found" in caplog.text
+        [record] = [
+            r for r in caplog.records if r.getMessage() == "Managed agent identity could not be resolved"
+        ]
+        assert str(record.exc_info[1]) == "Connection 'standby' not found"
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)

@@ -75,21 +75,22 @@ def example_llm_operator_structured():
 example_llm_operator_structured()
 
 
-# [START howto_operator_llm_agent_params]
+# [START howto_operator_llm_model_settings]
 @dag(tags=["example"])
-def example_llm_operator_agent_params():
+def example_llm_operator_model_settings():
     LLMOperator(
         task_id="creative_writing",
         prompt="Write a haiku about data pipelines.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a creative writer.",
-        agent_params={"model_settings": {"temperature": 0.9}, "retries": 3},
+        model_settings={"temperature": 0.9},
+        output_retries=3,
     )
 
 
-# [END howto_operator_llm_agent_params]
+# [END howto_operator_llm_model_settings]
 
-example_llm_operator_agent_params()
+example_llm_operator_model_settings()
 
 
 # [START howto_decorator_llm]

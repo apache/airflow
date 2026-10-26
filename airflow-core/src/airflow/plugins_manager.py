@@ -39,6 +39,8 @@ from airflow._shared.plugins_manager import (
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
     FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
+    PluginActionDestinationLiteral as PluginActionDestinationLiteral,
+    PluginActionDict as PluginActionDict,
     PluginsDirectorySource as PluginsDirectorySource,
     ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
@@ -174,11 +176,12 @@ _APPLIES_TO_ROOTS: dict[str, frozenset[str]] = {
     "nav": frozenset(),
     "base": frozenset(),
     "dashboard": frozenset(),
-    "asset": frozenset(),
+    "asset": frozenset({"asset"}),
 }
 
 # Which record an unqualified path is rooted at -- the entity the destination is about.
 _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
+    "asset": "asset",
     "dag": "dag",
     "dag_overview": "dag",
     "dag_run": "dag_run",
@@ -187,7 +190,7 @@ _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
     "task_instance": "task_instance",
 }
 
-_APPLIES_TO_ROOT_NAMES = frozenset({"dag", "dag_run", "task", "task_instance"})
+_APPLIES_TO_ROOT_NAMES = frozenset({"asset", "dag", "dag_run", "task", "task_instance"})
 
 
 def _applies_to_path_root(path: str, destination: str) -> str | None:
@@ -220,12 +223,14 @@ def _applies_to_root_models() -> dict[str, Any]:
     These are the models the UI actually fetches for the ``applies_to`` context -- keep them in
     step with ``AppliesToContext`` in ``src/utils/pluginAppliesTo.ts``.
     """
+    from airflow.api_fastapi.core_api.datamodels.assets import AssetResponse
     from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
     from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
     from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
     from airflow.api_fastapi.core_api.datamodels.tasks import TaskResponse
 
     return {
+        "asset": AssetResponse,
         "dag": DAGResponse,
         "dag_run": DAGRunResponse,
         "task": TaskResponse,
@@ -334,21 +339,105 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
+def _is_applies_to_path_known_elsewhere(path: str) -> bool:
     """
-    Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
+    Whether an unqualified ``path`` names a real field on some record other than this one.
 
-    A malformed block is removed so the view still loads unscoped, matching the default for
-    a view that omits ``applies_to`` entirely. Criteria the destination cannot evaluate are
-    only warned about — they are skipped at match time by design, so that one block can be
-    shared across a plugin's Dag- and task-level destinations.
+    ``class_ref.class_name`` means nothing on a task instance but everything on a task, and an
+    author targeting both pages from one block writes exactly that. Such a path is skipped at
+    match time by design, so it must not be reported as a misspelling.
+
+    Only asked about unqualified paths: one that names its record explicitly has no other
+    reading, so a bad field there is simply wrong.
+    """
+    return any(_describe_applies_to_path_error(path, root) is None for root in _applies_to_root_models())
+
+
+_ACTION_TYPES = frozenset({"link", "react"})
+_ACTION_DESTINATIONS = frozenset({"dag", "dag_run", "task_instance"})
+# The field each action kind cannot render without.
+_ACTION_REQUIRED_TARGET = {"link": "href", "react": "bundle_url"}
+# Accepted alongside the required ones. Checked explicitly so a key the UI will not read --
+# a `url_route` copied from a `react_apps` entry, say -- is reported when the plugin loads
+# rather than silently ignored.
+_ACTION_OPTIONAL_KEYS = frozenset({"icon", "icon_dark_mode", "applies_to"})
+
+
+def _describe_ui_action_error(action: Any) -> str | None:
+    """
+    Return a description of why ``action`` cannot be rendered, or ``None`` if it is usable.
+
+    Kept as explicit checks rather than run through the response model: the loader should not
+    depend on the API's serialization schema, and the strictness wanted here (rejecting unknown
+    keys) is not what the published schema should promise.
+
+    Every membership test is guarded by a type check first. ``{"destination": ["dag"]}`` is the
+    kind of thing an author writes, and a bare ``in`` against a set raises ``TypeError`` on an
+    unhashable value -- out of ``_get_ui_plugins``, which would make ``GET /plugins`` a 500 for
+    every plugin rather than skipping the one bad action.
+    """
+    if not isinstance(action, dict):
+        return f"expected a dictionary, got {type(action).__name__}"
+    name = action.get("name")
+    if not isinstance(name, str) or not name:
+        return f"'name' must be a non-empty string, got {name!r}"
+    action_type = action.get("action_type")
+    if not isinstance(action_type, str) or action_type not in _ACTION_TYPES:
+        return f"'action_type' must be one of {sorted(_ACTION_TYPES)}, got {action_type!r}"
+    destination = action.get("destination")
+    if not isinstance(destination, str) or destination not in _ACTION_DESTINATIONS:
+        return f"'destination' must be one of {sorted(_ACTION_DESTINATIONS)}, got {destination!r}"
+    target = _ACTION_REQUIRED_TARGET[action_type]
+    value = action.get(target)
+    if not isinstance(value, str) or not value:
+        return f"'{target}' must be a non-empty string for a '{action_type}' action, got {value!r}"
+    if action_type == "react":
+        # The bundle registers its component on `globalThis` under this name, so a name that
+        # cannot be a usable key is never going to resolve. `AirflowPlugin` is the shared slot
+        # `loadPlugin` clears before every import, so an action claiming it would be taken by
+        # whichever bundle loaded last.
+        if not name.strip():
+            return f"'name' must not be blank for a 'react' action, got {name!r}"
+        if name == "AirflowPlugin":
+            return "'name' must not be 'AirflowPlugin' for a 'react' action: that is the shared registration slot"
+    for icon_key in ("icon", "icon_dark_mode"):
+        icon = action.get(icon_key)
+        if icon is not None and not isinstance(icon, str):
+            return f"'{icon_key}' must be a string or absent, got {icon!r}"
+    known = {"name", "action_type", "destination", target} | _ACTION_OPTIONAL_KEYS
+    if unknown := sorted(set(action) - known):
+        return f"unknown {'keys' if len(unknown) > 1 else 'key'} {unknown}"
+    return None
+
+
+def _validate_applies_to(
+    plugin_name: str | None, view: ExternalViewDict | ReactAppDict | PluginActionDict, kind: str
+) -> bool:
+    """
+    Check a UI plugin's scoping, returning whether the view should be loaded at all.
+
+    Three failures, wanting three different things:
+
+    * **Malformed** block -- not a dictionary, a non-string path, a value that is not a list of
+      strings. Dropped, and the view loads unscoped, as it would without ``applies_to`` at all.
+      Nothing of the author's intent survives to act on.
+    * **Unevaluable** path -- its root record is one this destination does not have, or it names
+      a field only a sibling record has. Warned about and kept: both are skipped at match time
+      by design, which is what lets one block be shared across a plugin's destinations.
+    * **A path naming a field no record has.** The author asked to narrow by something that
+      cannot exist, so the view can never appear for the reason they intended. Returning
+      ``False`` withholds it rather than letting the browser skip the path and show it
+      everywhere. A view that disappears gets noticed; one on every page looks deliberate.
+
+    The view gets a new dict rather than an edited one, because a plugin may pass the same
+    ``applies_to`` object to several views and it is not this function's to rewrite.
     """
     if "applies_to" not in view:
-        return
+        return True
 
     applies_to = view["applies_to"]
     if applies_to is None:
-        return
+        return True
 
     if error := _describe_applies_to_error(applies_to):
         log.warning(
@@ -359,20 +448,23 @@ def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | React
             error,
         )
         del view["applies_to"]
-        return
+        return True
 
     # A null value means "no values configured", which the matcher already ignores the same way
-    # it ignores an empty list. Leaving it in place would fail `PluginAppliesToResponse`
+    # it ignores an empty list. Carrying it through would fail `PluginAppliesToResponse`
     # serialization and drop the whole plugin -- including its other, valid views -- from the
-    # plugins API. Dropping the path keeps the rest of the block working.
-    for path in [path for path, values in applies_to.items() if values is None]:
-        del applies_to[path]
+    # plugins API.
+    #
+    # The view gets a new dict rather than an edited one, because a plugin may pass the same
+    # `applies_to` object to several views and it is not this function's to rewrite.
+    applies_to = {path: list(values) for path, values in applies_to.items() if values is not None}
+    view["applies_to"] = applies_to
 
     destination = view.get("destination", "nav")
     if destination not in _APPLIES_TO_ROOTS:
         # An unrecognised destination already fails serialization; warning here too would
         # only add noise pointing at the wrong problem.
-        return
+        return True
 
     available = _APPLIES_TO_ROOTS[destination]
     unevaluable = sorted(
@@ -398,16 +490,35 @@ def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | React
         root = _applies_to_path_root(path, destination)
         if not values or root is None or root not in available:
             continue
-        if error := _describe_applies_to_path_error(path, root):
+        error = _describe_applies_to_path_error(path, root)
+        if error is None:
+            continue
+        head, _, rest = path.partition(".")
+        if not (head in _APPLIES_TO_ROOT_NAMES and rest) and _is_applies_to_path_known_elsewhere(path):
+            # A real field, just not on this destination's record. Saying the scope widened
+            # would be untrue: the block's other paths are what scope this destination.
             log.warning(
-                "Plugin '%s' has %s '%s' with an 'applies_to' path that matches no field: %s. "
-                "That path will be ignored, so the %s will appear in more places than intended.",
+                "Plugin '%s' has %s '%s' with an 'applies_to' path '%s' that no %s has. It is "
+                "skipped here; it only scopes the destinations whose record does have it.",
                 plugin_name,
                 kind,
                 view.get("name"),
-                error,
-                kind.split()[-1],
+                path,
+                root,
             )
+            continue
+        log.error(
+            "Plugin '%s' has %s '%s' with an 'applies_to' path that matches no field: %s. "
+            "It could never scope the way it asks to, so the %s will not be loaded.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            error,
+            kind.split()[-1],
+        )
+        return False
+
+    return True
 
 
 @cache
@@ -416,12 +527,26 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
+    # A React bundle registers itself under its `name`, so a React action cannot share one with
+    # a React App or with another React action -- the second to load would win the global.
+    react_component_owners: dict[str, str | None] = {}
+
+    plugins = _get_plugins()[0]
+
+    # Every React App name up front, so an action loses the name whichever plugin order the two
+    # arrive in. Collected before the main pass rather than during it, because a React App that
+    # comes later would otherwise find the name already taken and leave both loaded.
+    for plugin in plugins:
+        for react_app in plugin.react_apps:
+            if isinstance(react_app, dict) and isinstance(react_app.get("name"), str):
+                react_component_owners.setdefault(react_app["name"], plugin.name)
 
     external_views: list[ExternalViewDict] = []
     react_apps: list[ReactAppDict] = []
-    for plugin in _get_plugins()[0]:
+    for plugin in plugins:
         external_views_to_remove: list[ExternalViewDict] = []
         react_apps_to_remove: list[ReactAppDict] = []
+        ui_actions_to_remove: list[PluginActionDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -430,7 +555,9 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
-            _validate_applies_to(plugin.name, external_view, "an external view")
+            if not _validate_applies_to(plugin.name, external_view, "an external view"):
+                external_views_to_remove.append(external_view)
+                continue
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -455,7 +582,9 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
                 )
                 react_apps_to_remove.append(react_app)
                 continue
-            _validate_applies_to(plugin.name, react_app, "a React App")
+            if not _validate_applies_to(plugin.name, react_app, "a React App"):
+                react_apps_to_remove.append(react_app)
+                continue
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
@@ -472,10 +601,39 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
+        for ui_action in plugin.ui_actions:
+            if error := _describe_ui_action_error(ui_action):
+                log.warning(
+                    "Plugin '%s' has a UI action that will not be loaded: %s.",
+                    plugin.name,
+                    error,
+                )
+                ui_actions_to_remove.append(ui_action)
+                continue
+            if not _validate_applies_to(plugin.name, ui_action, "a UI action"):
+                ui_actions_to_remove.append(ui_action)
+                continue
+            if ui_action["action_type"] == "react":
+                name = ui_action["name"]
+                owner = react_component_owners.get(name)
+                if owner is not None:
+                    log.warning(
+                        "Plugin '%s' has a React UI action named '%s' that conflicts with another "
+                        "React component from plugin '%s'. The action will not be loaded.",
+                        plugin.name,
+                        name,
+                        owner,
+                    )
+                    ui_actions_to_remove.append(ui_action)
+                    continue
+                react_component_owners[name] = plugin.name
+
         for external_view in external_views_to_remove:
             plugin.external_views.remove(external_view)
         for react_app in react_apps_to_remove:
             plugin.react_apps.remove(react_app)
+        for ui_action in ui_actions_to_remove:
+            plugin.ui_actions.remove(ui_action)
     return external_views, react_apps
 
 
@@ -820,6 +978,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             "fastapi_root_middlewares",
             "external_views",
             "react_apps",
+            "ui_actions",
             "menu_links",
             "appbuilder_views",
             "appbuilder_menu_items",

@@ -16,10 +16,11 @@
 // under the License.
 
 // Command go_example is the Go half of the KubernetesExecutor lang-SDK system
-// test bundle. It registers the Go tasks of the shared lang_sdk_combined Dag
-// (the Java half lives in ../java_example, the Python stub Dag in ../dags). The
-// coordinator locates this binary by dag_id, so only the Go tasks are registered
-// here; the Java tasks of the same dag_id live in the Java jar.
+// test bundle. It registers the Go tasks of the shared lang_sdk_mixed_language Dag
+// (the Java half lives in ../java_example, the TypeScript half in ../ts_example, the
+// Python stub Dag in ../dags). The coordinator locates this binary by dag_id, so only
+// the Go tasks are registered here; the Java and TypeScript tasks of the same dag_id
+// live in their own bundles.
 package main
 
 import (
@@ -30,17 +31,17 @@ import (
 	"github.com/apache/airflow/go-sdk/airflow"
 )
 
-// Must match the dag_id of the Python stub Dag and the Java bundle.
-const combinedDagID = "lang_sdk_combined"
+// Must match the dag_id of the Python stub Dag and the Java/TypeScript bundles.
+const mixedLanguageDagID = "lang_sdk_mixed_language"
 
 func main() {
 	bundle := airflow.Bundle()
 
-	// The go_ prefix keeps the Go tasks apart from the Java tasks that share
-	// this dag_id in the Python stub.
+	// The go_ prefix keeps the Go tasks apart from the Java/TypeScript tasks that
+	// share this dag_id in the Python stub.
 	bundle.Register(
-		airflow.TaskHandler(combinedDagID, "go_extract", goExtract),
-		airflow.TaskHandler(combinedDagID, "go_transform", goTransform),
+		airflow.TaskHandler(mixedLanguageDagID, "go_extract", goExtract),
+		airflow.TaskHandler(mixedLanguageDagID, "go_transform", goTransform),
 	)
 
 	if err := bundle.Serve(); err != nil {

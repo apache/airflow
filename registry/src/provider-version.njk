@@ -441,6 +441,9 @@ eleventyComputed:
           <input id="module-search" type="text" placeholder="Search modules..." aria-label="Search modules">
         </div>
       </div>
+      {% if durableCount > 0 %}
+      <p class="all-durable"><a href="{{ '/durable/' | url }}">Durable and deferrable operators across all providers <span aria-hidden="true">→</span></a></p>
+      {% endif %}
 
       <div class="grid">
         {% for module in providerModules %}

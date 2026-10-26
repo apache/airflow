@@ -1576,7 +1576,7 @@ a pytest CLI argument.
 
 .. code-block:: bash
 
-    pytest airflow-core/tests/unit/core/ --no-db-cleanup
+    pytest airflow-core/tests/unit/core/ --keep-env-variables
 
 This parameter is also available in Breeze.
 
