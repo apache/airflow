@@ -118,6 +118,13 @@ def _has_json_body(response: httpx.Response) -> bool:
     return media_type == "application/json" or media_type.endswith("+json")
 
 
+def _parse_json_or_str(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except (ValueError, TypeError):
+        return value
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -359,10 +366,7 @@ class AssetsOperations(BaseOperations):
 
     def set_state_store(self, asset_id: str, key: str, value: str) -> str | ServerResponseError:
         """Set an asset state store value. Creates or overwrites the key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
         self.client.put(
             f"assets/{asset_id}/state-store/{key}",
             json=AssetStateStoreBody(value=parsed_value).model_dump(mode="json"),
@@ -807,10 +811,7 @@ class TaskInstancesOperations(BaseOperations):
         map_index: int | None = None,
     ) -> str | ServerResponseError:
         """Set a task state store value. Creates or overwrites the key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
         self.client.put(
             f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
             json=TaskStateStoreBody(value=parsed_value).model_dump(mode="json"),
@@ -828,10 +829,7 @@ class TaskInstancesOperations(BaseOperations):
         map_index: int | None = None,
     ) -> str | ServerResponseError:
         """Update the value of an existing task state store key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
         self.client.patch(
             f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
             json=TaskStateStorePatchBody(value=parsed_value).model_dump(mode="json"),
@@ -976,10 +974,7 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Add an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"key": key, "value": parsed_value}
         if map_index is not None:
@@ -1001,10 +996,7 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Edit an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"value": parsed_value}
         if map_index is not None:

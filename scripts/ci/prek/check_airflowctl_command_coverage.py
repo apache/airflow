@@ -112,7 +112,7 @@ def main():
     missing = []
     for group, subcommands in sorted(available.items()):
         for subcommand in sorted(subcommands):
-            subgroup = next((sg for sg in SUBGROUPS.get(group, ()) if subcommand.endswith(sg)), None)
+            subgroup = next((sg for sg in SUBGROUPS.get(group, ()) if subcommand.endswith(f"-{sg}")), None)
             cmd = (
                 f"{group} {subgroup} {subcommand.removesuffix(f'-{subgroup}')}"
                 if subgroup is not None
