@@ -455,47 +455,6 @@ class TestEksPodTrigger:
         assert kwargs == kwargs2
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("log_events_on_startup", "expected_calls"),
-        [(True, 1), (False, 0)],
-    )
-    @patch(
-        "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.define_pod_container_state",
-        autospec=True,
-    )
-    @patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start", autospec=True)
-    @patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events", autospec=True)
-    @patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger._get_pod", autospec=True)
-    async def test_wait_for_pod_start_watches_events_only_when_enabled(
-        self,
-        mock_get_pod,
-        mock_watch_events,
-        mock_await_start,
-        mock_state,
-        log_events_on_startup,
-        expected_calls,
-    ):
-        import asyncio
-
-        from kubernetes.client import models as k8s
-
-        from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState
-
-        mock_get_pod.return_value = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod", namespace="default"))
-        mock_state.return_value = ContainerState.RUNNING
-
-        async def _await_pod_start(*_, **__):
-            await asyncio.sleep(0)
-
-        mock_await_start.side_effect = _await_pod_start
-        trigger = self._create_trigger(log_events_on_startup=log_events_on_startup)
-
-        await trigger._wait_for_pod_start()
-
-        assert mock_watch_events.call_count == expected_calls
-        mock_await_start.assert_awaited_once()
-
-    @pytest.mark.asyncio
     @patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.run")
     @patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")

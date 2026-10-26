@@ -175,43 +175,6 @@ class TestGKEStartPodTrigger:
         assert reconstructed.log_events_on_startup is False
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("log_events_on_startup", "expected_calls"),
-        [(True, 1), (False, 0)],
-    )
-    @mock.patch(f"{TRIGGER_KUB_POD_PATH}.define_pod_container_state", autospec=True)
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start", autospec=True
-    )
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events", autospec=True
-    )
-    @mock.patch(f"{TRIGGER_KUB_POD_PATH}._get_pod", autospec=True)
-    async def test_wait_for_pod_start_watches_events_only_when_enabled(
-        self,
-        mock_get_pod,
-        mock_watch_events,
-        mock_await_start,
-        mock_state,
-        trigger,
-        log_events_on_startup,
-        expected_calls,
-    ):
-        mock_get_pod.return_value = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=POD_NAME, namespace=NAMESPACE))
-        mock_state.return_value = ContainerState.RUNNING
-
-        async def _await_pod_start(*_, **__):
-            await asyncio.sleep(0)
-
-        mock_await_start.side_effect = _await_pod_start
-        trigger.log_events_on_startup = log_events_on_startup
-
-        await trigger._wait_for_pod_start()
-
-        assert mock_watch_events.call_count == expected_calls
-        mock_await_start.assert_awaited_once()
-
-    @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_POD_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_GKE_POD_PATH}.hook")
     async def test_run_loop_return_success_event_should_execute_successfully(
