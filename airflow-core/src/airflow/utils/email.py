@@ -44,4 +44,12 @@ _MOVED_TO_PROVIDER = {
 # Keeps "from airflow.utils.email import *" importing the deprecated names.
 __all__ = list(_MOVED_TO_PROVIDER)
 
-add_deprecated_classes({__name__: _MOVED_TO_PROVIDER}, package=__name__)
+add_deprecated_classes(
+    {__name__: _MOVED_TO_PROVIDER},
+    package=__name__,
+    extra_message=(
+        "The provider looks up the SMTP Connection with BaseHook.get_connection and reads settings through "
+        "the Task SDK configuration, so values changed at runtime with airflow.configuration.conf.set() are "
+        "not seen"
+    ),
+)

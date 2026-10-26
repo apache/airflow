@@ -40,7 +40,10 @@ example ``{{ti.log_url}}``.
 .. note::
 
     The functions in ``airflow.utils.email`` are deprecated and now live in
-    ``airflow.providers.smtp.utils.emailer``. The default ``email_backend`` value above is unchanged.
+    ``airflow.providers.smtp.utils.emailer``. Only the Python imports moved: keep ``email_backend`` set to
+    ``airflow.utils.email.send_email_smtp``. Airflow treats that value as "send with ``SmtpNotifier``",
+    which reads all SMTP settings from the Connection. Any other value, including the provider path, calls
+    that function instead, and the SMTP provider's function reads the server settings from ``[smtp]``.
 
 To send email through another service, set ``email_backend`` to a backend from another provider; see
 :doc:`apache-airflow-providers:core-extensions/email-backends`.

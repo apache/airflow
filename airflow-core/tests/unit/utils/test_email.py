@@ -37,8 +37,12 @@ DEPRECATED_NAMES = [
 
 @pytest.mark.parametrize("name", DEPRECATED_NAMES)
 def test_deprecated_names_resolve_to_provider(name):
-    with pytest.warns(DeprecatedImportWarning, match=f"airflow.providers.smtp.utils.emailer.{name}"):
+    with pytest.warns(
+        DeprecatedImportWarning, match=f"airflow.providers.smtp.utils.emailer.{name}"
+    ) as record:
         assert getattr(email, name) is getattr(emailer, name)
+
+    assert "BaseHook.get_connection" in str(record[0].message)
 
 
 def test_star_import_exposes_deprecated_names():
