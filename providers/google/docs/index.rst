@@ -243,33 +243,33 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-google[apache.beam]
 
 
-====================  =====================================================
+====================  ====================================================================================================
 Extra                 Dependencies
-====================  =====================================================
-``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
+====================  ====================================================================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2; python_version != "3.15"``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.25.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
 ``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
 ``amazon``            ``apache-airflow-providers-amazon>=2.6.0``
-``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
-``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
+``apache.cassandra``  ``apache-airflow-providers-apache-cassandra; python_version != "3.14" and python_version != "3.15"``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0; python_version != "3.15"``
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
-``mongo``             ``apache-airflow-providers-mongo``
+``mongo``             ``apache-airflow-providers-mongo; python_version != "3.15"``
 ``mysql``             ``apache-airflow-providers-mysql``
 ``openlineage``       ``apache-airflow-providers-openlineage``
 ``postgres``          ``apache-airflow-providers-postgres``
-``presto``            ``apache-airflow-providers-presto``
-``salesforce``        ``apache-airflow-providers-salesforce``
+``presto``            ``apache-airflow-providers-presto; python_version != "3.15"``
+``salesforce``        ``apache-airflow-providers-salesforce; python_version != "3.15"``
 ``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
-``trino``             ``apache-airflow-providers-trino``
+``trino``             ``apache-airflow-providers-trino; python_version != "3.15"``
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
-``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
+``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0; python_version != "3.15"``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  =====================================================
+====================  ====================================================================================================
 
 Downloading official packages
 -----------------------------

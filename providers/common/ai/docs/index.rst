@@ -233,7 +233,7 @@ Extra            Dependencies
 ``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.36.0``
-``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
+``modal``        ``apache-airflow-providers-modal; python_version != "3.15"``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
 ``boat``         ``boat-sdk>=1.9.3``
 ``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``

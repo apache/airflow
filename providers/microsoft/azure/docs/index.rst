@@ -181,16 +181,16 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-====================  ====================================================
+====================  =============================================================
 Extra                 Dependencies
-====================  ====================================================
+====================  =============================================================
 ``amazon``            ``apache-airflow-providers-amazon``
 ``oracle``            ``apache-airflow-providers-oracle``
 ``sftp``              ``apache-airflow-providers-sftp``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``google``            ``apache-airflow-providers-google``
+``google``            ``apache-airflow-providers-google; python_version != "3.15"``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
-====================  ====================================================
+====================  =============================================================
 
 Downloading official packages
 -----------------------------

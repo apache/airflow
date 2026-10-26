@@ -26,13 +26,16 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_IMAGE_FLAVORS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
+    PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES,
     get_airflow_version,
     get_hardened_python_base_image,
+    get_legacy_base_image,
 )
-from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.platforms import get_normalized_platform
 
 
@@ -74,6 +77,7 @@ class CommonBuildParams:
     version_suffix: str | None = None
     verbose: bool = False
     debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
+    image_flavor: str = ALLOWED_IMAGE_FLAVORS[0]
     build_arg_values: list[str] = field(default_factory=list)
 
     @property
@@ -122,11 +126,41 @@ class CommonBuildParams:
         return extra_flags
 
     @property
+    def is_hardened_image_unavailable(self) -> bool:
+        return self.python_image is None and self.python in PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES
+
+    @property
+    def resolved_image_flavor(self) -> str:
+        """The requested flavor, or legacy when Docker publishes no hardened image for this Python."""
+        return "legacy" if self.is_hardened_image_unavailable else self.image_flavor
+
+    @property
     def python_base_image(self):
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
+        if self.resolved_image_flavor == "legacy":
+            # The legacy flavor compiles Python itself, so it starts from plain Debian.
+            return get_legacy_base_image(self.debian_version)
         return get_hardened_python_base_image(self.python, self.debian_version)
+
+    def warn_if_hardened_image_unavailable(self, output: Output | None = None) -> None:
+        if not self.is_hardened_image_unavailable:
+            return
+        message = (
+            f"No hardened Python {self.python} base image is available, so the {self.image_type} image is "
+            f"built on {self.python_base_image} with Python compiled from sources. Switch back once Docker "
+            f"publishes the hardened image (PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES in global_constants.py)."
+        )
+        if self.github_actions == "true":
+            # A workflow command has to be a single line to show up as an annotation on the run summary.
+            get_console(output=output).print(
+                f"::warning title=Legacy {self.image_type} image for Python {self.python}::{message}",
+                markup=False,
+                soft_wrap=True,
+            )
+        else:
+            get_console(output=output).print(f"[warning]{message}[/]")
 
     @property
     def airflow_image_repository(self):

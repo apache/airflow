@@ -68,7 +68,7 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
     "3.13"  # "highest complete" python version (where all providers are included)
@@ -552,7 +552,7 @@ PRODUCTION_IMAGE = False
 # 2. Once we stop cherry-picking to the last release branch that supports it (that branch then only
 #    gets fixes applied directly), remove it from this list. Release branches keep their own copy
 #    of this list, so their CI and image builds are not affected.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -932,6 +932,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.12": "3.12.15",
     "3.13": "3.13.16",
     "3.14": "3.14.8",
+    "3.15": "3.15.1",
 }
 
 # Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
@@ -942,6 +943,10 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
 HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
 HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
 DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"trixie": "debian13", "bookworm": "debian12"}
+# Python versions Docker publishes no hardened image for yet - check the catalog at
+# https://github.com/docker-hardened-images/catalog/tree/main/image/python before removing one.
+# Images for them fall back to the legacy flavor, which compiles Python from source.
+PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES = ["3.15"]
 
 
 def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:

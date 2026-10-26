@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-fab``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
@@ -63,6 +63,7 @@ PIP package                                 Version required
 ``flask-login``                             ``>=0.6.3; python_version >= "3.14"``
 ``flask-session``                           ``>=0.8.0``
 ``msgpack``                                 ``>=1.0.0``
+``msgpack``                                 ``>=1.2.2; python_version >= "3.15"``
 ``flask-sqlalchemy``                        ``>=3.0.5``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.14"``
 ``flask-wtf``                               ``>=1.2.2; python_version >= "3.14"``
@@ -78,12 +79,12 @@ PIP package                                 Version required
 Optional dependencies
 ----------------------
 
-============  ===================
+============  =============================================
 Extra         Dependencies
-============  ===================
-``kerberos``  ``kerberos>=1.3.0``
+============  =============================================
+``kerberos``  ``kerberos>=1.3.0; python_version != "3.15"``
 ``oauth``     ``authlib>=1.0.0``
-============  ===================
+============  =============================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.10.2/changelog.html>`_.

@@ -25,6 +25,7 @@ from airflow.models import Connection
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 
 from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.markers import xfail_on_python_315
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -293,6 +294,7 @@ class TestSqlToSlackWebhookOperator:
         hook = op._get_hook()
         assert hook.log_sql == op.sql_hook_params["log_sql"]
 
+    @xfail_on_python_315("The snowflake provider is excluded on Python 3.15")
     def test_hook_params_snowflake(self, mocked_get_connection):
         mocked_get_connection.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
         op = SqlToSlackWebhookOperator(

@@ -20,8 +20,12 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import patch
 
-from airflow.models.dag import DAG
-from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.presto")
+
+from airflow.models.dag import DAG  # noqa: E402
+from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator  # noqa: E402
 
 DEFAULT_DATE = datetime(2022, 1, 1)
 

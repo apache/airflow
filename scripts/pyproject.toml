@@ -33,7 +33,7 @@ description = "Scripts and utilities for Apache Airflow CI, Docker, and developm
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

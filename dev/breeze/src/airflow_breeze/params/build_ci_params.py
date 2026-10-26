@@ -65,6 +65,8 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("AIRFLOW_USE_UV", self.use_uv)
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BASE_IMAGE", self.python_base_image)
+        if self.resolved_image_flavor == "legacy":
+            self._req_arg("AIRFLOW_IMAGE_FLAVOR", self.resolved_image_flavor)
         self._req_arg(
             "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)
         )

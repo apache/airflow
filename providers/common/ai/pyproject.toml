@@ -58,7 +58,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -107,7 +107,7 @@ dependencies = [
 # cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
 # only Modal credentials, which the Modal provider's `modal` connection supplies.
 "modal" = [
-    "apache-airflow-providers-modal",
+    "apache-airflow-providers-modal; python_version != \"3.15\"",
     "modal>=1.5.2",
 ]
 "opensandbox" = ["opensandbox>=1.1.0"]
@@ -186,7 +186,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-git",
-    "apache-airflow-providers-modal",
+    "apache-airflow-providers-modal; python_version != \"3.15\"",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",

@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -71,6 +72,7 @@ dependencies = [
 [project.optional-dependencies]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54,!=2.1.0",
+    "sqlalchemy>=2.1.4; python_version >= \"3.15\"",
 ]
 
 [dependency-groups]
@@ -82,8 +84,8 @@ dev = [
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "uuid6>=2024.7.10",
-    "apache-airflow-providers-apache-kafka",
-    "apache-airflow-providers-google",
+    "apache-airflow-providers-apache-kafka; python_version != \"3.15\"",
+    "apache-airflow-providers-google; python_version != \"3.15\"",
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-openlineage[sqlalchemy]",
 ]

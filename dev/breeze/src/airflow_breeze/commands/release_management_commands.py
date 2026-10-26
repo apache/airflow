@@ -104,6 +104,7 @@ from airflow_breeze.global_constants import (
     HARDENED_PYTHON_IMAGE_MIRROR,
     HARDENED_PYTHON_IMAGE_SOURCE,
     MULTI_PLATFORM,
+    PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     get_airflow_mypy_version,
@@ -5239,6 +5240,14 @@ def get_latest_hardened_python_patchlevel(
 @option_dry_run
 def mirror_base_images(python: str | None):
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    unavailable = [
+        version for version in python_versions if version in PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES
+    ]
+    if unavailable:
+        console_print(
+            f"[warning]Skipping Python {', '.join(unavailable)}: Docker publishes no hardened image for it yet.[/]"
+        )
+        python_versions = [version for version in python_versions if version not in unavailable]
     failed: list[str] = []
     # Every Debian version is mirrored: the CI image and the default PROD image use the first one, the
     # others are still available to build PROD images on.

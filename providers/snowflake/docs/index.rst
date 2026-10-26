@@ -154,13 +154,13 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-snowflake[common.ai]
 
 
-===================  ======================================================
+===================  ================================================================================
 Extra                Dependencies
-===================  ======================================================
-``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
-``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
+===================  ================================================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0; python_version != "3.15"``
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0; python_version != "3.15"``
 ``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
-===================  ======================================================
+===================  ================================================================================
 
 Downloading official packages
 -----------------------------

@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -76,6 +77,7 @@ dependencies = [
     # to sqlalchemy 2+ TODO(potiuk): do so.
     'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
     'pandas>=2.3.3; python_version >="3.14"',
+    'pandas>=3.0.6; python_version >="3.15"',
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
@@ -85,6 +87,7 @@ dependencies = [
 ]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54,!=2.1.0",
+    "sqlalchemy>=2.1.4; python_version >= \"3.15\"",
 ]
 "amazon" = [
     "apache-airflow-providers-amazon"
@@ -94,10 +97,11 @@ dependencies = [
     "datafusion>=50.0.0,<52.0.0",
 ]
 "pyiceberg-core" = [
-    "pyiceberg-core>=0.8.0"
+    "pyiceberg-core>=0.8.0",
+    "pyiceberg-core>=0.9.1; python_version >= \"3.15\""
 ]
 "apache.iceberg" = [
-    "apache-airflow-providers-apache-iceberg"
+    "apache-airflow-providers-apache-iceberg; python_version != \"3.15\""
 ]
 
 [dependency-groups]
@@ -106,7 +110,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
-    "apache-airflow-providers-apache-iceberg",
+    "apache-airflow-providers-apache-iceberg; python_version != \"3.15\"",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -114,11 +118,12 @@ dev = [
     "apache-airflow-providers-common-sql[polars]",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-postgres",
-    "apache-airflow-providers-odbc",
+    "apache-airflow-providers-odbc; python_version != \"3.15\"",
     "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]",
     "datafusion>=50.0.0,<52.0.0",
     "pyiceberg-core>=0.8.0",
+    "pyiceberg-core>=0.9.1; python_version >= \"3.15\"",
 ]
 
 # To build docs:

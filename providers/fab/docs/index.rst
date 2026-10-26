@@ -117,6 +117,7 @@ PIP package                                 Version required
 ``flask-login``                             ``>=0.6.3; python_version >= "3.14"``
 ``flask-session``                           ``>=0.8.0``
 ``msgpack``                                 ``>=1.0.0``
+``msgpack``                                 ``>=1.2.2; python_version >= "3.15"``
 ``flask-sqlalchemy``                        ``>=3.0.5``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.14"``
 ``flask-wtf``                               ``>=1.2.2; python_version >= "3.14"``
@@ -140,12 +141,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-fab[kerberos]
 
 
-============  ===================
+============  =============================================
 Extra         Dependencies
-============  ===================
-``kerberos``  ``kerberos>=1.3.0``
+============  =============================================
+``kerberos``  ``kerberos>=1.3.0; python_version != "3.15"``
 ``oauth``     ``authlib>=1.0.0``
-============  ===================
+============  =============================================
 
 Downloading official packages
 -----------------------------

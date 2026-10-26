@@ -45,19 +45,20 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-oracle``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``oracledb``                                ``>=2.3.0``
-==========================================  ==================
+``oracledb``                                ``>=26.0.0; python_version >= "3.15"``
+==========================================  ======================================
 
 Optional cross provider package dependencies
 --------------------------------------------

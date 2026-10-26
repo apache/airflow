@@ -886,6 +886,7 @@ def run_build_production_image(
         )
         return 1, "Error: building multi-platform image without --push."
     get_console(output=output).print(f"\n[info]Building PROD Image for {param_description}\n")
+    prod_image_params.warn_if_hardened_image_unavailable(output)
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:

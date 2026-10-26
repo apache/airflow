@@ -67,6 +67,7 @@ versions:
 
 excluded-python-versions:
   - "3.14"
+  - "3.15"
 
 integrations:
   - integration-name: Apache Cassandra

@@ -121,7 +121,9 @@ zlib1g-dev \
                 DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
 liblzma-dev libncurses5-dev libreadline6-dev libsqlite3-dev libzstd-dev lzma lzma-dev tk-dev uuid-dev"
             else
-                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+                # No lcov: CPython only uses it for coverage reports, and on trixie it depends on
+                # Debian's python3, which the system Python check below rejects.
+                DEV_APT_DEPS+="libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
 liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libzstd-dev tk-dev uuid-dev"
             fi
         fi
