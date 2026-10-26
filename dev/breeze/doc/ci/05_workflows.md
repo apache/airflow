@@ -525,7 +525,9 @@ its last. An interrupted job ends with exit code 137 and no test failure in its 
   each pull request every 10 minutes, including runs still in progress, and keeps one
   comment on the pull request: which jobs were interrupted and that RunsOn re-runs them,
   and, once the re-run finished, whether it passed. It runs on a schedule, not on the
-  runs' events, so no pull request run gets write access.
+  runs' events, so no pull request run gets write access. GitHub server errors (HTTP 5xx)
+  are retried, and when they persist the affected run is skipped with a warning and left
+  to the next check rather than failing the workflow; other errors still fail it.
 - **Slack.** The `notify-slack` job of a canary does not post when every failure is a Spot
   interruption that RunsOn re-runs, and leaves the notification state alone; it posts for
   RunsOn's re-run instead, including when the re-run passed. It still posts for attempt
