@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import time
-import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
@@ -26,7 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from snowflake.connector.errors import ProgrammingError
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import ResumableJobMixin, conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -38,41 +37,6 @@ from airflow.providers.snowflake.utils.snowpark_containers import (
     TERMINAL_STATUSES,
     SnowparkContainerJobStatus,
 )
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Disable durable below 3.3, warning if it was explicitly set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-# ResumableJobMixin only exists on Airflow 3.3+ and this provider still targets >=2.11. Drop this
-# fallback once the provider's minimum Airflow version is >=3.3.
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "snowpark_container_job_name"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
