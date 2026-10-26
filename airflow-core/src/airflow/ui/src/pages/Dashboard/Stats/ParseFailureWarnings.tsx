@@ -1,4 +1,5 @@
-/*!
+/*
+!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,52 +17,52 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Skeleton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
-
 import { useDagWarningServiceListDagWarnings } from "openapi/queries";
-
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
+import type { ExpandedApiError } from "src/components/ErrorAlert";
 import { StatsCard } from "src/components/StatsCard";
-
 import { useAutoRefresh } from "src/utils";
-
 const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
-
 export const ParseFailureWarnings = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
-  const { i18n, t: translate } = useTranslation("dashboard");
-  const { data, isLoading } = useDagWarningServiceListDagWarnings(
+  const { i18n, t: translate } = useTranslation(["dashboard", "components"]);
+  const { data, error, isLoading } = useDagWarningServiceListDagWarnings(
     { limit: 100, warningType: PARSE_FAILURE_WARNING_TYPE },
     undefined,
     { refetchInterval },
   );
   const count = data?.total_entries ?? 0;
-
-  if (!isLoading && count === 0) {
+  if (isLoading) {
+    return <Skeleton borderRadius="lg" height="42px" width="175px" />;
+  }
+  if (Boolean(error) && (error as ExpandedApiError).status === 403) {
     return undefined;
   }
-
+  if (count === 0) {
+    return undefined;
+  }
   return (
     <>
-      <StatsCard
+      <
+StatsCard
         colorScheme="failed"
         count={count}
         icon={<LuFileWarning />}
-        isLoading={isLoading}
+        isLoading={false}
         isRTL={i18n.dir() === "rtl"}
-        label={translate("stats.parseFailureWarnings", { count })}
+        label={translate("dashboard:stats.parseFailureWarnings", { count })}
         onClick={onOpen}
       />
-      <DAGWarningsModal
+      <
+DAGWarningsModal
+        heading={translate("dashboard:stats.parseFailureWarnings", { count })}
         onClose={onClose}
         open={open}
-        warnings={data?.dag_warnings?.map((warning) => ({
-          ...warning,
-          message: `${warning.dag_id}: ${warning.message}`,
-        }))}
+        warnings={data?.dag_warnings}
       />
     </>
   );

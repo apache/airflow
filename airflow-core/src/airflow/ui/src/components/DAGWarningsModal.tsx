@@ -65,12 +65,13 @@ export const DAGWarningsModal = ({
       data-testid="dag-warnings-modal"
       headerProps={{
         children: (
-          <HStack gap={2}>
+          <HStack fontSize="xl" gap={2}>
             <LuFileWarning />
-            <Heading fontSize="lg">{heading}</Heading>
+            <Heading size="lg">{heading}</Heading>
           </HStack>
         ),
       }}
+      bodyProps={{ gap:4 }}
       onOpenChange={onClose}
       open={open}
       scrollBehavior="inside"
@@ -97,12 +98,11 @@ export const DAGWarningsModal = ({
           <Spacer />
         </VStack>
       )}
-      {warnings?.map((warning) => (
-        <VStack key={warning.message}>
-          <WarningAlert warning={warning} />
-          <Spacer />
-        </VStack>
-      ))}
+      <VStack align="stretch" gap={4} w="100%">
+        {warnings?.map((warning) => (
+          <WarningAlert key={`${warning.dag_id}-${warning.warning_type}`} warning={warning}/>
+        ))}  
+      </VStack>
     </Modal>
   );
 };

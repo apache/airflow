@@ -315,14 +315,14 @@ class PermittedDagRunFilter(PermittedDagFilter):
 class PermittedDagWarningFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag warnings for the user."""
 
-    def to_orm(self, select: Select) -> Select:
+    def to_orm(self, statement: Select) -> Select:
         authorized = self.value or set()
         readable_files = (
             select(DagModel.bundle_name, DagModel.relative_fileloc)
             .where(DagModel.dag_id.in_(authorized))
             .distinct()
         )
-        return select.where(
+        return statement.where(
             or_(
                 DagWarning.dag_id.in_(authorized),
                 and_(

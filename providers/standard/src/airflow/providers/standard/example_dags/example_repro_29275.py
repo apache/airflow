@@ -25,5 +25,5 @@ for dag_id in "ABCDE":
 
         dynamic_dag()
     except Exception:
-        emit_dag_warning(f"repro_{dag_id}", f"Failed to create dynamic DAG {dag_id}", stacktrace=None)
+        emit_dag_warning(f"repro_{dag_id}", f"Failed to create dynamic DAG {dag_id}")
         log.exception("Failed to create dynamic DAG %s", dag_id)

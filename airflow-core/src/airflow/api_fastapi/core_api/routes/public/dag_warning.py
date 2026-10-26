@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
+    DAGWarningResponse,
 )
 from airflow.api_fastapi.core_api.security import ReadableDagWarningsFilterDep, requires_access_dag
 from airflow.models.dagwarning import DagWarning, DagWarningTypeValue
@@ -66,16 +67,17 @@ def list_dag_warnings(
 ) -> DAGWarningCollectionResponse:
     """Get a list of Dag warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        statement=select(DagWarning).options(joinedload(DagWarning.dag_model)),
+        statement=select(DagWarning),
         filters=[warning_type, dag_id, readable_dag_warning_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
+    dag_warnings_select = dag_warnings_select.options(joinedload(DagWarning.dag_model))
     dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=dag_warnings,
+        dag_warnings=[DAGWarningResponse.from_dag_warning(w) for w in dag_warnings],
         total_entries=total_entries,
     )
