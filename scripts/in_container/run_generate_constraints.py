@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import time
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -42,6 +43,7 @@ PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.11")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
 PYPI_LOOKUP_PARALLELISM = 8
+PYPI_REQUEST_ATTEMPTS = 3
 
 
 def _read_version_from_pyproject(pyproject_path: Path) -> str:
@@ -524,7 +526,14 @@ def find_newest_version_in_pypi(
     (nothing installable at all, e.g. a provider whose first release is still in this wave) leaves
     the distribution unpinned rather than pinned to a version that cannot be had.
     """
-    response = requests.get(PYPI_JSON_API_URL.format(distribution=distribution), timeout=60)
+    for attempt in range(PYPI_REQUEST_ATTEMPTS):
+        try:
+            response = requests.get(PYPI_JSON_API_URL.format(distribution=distribution), timeout=60)
+            break
+        except requests.RequestException:
+            if attempt == PYPI_REQUEST_ATTEMPTS - 1:
+                raise
+            time.sleep(2**attempt)
     if response.status_code == 404:
         console.print(f"[yellow]{distribution} is not published in PyPI - leaving it unpinned.")
         return None

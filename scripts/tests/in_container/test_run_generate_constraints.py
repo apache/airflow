@@ -224,6 +224,30 @@ class TestFindNewestVersionInPypi:
 
         assert m.find_newest_version_in_pypi("apache-airflow-providers-brand-new", "3.11", True) is None
 
+    def test_retries_transport_errors(self, monkeypatch):
+        responses = iter(
+            [m.requests.exceptions.SSLError("TLS connection closed"), _FakeResponse({"releases": {}})]
+        )
+
+        def get(url, timeout):
+            response = next(responses)
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        monkeypatch.setattr(m.requests, "get", get)
+        monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
+
+        assert m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.11", False) is None
+
+    def test_raises_after_exhausting_transport_retries(self, monkeypatch):
+        error = m.requests.exceptions.SSLError("TLS connection closed")
+        monkeypatch.setattr(m.requests, "get", lambda url, timeout: (_ for _ in ()).throw(error))
+        monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
+
+        with pytest.raises(m.requests.exceptions.SSLError, match="TLS connection closed"):
+            m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.11", False)
+
 
 class TestBuildPinnedProviderRequirements:
     """Providers are pinned at what PyPI holds rather than left for the resolution to pick."""
