@@ -584,6 +584,7 @@ def with_row_locks(
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
+    required: bool = False,
     **kwargs,
 ) -> Select:
     """
@@ -602,6 +603,14 @@ def with_row_locks(
     :param nowait: If set to True, will pass NOWAIT to supported database backends.
     :param skip_locked: If set to True, will pass SKIP LOCKED to supported database backends.
     :param key_share: If true, will lock with FOR KEY SHARE UPDATE (at least on postgres).
+    :param required: Set this for a lock the *correctness* of a code path depends on, as
+        opposed to one that only avoids contention between HA schedulers.
+        ``[scheduler] use_row_level_locking`` is documented as "if this is set to ``False``
+        then you should not run more than a single scheduler at once" -- it is an HA option.
+        A single scheduler still races *non-scheduler* writers, so a lock that prevents data
+        corruption must not disappear when an operator turns HA locking off. Genuine dialect
+        incapability (MariaDB, MySQL < 8) is still honoured, because that is a capability
+        question rather than a configuration one.
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
@@ -613,7 +622,7 @@ def with_row_locks(
         return query
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
-    if not USE_ROW_LEVEL_LOCKING:
+    if not USE_ROW_LEVEL_LOCKING and not required:
         return query
     if dialect_name == "mysql" and not getattr(
         session.bind.dialect if session.bind else None, "supports_for_update_of", False

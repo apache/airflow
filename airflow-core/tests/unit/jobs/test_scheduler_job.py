@@ -22,6 +22,7 @@ import datetime
 import logging
 import os
 import re
+import threading
 import time
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
@@ -39,10 +40,11 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, func, inspect, select, update
+from sqlalchemy import delete, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
+import airflow.utils.sqlalchemy as sa_utils
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -13796,6 +13798,545 @@ def _produce_and_register_asset_event(
     assert apdr.partition_key == expected_partition_key
 
     return apdr
+
+
+def _backend_id(session) -> int | None:
+    """This session's own backend/connection id, as the database knows it."""
+    dialect = session.bind.dialect.name
+    if dialect == "postgresql":
+        return session.scalar(text("SELECT pg_backend_pid()"))
+    if dialect == "mysql":
+        return session.scalar(text("SELECT CONNECTION_ID()"))
+    return None
+
+
+def _waits_on(session, *, waiter: int | None, blocker: int | None) -> bool:
+    """Is ``waiter`` blocked on a row lock held by ``blocker``, per the database itself?
+
+    Attribution is the whole point. A global "is anything waiting?" count is satisfied by any
+    unrelated transaction in the same database: the independent review removed the producer
+    lock entirely, supplied unrelated contention, and every scheduler-first case still passed.
+    """
+    if waiter is None or blocker is None:
+        return False
+    dialect = session.bind.dialect.name
+    session.rollback()  # each poll needs a fresh snapshot
+    if dialect == "postgresql":
+        return bool(
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity a "
+                    "WHERE a.pid = :waiter AND a.wait_event_type = 'Lock' "
+                    "AND :blocker = ANY(pg_blocking_pids(a.pid))"
+                ),
+                {"waiter": waiter, "blocker": blocker},
+            )
+        )
+    if dialect == "mysql":
+        return bool(
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM performance_schema.data_lock_waits w "
+                    "JOIN performance_schema.threads rt "
+                    "  ON rt.thread_id = w.requesting_thread_id "
+                    "JOIN performance_schema.threads bt "
+                    "  ON bt.thread_id = w.blocking_thread_id "
+                    "WHERE rt.processlist_id = :waiter AND bt.processlist_id = :blocker"
+                ),
+                {"waiter": waiter, "blocker": blocker},
+            )
+        )
+    return False
+
+
+def _await_attributed_wait(session, *, waiter, blocker, timeout=30.0) -> bool:
+    """Poll until the database reports exactly this waiter blocked by exactly this holder."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _waits_on(session, waiter=waiter, blocker=blocker):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def _transaction_open(session, backend: int | None) -> bool:
+    """Does ``backend`` currently hold an open write transaction, per the database?
+
+    Called after the producer-first tick: this producer owns one transaction, so if it is
+    still open then, it was open throughout the claim. A pre-call sample cannot establish
+    whether the producer still holds its row when the scheduler actually claims.
+    """
+    if backend is None:
+        return False
+    dialect = session.bind.dialect.name
+    session.rollback()
+    if dialect == "postgresql":
+        return bool(
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE pid = :backend AND backend_xid IS NOT NULL"
+                ),
+                {"backend": backend},
+            )
+        )
+    if dialect == "mysql":
+        return bool(
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM information_schema.innodb_trx WHERE trx_mysql_thread_id = :backend"
+                ),
+                {"backend": backend},
+            )
+        )
+    return False
+
+
+def _apdr_lifecycle_fixtures(session, dag_maker, *, consumer_dag_id, asset_name, marked):
+    """Build a consumer Dag, one pending APDR carrying its first event, and a second event.
+
+    Returns ``(asset_id, apdr_id, first_event_id, second_event_id)``. The second event is
+    deliberately a *different* AssetEvent: attaching another link for the event already
+    present cannot distinguish "the late link was preserved" from "nothing happened".
+    """
+    asset = Asset(name=asset_name)
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        # batch_asset_events decides whether the APDR gets a pending marker at all. The
+        # earlier version of this fixture left it at its default and only *cleared* the
+        # marker for the unmarked arm, so every case -- including the eight labelled
+        # "marked" -- ran against a NULL marker and the parametrisation tested nothing.
+        schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=marked),
+        session=session,
+    ):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id=f"{consumer_dag_id}-producer",
+        asset=asset,
+        partition_key="partition",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == asset_name))
+    first_event_id = session.scalar(
+        select(PartitionedAssetKeyLog.asset_event_id).where(
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
+        )
+    )
+    assert asset_id is not None
+    assert first_event_id is not None
+
+    second = AssetEvent(asset_id=asset_id, extra={"which": "second"})
+    session.add(second)
+    session.commit()
+
+    # Assert the fixture actually produced the state it claims, before any concurrency
+    # starts. Rows created with batching disabled -- and legacy pre-column rows -- carry a
+    # NULL marker and are still legitimate reuse targets; marked rows carry the key.
+    session.rollback()
+    persisted_marker = session.scalar(
+        select(AssetPartitionDagRun.pending_partition_key).where(AssetPartitionDagRun.id == apdr.id)
+    )
+    expected_marker = "partition" if marked else None
+    assert persisted_marker == expected_marker, (
+        f"fixture marker is {persisted_marker!r}, expected {expected_marker!r}; this case "
+        f"would not have tested the marker state it is named for"
+    )
+
+    return asset_id, apdr.id, first_event_id, second.id
+
+
+def _make_stale(session, apdr_id):
+    """Point the APDR at a rollup definition that no longer matches, so a tick deletes it."""
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == apdr_id)
+        .values(rollup_fingerprint={"obsolete": True})
+    )
+    session.commit()
+
+
+def _run_tick(session=None):
+    """Run one real scheduler tick for partitioned APDRs; returns the fired dag_ids."""
+    own = session is None
+    s = settings.Session.session_factory() if own else session
+    if own:
+        s.begin()
+    try:
+        runner = SchedulerJobRunner(
+            job=Job(job_type=SchedulerJobRunner.job_type),
+            executors=[MockExecutor(do_update=False)],
+        )
+        fired = runner._create_dagruns_for_partitioned_asset_dags(session=s)
+        if own:
+            s.commit()
+        return fired
+    finally:
+        if own:
+            s.close()
+
+
+def _attach_second_event(s, *, asset_id, apdr_id, event_id, dag_id):
+    s.add(
+        PartitionedAssetKeyLog(
+            asset_id=asset_id,
+            asset_event_id=event_id,
+            asset_partition_dag_run_id=apdr_id,
+            target_dag_id=dag_id,
+            target_partition_key="partition",
+            source_partition_key="partition",
+        )
+    )
+
+
+def _linked_event_ids(session, apdr_id):
+    session.rollback()
+    return set(
+        session.scalars(
+            select(PartitionedAssetKeyLog.asset_event_id).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr_id
+            )
+        ).all()
+    )
+
+
+def _orphan_link_count(session):
+    session.rollback()
+    return (
+        session.scalar(
+            select(func.count())
+            .select_from(PartitionedAssetKeyLog)
+            .where(
+                ~select(AssetPartitionDagRun.id)
+                .where(AssetPartitionDagRun.id == PartitionedAssetKeyLog.asset_partition_dag_run_id)
+                .exists()
+            )
+        )
+        or 0
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("use_row_level_locking", [True, False])
+@pytest.mark.parametrize("marked", [True, False], ids=["marked", "unmarked"])
+@pytest.mark.parametrize("stale", [True, False], ids=["stale-cleanup", "completion"])
+def test_producer_first_tick_defers_then_next_tick_does_the_work(
+    dag_maker: DagMaker, session: Session, use_row_level_locking: bool, marked: bool, stale: bool
+):
+    """
+    A tick that arrives while a producer holds the APDR must defer it -- and the *next* tick
+    must then do the real work, accounting for the producer's late event.
+
+    Deferral alone is not success: a scheduler replaced by a no-op also defers everything.
+    So the second tick has to show useful work, and it has to be identified by *event
+    identity* rather than row counts:
+
+    * stale cleanup must remove the intended parent **and both of its links**;
+    * completion must create the run and consume **both event ids**, which is directly
+      observable because ``_create_dagruns_for_partitioned_asset_dags`` populates
+      ``DagRun.consumed_asset_events`` from the link rows.
+
+    Nothing here sleeps. Normally the producer waits for the first tick to finish before
+    committing; ``SKIP LOCKED`` prevents the claim from blocking on it. If the bounded wait
+    expires first, the producer may commit earlier, and the end-state assertions cover that
+    valid order too.
+    """
+    if session.get_bind().dialect.name == "sqlite":
+        pytest.skip("SQLite serialises writers, so the two-transaction schedule cannot run")
+
+    consumer_dag_id = f"pf-{'stale' if stale else 'done'}-{'m' if marked else 'u'}"
+    asset_id, apdr_id, first_event_id, second_event_id = _apdr_lifecycle_fixtures(
+        session,
+        dag_maker,
+        consumer_dag_id=consumer_dag_id,
+        asset_name=f"{consumer_dag_id}-asset",
+        marked=marked,
+    )
+    if stale:
+        _make_stale(session, apdr_id)
+
+    held = threading.Event()
+    first_tick_done = threading.Event()
+    obs: dict[str, object] = {}
+
+    def producer():
+        s = None
+        try:
+            # Inside the capture: a Session that cannot be built is a recorded worker
+            # failure, not a thread warning nobody reads.
+            s = settings.Session.session_factory()
+            s.begin()
+            obs["producer_backend"] = _backend_id(s)
+            got = AssetManager._get_or_create_apdr(
+                target_key="partition",
+                target_partition_date=None,
+                target_dag=s.get(DagModel, consumer_dag_id),
+                rollup_fingerprint={},
+                allow_reuse=True,
+                session=s,
+            )
+            obs["reused"] = got.id == apdr_id
+            held.set()
+            # Wait for the tick to finish rather than guessing at a duration.
+            first_tick_done.wait(timeout=60)
+            _attach_second_event(
+                s,
+                asset_id=asset_id,
+                apdr_id=got.id,
+                event_id=second_event_id,
+                dag_id=consumer_dag_id,
+            )
+            s.commit()
+            obs["producer_committed"] = True
+        except Exception as exc:
+            obs["producer_error"] = f"{type(exc).__name__}: {exc}"[:200]
+            if s is not None:
+                s.rollback()
+        finally:
+            held.set()
+            if s is not None:
+                s.close()
+
+    with mock.patch.object(sa_utils, "USE_ROW_LEVEL_LOCKING", use_row_level_locking):
+        t = threading.Thread(target=producer, name="producer")
+        t.start()
+        try:
+            assert held.wait(timeout=60), f"producer never acquired the APDR: {obs}"
+            obs["tick1"] = _run_tick()
+            # This producer has one transaction. If it remains open after the tick, it was
+            # open throughout the claim. A pre-tick sample cannot rule out its wait timing
+            # out and committing before a delayed claim; that order may consume immediately.
+            obs["held_during_tick1"] = not obs.get("producer_committed", False) and _transaction_open(
+                session, cast("int | None", obs.get("producer_backend"))
+            )
+        finally:
+            first_tick_done.set()
+            t.join(90)
+
+        assert not t.is_alive(), f"producer did not terminate: {obs}"
+        assert "producer_error" not in obs, f"producer failed: {obs}"
+        assert obs["producer_committed"] is True, obs
+        assert obs["reused"] is True, f"the producer did not reuse the held row: {obs}"
+
+        if obs["held_during_tick1"]:
+            # Only assert deferral for the schedule that actually requires it. A tick that
+            # legitimately arrives *after* the producer has committed is entitled to do the
+            # work immediately; rejecting that would make this test wrong rather than strict.
+            # The end-state assertions below hold for both orders.
+            session.rollback()
+            assert session.get(AssetPartitionDagRun, apdr_id) is not None, (
+                f"the first tick consumed a row the producer was holding: {obs}"
+            )
+            assert (
+                session.scalar(
+                    select(AssetPartitionDagRun.created_dag_run_id).where(AssetPartitionDagRun.id == apdr_id)
+                )
+                is None
+            ), f"the first tick completed a row the producer was holding: {obs}"
+            assert _linked_event_ids(session, apdr_id) == {first_event_id, second_event_id}, (
+                f"the producer's late link is missing, so the rest of this test would pass vacuously: {obs}"
+            )
+
+        # Second tick: the real work happens here in the deferred schedule, and is a no-op
+        # in the already-done one.
+        obs["tick2"] = _run_tick()
+
+    session.rollback()
+    if stale:
+        assert session.get(AssetPartitionDagRun, apdr_id) is None, (
+            f"stale cleanup did not remove the parent on the second tick: {obs}"
+        )
+        assert _linked_event_ids(session, apdr_id) == set(), f"stale cleanup left links behind: {obs}"
+        assert _orphan_link_count(session) == 0, f"orphaned links remain: {obs}"
+    else:
+        run_id = session.scalar(
+            select(AssetPartitionDagRun.created_dag_run_id).where(AssetPartitionDagRun.id == apdr_id)
+        )
+        assert run_id is not None, f"no tick created the run: {obs}"
+        # Either tick may legitimately be the one that fires it, depending on whether the
+        # producer was still holding the row when the first tick arrived.
+        assert consumer_dag_id in (
+            set(cast("set[str]", obs["tick1"])) | set(cast("set[str]", obs["tick2"]))
+        ), obs
+        dag_run = session.get(DagRun, run_id)
+        assert dag_run is not None
+        consumed = {e.id for e in dag_run.consumed_asset_events}
+        assert consumed == {first_event_id, second_event_id}, (
+            f"the run consumed {consumed}, not both events; the producer's late event was "
+            f"excluded from the run meant to consume it. obs={obs}"
+        )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("use_row_level_locking", [True, False])
+@pytest.mark.parametrize("marked", [True, False], ids=["marked", "unmarked"])
+@pytest.mark.parametrize("consumed_by", ["deleted", "completed"])
+def test_scheduler_first_producer_reselects_after_waiting(
+    dag_maker: DagMaker,
+    session: Session,
+    use_row_level_locking: bool,
+    marked: bool,
+    consumed_by: str,
+):
+    """
+    The other order: the scheduler claims the row first, and the producer must not reuse it.
+
+    The claim holds an exclusive lock, so the producer's locking read blocks. The wait is
+    confirmed from the database's own view (``pg_stat_activity`` / ``data_lock_waits``), not
+    from elapsed time. Once the claim commits, the producer's read finds the row gone or no
+    longer pending, and it must select or create a different APDR rather than attach to a
+    row that has been deleted or already fired.
+    """
+    if session.get_bind().dialect.name == "sqlite":
+        pytest.skip("SQLite serialises writers, so the two-transaction schedule cannot run")
+
+    consumer_dag_id = f"sf-{consumed_by}-{'m' if marked else 'u'}"
+    asset_id, apdr_id, first_event_id, second_event_id = _apdr_lifecycle_fixtures(
+        session,
+        dag_maker,
+        consumer_dag_id=consumer_dag_id,
+        asset_name=f"{consumer_dag_id}-asset",
+        marked=marked,
+    )
+
+    if consumed_by == "deleted":
+        # A fingerprint that no longer matches sends the tick down its stale-rollup cleanup,
+        # which deletes the APDR and its links. Left valid, the same tick completes it.
+        _make_stale(session, apdr_id)
+
+    claimed = threading.Event()
+    release = threading.Event()
+    producer_ready = threading.Event()
+    obs: dict[str, object] = {}
+
+    def scheduler_like():
+        """Run a **real** scheduler tick and hold its claim open until released.
+
+        The tick's own claim takes the row lock and holds it until this transaction commits,
+        which is what the producer below has to block on. Earlier versions faked the two
+        outcomes with Core statements, and the completion fake set ``created_dag_run_id``
+        without clearing ``pending_partition_key`` -- bypassing the ORM validator production
+        relies on, which left a stale marker that blocked the producer's next insert. That
+        was a defect in the fake, not in the code under test.
+        """
+        s = settings.Session.session_factory()
+        s.begin()
+        try:
+            obs["fired"] = _run_tick(s)
+            obs["claimed"] = [apdr_id]
+            # Backend identity of the holder, so the producer's wait can be attributed to it
+            # rather than to any unrelated contention in the database.
+            obs["blocker_backend"] = _backend_id(s)
+            claimed.set()
+            release.wait(timeout=60)
+            s.commit()
+            obs["scheduler_committed"] = True
+        except Exception as exc:
+            obs["scheduler_error"] = f"{type(exc).__name__}: {exc}"[:200]
+            s.rollback()
+        finally:
+            claimed.set()
+            s.close()
+
+    def producer():
+        s = None
+        try:
+            # Construction is inside the capture: a Session that cannot be built is a recorded
+            # worker failure, not a thread warning nobody reads.
+            s = settings.Session.session_factory()
+            s.begin()
+            obs["producer_backend"] = _backend_id(s)
+            producer_ready.set()
+            got = AssetManager._get_or_create_apdr(
+                target_key="partition",
+                target_partition_date=None,
+                target_dag=s.get(DagModel, consumer_dag_id),
+                rollup_fingerprint={},
+                allow_reuse=True,
+                session=s,
+            )
+            obs["producer_apdr_id"] = got.id
+            # Ordering proof that the producer really waited on the claim: its acquisition
+            # cannot return until the scheduler's transaction is released. This does not rely
+            # on performance_schema data-lock reporting, which the attributed query below
+            # needs and which is not populated on every supported MySQL build.
+            obs["acquired_after_release"] = release.is_set()
+            _attach_second_event(
+                s,
+                asset_id=asset_id,
+                apdr_id=got.id,
+                event_id=second_event_id,
+                dag_id=consumer_dag_id,
+            )
+            s.commit()
+            obs["producer_committed"] = True
+        except Exception as exc:
+            obs["producer_error"] = f"{type(exc).__name__}: {exc}"[:200]
+            if s is not None:
+                s.rollback()
+        finally:
+            producer_ready.set()
+            if s is not None:
+                s.close()
+
+    with mock.patch.object(sa_utils, "USE_ROW_LEVEL_LOCKING", use_row_level_locking):
+        ts = threading.Thread(target=scheduler_like, name="scheduler")
+        tp = threading.Thread(target=producer, name="producer")
+        ts.start()
+        try:
+            # Everything that can fail early lives in the try, so release/join below always
+            # run. An assertion between start() and release() would otherwise leave the
+            # scheduler thread parked on its event until the timeout.
+            assert claimed.wait(timeout=60), f"the claim never ran: {obs}"
+            assert obs.get("claimed") == [apdr_id], f"the claim did not take the row: {obs}"
+
+            tp.start()
+            assert producer_ready.wait(timeout=30), f"the producer never started: {obs}"
+            # Attributed to this pair: the database must report *this* producer blocked by
+            # *this* scheduler, not merely that something somewhere is waiting.
+            # Corroborating detail where the backend reports it: this producer blocked by
+            # this scheduler, rather than "something somewhere is waiting". Recorded, not
+            # required, because data-lock reporting is not available on every build.
+            obs["lock_wait_observed"] = _await_attributed_wait(
+                session,
+                waiter=obs.get("producer_backend"),
+                blocker=obs.get("blocker_backend"),
+                timeout=10,
+            )
+        finally:
+            release.set()
+            ts.join(90)
+            if tp.is_alive() or tp.ident is not None:
+                tp.join(90)
+
+    assert not ts.is_alive(), f"the scheduler-like transaction hung: {obs}"
+    assert not tp.is_alive(), f"the producer hung: {obs}"
+    assert "scheduler_error" not in obs, obs
+    assert "producer_error" not in obs, obs
+    assert obs.get("acquired_after_release") is True, (
+        f"the producer's acquisition returned before the scheduler released its claim, so it "
+        f"never blocked on that lock and this schedule did not test anything: {obs}"
+    )
+    assert obs["producer_committed"] is True, obs
+    assert obs["producer_apdr_id"] != apdr_id, (
+        f"the producer reused an APDR the scheduler had already {consumed_by}: {obs}"
+    )
+
+    session.rollback()
+    new_id = obs["producer_apdr_id"]
+    assert _linked_event_ids(session, new_id) == {second_event_id}, obs
+    assert _orphan_link_count(session) == 0, f"orphaned links remain: {obs}"
+    if consumed_by == "completed":
+        # The fired row keeps its original link; the late event went to a fresh APDR.
+        assert _linked_event_ids(session, apdr_id) == {first_event_id}, obs
+
+
+def _borrow_dag_run_id(session, dag_id):
+    """Any existing DagRun id, so ``created_dag_run_id`` can be stamped without a new run."""
+    return session.scalar(select(DagRun.id).limit(1))
 
 
 @pytest.mark.need_serialized_dag

@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection, Iterable
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import case, exc, func, insert, or_, select, update
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -47,11 +48,12 @@ from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
@@ -66,6 +68,47 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
+_APDR_PENDING_MARKER_UQ = "apdr_target_dag_id_pending_partition_key_uq"
+_APDR_PENDING_MARKER_SQLITE_COLUMNS = frozenset(
+    {"asset_partition_dag_run.target_dag_id", "asset_partition_dag_run.pending_partition_key"}
+)
+_SQLSTATE_UNIQUE_VIOLATION = "23505"
+_SQLITE_CONSTRAINT_UNIQUE = 2067
+_MYSQL_ER_DUP_ENTRY = 1062
+_MYSQL_DUP_KEY_RE = re.compile(r"for key '(?P<key>[^']+)'\s*\Z")
+
+
+def _is_pending_marker_conflict(error: exc.IntegrityError) -> bool:
+    """Identify the marker constraint using driver diagnostics, not SQL or bound parameters."""
+    orig = error.orig
+
+    # psycopg3 exposes SQLSTATE as ``sqlstate``; psycopg2 uses ``pgcode``.
+    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+    if sqlstate is not None:
+        return sqlstate == _SQLSTATE_UNIQUE_VIOLATION and (
+            getattr(getattr(orig, "diag", None), "constraint_name", None) == _APDR_PENDING_MARKER_UQ
+        )
+
+    # SQLite reports the offending columns rather than the constraint name.
+    sqlite_code = getattr(orig, "sqlite_errorcode", None)
+    if sqlite_code is not None:
+        if sqlite_code != _SQLITE_CONSTRAINT_UNIQUE:
+            return False
+        prefix, _, columns = str(orig).partition(":")
+        return prefix.lower() == "unique constraint failed" and (
+            {column.strip() for column in columns.split(",")} == _APDR_PENDING_MARKER_SQLITE_COLUMNS
+        )
+
+    args: tuple[object, ...] = getattr(orig, "args", ())
+    if len(args) < 2 or args[0] != _MYSQL_ER_DUP_ENTRY:
+        return False
+    # MySQL quotes the duplicate value before the key name. Anchor to the end so a value
+    # containing "for key '...'" cannot be mistaken for the actual constraint diagnostic.
+    match = _MYSQL_DUP_KEY_RE.search(str(args[1]))
+    if match is None:
+        return False
+    # MySQL may qualify the key with its table name.
+    return match.group("key").rsplit(".", 1)[-1] == _APDR_PENDING_MARKER_UQ
 
 
 class AssetManager(LoggingMixin):
@@ -639,7 +682,9 @@ class AssetManager(LoggingMixin):
                 )
                 target_partition_date = None
 
-            for target_key in target_keys:
+            # Mappers can yield the same keys in different orders; acquire the pending-key
+            # unique-index entries consistently within each fan-out.
+            for target_key in sorted(target_keys):
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
                     target_partition_date=target_partition_date,
@@ -689,146 +734,273 @@ class AssetManager(LoggingMixin):
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
         """
-        if allow_reuse and (
-            pending_apdr := cls._get_latest_pending_apdr(
-                target_key=target_key, target_dag_id=target_dag.dag_id, session=session
-            )
-        ):
-            cls._reconcile_partition_date(
-                apdr=pending_apdr,
-                target_partition_date=target_partition_date,
-                target_dag_id=target_dag.dag_id,
-                target_key=target_key,
-                session=session,
-            )
-            cls.logger().debug(
-                "Existing APDR found for key %s dag_id %s",
-                target_key,
-                target_dag.dag_id,
-                exc_info=True,
-            )
-            return pending_apdr
-
-        build_apdr = partial(
-            AssetPartitionDagRun,
-            target_dag_id=target_dag.dag_id,
-            created_dag_run_id=None,
-            partition_key=target_key,
-            pending_partition_key=target_key if allow_reuse else None,
-            partition_date=target_partition_date,
-            rollup_fingerprint=rollup_fingerprint,
-        )
-        if not allow_reuse:
-            apdr = build_apdr()
-            session.add(apdr)
-            session.flush()
-        else:
-            # begin_nested() flushes the caller's pending rows before the savepoint starts, so
-            # rolling it back on a conflict expunges only ``apdr``. The re-lookup after a
-            # conflict sees the winner's row on MySQL only because it runs at READ COMMITTED
-            # (settings.py), unlike its REPEATABLE READ default.
-            for attempt in range(1, _APDR_GET_OR_CREATE_ATTEMPTS + 1):
-                apdr = build_apdr()
-                try:
-                    with session.begin_nested():
-                        session.add(apdr)
-                except exc.IntegrityError:
-                    winner = cls._get_latest_pending_apdr(
-                        target_key=target_key, target_dag_id=target_dag.dag_id, session=session
+        last_conflict: exc.IntegrityError | None = None
+        insert_conflicts = 0
+        # One final acquisition can join the winner after the last allowed INSERT conflict.
+        # The same bound limits candidates invalidated by scheduler consumption while locking.
+        for attempt in range(_APDR_GET_OR_CREATE_ATTEMPTS + 1):
+            if allow_reuse:
+                candidate = cls._get_latest_pending_apdr(
+                    target_key=target_key, target_dag_id=target_dag.dag_id, session=session
+                )
+                # Take the lock before deciding to reuse: the unlocked lookup only tells us a
+                # row *was* pending, and the scheduler may delete or complete it before we
+                # attach an event log to it.
+                latest_apdr = (
+                    None
+                    if candidate is None
+                    else cls._lock_pending_apdr(
+                        apdr_id=candidate.id,
+                        target_key=target_key,
+                        target_dag_id=target_dag.dag_id,
+                        # Select the strength for this acquisition before reconciliation.
+                        for_write=target_partition_date is not None,
+                        session=session,
                     )
-                    if winner is None:
-                        # The winner was already turned into a Dag run, which cleared its key and
-                        # freed the constraint, so the INSERT can be run again.
-                        if attempt == _APDR_GET_OR_CREATE_ATTEMPTS:
-                            raise
-                        continue
+                )
+                if candidate is not None and latest_apdr is None:
+                    # It stopped being eligible while we waited for the lock. Retry rather
+                    # than reuse it or silently create a duplicate alongside it.
                     cls.logger().debug(
-                        "Another process created the APDR for key %s dag_id %s first; reusing it",
+                        "Candidate APDR for key %s dag_id %s was consumed before it could be "
+                        "locked; retrying",
                         target_key,
                         target_dag.dag_id,
                     )
-                    cls._reconcile_partition_date(
-                        apdr=winner,
+                    session.expunge(candidate)
+                    continue
+                if latest_apdr is not None:
+                    if cls._reconcile_partition_date(
+                        apdr=latest_apdr,
                         target_partition_date=target_partition_date,
                         target_dag_id=target_dag.dag_id,
                         target_key=target_key,
                         session=session,
+                    ):
+                        cls.logger().debug(
+                            "Existing APDR found for key %s dag_id %s", target_key, target_dag.dag_id
+                        )
+                        return latest_apdr
+                    # The row was removed between the lookup and the carry. Returning it would
+                    # let the caller attach an event log to a row that no longer exists, so
+                    # start the attempt again and create a fresh one.
+                    cls.logger().debug(
+                        "Reused APDR for key %s dag_id %s disappeared; retrying",
+                        target_key,
+                        target_dag.dag_id,
                     )
-                    return winner
-                break
+                    session.expunge(latest_apdr)
+                    continue
 
-        cls.logger().debug(
-            "No existing APDR found. Create APDR for key %s dag_id %s",
-            target_key,
-            target_dag.dag_id,
-            exc_info=True,
+            if insert_conflicts == _APDR_GET_OR_CREATE_ATTEMPTS:
+                break
+            apdr = AssetPartitionDagRun(
+                target_dag_id=target_dag.dag_id,
+                created_dag_run_id=None,
+                partition_key=target_key,
+                # Newly created non-batched rows remain outside the uniqueness guard.
+                pending_partition_key=target_key if allow_reuse else None,
+                partition_date=target_partition_date,
+                rollup_fingerprint=rollup_fingerprint,
+            )
+            if not allow_reuse:
+                session.add(apdr)
+                session.flush()
+                return apdr
+            try:
+                # The SAVEPOINT scopes a losing INSERT so only that statement is rolled back
+                # and the caller's already-flushed work in this transaction survives.
+                # Session.begin_nested() flushes pending ORM state into the parent transaction
+                # before opening the SAVEPOINT, so unflushed Log / PartitionedAssetKeyLog rows
+                # accumulated earlier are persisted first and are not expunged by the rollback.
+                with session.begin_nested():
+                    session.add(apdr)
+                    session.flush()
+            except exc.IntegrityError as e:
+                if not _is_pending_marker_conflict(e):
+                    # Not our uniqueness guard -- a foreign key or other constraint failed and
+                    # must not be silently converted into "someone else won the race".
+                    raise
+                last_conflict = e
+                insert_conflicts += 1
+                cls.logger().debug(
+                    "Lost APDR race for key %s dag_id %s (attempt %d/%d); re-reading",
+                    target_key,
+                    target_dag.dag_id,
+                    attempt + 1,
+                    _APDR_GET_OR_CREATE_ATTEMPTS + 1,
+                )
+                # Loop: the next iteration re-reads. If the winner is still pending we join it;
+                # if the scheduler completed or deleted it in the meantime the read misses and
+                # we insert a fresh row. A single re-select would raise in that second case.
+                continue
+            else:
+                cls.logger().debug(
+                    "No existing APDR found. Create APDR for key %s dag_id %s",
+                    target_key,
+                    target_dag.dag_id,
+                )
+                return apdr
+
+        if last_conflict is not None:
+            # Preserve the original constraint diagnostic when every INSERT conflicted.
+            raise last_conflict
+        raise RuntimeError(
+            f"Could not acquire a pending AssetPartitionDagRun for target_dag_id="
+            f"{target_dag.dag_id!r} partition_key={target_key!r} after "
+            f"{_APDR_GET_OR_CREATE_ATTEMPTS + 1} attempts: each candidate stopped being pending "
+            f"before acquisition completed."
         )
-        return apdr
 
     @staticmethod
     def _get_latest_pending_apdr(
         *, target_key: str, target_dag_id: str, session: Session
     ) -> AssetPartitionDagRun | None:
         """
-        Return the latest pending APDR for (target_dag_id, target_key), if any.
+        Return the newest still-pending APDR for the pair, if any.
 
-        This also matches pending rows created while batching was disabled, which carry no
-        ``pending_partition_key``, so a Dag that turns batching on keeps accumulating onto
-        its most recent pending row.
+        Match on ``partition_key`` so unmarked legacy and non-batched rows remain eligible.
+        The migration marks only the newest historical pending row in each group; other
+        rows stay unmarked, and reuse must not promote them into the uniqueness guard.
+
+        This lookup is unlocked. Reuse requires the primary-key locking read below.
         """
         return session.scalar(
             select(AssetPartitionDagRun)
             .where(
-                AssetPartitionDagRun.partition_key == target_key,
                 AssetPartitionDagRun.target_dag_id == target_dag_id,
+                AssetPartitionDagRun.partition_key == target_key,
                 AssetPartitionDagRun.created_dag_run_id.is_(None),
             )
             .order_by(AssetPartitionDagRun.id.desc())
             .limit(1)
         )
 
-    @staticmethod
+    @classmethod
+    def _lock_pending_apdr(
+        cls,
+        *,
+        apdr_id: int,
+        target_key: str,
+        target_dag_id: str,
+        for_write: bool,
+        session: Session,
+    ) -> AssetPartitionDagRun | None:
+        """
+        Lock and refresh one pending candidate until its producer transaction commits.
+
+        The scheduler claims with FOR UPDATE/SKIP LOCKED, so the producer must hold a
+        conflicting lock until its event link is committed. This protects completion and
+        stale-rollup deletion even when scheduler HA locking is disabled.
+
+        Choose the strength from the incoming date before acquiring the lock: an event
+        carrying a date may write and needs an exclusive lock immediately. Taking a shared
+        lock first would create a conversion deadlock between two agreeing producers.
+        No-date producers can share the row. Later acquisitions in the same transaction
+        can still convert locks or acquire keys in another order; the owner must replay
+        those deadlock victims.
+
+        Lock by primary key instead of the ranged newest-pending lookup to avoid InnoDB
+        next-key locks conflicting with concurrent inserts. Reassert eligibility and
+        populate the ORM instance from the locking read, since the earlier lookup may
+        have cached values from before a competing transaction committed.
+        """
+        return session.scalar(
+            with_row_locks(
+                select(AssetPartitionDagRun).where(
+                    AssetPartitionDagRun.id == apdr_id,
+                    # Re-asserted, not assumed: the unlocked lookup above may be stale by now.
+                    AssetPartitionDagRun.target_dag_id == target_dag_id,
+                    AssetPartitionDagRun.partition_key == target_key,
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                ),
+                read=not for_write,
+                key_share=not for_write,
+                required=True,
+                session=session,
+            )
+            # Overwrite the identity-map instance with what this locking read returned; see
+            # the docstring. Without it the caller inspects pre-lock column values.
+            .execution_options(populate_existing=True)
+        )
+
+    @classmethod
     def _reconcile_partition_date(
+        cls,
         *,
         apdr: AssetPartitionDagRun,
         target_partition_date: datetime | None,
         target_dag_id: str,
         target_key: str,
         session: Session,
-    ) -> None:
+    ) -> bool:
         """
-        Reconcile the carried ``partition_date`` on a reused pending APDR.
+        Atomically adopt an incoming date, retain an equal one, or suppress disagreement.
 
-        This is best-effort: a partitioned consumer's feeding assets are expected to agree
-        on the partition's datetime. The carry only matters for ``IdentityMapper`` (whose key
-        the scheduler cannot decode); temporal/composite feeds re-derive the date from the key
-        at run creation regardless of what is stored here. Within that contract:
+        A later event can re-adopt a date after suppression to NULL. The conditional UPDATE
+        uses database state instead of a potentially stale ORM read. Its predicate avoids
+        rewriting an equal date, but MySQL can still lock a row while evaluating it.
 
-        - If the APDR carries no date yet (``None`` — created by an event that carried none),
-          adopt the incoming date when this event carries one. There is nothing to conflict
-          with, so a later identity event's date is not dropped.
-        - If the APDR already carries a date and this event carries a **different** non-null
-          one, the producing assets disagree; picking one would be order-dependent, so the
-          carried date is suppressed to ``None`` (and re-adoptable by a later event).
-        - Otherwise (the dates agree, or this event carries none) the existing value is kept.
+        Return False if a write was due but the row disappeared. Acquisition callers hold
+        a row lock; this check also protects direct callers of the reconciliation helper.
         """
-        existing_partition_date = apdr.partition_date
-        if existing_partition_date is None:
-            if target_partition_date is not None:
-                apdr.partition_date = target_partition_date
-                session.flush()
-        elif target_partition_date is not None and existing_partition_date != target_partition_date:
+        if target_partition_date is None:
+            return True
+
+        # Captured from the loaded row so the common "already correct" reuse costs no extra
+        # query below.
+        write_expected = apdr.partition_date != target_partition_date
+
+        result = session.execute(
+            update(AssetPartitionDagRun)
+            .where(
+                AssetPartitionDagRun.id == apdr.id,
+                # Nothing to do when the stored date already matches. This suppresses the
+                # write, not the statement, and does not guarantee no lock is taken.
+                AssetPartitionDagRun.partition_date.is_distinct_from(target_partition_date),
+            )
+            .values(
+                partition_date=case(
+                    # no date carried yet -> adopt this one
+                    (AssetPartitionDagRun.partition_date.is_(None), target_partition_date),
+                    # disagreement -> suppress, rather than an order-dependent winner
+                    else_=None,
+                )
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if not cast("CursorResult", result).rowcount:
+            if not write_expected:
+                # The stored date already matched; the guard simply skipped the write.
+                return True
+            # A change was due but nothing was updated: the row was removed between the
+            # lookup and here. The pre-change ORM update surfaced this as StaleDataError;
+            # report it so the caller does not attach an event log to a row that is gone.
+            return cls._apdr_still_exists(apdr=apdr, session=session)
+
+        session.expire(apdr, ["partition_date"])
+        if apdr.partition_date is None:
             log.warning(
                 "Conflicting partition_date carried for the same target key; "
                 "suppressing it so the consumer DagRun's partition_date is None. "
                 "The producing assets likely disagree on the partition's datetime.",
                 target_dag_id=target_dag_id,
                 target_key=target_key,
-                existing_partition_date=existing_partition_date,
                 incoming_partition_date=target_partition_date,
             )
-            apdr.partition_date = None
-            session.flush()
+        return True
+
+    @classmethod
+    def _apdr_still_exists(cls, *, apdr: AssetPartitionDagRun, session: Session) -> bool:
+        """Confirm the reused row is still present before the caller attaches an event to it."""
+        return (
+            session.scalar(
+                select(func.count())
+                .select_from(AssetPartitionDagRun)
+                .where(AssetPartitionDagRun.id == apdr.id)
+            )
+            or 0
+        ) > 0
 
     @classmethod
     def _queue_dagruns_nonpartitioned(
