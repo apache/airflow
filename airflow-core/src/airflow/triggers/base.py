@@ -483,7 +483,8 @@ class AssetTriggerEvent(TriggerEvent):
     partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
 
     def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
-        # The IPC encoder excludes unset fields, so the discriminator must be explicitly set.
+        # Explicitly set type so serialization includes it. The triggerer supervisor
+        # needs it to reconstruct AssetTriggerEvent and preserve the partition key.
         super().__init__(
             payload=payload,
             type=kwargs.pop("type", "AssetTriggerEvent"),
