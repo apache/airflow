@@ -5380,13 +5380,8 @@ def _component_branch_checks(context: dict, files: tuple[str, ...]) -> Selective
         ),
         pytest.param(
             {"base_ref": "airflow-ctl/v0-1-test"},
-            {
-                "run_airflow_ctl_tests",
-                "run_airflow_ctl_integration_tests",
-                "ci_image_build",
-                "prod_image_build",
-            },
-            "apache-airflow-ctl",
+            {"run_airflow_ctl_tests"},
+            None,
             id="pull-request-to-airflow-ctl-branch",
         ),
     ],
@@ -5406,6 +5401,21 @@ def test_component_branch_runs_only_its_component(context, expected_on, expected
     assert checks.skip_providers_tests is True
     assert checks.has_migrations is False
     assert checks.docs_list_as_string == expected_docs
+    assert checks.docs_build is (expected_docs is not None)
+    assert checks.basic_checks_only is ("ci_image_build" not in expected_on)
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-test"}, True, id="chart-branch-builds-the-image"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-test"}, False, id="airflow-ctl-branch-has-no-image"),
+    ],
+)
+def test_component_branch_upgrades_dependencies_only_with_the_ci_image(context, expected):
+    checks = _component_branch_checks(context, ("airflow-ctl/pyproject.toml", "chart/pyproject.toml"))
+
+    assert checks.upgrade_to_newer_dependencies is expected
 
 
 @pytest.mark.parametrize(
