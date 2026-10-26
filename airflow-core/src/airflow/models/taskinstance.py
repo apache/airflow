@@ -554,6 +554,10 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries or 0, previous_try_number)
             ti.state = None
             ti.external_executor_id = None
+            # retry_delay_override is the functional one: next_retry_datetime() prefers it over
+            # the task's own retry_delay, so a stale value would retime the next retry.
+            ti.retry_reason = None
+            ti.retry_delay_override = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -1178,7 +1182,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
     # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
-    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    # Cleared on clear, on scheduling or deferring the next attempt, and on task start (ti_run).
+    # Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
@@ -1608,8 +1613,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.log.debug("Setting task state for %s to %s", self, state)
         if self not in session:
             self.refresh_from_db(session=session)
+        previous_state = self.state
         self.state = state
         self.start_date = self.start_date or current_time
+        if previous_state == TaskInstanceState.UP_FOR_RETRY and state != TaskInstanceState.UP_FOR_RETRY:
+            # The pending attempt never runs, so it must not keep the previous one's values:
+            # prepare_db_for_next_try() would otherwise archive them under this try number.
+            self.retry_reason = None
+            self.retry_delay_override = None
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
@@ -2660,6 +2671,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
             self.state = TaskInstanceState.DEFERRED
+            # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
+            self.retry_reason = None
+            self.retry_delay_override = None
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})

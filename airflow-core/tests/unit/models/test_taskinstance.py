@@ -5131,6 +5131,74 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize(
+    "state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+)
+def test_set_state_clears_retry_policy_columns_when_leaving_up_for_retry(dag_maker, session, state):
+    """A retry marked terminal by hand never runs, so it must not keep the previous attempt's values."""
+    with dag_maker("test_set_state_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(state, session=session)
+
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
+
+
+@pytest.mark.db_test
+def test_set_state_keeps_retry_policy_columns_while_up_for_retry(dag_maker, session):
+    """next_retry_datetime() reads the override while the task waits, so a re-set must not clear it."""
+    with dag_maker("test_set_state_keeps_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(TaskInstanceState.UP_FOR_RETRY, session=session)
+
+    assert ti.retry_reason == "rate limit"
+    assert ti.retry_delay_override == 300.0
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
+    """Neither column may survive the clear."""
+    with dag_maker("test_clear_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.FAILED
+    ti.retry_reason = "auth error, do not retry"
+    ti.retry_delay_override = 300.0
+    session.flush()
+    old_id = ti.id
+
+    clear_task_instances([ti], session)
+    session.flush()
+    session.expire_all()
+
+    # The archived try keeps its own values, so the reset cannot move above the archive.
+    archived = session.get(TI, old_id)
+    assert archived.working_set is None
+    assert archived.retry_reason == "auth error, do not retry"
+    assert archived.retry_delay_override == 300.0
+
+    successor = dag_run.get_task_instance("t1", session=session)
+    assert successor.id != old_id
+    assert successor.retry_reason is None
+    assert successor.retry_delay_override is None
+
+
+@pytest.mark.db_test
 def test_clear_task_instances_preserves_detail_level(dag_maker, session):
     """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
     from airflow._shared.observability.traces import (
