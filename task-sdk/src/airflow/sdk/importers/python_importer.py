@@ -250,10 +250,9 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        DagContext.current_autoregister_module_name = mod_name
-
         def parse() -> list[types.ModuleType]:
             try:
+                DagContext.current_autoregister_module_name = mod_name
                 with definition.import_context():
                     loader: importlib.abc.Loader
                     if get_file_suffix(definition) == ".pyc":
@@ -285,6 +284,10 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                     )
                 )
                 return []
+            finally:
+                # Reset on every exit: DagContext.pop() looks this name up in sys.modules, which may not
+                # hold it if the load did not complete.
+                DagContext.current_autoregister_module_name = None
 
         dagbag_import_timeout: float
         try:
@@ -323,7 +326,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         }
         top_level_dags.update(DagContext.autoregistered_dags)
 
-        DagContext.current_autoregister_module_name = None
         DagContext.autoregistered_dags.clear()
 
         for dag, _mod in top_level_dags:

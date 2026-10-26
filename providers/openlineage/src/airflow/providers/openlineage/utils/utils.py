@@ -24,7 +24,7 @@ from collections.abc import Callable, Collection, Mapping
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import attrs
@@ -135,6 +135,8 @@ log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
+_JOB_TYPE_DAG: Literal["DAG"] = "DAG"
+_JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 
 
 def try_import_from_string(string: str) -> Any:
@@ -354,12 +356,28 @@ def build_task_event_job_facets(
 
     return {
         **(additional_job_facets or {}),
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="TASK", integration="AIRFLOW", processingType="BATCH", producer=_PRODUCER
-        ),
+        **_get_job_type_facets(get_airflow_job_type(_JOB_TYPE_TASK)),
         **documentation_facet,
         **ownership_facet,
         **tags_facet,
+    }
+
+
+def get_airflow_job_type(job_type: Literal["DAG", "TASK"]) -> dict[str, str]:
+    """Return the job type facet fields of an Airflow Dag or task."""
+    return {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": job_type}
+
+
+def _get_job_type_facets(job_type: dict[str, str] | None) -> dict[str, JobFacet]:
+    if not job_type:
+        return {}
+    return {
+        "jobType": job_type_job.JobTypeJobFacet(
+            processingType=job_type["processingType"],
+            integration=job_type["integration"],
+            jobType=job_type["jobType"],
+            producer=_PRODUCER,
+        )
     }
 
 
@@ -370,18 +388,30 @@ def _get_parent_run_facet(
     root_parent_run_id: str | None = None,
     root_parent_job_name: str | None = None,
     root_parent_job_namespace: str | None = None,
+    parent_job_type: dict[str, str] | None = None,
+    root_parent_job_type: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Create the parent run facet from identifiers."""
+    if not any((root_parent_run_id, root_parent_job_name, root_parent_job_namespace)):
+        root_parent_job_type = parent_job_type
     root_parent_run_id = root_parent_run_id or parent_run_id
     root_parent_job_name = root_parent_job_name or parent_job_name
     root_parent_job_namespace = root_parent_job_namespace or parent_job_namespace
     return {
         "parent": parent_run.ParentRunFacet(
             run=parent_run.Run(runId=parent_run_id),
-            job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
+            job=parent_run.Job(
+                namespace=parent_job_namespace,
+                name=parent_job_name,
+                facets=_get_job_type_facets(parent_job_type),
+            ),
             root=parent_run.Root(
                 run=parent_run.RootRun(runId=root_parent_run_id),
-                job=parent_run.RootJob(namespace=root_parent_job_namespace, name=root_parent_job_name),
+                job=parent_run.RootJob(
+                    namespace=root_parent_job_namespace,
+                    name=root_parent_job_name,
+                    facets=_get_job_type_facets(root_parent_job_type),
+                ),
             ),
         )
     }
@@ -397,6 +427,7 @@ def get_task_parent_run_facet(
     dr_conf: dict | None = None,
 ) -> dict[str, Any]:
     """Retrieve the parent run facet."""
+    root_parent_job_type = None
     all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
     # If not all root identifiers are provided explicitly, try to get them from dagrun conf.
     if not all(all_root_info):
@@ -417,11 +448,13 @@ def get_task_parent_run_facet(
                 root_parent_run_id = root_info["root_parent_run_id"]
                 root_parent_job_namespace = root_info["root_parent_job_namespace"]
                 root_parent_job_name = root_info["root_parent_job_name"]
+                root_parent_job_type = root_info.get("root_parent_job_type")
             # If not present, check for parent identifiers in dagrun conf and use them as root
             elif parent_info := get_parent_information_from_dagrun_conf(dr_conf):
                 root_parent_run_id = parent_info["parent_run_id"]
                 root_parent_job_namespace = parent_info["parent_job_namespace"]
                 root_parent_job_name = parent_info["parent_job_name"]
+                root_parent_job_type = parent_info.get("parent_job_type")
 
     return _get_parent_run_facet(
         parent_run_id=parent_run_id,
@@ -430,6 +463,8 @@ def get_task_parent_run_facet(
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
+        parent_job_type=get_airflow_job_type(_JOB_TYPE_DAG),
+        root_parent_job_type=root_parent_job_type,
     )
 
 
@@ -441,7 +476,29 @@ def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
     return ol_data if isinstance(ol_data, dict) else {}
 
 
-def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def _get_job_type_from_ol_data(ol_data: dict, key: str) -> dict[str, str] | None:
+    """Return the job type facet fields stored under ``key`` if they are all valid, otherwise None."""
+    job_type = ol_data.get(key)
+    if job_type is None:
+        return None
+    required_fields = ("processingType", "integration", "jobType")
+    # The spec allows partial job type, but only complete information is supported for now.
+    # Other fields (e.g. `_producer` of a serialized facet) are ignored.
+    if not isinstance(job_type, dict) or not all(
+        isinstance(job_type.get(field), str) and job_type[field] for field in required_fields
+    ):
+        log.warning(
+            "Invalid OpenLineage %s '%s' in DAG run config - expected a dictionary with non-empty "
+            "string values for all of: %s.",
+            key,
+            job_type,
+            ", ".join(required_fields),
+        )
+        return None
+    return {field: job_type[field] for field in required_fields}
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract root parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -483,14 +540,17 @@ def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str
         root_parent_job_namespace,
         root_parent_job_name,
     )
-    return {
+    root_info: dict[str, Any] = {
         "root_parent_run_id": root_parent_run_id,
         "root_parent_job_namespace": root_parent_job_namespace,
         "root_parent_job_name": root_parent_job_name,
     }
+    if root_parent_job_type := _get_job_type_from_ol_data(ol_data, "rootParentJobType"):
+        root_info["root_parent_job_type"] = root_parent_job_type
+    return root_info
 
 
-def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -533,11 +593,14 @@ def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, s
         parent_job_name,
     )
 
-    return {
+    parent_info: dict[str, Any] = {
         "parent_run_id": parent_run_id,
         "parent_job_namespace": parent_job_namespace,
         "parent_job_name": parent_job_name,
     }
+    if parent_job_type := _get_job_type_from_ol_data(ol_data, "parentJobType"):
+        parent_info["parent_job_type"] = parent_job_type
+    return parent_info
 
 
 def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
@@ -572,10 +635,12 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
         return {}
 
     root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+    root_parent_job_type = None
     if root_info := get_root_information_from_dagrun_conf(dr_conf):
         root_parent_run_id = root_info["root_parent_run_id"]
         root_parent_job_namespace = root_info["root_parent_job_namespace"]
         root_parent_job_name = root_info["root_parent_job_name"]
+        root_parent_job_type = root_info.get("root_parent_job_type")
     else:
         log.debug(
             "Missing OpenLineage root identifiers in DAG run config, "
@@ -590,6 +655,8 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
+        parent_job_type=parent_info.get("parent_job_type"),
+        root_parent_job_type=root_parent_job_type,
     )
 
 

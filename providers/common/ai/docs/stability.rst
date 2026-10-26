@@ -102,7 +102,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        types, a write nested inside the statement fails it too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
-       schema.
+       schema. ``datasource_config`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_file_analysis`` and
        :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
      - Reads the file at ``file_path``, or up to ``max_files`` files under a prefix,
@@ -120,6 +121,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        ``severity`` of ``critical``, ``warning`` or ``info``. ``context_strategy="basic"``
        sends columns only; ``"full"``, the default, adds keys and indexes for database
        sources.
+       ``data_sources`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_batch`` and
        :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
      - Submits ``requests`` to the batch API that the ``model_id`` prefix selects, writes
@@ -254,10 +257,10 @@ Everything this provider ships that is not in the table above is experimental.
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
        OpenTelemetry GenAI conventions, which are still in development.
-   * - :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` used directly
+   * - :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`
        (:doc:`toolsets/logging`)
-     - The wrapper ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
-       may change.
+     - The capability ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
+       and behaviour may change.
    * - The Strands plugin, the ADK toolset and Strands checkpoint resume
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its

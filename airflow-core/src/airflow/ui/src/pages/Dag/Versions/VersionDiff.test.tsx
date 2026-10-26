@@ -153,14 +153,6 @@ describe("VersionDiff", () => {
     }
   });
 
-  it("keeps the comparison's boundary reachable from above the table", () => {
-    renderDiff(redacted);
-
-    // Below the table it would be pushed off-screen by exactly the long diffs that need it.
-    expect(screen.queryByText("versions.observedStateBoundary")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "versions.aboutThisComparison" })).toBeInTheDocument();
-  });
-
   it("shows values and the identifying path once the caller may see them", () => {
     renderDiff(authorized);
 

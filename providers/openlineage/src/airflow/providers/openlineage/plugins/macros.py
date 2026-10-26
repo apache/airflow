@@ -21,6 +21,9 @@ from typing import TYPE_CHECKING
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_DAG,
+    _JOB_TYPE_TASK,
+    get_airflow_job_type,
     get_job_name,
     get_parent_information_from_dagrun_conf,
     get_regional_task_instance_run_id,
@@ -53,6 +56,21 @@ def lineage_job_name(task_instance: TaskInstance):
         :ref:`howto/macros:openlineage`
     """
     return get_job_name(task_instance)
+
+
+def lineage_job_type() -> dict[str, str]:
+    """
+    Macro function which returns the OpenLineage job type facet fields of an Airflow task.
+
+    The result has the ``processingType``, ``integration`` and ``jobType`` fields of the ``JobTypeJobFacet``
+    and can be forwarded to a child job together with the parent information.
+    Note that a dictionary is returned, not a string - see the guide for how to use it in templates.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    return get_airflow_job_type(_JOB_TYPE_TASK)
 
 
 def lineage_run_id(task_instance: TaskInstance):
@@ -131,6 +149,27 @@ def lineage_root_run_id(task_instance: TaskInstance):
         logical_date=_get_logical_date(task_instance),
         clear_number=_get_dag_run_clear_number(task_instance),
     )
+
+
+def lineage_root_job_type(task_instance: TaskInstance) -> dict[str, str] | None:
+    """
+    Macro function which returns the OpenLineage job type facet fields of the root job of given task.
+
+    The result has the ``processingType``, ``integration`` and ``jobType`` fields of the ``JobTypeJobFacet``.
+    The type is taken from the same source as the other ``lineage_root_*`` macros: DagRun conf root
+    information, then DagRun conf parent information used as root, then the Dag of the task.
+    None is returned if the root comes from the DagRun conf, but its job type is missing or invalid.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    dr_conf = _get_dag_run_conf(task_instance=task_instance)
+    if ol_root_info := get_root_information_from_dagrun_conf(dr_conf=dr_conf):
+        return ol_root_info.get("root_parent_job_type")
+    if ol_parent_info := get_parent_information_from_dagrun_conf(dr_conf=dr_conf):
+        return ol_parent_info.get("parent_job_type")
+    return get_airflow_job_type(_JOB_TYPE_DAG)
 
 
 def lineage_root_job_namespace(task_instance: TaskInstance):

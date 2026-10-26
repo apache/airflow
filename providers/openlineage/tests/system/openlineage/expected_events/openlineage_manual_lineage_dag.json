@@ -17,7 +17,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag"
+                        "name": "openlineage_manual_lineage_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -25,7 +32,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -192,7 +206,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag"
+                        "name": "openlineage_manual_lineage_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -200,7 +221,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -332,7 +360,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_minimal"
+                        "name": "openlineage_manual_lineage_dag.query_minimal",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -340,7 +375,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -393,7 +435,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_minimal"
+                        "name": "openlineage_manual_lineage_dag.query_minimal",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -401,7 +450,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -504,7 +560,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_maximal"
+                        "name": "openlineage_manual_lineage_dag.query_maximal",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -512,7 +575,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -620,7 +690,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_maximal"
+                        "name": "openlineage_manual_lineage_dag.query_maximal",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -628,7 +705,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -691,7 +775,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -699,7 +790,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -762,7 +860,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -770,7 +875,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -833,7 +945,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -841,7 +960,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -904,7 +1030,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -912,7 +1045,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -970,7 +1110,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -978,7 +1125,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1042,7 +1196,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"
+                        "name": "openlineage_manual_lineage_dag.query_multiple_in_one_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1050,7 +1211,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1114,7 +1282,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_isolated_task"
+                        "name": "openlineage_manual_lineage_dag.query_isolated_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1122,7 +1297,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1180,7 +1362,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_isolated_task"
+                        "name": "openlineage_manual_lineage_dag.query_isolated_task",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1188,7 +1377,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1246,7 +1442,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_job_name"
+                        "name": "openlineage_manual_lineage_dag.query_with_explicit_job_name",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1254,7 +1457,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1312,7 +1522,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_job_name"
+                        "name": "openlineage_manual_lineage_dag.query_with_explicit_job_name",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1320,7 +1537,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1378,7 +1602,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance"
+                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1386,7 +1617,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -1444,7 +1682,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance"
+                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -1452,7 +1697,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"

@@ -355,9 +355,6 @@ class ConfigOption(BaseModel):
     Config option.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | Value, Field(title="Value")]
 
@@ -367,9 +364,6 @@ class ConfigSection(BaseModel):
     Config Section Schema.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: Annotated[str, Field(title="Name")]
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
@@ -697,9 +691,6 @@ class DagRunAssetReference(BaseModel):
     DagRun serializer for asset responses.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
@@ -776,9 +767,6 @@ class DagScheduleAssetReference(BaseModel):
     Dag schedule reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
@@ -1359,9 +1347,6 @@ class TaskInletAssetReference(BaseModel):
     Task inlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1444,9 +1429,6 @@ class TaskOutletAssetReference(BaseModel):
     Task outlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -2218,9 +2200,6 @@ class Config(BaseModel):
     List of config sections with their options.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     sections: Annotated[list[ConfigSection], Field(title="Sections")]
 
 
@@ -2732,10 +2711,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
-        Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
-            title="State Reason",
-        ),
+        Field(description="The reason this try ended, as recorded by a retry policy.", title="State Reason"),
     ] = None
 
 
@@ -2786,7 +2762,7 @@ class TaskInstanceResponse(BaseModel):
     state_reason: Annotated[
         str | None,
         Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
         ),
     ] = None

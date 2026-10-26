@@ -20,8 +20,9 @@
 # `release-branch-ci.yml`. Companion to `ci-arm.yml`, which runs the same pipeline on ARM as the
 # scheduled canary. The two workflows are physical copies of each other
 # (GitHub Actions has no cross-file YAML include), differing only in their
-# trigger surface, the hardcoded `runner-type` / `platform` values in
-# `build-info`'s outputs, and the architecture-specific print-platform job.
+# trigger surface, the hardcoded `platform` value in `build-info`'s outputs
+# (and the `PLATFORM` selective checks pick the runner type for), and the
+# architecture-specific print-platform job.
 # Edit both files together when changing pipeline shape.
 name: Tests (AMD)
 on:  # yamllint disable-line rule:truthy
@@ -43,15 +44,15 @@ on:  # yamllint disable-line rule:truthy
       - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
   push:
-    # Pushes to release-prep / providers branches run only the tests needed by the changes since the
-    # last successful run of the branch (selected as for a PR). Full runs of these branches, on AMD
-    # and ARM, are dispatched by `release-branch-ci.yml`. `main` does not build on push; its full
-    # runs are the canary above.
+    # Every push triggers the workflow so that contributors get CI in their forks (AIP-120).
+    # In apache/airflow the `gate` job keeps the old behaviour: only pushes to the release-prep /
+    # providers branches in CANONICAL_PUSH_BRANCH_FILTERS (fork_ci_gate.py) run anything, and they
+    # run only the tests needed by the changes since the last successful run of the branch
+    # (selected as for a PR); other pushes produce a gate-only run. Full runs of these branches, on
+    # AMD and ARM, are dispatched by `release-branch-ci.yml`. `main` does not build on push; its
+    # full runs are the canary above.
     branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-      - chart/v[0-9]+-[0-9]+x-test
-      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - '**'
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -91,10 +92,11 @@ jobs:
       contents: read
     outputs:
       run-needed: ${{ steps.schedule.outputs.run-needed || 'true' }}
+      # Empty in forks, whose pushes selective checks compare against apache/airflow.
       push-base-commit: ${{ steps.push.outputs.push-base-commit }}
     steps:
       - name: "Find the last successful run of the branch"
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.repository == 'apache/airflow'
         id: push
         shell: bash
         env:
@@ -131,6 +133,13 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          # A fork that enables Actions for fork CI also gets this cron; its canary would only use
+          # the contributor's runners. `ci-amd.yml`'s gate skips it too (`fork_schedule`).
+          if [[ "${REPOSITORY}" != "apache/airflow" ]]; then
+            echo "run-needed=false" >> "${GITHUB_OUTPUT}"
+            echo "Scheduled canaries run only in apache/airflow." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           workflow_path="${WORKFLOW_REF%@*}"
           workflow="${workflow_path##*/}"
           # Full runs are the scheduled canaries and manual `workflow_dispatch` runs; this run is
@@ -152,10 +161,107 @@ jobs:
             echo "run-needed=true" >> "${GITHUB_OUTPUT}"
           fi
 
+  gate:
+    # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
+    # code come from the base branch so a pull request cannot change its own eligibility. See
+    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+    name: "Fork CI gate"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 5
+    outputs:
+      project-ci: ${{ steps.gate.outputs.project-ci }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - name: "Checkout gate configuration from the base branch"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # A push in apache/airflow has no base branch. Its decision depends only on the pushed
+          # ref, so it takes the gate from the default branch: a pushed branch without the gate
+          # files would otherwise look like `base_without_gate` and run project CI on a push that
+          # never triggered it. A push in a fork keeps the pushed commit's gate, by SHA: the fork's
+          # default branch, or a later tip of the pushed branch picked up by a re-run, is the
+          # contributor's to change outside the commit whose result the reconciler trusts, while
+          # a gate change in the pushed commit shows in the pull request's files.
+          ref: >-
+            ${{ github.base_ref ||
+            (github.event_name == 'push' && github.repository == 'apache/airflow' &&
+            github.event.repository.default_branch) ||
+            (github.event_name == 'push' && github.sha) ||
+            github.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+            scripts/ci/prek/check_no_conventional_commit_message.py
+          sparse-checkout-cone-mode: false
+      # Until the gate is on the default branch, a push in apache/airflow would find no gate there
+      # and run the full project CI as `base_without_gate`, for every branch pushed. Only
+      # committers can push to apache/airflow, so the pushed commit's own gate decides then.
+      - name: "Check whether the default branch has the gate"
+        id: default-branch-gate
+        if: github.event_name == 'push' && github.repository == 'apache/airflow'
+        env:
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+        run: |
+          if [[ -e "${GATE_CONFIG}" || -e "${GATE_SCRIPT}" ]]; then
+            echo "present=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "present=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: "Checkout gate configuration from the pushed commit"
+        if: steps.default-branch-gate.outputs.present == 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+            scripts/ci/prek/check_no_conventional_commit_message.py
+          sparse-checkout-cone-mode: false
+      - name: "Decide whether project CI runs"
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        # A base branch with neither gate file predates the gate (the pull request adding it,
+        # or a release branch cut before it) and keeps running project CI. With only one of
+        # them present, the missing file fails the job instead of opening the gate.
+        run: |
+          if [[ ! -e "${GATE_CONFIG}" && ! -e "${GATE_SCRIPT}" ]]; then
+            echo "project-ci=true reason=base_without_gate"
+            echo "project-ci=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=base_without_gate" >> "${GITHUB_OUTPUT}"
+            echo 'Project CI runs (fork CI gate reason: `base_without_gate`)' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          python3 "${GATE_SCRIPT}"
+      # A gated pull request skips ci-image-checks.yml, which checks the title on project CI, and
+      # its fork run is a `push` event without a title.
+      - name: "Check PR title is not Conventional Commits"
+        if: github.event_name == 'pull_request' && steps.gate.outputs.project-ci == 'false'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" \
+            | python3 scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
+
   build-info:
     name: "Build info"
-    needs: [check-run-needed]
-    if: needs.check-run-needed.outputs.run-needed == 'true'
+    needs: [gate, check-run-needed]
+    if: >-
+      needs.gate.outputs.project-ci == 'true' &&
+      needs.check-run-needed.outputs.run-needed == 'true'
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     outputs:
@@ -200,7 +306,8 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      # platform / runner-type are hardcoded per workflow file (this is the
+      newsfragment-pr-number: ${{ steps.newsfragment-pr.outputs.pr-number }}
+      # platform is hardcoded per workflow file (this is the
       # AMD copy). The matching ARM copy lives in ci-arm.yml.
       platform: "linux/amd64"
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
@@ -217,6 +324,8 @@ jobs:
       run-agent-framework-tests: ${{ steps.selective-checks.outputs.run-agent-framework-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      run-generic-prod-image-tests: ${{ steps.selective-checks.outputs.run-generic-prod-image-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
@@ -242,7 +351,8 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
-      runner-type: '["ubuntu-22.04"]'
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      in-memory-runner-type: ${{ steps.selective-checks.outputs.in-memory-runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -317,6 +427,32 @@ jobs:
         env:
           SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+      # The newsfragment check of static checks fails a newsfragment of the pull request that is
+      # named after another number. A push in a fork (AIP-120) has no pull request in its event,
+      # so the open pull request of the pushed branch is looked up; without one, any number passes.
+      - name: "Find the pull request for the newsfragment check"
+        id: newsfragment-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          number=""
+          # A pull request inside a fork has a number of the fork's, not of apache/airflow.
+          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" \
+              && "${REPOSITORY}" == "apache/airflow" ]]; then
+            number="${EVENT_PR_NUMBER}"
+          elif [[ "${EVENT_NAME}" == "push" && "${REPOSITORY}" != "apache/airflow" ]]; then
+            number=$(gh api -X GET repos/apache/airflow/pulls -f head="${OWNER}:${REF_NAME}" \
+              -f state=open -f base=main --jq '.[0].number // empty' || true)
+          fi
+          if [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "pr-number=${number}" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Selective checks
         id: selective-checks
         env:
@@ -324,6 +460,10 @@ jobs:
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          # Repository variable: "true" moves every run, pushes included, back to public runners.
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+          # Repository variable: "false" keeps docker of the RunsOn jobs on disk instead of in RAM.
+          USE_IN_MEMORY_DOCKER: "${{ vars.USE_IN_MEMORY_DOCKER }}"
           PLATFORM: "linux/amd64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
@@ -346,6 +486,7 @@ jobs:
     needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
@@ -356,6 +497,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
+      run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -431,6 +573,7 @@ jobs:
       id-token: write
       contents: read
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -461,7 +604,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -502,7 +645,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -624,7 +767,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -653,7 +796,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -682,7 +825,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -712,7 +855,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -741,7 +884,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -772,7 +915,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -803,7 +946,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -833,7 +976,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -870,6 +1013,7 @@ jobs:
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       runners: ${{ needs.build-info.outputs.runner-type }}
+      in-memory-runners: ${{ needs.build-info.outputs.in-memory-runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
@@ -919,7 +1063,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -949,7 +1093,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1027,6 +1171,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-prod-image-tests: ${{ needs.build-info.outputs.run-generic-prod-image-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
@@ -1060,7 +1205,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1076,7 +1221,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1092,6 +1237,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
@@ -1117,6 +1264,19 @@ jobs:
       - name: Run Go tests with the race detector
         working-directory: ./go-sdk
         run: gotestsum --format github-actions -- -race ./...
+      # Nothing else builds for a 32-bit `int` (386, arm, mipsle), where 2^32-1 constants overflow
+      # and int64 values wrap. Vet type-checks on any host; the tests need one that runs 386.
+      - name: Vet Go SDK for a 32-bit target
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: go vet ./...
+      - name: Run Go tests on a 32-bit target
+        if: runner.arch == 'X64'
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: gotestsum --format github-actions ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version
@@ -1130,7 +1290,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1140,6 +1300,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
@@ -1164,7 +1326,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 32, 128) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1180,6 +1342,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup Java
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
@@ -1194,7 +1358,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1226,7 +1390,7 @@ jobs:
   build-ts-sdk-docs:
     name: "TypeScript SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1263,7 +1427,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 4, 16) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1284,7 +1448,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1299,6 +1463,9 @@ jobs:
       contents: write
       packages: write
     # This will fire when all the jobs from "needs" are either successful or skipped
+    # build-info is skipped by a no-op canary and when the fork CI gate leaves the pull request to
+    # fork CI (AIP-120); every other need is then skipped too, which always() alone would treat as
+    # success.
     if: always() && !failure() && !cancelled() && needs.build-info.result == 'success'
     needs:
       - additional-ci-image-checks
@@ -1348,49 +1515,132 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
+  ci-passed:
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead.
+    # A run with cancelled jobs and no failed one -- usually a duplicate run of the same commit that
+    # concurrency cancelled, such as the two `synchronize` events GitHub sends when a stacked pull
+    # request's base and head are force-pushed together -- reports under another name too, so it
+    # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
+    # missing for that run, which keeps the merge blocked until another run of the commit reports it.
+    # A job cancelled by its timeout gets that name too, since `name` cannot test whether the run
+    # itself was cancelled, but the job still fails.
+    name: >-
+      ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
+      'CI passed (run cancelled)') ||
+      (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
+    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
+    # skipped required check as passed, so this job always runs and fails itself when any job it
+    # needs failed or timed out. Jobs skipped by selective checks count as passed.
+    if: always()
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-ts-sdk-docs
+      - check-run-needed
+      - ci-image-checks
+      - finalize-tests
+      - gate
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
+      - name: "Fail if any CI job failed"
+        if: contains(needs.*.result, 'failure')
+        run: |
+          echo "At least one CI job failed."
+          exit 1
+      # A job that hits its timeout is cancelled while the run is not, and must fail this check, as
+      # the scheduled canary's Slack report lists only failed jobs.
+      - name: "Fail if a CI job was cancelled without the run being cancelled"
+        if: contains(needs.*.result, 'cancelled') && !cancelled()
+        run: |
+          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
+          exit 1
+      - name: "Report that CI jobs were cancelled"
+        if: contains(needs.*.result, 'cancelled') && cancelled()
+        run: |
+          echo "At least one CI job was cancelled, so this run does not report CI passed."
+          echo 'CI jobs were cancelled: this run does not report `CI passed`.' >> "${GITHUB_STEP_SUMMARY}"
+      - name: "All CI jobs passed or were skipped"
+        if: "!contains(needs.*.result, 'cancelled')"
+        run: echo "All CI jobs passed or were skipped."
+
   notify-slack:
     name: "Notify Slack"
     needs:
       - build-info
       - check-run-needed
+      # Waits for the gate job, which is the only failed job when a CI job timed out.
+      - ci-passed
       - finalize-tests
       - tests-agent-frameworks
-    # A no-op canary (`run-needed` is 'false') does not post; a failed check does.
+    # A no-op canary (`run-needed` is 'false') does not post; a failed check does. A failing gate
+    # skips build-info and everything after it, and must still be reported. A fork's scheduled run
+    # is the intended skip, and forks have no Slack to report to.
     if: >-
       always() &&
       !cancelled() &&
+      github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
-      needs.check-run-needed.outputs.run-needed != 'false' &&
-      github.run_attempt == 1
+      needs.check-run-needed.outputs.run-needed != 'false'
     runs-on: ["ubuntu-slim"]
+    permissions:
+      # The run's jobs, the previous notification state, and the annotations RunsOn puts on jobs
+      # stopped by an EC2 Spot interruption.
+      actions: read
+      checks: read
+      contents: read
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      # Skips re-runs started by maintainers, and failures that are only EC2 Spot interruptions
+      # RunsOn will re-run; those leave the notification state alone, and the re-run reports.
       - name: "Get failing jobs"
         id: get-failures
         shell: bash
-        run: |
-          FAILED_JOBS=$(gh run view "${{ github.run_id }}" \
-            --repo "${{ github.repository }}" \
-            --json jobs \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]')
-          echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
-          echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
-          # A literal newline would end the double-quoted YAML scalar the Slack payload
-          # interpolates job names into, and the action would reject the whole payload.
-          echo "failed-jobs-text=${FAILED_JOBS//$'\n'/\\n}" >> "${GITHUB_OUTPUT}"
-          if [[ -n "${FAILED_JOBS}" ]]; then
-            echo "has-failures=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has-failures=false" >> "${GITHUB_OUTPUT}"
-          fi
+        run: python3 scripts/ci/spot_interruptions.py slack
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       - name: "Determine notification action"
         id: notification
+        if: steps.get-failures.outputs.skip != 'true'
         shell: bash
         run: |
           command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
@@ -1401,6 +1651,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
+        if: steps.get-failures.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-amd"
@@ -1474,7 +1725,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -1484,6 +1735,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh

@@ -865,6 +865,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
             verbose=False,
@@ -889,6 +890,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp),
             verbose=False,
@@ -919,6 +921,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -949,6 +952,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -979,6 +983,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=expected,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -1011,6 +1016,7 @@ class TestCLIDBClean:
             table_names=expected,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -1041,6 +1047,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=expected,
@@ -1071,6 +1078,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -1104,6 +1112,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=expected,
             exclude_dag_ids=None,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,
@@ -1111,6 +1120,79 @@ class TestCLIDBClean:
             batch_size=None,
             error_on_cleanup_failure=False,
         )
+
+    @patch("airflow.cli.commands.db_command.run_cleanup", autospec=True)
+    def test_asset_ids(self, run_cleanup_mock):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                "--tables",
+                "asset_event",
+                "--asset-ids",
+                " 1, 2 ",
+                "--dag-ids",
+                "producer",
+                "--exclude-dag-ids",
+                "excluded",
+            ]
+        )
+        db_command.cleanup_tables(args)
+        run_cleanup_mock.assert_called_once_with(
+            table_names=["asset_event"],
+            asset_ids=[1, 2],
+            dag_ids=["producer"],
+            exclude_dag_ids=["excluded"],
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            dry_run=False,
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
+            error_on_cleanup_failure=False,
+        )
+
+    @pytest.mark.parametrize("asset_ids", ["", " ", ",", "1,", ",1", "1,,2", "0", "-1", "1.5", "abc", "1, 0"])
+    @patch("airflow.cli.commands.db_command.run_cleanup", autospec=True)
+    def test_invalid_asset_ids(self, run_cleanup_mock, asset_ids, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            db_command.cleanup_tables(
+                self.parser.parse_args(
+                    [
+                        "db",
+                        "clean",
+                        "--clean-before-timestamp",
+                        "2021-01-01",
+                        "--tables",
+                        "asset_event",
+                        f"--asset-ids={asset_ids}",
+                    ]
+                )
+            )
+        assert exc_info.value.code == 2
+        assert "argument --asset-ids: invalid positive int value:" in capsys.readouterr().err
+        run_cleanup_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "tables",
+        [[], ["--tables", "log"], ["--tables", "asset_event,log"], ["--tables", "asset_event,invalid"]],
+    )
+    @patch("airflow.utils.db_cleanup.reflect_tables", autospec=True)
+    @patch("airflow.utils.db_cleanup._cleanup_table", autospec=True)
+    @patch("airflow.utils.db_cleanup._confirm_delete", autospec=True)
+    def test_asset_ids_require_only_asset_event(self, confirm_mock, cleanup_mock, reflect_mock, tables):
+        args = self.parser.parse_args(
+            ["db", "clean", "--clean-before-timestamp", "2021-01-01", "--asset-ids", "1,2", *tables]
+        )
+        with pytest.raises(
+            SystemExit, match="--asset-ids requires explicitly selecting only --tables asset_event"
+        ):
+            db_command.cleanup_tables(args)
+        confirm_mock.assert_not_called()
+        cleanup_mock.assert_not_called()
+        reflect_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         ("extra_args", "expected"), [(["--exclude-dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
@@ -1136,6 +1218,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=None,
             exclude_dag_ids=expected,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,
@@ -1166,6 +1249,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,

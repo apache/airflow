@@ -26,6 +26,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -41,6 +42,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CI_AMD_PLATFORM,
     CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -60,6 +62,8 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.fork_compare import get_fork_changes, get_fork_pull_request_labels, is_fork_push
+from airflow_breeze.utils.git_remotes import find_remote, find_remote_for_repo, get_remotes
 from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
@@ -323,7 +327,22 @@ def selective_check(
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
         changed_files: tuple[str, ...] = ()
-        if commit_ref is not None and selective_tests_on_push and github_event == GithubEvents.PUSH:
+        fork_push = is_fork_push(github_event, github_repository)
+        fork_changes_truncated = False
+        fork_merge_base = None
+        labels = tuple(ast.literal_eval(pr_labels)) if pr_labels else ()
+        fork_owner = github_repository.split("/")[0]
+        if fork_push and github_context_dict.get("ref_name"):
+            labels = get_fork_pull_request_labels(
+                fork_owner=fork_owner, branch=github_context_dict["ref_name"], base=default_branch
+            )
+        if fork_push and commit_ref is not None:
+            fork_changes = get_fork_changes(fork_owner=fork_owner, sha=commit_ref, base=default_branch)
+            changed_files = fork_changes.files
+            fork_changes_truncated = fork_changes.truncated
+            fork_merge_base = fork_changes.merge_base
+            console_print(f"\n[info]Changed files against apache/airflow:[/]\n{changed_files}\n")
+        elif commit_ref is not None and selective_tests_on_push and github_event == GithubEvents.PUSH:
             # The base is the last successful run of the branch, so this run also covers the commits
             # whose push runs failed or were cancelled by a newer push. Without one, nothing after the
             # branch point is known to pass, so everything runs.
@@ -344,13 +363,16 @@ def selective_check(
             files=changed_files,
             default_branch=default_branch,
             default_constraints_branch=default_constraints_branch,
-            pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
+            pr_labels=labels,
             github_event=github_event,
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
             platform=ci_platform,
             selective_tests_on_push=selective_tests_on_push,
+            fork_push=fork_push,
+            fork_changes_truncated=fork_changes_truncated,
+            fork_merge_base=fork_merge_base,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -856,41 +878,12 @@ def upgrade(
     status_result = run_command(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
     is_clean = status_result.returncode == 0 and not status_result.stdout.strip()
 
-    # Check if we have the apache remote and get its name
-    remote_result = run_command(["git", "remote", "-v"], capture_output=True, text=True, check=False)
-    apache_remote_name = None
-    origin_remote_name = None
-    origin_repo = None  # Store the user's fork repo (e.g., "username/airflow")
-
-    if remote_result.returncode == 0:
-        # Parse remote output to find apache/airflow remote and origin remote
-        # Format: remote_name\turl (fetch|push)
-        for line in remote_result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) >= 2:
-                remote_name = parts[0]
-                remote_url = parts[1]
-                if "apache/airflow" in remote_url and apache_remote_name is None:
-                    apache_remote_name = remote_name
-                # Also track origin remote for pushing
-                if remote_name == "origin" and origin_remote_name is None:
-                    origin_remote_name = remote_name
-                    # Extract repo from origin URL (supports both HTTPS and SSH formats)
-                    # HTTPS: https://github.com/username/airflow.git
-                    # SSH: git@github.com:username/airflow.git
-                    if "github.com" in remote_url:
-                        if "git@github.com:" in remote_url:
-                            # SSH format
-                            repo_part = remote_url.split("git@github.com:")[1]
-                        elif "github.com/" in remote_url:
-                            # HTTPS format
-                            repo_part = remote_url.split("github.com/")[1]
-                        else:
-                            repo_part = None
-
-                        if repo_part:
-                            # Remove .git suffix if present
-                            origin_repo = repo_part.replace(".git", "").strip()
+    remotes = get_remotes()
+    apache_remote = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    apache_remote_name = apache_remote.name if apache_remote else None
+    origin_remote = find_remote(remotes, "origin")
+    origin_remote_name = origin_remote.name if origin_remote else None
+    origin_repo = origin_remote.repo if origin_remote else None
 
     has_apache_remote = apache_remote_name is not None
 
@@ -1682,3 +1675,179 @@ def set_milestone(
         console_print(f"[success]Added notification comment to PR #{pr_number}[/]")
     except Exception as e:
         console_print(f"[warning]Failed to add notification comment to PR #{pr_number}: {e}[/]")
+
+
+@ci_group.command(
+    name="fork-ci-reconcile",
+    help="Reconcile pull requests whose CI runs in contributor forks (AIP-120). Run on a schedule.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Fork CI gate configuration. Defaults to .github/fork-ci-gate.toml in the Airflow sources.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default="slack-message.json",
+    show_default=True,
+    envvar="OUTPUT_FILE",
+    help="Where the Slack message is written when there are items for maintainers.",
+)
+@click.option(
+    "--reported-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="REPORTED_FILE",
+    help="The items the previous run reported, left out of the Slack message, and replaced by "
+    "this run's items. Without it every item is reported on every run.",
+)
+@click.option(
+    "--draft-changes-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="DRAFT_CHANGES_FILE",
+    help="Where the draft state changes are written, as JSON, for the job that applies them with "
+    "the permission the reconciler does not get. Without it they are only logged.",
+)
+@click.option(
+    "--run-url",
+    default="",
+    envvar="RUN_URL",
+    help="URL of the workflow run, linked from the Slack message.",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def fork_ci_reconcile(
+    config_path: Path | None,
+    output_file: Path,
+    reported_file: Path | None,
+    draft_changes_file: Path | None,
+    run_url: str,
+    github_repository: str,
+):
+    from datetime import UTC, datetime
+
+    from airflow_breeze.utils.fork_ci_gate import load_config
+    from airflow_breeze.utils.fork_ci_github import GitHubClient
+    from airflow_breeze.utils.fork_ci_reconcile import run_reconcile
+    from airflow_breeze.utils.github import get_ga_output
+    from airflow_breeze.utils.shared_options import get_dry_run
+
+    has_alerts = run_reconcile(
+        GitHubClient(github_repository, dry_run=get_dry_run()),
+        load_config(config_path or AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"),
+        now=datetime.now(tz=UTC),
+        run_url=run_url,
+        output_file=output_file,
+        workflows_dir=AIRFLOW_ROOT_PATH / ".github" / "workflows",
+        reported_file=reported_file,
+        draft_changes_file=draft_changes_file,
+    )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as f:
+            f.write(get_ga_output("has-alerts", has_alerts) + "\n")
+
+
+@ci_group.command(
+    name="audit",
+    help="Check that your checkout and fork are set up for fork CI (AIP-120), and offer the fixes.",
+)
+@click.option("--fix", is_flag=True, help="Run the offered fix commands, each after confirmation.")
+@option_verbose
+@option_dry_run
+@option_answer
+def audit(fix: bool):
+    import shlex
+
+    import yaml
+    from rich.table import Table
+
+    from airflow_breeze.utils.ci_audit import CheckStatus, run_audit, run_tool
+    from airflow_breeze.utils.fork_ci_gate import load_config
+
+    asf_yaml = yaml.safe_load((AIRFLOW_ROOT_PATH / ".asf.yaml").read_text())
+    collaborators = frozenset((asf_yaml.get("github") or {}).get("collaborators") or [])
+    config = load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
+
+    def report():
+        results = run_audit(run=run_tool, config=config, collaborators=collaborators)
+        table = Table(title="Fork CI setup")
+        for column in ("#", "Check", "Status", "Finding", "Fix"):
+            table.add_column(column)
+        colors = {CheckStatus.OK: "green", CheckStatus.FAIL: "red", CheckStatus.INFO: "blue"}
+        for result in results:
+            table.add_row(
+                str(result.number),
+                result.name,
+                f"[{colors[result.status]}]{result.status.value}[/]",
+                result.finding,
+                "\n".join(result.fix),
+            )
+        get_console().print(table)
+        return results
+
+    failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    if fix and any(result.fix for result in failed):
+        for result in failed:
+            if result.fix and user_confirm(f"Run the fix for '{result.name}': {'; '.join(result.fix)}?") == (
+                Answer.YES
+            ):
+                for command in result.fix:
+                    run_command(shlex.split(command), check=False)
+        failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    sys.exit(1 if failed else 0)
+
+
+@ci_group.command(
+    name="approve-workflow-runs",
+    help="Approve the waiting workflow runs of external contributors' PRs whose changes are safe "
+    "to run without a maintainer's look, and label the others 'need workflow approval'. "
+    "Used by the auto-approve-workflow-runs workflow.",
+)
+@click.option(
+    "--github-token",
+    help="GitHub token able to approve workflow runs and label PRs.",
+    envvar="GITHUB_TOKEN",
+    required=True,
+)
+@click.option(
+    "--max-run-age-hours",
+    help="Only decide on workflow runs created within this many hours; older waiting runs are left alone.",
+    type=click.IntRange(min=1),
+    default=24,
+    show_default=True,
+    envvar="MAX_RUN_AGE_HOURS",
+)
+@click.option(
+    "--report-only",
+    is_flag=True,
+    help="Only report the decisions and estimates, without approving runs or changing labels.",
+    envvar="REPORT_ONLY",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def approve_workflow_runs(
+    github_token: str, max_run_age_hours: int, report_only: bool, github_repository: str
+):
+    from airflow_breeze.utils.shared_options import get_dry_run
+    from airflow_breeze.utils.workflow_run_approval import (
+        GitHubApi,
+        process_waiting_runs,
+        write_step_summary,
+    )
+
+    api = GitHubApi(
+        github_repository=github_repository,
+        github_token=github_token,
+        report_only=report_only or get_dry_run(),
+    )
+    created_since = datetime.now(UTC) - timedelta(hours=max_run_age_hours)
+    results = process_waiting_runs(api, created_since=created_since)
+    write_step_summary(results, github_repository)
+    failed_prs = [result.pr_number for result in results if result.failed]
+    if failed_prs:
+        console_print(f"[error]Processing failed for PRs: {', '.join(f'#{n}' for n in failed_prs)}[/]")
+        sys.exit(1)

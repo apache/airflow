@@ -225,6 +225,16 @@ def get_callback_ti(ti):
     )
 
 
+def _attempt_states(ti, session):
+    attempts = session.scalars(
+        select(TaskInstance)
+        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.task_id == ti.task_id)
+        .execution_options(include_all_attempts=True)
+        .order_by(TaskInstance.try_number)
+    )
+    return [(attempt.try_number, attempt.state, attempt.working_set) for attempt in attempts]
+
+
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
@@ -1246,6 +1256,84 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    @pytest.mark.parametrize(
+        "callback_kwargs",
+        [
+            pytest.param({"on_failure_callback": lambda context: None}, id="on_failure_callback"),
+            pytest.param({"email": "test@example.com"}, id="email"),
+        ],
+    )
+    def test_process_executor_events_callback_for_running_ti_with_retries_moves_it_to_retry(
+        self, callback_kwargs, dag_maker, session
+    ):
+        """Sending the callback must not close the session and detach the TI before its retry is set up."""
+        with dag_maker(dag_id="executor_event_running_ti_with_retries", fileloc="/test_path1/"):
+            EmptyOperator(task_id="task", retries=1, **callback_kwargs)
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti.state = State.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        session.merge(ti)
+        session.commit()
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, State.FAILED, None),
+            (2, State.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
+
+    def test_process_executor_events_dag_lookup_failure_keeps_session_for_rest_of_batch(
+        self, dag_maker, session
+    ):
+        """A failed Dag lookup must not close the session and detach the rest of the batch."""
+        with dag_maker(dag_id="executor_event_dag_lookup_failure"):
+            EmptyOperator(task_id="first", retries=1)
+            EmptyOperator(task_id="second", retries=1)
+        dr = dag_maker.create_dagrun()
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        for ti in dr.task_instances:
+            ti.state = State.RUNNING
+            ti.try_number = 1
+            ti.queued_by_job_id = scheduler_job.id
+            session.merge(ti)
+            executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+        session.commit()
+        real_get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+        lookup_errors = [AirflowException("Dag lookup failed")]
+
+        def get_dag_for_run(*, dag_run, session):
+            if lookup_errors:
+                raise lookup_errors.pop()
+            return real_get_dag_for_run(dag_run=dag_run, session=session)
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, side_effect=get_dag_for_run
+        ):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        live_states = sorted(
+            session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
+        )
+        assert live_states == [State.SUCCESS, State.UP_FOR_RETRY]
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(
@@ -10174,6 +10262,67 @@ class TestSchedulerJob:
         assert asset in active
         assert asset not in orphaned
 
+    def test_asset_orphaning_asset_referenced_from_every_table(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        shared = Asset(uri="test://shared", name="shared", group="test_group")
+        dropped = Asset(uri="test://dropped", name="dropped", group="test_group")
+        schedule_only = Asset(uri="test://schedule_only", name="schedule_only", group="test_group")
+        outlet_only = Asset(uri="test://outlet_only", name="outlet_only", group="test_group")
+        inlet_only = Asset(uri="test://inlet_only", name="inlet_only", group="test_group")
+
+        for i in range(3):
+            with dag_maker(dag_id=f"consumer-{i}", schedule=[shared], session=session):
+                BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="schedule-only", schedule=[schedule_only], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared, dropped])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
+
+        # Attach aliases: one to ``shared`` and one to an asset with no other reference.
+        alias_only = AssetModel(uri="test://alias_only", name="alias_only", group="test_group")
+        alias_only.aliases.append(AssetAliasModel(name="alias_for_alias_only", group="asset"))
+        shared_model = session.scalar(select(AssetModel).where(AssetModel.name == "shared"))
+        shared_model.aliases.append(AssetAliasModel(name="alias_for_shared", group="asset"))
+        session.add(alias_only)
+        session.flush()
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert {a.name for a in active} == {
+            "shared",
+            "dropped",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
+        assert orphaned == []
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert {a.name for a in active} == {
+            "shared",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
+        assert [a.name for a in orphaned] == ["dropped"]
+
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -10631,6 +10780,33 @@ class TestSchedulerJob:
             else "on_failure_callback"
         )
         assert dispatched_callback == expected_dispatched_callback
+
+    def test_heartbeat_timeout_with_retries_moves_ti_to_retry(self, dag_maker, session):
+        """Sending the heartbeat-timeout callback must not close the purge's session and detach the TI."""
+        with dag_maker(dag_id="hb_timeout_with_retries", session=session):
+            EmptyOperator(task_id="test_task", retries=1)
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti = dag_run.get_task_instance(task_id="test_task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, TaskInstanceState.FAILED, None),
+            (2, TaskInstanceState.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
 
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),

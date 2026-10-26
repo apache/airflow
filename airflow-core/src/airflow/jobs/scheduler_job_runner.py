@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
-    CTE,
     Text,
     and_,
     case,
@@ -1740,7 +1739,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.handle_failure(error=msg, session=session)
                         continue
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state)
+                    ti.set_state(state, session=session)
                     continue
                 ti.task = task
                 if task.has_on_retry_callback or task.has_on_failure_callback:
@@ -2025,6 +2024,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
+            non_fatal=True,
         )
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
@@ -2212,8 +2212,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run)
             if dag:
-                # Sending callbacks to the database, so it must be done outside of prohibit_commit.
                 self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                # The sink only adds the request to this session. Commit each one so a later Dag
+                # lookup error, or the critical section below rolling back, can't lose it.
+                session.commit()
             else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
 
@@ -4217,37 +4219,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
-        # Group assets into orphaned=True and orphaned=False groups.
-        orphaned = (
-            (
-                func.count(DagScheduleAssetReference.dag_id)
-                + func.count(TaskOutletAssetReference.dag_id)
-                + func.count(TaskInletAssetReference.dag_id)
-                # An asset materialized from an ``AssetAlias`` outlet is referenced only through
-                # the alias association, not the schedule/outlet/inlet tables. Count it so it is
-                # activated (and shown in the UI) instead of being treated as orphaned. See #58058.
-                + func.count(alias_association_table.c.alias_id)
-            )
-            == 0
-        ).label("orphaned")
-        asset_reference_query = (
-            select(AssetModel)
-            .outerjoin(DagScheduleAssetReference)
-            .outerjoin(TaskOutletAssetReference)
-            .outerjoin(TaskInletAssetReference)
-            .outerjoin(alias_association_table, alias_association_table.c.asset_id == AssetModel.id)
-            .group_by(AssetModel.id)
+        referenced = or_(
+            exists().where(DagScheduleAssetReference.asset_id == AssetModel.id),
+            exists().where(TaskOutletAssetReference.asset_id == AssetModel.id),
+            exists().where(TaskInletAssetReference.asset_id == AssetModel.id),
+            # An asset materialized from an ``AssetAlias`` outlet is referenced only through
+            # the alias association, not the schedule/outlet/inlet tables. Treat it as referenced so it
+            # is activated (and shown in the UI) instead of being orphaned. See #58058.
+            exists().where(alias_association_table.c.asset_id == AssetModel.id),
         )
-
-        orphan_query = asset_reference_query.having(orphaned).cte()
-        activate_query = asset_reference_query.having(~orphaned).cte()
+        orphan_query = select(AssetModel.name, AssetModel.uri).where(~referenced).subquery()
+        activate_query = select(AssetModel.name, AssetModel.uri).where(referenced).subquery()
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
         self._cleanup_orphaned_asset_state_store(session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: Subquery, *, session: Session) -> None:
         deleted_orphaned_assets = session.execute(
             delete(AssetActive).where(
                 exists().where(
@@ -4259,7 +4248,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
 
     @staticmethod
-    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _activate_referenced_assets(assets_query: Subquery, *, session: Session) -> None:
         active_assets_query = select(AssetActive.name, AssetActive.uri).join(
             assets_query,
             and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
@@ -4302,9 +4291,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
                 .where(
-                    ~active_assets_query.where(
-                        and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
-                    ).exists()
+                    ~exists().where(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
                 )
             )
 
