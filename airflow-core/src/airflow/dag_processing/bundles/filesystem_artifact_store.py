@@ -29,7 +29,11 @@ from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow.dag_processing.bundles.artifact_store import ArtifactStore, BundleManifestNotFoundError
+from airflow.dag_processing.bundles.artifact_store import (
+    ArtifactStore,
+    BundleManifestNotFoundError,
+    BundleManifestRefDurabilityError,
+)
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
     SHA256_VERSION_PREFIX,
@@ -346,7 +350,13 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
             os.fchmod(file.fileno(), 0o644)
             os.fsync(file.fileno())
         os.replace(tmp_path, destination_path)
-        fsync_directory(destination_path.parent)
+        try:
+            fsync_directory(destination_path.parent)
+        except OSError as e:
+            version = payload.get("version")
+            raise BundleManifestRefDurabilityError(
+                ref_path=destination_path, version=version if isinstance(version, str) else None
+            ) from e
     except Exception:
         # missing_ok: an exists()/unlink() pair could itself raise here (e.g. an external
         # tmp sweeper won the race) and mask the original publish error.
