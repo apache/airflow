@@ -31,6 +31,7 @@ import pytest
 
 from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
+    BackfillPostBody,
     ClearTaskInstancesBody,
     ConnectionTestResponse,
     DAGPatchBody,
@@ -38,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
 )
 from airflowctl.api.operations import (
+    BackfillOperations,
     ConnectionsOperations,
     DagRunOperations,
     DagsOperations,
@@ -1243,6 +1245,40 @@ class TestCliConfigMethods:
         assert mocked_update.call_args.kwargs["pool_body"] == PoolPatchBody(
             pool="p", slots=10, include_deferred=expected_include_deferred
         )
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_run_on_latest_version"),
+        [
+            pytest.param([], None, id="omitted-flag-stays-unset"),
+            pytest.param(["--run-on-latest-version"], True, id="explicit-run-on-latest"),
+            pytest.param(["--no-run-on-latest-version"], False, id="explicit-run-on-original"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(BackfillOperations, "create", autospec=True)
+    def test_backfill_create_omitted_run_on_latest_version_stays_unset(
+        self, mocked_create, mocked_print_as, extra_argv, expected_run_on_latest_version
+    ):
+        """Omitting ``--run-on-latest-version`` must not send ``run_on_latest_version=False``."""
+        args = cli_parser.get_parser().parse_args(
+            [
+                "backfill",
+                "create",
+                "--dag-id",
+                "d",
+                "--from-date",
+                "2024-01-01T00:00:00Z",
+                "--to-date",
+                "2024-01-02T00:00:00Z",
+                *extra_argv,
+            ]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        backfill = mocked_create.call_args.kwargs["backfill"]
+        assert isinstance(backfill, BackfillPostBody)
+        assert backfill.run_on_latest_version is expected_run_on_latest_version
 
     def test_parser_resolves_nested_subcommand(self):
         """The parser descends into the state-store subgroup, binds the func, and keeps the auth token."""
