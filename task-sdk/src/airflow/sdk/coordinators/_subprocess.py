@@ -55,7 +55,12 @@ from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
+from airflow.sdk.execution_time.supervisor import (
+    ActivitySubprocess,
+    NeverRaised,
+    ProcessTracker,
+    signal_process_tree,
+)
 
 if TYPE_CHECKING:
     import pathlib
@@ -206,6 +211,19 @@ def _build_runtime_env() -> dict[str, str]:
     }
 
 
+def _kill_leftover_group(pid: int) -> None:
+    """
+    Kill what an exited runtime left in its process group, which ``getpgid`` can no longer resolve.
+
+    A group outlives its leader, so it is reached by the leader's pid. Not when another process has
+    reused that pid, since the group could then be that process's.
+    """
+    if psutil.pid_exists(pid):
+        return
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(pid, signal.SIGKILL)
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
@@ -305,11 +323,14 @@ class _ResourceTracker:
                 case socket.socket():
                     o.close()
                 case subprocess.Popen():
-                    o.terminate()
+                    signal_process_tree(o.pid, signal.SIGTERM, fallback=o.send_signal)
                     try:
                         o.wait(self.timeout)
                     except subprocess.TimeoutExpired:
-                        o.kill()
+                        signal_process_tree(o.pid, signal.SIGKILL, fallback=o.send_signal)
+                    # A runtime that exited before connecting was already reaped, so its group
+                    # is out of reach above while what it spawned is still running.
+                    _kill_leftover_group(o.pid)
 
     def track(self, *objects: Tracked) -> tuple[Tracked, ...]:
         self.tracked.update((id(o), o) for o in objects)
@@ -365,6 +386,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
                 env=_build_runtime_env(),
+                # Own process group, so the supervisor can signal everything the runtime
+                # spawned with os.killpg, as the Python task runner has done since #65505.
+                # Popen returns after exec, so the group exists before kill().
+                # Must agree with new_process_group=True below.
+                process_group=0,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -387,6 +413,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 start_time=time.monotonic(),
                 stdin=socks[comm_server],
                 subprocess_schema_version=subprocess_schema_version,
+                # The supervisor signals the group; must agree with process_group=0 above.
+                new_process_group=True,
                 comm_server=comm_server,
                 logs_server=logs_server,
                 **kwargs,
