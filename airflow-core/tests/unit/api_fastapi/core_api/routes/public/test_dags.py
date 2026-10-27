@@ -714,6 +714,36 @@ class TestGetDags(TestDagEndpoint):
 
         assert actual_ids == expected_ids
 
+    def test_get_dags_last_dag_run_state_uses_the_latest_run_by_run_after(self, test_client, session):
+        """A run created later for an earlier ``run_after`` is not the Dag's latest run."""
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="scheduled",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DAG2_START_DATE + timedelta(days=5),
+                state=DagRunState.SUCCESS,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.flush()
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="manual",
+                run_type=DagRunType.MANUAL,
+                logical_date=DAG2_START_DATE + timedelta(days=1),
+                state=DagRunState.FAILED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/dags", params={"last_dag_run_state": "failed", "exclude_stale": False})
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG1_ID]
+
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(

@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
@@ -56,10 +56,18 @@ def generate_dag_with_latest_run_query(
         query = query.where(DagModel.dag_id.in_(dag_ids or set()))
 
     # Also filter the subquery for finding latest runs
-    max_run_id_query_stmt = select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
+    latest_run = aliased(DagRun, name="latest_run")
+    latest_run_id = (
+        select(latest_run.id)
+        .where(latest_run.dag_id == DagModel.dag_id)
+        .order_by(latest_run.run_after.desc(), latest_run.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    max_run_id_query_stmt = select(DagModel.dag_id, latest_run_id.label("max_dag_run_id"))
     if dag_ids is not None:
-        max_run_id_query_stmt = max_run_id_query_stmt.where(DagRun.dag_id.in_(dag_ids or set()))
-    max_run_id_query = max_run_id_query_stmt.group_by(DagRun.dag_id).subquery(name="mrq")
+        max_run_id_query_stmt = max_run_id_query_stmt.where(DagModel.dag_id.in_(dag_ids or set()))
+    max_run_id_query = max_run_id_query_stmt.subquery(name="mrq")
 
     has_max_run_filter = False
 
