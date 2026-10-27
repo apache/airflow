@@ -332,6 +332,17 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
+      - name: "Fail if static checks modified tracked files"
+        # prek does not report files that a nested-project hook modifies outside its own project,
+        # so check the tree independently.
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Static checks passed but modified tracked files. Commit the changes below."
+            git diff --stat
+            git diff | head -n 500 || true
+            exit 1
+          fi
 
   test-git-clone-on-windows:
     timeout-minutes: 5
