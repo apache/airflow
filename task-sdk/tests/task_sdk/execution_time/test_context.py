@@ -988,6 +988,16 @@ class TestInletEventAccessor:
             mock.call(GetAssetByUri(uri="test://test/")),
         ]
 
+    def test_unknown_ref_raises_on_lookup(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.ASSET_NOT_FOUND)
+        ref = Asset.ref(name="missing")
+
+        accessors = InletEventsAccessors(inlets=[ref])
+        assert list(accessors) == [ref]
+
+        with pytest.raises(AirflowRuntimeError):
+            accessors[ref]
+
     @pytest.mark.usefixtures("mock_supervisor_comms")
     def test__iter__(self, sample_inlet_evnets_accessor):
         for actual, expected in zip(sample_inlet_evnets_accessor, TEST_INLETS):

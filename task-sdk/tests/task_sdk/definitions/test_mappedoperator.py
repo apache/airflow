@@ -28,7 +28,7 @@ import pytest
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, AssetRef
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -739,17 +739,19 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
 class _OperatorWithConstructorLineage(BaseOperator):
     """Operator that derives inlets and outlets from constructor arguments."""
 
-    def __init__(self, *, inlet_name: str | None = None, outlet_name: str | None = None, **kwargs):
+    def __init__(
+        self, *, inlet: Asset | AssetRef | None = None, outlet: Asset | AssetRef | None = None, **kwargs
+    ):
         super().__init__(**kwargs)
-        if inlet_name is not None:
-            self.inlets.append(Asset(inlet_name))
-        if outlet_name is not None:
-            self.outlets.append(Asset(outlet_name))
+        if inlet is not None:
+            self.inlets.append(inlet)
+        if outlet is not None:
+            self.outlets.append(outlet)
 
 
 def test_mapped_render_template_fields_refreshes_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
     with DAG("test_dag"):
-        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(inlet_name=["a", "b"])
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(inlet=[Asset("a"), Asset("b")])
 
     ti = create_runtime_ti(task=mapped, map_index=1)
     context = ti.get_template_context()
@@ -769,7 +771,7 @@ def test_mapped_render_template_fields_refreshes_constructor_outlets(
     create_runtime_ti, mock_supervisor_comms
 ):
     with DAG("test_dag"):
-        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(outlet_name=["a", "b"])
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(outlet=[Asset("a"), Asset("b")])
 
     ti = create_runtime_ti(task=mapped, map_index=0)
     context = ti.get_template_context()
@@ -805,15 +807,30 @@ def test_mapped_render_template_fields_rebinds_asset_context(create_runtime_ti, 
     assert list(context["inlet_events"]) == [Asset("a"), Asset("c")]
 
 
-def test_mapped_render_template_fields_resolves_partial_ref_inlets_lazily(
-    create_runtime_ti, mock_supervisor_comms
+@pytest.mark.parametrize(
+    "make_mapped",
+    [
+        pytest.param(
+            lambda: MockOperator.partial(task_id="t", inlets=[Asset.ref(name="a")]).expand(arg1=["x", "y"]),
+            id="partial",
+        ),
+        pytest.param(
+            lambda: _OperatorWithConstructorLineage.partial(task_id="t").expand(
+                inlet=[Asset.ref(name="a"), Asset.ref(name="b")]
+            ),
+            id="constructor",
+        ),
+    ],
+)
+def test_mapped_render_template_fields_resolves_ref_inlets_lazily(
+    make_mapped, create_runtime_ti, mock_supervisor_comms
 ):
     def get_asset_by_name_calls():
         return [c for c in mock_supervisor_comms.send.call_args_list if isinstance(c.args[0], GetAssetByName)]
 
     mock_supervisor_comms.send.return_value = AssetResult(name="a", uri="a", group="asset")
     with DAG("test_dag"):
-        mapped = MockOperator.partial(task_id="t", inlets=[Asset.ref(name="a")]).expand(arg1=["x", "y"])
+        mapped = make_mapped()
 
     ti = create_runtime_ti(task=mapped, map_index=0)
     context = ti.get_template_context()
