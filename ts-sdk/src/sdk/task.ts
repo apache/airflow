@@ -24,6 +24,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { DagRunType } from "../generated/supervisor.js";
 import type { JsonValue } from "./client-types.js";
 import type { TaskClient } from "./client.js";
 
@@ -41,6 +42,16 @@ export interface TaskContext<TConf = Readonly<Record<string, JsonValue>>> {
   readonly mapIndex: number;
   /** `conf` of the Dag run, or `{}` when the run has none. */
   readonly conf: TConf;
+  /** Logical date of the Dag run, or `null` when the run has none. */
+  readonly logicalDate: Date | null;
+  /** Start of the Dag run data interval, or `null` when the run has none. */
+  readonly dataIntervalStart: Date | null;
+  /** End of the Dag run data interval, or `null` when the run has none. */
+  readonly dataIntervalEnd: Date | null;
+  /** Earliest time the Dag run can start, set even when the run has no logical date. */
+  readonly runAfter: Date;
+  /** How the Dag run was created, such as `"scheduled"` or `"manual"`. */
+  readonly runType: DagRunType;
   /**
    * AbortSignal that fires when Airflow terminates the task subprocess
    * with SIGTERM or SIGINT.
