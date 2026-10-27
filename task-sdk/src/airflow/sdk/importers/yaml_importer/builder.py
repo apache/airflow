@@ -163,6 +163,8 @@ class DagBuilder:
                 yield f"task {task.id_!r}: missing required handler argument(s) {missing}"
             if unknown := sorted(run_names - {p.name for p in declaration.params}):
                 yield f"task {task.id_!r}: run argument(s) {unknown} are not parameters of its task handler"
+            # Only names and arity are checked here. Type validation will follow
+            # once Language SDK ADR-0011 is settled.
 
     def _build_stub_task(self, task: Task, args: dict[str, Value]) -> BaseOperator:
         """
