@@ -81,11 +81,6 @@ AUTO_APPROVABLE_BASE_BRANCH = "main"
 
 MAX_ERROR_TEXT_LENGTH = 200
 
-# Changes here can change which runner a job uses (``runs-on:``, ``runner-type`` computed by
-# selective checks, the scripts build-info runs) or what the workflows do, so they always need a
-# maintainer's look.
-CI_DEFINITION_PATH_PREFIXES = (".github/", "dev/breeze/", "scripts/ci/")
-
 # Dependency manifests and lock files. Selective checks only switch to dependency-upgrade mode for
 # pyproject.toml, but a changed lock file or JS / Go / Java manifest also changes what CI installs.
 DEPENDENCY_FILE_PATTERN = re.compile(
@@ -168,10 +163,6 @@ class ApprovalDecision:
 
 def count_source_lines(changed_files: list[ChangedFile]) -> int:
     return sum(file.changed_lines for file in changed_files if not NON_SOURCE_FILE_PATTERN.search(file.path))
-
-
-def find_ci_definition_files(files: list[str]) -> list[str]:
-    return [file for file in files if file.startswith(CI_DEFINITION_PATH_PREFIXES)]
 
 
 def find_dependency_files(files: list[str]) -> list[str]:
@@ -276,7 +267,10 @@ def decide_approval(
             estimate=estimate,
         )
     paths = [file.path for file in changed_files]
-    ci_files = find_ci_definition_files(paths)
+    # CI definition files can change which runner a job uses (``runs-on:``, ``runner-type``
+    # computed by selective checks, the scripts build-info runs) or what the jobs run, so they
+    # always need a maintainer's look.
+    ci_files = find_fork_ci_definition_files(paths)
     if ci_files:
         return ApprovalDecision(
             approve=False,

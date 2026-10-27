@@ -3124,6 +3124,7 @@ class TestIndexedTaskInstance:
         parent_operator.start_date = timezone.datetime(2020, 1, 1)
         parent = RuntimeTaskInstance.model_construct(
             id=uuid7(),
+            task=parent_operator,
             task_id="iterated",
             dag_id="dag",
             run_id="run_1",
@@ -3841,6 +3842,13 @@ class TestRuntimeTaskInstance:
             ),
             "ti": runtime_ti,
         }
+
+    def test_state_store_accessor_carries_stats_tags(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"))
+
+        accessor = runtime_ti.get_template_context()["task_state_store"]
+
+        assert accessor._stats_tags == {**runtime_ti.stats_tags, "operator": "BaseOperator"}
 
     def test_task_state_store_scope_carries_region_coordinates(self, create_runtime_ti):
         region_id = uuid7()
