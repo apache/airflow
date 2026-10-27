@@ -5532,14 +5532,24 @@ components:
     PartitionedDagRunAssetResponse:
       properties:
         asset_id:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Asset Id
         asset_name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Name
         asset_uri:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Uri
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
         received:
           type: boolean
           title: Received
