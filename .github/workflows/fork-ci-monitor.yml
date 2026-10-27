@@ -41,8 +41,8 @@ jobs:
     name: "Reconcile pull requests gated to fork CI"
     if: github.repository == 'apache/airflow'
     permissions:
-      # Listing the runs and jobs of the gate tampering check, deleting the runs that only gated a
-      # pull request to fork CI, and cancelling the unfinished runs of merged pull requests.
+      # Listing the runs and jobs of the gate tampering check, and deleting the runs that only
+      # gated a pull request to fork CI.
       actions: write
       contents: read
       # Labels, comments and closing of gated pull requests.

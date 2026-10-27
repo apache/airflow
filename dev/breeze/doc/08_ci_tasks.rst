@@ -188,8 +188,7 @@ Pull requests from external contributors can run their CI in the contributor's f
 gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
 one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
 pull requests without fork CI activity for a week, closes gated pull requests that made project CI run
-by changing workflows, and writes everything it could not classify to a Slack message. It also cancels
-the unfinished workflow runs of pull requests, of any author, that have already merged. With
+by changing workflows, and writes everything it could not classify to a Slack message. With
 ``--dry-run`` it prints the changes instead of applying them. See
 `Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md>`_ for the design.
 
@@ -203,12 +202,13 @@ These are all available flags of ``fork-ci-reconcile`` command:
 Approving workflow runs of external contributors
 ------------------------------------------------
 
-The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 30 minutes. It approves
+The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 15 minutes. It approves
 the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
 than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. PRs whose CI runs in
 the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
 approved whatever their size unless they change CI definition files; such a PR also gets a comment
-explaining that its CI change needs a maintainer. For every PR it also
+explaining that its CI change needs a maintainer. The runs of PRs from the repositories of trusted
+stakeholders (Amazon, Google, Astronomer) are always approved. For every PR it also
 estimates the CI jobs selective checks will run and how long they take, and writes them to the job
 summary. Use ``--report-only`` to see the decisions without approving runs or changing labels. The rules
 are described in `CI workflows <ci/05_workflows.md>`_.
