@@ -527,7 +527,7 @@ def get_team_name_for_ti(ti_id, session) -> str | None:
     return session.scalar(_team_name_for_ti_stmt(ti_id))
 
 
-def get_team_name_for_execution_identity(identity_id, session) -> str | None:
+def get_team_name_for_execution_identity(identity_id, *, session) -> str | None:
     """Return the team of a task or callback execution token subject."""
     rows = session.execute(_team_name_for_execution_identity_stmt(identity_id)).all()
     return _team_name_from_execution_identity_rows(rows)

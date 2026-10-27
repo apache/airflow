@@ -607,14 +607,16 @@ class TestGetTeamNameDep:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("async_db_engine")
-    async def test_callback_execution_token_resolves_team_from_its_bundle(self, session):
+    @pytest.mark.parametrize("has_team", [True, False], ids=["with_team", "teamless"])
+    async def test_callback_execution_token_resolves_team_from_its_bundle(self, session, has_team):
         team = Team(name=f"team_{uuid4().hex}")
         bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
-        bundle.teams.append(team)
+        if has_team:
+            bundle.teams.append(team)
         callback = Callback()
-        callback.bundle_name = bundle.name
+        callback.bundle_name = bundle.name if has_team else None
         callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
-        session.add_all([bundle, callback])
+        session.add_all([bundle, callback] if has_team else [callback])
         session.commit()
         token = TIToken(id=callback.id, claims=TIClaims(scope="execution"))
 
@@ -623,61 +625,12 @@ class TestGetTeamNameDep:
                 result = await get_team_name_dep(token=token)
         finally:
             session.delete(callback)
-            session.delete(bundle)
-            session.delete(team)
+            if has_team:
+                session.delete(bundle)
+                session.delete(team)
             session.commit()
 
-        assert result == team.name
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    @pytest.mark.usefixtures("async_db_engine")
-    async def test_task_execution_token_still_resolves_team_from_its_dag(self, session, create_task_instance):
-        ti = create_task_instance()
-        team = Team(name=f"team_{uuid4().hex}")
-        bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
-        bundle.teams.append(team)
-        session.add(bundle)
-        session.flush()
-        previous_bundle_name = session.scalar(
-            select(DagModel.bundle_name).where(DagModel.dag_id == ti.dag_id)
-        )
-        session.execute(update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=bundle.name))
-        session.commit()
-        token = TIToken(id=ti.id, claims=TIClaims(scope="execution"))
-
-        try:
-            with conf_vars({("core", "multi_team"): "True"}):
-                result = await get_team_name_dep(token=token)
-        finally:
-            session.execute(
-                update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=previous_bundle_name)
-            )
-            session.delete(bundle)
-            session.delete(team)
-            session.commit()
-
-        assert result == team.name
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    @pytest.mark.usefixtures("async_db_engine")
-    async def test_teamless_callback_execution_token_remains_teamless(self, session):
-        callback = Callback()
-        callback.bundle_name = None
-        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
-        session.add(callback)
-        session.commit()
-        token = TIToken(id=callback.id, claims=TIClaims(scope="execution"))
-
-        try:
-            with conf_vars({("core", "multi_team"): "True"}):
-                result = await get_team_name_dep(token=token)
-        finally:
-            session.delete(callback)
-            session.commit()
-
-        assert result is None
+        assert result == (team.name if has_team else None)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
