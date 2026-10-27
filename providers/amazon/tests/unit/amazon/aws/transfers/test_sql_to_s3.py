@@ -20,6 +20,7 @@ from __future__ import annotations
 import gzip
 import importlib.util
 import io
+import weakref
 from unittest import mock
 
 import pandas as pd
@@ -598,6 +599,37 @@ class TestSqlToS3Operator:
         mock_dbapi_hook.return_value.get_df.assert_called_once_with(
             sql="SELECT * FROM t OFFSET 0 ROWS FETCH NEXT 3 ROWS ONLY", parameters=None, df_type="pandas"
         )
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_with_page_size_releases_a_page_before_reading_the_next(self, mock_s3_hook):
+        """Only one page is in memory at a time: the previous page is gone when the next is read."""
+        pages_alive_at_read: list[int] = []
+        page_refs: list[weakref.ref] = []
+
+        def get_df(**kwargs):
+            pages_alive_at_read.append(sum(ref() is not None for ref in page_refs))
+            df = pd.DataFrame({"a": [1, 2]}) if len(page_refs) < 2 else pd.DataFrame({"a": [1]})
+            page_refs.append(weakref.ref(df))
+            return df
+
+        mock_dbapi_hook = mock.Mock(return_value=mock.Mock(spec=DbApiHook))
+        mock_dbapi_hook.return_value.get_df.side_effect = get_df
+
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            page_size=2,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        assert pages_alive_at_read == [0, 0, 0]
+        assert mock_s3_hook.return_value.load_file_obj.call_count == 3
 
     @pytest.mark.parametrize(
         "kwargs",

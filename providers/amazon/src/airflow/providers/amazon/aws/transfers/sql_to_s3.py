@@ -292,6 +292,7 @@ class SqlToS3Operator(BaseOperator):
         )
         for suffix, df in pages:
             self._upload_dataframe(s3_conn, df, suffix)
+            del df  # release the page before the next one is read; the loop variable would hold it
 
     def _pages(self, sql_hook: DbApiHook) -> Iterable[tuple[str, pd.DataFrame | pl.DataFrame]]:
         """
