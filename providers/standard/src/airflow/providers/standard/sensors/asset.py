@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Any, Literal
 
+from pydantic import BaseModel
+
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseSensorOperator,
@@ -40,15 +42,13 @@ if TYPE_CHECKING:
 
 
 def _serialize_events(events: list[Any]) -> list[Any]:
-    """Serialize a list of (processed) asset events to JSON-safe values."""
-    serialized: list[Any] = []
-    for event in events:
-        model_dump = getattr(event, "model_dump", None)
-        if callable(model_dump):
-            serialized.append(model_dump(mode="json"))
-        else:
-            serialized.append(event)
-    return serialized
+    """
+    Convert asset events Pydantic models to JSON-compatible dicts.
+
+    This keeps the XCom value plain JSON, rather than relying on how XCom
+    serializes pydantic models.
+    """
+    return [e.model_dump(mode="json") if isinstance(e, BaseModel) else e for e in events]
 
 
 class AssetEventSensor(BaseSensorOperator):
