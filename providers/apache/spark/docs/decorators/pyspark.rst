@@ -37,6 +37,10 @@ config_kwargs: dict
     The kwargs used for initializing the SparkConf object. This overrides
     the spark configuration options set in the connection.
 
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with the ``conn_id`` and
+``config_kwargs`` parameters, which allows you to dynamically determine values, for example
+``config_kwargs={"spark.app.name": "app-{{ ds }}"}``.
+
 
 Example
 -------
