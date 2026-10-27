@@ -170,6 +170,12 @@
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dagStartEndDate": {
+      "both": "Dag start date: {{startDate}}, end date: {{endDate}}",
+      "end": "Dag end date: {{endDate}}",
+      "noTaskWillRun": "No task will run.",
+      "start": "Dag start date: {{startDate}}"
+    },
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",
