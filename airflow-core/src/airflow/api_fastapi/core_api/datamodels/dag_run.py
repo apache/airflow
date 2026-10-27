@@ -22,7 +22,15 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, field_validator, model_validator
+from pydantic import (
+    AliasPath,
+    AwareDatetime,
+    Field,
+    NonNegativeInt,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -160,6 +168,23 @@ class BulkDAGRunClearBody(BaseDAGRunClear, PartitionSelectorMixin):
         return self
 
 
+def mask_password_conf(dag: SerializedDAG | None, conf: dict | None) -> dict | None:
+    """Replace conf values with "***" for keys the Dag declares as format="password" string Params."""
+    if not conf or dag is None:
+        return conf
+    params = getattr(dag, "params", None)
+    if not params:
+        return conf
+    masked = dict(conf)
+    for key in masked:
+        if key not in params:
+            continue
+        schema = params.get_param(key).schema
+        if schema.get("type") == "string" and schema.get("format") == "password":
+            masked[key] = "***"
+    return masked
+
+
 class DAGRunResponse(BaseModel):
     """Dag Run serializer for responses."""
 
@@ -186,6 +211,29 @@ class DAGRunResponse(BaseModel):
     partition_key: str | None
     partition_date: datetime | None
     team_name: str | None = None
+
+    @field_validator("conf")
+    @classmethod
+    def _redact_password_conf(cls, conf: dict | None, info: ValidationInfo) -> dict | None:
+        context = info.context or {}
+        if context.get("unmasked"):
+            return conf
+        if "dag" not in context:
+            raise ValueError(
+                "DAGRunResponse needs the run's Dag to redact password-format conf values; "
+                "build it with DAGRunResponse.from_dag_run(dag_run, dag)."
+            )
+        return mask_password_conf(context["dag"], conf)
+
+    @classmethod
+    def from_dag_run(cls, dag_run: Any, dag: SerializedDAG | None) -> DAGRunResponse:
+        """Build the response with ``conf`` redacted against the Param schema of ``dag``."""
+        return cls.model_validate(dag_run, context={"dag": dag})
+
+    @classmethod
+    def from_dag_run_unmasked(cls, dag_run: Any) -> DAGRunResponse:
+        """Build the response with the raw ``conf``, for internal callers that need the real value."""
+        return cls.model_validate(dag_run, context={"unmasked": True})
 
 
 class DAGRunCollectionResponse(BaseModel):

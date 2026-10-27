@@ -2465,6 +2465,25 @@ class TestPostAssetMaterialize(TestAssets):
         session.commit()
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_materialize_masks_password_param_in_conf(self, test_client, session, dag_maker):
+        from airflow.sdk.definitions.param import Param
+
+        asset = session.get(AssetModel, 1).to_serialized()
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            schedule=None,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            session=session,
+        ):
+            EmptyOperator(task_id="task", outlets=asset)
+
+        response = test_client.post(
+            "/assets/1/materialize", json={"conf": {"one_time_code": "super-secret-value"}}
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"] == {"one_time_code": "***"}
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
         return_value="Jane Doe",

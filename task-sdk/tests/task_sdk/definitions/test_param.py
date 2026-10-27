@@ -406,12 +406,14 @@ class TestProcessParamsMasksPassword:
 
     @patch("airflow.sdk.definitions.param.mask_secret")
     def test_masks_string_param_declared_as_password(self, mock_mask_secret):
-        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        dag = self._make_dag({"one_time_code": Param("default", type="string", format="password")})
         task = self._make_task()
 
-        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+        resolved = process_params(
+            dag, task, {"one_time_code": "super-secret-value"}, suppress_exception=False
+        )
 
-        assert resolved["api_token"] == "super-secret-value"
+        assert resolved["one_time_code"] == "super-secret-value"
         # Three calls: (1) dagrun_conf's raw value, masked unconditionally before any merge;
         # (2) params.dump()'s current value before the debug log line, which at that point is
         # still the stale unresolved default ("default"), since this runs before
@@ -464,10 +466,10 @@ class TestProcessParamsMasksPassword:
         manager.attach_mock(mock_mask_secret, "mask_secret")
         manager.attach_mock(mock_logger.debug, "debug")
 
-        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        dag = self._make_dag({"one_time_code": Param("default", type="string", format="password")})
         task = self._make_task()
 
-        process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+        process_params(dag, task, {"one_time_code": "super-secret-value"}, suppress_exception=False)
 
         call_names = [call[0] for call in manager.mock_calls]
         assert "mask_secret" in call_names
@@ -487,10 +489,12 @@ class TestProcessParamsMasksPassword:
         manager.attach_mock(mock_mask_secret, "mask_secret")
         manager.attach_mock(mock_logger.debug, "debug")
 
-        dag = self._make_dag({"api_token": Param("default-secret-value", type="string", format="password")})
+        dag = self._make_dag(
+            {"one_time_code": Param("default-secret-value", type="string", format="password")}
+        )
         task = self._make_task()
 
-        # dagrun_conf touches an unrelated key only; api_token keeps its default.
+        # dagrun_conf touches an unrelated key only; one_time_code keeps its default.
         process_params(dag, task, {"unrelated_key": "not-a-secret"}, suppress_exception=False)
 
         call_names_and_args = [
@@ -517,12 +521,14 @@ class TestProcessParamsMasksPassword:
         # context["dag_run"].conf regardless of dag_run_conf_overrides_params, so a password-format
         # value in dagrun_conf must be masked even when this setting is False and dagrun_conf never
         # gets merged into task params at all.
-        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        dag = self._make_dag({"one_time_code": Param("default", type="string", format="password")})
         task = self._make_task()
 
-        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+        resolved = process_params(
+            dag, task, {"one_time_code": "super-secret-value"}, suppress_exception=False
+        )
 
         # With the override disabled, the task's resolved params keep the default, not the conf
         # value, but the conf value itself must still have been registered with the masker.
-        assert resolved["api_token"] == "default"
+        assert resolved["one_time_code"] == "default"
         mock_mask_secret.assert_any_call("super-secret-value")

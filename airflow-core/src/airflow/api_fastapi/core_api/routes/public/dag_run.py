@@ -133,39 +133,12 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 
 
-def _mask_password_conf(dag, conf: dict | None) -> dict | None:
-    """Redact conf values for keys whose declared Param uses schema format="password"."""
-    if not conf or dag is None:
-        return conf
-    params = getattr(dag, "params", None)
-    if not params:
-        return conf
-    masked = dict(conf)
-    for key in masked:
-        if key not in params:
-            continue
-        schema = params.get_param(key).schema
-        if schema.get("type") == "string" and schema.get("format") == "password":
-            masked[key] = "***"
-    return masked
-
-
 def _build_masked_dag_run_responses(dag_runs, dag_bag, session) -> list[DAGRunResponse]:
-    """
-    Convert ORM DagRuns to DAGRunResponse, redacting password-format conf keys per-run.
-
-    Deliberately does not cache DAGs by dag_id: two DagRuns can share a dag_id but resolve to
-    different Dag versions (get_dag_for_run keys off dag_run.created_dag_version_id), and a param's
-    format="password" declaration can differ between versions. dag_bag itself already caches by
-    dag_version_id internally, so this stays cheap without an extra, incorrect layer on top.
-    """
-    responses = []
-    for dag_run in dag_runs:
-        response = DAGRunResponse.model_validate(dag_run)
-        dag = get_dag_for_run(dag_bag, dag_run, session=session)
-        response.conf = _mask_password_conf(dag, response.conf)
-        responses.append(response)
-    return responses
+    """Convert ORM DagRuns to DAGRunResponse, redacting conf against each run's own Dag version."""
+    return [
+        DAGRunResponse.from_dag_run(dag_run, get_dag_for_run(dag_bag, dag_run, session=session))
+        for dag_run in dag_runs
+    ]
 
 
 @dag_run_router.get(
@@ -188,9 +161,8 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep, dag_bag: DagB
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    response = DAGRunResponse.model_validate(dag_run)
     dag = get_dag_for_run(dag_bag, dag_run, session=session)
-    response.conf = _mask_password_conf(dag, response.conf)
+    response = DAGRunResponse.from_dag_run(dag_run, dag)
     return response
 
 
@@ -289,8 +261,7 @@ def patch_dag_run(
     if not final_dag_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
-    response = DAGRunResponse.model_validate(final_dag_run)
-    response.conf = _mask_password_conf(dag, response.conf)
+    response = DAGRunResponse.from_dag_run(final_dag_run, dag)
     return response
 
 
@@ -403,8 +374,7 @@ def clear_dag_run(
         note=body.note,
         user=user,
     )
-    response = DAGRunResponse.model_validate(cleared_dag_run)
-    response.conf = _mask_password_conf(dag, response.conf)
+    response = DAGRunResponse.from_dag_run(cleared_dag_run, dag)
     return response
 
 
@@ -909,8 +879,7 @@ def trigger_dag_run(
         if dag_run_note:
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
-        response = DAGRunResponse.model_validate(dag_run)
-        response.conf = _mask_password_conf(context_dag, response.conf)
+        response = DAGRunResponse.from_dag_run(dag_run, context_dag)
         return response
 
     except (ParamValidationError, ValueError) as e:
