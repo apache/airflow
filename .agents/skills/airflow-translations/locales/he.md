@@ -34,7 +34,7 @@ These established translations **must be used consistently**:
 - `Backfill` → `השלמה למפרע` / `השלמות למפרע`
 - `Plugin` / `Plugins` → `תוסף` / `תוספים`
 - `Pool` / `Pools` → `מאגר משאבים`
-- `Provider` / `Providers` → `חבילות עזר`
+- `Provider` / `Providers` → `הרחבה` / `הרחבות`. Reserve the noun "הרחבה" for providers: do not use "חבילת עזר", and do not use "תוסף", which means Plugin. For the expansion of a mapped task, say "מופעים ממופים" (e.g., "Whole expansion" → "כל המופעים הממופים"). The UI verb "הרחב" (expand / collapse) stays as it is.
 - `Trigger` / `Triggerer` → `מפעיל` (component noun)
 - `Executor` → `Executor`
 - `Heartbeat` → `אות חיים` (e.g., "אות חיים אחרון" for "Latest Heartbeat")
@@ -101,21 +101,32 @@ These established translations **must be used consistently**:
 
 - Hebrew is an RTL language. UI layout should flip accordingly.
 - When mixing Hebrew and English (e.g., "הרצת Dag"), the LTR English term will naturally appear in the correct reading order within an RTL context.
-- Preserve all i18next placeholders exactly as-is: `{{count}}`, `{{dagName}}`, etc.
+- Preserve all i18next placeholders exactly as-is: `{{count, number}}`, `{{dagName}}`, etc.
 
 ### Plural Forms
 
-- Hebrew uses i18next plural suffixes `_one`, `_two`, and `_other`. For most Airflow UI strings `_two` will be identical to `_other`, but check existing translations and keep the `_two` key when it is present.
-- Note: colloquial Hebrew has a true dual form for things that come in pairs (e.g. one sock = גרב, two socks = גרביים, not "2 גרבים"). This rarely applies to Airflow UI terminology but is worth being aware of.
+- Hebrew has three i18next plural forms: `_one`, `_two` and `_other`. Provide all three for every plural key.
+- i18next picks the form per language, not per word: a count of 2 always looks up `_two`. If `_two` is missing, the UI falls back to English, not to `_other`.
+- For an ordinary noun, `_two` is an exact copy of `_other`. Do not write "שני" or "שתי": write "{{count, number}} מגירות", not "שתי מגירות".
+- If `_other` contains no number (a heading or a label), `_two` contains no number either. Some UI code passes `count: 2` only to get a plural heading, and other code prints the number next to the translated noun.
+- Write a distinct `_two` only for a true dual form, such as יומיים, שעתיים, שבועיים, חודשיים, שנתיים or גרביים.
 
   ```json
   "task_one": "משימה",
-  "task_other": "משימות"
+  "task_other": "משימות",
+  "task_two": "משימות"
   ```
 
   ```json
-  "dagRun_one": "הרצת Dag",
-  "dagRun_other": "הרצת Dags"
+  "deleteConnection_one": "מחק חיבור",
+  "deleteConnection_other": "מחק {{count, number}} חיבורים",
+  "deleteConnection_two": "מחק {{count, number}} חיבורים"
+  ```
+
+  ```json
+  "day_one": "יום",
+  "day_other": "{{count, number}} ימים",
+  "day_two": "יומיים"
   ```
 
 ### Capitalization of English terms
@@ -131,7 +142,7 @@ Asset          → "נכס"
 Backfill       → "השלמה למפרע"
 Pool           → "מאגר משאבים"
 Plugin         → "תוסף"
-Provider       → "חבילות עזר"
+Provider       → "הרחבה"
 Executor       → "Executor"
 Trigger        → "מפעיל"
 Heartbeat      → "אות חיים"
@@ -142,12 +153,16 @@ Heartbeat      → "אות חיים"
 ```
 task_one              → "משימה"
 task_other            → "משימות"
+task_two              → "משימות"
 dagRun_one            → "הרצת Dag"
 dagRun_other          → "הרצת Dags"
+dagRun_two            → "הרצת Dags"
 backfill_one          → "השלמה למפרע"
 backfill_other        → "השלמות למפרע"
+backfill_two          → "השלמות למפרע"
 taskInstance_one      → "מופע משימה"
 taskInstance_other    → "מופעי משימות"
+taskInstance_two      → "מופעי משימות"
 running               → "בריצה"
 failed                → "נכשלו"
 success               → "הצליחו"
@@ -187,9 +202,9 @@ triggerer.title           → "פרטי מפעיל"
 
 - Match tone, style, and terminology from existing `he/*.json` files
 - Use professional, neutral Hebrew
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{hotkey}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
 - Use construct state (סמיכות) for compound nouns as established
-- Provide all needed plural suffixes (`_one`, `_other`) for each plural key
+- Provide all three plural suffixes (`_one`, `_two`, `_other`) for each plural key
 - Check existing translations before adding new ones to maintain consistency
 
 **DON'T:**
@@ -200,6 +215,7 @@ triggerer.title           → "פרטי מפעיל"
 - Change hotkey values (e.g., `"hotkey": "e"` must stay `"e"`)
 - Translate variable names or placeholders inside `{{...}}`
 - Add Hebrew prefixed prepositions to English terms (e.g., don't write "ב-Dag", use "ב-Dag" only if established)
+- Spell out "שני" or "שתי" in a `_two` form, except for a true dual noun
 
 ---
 

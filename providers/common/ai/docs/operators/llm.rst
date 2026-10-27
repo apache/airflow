@@ -59,18 +59,35 @@ XCom unchanged, so downstream tasks can type-hint the class and use attribute ac
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
 
-Agent parameters
-----------------
+Model settings and output retries
+---------------------------------
 
-Pass additional keyword arguments to the pydantic-ai ``Agent`` constructor
-via ``agent_params``: for example ``retries``, ``model_settings``, or ``tools``.
-See the `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__ for
-the full list of supported parameters.
+Set ``model_settings`` to pass Pydantic AI
+`ModelSettings <https://ai.pydantic.dev/api/settings/>`__ to the model call, such as
+``temperature`` or ``max_tokens``. Set ``output_retries`` to choose how many times the
+model is asked again when its output fails validation against ``output_type``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
-    :start-after: [START howto_operator_llm_agent_params]
-    :end-before: [END howto_operator_llm_agent_params]
+    :start-after: [START howto_operator_llm_model_settings]
+    :end-before: [END howto_operator_llm_model_settings]
+
+No tool runs in the task: ``LLMOperator`` accepts no function tools, toolsets or
+capabilities, so ``model_settings`` cannot register one. A provider-hosted tool that a
+provider's own setting turns on, such as ``openai_native_tools`` for OpenAI's web search,
+runs on the provider's side. For a model that calls your tools, use
+:ref:`AgentOperator <howto/operator:agent>`.
+
+Moving from ``agent_params``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Common AI 1.0 removes ``agent_params`` from ``LLMOperator``, the operators built on it and
+their ``@task.llm*`` decorators. Passing it fails when the Dag is parsed. Move each key:
+
+- ``agent_params={"model_settings": {...}}`` becomes ``model_settings={...}``.
+- ``agent_params={"retries": n}`` becomes ``output_retries=n``.
+- ``tools``, ``toolsets``, ``capabilities`` or ``spec_file`` in ``agent_params``: use
+  ``AgentOperator`` or ``@task.agent``, which keep ``agent_params``.
 
 .. _howto/operator:llm_usage_limits:
 
@@ -81,8 +98,8 @@ Set ``usage_limits`` to a
 `pydantic-ai UsageLimits <https://ai.pydantic.dev/api/usage/#pydantic_ai.usage.UsageLimits>`__
 to fail the task when the run exceeds a configured budget: request count,
 input/output tokens, or tool calls. The check happens inside pydantic-ai's
-run loop, so the limit applies even when ``retries`` triggers multiple model
-calls within a single task.
+run loop, so the limit applies even when ``output_retries`` asks the model again
+within a single attempt.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -113,11 +130,14 @@ Common knobs on ``UsageLimits``:
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
   (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
   50-request cap. Set ``request_limit=None`` explicitly when you only want a
-  token cap. On ``AgentOperator`` and Airflow >= 3.3, this (including the
-  ``50`` default) counts requests per task instance, not per run -- see below.
-- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps (per task
-  instance on ``AgentOperator`` and Airflow >= 3.3 -- see below).
-- ``total_tokens_limit``: combined input + output cap.
+  token cap. On Airflow >= 3.3 with ``usage_limits`` set, the ``LLM*`` operators and
+  ``AgentOperator`` count this (including the ``50`` default) across the whole task
+  instance; otherwise each attempt (run) counts on its own -- see below.
+- ``input_tokens_limit`` / ``output_tokens_limit``: token caps. On Airflow >= 3.3
+  with ``usage_limits`` set, the ``LLM*`` operators and ``AgentOperator`` count them
+  across the whole task instance; otherwise each attempt (run) counts on its own --
+  see below.
+- ``total_tokens_limit``: combined input + output cap, scoped like the limits above.
 - ``tool_calls_limit``: max tool invocations (``AgentOperator`` only).
 - ``cost_limit``: a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
   hard guarantee against overspend: the response that crosses the limit has already been
@@ -144,23 +164,29 @@ When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure, so Airflow's standard retry policy
 applies on top.
 
-For the ``LLM*`` operator family, every limit here bounds a single agent
-*run*, not a task: each Airflow task retry re-renders ``usage_limits`` and
-starts a fresh count. A ``cost_limit`` of ``Decimal("0.50")`` caps one run,
-so it is not a bound on what the task spends in total.
+On Airflow >= 3.3, setting ``usage_limits`` makes every limit bound the whole
+task instance, for the ``LLM*`` family (``LLMOperator``, ``LLMBranchOperator``,
+``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` and
+the matching ``@task.*`` decorators) the same way it does for ``AgentOperator``:
+the initial run and every retry add to one running total, including the implicit
+``request_limit=50``. A pause for approval, and a retry after a reviewer rejects the
+output, share the same total. The total is cleared only once the task succeeds -- a
+reviewer approval, or a ``LLMBranchOperator`` skip, counts as success -- and a
+cleared task instance starts a fresh one. A ``cost_limit`` of ``Decimal("0.50")``
+therefore bounds what the task spends across every attempt combined (best-effort,
+like the rest of ``cost_limit`` above -- a SIGKILL loses the spend of the attempt
+it kills, and this is not a hard guarantee). To keep the old per-attempt headroom,
+scale each limit by ``retries + 1`` or set ``usage_limits=None``. See
+:ref:`the cross-attempt usage budget <agent-usage-budget>` for how that budget is
+persisted and how to reset it.
 
-For ``AgentOperator`` on Airflow >= 3.3, it is the other way around: setting
-``usage_limits`` makes every limit bound the whole task instance -- the
-initial run, every retry, and every HITL regeneration all add to one running
-total, so a ``cost_limit`` of ``Decimal("0.50")`` bounds what the task spends
-across every attempt combined (best-effort, like the rest of ``cost_limit``
-above -- a SIGKILL loses the spend of the attempt it kills, and this is not
-a hard guarantee). See :ref:`howto/operator:agent` for how that budget is
-persisted and how to reset it, and for what a HITL regeneration shares. On
-Airflow < 3.3, and whenever ``usage_limits`` is ``None``, ``AgentOperator``
-behaves like the ``LLM*`` family: each attempt starts a fresh count. Within
-one attempt, its HITL regenerations share the initial run's count whenever
-``usage_limits`` is set, on every Airflow version.
+Clearing and rerunning a *finished* (failed or succeeded) task instance gets a
+fresh budget automatically; clearing a *running* task instance does not bump
+``max_tries``, so the restarted attempt still sees the prior spend.
+
+On Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each Airflow task
+retry re-renders ``usage_limits`` and starts a fresh count, so a limit bounds a
+single agent *run*, not the task. ``LLMBatchOperator`` has no ``usage_limits``.
 
 TaskFlow decorator
 ------------------
@@ -254,14 +280,17 @@ Parameters
   the operator to return the output without a person, from 0 to 1; no reported
   confidence counts as uncertain. ``on_uncertain`` is ``"review"`` (default) or
   ``"fail"``. Default ``None``: no gate.
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
-  constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
   ``dict`` of the same fields (templated via Jinja, then coerced per field type).
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
-- ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review. Default ``False``. Needs Airflow 3.1+.
+- ``require_approval``: If ``True``, the task pauses after generating output and waits
+  for human review (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2).
+  Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
@@ -269,13 +298,15 @@ Parameters
   review path (``require_approval=True`` or a ``decision_policy`` that reviews)
   and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
-  approving.  Default ``False``.
+  approving.  For a type pydantic can validate, an edit that does not validate
+  fails the task with ``ReviewedOutputValidationError``; a retry runs the model
+  again.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
 - ``approval_assigned_users``: Users allowed to answer the review, as
   ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
   ``None`` (default) lets any user with the permission respond.  Fixed at first
-  run.  Needs Airflow 3.1+.
+  run on Airflow 3.1 to 3.3; replaced on clear or retry from 3.4.  Needs Airflow 3.1+.
 
 Logging
 -------
@@ -284,3 +315,11 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the LLM output is also logged
 (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+The same request/token/cost counts are also pushed to XCom under the ``usage``
+key, the same shape ``AgentOperator`` uses. Alongside it, the operator pushes a
+``run_id`` XCom and stamps the task's identity on the run's GenAI spans, the
+same way ``AgentOperator`` does -- see :doc:`../observability` for how the join
+key and identity attributes work. Both XComs are pushed on a failed run too, so
+a downstream ``all_done`` task or failure callback can read what was spent, and
+which run, before it raised.

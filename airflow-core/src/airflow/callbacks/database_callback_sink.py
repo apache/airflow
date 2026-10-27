@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow import settings
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -32,8 +32,14 @@ if TYPE_CHECKING:
 class DatabaseCallbackSink(BaseCallbackSink):
     """Sends callbacks to database."""
 
-    @provide_session
-    def send(self, callback: CallbackRequest, *, session: Session = NEW_SESSION) -> None:
-        """Send callback for execution."""
+    def send(self, callback: CallbackRequest, *, session: Session | None = None) -> None:
+        """
+        Send callback for execution.
+
+        The request is added to ``session``, or to the thread's scoped session when none is given,
+        without committing: the caller commits it with the rest of its transaction.
+        """
+        if session is None:
+            session = settings.get_session()()
         db_callback = DbCallbackRequest(callback=callback, priority_weight=1)
         session.add(db_callback)

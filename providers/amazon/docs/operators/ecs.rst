@@ -173,6 +173,42 @@ all replace the task definition's value rather than adding to it. See
 `ContainerOverride <https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerOverride.html>`__
 in the Amazon ECS API reference for the full list of fields.
 
+Control retries for container exit codes
+""""""""""""""""""""""""""""""""""""""""
+
+Use ``fail_on_exit_code`` when a known application failure should fail the Airflow task
+without consuming its remaining retries. Other failures continue to use the task's
+normal retry settings. For example, if your application uses exit code ``2`` for an
+invalid input that will not succeed on retry:
+
+.. code-block:: python
+
+    EcsRunTaskOperator(
+        task_id="run_application",
+        cluster="application_cluster",
+        task_definition="application_task",
+        overrides={},
+        retries=2,
+        fail_on_exit_code=2,
+    )
+
+The option accepts an integer or a container of integers. Its default is ``None``,
+which preserves the existing retry behavior. Exit code ``0`` remains successful;
+a missing exit code does not match this option.
+
+If any stopped container explicitly reports a matching non-zero code, the task fails
+without retrying, even if another container reports a different failure or a code in
+``skip_on_exit_code``. This result does not depend on container order. When the same
+code appears in both options, ``fail_on_exit_code`` takes precedence. Task-level
+startup failures, host termination checks, and AWS API errors retain their existing
+handling.
+
+This behavior applies to synchronous execution and resumed deferrable execution.
+The option has no effect when ``wait_for_completion=False`` and ``deferrable=False``:
+the operator returns before checking exit codes. On Airflow versions supporting
+``retry_policy``, a matching code raises ``AirflowFailException``, which bypasses
+retry policies, including a policy that would otherwise retry the task.
+
 Stream logs to AWS CloudWatch
 """""""""""""""""""""""""""""
 

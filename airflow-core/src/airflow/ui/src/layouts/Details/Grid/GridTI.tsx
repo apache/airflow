@@ -25,9 +25,16 @@ import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { useColorMode } from "src/context/colorMode";
+import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
+import { sortStateEntries } from "src/utils/stateUtils";
 
-import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
+import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR, TASK_BAR_HEIGHT_PX } from "./constants";
+
+const BACK_CARD_OFFSET_PX = 2.5;
+const STACK_GAP_SHADOW = "0.5px 0.5px 0 0 var(--chakra-colors-bg)";
+const buildBackCardShadow = (state: string) =>
+  `${STACK_GAP_SHADOW}, ${BACK_CARD_OFFSET_PX}px ${BACK_CARD_OFFSET_PX}px 0 0 var(--chakra-colors-${state}-solid)`;
 
 type Props = {
   readonly dagId: string;
@@ -36,6 +43,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly loopMaxIterations?: number | null;
   readonly onClick?: () => void;
   readonly runId: string;
   readonly taskId: string;
@@ -47,6 +55,7 @@ export const GridTI = ({
   instance,
   isGroup,
   isMapped,
+  loopMaxIterations,
   onClick,
   runId,
   taskId,
@@ -69,15 +78,23 @@ export const GridTI = ({
       })
     : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  // Remove try_number query param when navigating to reset to the
-  // latest try of the task instance and avoid issues with invalid try numbers:
-  // https://github.com/apache/airflow/issues/56977
-  searchParams.delete("try_number");
-  const redirectionSearch = searchParams.toString();
+  const redirectionSearch = setExecutionCoordinates(
+    stripExecutionParams(searchParams),
+    instance.latest_region_id,
+    instance.latest_region_index,
+  ).toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
+  const isStacked = Boolean(isMapped) || Boolean(isGroup);
+  const frontCardState = instance.state ?? "none";
+  const backCardState = isStacked
+    ? (sortStateEntries(instance.child_states).find(([state]) => state !== frontCardState)?.[0] ??
+      frontCardState)
+    : undefined;
+  const badgeSize = `${isStacked ? TASK_BAR_HEIGHT_PX - 1 : TASK_BAR_HEIGHT_PX}px`;
+  const stackPadding = isStacked ? `${BACK_CARD_OFFSET_PX}px` : undefined;
 
   return (
     <Flex
@@ -91,17 +108,29 @@ export const GridTI = ({
       justifyContent="center"
       key={taskId}
       position="relative"
-      px="2px"
       py={0}
       transition="background-color 0.2s"
+      width="18px"
     >
       <TaskInstanceTooltip
+        loopMaxIterations={loopMaxIterations}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}
         taskInstance={instance}
       >
-        <Box as="span" display="inline-block">
+        <Box
+          as="span"
+          borderRadius={4}
+          display="flex"
+          outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
+          outlineOffset={isStacked ? "0px" : "1px"}
+          outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
+          outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
+          pb={stackPadding}
+          pr={stackPadding}
+          transition="outline-color 0.2s"
+        >
           <Link
             data-testid={`grid-${runId}-${taskId}`}
             id={`grid-${runId}-${taskId}`}
@@ -115,22 +144,20 @@ export const GridTI = ({
             <Badge
               alignItems="center"
               borderRadius={4}
-              colorPalette={instance.state ?? "none"}
+              colorPalette={frontCardState}
               data-selected={isSelectedTaskInstance || undefined}
               data-testid="task-state-badge"
               display="flex"
-              height="14px"
+              height={badgeSize}
               justifyContent="center"
               minH={0}
-              outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
-              outlineOffset="1px"
-              outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
-              outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
               p={0}
-              style={hasNote ? { background: NOTE_GRADIENT } : undefined}
-              transition="outline-color 0.2s"
+              style={{
+                background: hasNote ? NOTE_GRADIENT : undefined,
+                boxShadow: backCardState === undefined ? undefined : buildBackCardShadow(backCardState),
+              }}
               variant="solid"
-              width="14px"
+              width={badgeSize}
             >
               <StateIcon size={10} state={instance.state} />
             </Badge>

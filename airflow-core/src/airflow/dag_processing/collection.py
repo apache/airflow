@@ -267,6 +267,7 @@ def _serialize_dag_capturing_errors(
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
+    from airflow.api_fastapi.app import get_auth_manager_cls
     from airflow.models.dagcode import DagCode
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -291,8 +292,10 @@ def _serialize_dag_capturing_errors(
             DagCode.update_source_code(
                 dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
             )
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            _sync_dag_perms(dag, session=session)
+
+        sync_dag_perms = getattr(get_auth_manager_cls(), "sync_dag_perms", None)
+        if sync_dag_perms:
+            sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
@@ -306,17 +309,6 @@ def _serialize_dag_capturing_errors(
                 traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
             )
         ]
-
-
-def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
-    """Sync DAG specific permissions."""
-    dag_id = dag.dag_id
-
-    log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
-
-    security_manager = ApplessAirflowSecurityManager(session=session)
-    security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
 def _build_duplicate_dag_id_warnings(
@@ -581,6 +573,32 @@ def _reject_other_teams_plugin_classes(
     return accepted
 
 
+def _reject_dags_with_unloadable_timetables(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+) -> list[LazyDeserializedDAG]:
+    """
+    Drop Dags whose timetable raises when rebuilt, recording an import error for each.
+
+    A custom timetable runs user code when it is deserialized, for example ``Variable.get`` in
+    ``__init__``. Checking here keeps one failing Dag from aborting the save of every Dag in its file.
+    """
+    accepted: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        try:
+            dag.timetable
+        except Exception:
+            log.exception("Failed to load timetable of Dag", dag_id=dag.dag_id)
+            depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+            import_errors[(bundle_name, dag.relative_fileloc)] = (
+                f"Failed to load the timetable of Dag '{dag.dag_id}':\n{traceback.format_exc(limit=-depth)}"
+            )
+            continue
+        accepted.append(dag)
+    return accepted
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -595,6 +613,7 @@ def update_dag_parsing_results_in_db(
         DagWarningType.DUPLICATE_DAG_ID,
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
+        DagWarningType.TASK_GROUP_CYCLE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
     dag_source_codes: dict[str, DagSourceCode] | None = None,
@@ -623,6 +642,7 @@ def update_dag_parsing_results_in_db(
         without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}

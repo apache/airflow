@@ -47,6 +47,7 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
@@ -97,20 +98,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
-
-
-def _make_execution_api() -> InProcessExecutionAPI:
-    # This is a seriously weighty import, pulling in svcs, cadwyn, fastapi, aiohttp, etc.
-    #
-    # Defer it so that an import of this module for types (e.g. DagFileStat, DagFileInto) doesn't need to pay
-    # that cost.
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    return InProcessExecutionAPI()
 
 
 class BundleState(NamedTuple):
@@ -304,7 +294,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
     """Resolved once per process so file discovery and the deactivation scan use the same value."""
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):
@@ -1583,8 +1573,21 @@ class DagFileProcessorManager(LoggingMixin):
             # Put callback files at the front, then sorted regular files
             self._file_queue = OrderedDict.fromkeys(callback_files + sorted_regular_files)
 
+    def _resolve_stats_by_presence_key(self) -> dict[tuple[str, Path], DagFileStat]:
+        """
+        Resolve one stat per physical file from the bundle scan's entries.
+
+        A callback pins ``bundle_version``, so its entry is separate from the scan's and does
+        not track parses of the current file: a callback-only result has no ``last_finish_time``,
+        and a timed-out callback processor is stamped although nothing parsed the current version.
+        A file with no scan entry has no stat, so it is queued.
+        """
+        return {
+            file.presence_key: stat for file, stat in self._file_stats.items() if file.bundle_version is None
+        }
+
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
-        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         files_with_mtime: dict[DagFileInfo, float] = {}
         changed_recently = set()
         for file in files:
@@ -1634,19 +1637,19 @@ class DagFileProcessorManager(LoggingMixin):
 
         Note this method is only called when the file path queue is empty
         """
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         # We only emit metrics after processing all files in the queue. If `self._parsing_start_time` is None
         # when this method is called, no files have yet been added to the queue so we shouldn't emit metrics.
         if self._parsing_start_time is not None:
             emit_metrics(
                 parse_time=time.perf_counter() - self._parsing_start_time,
-                dag_file_stats=list(self._file_stats.values()),
+                dag_file_stats=list(file_stats_by_presence_key.values()),
             )
             self._parsing_start_time = None
 
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
-        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
@@ -1878,7 +1881,7 @@ def process_parse_results(
         normalized_bundle = normalize_name_for_stats(bundle_name)
         stats.timing(
             "dag_processing.last_duration",
-            stat.last_duration,
+            timedelta(seconds=stat.last_duration),
             tags=prune_dict(
                 {"bundle_name": normalized_bundle, "file_name": file_name, "team_name": team_name}
             ),

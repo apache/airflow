@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -31,11 +31,11 @@ import { TeamName } from "src/components/TeamName";
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
 import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
-import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
+import { useRevealedDagCards } from "./DagsListCountsContext";
 import { RecentRuns } from "./RecentRuns";
 import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
@@ -58,9 +58,11 @@ export const DagCard = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
-
-  const refetchInterval = useAutoRefresh({});
+  const revealedKeys = useRevealedDagCards();
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>({
+    revealedKeys,
+    revealKey: dag.dag_id,
+  });
 
   return (
     <Box
@@ -119,9 +121,6 @@ export const DagCard = ({
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
-                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
-                  <Spinner />
-                ) : undefined}
               </RouterLink>
             ) : undefined}
           </Stat>
@@ -129,7 +128,7 @@ export const DagCard = ({
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
             {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
-              <DrainingBadge />
+              <DrainingBadge dagId={dag.dag_id} />
             ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}

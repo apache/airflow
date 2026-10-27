@@ -4,7 +4,7 @@
     "Connections": "חיבורים",
     "Plugins": "תוספים",
     "Pools": "מאגר משאבים",
-    "Providers": "חבילות עזר",
+    "Providers": "הרחבות",
     "Variables": "משתנים"
   },
   "allOperators": "כל האופרטורים",
@@ -27,8 +27,10 @@
   "backfill_one": "השלמה למפרע",
   "backfill_other": "השלמות למפרע",
   "backfill_two": "השלמות למפרע",
+  "breadcrumb": "ניווט",
   "browse": {
     "auditLog": "יומן מערכת",
+    "dagBundles": "חבילות Dag",
     "deadlines": "מועדים",
     "jobs": "עבודות",
     "requiredActions": "פעולות נדרשות",
@@ -43,7 +45,11 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dag_two": "Dags",
+  "dagBundle_one": "חבילת Dag",
+  "dagBundle_other": "חבילות Dag",
+  "dagBundle_two": "חבילות Dag",
   "dagDetails": {
+    "activeRuns": "הרצות פעילות",
     "catchup": "השלמה אוטומטית",
     "dagRunTimeout": "זמן תפוגה להרצת Dag",
     "defaultArgs": "פרמטרי ברירת מחדל",
@@ -92,9 +98,7 @@
   "dagRun_other": "הרצת Dags",
   "dagRun_two": "הרצת Dags",
   "dagRunId": "מזהה הרצת Dag",
-  "dagWarnings": "אזהרות/שגיאות Dag",
-  "defaultToGraphView": "תצוגת גרף כברירת מחדל",
-  "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "dagRunState": "מצב הרצת Dag",
   "delete": "מחק",
   "diff": "השוואה",
   "diffCompareWith": "השווה עם",
@@ -128,6 +132,9 @@
       "title": "גישה נדחתה"
     }
   },
+  "event_one": "אירוע",
+  "event_other": "אירועים",
+  "event_two": "אירועים",
   "expand": {
     "collapse": "כווץ",
     "expand": "הרחב",
@@ -143,22 +150,44 @@
   },
   "filter": "מסנן",
   "filters": {
+    "addFilter": "הוסף מסנן",
+    "allIterations": "הכול",
+    "completedAt": "הסתיים בתאריך",
+    "date": "תאריך",
     "durationFrom": "משך זמן מ-",
     "durationTo": "משך זמן עד",
     "endTime": "זמן סיום",
+    "iteration": "איטרציה",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
+    "loop": "לולאה",
+    "loopAllIterations": "{{loop}} – הכול",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "בחר לולאה",
+    "maxActiveRunsFrom": "ממספר הרצות פעילות מרבי",
+    "maxActiveRunsTo": "עד מספר הרצות פעילות מרבי",
+    "removeFilter": "הסר מסנן",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
     "runAfterTo": "ריצה לאחר (עד תאריך)",
     "searchAsset": "חפש נכס",
     "selectDateRange": "בחר טווח תאריכים",
-    "startTime": "זמן התחלה"
+    "selectDateTime": "בחר תאריך ושעה",
+    "startTime": "זמן התחלה",
+    "switchIteration": "החלף איטרציה",
+    "time": "שעה"
   },
   "fullscreen": {
     "tooltip": "לחץ {{hotkey}} למסך מלא"
   },
   "generateToken": "צור אסימון",
+  "includedIn": "כלול ב",
   "key": "מפתח",
+  "loading": "טוען…",
+  "logLevel": {
+    "hide": "הסתר רמות יומן",
+    "hotkey": "l",
+    "show": "הצג רמות יומן"
+  },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
@@ -178,12 +207,14 @@
     "assets": "נכסים",
     "browse": "עיון",
     "dags": "Dags",
+    "dashboard": "לוח מחוונים",
     "docs": "תיעוד",
     "home": "דף הבית",
     "legacyFabViews": "תצוגות מורשת",
     "plugins": "תוספים",
     "security": "אבטחה"
   },
+  "no": "לא",
   "noItemsFound": "לא נמצאו {{modelName}}",
   "note": {
     "add": "הוסף הערה",
@@ -196,15 +227,19 @@
     "write": "כתיבה"
   },
   "overallStatus": "סטטוס כללי",
+  "partition_one": "מחיצה",
+  "partition_other": "מחיצות",
+  "partition_two": "מחיצות",
   "partitionedDagRun_one": "הרצת Dag מחולקת",
   "partitionedDagRun_other": "הרצות Dag מחולקות",
   "partitionedDagRun_two": "הרצות Dag מחולקות",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "אירועי נכס שהתקבלו"
   },
-  "pendingDagRun_one": "{{count}} הרצת Dag ממתינה",
-  "pendingDagRun_other": "{{count}} הרצות Dag ממתינות",
-  "pendingDagRun_two": "{{count}} הרצות Dag ממתינות",
+  "pause": "השהה",
+  "pendingDagRun_one": "{{count, number}} הרצת Dag ממתינה",
+  "pendingDagRun_other": "{{count, number}} הרצות Dag ממתינות",
+  "pendingDagRun_two": "{{count, number}} הרצות Dag ממתינות",
   "presetFilters": {
     "deleteTitle": "מחק מסנן מוגדר מראש",
     "deleteWarning": "מסננים מוגדרים מראש נשמרים בדפדפן זה בלבד.",
@@ -253,6 +288,79 @@
   },
   "selectLanguage": "בחר שפה",
   "selected": "נבחר",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "שמור כברירת מחדל רשומות במאגר מצבי המשימות בעת ניקוי מופעי משימה, במקום למחוק אותן.",
+        "label": "שמור את מצב המשימה בעת ניקוי"
+      },
+      "preventRunningTask": {
+        "helper": "דלג על משימות שפועלות כעת בעת ניקוי מופעי משימה.",
+        "label": "מנע ניקוי של משימות פועלות"
+      },
+      "runSelection": {
+        "helper": "אפשרויות שנבחרות כברירת מחדל בעת ניקוי הרצת Dag.",
+        "label": "בחירת ברירת מחדל לניקוי הרצה"
+      },
+      "taskSelection": {
+        "helper": "אפשרויות שנבחרות כברירת מחדל בעת ניקוי מופעי משימה.",
+        "label": "בחירת ברירת מחדל לניקוי משימה"
+      },
+      "title": "ניקוי"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "הצג ברשימת ה-Dags את מצבי המשימות האחרונות של כל Dag. כבה אפשרות זו כדי לדלג על טעינת המצבים, דבר שעשוי לשפר ביצועים בפריסות עם Dags רבים.",
+        "label": "הצג משימות אחרונות"
+      },
+      "title": "רשימת Dags"
+    },
+    "description": "ההעדפות האלה נשמרות בדפדפן זה בלבד וחלות על היישום כולו.",
+    "general": {
+      "landingPage": {
+        "helper": "הדף שיוצג בעת פתיחת Airflow.",
+        "label": "דף נחיתה",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "לוח מחוונים"
+        }
+      },
+      "title": "כללי"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "כיוון הפריסה של גרפי Dag ונכסים שלא הוגדרו בנפרד.",
+        "label": "כיוון ברירת המחדל של הגרף"
+      },
+      "taskGroupsExpanded": {
+        "helper": "הרחב קבוצות משימות ב-Dags שעבורם לא נשמרה בחירת קבוצה. בחירות קיימות יישמרו.",
+        "label": "הרחב קבוצות משימות כברירת מחדל"
+      },
+      "title": "גרף"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "אפשרויות שנבחרות כברירת מחדל בעת סימון מצב של מופע משימה.",
+        "label": "בחירת ברירת מחדל לסימון"
+      },
+      "title": "סימון"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) לבחירות בכל שורת חיפוש ולקישורים משותפים עדיין יש עדיפות.",
+        "label": "התאמה בכל מקום כברירת מחדל"
+      },
+      "title": "חיפוש"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "הכרטיסייה שתוצג ראשונה בעת פתיחת מופע משימה. קישורים לכרטיסייה מסוימת עדיין יפתחו אותה.",
+        "label": "כרטיסיית ברירת המחדל למופע משימה"
+      },
+      "title": "מופע משימה"
+    },
+    "title": "הגדרות"
+  },
   "shortcuts": {
     "categories": {
       "code": "קוד",
@@ -286,6 +394,7 @@
       "toggleExpand": "הרחב או כווץ את כל הקבוצות",
       "toggleFullscreen": "הפעל/כבה מסך מלא",
       "toggleGraphGrid": "החלף בין תצוגת גרף לתצוגת רשת",
+      "toggleLogLevel": "הצג או הסתר רמות יומן",
       "toggleSource": "הצג/הסתר מקור",
       "toggleTaskGroup": "הרחב או כווץ $t(taskGroup_one)",
       "toggleTimestamp": "הצג/הסתר חותמות זמן",
@@ -296,6 +405,10 @@
   },
   "showDetailsPanel": "הצג לוח פרטים",
   "signedInAs": "מחובר כ",
+  "slot": "חריץ",
+  "slot_one": "חריץ",
+  "slot_other": "חריצים",
+  "slot_two": "חריצים",
   "source": {
     "hide": "הסתר מקור",
     "hotkey": "s",
@@ -325,6 +438,8 @@
     "up_for_retry": "בהמתנה לניסיון חוזר",
     "upstream_failed": "משימות קודמות נכשלו"
   },
+  "switchDag": "החלף $t(dag_one)",
+  "switchDagRun": "החלף $t(dagRun_one)",
   "table": {
     "completedAt": "הושלם בתאריך",
     "createdAt": "נוצר בתאריך",
@@ -335,8 +450,10 @@
     "filterReset_two": "אפס מסננים",
     "from": "מ-",
     "maxActiveRuns": "מספר הרצות פעילות מרבי",
+    "noResultsFound": "לא נמצאו תוצאות",
     "noTagsFound": "לא נמצאו תגיות",
     "noTeamsFound": "לא נמצאו צוותים",
+    "ownerPlaceholder": "סנן לפי בעלים",
     "tagMode": {
       "all": "הכל",
       "any": "כלשהו"
@@ -371,6 +488,9 @@
     "executorConfig": "הגדרות Executor",
     "hostname": "שם מארח",
     "id": "מזהה",
+    "iteration": "איטרציה",
+    "loopDecision": "החלטה",
+    "loopIterations": "איטרציות שרצו",
     "maxTries": "מספר נסיונות מרבי",
     "pid": "מזהה תהליך",
     "pool": "מאגר משאבים",
@@ -380,6 +500,11 @@
     "queuedWhen": "זמן כניסה לתור",
     "renderedMapIndex": "אינדקס מיפוי מעובד",
     "scheduledWhen": "מועד תזמון",
+    "stateReason": "סיבה למצב",
+    "stateReasonSummary": {
+      "failed": "נעצר בניסיון {{tryNumber}} מתוך {{totalTries}}",
+      "upForRetry": "ניסיון חוזר לאחר ניסיון {{tryNumber}} מתוך {{totalTries}}"
+    },
     "trigger": "מפעיל",
     "triggerer": {
       "assigned": "מפעיל מוקצה",
@@ -395,10 +520,22 @@
   "taskInstance_one": "מופע משימה",
   "taskInstance_other": "מופעי משימות",
   "taskInstance_two": "מופעי משימות",
+  "teams": {
+    "more_one": "ועוד {{count, number}}",
+    "more_other": "ועוד {{count, number}}",
+    "more_two": "ועוד {{count, number}}",
+    "none": "ללא צוות",
+    "title": "צוותים"
+  },
   "timeRange": {
+    "anyTime": "בכל זמן",
+    "in": "בתוך",
+    "last7Days": "7 הימים האחרונים",
     "last12Hours": "12 השעות האחרונות",
     "last24Hours": "24 השעות האחרונות",
+    "last30Days": "30 הימים האחרונים",
     "lastHour": "השעה האחרונה",
+    "latestRun": "ההרצה האחרונה",
     "pastWeek": "השבוע האחרון"
   },
   "timestamp": {
@@ -417,21 +554,21 @@
     "bulkClear": {
       "error": "שגיאה בניקוי מרובה של {{resourceName}}",
       "success": {
-        "description": "נוקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "נוקו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת ניקוי מרובה של {{resourceName}} נשלחה"
       }
     },
     "bulkDelete": {
       "error": "שגיאה במחיקה מרובה של {{resourceName}}",
       "success": {
-        "description": "נמחקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "נמחקו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת מחיקה מרובה של {{resourceName}} נשלחה"
       }
     },
     "bulkUpdate": {
       "error": "שגיאה בעדכון מרובה של {{resourceName}}",
       "success": {
-        "description": "עודכנו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "עודכנו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת עדכון מרובה של {{resourceName}} נשלחה"
       }
     },
@@ -452,7 +589,7 @@
     "import": {
       "error": "שגיאה בייבוא {{resourceName}}",
       "success": {
-        "description": "יובאו בהצלחה {{count}} {{resourceName}}",
+        "description": "יובאו בהצלחה {{count, number}} {{resourceName}}",
         "title": "בקשת ייבוא {{resourceName}} נשלחה"
       }
     },
@@ -479,6 +616,7 @@
   "total": "סה״כ {{state}}",
   "triggered": "הופעל",
   "tryNumber": "מספר ניסיון",
+  "unpause": "בטל השהיה",
   "user": "משתמש",
   "validation": {
     "mustBeAtLeast": "חייב להיות {{min}} לפחות.",
@@ -490,5 +628,6 @@
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",
     "unwrap": "בטל גלישת טקסט",
     "wrap": "הפעל גלישת טקסט"
-  }
+  },
+  "yes": "כן"
 }

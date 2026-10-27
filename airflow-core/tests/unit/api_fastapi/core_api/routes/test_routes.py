@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from fastapi.openapi.utils import get_openapi
+
 from airflow.api_fastapi.core_api.routes.public import authenticated_router, public_router
+
+from tests_common.test_utils.api_fastapi import iter_api_routes
 
 # Set of paths that are allowed to be accessible without authentication
 NO_AUTH_PATHS = {
@@ -32,16 +37,16 @@ def test_no_auth_routes():
     Verify that only the routes with NO_AUTH_PATHS are excluded from the `authenticated_router`. This
     test ensures that a router is not added to the non-authenticated router by mistake.
     """
-    paths_in_public_router = {route.path for route in public_router.routes}
+    paths_in_public_router = {route.path for route in iter_api_routes(public_router.routes)}
     paths_in_authenticated_router = {
-        f"{public_router.prefix}{route.path}" for route in authenticated_router.routes
+        f"{public_router.prefix}{route.path}" for route in iter_api_routes(authenticated_router.routes)
     }
     assert paths_in_public_router - paths_in_authenticated_router == NO_AUTH_PATHS
 
 
 def test_routes_with_responses():
     """Verify that each route in `public_router` has appropriate responses configured."""
-    for route in public_router.routes:
+    for route in iter_api_routes(public_router.routes):
         if route.path in NO_AUTH_PATHS:
             # Routes in NO_AUTH_PATHS should not have 401 or 403 response codes
             assert 401 not in route.responses, f"Route {route.path} should not require auth (401)"
@@ -61,3 +66,22 @@ def test_invalid_routes_return_404(test_client):
     response = test_client.get("/api/nonexistent")
     assert response.status_code == 404
     assert response.json() == {"error": "API route not found"}
+
+
+@pytest.mark.parametrize(
+    ("operation_id", "released_order"),
+    [
+        ("get_extra_links", ["map_index", "try_number"]),
+        ("get_xcom_entry", ["map_index", "deserialize", "stringify"]),
+    ],
+)
+def test_released_query_parameters_keep_their_order(operation_id, released_order):
+    spec = get_openapi(title="Airflow", version="test", routes=public_router.routes)
+    operation = next(
+        operation
+        for path_item in spec["paths"].values()
+        for operation in path_item.values()
+        if operation["operationId"] == operation_id
+    )
+    names = [parameter["name"] for parameter in operation["parameters"]]
+    assert [name for name in names if name in released_order] == released_order

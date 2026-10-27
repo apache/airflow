@@ -125,7 +125,7 @@ def test_print_local_reproduction_renders_copyable_commands(mock_get_console, mo
         [
             ReproductionCommand(argv=["git", "checkout", "abc123"], comment="Check out the same commit"),
             ReproductionCommand(
-                argv=["breeze", "build-docs", "--docs-only"],
+                argv=["breeze", "build-docs", "--one-pass-only"],
                 comment="Run the same Breeze command locally",
             ),
         ]
@@ -137,7 +137,7 @@ def test_print_local_reproduction_renders_copyable_commands(mock_get_console, mo
     rendered_output = mock_get_console.return_value.print.call_args_list[2].args[0]
     assert "# 1. Check out the same commit" in rendered_output
     assert "git checkout abc123" in rendered_output
-    assert "breeze build-docs --docs-only" in rendered_output
+    assert "breeze build-docs --one-pass-only" in rendered_output
     bottom_ruler = mock_get_console.return_value.print.call_args_list[3].args[0]
     assert "─" * 80 in bottom_ruler
 
