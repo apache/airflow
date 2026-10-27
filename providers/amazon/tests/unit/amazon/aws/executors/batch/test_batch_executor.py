@@ -216,6 +216,57 @@ class TestBatchJob:
 class TestAwsBatchExecutor:
     """Tests the AWS Batch Executor itself"""
 
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize("submitted", [False, True], ids=["pending", "submitted"])
+    def test_release_callback_stops_submission_and_tracking(self, mock_executor, submitted, time_machine):
+        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
+        from airflow.models.callback import CallbackKey
+
+        time_machine.move_to("2026-10-27T00:00:00Z", tick=False)
+        callback_key = CallbackKey(str(uuid4()))
+        pending_key, active_key, queued_key = (TaskInstanceUuid(uuid4()) for _ in range(3))
+        command = ["unrelated", "task"]
+        queued_workload = mock.Mock(spec=ExecuteTask)
+        task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[queued_key] = queued_workload
+        mock_executor.execute_async(pending_key, command)
+        mock_executor.active_workers.add_job("active-task", active_key, command, "queue", {}, 1)
+        mock_executor.running.update((callback_key, pending_key, active_key))
+        if submitted:
+            mock_executor.active_workers.add_job("callback-job", callback_key, ["callback"], "queue", {}, 2)
+        else:
+            mock_executor.execute_async(callback_key, ["callback", "command"])
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+
+        mock_executor.release_callback(callback_key)
+        mock_executor.release_callback(callback_key)
+
+        assert [job.key for job in mock_executor.pending_jobs] == [pending_key]
+        assert mock_executor.active_workers.key_to_id == {active_key: "active-task"}
+        assert mock_executor.active_workers.id_to_key == {"active-task": active_key}
+        assert set(mock_executor.active_workers.id_to_job_info) == {"active-task"}
+        assert set(mock_executor.active_workers.id_to_failure_counts) == {"active-task"}
+        assert mock_executor.running == {pending_key, active_key}
+        assert task_queue == {queued_key: queued_workload}
+        assert callback_key not in mock_executor.event_buffer
+
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [{"jobId": "active-task", "status": "RUNNING"}]
+        }
+        mock_executor.batch.submit_job.return_value = {"jobId": "new-task", "jobName": "some-job-name"}
+        mock_executor.sync()
+
+        mock_executor.batch.describe_jobs.assert_called_once_with(jobs=["active-task"])
+        mock_executor.batch.submit_job.assert_called_once()
+        assert mock_executor.batch.submit_job.call_args.kwargs["containerOverrides"]["command"] == command
+        assert mock_executor.active_workers.key_to_id == {active_key: "active-task", pending_key: "new-task"}
+        assert callback_key not in mock_executor.event_buffer
+        mock_executor.batch.terminate_job.assert_not_called()
+
     def test_execute(self, mock_executor):
         """Test execution from end-to-end"""
         airflow_key = mock.Mock(spec=TaskInstanceKey)

@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
 
@@ -271,6 +272,13 @@ class AwsBatchExecutor(BaseExecutor):
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process
             self.log.exception("Failed to sync %s", self.__class__.__name__)
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Stop submitting or tracking a callback settled by the scheduler."""
+        self.pending_jobs = deque(job for job in self.pending_jobs if job.key != key)
+        if job_id := self.active_workers.key_to_id.pop(key, None):
+            self.active_workers.remove_job(job_id)
+        super().release_callback(key)
 
     def sync_running_jobs(self):
         all_job_ids = self.active_workers.get_all_jobs()

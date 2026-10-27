@@ -1174,20 +1174,29 @@ class TestSuperviseRoutedCallback:
             pytest.param(
                 -15, True, CallbackTerminalState.FAILED, "Callback timed out after 30 seconds", id="timed-out"
             ),
+            pytest.param(
+                0,
+                True,
+                CallbackTerminalState.FAILED,
+                "Callback timed out after 30 seconds",
+                id="timed-out-with-clean-exit",
+            ),
         ],
     )
     @patch("airflow.sdk.execution_time.callback_supervisor.stats", autospec=True)
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_outcome_is_reported(
         self, mock_start, _nondumpable, mock_stats, exit_code, timed_out, expected_state, expected_output
     ):
         client = _make_client()
-        process = Mock(wait=Mock(return_value=exit_code), timed_out=timed_out)
+        process = create_autospec(CallbackSubprocess, instance=True)
+        process.wait.return_value = exit_code
+        process.timed_out = timed_out
         process._get_callback_execution_timeout.return_value = 30
         mock_start.return_value = process
 
-        if exit_code:
+        if expected_state == CallbackTerminalState.FAILED:
             with pytest.raises(RuntimeError, match=expected_output):
                 self._supervise(client)
         else:
@@ -1208,7 +1217,7 @@ class TestSuperviseRoutedCallback:
         calls: list[str] = []
         client = _make_client()
         client.callbacks.finish.side_effect = lambda *args, **kwargs: calls.append("report")
-        process = Mock(wait=Mock(return_value=exit_code), timed_out=False)
+        process = Mock(spec=CallbackSubprocess, wait=Mock(return_value=exit_code), timed_out=False)
         process._upload_logs.side_effect = lambda: calls.append("upload")
         mock_start.return_value = process
 
