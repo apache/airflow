@@ -73,6 +73,7 @@ class CloudSQLNoOperationInProgressSensor(BaseSensorOperator):
         "project_id",
         "instance",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#D4ECEA"
 

@@ -18,6 +18,7 @@
  */
 import type { ReactNode } from "react";
 
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import type * as ReactI18Next from "react-i18next";
 import type * as ReactRouterDom from "react-router-dom";
@@ -69,6 +70,15 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 
+// The loop filter now only applies where the page is inside that loop, so the table has to
+// know which loops the Dag declares.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  // Membership comes from the structure now, so the mock answers per node rather than
+  // claiming every page is inside the loop.
+  useLoopGroupIds: (nodeId?: string) =>
+    nodeId === undefined || nodeId === "batch" || nodeId.startsWith("batch.") ? ["batch"] : [],
+}));
+
 vi.mock("./TaskInstancesFilter", () => ({
   TaskInstancesFilter: () => null,
 }));
@@ -81,17 +91,29 @@ vi.mock("src/components/DataTable", () => ({
     readonly columns: ReadonlyArray<{
       accessorKey?: string;
       cell?: (props: { row: { original: TaskInstanceResponse } }) => ReactNode;
+      header?: unknown;
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
   }) => {
-    const renderedMapIndexColumn = columns.find((column) => column.accessorKey === "rendered_map_index");
+    const renderedColumns = columns.filter(
+      (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
+    );
+    const iterationColumn = columns.find((column) => column.accessorKey === "loop_iteration");
 
     return (
       <table>
+        <thead>
+          <tr>
+            {iterationColumn === undefined ? undefined : <th>{iterationColumn.header as ReactNode}</th>}
+          </tr>
+        </thead>
         <tbody>
           {data.map((taskInstance) => (
             <tr key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
-              <td>{renderedMapIndexColumn?.cell?.({ row: { original: taskInstance } })}</td>
+              {renderedColumns.map((column) => (
+                <td key={column.accessorKey}>{column.cell?.({ row: { original: taskInstance } })}</td>
+              ))}
+              <td>{iterationColumn?.cell?.({ row: { original: taskInstance } })}</td>
             </tr>
           ))}
         </tbody>
@@ -115,12 +137,16 @@ const mappedTaskInstance = {
   dag_display_name: "example_dag",
   dag_id: "example_dag",
   dag_run_id: "manual__2026-06-07T00:00:00+00:00",
+  id: "mapped-task-instance-id",
   map_index: 1,
+  region_id: "11111111-1111-4111-8111-111111111111",
+  region_index: 1,
   rendered_map_index: "1",
   start_date: null,
   state: "queued",
   task_display_name: "mapped_task",
   task_id: "mapped_task",
+  try_number: 2,
 } as TaskInstanceResponse;
 
 describe("TaskInstances", () => {
@@ -155,7 +181,7 @@ describe("TaskInstances", () => {
 
     expect(screen.getByRole("link", { name: "1" })).toHaveAttribute(
       "href",
-      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00/tasks/mapped_task/mapped/1",
+      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00/tasks/mapped_task/mapped/1?region_id=11111111-1111-4111-8111-111111111111&region_index=1",
     );
   });
 
@@ -167,5 +193,94 @@ describe("TaskInstances", () => {
     render(<TaskInstances />, { wrapper: Wrapper });
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("links task instances to their Dag run from the Dag run ID column", () => {
+    mockParams = {};
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([mappedTaskInstance]),
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "manual__2026-06-07T00:00:00+00:00" })).toHaveAttribute(
+      "href",
+      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00",
+    );
+  });
+
+  it("shows the loop iteration number separately from mapped slots", () => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([
+        {
+          ...mappedTaskInstance,
+          loop_iteration: { iteration: 2, loop_id: "loop" },
+        },
+      ]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("loop: 2")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { loopIteration: { iteration: 0, loop_id: "loop" }, shown: true },
+    { loopIteration: null, shown: false },
+    { loopIteration: undefined, shown: false },
+  ])("shows the iteration column only when a task instance has one: $shown", ({ loopIteration, shown }) => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([
+        { ...mappedTaskInstance, loop_iteration: undefined },
+        { ...mappedTaskInstance, loop_iteration: loopIteration, map_index: 2 },
+      ]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.queryByText("taskInstance.iteration") !== null).toBe(shown);
+  });
+
+  it("shows the stored rendered map index label of an unmapped task instance", () => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([{ ...mappedTaskInstance, map_index: -1, rendered_map_index: "eu-west" }]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.getByText("eu-west")).toBeInTheDocument();
+  });
+
+  it("drops a stale iteration that no loop in the URL counts", () => {
+    mockSearchParams = new URLSearchParams("iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it("sends the pair once a loop names the pass", () => {
+    // Dotted ids mean a task inside the loop is named for it, which is what puts it in scope.
+    mockParams.taskId = "batch.member";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: 3, loopId: "batch" }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it("ignores a loop carried in from a page outside it", () => {
+    // The filter now survives navigation, so an unrelated task must not inherit the scope.
+    mockParams.taskId = "unrelated_task";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
+      undefined,
+      expect.any(Object),
+    );
   });
 });

@@ -18,7 +18,7 @@ minimum you need to run the following services:
 
 * airflow-scheduler.service
 * airflow-dag-processor.service
-* airflow-webserver.service or airflow-api.service
+* airflow-api.service
 
 Additionally the following services are available and can be enabled as needed:
 
@@ -28,6 +28,8 @@ Additionally the following services are available and can be enabled as needed:
 * airflow-flower.service for a Flower monitoring interface
 * airflow-kerberos.service for the Kerberos renewal daemon
 
-The ``/api/v2/monitor/health`` endpoint reports ``dag_processor`` and ``triggerer`` as ``unhealthy`` when no
-corresponding service is running, so make sure the services you depend on are started. See the "Checking Airflow
-Health Status" documentation for details.
+For both ``dag_processor`` and ``triggerer``, the ``/api/v2/monitor/health`` endpoint returns ``unhealthy`` for the
+status and ``down`` for the detailed status when no instance is alive. If there are no unfinished jobs for the
+component, its latest heartbeat and instances are ``null``. Make sure the services you depend on are started;
+ignore the triggerer health status only when your deployment intentionally does not use a triggerer.
+See the "Checking Airflow Health Status" documentation for details.

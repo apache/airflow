@@ -23,3 +23,11 @@ from airflow import version
 GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = "execute_complete"
 
 CLIENT_INFO = ClientInfo(client_library_version="airflow_v" + version.version)
+
+PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE = (
+    "`return_immediately` defaults to True, which relies on the deprecated Pub/Sub "
+    "`returnImmediately` Pull option and can return zero messages while a backlog exists. "
+    "The default will change to False in the first Google provider major release after "
+    "March 31, 2027. Pass `return_immediately=False` to adopt the new behaviour now, "
+    "or `return_immediately=True` to keep the current one."
+)

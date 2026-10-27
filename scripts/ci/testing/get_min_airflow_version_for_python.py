@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 
 MIN_AIRFLOW_VERSION_BY_PYTHON = {
-    "3.10": "2.11.0",
+    "3.11": "2.11.0",
     "3.13": "3.1.0",
     "3.14": "3.2.0",
 }

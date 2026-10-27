@@ -75,7 +75,7 @@ apache-airflow-providers-exasol package
 `Exasol <https://www.exasol.com/>`__
 
 
-Release: 4.10.5
+Release: 4.11.1
 
 Provider package
 ----------------
@@ -118,11 +118,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-exasol[sqlalchemy]
 
 
-==============  ======================
+==============  ==============================
 Extra           Dependencies
-==============  ======================
-``sqlalchemy``  ``sqlalchemy>=1.4.54``
-==============  ======================
+==============  ==============================
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
+==============  ==============================
 
 Downloading official packages
 -----------------------------
@@ -130,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-exasol 4.10.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5.tar.gz.sha512>`__)
-* `The apache-airflow-providers-exasol 4.10.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.5-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-exasol 4.11.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-exasol 4.11.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.11.1-py3-none-any.whl.sha512>`__)

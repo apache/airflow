@@ -48,6 +48,8 @@ OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
     # yandexcloud is automatically removed in case botocore is upgraded to latest
     r".*example_yandexcloud.*\.py": {"yandexcloud": None},
+    # Every Dag in it uses pydantic-ai-harness Memory, which only the opt-in code-mode extra installs
+    r".*example_agent_memory\.py": {"pydantic-ai-harness": ">=0.24.0"},
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
@@ -65,8 +67,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
 )
 
 IGNORE_EXAMPLE_DAGS: tuple[str, ...] = (
-    # These example dags require suspended providers, eg: google dataflow dependent on the Apache Beam provider,
-    # but it's in the suspended list, we can't import the dag
     # Ray uses pydantic v1 internally, which fails to infer types in Python 3.14.
     # TODO: remove once ray releases a version with Python 3.14 support.
     "providers/google/tests/system/google/cloud/ray/example_ray_job.py",

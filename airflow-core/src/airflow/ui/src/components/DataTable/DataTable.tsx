@@ -20,33 +20,37 @@ import { type ReactNode, useCallback, useRef } from "react";
 
 import { Box, Flex, Heading, HStack, VStack } from "@chakra-ui/react";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  type OnChangeFn,
-  type TableState as ReactTableState,
+  type ColumnVisibilityState,
+  type PaginationState,
+  type RowData,
+  type SortingState,
   type Table as TanStackTable,
   type Updater,
-  useReactTable,
-  type VisibilityState,
+  useTable,
 } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
-import { IconButton, Pagination, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Pagination, Toaster } from "src/system-components";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { FilterMenuButton } from "src/components/DataTable/FilterMenuButton";
 import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
+import { dataTableFeatures, type DataTableFeatures } from "src/components/DataTable/features";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 
-type DataTableProps<TData> = {
+import { formatNumber } from "src/utils";
+
+type DataTableProps<TData extends RowData> = {
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  /** Lets shift-click on a column header add it as a secondary sort; the page must send every sort to its endpoint. */
+  readonly enableMultiSort?: boolean;
   readonly errorMessage?: ReactNode | string;
   /**
    * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
@@ -56,11 +60,12 @@ type DataTableProps<TData> = {
    * Anything that changes how already-returned rows are drawn belongs in `presentationActions`.
    */
   readonly filterActions?: ReactNode;
+  /** Stable row ids, so an expanded row stays open across refetches and re-sorts. Defaults to the row index. */
+  readonly getRowId?: (row: TData) => string;
   /** Rendered next to the row count heading, and on its own when the heading is hidden. */
   readonly headingExtra?: ReactNode;
   readonly hideRowCountHeading?: boolean;
   readonly initialState?: TableState;
-  readonly isFetching?: boolean;
   readonly isLoading?: boolean;
   /**
    * i18n key naming the model this table lists — namespaced (`common:dagRun`) or bare for `common`.
@@ -97,6 +102,11 @@ type DataTableProps<TData> = {
    * actions over a selection belong in the `ActionBar` below the table.
    */
   readonly primaryActions?: ReactNode;
+  /**
+   * Content shown in a full-width row under each expanded row. Rows open and close through
+   * `row.getToggleExpandedHandler()` in a cell. See https://tanstack.com/table/latest/docs/framework/react/examples/sub-components
+   */
+  readonly renderSubComponent?: (row: TData) => ReactNode;
   /** Defaults to showing the column visibility menu only when there are many columns. */
   readonly showColumnsMenu?: boolean;
   readonly showDisplayToggle?: boolean;
@@ -105,17 +115,33 @@ type DataTableProps<TData> = {
   readonly totalEntriesLimit?: number;
 };
 
-export const DataTable = <TData,>({
+// Columns with hiding disabled are left out of the columns menu, so a hidden state stored for them
+// (e.g. saved before hiding was disabled) could never be undone. Such columns always show.
+const buildColumnVisibility = <TData extends RowData>(
+  columns: Array<MetaColumn<TData>>,
+  visibility: ColumnVisibilityState,
+): ColumnVisibilityState => {
+  const unhideableIds = new Set(
+    columns
+      .filter((column) => column.enableHiding === false)
+      .map((column) => column.id ?? ("accessorKey" in column ? String(column.accessorKey) : undefined)),
+  );
+
+  return Object.fromEntries(Object.entries(visibility).filter(([id]) => !unhideableIds.has(id)));
+};
+
+export const DataTable = <TData extends RowData>({
   cardDef,
   columns,
   data,
   displayMode = "table",
+  enableMultiSort = false,
   errorMessage,
   filterActions,
+  getRowId,
   headingExtra,
   hideRowCountHeading,
   initialState,
-  isFetching,
   isLoading,
   modelName,
   nextCursor,
@@ -125,6 +151,7 @@ export const DataTable = <TData,>({
   presentationActions,
   previousCursor,
   primaryActions,
+  renderSubComponent,
   showColumnsMenu,
   showDisplayToggle,
   skeletonCount = 10,
@@ -134,33 +161,60 @@ export const DataTable = <TData,>({
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
   const { i18n, t: translate } = useTranslation(["common"]);
-  const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
+  const ref = useRef<{ tableRef: TanStackTable<DataTableFeatures, TData> | undefined }>({
     tableRef: undefined,
   });
 
-  const handleStateChange = useCallback<OnChangeFn<ReactTableState>>(
-    (updater: Updater<ReactTableState>) => {
+  // v9 dropped the table-wide `onStateChange`, so each controlled slice reports its update here and
+  // the page still receives the whole controlled state, as before.
+  const emitStateChange = useCallback(
+    (next: Partial<Pick<TableState, "pagination" | "sorting">>) => {
       if (ref.current.tableRef && onStateChange) {
-        const current = ref.current.tableRef.getState();
-        const next = typeof updater === "function" ? updater(current) : updater;
+        const current = ref.current.tableRef.store.state;
 
-        // Only use the controlled state
-        const nextState = {
-          columnVisibility: next.columnVisibility,
-          pagination: next.pagination,
-          sorting: next.sorting,
-        };
-
-        onStateChange(nextState);
+        onStateChange({
+          columnVisibility: current.columnVisibility,
+          pagination: current.pagination,
+          sorting: current.sorting,
+          ...next,
+        });
       }
     },
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+  const handlePaginationChange = useCallback(
+    (updater: Updater<PaginationState>) => {
+      const current = ref.current.tableRef?.store.state.pagination;
+
+      if (current) {
+        emitStateChange({ pagination: typeof updater === "function" ? updater(current) : updater });
+      }
+    },
+    [emitStateChange],
+  );
+
+  const handleSortingChange = useCallback(
+    (updater: Updater<SortingState>) => {
+      const current = ref.current.tableRef?.store.state.sorting;
+
+      if (current) {
+        emitStateChange({ sorting: typeof updater === "function" ? updater(current) : updater });
+      }
+    },
+    [emitStateChange],
+  );
+
+  const [storedColumnVisibility, setColumnVisibility] = useLocalStorage<ColumnVisibilityState>(
     `dataTable:${modelName}:columnVisibility`,
     initialState?.columnVisibility ?? {},
   );
+  // Stored visibility only covers columns that existed when it was saved, so columns added
+  // later still need their default visibility.
+  const columnVisibility = buildColumnVisibility(columns, {
+    ...initialState?.columnVisibility,
+    ...storedColumnVisibility,
+  });
 
   // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
   // reflects by naming the model without a number. Everything else still needs a real number.
@@ -170,16 +224,21 @@ export const DataTable = <TData,>({
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const rest = Boolean(isLoading) ? createSkeletonMock(display, skeletonCount, columns) : {};
 
-  const table = useReactTable({
+  const table = useTable({
+    // Refetches replace `data`, which would otherwise close every expanded row.
+    autoResetExpanded: false,
     columns,
     data,
     enableHiding: true,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    enableMultiSort,
+    features: dataTableFeatures,
+    getRowCanExpand: () => renderSubComponent !== undefined,
+    getRowId,
     manualPagination: true,
     manualSorting: true,
     onColumnVisibilityChange: setColumnVisibility,
-    onStateChange: handleStateChange,
+    onPaginationChange: handlePaginationChange,
+    onSortingChange: handleSortingChange,
     rowCount: rowTotal,
     // We need to manually set the sort toggle buttons for undefined values
     sortDescFirst: false,
@@ -194,7 +253,7 @@ export const DataTable = <TData,>({
   const rowCount = table.getRowCount();
   const { setPageIndex } = table;
 
-  const { pagination } = table.getState();
+  const { pagination } = table.state;
   const { pageIndex, pageSize } = pagination;
 
   const hasNext = nextCursor !== undefined && nextCursor !== null;
@@ -227,7 +286,7 @@ export const DataTable = <TData,>({
   const headingNode = Boolean(hideRowCountHeading) ? undefined : (
     <Heading py={1} size="md">
       {hasRowCount
-        ? `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        ? `${formatNumber(total, i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
         : pluralModelName}
     </Heading>
   );
@@ -251,8 +310,8 @@ export const DataTable = <TData,>({
           data-testid="data-table-header"
           gap={2}
           justifyContent="space-between"
+          mb={2}
           minH={10}
-          mt={2} // This offsets the spacing below created by the ProgressBar
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
             {headingNode === undefined && headingExtra === undefined ? undefined : (
@@ -280,12 +339,11 @@ export const DataTable = <TData,>({
         </Flex>
       ) : undefined}
       {errorMessage}
-      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0} overflow="auto">
         {display === "card" && cardDef !== undefined ? (
           <CardList cardDef={cardDef} isLoading={isLoading} noRowsMessage={noRowsNode} rows={rows} />
         ) : (
-          <TableList noRowsMessage={noRowsNode} table={table} />
+          <TableList noRowsMessage={noRowsNode} renderSubComponent={renderSubComponent} table={table} />
         )}
       </Box>
       {hasOffsetPagination ? (

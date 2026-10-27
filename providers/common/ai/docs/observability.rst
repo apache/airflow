@@ -18,6 +18,12 @@
 Observability (OpenTelemetry tracing)
 =====================================
 
+.. note::
+
+    Experimental: the spans and their attributes can change in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
+
 pydantic-ai ships native OpenTelemetry instrumentation that emits GenAI spans
 for each agent run, model call, and tool call, following the
 `OpenTelemetry GenAI semantic conventions <https://opentelemetry.io/docs/specs/semconv/gen-ai/>`__.
@@ -41,20 +47,92 @@ How it works
   configured under ``[traces]`` / the standard ``OTEL_EXPORTER_OTLP_*``
   environment variables. If core tracing is not enabled in the worker process,
   no GenAI spans are emitted.
-* **Correlation is automatic.** The worker opens a task span before the operator
-  runs, so the agent's spans nest under it and inherit the task's ``trace_id``
-  and ``airflow.*`` attributes (dag id, run id, task id, try number, map index).
+* **Correlation.** The worker opens a task span before the operator runs, so the
+  agent's spans nest under it and share its ``trace_id``.
+  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` and
+  :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` (and their
+  ``@task.agent`` / ``@task.llm`` decorator forms) additionally stamp the
+  task-instance identity on every GenAI span they emit: the five keys core
+  tracing already puts on the task span (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
+  ``airflow.task_instance.try_number``, ``airflow.task_instance.map_index``) plus
+  ``airflow.task_instance.id`` as the per-attempt run join key. So a span is
+  filterable by dag, task, run, attempt, or map index directly, without walking
+  up to the parent span (OpenTelemetry children inherit trace context, not
+  attributes).
   An automatic retry reuses the task instance's persisted trace context, so all
   attempts share one trace and appear as repeated task-run spans on it,
   distinguished by ``try number``. Only a manual clear or rerun regenerates the
   context and starts a new trace.
+* **Run join key.** For an ``AgentOperator`` or ``LLMOperator`` run (and their
+  ``@task.agent`` / ``@task.llm`` decorator equivalents), the task-instance id
+  (unique per attempt, since Airflow regenerates it on each retry) is passed to
+  pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
+  ``gen_ai.agent.call.id``, and the operator also exposes it, alongside the run's
+  token usage, on XCom under the ``run_id`` and ``usage`` keys. ``usage`` is
+  this attempt's own usage -- not the cross-attempt cumulative total described
+  under ``usage_limits`` in :ref:`howto/operator:agent` -- and it is pushed on
+  a failed attempt too, so a downstream ``all_done`` task or failure callback
+  can read what the last attempt spent. XCom is cleared at the start of every
+  attempt, so only the most recent attempt's value survives, not each
+  historical attempt's. A downstream task can then reference the
+  run (``ti.xcom_pull(task_ids="my_task", key="run_id")``) and a trace
+  backend can join a task's output to its agent trace without parsing logs.
+  ``AgentOperator`` additionally: with ``durable=True``, steps an attempt replays
+  from the cache are not part of ``usage``; with ``enable_hitl_review`` the
+  ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
+  regenerations; and a run that resumes after a tool approval (see
+  :doc:`tool_approval`) continues as ``<task-instance id>-resumed-<n>`` after
+  pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
+  covering every part.
+  Airflow 2 has no task-instance id, so there the key is
+  ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
+  identity keys without ``airflow.task_instance.id``.
+* **Model name.** The model that actually answered is exposed on XCom under the
+  namespaced key ``__AIRFLOW__COMMON_AI_MODEL_NAME__``, separate from ``run_id`` /
+  ``usage`` above, so a downstream task, a Jinja template, or a REST client can read which
+  model responded without parsing the decision record or a span
+  (``ti.xcom_pull(task_ids="my_agent", key="__AIRFLOW__COMMON_AI_MODEL_NAME__")``).
+  Only ``AgentOperator`` /
+  ``@task.agent`` and ``LLMOperator`` / ``@task.llm`` push it today; like ``run_id`` and
+  ``usage``, with ``enable_hitl_review`` it is the initial run's model, not a
+  human-feedback regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
+  ``LLMOperator``'s subclasses that override ``execute()`` instead of calling
+  ``super().execute()`` -- ``LLMBranchOperator``, ``LLMSQLQueryOperator``,
+  ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` -- don't publish it yet;
+  this is upcoming work.
+* **Scope.** The ``run_id`` / ``usage`` XComs, the model name, and the ``airflow.*``
+  identity attributes come from ``AgentOperator`` / ``@task.agent`` and ``LLMOperator`` /
+  ``@task.llm``, apart from a Strands, ADK or OpenAI Agents SDK agent run inside
+  ``agent_framework_tracing`` (see below). The other LLM operators still emit GenAI spans
+  correlated to the task span by nesting, but without the identity attributes, the run
+  join key, the model name, or a ``usage`` XCom.
+* .. _howto/observability:model-tab:
+
+  **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
+  task-instance page showing the resolved model name and the ``usage`` XCom above as a
+  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  the ``applies_to`` operator scoping core added in that version to show up only for
+  ``LLMOperator`` / ``AgentOperator`` runs (and their ``@task.llm`` / ``@task.agent``
+  decorator forms) -- the match is on the exact operator name, so a subclass of either does
+  not get the tab automatically. Like the span-level cost above, the tab's number is a
+  best-effort ``genai-prices`` estimate, not provider-reported billing. With a custom XCom
+  backend that offloads large values to external storage (e.g. ``common.io`` with
+  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
+  the real value, since the public XCom endpoint it calls never runs the backend's
+  ``deserialize_value``: the model name badge would show the reference string (e.g. an
+  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
+  string rather than an object -- the tab treats a non-object ``usage`` as absent and
+  hides the stat boxes instead of rendering ``undefined`` in each one.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
+* **Cost is already on the span.** pydantic-ai's own instrumentation sets a
+  best-effort ``operation.cost`` attribute on the model-call span whenever it
+  can price the response -- no provider configuration is needed for this.
 
 .. note::
 
-    On pydantic-ai 2.x the agent-run span reports token usage under
+    The agent-run span reports token usage under
     ``gen_ai.aggregated_usage.*`` while the per-model-call span keeps
     ``gen_ai.usage.*``. This avoids double-counting in backends that sum a
     parent span and its children. Dashboards or alerts that read run-level token
@@ -96,11 +174,123 @@ outputs (``gen_ai.input.messages`` / ``gen_ai.output.messages``), set:
 
 .. warning::
 
-    With ``capture_content`` enabled, prompts, completions, and tool IO are
+    With ``capture_content`` enabled, prompts, completions, and tool arguments are
     exported to your tracing backend **without redaction**. Airflow's secret masking
     applies to logs and rendered template fields, not to OpenTelemetry span
-    attributes, so it does not scrub this content. Enable it only for debugging
-    in a trusted environment. It has no effect unless ``otel_export_enabled`` is
-    ``True``.
+    attributes, with two exceptions:
+
+    - What a function tool returns or raises while it runs in an agent this provider
+      builds, which is masked before the span records it. An output function's result
+      is not (see :doc:`agent_security`).
+    - The content ``AirflowTraceProcessor`` records for an OpenAI Agents SDK agent,
+      which passes through the masker first.
+
+    Enable it only for debugging in a trusted environment. It has no effect unless
+    ``otel_export_enabled`` is ``True``.
+
+Agents built with other frameworks
+----------------------------------
+
+.. note::
+
+    Experimental: ``agent_framework_tracing`` can change or be removed in a minor release
+    of this provider.
+    See :ref:`howto/stability`.
+
+Strands Agents and Google ADK emit OpenTelemetry spans of their own. Run the agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` so those spans
+follow the same rules as ``AgentOperator``'s:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.tools.strands import AirflowTools
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    with agent_framework_tracing():
+        agent = Agent(model=model, plugins=[AirflowTools(warehouse)])
+        answer = agent(question)
+
+Inside the block the framework leaves prompts, completions and tool arguments and results
+out of its spans unless ``[common.ai] otel_export_enabled`` and ``capture_content`` are
+both on, using the switch each
+framework reads: the ``gen_ai_unredacted_attributes`` token of
+``OTEL_SEMCONV_STABILITY_OPT_IN`` for Strands, and ``ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS``
+and ``OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`` for ADK. A value your deployment
+already set wins. Strands reads its switch once per process, when it creates its one tracer,
+so create the first ``Agent`` of the task inside the block, not at module level; ADK reads
+its switches when a ``TelemetryConfig`` is built, so build that inside the block too.
+
+Every span started inside the block under the worker's tracer provider carries the same
+``airflow.*`` identity attributes as ``AgentOperator``'s spans. When no tracer provider made
+a span for the task, the Dag run's trace context is not made the parent of the framework's
+spans: that context is marked as not sampled, and a parent-based sampler, the OpenTelemetry
+default, would drop every span a tracer provider the framework installs starts. When core
+tracing or auto-instrumentation made the task's span, the Dag run's sampling decision
+holds.
+
+The identity attributes go on spans of the tracer provider that is installed when the block
+starts, so set up the framework's own telemetry, such as ``StrandsTelemetry``, before
+entering it. They follow the task through ``asyncio``; ADK's synchronous ``Runner.run``
+runs the agent on a thread of its own that they do not reach, so use ``run_async``.
+
+The OpenAI Agents SDK traces runs with a system of its own, not OpenTelemetry. Register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` with it,
+and run the agent inside the block, to record its traces as spans under the task's span
+with the same identity attributes and the same content rule:
+
+.. code-block:: python
+
+    from agents import Runner, set_trace_processors
+
+    from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    set_trace_processors([AirflowTraceProcessor()])
+    with agent_framework_tracing():
+        answer = Runner.run_sync(agent, question).final_output
+
+``set_trace_processors`` also stops the SDK sending the traces to OpenAI, which it does by
+default; use ``add_trace_processor`` to keep both. See :doc:`frameworks/openai_agents`.
+
+Counting tool calls
+-------------------
+
+.. note::
+
+    Experimental: the ``common_ai.tool_calls`` metric and its tags can change or be
+    removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
+Every call to one of this provider's connection-backed toolsets increments the
+``common_ai.tool_calls`` counter through Airflow's metrics, whether the call comes from ``AgentOperator``, a
+Pydantic AI agent you build yourself, or another framework through its adapter. It
+answers which toolsets are used and from where without reading task logs. The counter
+carries three tags:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Tag
+     - Values
+   * - ``toolset``
+     - The toolset class, such as ``SQLToolset`` or ``ObjectStorageToolset``.
+   * - ``framework``
+     - ``pydantic_ai`` for ``AgentOperator`` and your own Pydantic AI agents;
+       ``strands``, ``adk``, ``langchain``, ``anthropic`` or ``openai_agents`` for a call
+       through that framework's adapter;
+       ``none`` for a call to a toolset's ``airflow_tools()`` made without an adapter.
+   * - ``outcome``
+     - ``executed`` when the call returned, ``failed`` when it raised (including a
+       failure the model is asked to correct), and ``replayed`` when
+       ``AgentOperator(durable=True)`` served the result from its cache on a retry. A call
+       whose arguments fail validation never reaches the toolset and is not counted, and
+       neither is a call that pauses the run until a person approves it.
+
+Tags never include arguments, connection IDs, table names or paths. They reach backends
+that support them: OpenTelemetry metrics (``[metrics] otel_on``), or StatsD with
+``[metrics] statsd_datadog_enabled`` or ``statsd_influxdb_enabled``. The Agent Skills
+toolset, toolsets you write yourself and hand-built ``AirflowTool`` objects are not
+counted.
 
 See :doc:`configurations-ref` for the full list of options.

@@ -480,6 +480,19 @@ class TestCli:
             with pytest.raises(SystemExit):
                 parser.parse_args([*cmd_args, "--help"])
 
+    def test_backfill_reprocess_behavior_help_uses_user_facing_names(self):
+        parser = cli_parser.get_parser()
+
+        with contextlib.redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
+            parser.parse_args(["backfill", "create", "--help"])
+
+        normalized_help = " ".join(stdout.getvalue().split())
+        assert "--reprocess-behavior {none,failed,completed}" in normalized_help
+        assert (
+            "'none' (Missing Runs), 'failed' (Missing and Errored Runs), or 'completed' (All Runs)"
+            in normalized_help
+        )
+
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)
 
@@ -619,6 +632,30 @@ class TestCli:
         assert (
             "airflow db export-archived command error: argument --export-format: invalid choice" in error_msg
         )
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(["pools", "set", "foo", "1", "test", "--output", "json"], id="set"),
+            pytest.param(["pools", "delete", "foo", "--output", "json"], id="delete"),
+        ],
+    )
+    def test_pools_set_and_delete_reject_output_flag(self, argv):
+        with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
+            with pytest.raises(SystemExit) as e:
+                parser.parse_args(argv)
+        assert e.value.code == 2
+        assert "unrecognized arguments: --output json" in stderr.getvalue()
+
+    @pytest.mark.parametrize("bad_value", ["abc", "-1"])
+    def test_dags_list_jobs_rejects_invalid_limit(self, bad_value):
+        with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
+            with pytest.raises(SystemExit) as e:
+                parser.parse_args(["dags", "list-jobs", "--limit", bad_value])
+        assert e.value.code == 2
+        assert f"argument --limit: invalid positive int value: '{bad_value}'" in stderr.getvalue()
 
     @pytest.mark.parametrize(
         "action_cmd",

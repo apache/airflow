@@ -27,7 +27,7 @@ import os
 import sys
 import warnings
 import weakref
-from collections import abc, defaultdict, deque
+from collections import abc
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
@@ -41,6 +41,7 @@ from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
+from airflow.sdk._shared.dagnode.cycle import detect_cycle
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
@@ -58,15 +59,16 @@ from airflow.sdk.exceptions import (
     NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
     TaskNotFound,
 )
 
 if TYPE_CHECKING:
     from re import Pattern
-    from typing import TypeAlias, TypeVar
+    from typing import Self, TypeAlias, TypeVar
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
-    from typing_extensions import Self, TypeIs
+    from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.api.datamodels._generated import DagRunType
@@ -85,6 +87,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+# The TaskGroup cycle warning becomes a DagWarning.message, a Text column (64 KB on MySQL), so its
+# length must not grow with the size or the number of the cycles.
+_MAX_LISTED_TASK_GROUP_CYCLES = 10
+_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS = 5
 
 __all__ = [
     "DAG",
@@ -302,6 +309,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
+
+
+def _format_cycle_members(node_ids: list[str]) -> str:
+    if len(node_ids) > _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS:
+        unlisted = len(node_ids) - _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS
+        return f"{', '.join(node_ids[:_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS])} and {unlisted} more"
+    return f"{', '.join(node_ids[:-1])} and {node_ids[-1]}"
 
 
 def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
@@ -640,7 +654,7 @@ class DAG:
             return
         from airflow.sdk.api.datamodels._generated import DagRunType
 
-        if isinstance(self.timetable, AssetTriggeredTimetable):
+        if self.timetable.asset_triggered:
             if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
                 raise ValueError(
                     "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
@@ -767,8 +781,12 @@ class DAG:
 
         This is called by the Dag bag before bagging the Dag.
         """
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+
         self.timetable.validate()
         self.validate_setup_teardown()
+        check_expansions_over_loop_tasks(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1133,6 +1151,10 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
@@ -1140,42 +1162,46 @@ class DAG:
         """
         Check to see if there are any cycles in the Dag.
 
+        Also warns with ``TaskGroupCycleDeprecationWarning`` when TaskGroups depend on each
+        other in a cycle, which is deprecated.
+
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
-        # default of int is 0 which corresponds to CYCLE_NEW
-        CYCLE_NEW = 0
-        CYCLE_IN_PROGRESS = 1
-        CYCLE_DONE = 2
-
-        visited: dict[str, int] = defaultdict(int)
-        path_stack: deque[str] = deque()
         task_dict = self.task_dict
+        faulty_task_id = detect_cycle(task_dict, lambda tid: task_dict[tid].get_direct_relative_ids())
+        if faulty_task_id is not None:
+            raise AirflowDagCycleException(
+                f"Cycle detected in Dag: {self.dag_id}. Faulty task: {faulty_task_id}"
+            )
 
-        def _check_adjacent_tasks(task_id, current_task):
-            """Return first untraversed child task, else None if all tasks traversed."""
-            for adjacent_task in current_task.get_direct_relative_ids():
-                if visited[adjacent_task] == CYCLE_IN_PROGRESS:
-                    msg = f"Cycle detected in Dag: {self.dag_id}. Faulty task: {task_id}"
-                    raise AirflowDagCycleException(msg)
-                if visited[adjacent_task] == CYCLE_NEW:
-                    return adjacent_task
-            return None
+        self._warn_task_group_cycles()
 
-        for dag_task_id in self.task_dict.keys():
-            if visited[dag_task_id] == CYCLE_DONE:
-                continue
-            path_stack.append(dag_task_id)
-            while path_stack:
-                current_task_id = path_stack[-1]
-                if visited[current_task_id] == CYCLE_NEW:
-                    visited[current_task_id] = CYCLE_IN_PROGRESS
-                task = task_dict[current_task_id]
-                child_to_check = _check_adjacent_tasks(current_task_id, task)
-                if not child_to_check:
-                    visited[current_task_id] = CYCLE_DONE
-                    path_stack.pop()
-                else:
-                    path_stack.append(child_to_check)
+    def _warn_task_group_cycles(self) -> None:
+        task_group_dict = self.task_group.get_task_group_dict()
+        # With only the root group, the projection is the task graph, which is acyclic here.
+        if len(task_group_dict) == 1:
+            return
+        cycles = [
+            cycle
+            for task_group in task_group_dict.values()
+            for cycle in task_group._find_dependency_cycles(group_dict=task_group_dict)
+        ]
+        if not cycles:
+            return
+        listed = "; ".join(_format_cycle_members(cycle) for cycle in cycles[:_MAX_LISTED_TASK_GROUP_CYCLES])
+        unlisted = len(cycles) - _MAX_LISTED_TASK_GROUP_CYCLES
+        unlisted_note = (
+            f" ({unlisted} more cycle{'s' if unlisted > 1 else ''} not listed)" if unlisted > 0 else ""
+        )
+        # Airflow 3.5 raises AirflowDagCycleException here instead; tracked at
+        # https://github.com/apache/airflow/issues/73678
+        warnings.warn(
+            f"Dag '{self.dag_id}': {listed} depend on each other in a cycle{unlisted_note}. Cyclic TaskGroup "
+            "dependencies are deprecated and will fail Dag parsing in Airflow 3.5. See "
+            '"Cyclic TaskGroup dependencies" in the docs.',
+            TaskGroupCycleDeprecationWarning,
+            stacklevel=3,
+        )
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""
@@ -1185,6 +1211,9 @@ class DAG:
 
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
+        # This parser drops ``dag_id``, but the audit log is written from the namespace before the
+        # command runs, so a handler back-filling it later is already too late.
+        args.dag_id = self.dag_id
         args.func(args, self)
 
     @classmethod
@@ -1289,14 +1318,16 @@ class DAG:
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
             logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
 
-            log.debug("Clearing existing task instances for logical date %s", logical_date)
-            # TODO: Replace with calling client.dag_run.clear in Execution API at some point
-            SerializedDAG.clear_dags(
-                dags=[scheduler_dag],
-                start_date=logical_date,
-                end_date=logical_date,
-                dag_run_state=False,
-            )
+            # Unset bounds match every run, so a dateless test would clear unrelated runs.
+            if logical_date is not None:
+                log.debug("Clearing existing task instances for logical date %s", logical_date)
+                # TODO: Replace with calling client.dag_run.clear in Execution API at some point
+                SerializedDAG.clear_dags(
+                    dags=[scheduler_dag],
+                    start_date=logical_date,
+                    end_date=logical_date,
+                    dag_run_state=False,
+                )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
@@ -1368,7 +1399,7 @@ class DAG:
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date or run_after,
+                start_date=timezone.coerce_datetime(timezone.utcnow()),
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_after=run_after,
@@ -1403,8 +1434,8 @@ class DAG:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
-                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                        s.try_number += 1
+                    if s.try_number == 0:
+                        s.try_number = 1
                     s.state = TaskInstanceState.SCHEDULED
                     s.scheduled_dttm = timezone.utcnow()
                 session.commit()
@@ -1505,7 +1536,8 @@ def _run_task(
     from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    map_index = ti.region_index if task.get_needs_expansion() else -1
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, map_index)
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
@@ -1524,7 +1556,9 @@ def _run_task(
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
-                map_index=ti.map_index,
+                map_index=map_index,
+                region_id=ti.region_id,
+                region_index=ti.region_index,
                 dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
@@ -1576,7 +1610,7 @@ def _run_task(
                 break
             raise
 
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, map_index)
     return taskrun_result
 
 

@@ -26,7 +26,7 @@ from uuid import UUID
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
@@ -45,6 +45,12 @@ class CallbackFetchMethod(str, Enum):
 
     # For deadline callbacks since they import callbacks through the import path
     IMPORT_PATH = "import_path"
+
+
+# Key in ``CallbackDTO.data`` naming how ``data["kwargs"]`` is encoded. Without it the kwargs are
+# passed to the callback as they are, as for callbacks stored before the key was introduced.
+CALLBACK_KWARGS_ENCODING_KEY = "kwargs_encoding"
+SERDE_KWARGS_ENCODING = "serde"
 
 
 class CallbackDTO(BaseModel):
@@ -75,7 +81,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
     callback: CallbackDTO
 
-    type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+    type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
     token_scope: ClassVar[str] = "callback"
 

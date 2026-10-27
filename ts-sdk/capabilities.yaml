@@ -17,103 +17,199 @@
 ---
 sdk: ts
 
-min_airflow_version: "3.4"
+min_airflow_version: "3.4.0"
 
 # Keep in sync with SUPERVISOR_API_VERSION in src/generated/supervisor.ts. The render hook fails
 # if the two disagree.
 supervisor_schema_version: "2026-10-30"
 
-# The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
-# not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
+# The runtime terminates a task with SucceedTask, RetryTask, TaskState (failed/removed), or, for a
+# human-in-the-loop task, AwaitInputTask; only a triggerDagRun task emits TaskState skipped or
+# DeferTask. It does not emit RescheduleTask.
 states:
   success:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
   failed:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
   up_for_retry:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
     note: "RetryTask"
   skipped:
-    supported: false
-    note: "runtime does not emit TaskState skipped yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "triggerDagRun with skipWhenAlreadyExists only"
   deferred:
-    supported: false
-    note: "runtime does not emit DeferTask yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "triggerDagRun with deferrable only"
   up_for_reschedule:
     supported: false
     note: "runtime does not emit RescheduleTask yet"
   awaiting_input:
-    supported: false
-    note: "runtime does not emit AwaitInputTask yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "approval() / hitl() in a Dag definition"
   removed:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
 
-# Runtime capabilities reflect the task-facing coordinator client surface; native-Dag authoring is
-# not implemented yet, so every native capability is unsupported.
+# Runtime capabilities apply to a task body in both authoring modes.
 capabilities:
-  mixed-lang-stub-target:
-    supported: true
-    since: "3.4"
-    note: "@task.stub"
   task-logging:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
     note: "structured records over the log socket"
   xcom-read-write:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
     note: "getXCom / setXCom"
   connection-read:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
     note: "getConnection"
   variable-read-write:
-    supported: false
-    note: "getVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "getVariable / setVariable / deleteVariable"
   self-contained-bundle:
     supported: true
-    since: "3.4"
+    since: "3.4.0"
+    sdk_version: "1.0.0"
     note: "Airflow metadata embedded in the bundle"
   retry-policy:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "taskStateStore.get / set / delete / clear"
   asset-state-store:
     supported: false
-    note: "no task-facing state-store API yet"
+    note: "no task-facing asset state-store API yet"
   asset-event-emit:
     supported: false
     note: "runtime does not emit asset events yet"
   asset-event-read:
     supported: false
     note: "no task-facing asset-event API yet"
-  native-dag-authoring:
-    supported: false
-    note: "native Dag authoring not implemented yet"
-  task-args:
-    supported: false
-  dag-params:
-    supported: false
-  taskflow-dependencies:
-    supported: false
-  branching:
-    supported: false
-  dag-test:
-    supported: false
-  task-group:
-    supported: false
-  dynamic-task-mapping:
-    supported: false
-  asset-inlets-outlets:
-    supported: false
-  asset-scheduling:
-    supported: false
   object-store:
     supported: false
     note: "no object-storage API yet"
+  listeners:
+    supported: false
+    note: "no hook into the Python listener API, so a task emits no OpenLineage facets of its own"
+  # Dag definition: the whole Dag is declared in the SDK's language.
+  dag-definition-authoring:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "new Dag"
+  dag-args:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  task-args:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  dag-params:
+    supported: false
+  dag-callbacks:
+    supported: false
+  explicit-dependencies:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "before / after"
+  edge-labels:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "label(task, text)"
+  taskflow-dependencies:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  task-group:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "dag.taskGroup"
+  task-loops:
+    supported: false
+  if-else-branching:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "dag.if"
+  switch-case-branching:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "dag.switch"
+  trigger-dag-run:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "triggerDagRun"
+  dynamic-dag-generation:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+  human-in-the-loop:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "approval() / hitl()"
+  dag-test:
+    supported: false
+  asset-definition:
+    supported: false
+  asset-scheduling:
+    supported: false
+  # Python Dag with stub TaskHandler.
+  mixed-lang-stub-target:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "@task.stub"
+  taskflow-binding:
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "mapped stubs excluded"
+  # Shared by both authoring modes, so declared once per mode.
+  mapped-tasks:
+    dag-definition:
+      supported: false
+    stub-task-handler:
+      supported: false
+      note: "Airflow does not bind arguments to mapped stubs yet"
+  asset-inlets-outlets:
+    dag-definition:
+      supported: false
+    stub-task-handler:
+      supported: false
+      note: "runtime does not report task outlets yet"
+  task-callbacks:
+    dag-definition:
+      supported: false
+      note: "no SDK-defined task callbacks"
+    stub-task-handler:
+      supported: false
+      note: "a Python-declared task callback does not run for a stub task"

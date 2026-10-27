@@ -39,12 +39,14 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
@@ -52,13 +54,15 @@ from airflow.sdk.execution_time.supervisor import (
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
     _ensure_client,
+    _import_task_runner_before_fork,
     _make_process_nondumpable,
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
 
@@ -76,12 +80,65 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 
 # The set of messages that a callback subprocess can send to the supervisor.
-# This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker.
+# This is a minimal subset of ToSupervisor: read-only access to Connections,
+# Variables, and XCom values, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
+
+
+def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
+    """
+    Add an ``xcom_pull`` helper bound to the callback's Dag run to its context.
+
+    Callbacks have no task instance, so the helper takes ``dag_id`` and ``dag_run_id`` from the
+    ``dag_run`` in the context and the callback only names the task to pull from.
+    """
+    context = callback_kwargs.get("context")
+    if not isinstance(context, dict):
+        return
+    dag_run = context.get("dag_run")
+    if not isinstance(dag_run, dict) or not dag_run.get("dag_id") or not dag_run.get("dag_run_id"):
+        log.warning("Callback context has no Dag run, so xcom_pull is not available")
+        return
+
+    def xcom_pull(
+        task_id: str, *, key: str = "return_value", map_index: int | None = None, default: Any = None
+    ) -> Any:
+        from airflow.sdk.execution_time.xcom import XCom
+
+        value = XCom.get_one(
+            key=key,
+            dag_id=dag_run["dag_id"],
+            run_id=dag_run["dag_run_id"],
+            task_id=task_id,
+            map_index=map_index,
+        )
+        return default if value is None else value
+
+    context["xcom_pull"] = xcom_pull
+
+
+SERDE_KWARGS_ENCODING = "serde"
+
+
+def decode_callback_kwargs(callback_kwargs: dict[str, Any], encoding: str | None) -> dict[str, Any]:
+    """
+    Decode the kwargs of a callback, right before the callback is called.
+
+    ``encoding`` is ``None`` for kwargs that are passed as they are (callbacks stored by
+    earlier versions), or ``"serde"`` for serde-encoded kwargs. ``context`` is added by the
+    scheduler and is never encoded.
+    """
+    if encoding is None:
+        return callback_kwargs
+    if encoding != SERDE_KWARGS_ENCODING:
+        raise ValueError(f"Unsupported callback kwargs encoding: {encoding!r}")
+
+    from airflow.sdk.serde import deserialize
+
+    return {key: value if key == "context" else deserialize(value) for key, value in callback_kwargs.items()}
 
 
 def execute_callback(
@@ -90,6 +147,7 @@ def execute_callback(
     dag_rel_path: os.PathLike[str],
     bundle_path: os.PathLike[str] | None,
     log,
+    callback_kwargs_encoding: str | None = None,
 ) -> tuple[bool, str | None]:
     """
     Execute a callback function by importing and calling it, returning the success state.
@@ -110,6 +168,7 @@ def execute_callback(
     :param dag_rel_path: Relative path to the DAG file.
     :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
+    :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
     :return: Tuple of (success: bool, error_message: str | None)
     """
     if not callback_path:
@@ -137,6 +196,7 @@ def execute_callback(
         else:
             module = import_module(module_path)
         callback_callable = getattr(module, function_name)
+        callback_kwargs = decode_callback_kwargs(callback_kwargs, callback_kwargs_encoding)
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
 
@@ -183,9 +243,10 @@ class CallbackSubprocess(WatchedSubprocess):
     Uses the WatchedSubprocess infrastructure for fork/monitor/signal handling
     while keeping a simple lifecycle: start, run callback, exit.
 
-    Provides a limited set of comms channels (Connections and Variables) so
-    that callback code can access runtime services like
-    ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
+    Provides a limited set of comms channels (Connections, Variables, and XCom)
+    so that callback code can access runtime services like
+    ``Connection.get()``, ``Variable.get()``, and ``context["xcom_pull"]()`` via
+    the supervisor's API client.
     """
 
     client: Client  # The HTTP client to use for communication with the API server.
@@ -199,6 +260,7 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        callback_kwargs_encoding: str | None = None,
         dag_rel_path: os.PathLike[str],
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
@@ -243,17 +305,20 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
+            _add_xcom_pull_to_context(callback_kwargs)
             success, error_msg = execute_callback(
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
                 dag_rel_path=dag_rel_path,
                 bundle_path=bundle_path,
                 log=_log,
+                callback_kwargs_encoding=callback_kwargs_encoding,
             )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
 
+        _import_task_runner_before_fork()
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,
@@ -362,6 +427,8 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
+        elif isinstance(msg, GetXCom):
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         else:
@@ -400,6 +467,7 @@ def supervise_callback(
     callback_path: str,
     callback_kwargs: dict,
     dag_rel_path: os.PathLike[str],
+    callback_kwargs_encoding: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -413,6 +481,7 @@ def supervise_callback(
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
     :param dag_rel_path: Relative path to the DAG file.
+    :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -441,6 +510,7 @@ def supervise_callback(
                 id=id,
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
+                callback_kwargs_encoding=callback_kwargs_encoding,
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
                 client=client,

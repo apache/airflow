@@ -53,6 +53,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         "file_name",
         "drive_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 

@@ -22,12 +22,12 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
@@ -96,11 +96,23 @@ class LLMSchemaCompareOperator(LLMOperator):
     :param prompt: Instructions for the LLM on what to compare and flag.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Instructions included in the LLM system prompt. Defaults to
         ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
         severity definitions. Passing a value **replaces** the default system prompt
-    :param agent_params: Extra keyword arguments for the pydantic-ai ``Agent``.
-    :param data_sources: List of DataSourceConfig objects, one per system.
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param data_sources: List of DataSourceConfig objects, one per system. A
+        source whose connection is not a ``DbApiHook`` is read through DataFusion, which
+        ``common.sql`` pins below 52.
     :param db_conn_ids: Connection IDs for databases to compare (used with
         ``table_names``).
     :param table_names: Tables to introspect from each ``db_conn_id``.
@@ -108,9 +120,13 @@ class LLMSchemaCompareOperator(LLMOperator):
         ``"full"`` to include primary keys, foreign keys, and indexes.
         Default ``"full"``.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the comparison and only returns the result once a
     reviewer approves. The review body shows the compatibility verdict, a
     mismatch severity summary, and the full result JSON.
@@ -124,6 +140,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         "context_strategy",
     )
 
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
+
     def __init__(
         self,
         *,
@@ -134,6 +153,10 @@ class LLMSchemaCompareOperator(LLMOperator):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSchemaCompareOperator does not accept 'output_type'; it always returns SchemaCompareResult."
+            )
         kwargs["output_type"] = SchemaCompareResult
         # execute() always returns a dict, so the approval resume path must too
         kwargs["serialize_output"] = True
@@ -310,20 +333,21 @@ class LLMSchemaCompareOperator(LLMOperator):
         if self.require_approval:
             self.validate_approval_prompt()  # type: ignore[misc]
 
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         schema_context = self._build_schema_context()
 
         self.log.info("Schema comparison context:\n%s", schema_context)
 
         full_system_prompt = self._build_system_prompt(schema_context)
 
-        agent = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=SchemaCompareResult,
             instructions=full_system_prompt,
-            **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         output_result = output.model_dump()
@@ -343,13 +367,5 @@ class LLMSchemaCompareOperator(LLMOperator):
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
+        self._clear_usage_budget(context)
         return output_result
-
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        output = super().execute_complete(context, generated_output, event)
-        if isinstance(output, dict):
-            return output
-        try:
-            return SchemaCompareResult.model_validate_json(output).model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e

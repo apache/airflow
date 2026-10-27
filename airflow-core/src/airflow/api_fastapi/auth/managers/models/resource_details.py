@@ -113,6 +113,9 @@ class AccessView(Enum):
     JOBS = "JOBS"
     PLUGINS = "PLUGINS"
     PROVIDERS = "PROVIDERS"
+    # Reparsing a file with no registered Dag: there is no per-Dag key to
+    # authorize on, so it gets its own admin-by-default view.
+    REPARSE_ALL = "REPARSE_ALL"
     TRIGGERS = "TRIGGERS"
     WEBSITE = "WEBSITE"
 

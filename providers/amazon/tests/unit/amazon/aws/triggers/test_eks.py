@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 import pytest
@@ -369,7 +370,35 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
 class TestEksPodTrigger:
     """Tests for EksPodTrigger."""
 
-    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    @pytest.mark.asyncio
+    @patch("pathlib.Path.read_text", autospec=True, return_value="apiVersion: v1\nkind: Config\n")
+    @patch(
+        "airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file_with_credentials", autospec=True
+    )
+    @patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.run", autospec=True)
+    async def test_keeps_shared_auth_context_while_polling(self, parent_run, generate_config, read_text):
+        config_context = MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+
+        async def events():
+            config_context.__exit__.assert_not_called()
+            yield TriggerEvent({"status": "success"})
+
+        parent_run.return_value = events()
+        trigger = self._create_trigger()
+        events_received = [event async for event in trigger.run()]
+
+        assert events_received == [TriggerEvent({"status": "success"})]
+        assert trigger.config_dict == {"apiVersion": "v1", "kind": "Config"}
+        generate_config.assert_called_once()
+        assert generate_config.call_args.kwargs == {
+            "eks_cluster_name": CLUSTER_NAME,
+            "pod_namespace": "default",
+        }
+        config_context.__exit__.assert_called_once()
+
+    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
 
     def _create_trigger(self, **overrides):
         """Create an EksPodTrigger with sensible defaults."""

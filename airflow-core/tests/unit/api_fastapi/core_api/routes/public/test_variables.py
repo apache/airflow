@@ -22,7 +22,7 @@ from unittest import mock
 from unittest.mock import ANY
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
@@ -616,6 +616,18 @@ class TestPatchVariable(TestVariableEndpoint):
             in response.json()["detail"][0]["msg"]
         )
 
+    # Only values a uri can carry: the body key has to match the uri parameter to get past the
+    # mismatch check, and httpx refuses to put a raw tab or newline in a url.
+    @pytest.mark.parametrize("key", ["", " "])
+    def test_patch_variable_rejects_blank_key(self, test_client, session, key):
+        # PATCH takes the full VariableBody, so it picks up the same constraint as POST. A blank
+        # key matched the equally blank `:path` uri parameter, so the update went ahead.
+        Variable.set(key=key, value="old value", session=session)
+        session.commit()
+        response = test_client.patch(f"/variables/{key}", json={"key": key, "value": "new value"})
+        assert response.status_code == 422
+        assert Variable.get(key, session=session) == "old value"
+
     @pytest.mark.enable_redact
     def test_patch_with_update_mask_description_only(self, test_client, session):
         """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
@@ -805,6 +817,24 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [[{"key": "new variable key", "value": "new variable value"}], '{"key": "a"}', 42],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/variables", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        check_last_log(
+            session,
+            dag_id=None,
+            event="post_variable",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         body = {
@@ -819,6 +849,12 @@ class TestPostVariable(TestVariableEndpoint):
             "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
             in response.json()["detail"][0]["msg"]
         )
+
+    @pytest.mark.parametrize("key", ["", " ", "   ", "\t", "\n"])
+    def test_post_variable_rejects_blank_key(self, test_client, session, key):
+        response = test_client.post("/variables", json={"key": key, "value": "some value"})
+        assert response.status_code == 422
+        assert session.scalar(select(Variable).filter_by(key=key)) is None
 
     @pytest.mark.parametrize(
         "body",
@@ -1582,6 +1618,30 @@ class TestBulkVariables(TestVariableEndpoint):
 
         expected_error_keys = {err["input"]["key"] for err in detail}
         assert sorted(expected_error_keys) == ["var_2", "var_3"]
+
+    @pytest.mark.parametrize("action", ["create", "update"])
+    @pytest.mark.parametrize("key", ["", " ", "\t"])
+    def test_bulk_rejects_blank_key(self, test_client, session, action, key):
+        # The bulk endpoint validates its entities as VariableBody, so one blank key rejects the
+        # whole request before any action runs.
+        self.create_variables()
+        n_variables = session.scalar(select(func.count()).select_from(Variable))
+        response = test_client.patch(
+            "/variables",
+            json={
+                "actions": [
+                    {
+                        "action": action,
+                        "entities": [
+                            {"key": TEST_VARIABLE_KEY, "value": "some value"},
+                            {"key": key, "value": "some value"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(Variable)) == n_variables
 
     @pytest.mark.parametrize("num_variables", [1, 25])
     def test_bulk_delete_resolves_existence_in_single_query(self, session, num_variables):

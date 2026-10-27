@@ -97,6 +97,100 @@ def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigg
 
 
 class TestPowerBITrigger:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["Completed", "Failed", "TimedOut", "Cancelled", "Disabled"])
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_terminal_event(self, mock_run, powerbi_trigger, status):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        details = {
+            "status": "Unknown",
+            "extendedStatus": status,
+            "messages": [{"type": "Error", "message": "Synthetic engine message"}],
+            "serviceExceptionJson": '{"errorCode":"SyntheticRefreshError"}',
+        }
+        mock_run.side_effect = [history, details, history, details]
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == ("success" if status == "Completed" else "error")
+        assert events[0].payload["dataset_refresh_status"] == status
+        assert events[0].payload["dataset_refresh_id"] == DATASET_REFRESH_ID
+        if status != "Completed":
+            assert "Synthetic engine message" in events[0].payload["message"]
+            assert "SyntheticRefreshError" in events[0].payload["message"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "null_fields", [(), ("messages",), ("refreshAttempts",), ("messages", "refreshAttempts")]
+    )
+    @pytest.mark.parametrize("status", ["InProgress", "NotStarted", "Unknown"])
+    @mock.patch.object(PowerBIHook, "cancel_dataset_refresh", autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_messages_do_not_end_polling(
+        self, mock_run, mock_sleep, mock_cancel, powerbi_trigger, status, null_fields
+    ):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        active = {
+            "status": "Unknown",
+            "extendedStatus": status,
+            "messages": [
+                {"type": "Error", "message": "Synthetic retried attempt error"},
+                {"type": "Error", "code": "SyntheticMessageWithoutText"},
+            ],
+        }
+        for field in null_fields:
+            active[field] = None
+        mock_run.side_effect = [
+            history,
+            active,
+            history,
+            active,
+            history,
+            {"status": "Completed", "extendedStatus": "Completed"},
+        ]
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "success"
+        assert events[0].payload["dataset_refresh_status"] == "Completed"
+        mock_sleep.assert_awaited_once_with(CHECK_INTERVAL)
+        mock_cancel.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["Unknown", "NotStarted", "InProgress"])
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.time.monotonic", autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_active_times_out(
+        self, mock_run, mock_sleep, mock_monotonic, powerbi_trigger, status
+    ):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        details = {"status": "Unknown", "extendedStatus": status}
+        mock_run.side_effect = [history, details, history, details]
+        mock_monotonic.return_value = 0
+
+        async def advance_clock(delay):
+            mock_monotonic.return_value = TIMEOUT + 1
+
+        mock_sleep.side_effect = advance_clock
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "error"
+        assert events[0].payload["dataset_refresh_status"] == "In Progress"
+        assert "Timeout occurred" in events[0].payload["message"]
+        mock_sleep.assert_awaited_once_with(CHECK_INTERVAL)
+
     @mock.patch.object(PowerBIHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_trigger_serialization(self, connection):
         """Asserts that the PowerBI Trigger correctly serializes its arguments and classpath."""
@@ -126,6 +220,7 @@ class TestPowerBITrigger:
             "check_interval": CHECK_INTERVAL,
             "wait_for_termination": True,
             "request_body": REQUEST_BODY,
+            "cancel_on_error": True,
         }
 
     @pytest.mark.asyncio
@@ -250,6 +345,38 @@ class TestPowerBITrigger:
     @pytest.mark.asyncio
     @mock.patch.object(PowerBIHook, "cancel_dataset_refresh")
     @mock.patch.object(PowerBIHook, "get_refresh_details_by_refresh_id")
+    async def test_powerbi_trigger_run_exception_does_not_cancel_when_cancel_on_error_is_false(
+        self, mock_get_refresh_details_by_refresh_id, mock_cancel_dataset_refresh
+    ):
+        """A durable operator keeps the refresh running, so that its retry can reconnect to it."""
+        mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception")
+        powerbi_trigger = PowerBITrigger(
+            conn_id=POWERBI_CONN_ID,
+            dataset_id=DATASET_ID,
+            dataset_refresh_id=DATASET_REFRESH_ID,
+            group_id=GROUP_ID,
+            check_interval=CHECK_INTERVAL,
+            timeout=TIMEOUT,
+            cancel_on_error=False,
+        )
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "error",
+                    "dataset_refresh_status": None,
+                    "message": "An error occurred: Test exception",
+                    "dataset_refresh_id": DATASET_REFRESH_ID,
+                }
+            )
+        ]
+        mock_cancel_dataset_refresh.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(PowerBIHook, "cancel_dataset_refresh")
+    @mock.patch.object(PowerBIHook, "get_refresh_details_by_refresh_id")
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh")
     async def test_powerbi_trigger_run_PowerBIDatasetRefreshException_during_refresh_check_loop(
         self,
@@ -262,7 +389,11 @@ class TestPowerBITrigger:
         mock_get_refresh_details_by_refresh_id.side_effect = PowerBIDatasetRefreshException("Test exception")
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
-        task = [i async for i in powerbi_trigger.run()]
+        # Skip the exponential backoff between the retried status fetches.
+        with mock.patch(
+            "airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", new=mock.AsyncMock()
+        ):
+            task = [i async for i in powerbi_trigger.run()]
         response = TriggerEvent(
             {
                 "status": "error",

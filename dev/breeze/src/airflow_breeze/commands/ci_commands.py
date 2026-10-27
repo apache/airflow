@@ -26,6 +26,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -41,6 +42,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CI_AMD_PLATFORM,
     CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -60,6 +62,8 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.fork_compare import get_fork_changes, get_fork_pull_request_labels, is_fork_push
+from airflow_breeze.utils.git_remotes import find_remote, find_remote_for_repo, get_remotes
 from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
@@ -194,6 +198,26 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     return changed_files
 
 
+def get_changed_files_since(base_ref: str, commit_ref: str) -> tuple[str, ...] | None:
+    """Return the files changed between two commits, or None when they cannot be computed."""
+    # `--no-renames`, as `diff-tree` in `get_changed_files`: a rename counts as a delete plus an add,
+    # so that the tests of the old path are selected too.
+    result = run_command(
+        ["git", "diff", "--name-only", "--no-renames", base_ref, commit_ref],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning] Error when running diff command [/]\n{result.stdout}\n{result.stderr}")
+        return None
+    changed_files = tuple(result.stdout.splitlines()) if result.stdout else ()
+    console_print(f"\n[info]Changed files since {base_ref}:[/]\n")
+    console_print(changed_files)
+    console_print()
+    return changed_files
+
+
 @ci_group.command(
     name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
 )
@@ -249,6 +273,20 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     show_default=True,
 )
 @click.option(
+    "--selective-tests-on-push",
+    help="Select tests for a push event from the changed files, as for a pull request, "
+    "instead of running all tests.",
+    is_flag=True,
+    envvar="SELECTIVE_TESTS_ON_PUSH",
+)
+@click.option(
+    "--push-base-commit",
+    help="With --selective-tests-on-push: select tests from the files changed since this commit. "
+    "Without it, a push runs all tests.",
+    envvar="PUSH_BASE_COMMIT",
+    default="",
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -275,6 +313,8 @@ def selective_check(
     github_context: str,
     github_context_input: StringIO | None,
     ci_platform: str,
+    selective_tests_on_push: bool,
+    push_base_commit: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -286,21 +326,53 @@ def selective_check(
             github_context = github_context_input.read()
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
-        if commit_ref is not None:
+        changed_files: tuple[str, ...] = ()
+        fork_push = is_fork_push(github_event, github_repository)
+        fork_changes_truncated = False
+        fork_merge_base = None
+        labels = tuple(ast.literal_eval(pr_labels)) if pr_labels else ()
+        fork_owner = github_repository.split("/")[0]
+        if fork_push and github_context_dict.get("ref_name"):
+            labels = get_fork_pull_request_labels(
+                fork_owner=fork_owner, branch=github_context_dict["ref_name"], base=default_branch
+            )
+        if fork_push and commit_ref is not None:
+            fork_changes = get_fork_changes(fork_owner=fork_owner, sha=commit_ref, base=default_branch)
+            changed_files = fork_changes.files
+            fork_changes_truncated = fork_changes.truncated
+            fork_merge_base = fork_changes.merge_base
+            console_print(f"\n[info]Changed files against apache/airflow:[/]\n{changed_files}\n")
+        elif commit_ref is not None and selective_tests_on_push and github_event == GithubEvents.PUSH:
+            # The base is the last successful run of the branch, so this run also covers the commits
+            # whose push runs failed or were cancelled by a newer push. Without one, nothing after the
+            # branch point is known to pass, so everything runs.
+            pushed_files = (
+                get_changed_files_since(base_ref=push_base_commit, commit_ref=commit_ref)
+                if push_base_commit
+                else None
+            )
+            if pushed_files is None:
+                console_print("[warning]No tested base commit for the push, running all tests[/]")
+                commit_ref = None
+            else:
+                changed_files = pushed_files
+        elif commit_ref is not None:
             changed_files = get_changed_files(commit_ref=commit_ref)
-        else:
-            changed_files = ()
         sc = SelectiveChecks(
             commit_ref=commit_ref,
             files=changed_files,
             default_branch=default_branch,
             default_constraints_branch=default_constraints_branch,
-            pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
+            pr_labels=labels,
             github_event=github_event,
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
             platform=ci_platform,
+            selective_tests_on_push=selective_tests_on_push,
+            fork_push=fork_push,
+            fork_changes_truncated=fork_changes_truncated,
+            fork_merge_base=fork_merge_base,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -346,10 +418,12 @@ class WorkflowInfo(NamedTuple):
         return PUBLIC_AMD_RUNNERS
 
     def is_canary_run(self) -> str:
+        # A push is never a canary: the CI workflows build on push only to run the selective tests
+        # of the pushed commit, and full runs of release branches are dispatched by
+        # `release-branch-ci.yml`.
         if (
             self.event_name
             in [
-                GithubEvents.PUSH.value,
                 GithubEvents.WORKFLOW_DISPATCH.value,
                 GithubEvents.SCHEDULE.value,
             ]
@@ -549,6 +623,130 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     run_command(cmd, check=False, env=command_env)
 
 
+def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> None:
+    """Drop any ``backport-to-*`` label boring-cyborg put on the upgrade PR.
+
+    The CI environment is upgraded on each maintenance branch by that branch's own scheduled
+    run, so backporting main's upgrade would race it with a change that conflicts on the very
+    files it regenerates. boring-cyborg labels by path and cannot tell this PR apart from a
+    hand-written one touching ``dev/`` or ``.github/``, so the label is removed here instead.
+
+    Labelling happens on a webhook and may land after this runs; ``upgrade-check.yml`` sweeps
+    again once the PR has settled, so a miss here is not the last word.
+    """
+    labels_result = run_command(
+        [
+            "gh",
+            "pr",
+            "view",
+            branch_name,
+            "--repo",
+            "apache/airflow",
+            "--json",
+            "labels",
+            "--jq",
+            '[.labels[].name | select(startswith("backport-to-"))] | join(",")',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=command_env,
+    )
+    if labels_result.returncode != 0:
+        console_print("[warning]Could not read PR labels - leaving any backport labels in place.[/]")
+        return
+    labels = [label for label in labels_result.stdout.strip().split(",") if label]
+    if not labels:
+        return
+    remove_cmd = ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow"]
+    for label in labels:
+        remove_cmd.extend(["--remove-label", label])
+    if run_command(remove_cmd, capture_output=True, text=True, check=False, env=command_env).returncode:
+        console_print(f"[warning]Could not remove backport labels: {', '.join(labels)}[/]")
+    else:
+        console_print(f"[success]Removed backport labels: {', '.join(labels)}.[/]")
+
+
+# All upgrade commands run locally with check=False to continue on errors.
+# The uv lock --upgrade step must run after the steps that change dependencies, so it can
+# incorporate them -- and before the steps that regenerate code from the resolved versions.
+UPGRADE_COMMANDS: list[tuple[str, str]] = [
+    ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
+    (
+        "update-chart-dependencies",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
+    ),
+    (
+        "upgrade-important-versions",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
+    ),
+    (
+        "upgrade-dependency-floors",
+        "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-dependency-floors",
+    ),
+    (
+        # Raised floors change provider pyproject.toml files, but the requirement tables rendered
+        # from them into README.rst and docs/index.rst are only refreshed by these hooks, and the
+        # upgrade commit is not made with prek hooks installed, so CI's --all-files run goes red.
+        "regenerate-provider-requirement-tables",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "update-providers-build-files sync-provider-readme",
+    ),
+    (
+        "update-uv-lock",
+        "uv lock --upgrade",
+    ),
+    (
+        # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
+        # generated files' header. These hooks only watch the API sources, which an upgrade run
+        # never touches, so nothing regenerates them here and CI's --all-files run goes red.
+        "regenerate-datamodels",
+        "prek --all-files --show-diff-on-failure --color always --verbose "
+        "generate-tasksdk-datamodels generate-airflowctl-datamodels",
+    ),
+]
+
+
+DEPENDENCY_FLOORS_REPORT_ENV = "DEPENDENCY_FLOORS_REPORT"
+UPGRADE_PR_BODY = "This PR upgrades important dependencies of the CI environment."
+
+
+def build_upgrade_pr_body(floors_report: str | None) -> str:
+    if not floors_report:
+        return UPGRADE_PR_BODY
+    return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
+
+
+def get_step_enabled(
+    *,
+    autoupdate: bool,
+    update_chart_dependencies: bool,
+    upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
+    update_uv_lock: bool,
+) -> dict[str, bool]:
+    return {
+        "autoupdate": autoupdate,
+        "update-chart-dependencies": update_chart_dependencies,
+        "upgrade-important-versions": upgrade_important_versions,
+        "upgrade-dependency-floors": upgrade_dependency_floors,
+        "regenerate-provider-requirement-tables": upgrade_dependency_floors,
+        "update-uv-lock": update_uv_lock,
+        "regenerate-datamodels": update_uv_lock,
+    }
+
+
+def read_floors_report(report_path: Path) -> str | None:
+    """Return the report the floors step wrote, if any, and remove its temporary directory."""
+    report = report_path.read_text() if report_path.exists() else None
+    shutil.rmtree(report_path.parent, ignore_errors=True)
+    return report
+
+
+def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
+    return ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow", "--body", pr_body]
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -610,6 +808,12 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run upgrade-important-versions to bump key dependency versions",
 )
 @click.option(
+    "--upgrade-dependency-floors/--no-upgrade-dependency-floors",
+    default=True,
+    show_default=True,
+    help="Raise the floors of the curated dependencies in [tool.airflow.dependency-floors]",
+)
+@click.option(
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
@@ -621,6 +825,12 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     default=True,
     show_default=True,
     help="Sync K8s JSON schemas to airflow-site",
+)
+@click.option(
+    "--latest-package-managers/--no-latest-package-managers",
+    default=False,
+    show_default=True,
+    help="Bypass cooldown when upgrading package managers (pip and uv) to use their latest versions",
 )
 @option_github_token
 @option_answer
@@ -636,8 +846,10 @@ def upgrade(
     autoupdate: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
+    upgrade_dependency_floors: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
+    latest_package_managers: bool,
     github_token: str | None,
 ):
     # Validate target_branch pattern
@@ -666,41 +878,12 @@ def upgrade(
     status_result = run_command(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
     is_clean = status_result.returncode == 0 and not status_result.stdout.strip()
 
-    # Check if we have the apache remote and get its name
-    remote_result = run_command(["git", "remote", "-v"], capture_output=True, text=True, check=False)
-    apache_remote_name = None
-    origin_remote_name = None
-    origin_repo = None  # Store the user's fork repo (e.g., "username/airflow")
-
-    if remote_result.returncode == 0:
-        # Parse remote output to find apache/airflow remote and origin remote
-        # Format: remote_name\turl (fetch|push)
-        for line in remote_result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) >= 2:
-                remote_name = parts[0]
-                remote_url = parts[1]
-                if "apache/airflow" in remote_url and apache_remote_name is None:
-                    apache_remote_name = remote_name
-                # Also track origin remote for pushing
-                if remote_name == "origin" and origin_remote_name is None:
-                    origin_remote_name = remote_name
-                    # Extract repo from origin URL (supports both HTTPS and SSH formats)
-                    # HTTPS: https://github.com/username/airflow.git
-                    # SSH: git@github.com:username/airflow.git
-                    if "github.com" in remote_url:
-                        if "git@github.com:" in remote_url:
-                            # SSH format
-                            repo_part = remote_url.split("git@github.com:")[1]
-                        elif "github.com/" in remote_url:
-                            # HTTPS format
-                            repo_part = remote_url.split("github.com/")[1]
-                        else:
-                            repo_part = None
-
-                        if repo_part:
-                            # Remove .git suffix if present
-                            origin_repo = repo_part.replace(".git", "").strip()
+    remotes = get_remotes()
+    apache_remote = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    apache_remote_name = apache_remote.name if apache_remote else None
+    origin_remote = find_remote(remotes, "origin")
+    origin_remote_name = origin_remote.name if origin_remote else None
+    origin_repo = origin_remote.repo if origin_remote else None
 
     has_apache_remote = apache_remote_name is not None
 
@@ -800,6 +983,10 @@ def upgrade(
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
 
+    if latest_package_managers:
+        command_env["LATEST_PACKAGE_MANAGERS"] = "true"
+        command_env["UPGRADE_LATEST_PACKAGE_MANAGERS"] = "true"
+
     if github_token:
         command_env["GITHUB_TOKEN"] = github_token
         console_print("[success]GitHub token set in environment.[/]")
@@ -810,47 +997,24 @@ def upgrade(
             f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
-    # All upgrade commands run locally with check=False to continue on errors.
-    # The uv lock --upgrade step must run after the steps that change dependencies, so it can
-    # incorporate them -- and before the steps that regenerate code from the resolved versions.
-    upgrade_commands: list[tuple[str, str]] = [
-        ("autoupdate", "prek autoupdate --cooldown-days 4 --freeze"),
-        (
-            "update-chart-dependencies",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-chart-dependencies",
-        ),
-        (
-            "upgrade-important-versions",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
-        ),
-        (
-            "update-uv-lock",
-            "uv lock --upgrade",
-        ),
-        (
-            # The lock upgrade can bump datamodel-code-generator, whose version is stamped into the
-            # generated files' header. These hooks only watch the API sources, which an upgrade run
-            # never touches, so nothing regenerates them here and CI's --all-files run goes red.
-            "regenerate-datamodels",
-            "prek --all-files --show-diff-on-failure --color always --verbose "
-            "generate-tasksdk-datamodels generate-airflowctl-datamodels",
-        ),
-    ]
+    floors_report_path = Path(tempfile.mkdtemp()) / "dependency-floors.md"
+    command_env[DEPENDENCY_FLOORS_REPORT_ENV] = str(floors_report_path)
 
-    step_enabled = {
-        "autoupdate": autoupdate,
-        "update-chart-dependencies": update_chart_dependencies,
-        "upgrade-important-versions": upgrade_important_versions,
-        "update-uv-lock": update_uv_lock,
-        "regenerate-datamodels": update_uv_lock,
-    }
+    step_enabled = get_step_enabled(
+        autoupdate=autoupdate,
+        update_chart_dependencies=update_chart_dependencies,
+        upgrade_important_versions=upgrade_important_versions,
+        upgrade_dependency_floors=upgrade_dependency_floors,
+        update_uv_lock=update_uv_lock,
+    )
 
     # Execute upgrade commands
-    for step_name, command in upgrade_commands:
+    for step_name, command in UPGRADE_COMMANDS:
         if step_enabled[step_name]:
             run_command(command.split(), check=False, env=command_env)
         else:
             console_print(f"[info]Skipping {step_name} (disabled).[/]")
+    floors_report = read_floors_report(floors_report_path)
 
     # Sync K8s schemas to airflow-site
     if k8s_schema_sync:
@@ -930,7 +1094,7 @@ def upgrade(
             console_print("[warning]Could not determine fork repository. Using branch name only.[/]")
 
         pr_title = f"[{target_branch}] Upgrade important CI environment"
-        pr_body = "This PR upgrades important dependencies of the CI environment."
+        pr_body = build_upgrade_pr_body(floors_report)
 
         # Check if there's already an open PR for this branch.
         # gh pr list / gh pr ready filter by the bare head-branch name, not the
@@ -963,6 +1127,14 @@ def upgrade(
 
         if existing_pr and existing_pr != "null" and existing_pr != "":
             console_print(f"[success]Existing PR found and updated with force push: {existing_pr}[/]")
+            # The body carries this run's dependency-floors report, so it must follow the pushed diff.
+            run_command(
+                build_update_pr_body_command(branch_name, pr_body),
+                capture_output=True,
+                text=True,
+                check=False,
+                env=command_env,
+            )
             if draft:
                 # Convert back to draft so a human must undraft to trigger CI
                 run_command(
@@ -1018,6 +1190,8 @@ def upgrade(
                     sys.exit(1)
             else:
                 console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
+
+        remove_backport_labels(branch_name=branch_name, command_env=command_env)
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")
@@ -1501,3 +1675,179 @@ def set_milestone(
         console_print(f"[success]Added notification comment to PR #{pr_number}[/]")
     except Exception as e:
         console_print(f"[warning]Failed to add notification comment to PR #{pr_number}: {e}[/]")
+
+
+@ci_group.command(
+    name="fork-ci-reconcile",
+    help="Reconcile pull requests whose CI runs in contributor forks (AIP-120). Run on a schedule.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Fork CI gate configuration. Defaults to .github/fork-ci-gate.toml in the Airflow sources.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default="slack-message.json",
+    show_default=True,
+    envvar="OUTPUT_FILE",
+    help="Where the Slack message is written when there are items for maintainers.",
+)
+@click.option(
+    "--reported-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="REPORTED_FILE",
+    help="The items the previous run reported, left out of the Slack message, and replaced by "
+    "this run's items. Without it every item is reported on every run.",
+)
+@click.option(
+    "--draft-changes-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    envvar="DRAFT_CHANGES_FILE",
+    help="Where the draft state changes are written, as JSON, for the job that applies them with "
+    "the permission the reconciler does not get. Without it they are only logged.",
+)
+@click.option(
+    "--run-url",
+    default="",
+    envvar="RUN_URL",
+    help="URL of the workflow run, linked from the Slack message.",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def fork_ci_reconcile(
+    config_path: Path | None,
+    output_file: Path,
+    reported_file: Path | None,
+    draft_changes_file: Path | None,
+    run_url: str,
+    github_repository: str,
+):
+    from datetime import UTC, datetime
+
+    from airflow_breeze.utils.fork_ci_gate import load_config
+    from airflow_breeze.utils.fork_ci_github import GitHubClient
+    from airflow_breeze.utils.fork_ci_reconcile import run_reconcile
+    from airflow_breeze.utils.github import get_ga_output
+    from airflow_breeze.utils.shared_options import get_dry_run
+
+    has_alerts = run_reconcile(
+        GitHubClient(github_repository, dry_run=get_dry_run()),
+        load_config(config_path or AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"),
+        now=datetime.now(tz=UTC),
+        run_url=run_url,
+        output_file=output_file,
+        workflows_dir=AIRFLOW_ROOT_PATH / ".github" / "workflows",
+        reported_file=reported_file,
+        draft_changes_file=draft_changes_file,
+    )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as f:
+            f.write(get_ga_output("has-alerts", has_alerts) + "\n")
+
+
+@ci_group.command(
+    name="audit",
+    help="Check that your checkout and fork are set up for fork CI (AIP-120), and offer the fixes.",
+)
+@click.option("--fix", is_flag=True, help="Run the offered fix commands, each after confirmation.")
+@option_verbose
+@option_dry_run
+@option_answer
+def audit(fix: bool):
+    import shlex
+
+    import yaml
+    from rich.table import Table
+
+    from airflow_breeze.utils.ci_audit import CheckStatus, run_audit, run_tool
+    from airflow_breeze.utils.fork_ci_gate import load_config
+
+    asf_yaml = yaml.safe_load((AIRFLOW_ROOT_PATH / ".asf.yaml").read_text())
+    collaborators = frozenset((asf_yaml.get("github") or {}).get("collaborators") or [])
+    config = load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
+
+    def report():
+        results = run_audit(run=run_tool, config=config, collaborators=collaborators)
+        table = Table(title="Fork CI setup")
+        for column in ("#", "Check", "Status", "Finding", "Fix"):
+            table.add_column(column)
+        colors = {CheckStatus.OK: "green", CheckStatus.FAIL: "red", CheckStatus.INFO: "blue"}
+        for result in results:
+            table.add_row(
+                str(result.number),
+                result.name,
+                f"[{colors[result.status]}]{result.status.value}[/]",
+                result.finding,
+                "\n".join(result.fix),
+            )
+        get_console().print(table)
+        return results
+
+    failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    if fix and any(result.fix for result in failed):
+        for result in failed:
+            if result.fix and user_confirm(f"Run the fix for '{result.name}': {'; '.join(result.fix)}?") == (
+                Answer.YES
+            ):
+                for command in result.fix:
+                    run_command(shlex.split(command), check=False)
+        failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    sys.exit(1 if failed else 0)
+
+
+@ci_group.command(
+    name="approve-workflow-runs",
+    help="Approve the waiting workflow runs of external contributors' PRs whose changes are safe "
+    "to run without a maintainer's look, and label the others 'need workflow approval'. "
+    "Used by the auto-approve-workflow-runs workflow.",
+)
+@click.option(
+    "--github-token",
+    help="GitHub token able to approve workflow runs and label PRs.",
+    envvar="GITHUB_TOKEN",
+    required=True,
+)
+@click.option(
+    "--max-run-age-hours",
+    help="Only decide on workflow runs created within this many hours; older waiting runs are left alone.",
+    type=click.IntRange(min=1),
+    default=24,
+    show_default=True,
+    envvar="MAX_RUN_AGE_HOURS",
+)
+@click.option(
+    "--report-only",
+    is_flag=True,
+    help="Only report the decisions and estimates, without approving runs or changing labels.",
+    envvar="REPORT_ONLY",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def approve_workflow_runs(
+    github_token: str, max_run_age_hours: int, report_only: bool, github_repository: str
+):
+    from airflow_breeze.utils.shared_options import get_dry_run
+    from airflow_breeze.utils.workflow_run_approval import (
+        GitHubApi,
+        process_waiting_runs,
+        write_step_summary,
+    )
+
+    api = GitHubApi(
+        github_repository=github_repository,
+        github_token=github_token,
+        report_only=report_only or get_dry_run(),
+    )
+    created_since = datetime.now(UTC) - timedelta(hours=max_run_age_hours)
+    results = process_waiting_runs(api, created_since=created_since)
+    write_step_summary(results, github_repository)
+    failed_prs = [result.pr_number for result in results if result.failed]
+    if failed_prs:
+        console_print(f"[error]Processing failed for PRs: {', '.join(f'#{n}' for n in failed_prs)}[/]")
+        sys.exit(1)

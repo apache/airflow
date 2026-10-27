@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "All Map Indexes",
   "allRuns": "All Runs",
   "blockingDeps": {
     "dependency": "Dependency",
@@ -6,6 +7,7 @@
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Daily",
     "hourly": "Hourly",
     "legend": {
@@ -34,6 +36,21 @@
       "wednesday": "Wed"
     }
   },
+  "callbacks": {
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Deadline Alert",
+      "callback": "Callback",
+      "deadlineTime": "Deadline Time",
+      "missedBy": "Missed by",
+      "type": "Type"
+    },
+    "types": {
+      "executor": "Sync",
+      "triggerer": "Async"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
@@ -43,8 +60,8 @@
   "deadlineAlerts": {
     "completionRule": "Must complete within {{interval}} of {{reference}}",
     "completionRuleDynamic": "Must complete within a variable interval measured from {{reference}}",
-    "count_one": "{{count}} deadline",
-    "count_other": "{{count}} deadlines",
+    "count_one": "{{count, number}} deadline",
+    "count_other": "{{count, number}} deadlines",
     "referenceType": {
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
@@ -59,13 +76,13 @@
     "label": "Deadline",
     "met": "Met",
     "missed": "Missed",
-    "missedCount_one": "{{count}} Missed Deadline",
-    "missedCount_other": "{{count}} Missed Deadlines",
-    "mixedCount": "{{missedCount}} Missed, {{upcomingCount}} Upcoming",
+    "missedCount_one": "{{count, number}} Missed Deadline",
+    "missedCount_other": "{{count, number}} Missed Deadlines",
+    "mixedCount": "{{missedCount, number}} Missed, {{upcomingCount, number}} Upcoming",
     "stillRunning": "Still running",
     "upcoming": "Upcoming",
-    "upcomingCount_one": "{{count}} Upcoming Deadline",
-    "upcomingCount_other": "{{count}} Upcoming Deadlines"
+    "upcomingCount_one": "{{count, number}} Upcoming Deadline",
+    "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -95,13 +112,48 @@
     "info": "INFO",
     "noTryNumber": "No try number",
     "search": {
-      "matchCount": "{{current}} of {{total}}",
+      "matchCount": "{{current, number}} of {{total, number}}",
       "noMatches": "No matches",
       "placeholder": "Search logs..."
     },
     "settings": "Log Settings",
+    "tryNotStarted": "This try hasn't started yet.",
+    "viewFailedTry": "View logs for failed try {{tryNumber}}",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
+    "viewPreviousTry": "View logs for previous try {{tryNumber}}",
+    "waitingToRetry": "Try {{tryNumber}} is waiting to retry.",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Limit: {{max}}",
+      "iterationsAxis": "Iterations",
+      "stats": {
+        "capHits": "Hit the limit",
+        "medianIterations": "Median iterations"
+      },
+      "title": "Iterations per run"
+    },
+    "iterationLabel": "Iteration {{index}}",
+    "iterations": "Iterations",
+    "outcome": "Outcome",
+    "reason": {
+      "cap_reached": "Reached the iteration limit ({{max}})",
+      "failed": "Failed at iteration {{index}}",
+      "iteration_failed": "Iteration {{index}} failed in {{taskId}}",
+      "ran_to_cap": "Ran all {{max}} allowed iterations",
+      "removed": "Removed",
+      "running": "Running",
+      "skipped": "Skipped",
+      "stopped_early": "Stopped early at iteration {{index}}"
+    },
+    "rules": {
+      "behaviour": "Behaviour",
+      "boundedFor": "Runs a fixed number of iterations",
+      "exitCriteria": "Exit criteria",
+      "maxIterations": "Maximum iterations",
+      "whileUntil": "Repeats until {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Go Back",
@@ -207,19 +259,20 @@
     "auditLog": "Audit Log",
     "backfills": "Backfills",
     "calendar": "Calendar",
+    "callbacks": "Callbacks",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Task Instance [{{count}}]",
-    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "mappedTaskInstances_one": "Task Instance [{{count, number}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count, number}}]",
     "overview": "Overview",
     "renderedTemplates": "Rendered Templates",
     "requiredActions": "Required Actions",
     "runs": "Runs",
-    "storage": "Storage",
     "taskInstances": "Task Instances",
     "taskStateStore": "Task State Store",
     "tasks": "Tasks",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +300,70 @@
       "never": "Never"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "base": "Compare from",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Authorization",
+      "callback": "Callback",
+      "deadline": "Deadline",
+      "dependency": "Dependency",
+      "metadata": "Metadata",
+      "param": "Param",
+      "provenance": "Provenance",
+      "schedule": "Schedule",
+      "task": "Task",
+      "unknown": "Unknown"
+    },
+    "codeAccess": "Values require access to Dag code",
+    "columns": {
+      "after": "After",
+      "before": "Before",
+      "category": "Category",
+      "impact": "Impact",
+      "operation": "Operation",
+      "path": "Path"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Authorization",
+      "execution": "Execution",
+      "metadata": "Metadata",
+      "provenance": "Provenance",
+      "unknown": "Unknown"
+    },
+    "limitReached": {
+      "description": "There are more changes than the Max changes limit allows. Raise the limit to see the rest.",
+      "descriptionDefault": "There are more changes than the default limit allows. Set Max changes higher to see the rest.",
+      "title": "Showing only the first {{limit, number}} changes"
+    },
+    "maxChanges": "Max changes",
+    "maxChangesDefault": "Default",
+    "noChanges": "These versions hold the same state.",
+    "operations": {
+      "added": "Added",
+      "changed": "Changed",
+      "removed": "Removed"
+    },
+    "pathOccurrences_one": "{{count, number}} change shares this path",
+    "pathOccurrences_other": "{{count, number}} changes share this path",
+    "pathOccurrencesAtLeast_one": "At least {{count, number}} change shares this path",
+    "pathOccurrencesAtLeast_other": "At least {{count, number}} changes share this path",
+    "record_one": "Record",
+    "record_other": "Records",
+    "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Select two versions to see what changed between them.",
+    "summary_one": "{{count, number}} change",
+    "summary_other": "{{count, number}} changes",
+    "summaryAtLeast_one": "At least {{count, number}} change",
+    "summaryAtLeast_other": "At least {{count, number}} changes",
+    "target": "Compare to",
+    "unavailable": {
+      "description": "These versions could not be compared. Reason:",
+      "title": "Comparison unavailable",
+      "withoutReason": "These versions could not be compared."
+    },
+    "valuesHidden": "Values hidden"
   }
 }

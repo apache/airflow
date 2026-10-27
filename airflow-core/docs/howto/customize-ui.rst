@@ -149,12 +149,12 @@ Screenshots
 Light Mode
 """"""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_light_mode.png
 
 Dark Mode
 """""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_dark_mode.png
 
 3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
 
@@ -258,13 +258,13 @@ You can replace the default Airflow icon in the navigation bar by providing an `
 |
 
 Adding Dashboard Alert Messages
-===============================
+-------------------------------
 
 Extra alert messages can be shown on the Airflow dashboard. This can be useful for warning about setup issues, announcing changes
 to end users, or providing real-time status information. Dashboard alerts support both static and dynamic content.
 
 Basic Static Alerts
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 To add static alert messages that remain constant until the webserver is restarted:
 
@@ -281,13 +281,13 @@ To add static alert messages that remain constant until the webserver is restart
       from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow", category="info"),
+          UIAlert(text="Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
 
 Alert Categories
-----------------
+^^^^^^^^^^^^^^^^
 
 You can control the category of the alert message. Available categories include:
 
@@ -308,7 +308,7 @@ You can control the category of the alert message. Available categories include:
 .. image:: ../img/ui-alert-message.png
 
 Markdown Content in Alerts
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Markdown can be included in alert messages for richer formatting. In the following example, we show an alert
 message of heading 2 with a link included:
@@ -324,7 +324,7 @@ message of heading 2 with a link included:
 .. image:: ../img/ui-alert-message-markdown.png
 
 Dynamic Dashboard Alerts
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Dashboard alerts support dynamic content that updates each time the dashboard page is refreshed. This allows for real-time
 status updates without requiring webserver restarts. Dynamic alerts must be defined as an instance of an iterable object.
@@ -345,7 +345,7 @@ Dynamic alerts are particularly useful for:
 - **External service status**: Show the availability of dependent services or APIs
 
 Creating Dynamic Alerts
-^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""
 
 To create dynamic alerts, define ``DASHBOARD_UIALERTS`` as an instance of a class that subclasses ``list``
 and implements the ``__iter__`` method. The UI will iterate over any number ``UIAlert`` instances yielded by
@@ -365,9 +365,9 @@ cases might include alerts yielded from APIs, database queries or files.
             # This method is called each time Airflow iterates over DASHBOARD_UIALERTS
             # Example: Flip a coin
             if random.choice([True, False]):
-                yield UIAlert("Heads!", category="info")
+                yield UIAlert(text="Heads!", category="info")
             else:
-                yield UIAlert("Tails!", category="warning")
+                yield UIAlert(text="Tails!", category="warning")
 
 
     # Create an instance of the class

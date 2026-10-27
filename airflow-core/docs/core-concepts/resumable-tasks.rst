@@ -145,26 +145,61 @@ existing job on retry instead of submitting a new one.
 
 For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
 
-**Clearing a task is treated the same as a retry**
+**Retries resume, clearing starts over**
 
-Clearing a task instance does not delete its ``task_state_store`` rows -- they are only removed
-when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
-<task-and-asset-state-store-cleanup>`. For a checkpointed task this is usually what you want:
-clearing resumes from the last checkpoint rather than starting over.
+A retry keeps the task's ``task_state_store`` entries, which is what makes crash recovery work: the
+next attempt reads the checkpoint or the external job id written by the attempt before it.
 
-For an operator with durable execution, it means clearing a task whose external job already
-succeeded reads that stored result back and returns immediately, without resubmitting the job. If
-you want clearing to always resubmit regardless of a prior success, set
-``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
-when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
+Clearing a task discards them. Clearing means "run this again", and a checkpoint records how far a
+task got, not what it got there with. If you fixed the code or the upstream data and cleared the
+task, resuming would leave the work done before the fix in place and silently mix it with the
+corrected work. So by default a cleared task starts from the beginning.
 
-This does not guarantee the external job is still there to reconnect to, though. Clearing a task
-that is actively running (``deferrable=False``) stops the worker process, which runs the
-operator's ``on_kill``. Most operators with durable execution cancel the external job there by
-default, so the next attempt finds it already stopped instead of still running -- an operator that
-leaves the job running by default on kill is the exception, check its own docs. Deferred tasks
-(``deferrable=True``) don't have this problem: there is no actively polling worker process for the
-clear to interrupt.
+To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or tick the
+corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the
+code changed and you only want the task to carry on where it stopped.
+
+This applies to clearing individual task instances through the REST API, the UI, or
+``airflowctl dags clear`` (which clears every task instance in the matched Dag run(s) through this
+same endpoint). Clearing an entire Dag run through the Clear Run dialog/API, marking a task as
+failed or success (which clears downstream tasks as a side effect), and the core CLI's
+``airflow tasks clear`` / ``airflow dags clear`` (which call ``clear_task_instances()`` directly and
+never reach the discard endpoint) all still keep task state unconditionally today; see
+`#72929 <https://github.com/apache/airflow/issues/72929>`_.
+
+**Clearing a task that submitted an external job**
+
+For an operator with durable execution the stored value is an external job id, so discarding it has
+a different consequence: the next attempt submits a new job rather than reconnecting to the existing
+one.
+
+Whether that matters depends on what happened to the job:
+
+* Most operators cancel the external job in ``on_kill``, so clearing a *running* task stops the job
+  and there is nothing left to reconnect to. Submitting a fresh one is the only option anyway.
+* An operator configured, or defaulting, to leave the job running on kill keeps it alive, so a
+  fresh submission runs alongside it. Check the operator's own docs — for example
+  ``GlueJobOperator`` defaults ``stop_job_run_on_kill`` to ``False`` and so leaves the job running
+  unless you turn it on.
+* Clearing a *failed* task never runs ``on_kill`` at all, so an external job that outlived the
+  worker is still running.
+* A deferred task has no worker process to run ``on_kill`` on. Instead, the Triggerer cancels the
+  orphaned trigger and runs the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``.
+  Most triggers cancel the external job there too.
+  ``GlueJobCompleteTrigger`` and ``LivyTrigger`` don't implement ``on_kill``, but neither writes a
+  job id to the state store when deferred either, so ``keep_task_state`` will not help for them. For
+  a deferred ``GlueJobOperator``, ``durable`` defaults to ``True``, so it reattaches to a still-running
+  Glue run by default and clearing it does not start over; stop the Glue run before clearing, or set
+  ``durable=False``, to force a fresh one. For a deferred ``LivyOperator``, cancel the batch yourself
+  before clearing.
+
+In the cases where the job is left running (the second bullet or a failed task), pass
+``keep_task_state`` so the next attempt reconnects to the job already in flight instead of paying
+for a second one.
+
+Note that ``[state_store] clear_on_success`` is a separate control: it discards a task's entries as
+soon as it reaches ``SUCCESS``, so nothing is left for a later clear to find either way (see
+:doc:`/administration-and-deployment/task-and-asset-state-store`).
 
 .. _concepts-resumable-tasks-async:
 
@@ -226,3 +261,42 @@ Comparison
      - Airflow 2.2
      - Airflow 3.3
      - Airflow 3.2
+
+.. _concepts-resumable-tasks-retry-policies:
+
+Retry policies and durable execution
+------------------------------------
+
+Long-running tasks typically need two separate things together: a retry
+policy, and durable execution as defined above. Each is configurable per
+task, and together they let a workflow span days without losing progress.
+
+A **retry policy** decides whether a failed attempt gets another try, and
+how long to wait before it. This is :class:`~airflow.sdk.RetryPolicy` and
+:class:`~airflow.sdk.RetryDecision` (see :ref:`concepts:retry-policies`), or
+the LLM-driven
+:class:`~airflow.providers.common.ai.policies.retry.LLMRetryPolicy`, which
+uses a model to read the error and make that call. That policy adds its own
+``fallback_rules``, applied when the classification call itself fails, so
+the decision does not depend on the model being reachable (see
+:doc:`apache-airflow-providers-common-ai:retry_policies`).
+
+**Durable execution** is what that next attempt resumes from. Backed by the
+task state store described above, it is what lets a task recover a
+checkpoint written by the attempt before it, rather than starting over.
+
+Long-running tasks, or LLM-driven tasks like agentic workflows, benefit
+most from both: the retry policy decides whether the error is worth
+retrying at all, and the task state store is what the retry resumes from.
+
+Consider using both when a task:
+
+* Runs long enough that a worker crash mid-run is a real risk, and
+* Needs a retry decision more nuanced than "always retry" or "never
+  retry", for example retrying rate limits but failing outright on bad
+  credentials.
+
+The two operate independently. A task with ``retries=5`` and a checkpoint
+still stops for good after six failed attempts (the initial attempt plus five
+retries), but each of those retries picks up from the last checkpoint instead of
+reprocessing files it already finished, or resubmitting a job that is still running.

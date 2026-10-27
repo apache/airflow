@@ -48,7 +48,13 @@ class OracleToAzureDataLakeOperator(BaseOperator):
        It can take on any of the csv.QUOTE_* constants.
     """
 
-    template_fields: Sequence[str] = ("filename", "sql", "sql_params")
+    template_fields: Sequence[str] = (
+        "filename",
+        "sql",
+        "sql_params",
+        "azure_data_lake_conn_id",
+        "oracle_conn_id",
+    )
     template_fields_renderers = {"sql_params": "py"}
     ui_color = "#e08c8c"
 

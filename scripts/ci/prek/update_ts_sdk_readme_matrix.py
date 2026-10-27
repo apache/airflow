@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = ["PyYAML>=6.0", "rich>=13.6.0"]
 # ///
 """Regenerate the TypeScript SDK compatibility table in ``ts-sdk/README.md``.
@@ -40,7 +40,7 @@ from lang_sdk_compat_matrix import (
     LANG_SDKS,
     README_MATRIX_FOOTER,
     README_MATRIX_HEADER,
-    CapabilitiesDoc,
+    Capabilities,
     load_capabilities,
     render_markdown_table,
 )
@@ -60,7 +60,7 @@ def read_ts_schema_version() -> str | None:
     return None
 
 
-def check_schema_version(doc: CapabilitiesDoc) -> bool:
+def check_schema_version(doc: Capabilities) -> bool:
     """Whether the manifest agrees with the generated TypeScript supervisor schema version.
 
     Unlike the Java sibling hook (which treats an unreadable gradle property as an implicit pass),
@@ -69,7 +69,7 @@ def check_schema_version(doc: CapabilitiesDoc) -> bool:
     genuine mismatch because editing capabilities.yaml cannot fix a missing constant.
     """
     ts_version = read_ts_schema_version()
-    declared = doc["supervisor_schema_version"]
+    declared = doc.supervisor_schema_version
     if ts_version is None:
         console.print(
             "[red]Could not read SUPERVISOR_API_VERSION from ts-sdk/src/generated/supervisor.ts: "

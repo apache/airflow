@@ -54,6 +54,7 @@ class GoogleBidManagerRunQuerySensor(BaseSensorOperator):
         "query_id",
         "report_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

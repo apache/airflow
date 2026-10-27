@@ -104,7 +104,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_base_simple_dag"
+                        "name": "openlineage_base_simple_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -112,7 +119,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_base_simple_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -154,6 +168,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": true,
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -162,6 +177,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -234,7 +250,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_base_simple_dag"
+                        "name": "openlineage_base_simple_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -242,7 +265,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_base_simple_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -285,6 +315,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": true,
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -293,6 +324,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",

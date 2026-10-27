@@ -17,20 +17,19 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-helm-chart"
 description = "Programmatically author, schedule and monitor data pipelines"
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -45,7 +44,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -100,13 +98,9 @@ exclude = ["*"]
 bypass-selection = true
 
 [dependency-groups]
-# To build docs run:
+# To build docs and check their spelling run:
 #
 #    uv run --group docs sphinx-build -T --color -b html  . _build
-#
-# To check spelling:
-#
-#    uv run --group docs sphinx-build -T --color -b spelling  . _build
 #
 # To enable auto-refreshing build with server:
 #

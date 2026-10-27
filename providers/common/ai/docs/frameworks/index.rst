@@ -1,0 +1,237 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+.. _howto/frameworks:
+
+Agent frameworks
+================
+
+This provider is built on `Pydantic AI <https://ai.pydantic.dev/>`__: its operators
+and decorators create and run Pydantic AI agents. If you already build agents with
+another framework, you do not have to move them to Pydantic AI to run them in Airflow.
+Run the agent in a ``@task`` as you do today, and use this provider for the parts that
+need Airflow: models and tools backed by Airflow connections.
+
+Why Pydantic AI
+---------------
+
+An Airflow deployment runs on whichever cloud and model vendor its team chose, and the
+same Dags often outlive that choice. The provider's own operators are built on Pydantic
+AI because it does not tie a Dag to either:
+
+- **No vendor or cloud to commit to.** The same operator reaches OpenAI, Anthropic,
+  Gemini, Vertex AI, Bedrock, Azure OpenAI, Mistral, Groq, DeepSeek and self-hosted
+  OpenAI-compatible servers such as Ollama and vLLM, through an Airflow connection.
+  Moving a Dag to another vendor is a connection change, not a code change. See
+  :doc:`../model_providers`.
+- **Typed output.** ``output_type`` makes the agent return a Pydantic model, so the
+  task downstream gets fields to read instead of text to parse. See
+  :doc:`../structured_output`.
+- **Tests that do not call a model.** A connection whose model is ``test`` runs the Dag
+  against Pydantic AI's ``TestModel``, and a unit test can script the model's replies.
+  Neither calls a model provider or spends tokens. See :doc:`../local_development`.
+- **A pause before a tool acts.** Pydantic AI's tool approval API is what lets
+  ``AgentOperator`` stop in front of a marked tool call until a person approves it. See
+  :doc:`../tool_approval`.
+
+Pydantic AI is the recommendation, not a requirement. For a new agent, start with
+``AgentOperator``, which gets the most from this provider. If your team has standardized
+on Strands, ADK, LangChain, the Anthropic SDK or the OpenAI Agents SDK, keep that framework: the table below
+shows what this provider gives an agent written in each one.
+
+Supported frameworks
+--------------------
+
+A framework is supported when this provider ships code for it and documents it. What
+that code takes on differs from one framework to the next, so the table says which part
+is Airflow's and which part stays yours.
+
+.. list-table::
+   :widths: 16 54 14 16
+   :header-rows: 1
+
+   * - Framework
+     - What this provider gives you
+     - Who runs the agent
+     - Install
+   * - Pydantic AI, through ``AgentOperator``
+     - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
+       ``@task.agent``, the ``@task.llm`` family and every toolset, plus durable
+       replay, human review, approval gates, retry policies and tracing.
+     - The operator
+     - Included
+   * - Pydantic AI, your own agent
+     - A model from a connection through ``PydanticAIHook``, and every toolset, since they
+       are Pydantic AI toolsets. Guide: :doc:`pydantic_ai`.
+     - You
+     - Included
+   * - Strands Agents
+     - The :class:`~airflow.providers.common.ai.tools.strands.AirflowTools` plugin gives
+       a Strands agent the tools of ``SQLToolset``, ``HookToolset``,
+       ``ObjectStorageToolset`` and the other toolsets, with Airflow's secret masker
+       applied to every result. Guide: :doc:`strands`.
+     - You
+     - ``strands-agents``
+   * - Google ADK
+     - The :class:`~airflow.providers.common.ai.tools.adk.AirflowTools` toolset gives an
+       ADK agent the same tools, with the same masking. Guide: :doc:`adk`.
+     - You
+     - ``google-adk``
+   * - Anthropic SDK tool runner
+     - :class:`~airflow.providers.common.ai.tools.anthropic.AirflowTools` hands the same
+       tools to ``client.beta.messages.tool_runner`` and makes a tool failure the model
+       cannot fix fail the task. Guide: :doc:`anthropic`.
+     - You
+     - ``[anthropic]`` extra
+   * - OpenAI Agents SDK
+     - :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTools` holds the
+       same tools as ``FunctionTool`` objects for an ``Agent``, and makes a tool failure
+       the model cannot fix fail the task. Guide: :doc:`openai_agents`.
+     - You
+     - ``openai-agents``
+   * - LangChain
+     - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
+       and embedding models configured from a connection, and
+       :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
+       turns any toolset into LangChain tools. Guides: :doc:`../hooks/langchain`,
+       :doc:`../toolsets/langchain`.
+     - You
+     - ``[langchain]`` extra
+   * - LlamaIndex
+     - :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` returns
+       language and embedding models configured from a connection, and embedding and
+       retrieval operators build a RAG pipeline from them. Guide:
+       :doc:`../rag_pipelines`.
+     - No agent
+     - ``[llamaindex]`` extra
+
+The Strands, ADK, Anthropic and OpenAI Agents integrations and the tracing helper are experimental: they
+can change or be removed in a minor release of this provider. The framework-neutral tool
+interface under them is stable. See :ref:`howto/stability`.
+
+Tested versions
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 20 55
+
+   * - Framework
+     - Version
+     - Notes
+   * - Strands Agents
+     - 1.56.0
+     - Pins ``mcp`` below 2.2, so installing it downgrades ``mcp`` if a newer one is
+       installed.
+   * - Google ADK
+     - 2.9.1
+     - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
+       file. Airflow itself accepts 1.42.1.
+   * - OpenAI Agents SDK
+     - 0.20.0 and 0.23.1
+     - 0.21.0 and later require ``openai>=3``, while Airflow's constraints file pins
+       ``openai`` below 3, so installing with that file gives 0.20.
+
+These are the versions the adapter tests have been run against. Strands and ADK cap
+packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
+releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
+framework at a time.
+
+Outside canary runs, the job holds every package already in the CI image at its
+installed version with ``--override``, so Strands' and ADK's own dependency caps are
+overridden. It installs the newest framework release that is older than the repository's
+``exclude-newer`` window, which for the OpenAI Agents SDK means the newest release that
+accepts ``openai`` 2.x, not the versions in the table above. It therefore does not show
+that those versions work in the environment a user gets. Canary runs, which include
+scheduled and manual runs on ``main`` and pull requests labeled ``canary``, install each
+framework's newest release with its own dependency pins instead.
+
+Choosing a route
+----------------
+
+Start from the agent you already have:
+
+- **An existing Pydantic AI agent**: keep it, give it a model with ``PydanticAIHook`` and
+  pass Airflow's toolsets to it. See :doc:`pydantic_ai`.
+- **An existing Strands agent**: keep it, and add Airflow's toolsets with the
+  ``AirflowTools`` plugin. See :doc:`strands`.
+- **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
+  ``AirflowTools`` toolset. See :doc:`adk`.
+- **A loop written on the Anthropic SDK**: keep it, and pass the tools of
+  ``AirflowTools`` to its tool runner. See :doc:`anthropic`.
+- **An existing OpenAI Agents SDK agent**: keep it, and add Airflow's toolsets to its
+  ``tools`` with ``AirflowTools``. See :doc:`openai_agents`.
+- **An existing LangChain agent**: build its model with ``LangChainHook`` and add
+  Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
+- **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
+  is the only one with step-level durable replay across task retries and a built-in
+  human review step, because both are implemented on top of Pydantic AI.
+
+.. _howto/frameworks:other:
+
+Any other framework
+-------------------
+
+Every framework can run inside a ``@task``, and every framework can call an Airflow hook
+from one of its own tools, so a framework that is not in the table above still has a
+route. Before you depend on it, check that its dependencies resolve alongside the
+provider versions your deployment uses: some frameworks pin versions of packages
+Airflow also depends on, such as OpenTelemetry or a vendor SDK.
+
+To give such a framework Airflow's toolsets rather than hand-written tools, build on
+the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
+what the Strands, ADK, Anthropic and OpenAI Agents integrations are written against:
+
+- :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
+  description, a JSON Schema for its arguments and an async function. Call it through
+  ``AirflowTool.call``, which applies the secret masker to what the tool returns. A
+  failure the model can correct comes back as an error result; any other failure raises
+  :class:`~airflow.providers.common.ai.tools.ToolCallError`, which should end the run.
+- :class:`~airflow.providers.common.ai.tools.ToolResult` is what a call returns:
+  JSON-compatible content and an explicit ``is_error`` flag for failures the model can
+  correct.
+- :class:`~airflow.providers.common.ai.tools.ToolProvider` is anything with an
+  ``airflow_tools()`` method returning ``AirflowTool`` objects.
+  Every toolset this provider ships that reads from a connection implements it, except
+  ``MCPToolset`` and the Agent Skills toolset. ``MCPToolset`` works in Pydantic AI agents
+  and through the LangChain bridge; for Strands, ADK and other frameworks, connect the
+  framework's own MCP client to the server.
+
+An adapter maps these onto the framework's own tool type and error status, and makes
+sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
+plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
+tools an adapter is given into one list, as the Strands, ADK, Anthropic and OpenAI Agents
+adapters do.
+
+Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
+agent that calls two database tools at once gets its answers one after the other.
+
+Run a Strands, ADK or OpenAI Agents SDK agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` to keep its
+spans tied to the task, and free of prompt text unless ``[common.ai] capture_content`` is
+on; see :doc:`../observability`. For an OpenAI Agents SDK agent, also register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor`.
+
+.. toctree::
+    :hidden:
+    :titlesonly:
+
+    Pydantic AI <pydantic_ai>
+    Strands Agents <strands>
+    Google ADK <adk>
+    Anthropic SDK <anthropic>
+    OpenAI Agents SDK <openai_agents>

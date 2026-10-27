@@ -23,22 +23,36 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, select
 
 from airflow.exceptions import AirflowSkipException
+from airflow.executors.base_executor import BaseExecutor
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance, clear_task_instances
+from airflow.models.xcom import XComModel, XComModelV1, build_xcom_read_query
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mapping import (
+    expand_mapped_task,
+    expand_mapped_task_instances,
+    push_mapped_length,
+)
+from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
@@ -47,6 +61,101 @@ pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+
+@pytest.mark.parametrize("mapping", ["dict", "list", "group"])
+def test_mapped_count_uses_retained_producer_in_callers_loop_pass(dag_maker, session, mapping):
+    @task_group
+    def body():
+        source = PythonOperator(task_id="source", python_callable=list)
+        if mapping == "dict":
+            PythonOperator.partial(task_id="consumer", python_callable=list).expand(op_kwargs=source.output)
+        elif mapping == "list":
+            PythonOperator.partial(task_id="consumer", python_callable=list).expand_kwargs(source.output)
+        else:
+
+            @task_group
+            def mapped_group(value):
+                PythonOperator(task_id="consumer", python_callable=list)
+
+            mapped_group.expand(value=source.output)
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    original = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(original)
+    session.flush()
+    fork = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id=loop.group_id,
+        forked_from_region_id=original.id,
+        resumes_from_index=1,
+    )
+    session.add(fork)
+    session.flush()
+    source = next(ti for ti in dr.task_instances if ti.task_id == "body.source")
+    consumer = next(ti for ti in dr.task_instances if ti.task_id.endswith("consumer"))
+    source.region_id, source.region_index = original.id, 1
+    source.state = TaskInstanceState.SUCCESS
+    expansion = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id=consumer.task_id,
+        parent_region_id=fork.id,
+        parent_region_index=1,
+        session=session,
+    )
+    session.add(expansion)
+    session.flush()
+    consumer.region_id, consumer.region_index = expansion.id, 0
+    earlier = TaskInstance(
+        dag_maker.serialized_dag.get_task(source.task_id),
+        dag_version_id=source.dag_version_id,
+        run_id=dr.run_id,
+        region_id=original.id,
+        region_index=0,
+        state=TaskInstanceState.SUCCESS,
+    )
+    session.add(earlier)
+    session.flush()
+    for producer, length in [(earlier, 99), (source, 2)]:
+        XComModel.set_for_attempt(
+            task_instance_id=producer.id,
+            key="return_value",
+            value=[{}] * length,
+            serialize=False,
+            mapped_length=length,
+            session=session,
+        )
+    session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    contexts = resolver.producer_contexts(consumer)
+
+    assert (
+        get_mapped_ti_count(
+            dag_maker.serialized_dag.get_task(consumer.task_id),
+            dr.run_id,
+            producer_contexts=contexts,
+            session=session,
+        )
+        == 2
+    )
+    if mapping == "group":
+        consumer.region_index = 1
+        consumer.task = dag_maker.serialized_dag.get_task(consumer.task_id)
+        assert (
+            consumer.get_relevant_upstream_map_indexes(
+                consumer.task,
+                2,
+                producer_contexts=contexts,
+                session=session,
+            )
+            == 1
+        )
 
 
 @patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
@@ -112,16 +221,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     dr = dag_maker.create_dagrun()
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
 
     if num_existing_tis:
         # Remove the map_index=-1 TI when we're creating other TIs
@@ -147,7 +247,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+    expand_mapped_task_instances(mapped_deser, dr.run_id, session=session)
 
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
@@ -166,33 +266,27 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     """
     This test tries to recreate a faulty state in the database and checks if we can recover from it.
     The state that happens is that there exists mapped task instances and the unmapped task instance.
-    So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
+    So we have instances with map_index [-1, 0, 1]. The placeholder never ran, so it is deleted.
     """
-    literal = [1, 2]
+    literal = [1, 2, 3]
     with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
     mapped_deser = dag.task_dict[mapped.task_id]
+    placeholder = next(ti for ti in dr.task_instances if ti.task_id == mapped.task_id)
+    placeholder_id = placeholder.id
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
-    dag_version = DagVersion.get_latest_version(dr.dag_id)
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
+    dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
         ti = TaskInstance(
             mapped_deser,
             run_id=dr.run_id,
-            map_index=index,
+            region_id=placeholder.region_id,
+            region_index=index,
             state=TaskInstanceState.SUCCESS,
             dag_version_id=dag_version.id,
         )
@@ -211,10 +305,10 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     # Make sure we have the faulty state in the database
     assert indices == [(-1, None), (0, "success"), (1, "success")]
 
-    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+    expand_mapped_task_instances(mapped_deser, dr.run_id, session=session)
 
     indices = session.execute(
-        select(TaskInstance.map_index, TaskInstance.state)
+        select(TaskInstance.map_index, TaskInstance.state, TaskInstance.dag_version_id)
         .where(
             TaskInstance.task_id == mapped.task_id,
             TaskInstance.dag_id == mapped.dag_id,
@@ -222,8 +316,133 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
         )
         .order_by(TaskInstance.map_index)
     ).all()
-    # The -1 index should be cleaned up
-    assert indices == [(0, "success"), (1, "success")]
+    assert indices == [
+        (0, "success", dag_version.id),
+        (1, "success", dag_version.id),
+        (2, None, dag_version.id),
+    ]
+    assert session.get(TaskInstance, placeholder_id) is None
+    new_ti = dr.get_task_instance(mapped.task_id, map_index=2, session=session)
+    scheduler = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    with patch.object(BaseExecutor, "queue_workload", autospec=True) as queue_workload:
+        scheduler._enqueue_task_instances_with_queued_state(
+            [new_ti], executor=scheduler.executor, session=session
+        )
+    queue_workload.assert_called_once()
+
+
+@pytest.mark.parametrize("zero_index_exists", [False, True])
+def test_expand_mapped_task_deletes_archived_attempts_of_the_unmapped_task_instance(
+    dag_maker, session, zero_index_exists
+):
+    with dag_maker(session=session, serialized=True) as dag:
+        task1 = BaseOperator(task_id="op1")
+        other = BaseOperator(task_id="other")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+    dr = dag_maker.create_dagrun()
+    other_dr = dag_maker.create_dagrun(run_id="other_run", logical_date=DEFAULT_DATE + timedelta(days=1))
+    mapped_deser = dag.task_dict[mapped.task_id]
+    dr.get_task_instance(mapped.task_id, session=session).prepare_db_for_next_try(
+        session
+    ).prepare_db_for_next_try(session)
+
+    zero_index = TaskInstance(
+        mapped_deser,
+        run_id=dr.run_id,
+        map_index=0,
+        state=TaskInstanceState.SUCCESS,
+        dag_version_id=DagVersion.get_latest_version(dr.dag_id).id,
+    )
+    session.add(zero_index)
+    session.flush()
+    if zero_index_exists:
+        zero_index.prepare_db_for_next_try(session)
+    else:
+        zero_index.archive(reason="retry", session=session)
+    other_task_ti = dr.get_task_instance(other.task_id, session=session)
+    other_task_ti.prepare_db_for_next_try(session)
+    other_run_ti = other_dr.get_task_instance(mapped.task_id, session=session)
+    other_run_ti.prepare_db_for_next_try(session)
+    with dag_maker(dag_id="other_dag", session=session, serialized=True):
+        BaseOperator(task_id=mapped.task_id)
+    other_dag_ti = dag_maker.create_dagrun(run_id=dr.run_id).get_task_instance(
+        mapped.task_id, session=session
+    )
+    other_dag_ti.prepare_db_for_next_try(session)
+    survivors = {zero_index.id, other_task_ti.id, other_run_ti.id, other_dag_ti.id}
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), [1, 2], session=session)
+    session.flush()
+
+    expand_mapped_task_instances(mapped_deser, dr.run_id, session=session)
+
+    def get_ids(*conditions):
+        return set(
+            session.scalars(
+                select(TaskInstance.id).where(*conditions).execution_options(include_all_attempts=True)
+            )
+        )
+
+    placeholders = (
+        TaskInstance.dag_id == dr.dag_id,
+        TaskInstance.run_id == dr.run_id,
+        TaskInstance.task_id == mapped.task_id,
+        TaskInstance.map_index == -1,
+    )
+    assert get_ids(*placeholders) == set()
+    assert get_ids(TaskInstance.id.in_(survivors)) == survivors
+    current_indexes = session.scalars(
+        select(TaskInstance.map_index).where(
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.task_id == mapped.task_id,
+        )
+    )
+    assert set(current_indexes) == {0, 1}
+
+
+def test_stable_mapped_indexes_do_not_query_historical_max_try(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    run = dag_maker.create_dagrun()
+    push_mapped_length(run.get_task_instance(upstream.task_id, session=session), [1, 2], session=session)
+    expand_mapped_task_instances(dag.task_dict[mapped.task_id], run.run_id, session=session)
+    statements = []
+
+    def capture_sql(connection, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(session.bind, "before_cursor_execute", capture_sql)
+    live = run.get_task_instance(mapped.task_id, map_index=0, session=session)
+    live.task = dag.task_dict[mapped.task_id]
+    try:
+        new_tis = run._revise_map_indexes_if_mapped(live, session=session)
+    finally:
+        event.remove(session.bind, "before_cursor_execute", capture_sql)
+
+    assert new_tis == []
+    assert not any("max(" in statement.lower() and "try_number" in statement for statement in statements)
+
+
+def test_missing_mapped_index_uses_retained_max_try(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    run = dag_maker.create_dagrun()
+    push_mapped_length(run.get_task_instance(upstream.task_id, session=session), [1, 2], session=session)
+    expand_mapped_task_instances(dag.task_dict[mapped.task_id], run.run_id, session=session)
+    removed = run.get_task_instance(mapped.task_id, map_index=1, session=session)
+    removed.try_number = 3
+    removed.archive(reason="retry", session=session)
+    live = run.get_task_instance(mapped.task_id, map_index=0, session=session)
+    live.task = dag.task_dict[mapped.task_id]
+
+    new_tis = run._revise_map_indexes_if_mapped(live, session=session)
+
+    assert len(new_tis) == 1
+    assert new_tis[0].map_index == 1
+    assert new_tis[0].try_number == 4
+    assert removed.working_set is None
 
 
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
@@ -278,16 +497,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 
     dr = dag_maker.create_dagrun()
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
+    push_mapped_length(dr.get_task_instance(task1.task_id, session=session), literal, session=session)
 
     if num_existing_tis:
         # Remove the map_index=-1 TI when we're creating other TIs
@@ -312,7 +522,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, session=session)
+    expand_mapped_task_instances(dag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
@@ -349,20 +559,11 @@ def test_map_product_expansion(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
     for fn in (emit_numbers, emit_letters):
-        session.add(
-            TaskMap(
-                dag_id=dr.dag_id,
-                task_id=fn.__name__,
-                run_id=dr.run_id,
-                map_index=-1,
-                length=len(fn.function()),
-                keys=None,
-            )
-        )
+        push_mapped_length(dr.get_task_instance(fn.__name__, session=session), fn.function(), session=session)
 
     session.flush()
     show_task = dag.get_task("show")
-    mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dr.run_id, session=session)
+    mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dr.run_id, session=session)
     assert max_map_index + 1 == len(mapped_tis) == 6
 
 
@@ -1594,10 +1795,11 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
         tg1.expand(a=t)
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="t1")
+    region_id = next(ti.region_id for ti in dr.task_instances if ti.task_id == "tg1.t3")
+    ti = dr.get_task_instance(task_id="t1", session=session)
     run_task_instance(ti, dag.get_task(ti.task_id))
-    dr.task_instance_scheduling_decisions()
-    ti3 = dr.get_task_instance(task_id="tg1.t3")
+    dr.task_instance_scheduling_decisions(session=session)
+    ti3 = dr.get_task_instance(task_id="tg1.t3", region_id=region_id, session=session)
     assert not ti3.state
 
 
@@ -1709,15 +1911,61 @@ def test_one_failed_trigger_rule_runs_on_indirect_failure_in_mapped_task_group(d
     assert states["deliver_records.handle_failed_delivery"] == {0: "success", 1: "success", 2: "success"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker):
-    """Regression test for #39801.
-
-    A task with the ``NONE_FAILED_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
-    expanded task group must expand and run once its upstream (also inside the group)
-    succeeds, instead of being skipped prematurely at its unexpanded (map_index -1)
-    summary ti before the task group has expanded.
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.NONE_FAILED])
+def test_short_circuit_skips_later_tasks_in_task_group_mapped_over_upstream_output(dag_maker, trigger_rule):
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_mapped_task_group") as dag:
+    A short-circuit inside a task group expanded over an upstream task's output skips every
+    later task of the same map index, although none of them is expanded when it runs.
+    """
+    with dag_maker(dag_id="test_short_circuit_in_task_group_mapped_over_output") as dag:
+
+        @task
+        def get_values():
+            return [True, False]
+
+        @task.short_circuit
+        def gate(value):
+            return value
+
+        @task
+        def a():
+            pass
+
+        @task(trigger_rule=trigger_rule)
+        def b():
+            pass
+
+        @task(trigger_rule=trigger_rule)
+        def c():
+            pass
+
+        @task_group
+        def group(value):
+            gate(value) >> a() >> b() >> c()
+
+        group.expand(value=get_values())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["group.gate"] == {0: "success", 1: "success"}
+    for task_id in ("group.a", "group.b", "group.c"):
+        assert states[task_id] == {0: "success", 1: "skipped"}
+
+
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker, trigger_rule):
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped task group runs once its in-group upstream succeeds.
+
+    It must not be skipped or marked upstream_failed prematurely at its unexpanded
+    (map_index -1) summary ti.
+    """
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_mapped_task_group") as dag:
 
         @task
         def init():
@@ -1729,7 +1977,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
             def imsleepy(message):
                 return message
 
-            @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+            @task(trigger_rule=trigger_rule)
             def imawake(message):
                 pass
 
@@ -1747,14 +1995,17 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
     assert states["tg.imawake"] == {0: "success", 1: "success", 2: "success"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker):
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker, trigger_rule):
     """Regression test for #39801, nested-group shape.
 
-    Same as above, but the ``NONE_FAILED_MIN_ONE_SUCCESS`` task lives in a plain task
+    Same as above, but the ``*_MIN_ONE_SUCCESS`` task lives in a plain task
     group nested inside the mapped one (the exact shape of the issue's reproducer), so
     its immediate ``task_group`` is not mapped — only an ancestor is.
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_nested_task_group") as dag:
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_nested_task_group") as dag:
 
         @task
         def init():
@@ -1768,7 +2019,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
             @task_group(group_id="inner")
             def inner(message):
-                @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+                @task(trigger_rule=trigger_rule)
                 def imawake(message):
                     pass
 
@@ -1786,6 +2037,70 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
     assert states["tg.imsleepy"] == {0: "success", 1: "success", 2: "success"}
     assert states["tg.inner.imawake"] == {0: "success", 1: "success", 2: "success"}
+
+
+@pytest.mark.parametrize(
+    ("trigger_rule", "outside_outcome", "inner_outcome", "expected_state"),
+    [
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "skip", "skipped"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, "fail", "success", "success"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, "skip", "fail", "upstream_failed"),
+    ],
+)
+def test_min_one_success_decides_per_index_in_mapped_task_group(
+    dag_maker, trigger_rule, outside_outcome, inner_outcome, expected_state
+):
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped group is evaluated per expanded index.
+
+    The middle index of its in-group upstream ends with ``inner_outcome``; an optional
+    upstream outside the group ends with ``outside_outcome``.
+    """
+    with dag_maker(
+        dag_id=f"test_{trigger_rule.value}_outside_{outside_outcome}_inner_{inner_outcome}"
+    ) as dag:
+
+        @task
+        def init():
+            return ["seize", "the", "day"]
+
+        @task
+        def outside():
+            if outside_outcome == "skip":
+                raise AirflowSkipException
+            raise ValueError("boom")
+
+        outside_task = outside() if outside_outcome else None
+
+        @task_group(group_id="tg")
+        def tg(message):
+            @task
+            def imsleepy(message):
+                if message == "the":
+                    if inner_outcome == "skip":
+                        raise AirflowSkipException
+                    if inner_outcome == "fail":
+                        raise ValueError("boom")
+                return message
+
+            @task(trigger_rule=trigger_rule)
+            def imawake(message):
+                pass
+
+            awake = imawake(imsleepy(message))
+            if outside_task is not None:
+                outside_task >> awake
+
+        tg.expand(message=init())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["tg.imawake"] == {0: "success", 1: expected_state, 2: "success"}
 
 
 def test_mapped_operator_retry_delay_default(dag_maker):
@@ -1828,3 +2143,409 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
 
     # Should return the explicitly set value
     assert mapped_deser.retry_delay == custom_retry_delay
+
+
+def test_placeholder_promotion_keeps_legacy_owner_and_avoids_historical_try_collision(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    run = dag_maker.create_dagrun()
+    serialized = dag.task_dict[mapped.task_id]
+    placeholder = run.get_task_instance(mapped.task_id, session=session)
+    placeholder_id = placeholder.id
+    historical = TaskInstance(
+        serialized,
+        run_id=run.run_id,
+        region_id=placeholder.region_id,
+        region_index=0,
+        state=TaskInstanceState.FAILED,
+        dag_version_id=placeholder.dag_version_id,
+    )
+    historical.try_number = 3
+    session.add(historical)
+    session.flush()
+    historical.archive(reason="retry", session=session)
+    session.add(
+        LegacyTaskDataOwner(
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            task_id=mapped.task_id,
+            map_index=-1,
+            task_instance_id=placeholder_id,
+        )
+    )
+    session.flush()
+    session.add(
+        XComModelV1(
+            dag_run_id=run.id,
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            task_id=mapped.task_id,
+            map_index=-1,
+            key="legacy",
+            value={"owner": "placeholder"},
+        )
+    )
+    push_mapped_length(run.get_task_instance(upstream.task_id, session=session), [1, 2], session=session)
+
+    expanded, maximum = expand_mapped_task_instances(serialized, run.run_id, session=session)
+
+    assert maximum == 1
+    assert expanded[0].id == placeholder_id
+    assert expanded[0].map_index == 0
+    assert expanded[0].try_number == 4
+    assert historical.map_index == 0
+    assert historical.try_number == 3
+    assert historical.working_set is None
+    owner = session.scalar(
+        select(LegacyTaskDataOwner).where(LegacyTaskDataOwner.task_instance_id == placeholder_id)
+    )
+    assert owner.map_index == -1
+    read = build_xcom_read_query(
+        producer_ids=select(TaskInstance.id).where(TaskInstance.id == placeholder_id)
+    )
+    value = session.scalars(read).one()
+    assert value.map_index == 0
+    assert value.value == {"owner": "placeholder"}
+
+
+def _live_tis(session, dr, task_id):
+    return session.scalars(
+        select(TaskInstance)
+        .where(
+            TaskInstance.working_set.is_(True),
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.task_id == task_id,
+        )
+        .order_by(TaskInstance.region_index)
+    ).all()
+
+
+def _node_regions(session, dr, task_id):
+    return session.scalars(
+        select(DynamicRegion).where(
+            DynamicRegion.dag_id == dr.dag_id,
+            DynamicRegion.run_id == dr.run_id,
+            DynamicRegion.node_id == task_id,
+        )
+    ).all()
+
+
+def _make_legacy_placeholder(session, dr, serialized):
+    """Replace the regional placeholder with one that predates regions."""
+    current = _live_tis(session, dr, serialized.task_id)[0]
+    version = current.dag_version_id
+    session.delete(current)
+    session.flush()
+    session.execute(delete(DynamicRegion).where(DynamicRegion.node_id == serialized.task_id))
+    placeholder = TaskInstance(serialized, dag_version_id=version, run_id=dr.run_id)
+    session.add(placeholder)
+    session.flush()
+    return placeholder
+
+
+@pytest.fixture
+def mapped_dag(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun()
+    return dr, dag.task_dict[mapped.task_id], upstream.task_id
+
+
+def test_mapped_task_region_is_born_with_its_placeholder(mapped_dag, session):
+    dr, serialized, _ = mapped_dag
+
+    (placeholder,) = _live_tis(session, dr, serialized.task_id)
+    (region,) = _node_regions(session, dr, serialized.task_id)
+
+    assert placeholder.region_id == region.id
+    assert placeholder.region_index == -1
+    assert placeholder.map_index == -1
+    assert region.parent_region_id is None
+    assert region.forked_from_region_id is None
+
+
+def test_expansion_grows_and_shrinks_within_one_region(mapped_dag, session):
+    dr, serialized, upstream_id = mapped_dag
+    placeholder_id = _live_tis(session, dr, serialized.task_id)[0].id
+    (region,) = _node_regions(session, dr, serialized.task_id)
+
+    expand_mapped_task(serialized, dr.run_id, upstream_id, 3, session)
+    first = _live_tis(session, dr, serialized.task_id)
+    assert [ti.region_index for ti in first] == [0, 1, 2]
+    assert {ti.region_id for ti in first} == {region.id}
+    assert first[0].id == placeholder_id
+
+    push_mapped_length(dr.get_task_instance(upstream_id, session=session), list(range(5)), session=session)
+    first[0].task = serialized
+    assert [ti.region_index for ti in dr._revise_map_indexes_if_mapped(first[0], session=session)] == [3, 4]
+
+    push_mapped_length(dr.get_task_instance(upstream_id, session=session), list(range(2)), session=session)
+    assert dr._revise_map_indexes_if_mapped(first[0], session=session) == []
+    session.expire_all()
+    states = {ti.region_index: ti.state for ti in _live_tis(session, dr, serialized.task_id)}
+    assert states[0] is None
+    assert states[2] == states[3] == states[4] == TaskInstanceState.REMOVED
+    assert {ti.region_id for ti in _live_tis(session, dr, serialized.task_id)} == {region.id}
+    assert _node_regions(session, dr, serialized.task_id) == [region]
+
+
+def test_zero_length_expansion_leaves_a_region_holding_only_its_skipped_placeholder(mapped_dag, session):
+    dr, serialized, upstream_id = mapped_dag
+    (region,) = _node_regions(session, dr, serialized.task_id)
+
+    expand_mapped_task(serialized, dr.run_id, upstream_id, 0, session)
+
+    (placeholder,) = _live_tis(session, dr, serialized.task_id)
+    assert (placeholder.region_id, placeholder.region_index) == (region.id, -1)
+    assert placeholder.state == TaskInstanceState.SKIPPED
+
+
+def test_promotion_deletes_earlier_placeholder_task_instances(mapped_dag, session):
+    dr, serialized, upstream_id = mapped_dag
+    placeholder = _live_tis(session, dr, serialized.task_id)[0]
+    placeholder.task = serialized
+    placeholder.try_number = 1
+    placeholder.state = TaskInstanceState.FAILED
+    archived_id = placeholder.id
+    (current,) = clear_task_instances([placeholder], session)
+    session.flush()
+    assert current.id != archived_id
+
+    expand_mapped_task(serialized, dr.run_id, upstream_id, 2, session)
+
+    # The delete doesn't synchronize the session, so read the database rather than the identity map.
+    session.expire_all()
+    assert (
+        session.scalar(
+            select(TaskInstance.id)
+            .where(TaskInstance.id == archived_id)
+            .execution_options(include_all_attempts=True)
+        )
+        is None
+    )
+    live = _live_tis(session, dr, serialized.task_id)
+    assert [ti.region_index for ti in live] == [0, 1]
+    assert live[0].id == current.id
+    assert live[0].try_number == current.try_number
+
+
+@pytest.fixture
+def twin_mapped_dag(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="fresh").expand(arg2=upstream.output)
+        MockOperator.partial(task_id="legacy").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun()
+    return dr, dag, upstream.task_id
+
+
+def _expansion_outcome(session, dr, task_id, placeholder_id):
+    live = _live_tis(session, dr, task_id)
+    archived = session.scalars(
+        select(TaskInstance)
+        .where(
+            TaskInstance.working_set.is_(None),
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.task_id == task_id,
+        )
+        .execution_options(include_all_attempts=True)
+    ).all()
+    return (
+        [(ti.region_index, ti.state, ti.try_number, ti.id == placeholder_id) for ti in live],
+        len({ti.region_id for ti in live}),
+        [(ti.state, ti.archived_reason) for ti in archived],
+    )
+
+
+@pytest.mark.parametrize("length", [0, 3])
+def test_legacy_placeholder_moves_into_its_new_region_without_being_archived(
+    twin_mapped_dag, session, length
+):
+    dr, dag, upstream_id = twin_mapped_dag
+    fresh = dag.task_dict["fresh"]
+    serialized = dag.task_dict["legacy"]
+    fresh_placeholder_id = _live_tis(session, dr, "fresh")[0].id
+    legacy = _make_legacy_placeholder(session, dr, serialized)
+    legacy_id = legacy.id
+
+    push_mapped_length(
+        dr.get_task_instance(upstream_id, session=session), list(range(length)), session=session
+    )
+    expand_mapped_task_instances(fresh, dr.run_id, session=session)
+    expand_mapped_task_instances(serialized, dr.run_id, session=session)
+
+    (region,) = _node_regions(session, dr, serialized.task_id)
+    live = _live_tis(session, dr, serialized.task_id)
+    assert {ti.region_id for ti in live} == {region.id}
+    assert live[0].id == legacy_id
+    assert live[0].region_index == (0 if length else -1)
+    assert (
+        session.scalar(select(TaskInstance.id).where(TaskInstance.archived_reason == "mapped_placeholder"))
+        is None
+    )
+    assert _expansion_outcome(session, dr, "legacy", legacy_id) == _expansion_outcome(
+        session, dr, "fresh", fresh_placeholder_id
+    )
+    assert _expansion_outcome(session, dr, "legacy", legacy_id)[2] == []
+
+
+def test_legacy_placeholder_keeps_its_earlier_tries_and_is_promoted_in_place(twin_mapped_dag, session):
+    dr, dag, upstream_id = twin_mapped_dag
+    serialized = dag.task_dict["legacy"]
+    earlier = _make_legacy_placeholder(session, dr, serialized)
+    earlier.try_number = 1
+    earlier.state = TaskInstanceState.UPSTREAM_FAILED
+    earlier.archive(reason="retry", session=session)
+    legacy = TaskInstance(serialized, dag_version_id=earlier.dag_version_id, run_id=dr.run_id)
+    legacy.try_number = 2
+    session.add(legacy)
+    session.flush()
+    legacy_id = legacy.id
+
+    push_mapped_length(dr.get_task_instance(upstream_id, session=session), [1, 2], session=session)
+    expand_mapped_task_instances(serialized, dr.run_id, session=session)
+
+    (region,) = _node_regions(session, dr, serialized.task_id)
+    live = _live_tis(session, dr, serialized.task_id)
+    assert [(ti.region_id, ti.region_index) for ti in live] == [(region.id, 0), (region.id, 1)]
+    assert (live[0].id, live[0].try_number) == (legacy_id, 2)
+    assert (earlier.region_id, earlier.region_index, earlier.try_number) == (UUID(int=0), -1, 1)
+    assert earlier.archived_reason == "retry"
+
+
+def test_clearing_a_legacy_expansion_keeps_it_in_the_sentinel_region(mapped_dag, session):
+    dr, serialized, _ = mapped_dag
+    _make_legacy_placeholder(session, dr, serialized)
+    legacy = [
+        TaskInstance(
+            serialized,
+            dag_version_id=dr.created_dag_version_id,
+            run_id=dr.run_id,
+            region_index=index,
+            state=TaskInstanceState.SUCCESS,
+        )
+        for index in range(2)
+    ]
+    session.add_all(legacy)
+    session.flush()
+    for ti in legacy:
+        ti.task = serialized
+
+    (cleared,) = clear_task_instances([legacy[0]], session)
+    session.flush()
+
+    assert cleared.region_id == UUID(int=0)
+    assert (cleared.region_index, cleared.try_number) == (0, 1)
+    assert cleared.state is None
+    assert legacy[1].state == TaskInstanceState.SUCCESS
+    assert _node_regions(session, dr, serialized.task_id) == []
+    archived = session.scalars(
+        select(TaskInstance)
+        .where(TaskInstance.working_set.is_(None), TaskInstance.task_id == serialized.task_id)
+        .execution_options(include_all_attempts=True)
+    ).one()
+    assert (archived.region_id, archived.region_index, archived.try_number) == (UUID(int=0), 0, 0)
+
+
+def test_expansion_nested_under_a_loop_pass_is_a_child_region_that_revises_in_place(dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+    dr = dag_maker.create_dagrun()
+    serialized = dag_maker.serialized_dag.get_task(mapped.task_id)
+    session.execute(delete(TaskInstance).where(TaskInstance.task_id == mapped.task_id))
+    session.execute(delete(DynamicRegion))
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop", session=session
+    )
+    session.add(loop_region)
+    session.flush()
+    created: list[TaskInstance] = []
+
+    def creator(task, indexes, region_id):
+        for index in indexes:
+            ti = TaskInstance(
+                task,
+                dag_version_id=dr.created_dag_version_id,
+                run_id=dr.run_id,
+                region_id=region_id,
+                region_index=index,
+            )
+            created.append(ti)
+            yield ti
+
+    session.add_all(
+        list(dr._create_tasks([serialized], creator, session=session, parent_region=(loop_region.id, 2)))
+    )
+    session.flush()
+    (child,) = _node_regions(session, dr, mapped.task_id)
+    assert (child.parent_region_id, child.parent_region_index) == (loop_region.id, 2)
+    (placeholder,) = created
+    assert (placeholder.region_id, placeholder.region_index) == (child.id, -1)
+
+    placeholder.expand_mapped_task(session=session)
+
+    live = _live_tis(session, dr, mapped.task_id)
+    assert [ti.region_index for ti in live] == [0, 1, 2]
+    assert {ti.region_id for ti in live} == {child.id}
+    assert _node_regions(session, dr, mapped.task_id) == [child]
+
+
+@pytest.mark.parametrize("sibling_end_state", [TaskInstanceState.SKIPPED, TaskInstanceState.UPSTREAM_FAILED])
+def test_expansion_keeps_the_archived_attempts_of_a_sibling_region_placeholder(
+    dag_maker, session, sibling_end_state
+):
+    with dag_maker(session=session, serialized=True):
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+    dr = dag_maker.create_dagrun()
+    serialized = dag_maker.serialized_dag.get_task(mapped.task_id)
+    session.execute(delete(TaskInstance).where(TaskInstance.task_id == mapped.task_id))
+    session.execute(delete(DynamicRegion))
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop", session=session
+    )
+    session.add(loop_region)
+    session.flush()
+    placeholders: list[TaskInstance] = []
+
+    def creator(task, indexes, region_id):
+        for index in indexes:
+            ti = TaskInstance(
+                task,
+                dag_version_id=dr.created_dag_version_id,
+                run_id=dr.run_id,
+                region_id=region_id,
+                region_index=index,
+            )
+            placeholders.append(ti)
+            yield ti
+
+    for loop_pass in (0, 1):
+        session.add_all(
+            list(
+                dr._create_tasks(
+                    [serialized], creator, session=session, parent_region=(loop_region.id, loop_pass)
+                )
+            )
+        )
+        session.flush()
+    first, second = placeholders
+    first.prepare_db_for_next_try(session).state = sibling_end_state
+    expanding = second.prepare_db_for_next_try(session)
+    session.flush()
+
+    expanding.expand_mapped_task(session=session)
+
+    archived_ids = session.scalars(
+        select(TaskInstance.id)
+        .where(
+            TaskInstance.working_set.is_(None),
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.region_id == first.region_id,
+        )
+        .execution_options(include_all_attempts=True)
+    ).all()
+    assert archived_ids == [first.id]

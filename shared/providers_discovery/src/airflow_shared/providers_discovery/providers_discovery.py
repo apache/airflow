@@ -26,9 +26,10 @@ import pathlib
 from collections.abc import Callable, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
+from importlib.metadata import Distribution
 from importlib.resources import files as resource_files
 from time import perf_counter
-from typing import Any, NamedTuple, ParamSpec, Protocol, cast
+from typing import NamedTuple, ParamSpec, Protocol, cast
 
 from packaging.utils import canonicalize_name
 
@@ -81,44 +82,11 @@ class HookInfo(NamedTuple):
     dialects: list[str] = []
 
 
-class ConnectionFormWidgetInfo(NamedTuple):
-    """Connection Form Widget information."""
-
-    hook_class_name: str
-    package_name: str
-    field: Any
-    field_name: str
-    is_sensitive: bool
-
-
 class PluginInfo(NamedTuple):
     """Plugin class, name and provider it comes from."""
 
     name: str
     plugin_class: str
-    provider_name: str
-
-
-class NotificationInfo(NamedTuple):
-    """Notification class and provider it comes from."""
-
-    notification_class_name: str
-    package_name: str
-
-
-class TriggerInfo(NamedTuple):
-    """Trigger class and provider it comes from."""
-
-    trigger_class_name: str
-    package_name: str
-    integration_name: str
-
-
-class DialectInfo(NamedTuple):
-    """Dialect class and Provider it comes from."""
-
-    name: str
-    dialect_class_name: str
     provider_name: str
 
 
@@ -189,16 +157,6 @@ def _create_provider_info_schema_validator():
     return validator
 
 
-def _create_customized_form_field_behaviours_schema_validator():
-    """Create JSON schema validator from the customized_form_field_behaviours.schema.json."""
-    import jsonschema
-
-    schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
-    cls = jsonschema.validators.validator_for(schema)
-    validator = cls(schema)
-    return validator
-
-
 def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bool:
     """Check if builtin provider class has correct prefix."""
     if provider_package.startswith("apache-airflow"):
@@ -212,33 +170,6 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
             )
             return False
     return True
-
-
-def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
-    """
-    Verify the correct placeholder prefix.
-
-    If the given field_behaviors dict contains a placeholder's node, and there
-    are placeholders for extra fields (i.e. anything other than the built-in conn
-    attrs), and if those extra fields are unprefixed, then add the prefix.
-
-    The reason we need to do this is, all custom conn fields live in the same dictionary,
-    so we need to namespace them with a prefix internally.  But for user convenience,
-    and consistency between the `get_ui_field_behaviour` method and the extra dict itself,
-    we allow users to supply the unprefixed name.
-    """
-    conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-    def ensure_prefix(field):
-        if field not in conn_attrs and not field.startswith("extra__"):
-            return f"extra__{conn_type}__{field}"
-        return field
-
-    if "placeholders" in field_behaviors:
-        placeholders = field_behaviors["placeholders"]
-        field_behaviors["placeholders"] = {ensure_prefix(k): v for k, v in placeholders.items()}
-
-    return field_behaviors
 
 
 def log_optional_feature_disabled(class_name, e, provider_package):
@@ -299,6 +230,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Calla
 def discover_all_providers_from_packages(
     provider_dict: dict[str, ProviderInfo],
     provider_schema_validator,
+    incompatibility_reason: Callable[[Distribution], str | None] | None = None,
 ) -> None:
     """
     Discover all providers by scanning packages installed.
@@ -313,6 +245,8 @@ def discover_all_providers_from_packages(
     :param provider_dict: Dictionary to populate with discovered providers
     :param provider_schema_validator: JSON schema validator for provider info
     """
+    import jsonschema
+
     for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
         if not dist.metadata:
             continue
@@ -321,9 +255,33 @@ def discover_all_providers_from_packages(
             continue
         log.debug("Loading %s from package %s", entry_point, package_name)
         version = dist.version
+        if incompatibility_reason and (reason := incompatibility_reason(dist)):
+            log.warning(reason)
+            continue
         provider_info = entry_point.load()()
-        provider_schema_validator.validate(provider_info)
-        provider_info_package_name = provider_info["package-name"]
+        try:
+            provider_schema_validator.validate(provider_info)
+        except jsonschema.ValidationError:
+            # One provider's malformed metadata must not stop the others from loading. This
+            # used to escape discovery entirely, so every provider after it was skipped and
+            # initialize_providers_list() raised on this and every later call.
+            # Only ValidationError is caught: a SchemaError or UnknownType means the schema
+            # itself is broken, which must stay loud rather than be reported once per provider.
+            log.warning(
+                "The provider %s does not conform to the provider_info schema and has been skipped.",
+                package_name,
+                exc_info=True,
+            )
+            continue
+        # 'package-name' is not in the runtime schema's required list, so validation passing
+        # does not guarantee it is present.
+        provider_info_package_name = provider_info.get("package-name")
+        if not provider_info_package_name:
+            log.warning(
+                "The provider %s does not declare 'package-name' in its provider info and has been skipped.",
+                package_name,
+            )
+            continue
         if package_name != provider_info_package_name:
             raise ValueError(
                 f"The package '{package_name}' from packaging information "

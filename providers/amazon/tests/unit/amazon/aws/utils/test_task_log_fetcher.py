@@ -59,10 +59,11 @@ class TestAwsTaskLogFetcher:
                 ]
             ),
             iter([]),
+            iter([]),
         ),
     )
     def test_run(self, get_log_events_mock):
-        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, False, False, True)):
+        with mock.patch.object(self.log_fetcher._event, "wait", side_effect=(False, False, False, True)):
             self.log_fetcher.run()
 
         self.logger_mock.log.assert_has_calls(
@@ -72,6 +73,36 @@ class TestAwsTaskLogFetcher:
                 mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Third"),
             ]
         )
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
+        side_effect=(
+            iter([{"timestamp": 1617400267123, "message": "First"}]),
+            iter([{"timestamp": 1617400467789, "message": "Written just before the task ended"}]),
+        ),
+    )
+    def test_run_forwards_the_events_written_before_it_was_stopped(self, get_log_events_mock):
+        """The callers stop the fetcher once the task ended, after the last events were written."""
+        with mock.patch.object(self.log_fetcher._event, "wait", side_effect=(False, True)):
+            self.log_fetcher.run()
+
+        assert get_log_events_mock.call_count == 2
+        self.logger_mock.log.assert_has_calls(
+            [
+                mock.call(logging.INFO, "[2021-04-02 21:51:07,123] First"),
+                mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Written just before the task ended"),
+            ]
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events", return_value=iter([]))
+    def test_stop_ends_the_wait_for_the_next_fetch(self, get_log_events_mock):
+        self.log_fetcher.fetch_interval = timedelta(hours=1)
+        self.log_fetcher.daemon = True
+        self.log_fetcher.start()
+        self.log_fetcher.stop()
+        self.log_fetcher.join(timeout=5)
+
+        assert not self.log_fetcher.is_alive()
 
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
@@ -143,6 +174,14 @@ class TestAwsTaskLogFetcher:
     def test_get_last_log_messages_with_no_log_events(self, mock_conn):
         assert self.log_fetcher.get_last_log_messages(2) == []
 
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_messages_with_missing_log_stream(self, log_conn_mock):
+        log_conn_mock.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException"}}, "GetLogEvents"
+        )
+        assert self.log_fetcher.get_last_log_messages(2) == []
+        self.logger_mock.warning.assert_called_once()
+
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
@@ -162,10 +201,11 @@ class TestAwsTaskLogFetcher:
                     },
                 ]
             ),
+            iter([]),
         ),
     )
     def test_run_with_log_level_detection(self, get_log_events_mock):
-        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, True)):
+        with mock.patch.object(self.log_fetcher._event, "wait", side_effect=(False, True)):
             self.log_fetcher.run()
 
         self.logger_mock.log.assert_has_calls(

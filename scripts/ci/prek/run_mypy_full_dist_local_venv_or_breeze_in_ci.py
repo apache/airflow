@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -285,7 +285,9 @@ if console:
 else:
     print(f"Running mypy for folders: {mypy_folders}")
 
-if CI:
+# SKIP_BREEZE_PREK_HOOKS marks a CI run without the CI image (basic checks only, e.g. on the airflow-ctl
+# release branches), where mypy runs in its local virtualenv rather than being skipped with the image hooks.
+if CI and not os.environ.get("SKIP_BREEZE_PREK_HOOKS"):
     # In CI, run inside the breeze Docker image to avoid needing a local environment
     # and to not change uv.lock or synchronize dependencies.
     from common_prek_utils import (

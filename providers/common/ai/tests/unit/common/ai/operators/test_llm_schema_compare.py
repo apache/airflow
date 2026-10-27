@@ -17,17 +17,25 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
     SchemaMismatch,
 )
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -45,16 +53,6 @@ def _make_context():
     ti = MagicMock()
     ti.id = uuid4()
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
-
-
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
 
 
 _BASE_KWARGS = dict(task_id="test_task", prompt="test prompt", llm_conn_id="llm_conn")
@@ -156,6 +154,12 @@ class TestLLMSchemaCompareOperator:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **kwargs)
         assert op.context_strategy == "full"
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSchemaCompareOperator does not accept 'output_type'"):
+            LLMSchemaCompareOperator(
+                **_BASE_KWARGS, db_conn_ids=["conn_a", "conn_b"], table_names=["t"], output_type=int
+            )
+
     def test_init_succeeds_with_all_parameters(self):
         ds = _make_ds_config(conn_id="ds")
         op = LLMSchemaCompareOperator(
@@ -163,11 +167,11 @@ class TestLLMSchemaCompareOperator:
             data_sources=[ds, _make_ds_config(conn_id="ds2")],
             context_strategy="basic",
             system_prompt="additional instructions",
-            agent_params={"temperature": 0.5},
+            model_settings={"temperature": 0.5},
         )
         assert op.context_strategy == "basic"
         assert op.system_prompt == "additional instructions"
-        assert op.agent_params == {"temperature": 0.5}
+        assert op.model_settings == {"temperature": 0.5}
 
     @mock.patch("airflow.providers.common.ai.operators.llm_schema_compare.BaseHook")
     def test_get_db_hook_success(self, mock_base_hook):
@@ -259,7 +263,7 @@ class TestLLMSchemaCompareOperator:
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
     )
-    def test_execute(self, mock_build_system_prompt, mock_build_schema_context):
+    def test_execute(self, mock_build_system_prompt, mock_build_schema_context, make_mock_run_result):
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
 
@@ -269,12 +273,12 @@ class TestLLMSchemaCompareOperator:
             llm_conn_id="llm_conn",
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["orders"],
-            agent_params={"param": "value"},
+            model_settings={"temperature": 0},
         )
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
@@ -287,15 +291,57 @@ class TestLLMSchemaCompareOperator:
         mock_llm_hook.create_agent.assert_called_once_with(
             output_type=SchemaCompareResult,
             instructions="system_prompt",
-            param="value",
+            model_settings={"temperature": 0},
+            retries=None,
         )
-        mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+        )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+        usage_budget_context,
+    ):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
+
+        op = LLMSchemaCompareOperator(
+            task_id="test",
+            prompt="user_prompt",
+            llm_conn_id="llm_conn",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["orders"],
+            usage_limits={"cost_limit": "0.5"},
+        )
+
+        mock_llm_hook = mock.Mock()
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        mock_llm_hook.create_agent.return_value = mock_agent
+        op.llm_hook = mock_llm_hook
+
+        op.execute(context=usage_budget_context)
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._get_db_hook"
     )
-    def test_execute_schema_comparison_mixed_conn(self, mock_get_db_hook, db_hook):
+    def test_execute_schema_comparison_mixed_conn(self, mock_get_db_hook, db_hook, make_mock_run_result):
         """Test validates schema comparison for mixed connection types.
 
         An eg: files are in s3, and data is loading to the postgres table, so in this case
@@ -350,7 +396,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(
                 compatible=True, mismatches=[], summary="S3 and Postgres schemas are compatible"
             )
@@ -369,6 +415,7 @@ class TestLLMSchemaCompareOperator:
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
             usage_limits=None,
+            cancellation_token=mock.ANY,
         )
         assert result["compatible"] is True
         assert result["summary"] == "S3 and Postgres schemas are compatible"
@@ -376,7 +423,7 @@ class TestLLMSchemaCompareOperator:
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._get_db_hook"
     )
-    def test_execute_schema_comparison_db_conn_ids_only(self, mock_get_db_hook):
+    def test_execute_schema_comparison_db_conn_ids_only(self, mock_get_db_hook, make_mock_run_result):
         """End-to-end execute using only db_conn_ids (no data_sources).
 
         Simulates comparing the same table across two database systems
@@ -429,7 +476,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="Schemas are compatible")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
@@ -443,7 +490,7 @@ class TestLLMSchemaCompareOperator:
         assert "snowflake" in instructions
         assert result["compatible"] is True
 
-    def test_execute_schema_comparison_datasources_only(self):
+    def test_execute_schema_comparison_datasources_only(self, make_mock_run_result):
         """End-to-end execute using only data_sources (no db_conn_ids).
 
         Simulates comparing two object-storage sources, e.g. two S3 buckets
@@ -478,7 +525,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(
                 compatible=False,
                 mismatches=[],
@@ -574,6 +621,121 @@ class TestLLMSchemaCompareOperator:
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+class TestLLMSchemaCompareOperatorUsageBudget:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return LLMSchemaCompareOperator(
+            **_BASE_KWARGS,
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["orders"],
+            usage_limits=UsageLimits(request_limit=2),
+            **kwargs,
+        )
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context",
+        return_value="schema_context",
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt",
+        return_value="system_prompt",
+    )
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="unused")])
+
+        op = self._make_operator()
+        op.llm_hook = mock.Mock(create_agent=lambda **kw: Agent(FunctionModel(respond), **kw))
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            op.execute(usage_budget_context)
+
+        assert calls == []
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context",
+        return_value="schema_context",
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt",
+        return_value="system_prompt",
+    )
+    def test_successful_run_clears_the_budget(
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        op = self._make_operator()
+        op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
+
+        op.execute(usage_budget_context)
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+    @staticmethod
+    def _make_reviewed_event(output):
+        return {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": output},
+        }
+
+    def test_execute_complete_keeps_the_budget_when_the_reviewed_output_is_invalid(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(require_approval=True, allow_modifications=True)
+
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
+            op.execute_complete(
+                usage_budget_context,
+                generated_output="{}",
+                event=self._make_reviewed_event("looks fine to me"),
+            )
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None
+
+    def test_execute_complete_clears_the_budget_once_the_reviewed_output_is_valid(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(require_approval=True, allow_modifications=True)
+        reviewed = SchemaCompareResult(compatible=True, mismatches=[], summary="ok")
+
+        result = op.execute_complete(
+            usage_budget_context,
+            generated_output="{}",
+            event=self._make_reviewed_event(reviewed.model_dump_json()),
+        )
+
+        assert result == reviewed.model_dump()
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestLLMSchemaCompareOperatorApproval:
     """Tests for LLMSchemaCompareOperator with require_approval=True."""
 
@@ -597,7 +759,13 @@ class TestLLMSchemaCompareOperatorApproval:
     @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     def test_execute_with_approval_pauses_with_summary_body(
-        self, mock_upsert, mock_trigger_cls, mock_build_system_prompt, mock_build_schema_context, caplog
+        self,
+        mock_upsert,
+        mock_trigger_cls,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        caplog,
+        make_mock_run_result,
     ):
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
@@ -621,7 +789,7 @@ class TestLLMSchemaCompareOperatorApproval:
 
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(result)
+        mock_agent.run_sync.return_value = make_mock_run_result(result)
         op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
 
         with pytest.raises(TaskAwaitingInput) as exc_info:
@@ -636,7 +804,7 @@ class TestLLMSchemaCompareOperatorApproval:
     def test_execute_complete_approved_returns_dict(self):
         result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         resumed = op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
@@ -652,17 +820,17 @@ class TestLLMSchemaCompareOperatorApproval:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": modified},
         }
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
     def test_execute_rejects_sequence_prompt_with_require_approval(self):
         op = LLMSchemaCompareOperator(
             task_id="test_task",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            prompt=["describe", b"bytes"],
             llm_conn_id="llm_conn",
             **self._APPROVAL_KWARGS,
         )

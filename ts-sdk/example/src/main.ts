@@ -17,11 +17,21 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+// The bundle entry point: one bundle, three Dags, both authoring modes.
+//
+// The two Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
+// coordinator, so this side only supplies their task bodies. The third, in `native.ts`, is
+// declared in TypeScript outright — graph, schedule and all. `dynamic.ts` adds a native Dag for
+// each entry of a YAML file next to the bundle.
 
-const dag = new Dag("typescript_example");
+import { Bundle, getClient, getContext, NEVER_EXPIRE, TaskHandler } from "apache-airflow-ts-sdk";
 
-export async function buildMessage({ client }: TaskHandlerArgs) {
+import { loadDynamicDags } from "./dynamic.js";
+import { dag as nativeDag } from "./native.js";
+import { buildSummaryMessage, report, summarize } from "./taskflow.js";
+
+export async function buildMessage() {
+  const client = getClient();
   const upstream = await client.getXCom<string>({
     key: "return_value",
     taskId: "python_start",
@@ -37,8 +47,54 @@ export async function buildMessage({ client }: TaskHandlerArgs) {
   };
 }
 
-export async function readConnection({ client }: TaskHandlerArgs) {
-  const connection = await client.getConnection("typescript_example_http");
+/** Records the run that last wrote it, so a later run can see it changed. */
+const LAST_RUN_VARIABLE = "typescript_example_last_run";
+/** Written and deleted within the same task, to show both write directions. */
+const SCRATCH_VARIABLE = "typescript_example_scratch";
+
+export async function writeAndDeleteVariable() {
+  const client = getClient();
+  const { runId } = getContext();
+
+  await client.setVariable(LAST_RUN_VARIABLE, runId, "Run id of the last typescript_example run");
+  await client.setVariable(SCRATCH_VARIABLE, runId);
+  await client.deleteVariable(SCRATCH_VARIABLE);
+}
+
+const JOB_ID_KEY = "typescript_example_job_id";
+const STATE_SCRATCH_KEY = "typescript_example_scratch";
+
+export async function writeAndReadTaskState() {
+  const store = getClient().taskStateStore;
+  const { runId, tryNumber } = getContext();
+
+  await store.set(JOB_ID_KEY, runId, { retention: NEVER_EXPIRE });
+  await store.set(STATE_SCRATCH_KEY, { attempt: tryNumber });
+
+  const jobId = await store.get<string>(JOB_ID_KEY);
+  const scratchBeforeDelete = await store.get(STATE_SCRATCH_KEY);
+
+  await store.delete(STATE_SCRATCH_KEY);
+  const scratchAfterDelete = await store.get(STATE_SCRATCH_KEY);
+
+  return { jobId, scratchBeforeDelete, scratchAfterDelete };
+}
+
+export async function clearTaskState() {
+  const store = getClient().taskStateStore;
+
+  await store.set(JOB_ID_KEY, "placeholder");
+  await store.set(STATE_SCRATCH_KEY, { attempt: 1 });
+
+  await store.clear();
+
+  const afterClear = await store.get(JOB_ID_KEY);
+
+  return { afterClear };
+}
+
+export async function readConnection() {
+  const connection = await getClient().getConnection("typescript_example_http");
 
   return {
     id: connection?.id ?? null,
@@ -49,7 +105,24 @@ export async function readConnection({ client }: TaskHandlerArgs) {
   };
 }
 
-dag.task("build_message", buildMessage);
-dag.task("read_connection", readConnection);
-
-await serveDags(new DagRegistry(dag));
+// One register call lists everything this bundle provides.
+// `build_message` appears under both Dags: two different handlers, told apart by the dag_id each
+// is bound to and never by the task_id alone.
+//
+// One bundle serves both authoring modes: handlers for the Dags a Python file declares, and the
+// natively declared Dag from `native.ts`, whose graph this side owns outright. It also serves the
+// native Dags `dynamic.ts` generates from a YAML file next to the bundle, when there is one.
+const bundle = new Bundle();
+bundle.register(
+  nativeDag,
+  ...loadDynamicDags(),
+  new TaskHandler("typescript_example", "build_message", buildMessage),
+  new TaskHandler("typescript_example", "read_connection", readConnection),
+  new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),
+  new TaskHandler("typescript_example", "write_and_read_task_state", writeAndReadTaskState),
+  new TaskHandler("typescript_example", "clear_task_state", clearTaskState),
+  new TaskHandler("typescript_taskflow_example", "summarize", summarize),
+  new TaskHandler("typescript_taskflow_example", "report", report),
+  new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
+);
+await bundle.serve();

@@ -34,7 +34,7 @@ This powerful feature enables workflows to pause and wait for human input, makin
    A waiting ``awaiting_input`` task does not occupy a pool slot. This differs from the older deferral
    path, where a deferred HITL task counted against a pool that had ``include_deferred`` enabled.
 
-In this tutorial, we will explore how to use the HITL operators in workflows and demonstrate how it would look like in Airflow UI.
+In this tutorial, we will explore how to use the HITL operators in workflows and demonstrate what it would look like in the Airflow UI.
 
 An HITL Example Dag
 -------------------
@@ -107,7 +107,7 @@ Approval or Rejection
 
 A specialized form of option selection, which has only 'Approval' and 'Rejection' as options.
 You can also set the ``assigned_users`` to restrict the users allowed to respond for a HITL operator.
-It should be a list of user ids and user names (both needed) (e.g., ``[{"id": "1", "name": "user1"}, {"id": "2", "name": "user2"}]``.
+It should be a list of user ids and user names (both needed) (e.g., ``[{"id": "1", "name": "user1"}, {"id": "2", "name": "user2"}]``).
 ONLY the users within this list will be allowed to respond.
 
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
@@ -122,6 +122,34 @@ As you can see in the body of this code snippet, you can use XComs to get inform
 
 .. image:: /img/ui-light/hitl_approve_reject.png
   :alt: Demo HITL task instance waiting for approval or rejection
+
+|
+
+Formatting the body
+-------------------
+
+The ``body`` of every HITL operator is rendered as Markdown in the UI.
+In Markdown, a single line break inside a paragraph is displayed as a space, so a multi-line value such as a
+templated XCom shows up on one line.
+To keep the line breaks, wrap the value in a fenced code block, or separate the lines with blank lines.
+
+.. code-block:: python
+
+    ApprovalOperator(
+        task_id="confirm_deletion",
+        subject="Should the following files be deleted?",
+        body="""Dry-run result:
+
+    ```
+    {{ ti.xcom_pull(task_ids='dry_run') }}
+    ```
+    """,
+    )
+
+.. versionchanged:: 3.4
+
+   Code blocks in the body keep their line breaks. On earlier versions, lines inside a code block are
+   also joined, so separate them with blank lines instead.
 
 |
 
@@ -219,7 +247,17 @@ calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
     # Submit the response; the test run resumes the task on its next poll.
     # map_index is -1 for non-mapped tasks.
     PATCH /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails
-    {"chosen_options": ["Approve"], "params_input": {}}
+    {"chosen_options": ["Approve"], "params_input": {}, "request_created_at": "<created_at from the GET>"}
+
+``request_created_at`` is optional. Copy it unchanged from the request you read: if the task asked
+again in the meantime (a retry, a clear, or an operator that pauses more than once in one run), the
+answer is refused with ``409`` instead of being applied to a request you did not read.
+
+.. note::
+
+    Keys in ``params_input`` must not be Airflow's reserved serialization keys (``__classname__``,
+    ``__version__``, ``__data__``, ``__id__``, ``__cache__``, ``__type``, ``__source``, ``__var``),
+    at any nesting depth. A response containing one is rejected with ``422`` at submission time.
 
 .. note::
 

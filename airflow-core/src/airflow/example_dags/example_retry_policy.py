@@ -18,8 +18,8 @@
 Example DAG demonstrating pluggable retry policies.
 
 A retry policy evaluates the actual exception at failure time and decides
-whether to retry (with a custom delay), fail immediately, or fall through
-to the standard retry logic.
+whether to retry (with a custom delay), fail immediately, reschedule without
+using a retry, or fall through to the standard retry logic.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 # [START retry_policy_definition]
-from airflow.sdk import DAG, ExceptionRetryPolicy, RetryAction, RetryRule, task
+from airflow.sdk import DAG, ChainRetryPolicy, ExceptionRetryPolicy, RetryAction, RetryRule, task
 
 API_RETRY_POLICY = ExceptionRetryPolicy(
     rules=[
@@ -79,3 +79,44 @@ STANDARD_RETRY_POLICY = ExceptionRetryPolicy(
     ],
 )
 # [END retry_policy_reusable]
+
+# [START retry_policy_chain]
+# Cheap, deterministic rules first, so a slower policy (a model-backed one from a provider,
+# in practice; a second rule set stands in for it here) only sees what they did not settle.
+# The last rung is the floor for when that policy has no answer.
+CHAINED_RETRY_POLICY = ChainRetryPolicy(
+    [
+        ExceptionRetryPolicy(
+            rules=[RetryRule(exception="google.auth.exceptions.RefreshError", action=RetryAction.FAIL)],
+        ),
+        STANDARD_RETRY_POLICY,
+        ExceptionRetryPolicy(
+            rules=[
+                RetryRule(exception=TimeoutError, retry_delay=timedelta(minutes=2), reason="timeout floor")
+            ],
+        ),
+    ]
+)
+# [END retry_policy_chain]
+
+# [START retry_policy_reschedule]
+
+
+class WarehouseBusyError(Exception):
+    """Raised by the task when the warehouse it submits queries to has no free slots."""
+
+
+# Come back every 10 minutes while the warehouse is busy, for up to 4 hours, without using
+# any of the task's retries. After 4 hours the standard retry logic takes over.
+WAREHOUSE_RETRY_POLICY = ExceptionRetryPolicy(
+    rules=[
+        RetryRule(
+            exception=WarehouseBusyError,
+            action=RetryAction.RESCHEDULE,
+            retry_delay=timedelta(minutes=10),
+            reschedule_timeout=timedelta(hours=4),
+            reason="Warehouse busy",
+        ),
+    ],
+)
+# [END retry_policy_reschedule]

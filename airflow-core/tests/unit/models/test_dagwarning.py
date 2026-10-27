@@ -25,13 +25,45 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
-from airflow.models.dagwarning import DagWarning
+from airflow.models.dagwarning import DagWarning, DagWarningType, get_warning_type_value
 
 from tests_common.test_utils.db import clear_db_dags
 
-pytestmark = pytest.mark.db_test
+
+class TestGetWarningTypeValue:
+    @pytest.mark.parametrize(
+        ("warning_type", "expected"),
+        [
+            pytest.param(DagWarningType.NONEXISTENT_POOL, "non-existent pool", id="enum-member"),
+            pytest.param("non-existent pool", "non-existent pool", id="built-in-string"),
+            pytest.param("yaml:schema_violation", "yaml:schema_violation", id="importer-type"),
+            pytest.param(f"yaml:{'x' * 45}", f"yaml:{'x' * 45}", id="importer-type-at-column-length"),
+        ],
+    )
+    def test_valid_type_returns_stored_value(self, warning_type, expected):
+        assert get_warning_type_value(warning_type) == expected
+
+    @pytest.mark.parametrize(
+        "warning_type",
+        [
+            pytest.param(1, id="non-string"),
+            pytest.param("yaml schema violation", id="no-namespace"),
+            pytest.param("non existent pool", id="mistyped-built-in-type"),
+            pytest.param("YAML:Schema_Violation", id="uppercase"),
+            pytest.param(":schema_violation", id="empty-namespace"),
+            pytest.param("yaml:", id="empty-type"),
+            pytest.param(f"yaml:{'x' * 46}", id="longer-than-column"),
+        ],
+    )
+    def test_invalid_type_is_rejected(self, warning_type):
+        with pytest.raises(ValueError, match="validation error"):
+            get_warning_type_value(warning_type)
+
+    def test_dag_warning_stores_importer_type(self):
+        assert DagWarning("dag_1", "yaml:schema_violation", "message").warning_type == "yaml:schema_violation"
 
 
+@pytest.mark.db_test
 class TestDagWarning:
     def setup_method(self):
         clear_db_dags()

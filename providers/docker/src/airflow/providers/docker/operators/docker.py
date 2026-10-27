@@ -216,6 +216,7 @@ class DockerOperator(BaseOperator):
         "env_file",
         "container_name",
         "mounts",
+        "docker_conn_id",
     )
     template_fields_renderers = {"env_file": "yaml"}
     template_ext: Sequence[str] = (

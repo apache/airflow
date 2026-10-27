@@ -74,17 +74,20 @@ Since Apache Airflow 3.0, additional components have been split out into separat
 Required services
 '''''''''''''''''
 
-At a minimum, you must run the ``scheduler``, the ``dag-processor`` and either the ``webserver`` or the ``api-server``:
+At a minimum, you must run the ``scheduler``, the ``dag-processor`` and the ``api-server``:
 
 - ``airflow-scheduler.service``
 - ``airflow-dag-processor.service``
-- ``airflow-webserver.service`` or ``airflow-api.service``
+- ``airflow-api.service``
 
-Without a running Dag processor, Dag files are never parsed and the ``dag_processor`` entry of the
-``/api/v2/monitor/health`` endpoint reports its status as ``unhealthy``.
+Without a running Dag processor, Dag files are not parsed.
 
-The ``airflow-triggerer.service`` is optional: start it only if you use deferrable tasks or
-event-driven :doc:`triggers <../authoring-and-scheduling/event-scheduling>`. If it is not running, the
-``triggerer`` entry of the health endpoint reports ``unhealthy``, which is expected and safe to ignore.
+The ``airflow-triggerer.service`` is optional if you do not use deferrable tasks or
+event-driven :doc:`triggers <../authoring-and-scheduling/event-scheduling>`.
+
+For both ``dag_processor`` and ``triggerer``, the ``/api/v2/monitor/health`` endpoint returns
+``unhealthy`` for the status and ``down`` for the detailed status when no instance is alive.
+If there are no unfinished jobs for the component, its latest heartbeat and instances are ``null``.
+You can ignore the ``triggerer`` health status only when your deployment intentionally does not use a triggerer.
 
 See :ref:`Checking Airflow Health Status <check-health/http-endpoint>` for details on how each component reports its health.

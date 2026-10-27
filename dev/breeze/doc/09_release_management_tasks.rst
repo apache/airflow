@@ -176,6 +176,20 @@ automates it.
   :alt: Breeze release-management create-minor-branch
 
 
+Start beta process
+""""""""""""""""""
+
+When we prepare a beta pre-release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-beta-process
+
+.. image:: ./images/output_release-management_start-beta-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-beta-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-beta-process
+
 Start release candidate process
 """""""""""""""""""""""""""""""
 
@@ -1080,6 +1094,30 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :width: 100%
   :alt: Breeze workflow-run publish-docs
 
+Syncing the staging site with main
+""""""""""""""""""""""""""""""""""
+
+Before publishing release candidate docs to staging, reset the ``staging`` branches of
+``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
+``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
+repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site. Before asking for confirmation,
+the command lists the commits that exist only on each ``staging`` branch (and would be dropped), so you can
+tell whether the branch holds docs prepared for another release.
+
+.. warning::
+
+   Skip this step if a vote for any other release is in progress. The ``staging`` branches hold the
+   docs prepared for that vote, and resetting them to ``main`` overwrites them. The command asks for
+   confirmation before triggering the workflow.
+
+These are all available flags of ``workflow-run sync-staging-to-main`` command:
+
+.. image:: ./images/output_workflow-run_sync-staging-to-main.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_sync-staging-to-main.svg
+  :width: 100%
+  :alt: Breeze workflow-run sync-staging-to-main
+
 Resolving the constraints for a release
 """""""""""""""""""""""""""""""""""""""
 
@@ -1104,15 +1142,16 @@ These are all available flags of ``workflow-run release-constraints`` command:
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
 
-Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes two generated schema artifacts
+Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes generated schema artifacts
 to the same docs bucket, under the ``schemas/`` prefix (served at ``https://airflow.apache.org/schemas/``):
 
 * The Execution API OpenAPI spec ``schemas/execution-api/<version>.json``
 * The Supervisor JSON Schema ``schemas/supervisor-schema/<version>.json``
+* The YAML Dag JSON Schema ``schemas/dag/<version>.json``
 
 Each dated file is immutable, so the command uploads individual objects and skips a date that already exists
-unless ``--overwrite`` is given. Publishing is gated on the package set. The schema files are only published
-when ``apache-airflow`` or ``task-sdk`` is built.
+unless ``--overwrite`` is given. Publishing is gated on the package set. The Execution API schema is published
+when ``apache-airflow`` is built; the Supervisor and YAML Dag schemas when ``task-sdk`` is built.
 
 To publish the schema files to S3, use the ``release-management publish-schemas-to-s3`` command:
 
@@ -1121,11 +1160,12 @@ To publish the schema files to S3, use the ``release-management publish-schemas-
      breeze release-management publish-schemas-to-s3 \
        --execution-api execution-api.json \
        --supervisor supervisor-schema.json \
+       --dag dag.json \
        --destination-location s3://live-docs-airflow-apache-org/schemas/
 
 ``--destination-location`` is the ``s3://<bucket>/schemas/`` location to publish under; each schema is
 written to ``<location>/<schema-type>/<version>.json``. Pass at least one of
-``--execution-api`` / ``--supervisor``.
+``--execution-api`` / ``--supervisor`` / ``--dag``.
 
 These are all available flags of ``release-management publish-schemas-to-s3`` command:
 
@@ -1214,7 +1254,35 @@ Example usage:
 
 .. code-block:: bash
 
-     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+     breeze release-management constraints-version-check --python 3.11 --airflow-constraints-mode constraints-source-providers --explain-why
+
+
+Mirror the hardened Python base images
+""""""""""""""""""""""""""""""""""""""
+
+The CI and PROD images are built on a Docker Hardened Image for Python. Pulling that image from
+its origin requires a Docker Hub login, so the tags Airflow builds on are mirrored to Airflow's
+own public registry and ``BASE_IMAGE`` points there - building the images then needs no registry
+credentials at all. A scheduled workflow keeps the mirror current; this command is what it runs,
+and what you run by hand when a new Python patch release needs mirroring straight away.
+
+Both the pinned tag and the floating major/minor tag are mirrored, so documentation and ad-hoc
+builds can keep referring to the floating one.
+
+These are all available flags of ``release-management mirror-base-images`` command:
+
+.. image:: ./images/output_release-management_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze mirror base images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management mirror-base-images --python 3.10
+
+Without ``--python`` every currently supported Python version is mirrored.
 
 
 -----
