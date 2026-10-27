@@ -28,6 +28,7 @@
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
+  - [Auto-merge](#auto-merge)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PRs targeted for Airflow 3.X](#merging-prs-targeted-for-airflow-3x)
   - [What do we backport to `v3-2-test` branch?](#what-do-we-backport-to-v3-2-test-branch)
@@ -78,10 +79,11 @@ PRs should **never** target `v3-2-stable` directly unless explicitly instructed 
 > RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
 > without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
-> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
-> check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
-> (adjust the branch filter for the relevant `v3-X-test` branch).
+> verify that the full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the `v3-X-test` HEAD have
+> succeeded before cutting the RC. They are started by `release-branch-ci.yml`, not on push; see
+> [CI of the `vX-Y-test` branch](README_RELEASE_AIRFLOW.md#ci-of-the-vx-y-test-branch). You can see them at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Aworkflow_dispatch+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch, and check `ci-arm.yml` the same way).
 
 ## Developing for Airflow 3
 
@@ -130,7 +132,8 @@ To test your changes locally, check out the `v2-11-test` branch. Breeze on Airfl
 not compatible with Airflow 2.11, so you need a Breeze that matches the branch you're on.
 
 If you installed Breeze via the recommended shim (`./scripts/tools/setup_breeze`), nothing extra
-is needed — the shim runs Breeze via `uvx` from the current git worktree's `dev/breeze`, so
+is needed — the shim runs Breeze via `uv run --locked` from the current git worktree's
+`dev/breeze`, so
 checking out a different branch (or using a separate git worktree) automatically picks up that
 branch's Breeze:
 
@@ -177,6 +180,51 @@ PRs should **never** target `v2-11-stable` directly unless explicitly instructed
 # Committers / PMCs
 
 The following sections explains the protocol for merging PRs.
+
+## Auto-merge
+
+Auto-merge is enabled for PRs targeting `main`. Instead of waiting for CI to finish, approve the PR and
+click **Enable auto-merge** (or run `gh pr merge <number> --squash --auto`). GitHub squash-merges the PR
+as soon as it has an approval, its conversations are resolved and the required checks are green. Any
+committer can cancel it with **Disable auto-merge**. A push by the PR author (or anyone else without
+write access) disables auto-merge, so the author cannot change the PR after you approved it; review the
+new commits and enable it again. Pushes by committers keep it enabled.
+
+Auto-merge is enabled for the whole repository, so every branch that PRs target requires CI. The
+"Require CI on release branches" ruleset requires **CI passed** on the release, providers, chart and
+`airflow-ctl` branches. A release branch gets the **CI passed** job only once it is backported there; until
+then, its PRs never report the check, and a committer merges them by bypassing the rule.
+
+The `main` ruleset requires one check, **CI passed**. It is a job in the `Tests (AMD)` workflow that always
+runs and fails when any other CI job failed; jobs that selective checks skip count as passed, so PRs that
+run only part of the tests still get a result. A run with cancelled jobs and no failed one reports as
+**CI passed (run cancelled)** instead, so a duplicate run of the same commit that concurrency cancelled
+does not show a failed **CI passed** next to its twin's result. Such a run does not report **CI passed**
+at all, so the PR stays blocked until another run of the commit, or a re-run, reports it. A job that
+hits its timeout is cancelled while the run is not, so that run's check fails, under the same name. The
+`check-ci-gate-needs` prek hook makes sure every new CI job is added to it. `Tests (ARM)`, which runs on pushes and on a schedule rather
+than on PRs, has the same job, kept identical by the `check-ci-workflows-in-sync` hook. For a PR that the
+fork CI gate (AIP-120) leaves to CI in the contributor's fork, project CI does not run, so the job reports
+as **CI passed (project CI not run)** instead, and the fork CI reconciler posts **CI passed** once the
+fork run for the PR's latest commit is green and trusted. Static checks also fail a newsfragment of a PR
+to `main` that is named after another PR number, in project CI and in the fork run; the
+`skip newsfragment check` label turns that off, after a re-run of the failed static checks, which for CI
+in the contributor's fork the contributor does there.
+
+Auto-merge does not wait for checks from other workflows: **CodeQL**, **Dependency review** and
+**Registry tests**. The last two only run when dependency or registry files change. Look at those
+checks before enabling auto-merge on a PR that triggers them.
+
+A PR that changes `.github/workflows/` runs its own version of the workflows, including the **CI passed**
+job, so review such changes before enabling auto-merge: the check only means as much as the workflow
+that produced it.
+
+When CI is red for a reason unrelated to the PR, for example a test that is broken on `main`, a
+committer can still merge by ticking **Merge without waiting for requirements to be met (bypass
+rules)**. Use it only when you are sure the failure is not caused by the PR, and say so in a comment.
+The rulesets grant the bypass to the repository's Write role, which only committers hold here, so a new
+committer gets it once ASF Infra adds them to the repository after they link their GitHub account in
+[GitBox](https://gitbox.apache.org/setup/); nothing in `.asf.yaml` needs to change.
 
 ## Merging PRs for providers and Helm chart
 

@@ -34,7 +34,14 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
                 "tags": ["aws"],
             },
             {
@@ -381,6 +388,11 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MSK",
+                "external-doc-url": "https://aws.amazon.com/msk/",
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon S3 Vectors",
                 "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
@@ -391,7 +403,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -558,7 +573,10 @@ def get_provider_info():
         "sensors": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.sensors.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.sensors.athena",
+                    "airflow.providers.amazon.aws.sensors.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -716,6 +734,10 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.athena",
                     "airflow.providers.amazon.aws.hooks.athena_sql",
                 ],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
             },
             {
                 "integration-name": "Amazon Bedrock",
@@ -898,6 +920,7 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.neptune_analytics",
                 ],
             },
+            {"integration-name": "Amazon MSK", "python-modules": ["airflow.providers.amazon.aws.hooks.msk"]},
         ],
         "bundles": [
             {
@@ -937,6 +960,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Lambda",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis"],
             },
             {
                 "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
@@ -1022,6 +1049,10 @@ def get_provider_info():
                 "integration-name": "AWS Database Migration Service",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.dms"],
             },
+            {
+                "integration-name": "Amazon QuickSight",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.quicksight"],
+            },
         ],
         "transfers": [
             {
@@ -1105,6 +1136,7 @@ def get_provider_info():
             {
                 "source-integration-name": "Exasol",
                 "target-integration-name": "Amazon Simple Storage Service (S3)",
+                "how-to-guide": "/docs/apache-airflow-providers-amazon/transfer/exasol_to_s3.rst",
                 "python-module": "airflow.providers.amazon.aws.transfers.exasol_to_s3",
             },
             {
@@ -1208,6 +1240,19 @@ def get_provider_info():
                         "schema": "https",
                         "host": "hooks.chime.aws/incomingwebhook/",
                         "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
                     },
                 },
             },
@@ -1525,6 +1570,39 @@ def get_provider_info():
                     },
                 },
             },
+            "aws_eks_executor": {
+                "description": "This section only applies if you are using the AwsEksExecutor in\nAirflow's ``[core]`` configuration. It requires the ``cncf.kubernetes``\nextra of this provider. The executor supplies the Kubernetes client for\nthe configured Amazon EKS cluster; all pod-level settings are still read\nfrom the ``[kubernetes_executor]`` section.\nFor boto3 credential management, see\nhttps://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html\n",
+                "options": {
+                    "conn_id": {
+                        "description": "The Airflow connection (i.e. credentials) used by the EKS executor to\nmake API calls to Amazon EKS.\n",
+                        "version_added": "9.39.0",
+                        "type": "string",
+                        "example": "aws_default",
+                        "default": "aws_default",
+                    },
+                    "region_name": {
+                        "description": "The name of the AWS Region where the EKS cluster is located. If not\nspecified, falls back to the AWS connection's region, then boto3's.\n",
+                        "version_added": "9.39.0",
+                        "type": "string",
+                        "example": "us-east-1",
+                        "default": None,
+                    },
+                    "check_health_on_startup": {
+                        "description": "Whether or not to check the EKS Executor health on startup.\n",
+                        "version_added": "9.39.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "True",
+                    },
+                    "cluster_name": {
+                        "description": "The name of the Amazon EKS cluster to run Airflow tasks on. Required.\n",
+                        "version_added": "9.39.0",
+                        "type": "string",
+                        "example": "airflow-eks-cluster",
+                        "default": None,
+                    },
+                },
+            },
             "aws_auth_manager": {
                 "description": "This section only applies if you are using the AwsAuthManager. In other words, if you set\n``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in\nAirflow's configuration.\n",
                 "options": {
@@ -1556,6 +1634,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "allow_idp_initiated_login": {
+                        "description": "Whether to accept SAML assertions that no login started from Airflow asked for, such as\nthe ones produced by clicking the Airflow tile in the AWS Identity Center access portal\n(IdP-initiated SSO).\n\nWhen this is disabled, a SAML response is only accepted if it answers an AuthnRequest that\nthe same browser started. That binding is what stops an assertion obtained elsewhere from\nbeing accepted in another user's browser, which would sign that user in as the assertion's\nsubject. Enable it only where the access portal flow is required and that trade-off is\naccepted.\n",
+                        "version_added": "9.37.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "False",
+                    },
                 },
             },
         },
@@ -1563,8 +1648,12 @@ def get_provider_info():
             "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor",
             "airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor",
+            "airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor",
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
-        "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider",
+            "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+        ],
     }

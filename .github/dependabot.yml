@@ -45,7 +45,7 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
       github-actions-updates:
         patterns:
@@ -248,7 +248,7 @@ updates:
           - "*"
         applies-to: security-updates
 
-  # Repeat dependency updates on v3-3-test branch as well
+  # Repeat dependency updates on v3-4-test branch as well
   - package-ecosystem: pip
     cooldown:
       default-days: 4
@@ -264,7 +264,7 @@ updates:
       - /
     schedule:
       interval: daily
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
       pip-dependency-updates:
         patterns:
@@ -277,9 +277,9 @@ updates:
       - /airflow-core/src/airflow/ui
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
-      3-3-core-ui-package-updates:
+      3-4-core-ui-package-updates:
         patterns:
           - "*"
         update-types:
@@ -296,9 +296,9 @@ updates:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
-      3-3-auth-ui-package-updates:
+      3-4-auth-ui-package-updates:
         patterns:
           - "*"
         update-types:
@@ -308,49 +308,15 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # The remaining directories are mirrored onto v3-3-test as well. Dependabot raises security
-  # updates against the default branch only, so a fixed version reaches the maintenance branch
-  # through its own version updates - Dependabot resolves and regenerates the lock file on that
-  # branch, which a cherry-picked lock file diff from main cannot do. Majors stay ignored, so a
-  # fix that needs a major bump still has to be backported by hand.
-  - package-ecosystem: npm
-    cooldown:
-      default-days: 4
-    directories:
-      - /providers/edge3/src/airflow/providers/edge3/plugins/www
-    schedule:
-      interval: "weekly"
-    target-branch: v3-3-test
-    groups:
-      3-3-edge-ui-package-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: npm
-    cooldown:
-      default-days: 4
-    directories:
-      - /providers/fab/src/airflow/providers/fab/www
-    schedule:
-      interval: daily
-    target-branch: v3-3-test
-    groups:
-      3-3-fab-ui-package-updates:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
+  # The remaining non-provider directories are mirrored onto v3-4-test as well. Dependabot raises
+  # security updates against the default branch only, so a fixed version reaches the maintenance
+  # branch through its own version updates - Dependabot resolves and regenerates the lock file on
+  # that branch, which a cherry-picked lock file diff from main cannot do. Majors stay ignored, so
+  # a fix that needs a major bump still has to be backported by hand.
+  #
+  # Provider directories (providers/*) are deliberately NOT mirrored onto v3-4-test: providers are
+  # released from main, so their dependencies on a maintenance branch never ship to users and the
+  # PRs are pure review noise.
   - package-ecosystem: npm
     cooldown:
       default-days: 4
@@ -358,9 +324,9 @@ updates:
       - /registry
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
-      3-3-registry-package-updates:
+      3-4-registry-package-updates:
         patterns:
           - "*"
         update-types:
@@ -377,9 +343,9 @@ updates:
       - /dev/react-plugin-tools/react_plugin_template
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
-      3-3-ui-plugin-template-package-updates:
+      3-4-ui-plugin-template-package-updates:
         patterns:
           - "*"
         update-types:
@@ -395,9 +361,9 @@ updates:
     directory: "/dev/breeze"
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     groups:
-      3-3-uv-dependency-updates:
+      3-4-uv-dependency-updates:
         patterns:
           - "*"
         update-types:
@@ -466,10 +432,10 @@ updates:
     directory: "/go-sdk"
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
+    target-branch: v3-4-test
     open-pull-requests-limit: 0
     groups:
-      3-3-go-sdk-security-updates:
+      3-4-go-sdk-security-updates:
         patterns:
           - "*"
         applies-to: security-updates

@@ -66,6 +66,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         "dataset_id",
         "table_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -128,6 +129,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                         project_id=self.project_id,
                         poll_interval=self.poke_interval,
                         gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
                         hook_params={
                             "impersonation_chain": self.impersonation_chain,
                         },
@@ -175,6 +177,7 @@ class BigQueryRoutineExistenceSensor(BaseSensorOperator):
         "dataset_id",
         "routine_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -241,6 +244,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         "table_id",
         "partition_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -298,6 +302,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
                         partition_id=self.partition_id,
                         poll_interval=self.poke_interval,
                         gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
                         hook_params={
                             "impersonation_chain": self.impersonation_chain,
                         },
@@ -356,6 +361,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         "dataset_id",
         "table_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#f0eee4"

@@ -21,9 +21,11 @@ import { FiLock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
-import { Menu } from "src/components/ui";
+
+import { Menu } from "src/system-components";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 
 export const SecurityButton = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
@@ -40,23 +42,22 @@ export const SecurityButton = () => {
   });
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
+    <NavMenu
+      trigger={
         <NavButton
           icon={FiLock}
           title={translate("nav.security")}
           to={securityItems.map(({ path }) => path)}
         />
-      </Menu.Trigger>
-      <Menu.Content>
-        {securityItems.map(({ path, securityKey, text }) => (
-          <Menu.Item asChild key={text} value={text}>
-            <Link aria-label={text} to={path}>
-              {translate(`security.${securityKey}`)}
-            </Link>
-          </Menu.Item>
-        ))}
-      </Menu.Content>
-    </Menu.Root>
+      }
+    >
+      {securityItems.map(({ path, securityKey, text }) => (
+        <Menu.Item asChild key={text} value={text}>
+          <Link aria-label={text} to={path}>
+            {translate(`security.${securityKey}`)}
+          </Link>
+        </Menu.Item>
+      ))}
+    </NavMenu>
   );
 };

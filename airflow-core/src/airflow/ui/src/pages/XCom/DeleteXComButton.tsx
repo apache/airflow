@@ -24,8 +24,10 @@ import { FiTrash2 } from "react-icons/fi";
 import { useXcomServiceGetXcomEntriesKey } from "openapi/queries";
 import { XcomService } from "openapi/requests/services.gen";
 import type { XComResponse, DeleteXcomEntryData } from "openapi/requests/types.gen";
+
+import { IconButton, toaster } from "src/system-components";
+
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton, toaster } from "src/components/ui";
 
 type DeleteXComButtonProps = {
   readonly xcom: XComResponse;
@@ -63,6 +65,8 @@ const DeleteXComButton = ({ xcom }: DeleteXComButtonProps) => {
       dagId: xcom.dag_id,
       dagRunId: xcom.run_id,
       mapIndex: xcom.map_index,
+      regionId: xcom.region_id,
+      regionIndex: xcom.region_index,
       taskId: xcom.task_id,
       xcomKey: xcom.key,
     });

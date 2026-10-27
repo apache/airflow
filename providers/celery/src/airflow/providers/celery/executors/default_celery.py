@@ -23,11 +23,14 @@ import json
 import logging
 import re
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowConfigException
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+
+from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, AirflowException, conf
 
 if TYPE_CHECKING:
     from typing import Any
@@ -112,6 +115,23 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     return broker_transport_options
 
 
+def _get_database_engine_options(result_backend: str, options: dict[str, Any]) -> dict[str, Any]:
+    if not result_backend.startswith("db+"):
+        return options
+    try:
+        driver = make_url(result_backend.removeprefix("db+")).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Defer invalid or unavailable dialects to Celery's backend initialization.
+        return options
+    if driver != "psycopg":
+        return options
+    # Celery creates its own engines, so metadata-engine defaults do not protect transaction poolers.
+    return {
+        **options,
+        "connect_args": {"prepare_threshold": None, **options.get("connect_args", {})},
+    }
+
+
 def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
     """
     Build Celery configuration using team-aware config.
@@ -177,8 +197,12 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         ),
         "result_backend": result_backend,
         "result_backend_transport_options": result_backend_transport_options,
-        "database_engine_options": team_conf.getjson(
-            "celery", "result_backend_sqlalchemy_engine_options", fallback={}
+        "database_engine_options": _get_database_engine_options(
+            result_backend,
+            cast(
+                "dict[str, Any]",
+                team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            ),
         ),
         "worker_concurrency": team_conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
         "worker_enable_remote_control": team_conf.getboolean(
@@ -195,7 +219,9 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
     # Handle SSL configuration
     try:
         celery_ssl_active = team_conf.getboolean("celery", "SSL_ACTIVE", fallback=False)
-    except AirflowConfigException:
+    # ``team_conf`` is the Task SDK parser at module scope and core's ``ExecutorConf`` on the
+    # multi-team path. Their ``AirflowConfigException`` classes share a name but are not the same class.
+    except (AirflowConfigException, CoreAirflowConfigException):
         log.warning("Celery Executor will run without SSL")
         celery_ssl_active = False
 

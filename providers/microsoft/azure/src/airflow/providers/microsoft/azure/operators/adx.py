@@ -45,7 +45,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     """
 
     ui_color = "#00a1f2"
-    template_fields: Sequence[str] = ("query", "database")
+    template_fields: Sequence[str] = ("query", "database", "azure_data_explorer_conn_id")
     template_ext: Sequence[str] = (".kql",)
 
     def __init__(

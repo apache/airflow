@@ -28,6 +28,15 @@ def get_provider_info():
         "description": "`Microsoft Azure <https://azure.microsoft.com/>`__\n",
         "integrations": [
             {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "external-doc-url": "https://learn.microsoft.com/en-us/analysis-services/azure-analysis-services/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-microsoft-azure/operators/analysis_services.rst"
+                ],
+                "logo": "/docs/integration-logos/Microsoft-Azure.png",
+                "tags": ["azure"],
+            },
+            {
                 "integration-name": "Microsoft Azure Batch",
                 "external-doc-url": "https://azure.microsoft.com/en-us/services/batch/",
                 "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/batch.rst"],
@@ -111,6 +120,13 @@ def get_provider_info():
                 "tags": ["azure"],
             },
             {
+                "integration-name": "Microsoft Azure AI Search",
+                "external-doc-url": "https://learn.microsoft.com/en-us/azure/search/",
+                "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/ai_search.rst"],
+                "logo": "/docs/integration-logos/Microsoft-Azure.png",
+                "tags": ["azure"],
+            },
+            {
                 "integration-name": "Microsoft Azure Service Bus",
                 "external-doc-url": "https://azure.microsoft.com/en-us/services/service-bus/",
                 "logo": "/docs/integration-logos/Service-Bus.svg",
@@ -149,6 +165,10 @@ def get_provider_info():
             },
         ],
         "operators": [
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.operators.analysis_services"],
+            },
             {
                 "integration-name": "Microsoft Azure Compute",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.compute"],
@@ -204,6 +224,10 @@ def get_provider_info():
         ],
         "sensors": [
             {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.sensors.analysis_services"],
+            },
+            {
                 "integration-name": "Microsoft Azure Compute",
                 "python-modules": ["airflow.providers.microsoft.azure.sensors.compute"],
             },
@@ -229,6 +253,10 @@ def get_provider_info():
             "airflow.providers.microsoft.azure.fs.msgraph",
         ],
         "hooks": [
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.analysis_services"],
+            },
             {
                 "integration-name": "Microsoft Azure Compute",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.compute"],
@@ -260,6 +288,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.ai_agents"],
+            },
+            {
+                "integration-name": "Microsoft Azure AI Search",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.ai_search"],
             },
             {
                 "integration-name": "Microsoft Azure Data Lake Storage",
@@ -298,7 +330,17 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.powerbi"],
             },
         ],
+        "bundles": [
+            {
+                "integration-name": "Microsoft Azure Blob Storage",
+                "python-modules": ["airflow.providers.microsoft.azure.bundles.wasb"],
+            }
+        ],
         "triggers": [
+            {
+                "integration-name": "Microsoft Azure Analysis Services",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.analysis_services"],
+            },
             {
                 "integration-name": "Microsoft Azure Batch",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.batch"],
@@ -378,7 +420,23 @@ def get_provider_info():
                 "python-module": "airflow.providers.microsoft.azure.transfers.gcs_to_wasb",
             },
         ],
+        "notifications": ["airflow.providers.microsoft.azure.notifications.msgraph.MSGraphNotifier"],
         "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.microsoft.azure.hooks.analysis_services.AzureAnalysisServicesHook",
+                "hook-name": "Azure Analysis Services",
+                "connection-type": "azure_analysis_services",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {
+                        "host": "Region Endpoint",
+                        "login": "Client ID",
+                        "password": "Client Secret",
+                    },
+                    "placeholders": {"host": "westus.asazure.windows.net"},
+                },
+                "conn-fields": {"tenantId": {"label": "Tenant ID", "schema": {"type": ["string", "null"]}}},
+            },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",
                 "hook-name": "Azure",
@@ -392,6 +450,7 @@ def get_provider_info():
                         "password": "secret (token credentials auth)",
                         "tenantId": "tenantId (token credentials auth)",
                         "subscriptionId": "subscriptionId (token credentials auth)",
+                        "cloud_environment": "AzurePublicCloud (default) | AzureUSGovernment | AzureChinaCloud",
                     },
                 },
                 "conn-fields": {
@@ -441,6 +500,43 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"]},
                     },
                     "endpoint": {"label": "Project Endpoint", "schema": {"type": ["string", "null"]}},
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.microsoft.azure.hooks.ai_search.AzureAISearchHook",
+                "hook-name": "Azure AI Search",
+                "connection-type": "azure_ai_search",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "host": "Search Service Endpoint",
+                        "login": "Azure Client ID",
+                        "password": "Azure Secret or API Key",
+                    },
+                    "placeholders": {
+                        "host": "https://<service>.search.windows.net",
+                        "login": "client_id (service principal only)",
+                        "password": "secret (service principal), or an API key when no client_id is set",
+                        "tenantId": "tenantId (service principal only)",
+                        "index": "index used when the hook is given none",
+                        "batch_size": "documents per write request, 1 to 1000 (default 1000)",
+                    },
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "index": {"label": "Default Index", "schema": {"type": ["string", "null"]}},
+                    "batch_size": {
+                        "label": "Batch Size",
+                        "schema": {"type": ["integer", "null"], "minimum": 1, "maximum": 1000},
+                    },
                     "managed_identity_client_id": {
                         "label": "Managed Identity Client ID",
                         "schema": {"type": ["string", "null"]},
@@ -816,7 +912,7 @@ def get_provider_info():
                     "placeholders": {
                         "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authentication)",
                         "credential": "credential",
-                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/; SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
+                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
                     },
                 },
                 "conn-fields": {
@@ -956,6 +1052,7 @@ def get_provider_info():
             },
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
+        "email-backends": ["airflow.providers.microsoft.azure.hooks.msgraph.send_email"],
         "logging": ["airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler"],
         "remote-logging": [
             {

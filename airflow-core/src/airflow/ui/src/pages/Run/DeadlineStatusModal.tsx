@@ -16,19 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Badge, HStack, Separator, Skeleton, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
+import { Modal, Pagination } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
-import { renderDuration } from "src/utils/datetimeUtils";
+
+import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
 
 const PAGE_LIMIT = 10;
@@ -51,6 +54,7 @@ export const DeadlineStatusModal = ({
   runEndDate,
 }: DeadlineStatusModalProps) => {
   const { t: translate } = useTranslation("dag");
+  const { locale, renderDuration } = useDurationFormat();
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
@@ -114,14 +118,14 @@ export const DeadlineStatusModal = ({
           {deadlines.map((dl) => {
             const alert =
               dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-            const completionRule = translateCompletionRule(translate, alert);
+            const completionRule = translateCompletionRule(translate, alert, locale);
             const deadlineTime = dayjs(dl.deadline_time);
 
             let actualDurationLabel: string | undefined;
 
             if (dl.missed && runEndDate !== undefined) {
               const diff = dayjs(runEndDate).diff(deadlineTime);
-              const dur = renderDuration(Math.abs(diff) / 1000, false);
+              const dur = renderDuration(Math.abs(diff) / 1000);
 
               if (dur !== undefined) {
                 actualDurationLabel =

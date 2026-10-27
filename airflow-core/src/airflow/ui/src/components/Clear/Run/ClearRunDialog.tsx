@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
@@ -110,41 +113,41 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   return (
     <Modal
       footerActions={
-        <>
-          <Button
-            disabled={affectedTasks.total_entries === 0}
-            loading={isPending}
-            onClick={() => {
-              mutate({
-                dagId,
-                dagRunId,
-                requestBody: {
-                  dry_run: false,
-                  note: note === dagRun.note ? undefined : note,
-                  only_failed: onlyFailed,
-                  only_new: onlyNew,
-                  run_on_latest_version: runOnLatestVersion,
-                },
-              });
-            }}
+        <Button
+          disabled={affectedTasks.total_entries === 0}
+          loading={isPending}
+          onClick={() => {
+            mutate({
+              dagId,
+              dagRunId,
+              requestBody: {
+                dry_run: false,
+                note: note === dagRun.note ? undefined : note,
+                only_failed: onlyFailed,
+                only_new: onlyNew,
+                run_on_latest_version: runOnLatestVersion,
+              },
+            });
+          }}
+        >
+          <CgRedo /> {translate("modal.confirm")}
+        </Button>
+      }
+      footerOptions={
+        shouldShowBundleVersionOption ? (
+          <Checkbox
+            checked={runOnLatestVersionForced || runOnLatestVersion}
+            disabled={runOnLatestVersionForced}
+            onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+            title={
+              runOnLatestVersionForced
+                ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                : undefined
+            }
           >
-            <CgRedo /> {translate("modal.confirm")}
-          </Button>
-          {shouldShowBundleVersionOption ? (
-            <Checkbox
-              checked={runOnLatestVersionForced || runOnLatestVersion}
-              disabled={runOnLatestVersionForced}
-              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-              title={
-                runOnLatestVersionForced
-                  ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
-                  : undefined
-              }
-            >
-              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-            </Checkbox>
-          ) : undefined}
-        </>
+            {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+          </Checkbox>
+        ) : undefined
       }
       lazyMount
       onOpenChange={(details) => {

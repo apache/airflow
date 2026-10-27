@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+import smtplib
 import tempfile
 from dataclasses import dataclass
 from unittest import mock
@@ -94,6 +96,31 @@ TEMPLATED_TI_SENDER = TemplatedString(f"{TI_TEMPLATE_STRING}_{SENDER_EMAIL_SUFFI
 
 
 class TestSmtpNotifier:
+    @mock.patch("smtplib.SMTP_SSL", autospec=True)
+    def test_repeated_notifications_reconnect(self, mock_smtp_ssl, monkeypatch):
+        monkeypatch.setenv(
+            f"AIRFLOW_CONN_{SMTP_CONN_ID.upper()}",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "smtp.example.com",
+                    "port": 465,
+                    "extra": {"disable_tls": True},
+                }
+            ),
+        )
+        clients = [mock.create_autospec(smtplib.SMTP, instance=True) for _ in range(2)]
+        mock_smtp_ssl.side_effect = clients
+        notifier = SmtpNotifier(**NOTIFIER_DEFAULT_PARAMS)
+
+        notifier.notify({})
+        notifier.notify({})
+
+        assert mock_smtp_ssl.call_count == 2
+        for client in clients:
+            client.sendmail.assert_called_once()
+            client.close.assert_called_once()
+
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier(_self, mock_smtphook_hook, create_dag_without_db):
         notifier = send_smtp_notification(**NOTIFIER_DEFAULT_PARAMS)

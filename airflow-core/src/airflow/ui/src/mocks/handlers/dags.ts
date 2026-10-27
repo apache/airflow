@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -26,6 +26,7 @@ const successDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: true,
   is_paused: false,
   is_stale: false,
@@ -52,7 +53,7 @@ const successDag = {
   timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -60,6 +61,7 @@ const failedDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -86,7 +88,7 @@ const failedDag = {
   timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:
@@ -94,6 +96,7 @@ const pausedDag = {
   fileloc: "/airflow/dags/paused_dag.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: true,
   is_stale: false,
@@ -109,41 +112,76 @@ const pausedDag = {
   timetable_type: "NullTimetable",
 };
 
-const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetableTypes: Array<string> }) => {
-  let allDags = [successDag, failedDag, pausedDag];
+export const drainingDag = {
+  dag_display_name: "draining_dag",
+  dag_id: "draining_dag",
+  file_token:
+    ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
+  fileloc: "/airflow/dags/draining_dag.py",
+  has_import_errors: false,
+  has_task_concurrency_limits: false,
+  has_unfinished_runs: true,
+  is_favorite: false,
+  is_paused: false,
+  is_stale: false,
+  last_parsed_time: "2025-01-13T07:34:01.593459Z",
+  latest_dag_runs: [],
+  max_active_runs: 16,
+  max_active_tasks: 16,
+  max_consecutive_failed_dag_runs: 0,
+  owners: ["airflow"],
+  pending_actions: [],
+  scheduling_state: "draining",
+  tags: [{ dag_id: "draining_dag", name: "example" }],
+  timetable_description: "Never, external triggers only",
+  timetable_type: "NullTimetable",
+};
+
+export const defaultDags = [successDag, failedDag, pausedDag];
+
+const filterDags = ({
+  dags,
+  paused,
+  schedulingState,
+  timetableTypes,
+}: {
+  dags: Array<(typeof defaultDags)[number] | typeof drainingDag>;
+  paused: string | null;
+  schedulingState: string | null;
+  timetableTypes: Array<string>;
+}) => {
+  let allDags = dags;
 
   if (timetableTypes.length > 0) {
     allDags = allDags.filter((dag) => timetableTypes.includes(dag.timetable_type));
   }
 
+  // Narrower than ``paused=false``: a draining Dag is unpaused, so the two are not alternatives.
+  if (schedulingState === "draining") {
+    allDags = allDags.filter((dag) => "scheduling_state" in dag && dag.scheduling_state === "draining");
+  }
+
   if (paused === "true") {
     return allDags.filter((dag) => dag.is_paused);
   }
-  if (paused === "false") {
-    return allDags.filter((dag) => !dag.is_paused);
-  }
 
-  return allDags;
+  return paused === "false" ? allDags.filter((dag) => !dag.is_paused) : allDags;
 };
 
-export const handlers: Array<HttpHandler> = [
-  http.get("/ui/dags/timetable_types", ({ request }) => {
-    const url = new URL(request.url);
-    const prefix = url.searchParams.get("timetable_type_prefix_pattern") ?? "";
-    const timetableTypes = ["CronTriggerTimetable", "NullTimetable"].filter((timetableType) =>
-      timetableType.startsWith(prefix),
-    );
-
-    return HttpResponse.json({
-      timetable_types: timetableTypes,
-      total_entries: timetableTypes.length,
-    });
-  }),
+/**
+ * ``/ui/dags`` over a caller-chosen fixture, so a suite can add the Dags it needs without
+ * enlarging the set every other suite renders.
+ */
+export const dagsListHandler = (
+  dags: Array<(typeof defaultDags)[number] | typeof drainingDag> = defaultDags,
+) =>
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
+    const anyDagRunState = url.searchParams.get("dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
+    const schedulingState = url.searchParams.get("scheduling_state");
     const timetableTypes = url.searchParams.getAll("timetable_type");
 
     if (lastDagRunState === "success") {
@@ -158,17 +196,44 @@ export const handlers: Array<HttpHandler> = [
       });
     }
 
-    let dags = filterDags({ paused, timetableTypes });
+    // Any-run matching: pretend every Dag has a failed run somewhere in its history, so
+    // widening the pill's lookback from the latest run visibly changes the result set.
+    if (anyDagRunState === "failed") {
+      return HttpResponse.json({
+        dags: [failedDag, successDag],
+        total_entries: 2,
+      });
+    }
+
+    let filtered = filterDags({ dags, paused, schedulingState, timetableTypes });
 
     if (orderBy === "last_run_run_after" || orderBy === "-last_run_run_after") {
-      dags = [failedDag, successDag, pausedDag].filter((dag) => dags.includes(dag));
+      filtered = [failedDag, successDag, pausedDag, drainingDag].filter((dag) => filtered.includes(dag));
     }
 
     return HttpResponse.json({
-      dags,
-      total_entries: dags.length,
+      dags: filtered,
+      total_entries: filtered.length,
+    });
+  });
+
+export const handlers: Array<HttpHandler> = [
+  http.get("/ui/dags/timetable_types", ({ request }) => {
+    const url = new URL(request.url);
+    const prefix = url.searchParams.get("timetable_type_prefix_pattern") ?? "";
+    const timetableTypes = ["CronTriggerTimetable", "NullTimetable"].filter((timetableType) =>
+      timetableType.startsWith(prefix),
+    );
+
+    return HttpResponse.json({
+      timetable_types: timetableTypes,
+      total_entries: timetableTypes.length,
     });
   }),
+  dagsListHandler(),
+  http.get("/ui/dags/run_state_counts", () => HttpResponse.json({ dags: [], state_count_limit: 1000 })),
+  http.get("/ui/dags/recent_task_instance_state_counts", () => HttpResponse.json({ dags: [] })),
+  http.get("/ui/teams", () => HttpResponse.json({ teams: [], total_entries: 0 })),
   http.get("/api/v2/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");

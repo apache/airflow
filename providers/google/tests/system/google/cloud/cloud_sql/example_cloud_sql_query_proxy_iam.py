@@ -43,6 +43,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 try:
     from airflow.sdk import TriggerRule
@@ -61,8 +62,7 @@ IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 CLOUD_SQL_INSTANCE_NAME = f"{ENV_ID}-{DAG_ID}-postgres".replace("_", "-")
 CLOUD_SQL_DATABASE_NAME = "test_db"
-CLOUD_IAM_SA = os.environ.get("SYSTEM_TESTS_CLOUDSQL_SA", "test_iam_sa")
-CLOUD_SQL_IAM_SA = CLOUD_IAM_SA.split(".gserviceaccount.com")[0]
+CLOUD_IAM_SA = os.environ.get("SYSTEM_TESTS_CLOUDSQL_SA")
 CLOUD_SQL_IP_ADDRESS = "127.0.0.1"
 CLOUD_SQL_PUBLIC_PORT = 5432
 CONNECTION_PROXY_IAM_ID = f"{DAG_ID}_{ENV_ID}_proxy_iam"
@@ -110,6 +110,14 @@ def cloud_sql_database_create_body(instance: str) -> dict[str, Any]:
     }
 
 
+def get_gcp_service_account_email():
+    if CLOUD_IAM_SA is not None:
+        return CLOUD_IAM_SA
+    gcp_hook = GoogleBaseHook()
+    credentials = gcp_hook.get_credentials()
+    return credentials.service_account_email
+
+
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2026, 1, 1),
@@ -130,24 +138,34 @@ with DAG(
         instance=CLOUD_SQL_INSTANCE_NAME,
     )
 
+    @task(task_id="get_service_account_email")
+    def get_service_account_email() -> str:
+        return get_gcp_service_account_email()
+
+    service_account_email_val = get_service_account_email()
+
     @task(task_id="create_user_postgres")
-    def create_user(instance: str, service_account: str) -> None:
+    def create_user(instance: str, service_account_email: str) -> None:
+        service_account_name = service_account_email.split(".gserviceaccount.com")[0]
         with discovery.build("sqladmin", "v1beta4") as service:
             request = service.users().insert(
                 project=PROJECT_ID,
                 instance=instance,
                 body={
-                    "name": service_account,
+                    "name": service_account_name,
                     "type": "CLOUD_IAM_SERVICE_ACCOUNT",
                 },
             )
             request.execute()
 
-    create_user_task = create_user(instance=CLOUD_SQL_INSTANCE_NAME, service_account=CLOUD_SQL_IAM_SA)
+    create_user_task = create_user(
+        instance=CLOUD_SQL_INSTANCE_NAME, service_account_email=service_account_email_val
+    )
 
     @task(task_id="create_connection_postgres")
-    def create_connection(connection_id: str, instance: str) -> str:
+    def create_connection(connection_id: str, instance: str, service_account_email: str) -> str:
         connection: dict[str, Any] = deepcopy(CONNECTION_WITH_PROXY_IAM_KWARGS)
+        connection["login"] = service_account_email
         connection["extra"]["instance"] = instance
         connection["extra"] = json.dumps(connection["extra"])
         create_airflow_connection(
@@ -158,6 +176,7 @@ with DAG(
     create_connection_task = create_connection(
         connection_id=CONNECTION_PROXY_IAM_ID,
         instance=CLOUD_SQL_INSTANCE_NAME,
+        service_account_email=service_account_email_val,
     )
 
     query_task = CloudSQLExecuteQueryOperator(

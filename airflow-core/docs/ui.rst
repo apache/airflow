@@ -482,12 +482,12 @@ The Asset List shows all known assets, grouped by name. For each asset, you can 
 Hovering over a count of Dags or tasks shows a tooltip with the full list of producers or consumers.
 
 .. image:: img/ui-dark/asset_list_consuming_dags.png
-  :alt: Asset Graph View (dark mode)
+  :alt: Asset List (dark mode)
 
 |
 
 .. image:: img/ui-light/asset_list_consuming_dags.png
-  :alt: Asset Graph View (light mode)
+  :alt: Asset List (light mode)
 
 Clicking on the link takes you to the Asset Graph View.
 

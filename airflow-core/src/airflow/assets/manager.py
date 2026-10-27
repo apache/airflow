@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Iterable
-from contextlib import contextmanager
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -48,7 +47,7 @@ from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -66,59 +65,7 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-
-@contextmanager
-def _lock_asset_model(
-    *,
-    session: Session,
-    asset_id: int,
-    max_retries: int = 10,
-    retry_delay: float = 0.1,
-):
-    """
-    Context manager to acquire a lock for AssetPartitionDagRun creation.
-
-    - SQLite: Use a no-op ORM update to trigger a write-transaction and acquire SQLite's global writer lock.
-    - Postgres/MySQL: uses row-level lock on AssetModel.
-    """
-    if get_dialect_name(session) == "sqlite":
-        import time
-
-        from sqlalchemy import update
-
-        # no-op update
-        # This is used to acquire SQLite's global writer lock.
-        stmt = update(AssetModel).where(AssetModel.id == asset_id).values(id=AssetModel.id)
-        for _ in range(max_retries):
-            try:
-                session.execute(stmt)
-                session.flush()
-            except exc.OperationalError as err:
-                err_msg = str(err).lower()
-                if "locked" in err_msg or "busy" in err_msg:
-                    session.rollback()
-                    time.sleep(retry_delay)
-                    continue
-
-            # lock acquired
-            yield
-            return
-
-        raise RuntimeError(f"Could not acquire SQLite AssetModel writer lock for asset_id={asset_id}")
-    else:
-        # Postgres/MySQL row-level lock
-        if (
-            session.scalar(
-                with_row_locks(
-                    query=select(AssetModel.id).where(AssetModel.id == asset_id),
-                    session=session,
-                    key_share=True,
-                )
-            )
-        ) is None:
-            raise RuntimeError(f"Asset {asset_id} does not exist – cannot lock.")
-
-        yield
+_APDR_GET_OR_CREATE_ATTEMPTS = 2
 
 
 class AssetManager(LoggingMixin):
@@ -340,18 +287,25 @@ class AssetManager(LoggingMixin):
             "partition_key": partition_key,
         }
         if task_instance:
+            # TaskInstance imports the asset manager.
+            from airflow.models.task_coordinates import get_public_map_index
+
+            source_map_index = get_public_map_index(task_instance, session=session)
             event_kwargs.update(
                 source_task_id=task_instance.task_id,
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
+                source_map_index=source_map_index,
+                source_task_instance_id=task_instance.id,
             )
 
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
         session.flush()
 
-        dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
+        dags_to_queue_from_asset = {
+            ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused and not ref.dag.is_draining
+        }
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
@@ -379,7 +333,7 @@ class AssetManager(LoggingMixin):
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags
-                    if not alias_ref.dag.is_paused
+                    if not alias_ref.dag.is_paused and not alias_ref.dag.is_draining
                 }
         else:
             asset_alias_models = []
@@ -395,6 +349,7 @@ class AssetManager(LoggingMixin):
                         DagScheduleAssetUriReference.uri == asset.uri,
                     ),
                     DagModel.is_paused.is_(False),
+                    DagModel.is_draining.is_(False),
                 )
             )
         )
@@ -516,7 +471,12 @@ class AssetManager(LoggingMixin):
         if not dags_to_queue:
             return None
 
-        partition_dags = [x for x in dags_to_queue if x.timetable_partitioned is True]
+        # An APDR INSERT that collides with another transaction's uncommitted row on the
+        # pending-key unique constraint waits for it. Sorting keeps two events from inserting
+        # rows for the same pair of Dags in opposite orders and deadlocking.
+        partition_dags = sorted(
+            (x for x in dags_to_queue if x.timetable_partitioned is True), key=lambda d: d.dag_id
+        )
         cls._queue_partitioned_dags(
             asset_id=asset_id,
             partition_dags=partition_dags,
@@ -685,7 +645,7 @@ class AssetManager(LoggingMixin):
                     target_partition_date=target_partition_date,
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
-                    asset_id=asset_id,
+                    allow_reuse=timetable.batch_asset_events,
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -706,27 +666,143 @@ class AssetManager(LoggingMixin):
         target_partition_date: datetime | None,
         target_dag: DagModel,
         rollup_fingerprint: dict,
-        asset_id: int,
+        allow_reuse: bool,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
         Get or create an APDR.
 
-        If 2 processes invoke this method at the same time using the same (target_key, target_dag) pair,
-        they may both check the database and, finding no existing APDR, create separate instances.
-        This leads to the unintended outcome of having two APDRs created instead of one.
-        To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
-        AssetPartitionDagRunMutexLock table for SQLite.
+        When ``allow_reuse=True``, an existing pending APDR for the same
+        ``(target_dag, partition_key)`` is reused — multiple events accumulate on one
+        APDR. When ``allow_reuse=False`` (set when the timetable's ``batch_asset_events``
+        is ``False``), a new APDR is always created so each event gets its own APDR
+        and the scheduler produces one DagRun per event.
+
+        With reuse, two processes handling events for the same (target_key, target_dag) pair
+        may both find no pending APDR and both try to create one. The events can come from
+        different producer assets, so nothing they share can be locked to serialize this
+        short of the Dag row. Instead, a reusable APDR is created with ``pending_partition_key``
+        set, the unique constraint on (target_dag_id, pending_partition_key) rejects the second
+        INSERT, and the loser reuses the winner's row.
 
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
+        """
+        if allow_reuse and (
+            pending_apdr := cls._get_latest_pending_apdr(
+                target_key=target_key, target_dag_id=target_dag.dag_id, session=session
+            )
+        ):
+            cls._reconcile_partition_date(
+                apdr=pending_apdr,
+                target_partition_date=target_partition_date,
+                target_dag_id=target_dag.dag_id,
+                target_key=target_key,
+                session=session,
+            )
+            cls.logger().debug(
+                "Existing APDR found for key %s dag_id %s",
+                target_key,
+                target_dag.dag_id,
+                exc_info=True,
+            )
+            return pending_apdr
 
-        Reconciling the carried ``partition_date`` on an existing pending APDR is best-effort:
-        a partitioned consumer's feeding assets are expected to agree on the partition's
-        datetime. The carry only matters for ``IdentityMapper`` (whose key the scheduler
-        cannot decode); temporal/composite feeds re-derive the date from the key at run
-        creation regardless of what is stored here. Within that contract:
+        build_apdr = partial(
+            AssetPartitionDagRun,
+            target_dag_id=target_dag.dag_id,
+            created_dag_run_id=None,
+            partition_key=target_key,
+            pending_partition_key=target_key if allow_reuse else None,
+            partition_date=target_partition_date,
+            rollup_fingerprint=rollup_fingerprint,
+        )
+        if not allow_reuse:
+            apdr = build_apdr()
+            session.add(apdr)
+            session.flush()
+        else:
+            # begin_nested() flushes the caller's pending rows before the savepoint starts, so
+            # rolling it back on a conflict expunges only ``apdr``. The re-lookup after a
+            # conflict sees the winner's row on MySQL only because it runs at READ COMMITTED
+            # (settings.py), unlike its REPEATABLE READ default.
+            for attempt in range(1, _APDR_GET_OR_CREATE_ATTEMPTS + 1):
+                apdr = build_apdr()
+                try:
+                    with session.begin_nested():
+                        session.add(apdr)
+                except exc.IntegrityError:
+                    winner = cls._get_latest_pending_apdr(
+                        target_key=target_key, target_dag_id=target_dag.dag_id, session=session
+                    )
+                    if winner is None:
+                        # The winner was already turned into a Dag run, which cleared its key and
+                        # freed the constraint, so the INSERT can be run again.
+                        if attempt == _APDR_GET_OR_CREATE_ATTEMPTS:
+                            raise
+                        continue
+                    cls.logger().debug(
+                        "Another process created the APDR for key %s dag_id %s first; reusing it",
+                        target_key,
+                        target_dag.dag_id,
+                    )
+                    cls._reconcile_partition_date(
+                        apdr=winner,
+                        target_partition_date=target_partition_date,
+                        target_dag_id=target_dag.dag_id,
+                        target_key=target_key,
+                        session=session,
+                    )
+                    return winner
+                break
+
+        cls.logger().debug(
+            "No existing APDR found. Create APDR for key %s dag_id %s",
+            target_key,
+            target_dag.dag_id,
+            exc_info=True,
+        )
+        return apdr
+
+    @staticmethod
+    def _get_latest_pending_apdr(
+        *, target_key: str, target_dag_id: str, session: Session
+    ) -> AssetPartitionDagRun | None:
+        """
+        Return the latest pending APDR for (target_dag_id, target_key), if any.
+
+        This also matches pending rows created while batching was disabled, which carry no
+        ``pending_partition_key``, so a Dag that turns batching on keeps accumulating onto
+        its most recent pending row.
+        """
+        return session.scalar(
+            select(AssetPartitionDagRun)
+            .where(
+                AssetPartitionDagRun.partition_key == target_key,
+                AssetPartitionDagRun.target_dag_id == target_dag_id,
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+            )
+            .order_by(AssetPartitionDagRun.id.desc())
+            .limit(1)
+        )
+
+    @staticmethod
+    def _reconcile_partition_date(
+        *,
+        apdr: AssetPartitionDagRun,
+        target_partition_date: datetime | None,
+        target_dag_id: str,
+        target_key: str,
+        session: Session,
+    ) -> None:
+        """
+        Reconcile the carried ``partition_date`` on a reused pending APDR.
+
+        This is best-effort: a partitioned consumer's feeding assets are expected to agree
+        on the partition's datetime. The carry only matters for ``IdentityMapper`` (whose key
+        the scheduler cannot decode); temporal/composite feeds re-derive the date from the key
+        at run creation regardless of what is stored here. Within that contract:
 
         - If the APDR carries no date yet (``None`` — created by an event that carried none),
           adopt the incoming date when this event carries one. There is nothing to conflict
@@ -736,64 +812,23 @@ class AssetManager(LoggingMixin):
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
         """
-        with _lock_asset_model(session=session, asset_id=asset_id):
-            latest_apdr: AssetPartitionDagRun | None = session.scalar(
-                select(AssetPartitionDagRun)
-                .where(
-                    AssetPartitionDagRun.partition_key == target_key,
-                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
-                )
-                .order_by(AssetPartitionDagRun.id.desc())
-                .limit(1)
+        existing_partition_date = apdr.partition_date
+        if existing_partition_date is None:
+            if target_partition_date is not None:
+                apdr.partition_date = target_partition_date
+                session.flush()
+        elif target_partition_date is not None and existing_partition_date != target_partition_date:
+            log.warning(
+                "Conflicting partition_date carried for the same target key; "
+                "suppressing it so the consumer DagRun's partition_date is None. "
+                "The producing assets likely disagree on the partition's datetime.",
+                target_dag_id=target_dag_id,
+                target_key=target_key,
+                existing_partition_date=existing_partition_date,
+                incoming_partition_date=target_partition_date,
             )
-            if latest_apdr and latest_apdr.created_dag_run_id is None:
-                existing_partition_date = latest_apdr.partition_date
-                if existing_partition_date is None:
-                    # No carried date yet; adopt the incoming one if present (no conflict
-                    # to resolve). Keeps a later identity event's date from being dropped.
-                    if target_partition_date is not None:
-                        latest_apdr.partition_date = target_partition_date
-                        session.flush()
-                elif target_partition_date is not None and existing_partition_date != target_partition_date:
-                    # Two contributing events carry conflicting partition_dates for the same
-                    # (target_key, target_dag). Choosing one would be order-dependent, so
-                    # suppress: the consumer DagRun gets partition_date=None rather than a
-                    # wrong, unstable value.
-                    log.warning(
-                        "Conflicting partition_date carried for the same target key; "
-                        "suppressing it so the consumer DagRun's partition_date is None. "
-                        "The producing assets likely disagree on the partition's datetime.",
-                        target_dag_id=target_dag.dag_id,
-                        target_key=target_key,
-                        existing_partition_date=existing_partition_date,
-                        incoming_partition_date=target_partition_date,
-                    )
-                    latest_apdr.partition_date = None
-                    session.flush()
-                cls.logger().debug(
-                    "Existing APDR found for key %s dag_id %s",
-                    target_key,
-                    target_dag.dag_id,
-                    exc_info=True,
-                )
-                return latest_apdr
-
-            apdr = AssetPartitionDagRun(
-                target_dag_id=target_dag.dag_id,
-                created_dag_run_id=None,
-                partition_key=target_key,
-                partition_date=target_partition_date,
-                rollup_fingerprint=rollup_fingerprint,
-            )
-            session.add(apdr)
+            apdr.partition_date = None
             session.flush()
-            cls.logger().debug(
-                "No existing APDR found. Create APDR for key %s dag_id %s",
-                target_key,
-                target_dag.dag_id,
-                exc_info=True,
-            )
-            return apdr
 
     @classmethod
     def _queue_dagruns_nonpartitioned(

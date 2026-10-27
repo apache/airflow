@@ -54,7 +54,7 @@ from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_dete
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
-RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
+PRE_RELEASE_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:b|rc)(?P<pre>\d+)$")
 SVN_NUM_TRIES = 3
 SVN_OPERATION_RETRY_DELAY = 5
 
@@ -449,6 +449,32 @@ def generate_and_push_constraints(version, version_branch):
     publish_constraints(version=version, ref=f"v{version_branch}-stable")
 
 
+def validate_test_branch_exists(version_branch, remote_name):
+    """A beta is cut from vX-Y-test; the stable branch does not exist yet during the beta phase."""
+    console_print(f"[info]Validating test branch exists for {version_branch}...")
+    test_branch = f"v{version_branch}-test"
+    run_command(["git", "fetch", remote_name], check=True)
+    result = run_command(["git", "branch", "-r"], check=True, capture_output=True, text=True)
+    if f"{remote_name}/{test_branch}" not in result.stdout:
+        console_print(f"[error]Test branch '{remote_name}/{test_branch}' does not exist!")
+        console_print("Available remote branches:")
+        run_command(["git", "branch", "-r"])
+        exit(1)
+    console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
+
+
+def checkout_test_branch_tip(version_branch, remote_name):
+    """Check out the vX-Y-test tip so the beta is tagged from exactly what was pushed to the branch.
+
+    The version-bump and release-notes commits are pushed to vX-Y-test before the beta is cut, so the
+    beta tag is just the branch tip - no sync PR and no merge.
+    """
+    test_branch = f"v{version_branch}-test"
+    run_command(["git", "checkout", test_branch], check=True)
+    run_command(["git", "reset", "--hard", f"{remote_name}/{test_branch}"], check=True)
+    console_print(f"[success]Checked out {remote_name}/{test_branch} tip for tagging")
+
+
 def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
@@ -647,7 +673,7 @@ def remove_old_releases(version, task_sdk_version, repo_root):
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and RC_PATTERN.match(entry.name):
+        if entry.is_dir() and PRE_RELEASE_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
     console_print(f"The following old Airflow releases should be removed: {old_releases}")
@@ -669,7 +695,7 @@ def remove_old_releases(version, task_sdk_version, repo_root):
             if entry.name == task_sdk_version:
                 # Don't remove the current RC
                 continue
-            if entry.is_dir() and RC_PATTERN.match(entry.name):
+            if entry.is_dir() and PRE_RELEASE_PATTERN.match(entry.name):
                 old_task_sdk_releases.append(entry.name)
         old_task_sdk_releases.sort()
         console_print(f"The following old Task SDK releases should be removed: {old_task_sdk_releases}")
@@ -855,6 +881,114 @@ def publish_release_candidate(
     push_release_candidate_tag_to_github(version, remote_name)
     push_release_candidate_tag_to_github(f"task-sdk/{task_sdk_version}", remote_name)
     # Create issue for testing
+    os.chdir(airflow_repo_root)
+
+    console_print()
+    console_print("Done!")
+
+
+@release_management_group.command(
+    name="start-beta-process",
+    short_help="Start beta process",
+    help="Start the process for releasing a new beta pre-release.",
+)
+@click.option("--version", required=True, help="The beta version e.g. 3.4.0b1")
+@click.option("--task-sdk-version", required=True, help="The task SDK version e.g. 1.5.0b1.")
+@click.option(
+    "--remote-name",
+    default="upstream",
+    help=(
+        "Git remote name that tracks apache/airflow and receives release tags / branch pushes "
+        "(default: 'upstream' per the standard remote naming convention — "
+        "see contributing-docs/10_working_with_git.rst). Override if your release clone uses a "
+        "different name (for example 'origin' when you clone apache/airflow directly)."
+    ),
+)
+@option_answer
+@option_dry_run
+@option_verbose
+def publish_beta(version, task_sdk_version, remote_name):
+    """Cut a beta pre-release from vX-Y-test.
+
+    A beta is released from vX-Y-test only - there is no vX-Y-stable branch yet and no sync PR. The
+    version-bump and release-notes commits are pushed to vX-Y-test beforehand (via normal PRs); this
+    command tags the vX-Y-test tip and resolves the constraints through the release-constraints
+    workflow from vX-Y-test, the same way an rc does.
+    """
+    from packaging.version import Version
+
+    airflow_version = Version(version)
+    if not airflow_version.is_prerelease or airflow_version.pre is None or airflow_version.pre[0] != "b":
+        exit("--version value must be a beta pre-release, e.g. 3.4.0b1")
+
+    version_suffix = airflow_version.pre[0] + str(airflow_version.pre[1])
+    version_branch = str(airflow_version.release[0]) + "-" + str(airflow_version.release[1])
+    version_without_beta = airflow_version.base_version
+
+    task_sdk_version_obj = Version(task_sdk_version)
+    task_sdk_version_without_beta = task_sdk_version_obj.base_version
+
+    os.chdir(AIRFLOW_ROOT_PATH)
+    airflow_repo_root = os.getcwd()
+
+    if not get_dry_run():
+        validate_remote_tracks_apache_airflow(remote_name)
+        validate_git_status()
+        validate_test_branch_exists(version_branch, remote_name)
+        validate_tag_does_not_exist(version, remote_name)
+        validate_tag_does_not_exist(f"task-sdk/{task_sdk_version}", remote_name)
+
+    console_print()
+    console_print(f"Airflow version: {version}")
+    console_print(f"Task SDK version: {task_sdk_version}")
+    console_print(f"version_suffix: {version_suffix}")
+    console_print(f"version_branch: {version_branch}")
+    console_print(f"version_without_beta: {version_without_beta}")
+    console_print(f"task_sdk_version_without_beta: {task_sdk_version_without_beta}")
+    console_print(f"airflow_repo_root: {airflow_repo_root}")
+    console_print(f"remote_name: {remote_name}")
+    console_print()
+    console_print(f"Below are your git remotes. We will push to {remote_name}:")
+    run_command(["git", "remote", "-v"])
+    console_print()
+    confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
+
+    # Tag the vX-Y-test tip directly - no sync PR, no merge.
+    if not get_dry_run():
+        checkout_test_branch_tip(version_branch, remote_name)
+    git_tag(version, f"Apache Airflow {version}")
+    git_tag(f"task-sdk/{task_sdk_version}", f"Airflow Task SDK {task_sdk_version}")
+    git_clean()
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
+    if confirm_action("Use docker to create artifacts?"):
+        create_artifacts_with_docker()
+    elif confirm_action("Use hatch to create artifacts?"):
+        create_artifacts_with_hatch(source_date_epoch)
+    if confirm_action("Create tarball?"):
+        tarball_release(
+            version=version_without_beta,
+            source_date_epoch=source_date_epoch,
+            tarball_type=TarBallType.AIRFLOW,
+            tag=version,
+        )
+    test_airflow()
+    sign_the_release(airflow_repo_root)
+    # Resolve and tag the constraints via the release-constraints workflow from the vX-Y-test sources
+    # the beta is cut from. Like an rc, it allows the provider rc wave and lands on its own
+    # constraints-X.Y.0bN branch/tag without moving the shared constraints-X-Y branch.
+    publish_constraints(version=version, ref=f"v{version_branch}-test")
+    clone_asf_repo(version, airflow_repo_root)
+    move_artifacts_to_svn(
+        version, version_without_beta, task_sdk_version, task_sdk_version_without_beta, airflow_repo_root
+    )
+    push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
+    remove_old_releases(version, task_sdk_version, airflow_repo_root)
+    delete_asf_repo(airflow_repo_root)
+    prepare_pypi_packages(version, version_suffix, airflow_repo_root)
+    push_packages_to_pypi(version)
+    push_release_candidate_tag_to_github(version, remote_name)
+    push_release_candidate_tag_to_github(f"task-sdk/{task_sdk_version}", remote_name)
     os.chdir(airflow_repo_root)
 
     console_print()

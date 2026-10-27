@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from airflow.api_fastapi.common.db.dags import eager_load_teams
@@ -42,8 +42,20 @@ if TYPE_CHECKING:
 
 def generate_assets_with_last_event_query() -> Select:
     """Fetch Assets outer-joined to their latest AssetEvent id/timestamp."""
-    max_asset_event_id_query = (
-        select(AssetEvent.asset_id, func.max(AssetEvent.id).label("max_asset_event_id"))
+    latest_asset_event_timestamps = (
+        select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
+        .group_by(AssetEvent.asset_id)
+        .subquery()
+    )
+    latest_asset_event_ids = (
+        select(AssetEvent.asset_id, func.max(AssetEvent.id).label("last_asset_event_id"))
+        .join(
+            latest_asset_event_timestamps,
+            and_(
+                AssetEvent.asset_id == latest_asset_event_timestamps.c.asset_id,
+                AssetEvent.timestamp == latest_asset_event_timestamps.c.last_timestamp,
+            ),
+        )
         .group_by(AssetEvent.asset_id)
         .subquery()
     )
@@ -54,8 +66,8 @@ def generate_assets_with_last_event_query() -> Select:
             AssetEvent.id.label("last_asset_event_id"),
             AssetEvent.timestamp.label("last_asset_event_timestamp"),
         )
-        .outerjoin(max_asset_event_id_query, AssetModel.id == max_asset_event_id_query.c.asset_id)
-        .outerjoin(AssetEvent, AssetEvent.id == max_asset_event_id_query.c.max_asset_event_id)
+        .outerjoin(latest_asset_event_ids, AssetModel.id == latest_asset_event_ids.c.asset_id)
+        .outerjoin(AssetEvent, AssetEvent.id == latest_asset_event_ids.c.last_asset_event_id)
         .options(
             *eager_load_asset_reference_teams(),
             selectinload(AssetModel.consuming_tasks),

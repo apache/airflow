@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useMemo, useState } from "react";
+
 import { Box, Button, Flex, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
-import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -28,11 +29,18 @@ import {
   useTaskStateStoreServiceListTaskStateStoreKey,
   useTaskStateStoreServiceSetTaskStateStore,
 } from "openapi/queries";
+
+import { Modal, ProgressBar } from "src/system-components";
+
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar } from "src/components/ui";
+
 import { useTimezone } from "src/context/timezone";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useStoreMutation } from "src/queries/useStoreMutation";
+import { isOneOf } from "src/utils";
+
+const isExpiresAtMode = isOneOf(["custom", "default", "never"] as const);
 
 dayjs.extend(tz);
 
@@ -73,6 +81,7 @@ export const TaskStateStoreModal = ({
 }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
   const { selectedTimezone } = useTimezone();
+  const coordinates = useTaskInstanceCoordinates();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const [expiresAt, setExpiresAt] = useState<"custom" | "default" | "never">("default");
@@ -85,7 +94,7 @@ export const TaskStateStoreModal = ({
   );
 
   const { data: existingState, isLoading: isFetchingExisting } = useTaskStateStoreServiceGetTaskStateStore(
-    { dagId, dagRunId: runId, key: storeKey ?? "", mapIndex, taskId },
+    { ...coordinates, dagId, dagRunId: runId, key: storeKey ?? "", mapIndex, taskId },
     undefined,
     { enabled: isEditMode && Boolean(storeKey) },
   );
@@ -121,15 +130,13 @@ export const TaskStateStoreModal = ({
     if (expiresAt === "never") {
       return null;
     }
-    if (expiresAt === "custom") {
-      return dayjs.tz(customExpiresAt, selectedTimezone).toISOString();
-    }
 
-    return "default";
+    return expiresAt === "custom" ? dayjs.tz(customExpiresAt, selectedTimezone).toISOString() : "default";
   };
 
   const onSave = () => {
     setTaskStore({
+      ...coordinates,
       dagId,
       dagRunId: runId,
       key: isEditMode ? (storeKey ?? "") : key,
@@ -191,7 +198,11 @@ export const TaskStateStoreModal = ({
               {translate("dag:taskStateStore.expiresAt.label")}
             </Text>
             <RadioCard.Root
-              onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
+              onValueChange={(details) => {
+                if (isExpiresAtMode(details.value)) {
+                  setExpiresAt(details.value);
+                }
+              }}
               value={expiresAt}
             >
               <Flex gap={2}>

@@ -26,10 +26,10 @@ from unittest import mock
 import pytest
 from azure.common import AzureHttpError
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO, WasbTaskHandler
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -38,7 +38,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 pytestmark = pytest.mark.db_test
 
 
-DEFAULT_DATE = datetime(2020, 8, 10)
+DEFAULT_DATE = timezone.datetime(2020, 8, 10)
 
 
 class TestWasbRemoteLogIOFromConfig:
@@ -465,3 +465,31 @@ class TestWasbTaskHandler:
             delete_local_copy=True,
             filename_template=None,
         )
+
+
+def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
+    """A traversing log path is refused before the file is read or its parent removed.
+
+    ``base_log_folder.joinpath(path)`` is purely lexical, so a ``..``-bearing relative path
+    escapes the log folder. Without the containment check the file would be uploaded to the
+    remote log store and, with ``delete_local_copy``, its parent directory deleted.
+    """
+    base = tmp_path / "logs"
+    base.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.log"
+    secret.write_text("sensitive")
+
+    subject = WasbRemoteLogIO(
+        remote_base="remote/log/location",
+        base_log_folder=base,
+        delete_local_copy=True,
+        wasb_container="container",
+    )
+    with caplog.at_level(logging.WARNING):
+        subject.upload(os.path.join("..", "outside", "secret.log"))
+
+    assert secret.exists()
+    assert outside.exists()
+    assert "outside base_log_folder" in caplog.text

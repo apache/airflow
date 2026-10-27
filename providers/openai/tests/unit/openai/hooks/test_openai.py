@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import os
-from unittest.mock import MagicMock, mock_open, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, mock_open, patch
 
 import pytest
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types import (
     Batch,
@@ -34,11 +36,15 @@ from openai.types import (
 from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import Usage
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from pydantic import BaseModel
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -319,6 +325,39 @@ def test_create_response(mock_openai_hook):
     assert result is expected
 
 
+def test_parse_response(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    expected = mock_openai_hook.conn.responses.parse.return_value
+    result = mock_openai_hook.parse_response(
+        input="Extract: Alice",
+        text_format=Person,
+        model=MODEL,
+        instructions="Be precise.",
+    )
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL,
+        input="Extract: Alice",
+        text_format=Person,
+        instructions="Be precise.",
+    )
+    assert result is expected
+
+
+def test_parse_response_matches_create_response_positional_order(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    # model is the second positional argument, as in create_response; text_format is keyword-only.
+    mock_openai_hook.parse_response("Extract: Alice", MODEL, text_format=Person)
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL, input="Extract: Alice", text_format=Person
+    )
+    with pytest.raises(TypeError, match="text_format"):
+        mock_openai_hook.parse_response("Extract: Alice", Person)
+
+
 def test_get_response(mock_openai_hook):
     expected = mock_openai_hook.conn.responses.retrieve.return_value
     result = mock_openai_hook.get_response("resp_123")
@@ -509,6 +548,41 @@ def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
     assert embeddings == [0.1, 0.2, 0.3]
 
 
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+        pytest.param(
+            [[1, 2], [3, 4]],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="token-batch",
+        ),
+    ],
+)
+def test_create_batched_embeddings(input_text, response_items, expected):
+    hook = OpenAIHook(conn_id="unused")
+    conn = MagicMock(spec=OpenAI)
+    conn.embeddings.create.return_value = CreateEmbeddingResponse(
+        data=[
+            Embedding(embedding=vector, index=index, object="embedding") for index, vector in response_items
+        ],
+        model="text-embedding-3-small",
+        object="list",
+        usage={"prompt_tokens": 4, "total_tokens": 4},
+    )
+    hook.__dict__["conn"] = conn
+
+    embeddings = hook.create_embeddings(input_text)
+
+    assert embeddings == expected
+
+
 @patch("builtins.open", new_callable=mock_open, read_data="test-data")
 def test_upload_file(mock_file_open, mock_openai_hook, mock_file):
     mock_file.name = FILE_NAME
@@ -608,8 +682,19 @@ def test_delete_vector_store_file(mock_openai_hook):
 
 def test_create_batch(mock_openai_hook, mock_terminated_batch):
     mock_openai_hook.conn.batches.create.return_value = mock_terminated_batch
-    batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
+    batch = mock_openai_hook.create_batch(
+        endpoint="/v1/chat/completions",
+        file_id=FILE_ID,
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
     assert batch.id == mock_terminated_batch.id
+    mock_openai_hook.conn.batches.create.assert_called_once_with(
+        input_file_id=FILE_ID,
+        endpoint="/v1/chat/completions",
+        metadata=None,
+        completion_window="24h",
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
 
 
 def test_get_batch(mock_openai_hook, mock_terminated_batch):
@@ -642,6 +727,41 @@ def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
         mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.2, timeout=0.01)
     assert mock_openai_hook.conn.batches.retrieve.call_count >= 1
     assert mock_openai_hook.conn.batches.cancel.call_count == 1
+
+
+def test_wait_for_in_progress_batch_timeout_cancel_failure_does_not_mask_timeout(
+    mock_openai_hook, mock_wip_batch, caplog
+):
+    """A cancellation failure inside the timeout branch must not replace ``OpenAIBatchTimeout``
+    with the cancellation's own exception, and the failure must still be logged.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_wip_batch
+    mock_openai_hook.conn.batches.cancel.side_effect = RuntimeError("cancel failed")
+
+    with caplog.at_level("WARNING"):
+        with pytest.raises(OpenAIBatchTimeout, match="Timeout"):
+            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.01)
+
+    assert mock_openai_hook.conn.batches.cancel.call_count == 1
+    assert any("Failed to request cancellation of batch" in message for message in caplog.messages)
+
+
+@pytest.mark.parametrize("status", ["cancelled", "cancelling"])
+def test_wait_for_cancelled_batch_raises_exact_cancelled_type(mock_openai_hook, status):
+    """``OpenAIBatchCancelled`` is a subclass of ``OpenAIBatchJobException``, so asserting
+    only the base class would stay green even if this raised the wrong (base) type. Assert
+    the exact type to prove the exception was actually narrowed.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch(status)
+    with pytest.raises(OpenAIBatchCancelled):
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+
+
+def test_wait_for_expired_batch_message_does_not_mention_hour_window(mock_openai_hook):
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch("expired")
+    with pytest.raises(OpenAIBatchJobException, match="completion window") as exc_info:
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+    assert "hour time window" not in str(exc_info.value)
 
 
 def test_openai_hook_test_connection(mock_openai_hook):
@@ -907,3 +1027,206 @@ class TestValidateTriggerEvent:
     )
     def test_valid_event_is_returned(self, event):
         assert validate_execute_complete_event(event) is event
+
+
+def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
+    hook = OpenAIHook()
+    hook.conn = SimpleNamespace(beta=SimpleNamespace())
+    with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
+        hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")
+
+
+def _async_conn(
+    extra: dict, password: str | None = None, host: str | None = None, *, aextra_dejson: bool = True
+) -> Mock:
+    """Connection stub whose ``extra_dejson`` fails on the event loop; ``aextra_dejson=False`` mimics Airflow < 3.3.2."""
+    conn = Mock(spec=["password", "host", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else []))
+    conn.password = password
+    conn.host = host
+    if aextra_dejson:
+        conn.aextra_dejson = AsyncMock(return_value=extra)
+    type(conn).extra_dejson = PropertyMock(side_effect=lambda: _read_off_the_event_loop(extra))
+    return conn
+
+
+def _read_off_the_event_loop(extra: dict) -> dict:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return extra
+    raise AssertionError("extra_dejson sends mask_secret synchronously on the event loop")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("password", "extra", "expected_kwargs"),
+    [
+        pytest.param(
+            "api_key_in_password",
+            {},
+            {"api_key": "api_key_in_password", "base_url": "https://host/v1"},
+            id="api-key-in-password",
+        ),
+        pytest.param(
+            None,
+            {"openai_client_kwargs": {"api_key": "api_key_in_extra", "base_url": "https://other/v1"}},
+            {"api_key": "api_key_in_extra", "base_url": "https://other/v1"},
+            id="api-key-and-base-url-in-extra",
+        ),
+        pytest.param(
+            "api_key",
+            {"openai_client_kwargs": {"timeout": 30}},
+            {"api_key": "api_key", "base_url": "https://host/v1", "timeout": 30},
+            id="openai-client-kwargs",
+        ),
+    ],
+)
+async def test_aget_conn_api_key(password, extra, expected_kwargs):
+    conn = _async_conn(extra, password=password, host="https://host/v1")
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+        ) as mock_get_async_connection,
+        patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI") as mock_client,
+    ):
+        hook = OpenAIHook(conn_id="openai_async")
+        client = await hook.aget_conn()
+
+    mock_get_async_connection.assert_awaited_once_with("openai_async", hook=hook)
+    conn.aextra_dejson.assert_awaited_once_with()
+    mock_client.assert_called_once_with(**expected_kwargs)
+    assert client is mock_client.return_value
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_without_aextra_dejson_reads_extra_dejson_off_the_event_loop(mock_client):
+    conn = _async_conn({"openai_client_kwargs": {"api_key": "api_key_in_extra"}}, aextra_dejson=False)
+    with patch(
+        "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    mock_client.assert_called_once_with(api_key="api_key_in_extra", base_url=None)
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_workload_identity(mock_client):
+    extra = {
+        "auth_type": "workload_identity",
+        "identity_provider_id": "idp",
+        "service_account_id": "sa",
+        "workload_identity_provider": "custom",
+        "token_provider": "some.module.get_token",
+        "openai_client_kwargs": {"api_key": "ignored"},
+    }
+    conn = _async_conn(extra, host="https://host/v1")
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        patch.object(OpenAIHook, "_build_workload_identity", return_value={"provider": "custom"}) as build,
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+    build.assert_called_once_with(extra)
+    mock_client.assert_called_once_with(workload_identity={"provider": "custom"}, base_url="https://host/v1")
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_resolves_the_connection_through_the_hook(mock_client):
+    """A subclass overriding ``aget_connection`` supplies the connection, as ``get_connection`` does for ``get_conn``."""
+    conn = _async_conn({}, password="api_key_from_subclass")
+
+    class SubclassedOpenAIHook(OpenAIHook):
+        @classmethod
+        async def aget_connection(cls, conn_id: str):
+            assert conn_id == "openai_async"
+            return conn
+
+    with patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")):
+        await SubclassedOpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+    mock_client.assert_called_once_with(api_key="api_key_from_subclass", base_url=None)
+
+
+@pytest.mark.asyncio
+async def test_aget_conn_invalid_auth_type():
+    conn = _async_conn({"auth_type": "magic"})
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        pytest.raises(ValueError, match="Unsupported auth_type 'magic'"),
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param("Sample text", [(0, [0.1, 0.2])], [0.1, 0.2], id="text"),
+        pytest.param([1, 2, 3], [(0, [0.1, 0.2])], [0.1, 0.2], id="tokens"),
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+    ],
+)
+async def test_acreate_embeddings(input_text, response_items, expected):
+    client = _async_client(response_items)
+    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(return_value=client)) as mock_aget_conn:
+        assert (
+            await OpenAIHook(conn_id="openai_async").acreate_embeddings(input_text, dimensions=1024)
+            == expected
+        )
+
+    mock_aget_conn.assert_awaited_once_with()
+    client.embeddings.create.assert_awaited_once_with(
+        model="text-embedding-3-small", input=input_text, dimensions=1024
+    )
+    client.__aexit__.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_acreate_embeddings_concurrent_calls_each_close_their_own_client():
+    clients = [_async_client([(0, [0.1, 0.2])]) for _ in range(3)]
+    hook = OpenAIHook(conn_id="openai_async")
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection",
+            new=AsyncMock(return_value=_async_conn({}, password="api_key")),
+        ),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI", side_effect=clients) as mock_client,
+    ):
+        results = await asyncio.gather(*(hook.acreate_embeddings(f"text {i}") for i in range(3)))
+
+    assert results == [[0.1, 0.2]] * 3
+    assert mock_client.call_count == 3
+    for client in clients:
+        client.embeddings.create.assert_awaited_once()
+        client.__aexit__.assert_awaited_once()
+
+
+def _async_client(response_items: list[tuple[int, list[float]]]) -> MagicMock:
+    """An ``AsyncOpenAI`` stand-in whose ``embeddings.create`` answers with the given (index, vector) items."""
+    client = MagicMock(spec=AsyncOpenAI)
+    client.__aenter__.return_value = client
+    client.embeddings.create = AsyncMock(
+        return_value=CreateEmbeddingResponse(
+            data=[
+                Embedding(embedding=vector, index=index, object="embedding")
+                for index, vector in response_items
+            ],
+            model="text-embedding-3-small",
+            object="list",
+            usage=Usage(prompt_tokens=4, total_tokens=4),
+        )
+    )
+    return client

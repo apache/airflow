@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pendulum
 
 from airflow.providers.common.compat.sdk import TriggerRule
@@ -36,6 +38,7 @@ def example_bash_decorator():
     - Jinja templating and context variables
     - Skip behavior via non-zero exit codes and conditional branching
     - Parameterized environment variables and dynamic command construction
+    - Pushing several named XComs from one task with `multiple_outputs`
 
     For details, see the Bash decorator documentation
     [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/bash.html).
@@ -113,6 +116,32 @@ def example_bash_decorator():
 
     get_file_stats()
     # [END howto_decorator_bash_build_cmd]
+
+    # [START howto_decorator_bash_multiple_outputs]
+    @task.bash(multiple_outputs=True, output_processor=json.loads)
+    def describe_dag_folder() -> str:
+        # The dict must be the last line the command writes: only that line is captured.
+        return """
+            set -e
+            dag_folder="$AIRFLOW_HOME/dags"
+            file_count=$(find "$dag_folder" -type f -name '*.py' 2>/dev/null | wc -l)
+            printf '{"dag_folder": "%s", "file_count": "%s"}\\n' "$dag_folder" "$file_count"
+        """
+
+    dag_stats = describe_dag_folder()
+
+    @task.bash
+    def show_dag_folder_stats() -> str:
+        return 'echo "found $FILE_COUNT Dag file(s) under $DAG_FOLDER"'
+
+    # Each key of the returned dict is available as its own XCom. Values produced by another task
+    # reach the command through the environment, so the shell never parses them as command text.
+    # Environment values must be strings, which is why describe_dag_folder emits file_count as one.
+    show_dag_folder_stats.override(
+        env={"DAG_FOLDER": dag_stats["dag_folder"], "FILE_COUNT": dag_stats["file_count"]},
+        append_env=True,
+    )()
+    # [END howto_decorator_bash_multiple_outputs]
 
     chain(run_me_loop, run_this)
     chain([also_this, also_this_again, this_skips, run_this], run_this_last)

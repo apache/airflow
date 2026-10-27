@@ -15,18 +15,24 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-bedrock:
+.. _howto/connection:pydanticai_bedrock:
 
-Pydantic AI (AWS Bedrock) Connection
-=======================================
+Pydantic AI (AWS Bedrock) connection
+====================================
 
-The ``pydanticai-bedrock`` connection type configures access to
+The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
-for Bedrock's AWS-style credentials — IAM keys, a bearer token, or the default
-credential chain — none of which fit the plain ``api_key`` + ``base_url`` shape
+for Bedrock's AWS-style credentials (IAM keys, a bearer token, or the default
+credential chain), none of which fit the plain ``api_key`` + ``base_url`` shape
 that the generic :doc:`pydantic_ai` connection assumes. All fields live in
 ``extra``; the ``password`` and ``host`` fields are hidden in the connection form.
+
+.. note::
+
+    This connection type was previously named ``pydanticai-bedrock``. Connections
+    stored as a URI or as JSON keep working; a type stored verbatim, such as a row
+    created in the UI, must be re-created. See :ref:`troubleshooting-conn-type-rename`.
 
 Default Connection IDs
 ----------------------
@@ -40,6 +46,14 @@ All fields below are ``extra`` (JSON) fields.
 
 Model
     Bedrock model identifier (e.g. ``bedrock:us.anthropic.claude-opus-4-5``).
+
+    A bare name is automatically resolved to ``bedrock:<name>`` -- Bedrock is this
+    connection type's own platform. This includes Bedrock's version-suffixed ids,
+    which contain a ``:`` of their own (e.g. ``us.anthropic.claude-opus-4-6-v1:0``):
+    that ``:`` is not a recognized pydantic-ai provider name, so it does not count
+    as an existing platform prefix, and the whole bare id still gets ``bedrock:``
+    prepended (``bedrock:us.anthropic.claude-opus-4-6-v1:0``). Writing the
+    ``bedrock:`` prefix yourself has the same effect and is still accepted.
 
 AWS Region
     AWS region (e.g. ``us-east-1``). Falls back to the ``AWS_DEFAULT_REGION``
@@ -70,6 +84,12 @@ Read Timeout (s)
 Connect Timeout (s)
     boto3 connect timeout in seconds (float, optional).
 
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
+
 Credentials
 -----------
 
@@ -77,10 +97,10 @@ The hook passes every field you set on to ``BedrockProvider`` together; when
 more than one credential source is set at once, the bearer token
 (``api_key``) takes precedence over IAM keys:
 
-- A bearer token (``api_key``, mapped to ``AWS_BEARER_TOKEN_BEDROCK``) — used
+- A bearer token (``api_key``, mapped to ``AWS_BEARER_TOKEN_BEDROCK``), used
   first if set.
 - IAM keys (``aws_access_key_id`` + ``aws_secret_access_key``, optionally
-  ``aws_session_token``) — used only when no bearer token is set.
+  ``aws_session_token``), used only when no bearer token is set.
 - The environment-variable / instance-role credential chain
   (``AWS_PROFILE``, IAM role, …) when none of the fields above are set.
 
@@ -95,7 +115,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\"}"
     }
 
@@ -104,7 +124,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\", \"aws_access_key_id\": \"AKIA...\", \"aws_secret_access_key\": \"...\"}"
     }
 
@@ -113,6 +133,6 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"api_key\": \"<bearer-token>\"}"
     }

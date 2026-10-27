@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { useCallback, useState } from "react";
+
+import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle } from "react-icons/fi";
 
 import { useAuthLinksServiceGenerateToken } from "openapi/queries";
 import type { GenerateTokenResponse } from "openapi/requests/types.gen";
-import { Modal, toaster } from "src/components/ui";
-import { ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/components/ui/Clipboard";
+
+import { Modal, toaster, ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/system-components";
 
 type TokenGenerationModalProps = {
   readonly isOpen: boolean;

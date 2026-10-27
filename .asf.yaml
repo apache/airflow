@@ -72,12 +72,20 @@ github:
     rebase: false
 
   pull_requests:
-    # allow auto-merge
-    allow_auto_merge: false
+    # Auto-merge waits for the required "CI passed" check enforced by the "Require CI on main" and
+    # "Require CI on release branches" rulesets. Without a required check it would merge as soon as
+    # the PR is approved, before CI finishes. The setting is repository-wide, so every branch that
+    # PRs target needs one of those rulesets.
+    allow_auto_merge: true
     # enable updating head branches of pull requests
     allow_update_branch: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
+    # cap how many PRs a user without write access may have open at once
+    # (committers and other users with write access are not affected)
+    creation_cap:
+      enabled: true
+      max_open_pull_requests: 5
 
   # Legacy branch protection is being migrated to Rulesets below.
   #
@@ -99,7 +107,64 @@ github:
       required_conversation_resolution: true
       required_signatures: false
 
+  # The two CI rulesets use the raw Rulesets API payload, because the convenience syntax can only name
+  # teams as bypass actors and GitHub refuses secret teams such as `airflow-committers`. Instead the
+  # Write repository role (actor_id 4) bypasses them: on this repository only committers hold it,
+  # granted by ASF Infra from the `airflow` LDAP group, so it needs no update when committers change.
+  # Committers can still merge a PR whose CI is red for an unrelated reason, by bypassing the rule.
+  #
+  # The required checks are not pinned to the GitHub Actions app: asfyaml passes raw values to the
+  # API as strings except for a fixed set of keys, and a string `integration_id` is rejected.
   rulesets:
+    - name: "Require CI on main"
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          include:
+            - "refs/heads/main"
+          exclude: []
+      bypass_actors:
+        - actor_id: 4
+          actor_type: RepositoryRole
+          bypass_mode: always
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: "CI passed"
+    # The branches `ci-amd.yml` runs pull request CI for, apart from `main`. A release branch gets
+    # the "CI passed" job only when it is backported there; until then its PRs need a committer to
+    # bypass the rule.
+    - name: "Require CI on release branches"
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          include:
+            - "refs/heads/v*-test"
+            - "refs/heads/v*-stable"
+            - "refs/heads/providers-*/v*"
+            - "refs/heads/chart/v*-test"
+            - "refs/heads/chart/v*-stable"
+            - "refs/heads/airflow-ctl/v*-test"
+            - "refs/heads/airflow-ctl/v*-stable"
+          exclude: []
+      bypass_actors:
+        - actor_id: 4
+          actor_type: RepositoryRole
+          bypass_mode: always
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: "CI passed"
     - name: "Branch protection"
       type: branch
       branches:

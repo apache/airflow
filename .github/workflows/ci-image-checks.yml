@@ -20,6 +20,11 @@ name: CI Image Checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -119,7 +124,7 @@ jobs:
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -145,7 +150,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ inputs.platform }}
           save-cache: true
       - name: "Static checks"
@@ -155,6 +159,7 @@ jobs:
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
       - name: "Show prek log on failure"
@@ -176,12 +181,8 @@ jobs:
   build-docs:
     timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
     if: inputs.docs-build == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        flag: ["--docs-only", "--spellcheck-only"]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -207,16 +208,16 @@ jobs:
           make-mnt-writeable-and-cleanup: true
       - name: "Restore docs inventory cache"
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
         id: restore-docs-inventory-cache
-      - name: "Building docs with ${{ matrix.flag }} flag"
+      - name: "Building docs"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }} --refresh-airflow-inventories
+          breeze build-docs ${DOCS_LIST_AS_STRING} --refresh-airflow-inventories
       - name: "Check for missing third-party inventories"
         id: check-missing-inventories
         if: always()
@@ -237,12 +238,11 @@ jobs:
         id: get-job-url
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
+          inputs.canary-run == 'true'
         shell: bash
         run: |
           JOB_URL=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Build documentation.*docs-only"))][0].html_url // empty')
+            --jq '[.jobs[] | select(.name | test("Build documentation"))][0].html_url // empty')
           if [[ -z "${JOB_URL}" ]]; then
             JOB_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
@@ -253,8 +253,7 @@ jobs:
         id: inventory-notification
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
+          inputs.canary-run == 'true'
         shell: bash
         run: python3 scripts/ci/slack_notification_state.py
         env:
@@ -265,9 +264,8 @@ jobs:
       - name: "Upload inventory notification state"
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+          inputs.canary-run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           # yamllint disable-line rule:line-length
           name: "slack-state-inventory-${{ inputs.branch }}-${{ contains(inputs.platform, 'arm') && 'arm' || 'amd' }}"
@@ -277,7 +275,6 @@ jobs:
       - name: "Notify Slack about missing inventories (new/changed)"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -293,7 +290,6 @@ jobs:
       - name: "Notify Slack about missing inventories (still not fixed)"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -309,7 +305,6 @@ jobs:
       - name: "Notify Slack about inventory recovery"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -323,23 +318,20 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
           if-no-files-found: 'error'
           retention-days: '2'
-        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
-        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
-        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' && matrix.flag == '--docs-only'
+        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
       - name: "Upload build docs"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: airflow-docs
           path: './generated/_build'
           retention-days: '7'
           if-no-files-found: 'error'
-        if: matrix.flag == '--docs-only'
 
   publish-docs:
     timeout-minutes: 150
@@ -348,7 +340,7 @@ jobs:
       id-token: write
       contents: read
     needs: build-docs
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -375,7 +367,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
       - name: "Download docs prepared as artifacts"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: airflow-docs
           path: './generated/_build'
@@ -385,7 +377,8 @@ jobs:
           sudo chown -R "${USER}" .
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: "Determine Airflow version for SBOMs"
         run: |
           AIRFLOW_VERSION=$(awk -F'"' '/^__version__ = / {print $2}' airflow-core/src/airflow/__init__.py)
@@ -393,7 +386,8 @@ jobs:
           echo "AIRFLOW_VERSION=${AIRFLOW_VERSION}" >> "${GITHUB_ENV}"
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: "Prepare SBOMs"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -404,14 +398,16 @@ jobs:
           --airflow-constraints-reference constraints-main
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: "Generated SBOM files"
         run: |
           echo "Generated SBOM files:"
           find ./generated/_build/docs/apache-airflow/stable/sbom/ -type f | sort
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: Check disk space available
         run: df -H
       - name: Create /mnt/airflow-site directory
@@ -452,26 +448,31 @@ jobs:
           rm -rf /tmp/aws/
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
       - name: "Upload documentation to AWS S3"
+        # `main` only: release branches build a subset of the docs, and `--delete` would remove the
+        # rest from the bucket. Their canaries are dispatched by `release-branch-ci.yml`.
         run: aws s3 sync --delete ./generated/_build s3://apache-airflow-docs
         if: >
           inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref_name == 'main'
 
   test-python-api-client:
     timeout-minutes: 60
     name: "Test Python API client"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
     if: inputs.run-api-codegen == 'true'
     env:
       BACKEND: "postgres"

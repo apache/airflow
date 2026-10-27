@@ -21,9 +21,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
-import { TabEntity, TabName } from "src/constants/tab";
+
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
@@ -37,6 +38,9 @@ import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { Versions } from "src/pages/Dag/Versions";
+import { DagBundle } from "src/pages/DagBundle";
+import { DagBundles } from "src/pages/DagBundles";
 import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
@@ -44,9 +48,10 @@ import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
-import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { GroupTaskInstance, GroupTaskInstances } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
+import { LandingPage } from "src/pages/LandingPage";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
@@ -54,6 +59,7 @@ import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
+import { Callbacks as DagRunCallbacks } from "src/pages/Run/Callbacks";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
 import { Settings } from "src/pages/Settings";
@@ -61,6 +67,7 @@ import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
+import { DefaultTab as TaskInstanceDefaultTab } from "src/pages/TaskInstance/DefaultTab";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
@@ -69,7 +76,8 @@ import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { StorageLayout } from "./layouts/StorageLayout";
+import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+
 import { client } from "./queryClient";
 
 const pluginRoute = {
@@ -78,21 +86,17 @@ const pluginRoute = {
 };
 
 export const taskInstanceRoutes = [
-  { element: <Logs />, index: true, path: undefined },
-  { element: <Events />, path: "events" },
-  {
-    children: [
-      { element: <TaskStateStore />, path: "task-state-store" },
-      { element: <XCom />, path: "xcom" },
-    ],
-    element: <StorageLayout />,
-  },
-  { element: <Code />, path: "code" },
-  { element: <TaskInstanceDetails />, path: "details" },
-  { element: <RenderedTemplates />, path: "rendered_templates" },
-  { element: <TaskInstances />, path: "task_instances" },
-  { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  { element: <HITLResponse />, path: "required_actions" },
+  { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
+  { element: <Logs />, path: TaskInstanceTab.Logs },
+  { element: <Events />, path: TaskInstanceTab.Events },
+  { element: <XCom />, path: TaskInstanceTab.XCom },
+  { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
+  { element: <Code />, path: TaskInstanceTab.Code },
+  { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
+  { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
+  { element: <TaskInstances />, path: TaskInstanceTab.TaskInstances },
+  { element: <TaskInstanceAssetEvents />, path: TaskInstanceTab.AssetEvents },
+  { element: <HITLResponse />, path: TaskInstanceTab.RequiredActions },
   pluginRoute,
 ];
 
@@ -100,8 +104,12 @@ export const routerConfig = [
   {
     children: [
       {
-        element: <Dashboard />,
+        element: <LandingPage />,
         index: true,
+      },
+      {
+        element: <Dashboard />,
+        path: "home",
       },
       {
         element: <HITLTaskInstances enableHITLReviewDrawer />,
@@ -149,6 +157,14 @@ export const routerConfig = [
         path: "assets/:assetId",
       },
       {
+        element: <DagBundles />,
+        path: "dag_bundles",
+      },
+      {
+        element: <DagBundle />,
+        path: "dag_bundles/:bundleName",
+      },
+      {
         element: <Deadlines />,
         path: "deadlines",
       },
@@ -178,7 +194,7 @@ export const routerConfig = [
       },
       {
         element: <Security />,
-        path: "security/:page",
+        path: "security/:page/*",
       },
       {
         element: <Connections />,
@@ -211,6 +227,11 @@ export const routerConfig = [
           { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
           { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
           {
+            element: <Versions />,
+            handle: { entity: TabEntity.Dag, tab: TabName.Versions },
+            path: "versions",
+          },
+          {
             element: <DagDetails />,
             handle: { entity: TabEntity.Dag, tab: TabName.Details },
             path: "details",
@@ -230,6 +251,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <DagRunCallbacks />, path: "callbacks" },
           pluginRoute,
         ],
         element: <Run />,
@@ -249,7 +271,7 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [{ element: <GroupTaskInstances />, index: true }],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },

@@ -23,11 +23,14 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useAssetStateStoreServiceListAssetStateStore } from "openapi/queries";
 import type { AssetStateStoreLastUpdatedBy, AssetStateStoreResponse } from "openapi/requests";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
+
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { AddAssetStateStoreButton } from "./AddAssetStateStoreButton";
@@ -51,7 +54,10 @@ type ColumnsProps = {
   readonly translate: (key: string) => string;
 };
 
-const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<AssetStateStoreResponse>> => [
+const getColumns = ({
+  assetId,
+  translate,
+}: ColumnsProps): Array<ColumnDef<DataTableFeatures, AssetStateStoreResponse>> => [
   {
     accessorKey: "key",
     cell: ({ row: { original } }) => <Text>{original.key}</Text>,
@@ -83,11 +89,23 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
           mapIndex: writer.map_index ?? undefined,
           taskId: writer.task_id,
         });
+        const search = new URLSearchParams();
+
+        if (
+          writer.region_id !== undefined &&
+          writer.region_index !== undefined &&
+          writer.try_number !== null &&
+          writer.try_number !== undefined
+        ) {
+          search.set("region_id", writer.region_id);
+          search.set("region_index", String(writer.region_index));
+          search.set("try_number", String(writer.try_number));
+        }
 
         return (
           <Flex direction="column">
             <Link asChild color="fg.info">
-              <RouterLink to={path}>{writer.task_id}</RouterLink>
+              <RouterLink to={{ pathname: path, search: search.toString() }}>{writer.task_id}</RouterLink>
             </Link>
             <Text color="fg.muted" fontSize="xs">
               {writer.dag_id}
@@ -115,6 +133,7 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
         <DeleteAssetStateStoreButton assetId={assetId} storeKey={original.key} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -127,7 +146,7 @@ export const AssetStateStore = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useAssetStateStoreServiceListAssetStateStore({
+  const { data, error, isLoading } = useAssetStateStoreServiceListAssetStateStore({
     assetId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -144,7 +163,6 @@ export const AssetStateStore = () => {
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="assets:assetStateStore.entry"
         noRowsMessage={translate("assetStateStore.emptyState")}

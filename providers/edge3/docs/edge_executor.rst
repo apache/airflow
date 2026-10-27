@@ -54,6 +54,13 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
+Within the queues a worker listens to, jobs are handed out by
+:ref:`apache-airflow:concepts:priority-weight`. Among the queued tasks that fit in the worker's
+free :ref:`concurrency slots <edge_executor:concurrency_slots>`, the one with the highest
+``priority_weight`` is picked up first. Tasks of equal weight go in the order they were queued.
+:ref:`Callbacks <edge_executor:execute_callback>` are picked up before any task, in the order they
+were queued.
+
 When using EdgeExecutor in addition to other executors and EdgeExecutor not being the default executor
 (that is to say the first one in the list of executors), be reminded to also define EdgeExecutor
 as the executor at task or Dag level in addition to the queues you are targeting.

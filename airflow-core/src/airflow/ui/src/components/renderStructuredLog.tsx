@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Code, Link } from "@chakra-ui/react";
-import type { TFunction } from "i18next";
 import type { JSX, ReactNode } from "react";
 import { Fragment } from "react";
+
+import { chakra, Code, Link } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
+
 import { urlRegex } from "src/constants/urlRegex";
 import { isUserCodeFrame, LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Frame = {
   filename: string;
+  line?: string;
   lineno: number;
   name: string;
 };
@@ -49,6 +53,7 @@ type RenderStructuredLogProps = {
   logLink: string;
   logMessage: string | StructuredLogMessage;
   renderingMode?: "jsx" | "text";
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -150,7 +155,8 @@ const extractFromStructuredDatum = (
   const ctx: Record<string, unknown> = {};
 
   for (const field of tiContextFields) {
-    if (Object.hasOwn(line, field) && line[field] !== undefined) {
+    // Callback triggers log these fields as null since they have no task instance.
+    if (Object.hasOwn(line, field) && line[field] !== undefined && line[field] !== null) {
       ctx[field] = line[field];
     }
   }
@@ -178,6 +184,7 @@ const renderStructuredLogImpl = ({
   logLink,
   logMessage,
   renderingMode = "jsx",
+  showLogLevel = true,
   showSource = true,
   showTimestamp = true,
   sourceFilters,
@@ -224,7 +231,7 @@ const renderStructuredLogImpl = ({
     }
   }
 
-  if (typeof level === "string") {
+  if (typeof level === "string" && showLogLevel) {
     const formattedLevel = level.toUpperCase();
 
     if (renderingMode === "text") {
@@ -252,7 +259,9 @@ const renderStructuredLogImpl = ({
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => {
         if (renderingMode === "text") {
-          return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n`;
+          const sourceLine = frame.line === undefined ? "" : `      ${frame.line}\n`;
+
+          return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n${sourceLine}`;
         }
 
         // Highlight user-code frames (DAG bundle, plugins, local files) in the info blue,
@@ -270,6 +279,11 @@ const renderStructuredLogImpl = ({
               {JSON.stringify(frame.filename)}
             </chakra.span>
             , {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
+            {frame.line === undefined ? undefined : (
+              <chakra.span display="block" ps={4} whiteSpace="pre-wrap">
+                {frame.line}
+              </chakra.span>
+            )}
           </chakra.p>
         );
       });

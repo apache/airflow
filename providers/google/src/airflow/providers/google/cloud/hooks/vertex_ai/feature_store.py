@@ -19,15 +19,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import (
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1beta1 import (
-    FeatureOnlineStoreAdminServiceClient,
-    FeatureOnlineStoreServiceClient,
-)
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -36,6 +30,10 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1beta1 import (
+        FeatureOnlineStoreAdminServiceClient,
+        FeatureOnlineStoreServiceClient,
+    )
     from google.cloud.aiplatform_v1beta1.types import (
         FeatureOnlineStore,
         FeatureView,
@@ -90,6 +88,8 @@ class FeatureStoreHook(GoogleBaseHook):
             If provided and not 'global', the client will be configured to use the
             region-specific API endpoint.
         """
+        from google.cloud.aiplatform_v1beta1 import FeatureOnlineStoreAdminServiceClient
+
         return FeatureOnlineStoreAdminServiceClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
@@ -101,6 +101,8 @@ class FeatureStoreHook(GoogleBaseHook):
         location: str | None = None,
         custom_endpoint: str | None = None,
     ) -> FeatureOnlineStoreServiceClient:
+        from google.cloud.aiplatform_v1beta1 import FeatureOnlineStoreServiceClient
+
         return FeatureOnlineStoreServiceClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
@@ -113,7 +115,7 @@ class FeatureStoreHook(GoogleBaseHook):
     def create_feature_online_store(
         self,
         feature_online_store_id: str,
-        feature_online_store: FeatureOnlineStore,
+        feature_online_store: FeatureOnlineStore | dict,
         project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         timeout: float | _MethodDefault = DEFAULT,
@@ -127,7 +129,8 @@ class FeatureStoreHook(GoogleBaseHook):
         Feature Online Store aims to serve and manage features data as a part of VertexAI MLOps.
 
         :param feature_online_store_id: The ID of the online feature store.
-        :param feature_online_store: The configuration of the online repository.
+        :param feature_online_store: The configuration of the online repository as a
+            FeatureOnlineStore object or dictionary.
         :param project_id: The ID of the Google Cloud project that contains the
             feature store. If not provided, will attempt to determine from the environment.
         :param location: The Google Cloud region where the feature store is located
@@ -196,7 +199,7 @@ class FeatureStoreHook(GoogleBaseHook):
     def create_feature_view(
         self,
         feature_view_id: str,
-        feature_view: FeatureView,
+        feature_view: FeatureView | dict,
         feature_online_store_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
         run_sync_immediately: bool = False,
@@ -215,7 +218,8 @@ class FeatureStoreHook(GoogleBaseHook):
             become the final component of the FeatureView's resource name.
             This value may be up to 60 characters, and valid characters are ``[a-z0-9_]``.
             The first character cannot be a number. The value must be unique within a FeatureOnlineStore.
-        :param feature_view: The configuration of the FeatureView to create.
+        :param feature_view: The configuration of the FeatureView to create as a FeatureView object
+            or dictionary.
         :param feature_online_store_id: The ID of the online feature store.
         :param run_sync_immediately: If set to true, one on demand sync will be run
             immediately, regardless the FeatureView.sync_config.
@@ -327,7 +331,7 @@ class FeatureStoreHook(GoogleBaseHook):
         entity_id: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
         endpoint_domain_name: str | None = None,
-        data_key: FeatureViewDataKey | None = None,
+        data_key: FeatureViewDataKey | dict | None = None,
         data_format: int | None = None,
         location: str | None = None,
         timeout: float | _MethodDefault = DEFAULT,
@@ -346,7 +350,8 @@ class FeatureStoreHook(GoogleBaseHook):
             and default feature store endpoint will be used, based on location provided.
         :param feature_view_id: The FeatureView ID to fetch data from.
         :param feature_online_store_id: The ID of the online feature store.
-        :param data_key: Optional. The request key to fetch feature values for.
+        :param data_key: Optional. The request key to fetch feature values for as a
+            FeatureViewDataKey object or dictionary.
         :param data_format: Optional. Response data format. If not set, FeatureViewDataFormat.KEY_VALUE
             will be used.
         :param project_id: The ID of the Google Cloud project that contains the

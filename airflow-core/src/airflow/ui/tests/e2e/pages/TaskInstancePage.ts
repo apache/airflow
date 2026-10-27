@@ -29,7 +29,7 @@ export class TaskInstancePage extends BasePage {
     super(page);
     this.triggerButton = page.getByTestId("trigger-dag-button");
     this.confirmTriggerButton = page.getByTestId("trigger-dag-submit");
-    this.stateBadge = page.getByTestId("state-badge").first();
+    this.stateBadge = page.getByTestId("header-card").getByTestId("state-badge").first();
   }
 
   public async navigateToDag(dagId: string): Promise<void> {

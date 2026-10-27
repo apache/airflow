@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UIAlert } from "openapi/requests/types.gen";
+
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { Wrapper } from "src/utils/Wrapper";
 

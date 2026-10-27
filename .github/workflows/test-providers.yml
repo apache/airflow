@@ -72,7 +72,7 @@ jobs:
   prepare-install-verify-provider-distributions:
     timeout-minutes: 80
     name: "Providers ${{ matrix.package-format }} tests"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     strategy:
       fail-fast: false
       matrix:
@@ -92,13 +92,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ inputs.default-python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -106,6 +99,12 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Set current date as RELEASE_DATE variable"
@@ -114,7 +113,7 @@ jobs:
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
-          --non-interactive --answer yes
+          --non-interactive --answer yes --github-repository apache/airflow
         if: matrix.package-format == 'wheel'
       - name: "Prepare provider distributions: ${{ matrix.package-format }}"
         run: >
@@ -178,8 +177,8 @@ jobs:
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
     # yamllint disable rule:line-length
-    name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.compat.test-types.description }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     strategy:
       fail-fast: false
       matrix:
@@ -202,13 +201,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ matrix.compat.python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -216,6 +208,12 @@ jobs:
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"

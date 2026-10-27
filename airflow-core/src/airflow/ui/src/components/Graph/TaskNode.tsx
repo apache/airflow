@@ -21,9 +21,10 @@ import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
 
-import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
+import { TaskIcon } from "src/assets/TaskIcon";
 import { useGroups } from "src/context/groups";
 
 import { NodeWrapper } from "./NodeWrapper";
@@ -45,10 +46,12 @@ export const TaskNode = ({
     height = 0,
     isFiltered,
     isGroup,
+    isLoop,
     isMapped,
     isOpen,
     isSelected,
     label,
+    loopMaxIterations,
     operator,
     setupTeardownType,
     taskInstance,
@@ -152,9 +155,14 @@ export const TaskNode = ({
                   hasTaskInstance={hasTaskInstance}
                   id={id}
                   isGroup={isGroup}
+                  isLoop={isLoop}
                   isMapped={isMapped}
                   isOpen={isOpen}
                   label={displayLabel}
+                  latestRegionId={taskInstance?.latest_region_id}
+                  latestRegionIndex={taskInstance?.latest_region_index}
+                  loopIterationsRan={taskInstance?.loop_iterations_count}
+                  loopMaxIterations={loopMaxIterations}
                   setupTeardownType={setupTeardownType}
                 />
               </LinkOverlay>

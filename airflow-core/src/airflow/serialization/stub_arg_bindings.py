@@ -75,9 +75,6 @@ def _normalize_temporal_annotation(annotation: Any) -> Any:
     Applied recursively through unions and containers, and only as a retry when direct
     schema generation fails, so temporal types carrying their own pydantic schema keep it.
     """
-    # Parametrized generics must be detected before the plain-class branch: on Python
-    # 3.10, isinstance(list[X], type) is True and issubclass silently consults the
-    # origin, so the class branch would return list[X] unnormalized.
     origin = typing.get_origin(annotation)
     args = typing.get_args(annotation)
     if origin is not None and args:

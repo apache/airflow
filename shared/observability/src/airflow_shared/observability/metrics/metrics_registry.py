@@ -81,7 +81,7 @@ def convert_to_rst_tables(metrics: list) -> str:
     # Counters section
     if counters:
         output.append("Counters")
-        output.append("--------")
+        output.append("^^^^^^^^")
         output.append("")
         output.append(tabulate(counters, headers=headers, tablefmt="rst"))
         output.append("")
@@ -89,7 +89,7 @@ def convert_to_rst_tables(metrics: list) -> str:
     # Gauges section
     if gauges:
         output.append("Gauges")
-        output.append("------")
+        output.append("^^^^^^")
         output.append("")
         output.append(tabulate(gauges, headers=headers, tablefmt="rst"))
         output.append("")
@@ -97,7 +97,7 @@ def convert_to_rst_tables(metrics: list) -> str:
     # Timers section
     if timers:
         output.append("Timers")
-        output.append("------")
+        output.append("^^^^^^")
         output.append("")
         output.append(tabulate(timers, headers=headers, tablefmt="rst"))
         output.append("")

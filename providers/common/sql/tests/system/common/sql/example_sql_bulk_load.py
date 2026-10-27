@@ -20,11 +20,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.operators.sql import (
     SQLBulkLoadOperator,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.timezone import datetime
 
 TMP_FILE = "/tmp/actors.tsv"
 
@@ -58,7 +58,7 @@ with DAG(
     "example_sql_bulk_load",
     description="Example DAG for SQLBulkLoadOperator.",
     default_args=connection_args,
-    start_date=datetime(2021, 1, 1),
+    start_date=timezone.datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
 ) as dag:

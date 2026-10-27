@@ -55,6 +55,10 @@ Quick-start examples
 
     extend_global_openlineage_emission_policy(dag, emit_dag_events=False)
 
+**Drop the per-chunk objects a task writes, keeping the rest of its lineage**::
+
+    extend_global_openlineage_emission_policy(upload, exclude_datasets=["s3://my-bucket/staging/part_.*"])
+
 **Works with XComArg** — flags are applied to the underlying operator::
 
     result = extend_global_openlineage_emission_policy(
@@ -91,12 +95,15 @@ from airflow.providers.openlineage.utils.emission_policy import (
     EMIT,
     EMIT_DAG_EVENTS,
     EMIT_TASK_EVENTS,
+    EXCLUDE_DATASETS,
     EXTRACT_OPERATOR_METADATA,
     HOOK_LINEAGE,
     INCLUDE_FULL_TASK_INFO,
     INCLUDE_SOURCE_CODE,
     OL_EMISSION_POLICY_PARAM,
+    ControlValue,
     _merge_param,
+    find_invalid_pattern,
 )
 
 if TYPE_CHECKING:
@@ -121,6 +128,7 @@ def extend_global_openlineage_emission_policy(
     include_source_code: bool | None = None,
     hook_lineage: bool | None = None,
     include_full_task_info: bool | None = None,
+    exclude_datasets: list[str] | None = None,
 ) -> T:
     """
     Extend the global OpenLineage emission policy with per-task / per-DAG overrides.
@@ -132,8 +140,8 @@ def extend_global_openlineage_emission_policy(
     When called on a **DAG**, flags are applied as follows:
 
     - Task-relevant flags (``emit``, ``emit_task_events``, ``extract_operator_metadata``,
-      ``include_source_code``, ``hook_lineage``, ``include_full_task_info``) are
-      **propagated to all tasks** in the Dag at the time of the call.
+      ``include_source_code``, ``hook_lineage``, ``include_full_task_info``,
+      ``exclude_datasets``) are **propagated to all tasks** in the Dag at the time of the call.
     - DAG-run-level flags (``emit``, ``emit_dag_events``) are stored on the Dag itself.
     - ``emit_dag_events`` is meaningless on a task and logs a warning if provided.
 
@@ -180,6 +188,11 @@ def extend_global_openlineage_emission_policy(
     :param include_source_code: Whether to include operator source code in Python/Bash operator events.
     :param hook_lineage: Whether to use ``HookLineageCollector`` as a fallback.
     :param include_full_task_info: Whether to include the full serialized operator state.
+    :param exclude_datasets: Regex patterns matched with ``re.fullmatch`` against
+        ``"<namespace>/<name>"`` of each OpenLineage dataset of the task; matching datasets are
+        dropped. Replaces, instead of extending, any list from the ``emission_policy`` config,
+        including lists set for specific hooks.
+    :raises ValueError: If ``exclude_datasets`` is not a list of valid regex patterns.
     :return: The same *obj* — allows use as a decorator or in chained calls.
     """
     if isinstance(obj, XComArg):
@@ -192,6 +205,7 @@ def extend_global_openlineage_emission_policy(
             include_source_code=include_source_code,
             hook_lineage=hook_lineage,
             include_full_task_info=include_full_task_info,
+            exclude_datasets=exclude_datasets,
         )
         return obj
 
@@ -206,7 +220,12 @@ def extend_global_openlineage_emission_policy(
             "configuration with a global rule ('scope': {}) instead."
         )
 
-    provided: dict[str, bool] = {
+    # A bad pattern stored here would only fail during lineage extraction, where the error is
+    # swallowed and the task silently loses its lineage.
+    if exclude_datasets is not None and (invalid := find_invalid_pattern(EXCLUDE_DATASETS, exclude_datasets)):
+        raise ValueError(f"extend_global_openlineage_emission_policy(): {invalid}")
+
+    provided: dict[str, ControlValue] = {
         k: v
         for k, v in {
             EMIT: emit,
@@ -216,6 +235,7 @@ def extend_global_openlineage_emission_policy(
             INCLUDE_SOURCE_CODE: include_source_code,
             HOOK_LINEAGE: hook_lineage,
             INCLUDE_FULL_TASK_INFO: include_full_task_info,
+            EXCLUDE_DATASETS: exclude_datasets,
         }.items()
         if v is not None
     }

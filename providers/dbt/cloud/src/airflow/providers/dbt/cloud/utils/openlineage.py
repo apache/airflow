@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.dbt.cloud.hooks.dbt import DBT_CAUSE_MAX_LENGTH
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -32,28 +33,6 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
-
-
-def _get_logical_date(task_instance):
-    # todo: remove when min airflow version >= 3.0
-    if AIRFLOW_V_3_0_PLUS:
-        dagrun = task_instance.get_template_context()["dag_run"]
-        return dagrun.logical_date or dagrun.run_after
-
-    if hasattr(task_instance, "logical_date"):
-        date = task_instance.logical_date
-    else:
-        date = task_instance.execution_date
-
-    return date
-
-
-def _get_dag_run_clear_number(task_instance):
-    # todo: remove when min airflow version >= 3.0
-    if AIRFLOW_V_3_0_PLUS:
-        dagrun = task_instance.get_template_context()["dag_run"]
-        return dagrun.clear_number
-    return task_instance.dag_run.clear_number
 
 
 def _get_parent_run_metadata(task_instance):
@@ -69,35 +48,78 @@ def _get_parent_run_metadata(task_instance):
         lineage_job_name,
         lineage_job_namespace,
         lineage_root_job_name,
+        lineage_root_job_namespace,
         lineage_root_run_id,
         lineage_run_id,
     )
 
-    parent_run_id = lineage_run_id(task_instance)
-    parent_job_name = lineage_job_name(task_instance)
-    parent_job_namespace = lineage_job_namespace()
-
-    root_parent_run_id = lineage_root_run_id(task_instance)
-    rot_parent_job_name = lineage_root_job_name(task_instance)
-
-    try:  # Added in OL provider 2.9.0, try to use it if possible
-        from airflow.providers.openlineage.plugins.macros import lineage_root_job_namespace
-
-        root_parent_job_namespace = lineage_root_job_namespace(task_instance)
-    except ImportError:
-        root_parent_job_namespace = lineage_job_namespace()
-
     return ParentRunMetadata(
-        run_id=parent_run_id,
-        job_name=parent_job_name,
-        job_namespace=parent_job_namespace,
-        root_parent_run_id=root_parent_run_id,
-        root_parent_job_name=rot_parent_job_name,
-        root_parent_job_namespace=root_parent_job_namespace,
+        run_id=lineage_run_id(task_instance),
+        job_name=lineage_job_name(task_instance),
+        job_namespace=lineage_job_namespace(),
+        root_parent_run_id=lineage_root_run_id(task_instance),
+        root_parent_job_name=lineage_root_job_name(task_instance),
+        root_parent_job_namespace=lineage_root_job_namespace(task_instance),
     )
 
 
-@require_openlineage_version(provider_min_version="2.5.0")
+def _get_openlineage_parent_facet_dict(task_instance) -> dict:
+    """Build the OpenLineage ``ParentRunFacet`` payload (parent and root) for a task instance."""
+    metadata = _get_parent_run_metadata(task_instance)
+    return {
+        "parent": {
+            "run": {"runId": metadata.run_id},
+            "job": {"namespace": metadata.job_namespace, "name": metadata.job_name},
+        },
+        "root": {
+            "run": {"runId": metadata.root_parent_run_id},
+            "job": {
+                "namespace": metadata.root_parent_job_namespace,
+                "name": metadata.root_parent_job_name,
+            },
+        },
+    }
+
+
+def inject_parent_job_information_into_dbt_cloud_cause(cause: str | None, task_instance) -> str | None:
+    """
+    Replace the dbt Cloud run ``cause`` with OpenLineage parent job information as JSON.
+
+    This serializes the Airflow task's OpenLineage parent (and root) run identifiers into the
+    triggered run's ``cause`` field. A consumer that reads dbt Cloud runs can parse this JSON and
+    attach a ``ParentRunFacet``, linking the dbt Cloud run back to the Airflow task that triggered it.
+
+    The dbt Cloud ``cause`` is limited to ``DBT_CAUSE_MAX_LENGTH`` characters. The essential ``parent``
+    link is always kept; the ``root`` block is dropped if the two together do not fit. If even the
+    parent-only payload does not fit, the original ``cause`` is returned unchanged.
+    """
+    try:
+        facet = _get_openlineage_parent_facet_dict(task_instance)
+    except ImportError:
+        log.warning(
+            "Could not import OpenLineage provider. Skipping the injection of OpenLineage "
+            "parent job information into the dbt Cloud run cause."
+        )
+        return cause
+
+    candidates = [
+        {"parent": facet["parent"], "root": facet["root"]},
+        {"parent": facet["parent"]},
+    ]
+    for payload in candidates:
+        serialized = json.dumps(payload, separators=(",", ":"))
+        if len(serialized) <= DBT_CAUSE_MAX_LENGTH:
+            return serialized
+
+    log.warning(
+        "OpenLineage parent job information exceeds the dbt Cloud cause limit of %s characters. "
+        "Skipping the injection of OpenLineage parent job information into the dbt Cloud run cause.",
+        DBT_CAUSE_MAX_LENGTH,
+    )
+    return cause
+
+
+@require_openlineage_version(provider_min_version="2.16.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
@@ -117,9 +139,9 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor
 
+    from airflow.providers.openlineage.api import emit
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import _PRODUCER
-    from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 
     # if no account_id set this will fallback
     log.debug("Retrieving information about DBT job run.")
@@ -178,7 +200,6 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     log.debug("Preparing OpenLineage parent job information to be included in DBT events.")
     parent_metadata = _get_parent_run_metadata(task_instance)
-    adapter = get_openlineage_listener().adapter
 
     # process each step in loop, sending generated events in the same order as steps
     for counter, artifacts in enumerate(step_artifacts, 1):
@@ -208,7 +229,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)
 
         for event in events:
-            adapter.emit(event=event)
+            emit(event)
         log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
 
     log.info("OpenLineage has successfully finished processing information about DBT job run.")

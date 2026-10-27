@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useEffect, useRef } from "react";
+
 import { useSearchParams } from "react-router-dom";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -35,7 +36,12 @@ export const usePausedDefault = () => {
   const hasSeeded = useRef(false);
 
   useEffect(() => {
-    if (hasSeeded.current || !hidePausedDagsByDefault || searchParams.has(SearchParamsKeys.PAUSED)) {
+    if (
+      hasSeeded.current ||
+      !hidePausedDagsByDefault ||
+      searchParams.has(SearchParamsKeys.PAUSED) ||
+      searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
+    ) {
       return;
     }
 

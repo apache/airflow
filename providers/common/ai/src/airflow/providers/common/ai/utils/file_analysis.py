@@ -21,12 +21,24 @@ from __future__ import annotations
 import csv
 import gzip
 import io
+import itertools
 import json
 import logging
 from bisect import insort
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+# bz2/lzma are optional CPython extensions and may be missing from some interpreter builds
+try:
+    import bz2
+except ImportError:
+    bz2 = None  # type: ignore[assignment]
+
+try:
+    import lzma
+except ImportError:
+    lzma = None  # type: ignore[assignment]
 
 from pydantic_ai.messages import BinaryContent
 
@@ -35,10 +47,11 @@ from airflow.providers.common.ai.exceptions import (
     LLMFileAnalysisMultimodalRequiredError,
     LLMFileAnalysisUnsupportedFormatError,
 )
+from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai.messages import UserContent
 
@@ -65,7 +78,14 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
-_GZIP_SUPPORTED_FORMATS = frozenset({"csv", "json", "log", "txt", "md"})
+_CODEC_MODULES = {"bzip2": "bz2", "xz": "lzma"}
+_KNOWN_CODECS = frozenset({"gzip", *_CODEC_MODULES})
+_DECOMPRESSORS: dict[str, Callable[..., io.BufferedIOBase]] = {"gzip": gzip.open}
+if bz2 is not None:
+    _DECOMPRESSORS["bzip2"] = bz2.open
+if lzma is not None:
+    _DECOMPRESSORS["xz"] = lzma.open
+_COMPRESSION_SUPPORTED_FORMATS = frozenset({"csv", "json", "log", "txt", "md"})
 _TEXT_SAMPLE_HEAD_CHARS = 8_000
 _TEXT_SAMPLE_TAIL_CHARS = 2_000
 _MEDIA_TYPES = {
@@ -118,6 +138,16 @@ class _RenderResult:
     text: str
     estimated_rows: int | None
     content_size_bytes: int
+
+
+@dataclass
+class ColumnarSample:
+    """A Parquet or Avro file described for a model."""
+
+    text: str
+    """Its schema and first rows."""
+    total_rows: int
+    """How many rows the whole file holds."""
 
 
 def build_file_analysis_request(
@@ -328,7 +358,7 @@ def _prepare_file(
                 f"File {path} has format {file_format!r}; set multi_modal=True to analyze images or PDFs."
             )
         prepared.attachment = BinaryContent(
-            data=_read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes),
+            data=read_bytes(path, compression=compression, max_bytes=max_content_bytes),
             media_type=_MEDIA_TYPES[file_format],
             identifier=str(path),
         )
@@ -359,6 +389,13 @@ def _prepare_file(
     return prepared
 
 
+def detect_compression(path: ObjectStoragePath) -> str | None:
+    """Return the codec a path's last suffix names, if this Python build can decompress it."""
+    suffixes = path.suffixes
+    codec = _COMPRESSION_SUFFIXES.get(suffixes[-1].removeprefix(".").lower()) if suffixes else None
+    return codec if codec in _DECOMPRESSORS else None
+
+
 def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
     """Detect the logical file format and compression codec from a path suffix."""
     suffixes = [suffix.removeprefix(".").lower() for suffix in path.suffixes]
@@ -371,14 +408,19 @@ def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Unsupported file format {detected!r} for {path}. Supported formats: {', '.join(SUPPORTED_FILE_FORMATS)}."
         )
-    if compression and compression != "gzip":
+    if compression and compression not in _KNOWN_CODECS:
         log.info("Rejecting file %s because compression=%s is not supported.", path, compression)
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for file analysis."
         )
-    if compression == "gzip" and detected not in _GZIP_SUPPORTED_FORMATS:
+    if compression and detected not in _COMPRESSION_SUPPORTED_FORMATS:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for {detected!r} file analysis."
+        )
+    if compression and compression not in _DECOMPRESSORS:
+        raise AirflowOptionalProviderFeatureException(
+            f"Compression {compression!r} requires the {_CODEC_MODULES[compression]!r} module, "
+            "which is missing from this Python build."
         )
     return detected, compression
 
@@ -407,7 +449,7 @@ def _render_text_content(
 def _render_text_like(
     path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     text = _decode_text(raw_bytes)
     return _RenderResult(text=_truncate_text(text), estimated_rows=None, content_size_bytes=len(raw_bytes))
 
@@ -415,14 +457,14 @@ def _render_text_like(
 def _render_json(
     path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     decoded = _decode_text(raw_bytes)
     document = json.loads(decoded)
     if isinstance(document, list):
         estimated_rows = len(document)
     else:
         estimated_rows = None
-    pretty = json.dumps(document, indent=2, sort_keys=True, default=str)
+    pretty = dumps_masked(document, indent=2, sort_keys=True)
     return _RenderResult(
         text=_truncate_text(pretty),
         estimated_rows=estimated_rows,
@@ -433,7 +475,7 @@ def _render_json(
 def _render_csv(
     path: ObjectStoragePath, *, compression: str | None, sample_rows: int, max_content_bytes: int
 ) -> _RenderResult:
-    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    raw_bytes = read_bytes(path, compression=compression, max_bytes=max_content_bytes)
     decoded = _decode_text(raw_bytes)
     reader = list(csv.reader(io.StringIO(decoded)))
     if not reader:
@@ -449,6 +491,22 @@ def _render_csv(
         estimated_rows=len(rows),
         content_size_bytes=len(raw_bytes),
     )
+
+
+def sample_columnar_file(
+    path: ObjectStoragePath, *, file_format: Literal["parquet", "avro"], sample_rows: int, max_bytes: int
+) -> ColumnarSample:
+    """
+    Describe a Parquet or Avro file for a model: its schema, its first ``sample_rows`` rows and its row count.
+
+    :raises LLMFileAnalysisLimitExceededError: if the file is larger than ``max_bytes``.
+    """
+    if file_format == "parquet":
+        result = _render_parquet(path, sample_rows=sample_rows, max_content_bytes=max_bytes)
+    else:
+        result = _render_avro(path, sample_rows=sample_rows, max_content_bytes=max_bytes, count_rows=True)
+    # Both count every row here: Parquet from its footer, Avro by reading every block header.
+    return ColumnarSample(text=result.text, total_rows=result.estimated_rows or 0)
 
 
 def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
@@ -474,18 +532,15 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
 
         schema = ", ".join(f"{field.name}: {field.type}" for field in parquet_file.schema_arrow)
         sampled_rows: list[dict[str, Any]] = []
-        if sample_rows > 0 and num_rows > 0 and parquet_file.num_row_groups > 0:
-            remaining_rows = sample_rows
-            for row_group_index in range(parquet_file.num_row_groups):
-                if remaining_rows <= 0:
+        if sample_rows > 0 and num_rows > 0:
+            # Decode only the first rows: a whole row group can decompress to many times the
+            # file's size, which the size limit above does not bound.
+            for batch in parquet_file.iter_batches(batch_size=sample_rows):
+                sampled_rows.extend(batch.to_pylist())
+                if len(sampled_rows) >= sample_rows:
                     break
-                row_group = parquet_file.read_row_group(row_group_index)
-                if row_group.num_rows == 0:
-                    continue
-                group_rows = row_group.slice(0, remaining_rows).to_pylist()
-                sampled_rows.extend(group_rows)
-                remaining_rows -= len(group_rows)
-    payload = [f"Schema: {schema}", "Sample rows:", json.dumps(sampled_rows, indent=2, default=str)]
+            sampled_rows = sampled_rows[:sample_rows]
+    payload = [f"Schema: {schema}", "Sample rows:", dumps_masked(sampled_rows, indent=2)]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
         estimated_rows=num_rows,
@@ -493,7 +548,9 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
     )
 
 
-def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
+def _render_avro(
+    path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int, count_rows: bool = False
+) -> _RenderResult:
     try:
         import fastavro
     except ImportError as exc:
@@ -501,7 +558,7 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
             "Avro analysis requires the `avro` extra for apache-airflow-providers-common-ai."
         ) from exc
 
-    sampled_rows: list[dict[str, Any]] = []
+    sampled_rows: list[Any] = []
     total_rows = 0
     with path.open("rb") as handle:
         handle.seek(0, io.SEEK_END)
@@ -511,22 +568,35 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
             raise LLMFileAnalysisLimitExceededError(
                 f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
             )
-        reader = fastavro.reader(handle)
-        writer_schema = getattr(reader, "writer_schema", None)
         fully_read = False
-        if sample_rows > 0:
-            for record in reader:
-                total_rows += 1
-                if isinstance(record, dict):
-                    sampled_rows.append({str(key): value for key, value in record.items()})
-                if total_rows >= sample_rows:
-                    break
-            else:
-                fully_read = True
+        if count_rows:
+            # Each block header carries its record count, so only the blocks the sample reaches
+            # are decoded; the rest are counted.
+            blocks = fastavro.block_reader(handle)
+            writer_schema = blocks.writer_schema
+            for block in blocks:
+                total_rows += block.num_records
+                if len(sampled_rows) < sample_rows:
+                    sampled_rows.extend(
+                        _avro_sample_row(record)
+                        for record in itertools.islice(block, sample_rows - len(sampled_rows))
+                    )
+            fully_read = True
+        else:
+            reader = fastavro.reader(handle)
+            writer_schema = reader.writer_schema
+            if sample_rows > 0:
+                for record in reader:
+                    total_rows += 1
+                    sampled_rows.append(_avro_sample_row(record))
+                    if total_rows >= sample_rows:
+                        break
+                else:
+                    fully_read = True
     payload = [
-        f"Schema: {json.dumps(writer_schema, indent=2, default=str)}",
+        f"Schema: {dumps_masked(writer_schema, indent=2)}",
         "Sample rows:",
-        json.dumps(sampled_rows, indent=2, default=str),
+        dumps_masked(sampled_rows, indent=2),
     ]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
@@ -535,12 +605,22 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
     )
 
 
-def _read_raw_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
+def _avro_sample_row(record: Any) -> Any:
+    # A file whose schema is not a record holds bare values, which are sampled as they are.
+    return {str(key): value for key, value in record.items()} if isinstance(record, dict) else record
+
+
+def read_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
+    """
+    Read ``path``, decompressing it with ``compression``, and refuse more than ``max_bytes``.
+
+    :raises LLMFileAnalysisLimitExceededError: if the content is larger than ``max_bytes``.
+    """
     with path.open("rb") as handle:
-        if compression == "gzip":
-            with gzip.GzipFile(fileobj=handle) as gzip_handle:
-                return _read_limited_bytes(gzip_handle, path=path, max_bytes=max_bytes)
-        return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)
+        if compression is None:
+            return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)
+        with _DECOMPRESSORS[compression](handle) as decompressed:
+            return _read_limited_bytes(decompressed, path=path, max_bytes=max_bytes)
 
 
 def _read_limited_bytes(handle: io.BufferedIOBase, *, path: ObjectStoragePath, max_bytes: int) -> bytes:

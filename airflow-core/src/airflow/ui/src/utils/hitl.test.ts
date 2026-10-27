@@ -21,9 +21,11 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 
-import { getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
+import { getHITLFormData, getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
 
 const mockTranslate = vi.fn((key: string) => key) as unknown as TFunction;
+
+const DEFAULT_OUTPUT = '{"title": "Login broken", "priority": 2}';
 
 const createMockHITLDetail = (overrides?: Partial<HITLDetail>): HITLDetail =>
   ({
@@ -111,5 +113,101 @@ describe("getHITLParamsDict", () => {
 
     expect(paramsDict.objectParam?.schema.type).toBe("object");
     expect(paramsDict.objectParam?.value).toEqual({ key: "value", nested: { data: 123 } });
+  });
+
+  it("resolves a serialized param whose default is null to null, not the wrapper object", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        freeze_until: {
+          description: null,
+          schema: { format: "date", title: "Code freeze until", type: ["string", "null"] },
+          value: null,
+        },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.freeze_until?.value).toBeNull();
+    expect(paramsDict.freeze_until?.schema.format).toBe("date");
+    expect(paramsDict.freeze_until?.schema.type).toEqual(["string", "null"]);
+  });
+
+  it("keeps a serialized param's non-null default", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        health_check_at: {
+          description: null,
+          schema: { format: "time", type: "string" },
+          value: "09:00:00",
+        },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.health_check_at?.value).toBe("09:00:00");
+  });
+
+  it("prefers a submitted value over the serialized default", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        freeze_until: {
+          description: null,
+          schema: { format: "date", type: ["string", "null"] },
+          value: null,
+        },
+      },
+      params_input: { freeze_until: "2026-09-03" },
+      response_received: true,
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.freeze_until?.value).toBe("2026-09-03");
+  });
+
+  it.each([
+    { expectedType: "string", label: "string", schema: { type: "string" } },
+    { expectedType: ["string", "null"], label: "nullable string", schema: { type: ["string", "null"] } },
+    { expectedType: "string", label: "untyped", schema: {} },
+    {
+      expectedType: "string",
+      label: "string holding an integer beyond 2**53",
+      output: '{"id": 12345678901234567890}',
+      schema: { type: "string" },
+    },
+  ])(
+    "keeps a JSON-looking value of a $label param as text",
+    ({ expectedType, output = DEFAULT_OUTPUT, schema }) => {
+      const hitlDetail = createMockHITLDetail({
+        params: {
+          output: { description: null, schema, value: output },
+        },
+      });
+
+      const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+      expect(paramsDict.output?.value).toBe(output);
+      expect(paramsDict.output?.schema.type).toEqual(expectedType);
+      expect(getHITLFormData(paramsDict).params_input).toEqual({ output });
+    },
+  );
+
+  it.each([
+    { label: "an object", type: "object" },
+    { label: "a nullable object", type: ["object", "null"] },
+  ])("returns the object value of $label param as an object", ({ type }) => {
+    const objectValue = { key: "value", nested: { data: 123 } };
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        objectParam: { description: null, schema: { type }, value: objectValue },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.objectParam?.schema.type).toEqual(type);
+    expect(getHITLFormData(paramsDict).params_input).toEqual({ objectParam: objectValue });
   });
 });

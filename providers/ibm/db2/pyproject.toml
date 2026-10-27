@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.0.2"]
+requires = ["flit_core==4.1.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -45,14 +45,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -62,8 +61,12 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "ibm-db>=3.2.0",
-    "ibm-db-sa>=0.4.0",
+    # `ibm-db` publishes no Linux aarch64 wheel and its sdist cannot be built there, so
+    # skip it on Linux ARM (mirrors provider.yaml excluded-platforms). macOS Apple Silicon
+    # is unaffected — IBM does ship macosx arm64 wheels. `ibm-db-sa` is pure Python but
+    # depends on `ibm-db`, so it carries the same marker or it drags `ibm-db` back in.
+    "ibm-db>=3.2.0; platform_machine != \"aarch64\"",
+    "ibm-db-sa>=0.4.0; platform_machine != \"aarch64\"",
     "methodtools>=0.4.7",
 ]
 

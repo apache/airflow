@@ -85,7 +85,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -108,20 +108,21 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ matrix.python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          # Runs the checkout-ref's own make_mnt_writeable.sh, which on old refs empties /mnt and
+          # would kill a RunsOn runner: every caller passing checkout-ref pins public runners.
           make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
       # Resolves the providers from the sources in this checkout. Skipped for a release, which
       # ships only the PyPI constraints and must not have a source tree answer for a provider.
       - name: "Source constraints"
@@ -147,7 +148,7 @@ jobs:
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
-          --include-not-ready-providers --distribution-format wheel
+          --include-not-ready-providers --distribution-format wheel --github-repository apache/airflow
         if: inputs.generate-pypi-constraints == 'true' && inputs.pypi-providers-only != 'true'
       - name: "Prepare airflow distributions"
         shell: bash
@@ -193,7 +194,7 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}
       - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: constraints-${{ matrix.python-version }}
           path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt

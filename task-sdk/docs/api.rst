@@ -94,6 +94,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.bases.xcom.XComCoordinate
+
 .. autoapiclass:: airflow.sdk.BranchMixIn
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
@@ -130,6 +132,8 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
+.. autoapiclass:: airflow.sdk.LoopDecision
+
 .. autoclass:: airflow.sdk.TaskInstance
 
 .. autoapiclass:: airflow.sdk.XComArg
@@ -155,6 +159,8 @@ Tasks page in the core docs for usage and design rationale.
 .. autoapiclass:: airflow.sdk.RetryPolicy
 
 .. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.ChainRetryPolicy
 
 .. autoapiclass:: airflow.sdk.RetryRule
 
@@ -202,7 +208,11 @@ Assets
 
 Timetables
 ----------
+.. autoapiclass:: airflow.sdk.AssetAndTimeSchedule
+
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.AssetTriggeredTimetable
 
 .. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
 
@@ -305,6 +315,41 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: Node.js (TypeScript)
 
 .. autoapiclass:: airflow.sdk.coordinators.node.NodeCoordinator
+
+Dag Importers
+-------------
+
+|experimental|
+
+Dag importers turn the contents of a Dag bundle into Dags. This interface may still change in a minor
+release while it is being stabilized. See :doc:`apache-airflow:administration-and-deployment/dag-importers` for how
+importers are configured and how to write one.
+
+.. autoapiclass:: airflow.sdk.importers.AbstractDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.DagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FileDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FilesystemDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.DagImportResult
+
+.. autoapiclass:: airflow.sdk.importers.DagImportError
+
+.. autoapiclass:: airflow.sdk.importers.DagImportWarning
+
+.. autoapiclass:: airflow.sdk.importers.DagSourceCode
+
+.. autoapifunction:: airflow.sdk.importers.find_file_dag_definitions
+
+.. autoapifunction:: airflow.sdk.importers.get_file_suffix
+
+.. rubric:: Built-in importers
+
+.. autoapiclass:: airflow.sdk.importers.PythonDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.ZipImporter
 
 Execution Time Components
 -------------------------

@@ -22,7 +22,7 @@
 This document describes how Apache Airflow maintainers triage incoming Pull Requests
 using **agentic skills** that run inside [Claude Code](https://claude.com/claude-code).
 The triage workflow that used to live in the `breeze pr auto-triage` command has been
-replaced by the [`pr-management-triage`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md) skill, which is
+replaced by the [`pr-management-triage`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md) skill, which is
 maintained as plain Markdown alongside the codebase and is invoked from a maintainer's
 local Claude Code session.
 
@@ -57,7 +57,7 @@ weigh. That time is finite and irreplaceable.
 To protect it, the project splits PR handling into two stages:
 
 1. **First pass — automated, mechanical, fast.** A maintainer invokes the
-   [`pr-management-triage`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md) skill, which sweeps the open
+   [`pr-management-triage`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md) skill, which sweeps the open
    PR queue, runs purely deterministic checks (CI status, merge conflicts, unresolved
    review threads, workflow-approval state, draft staleness), and proposes a
    disposition for each PR. The maintainer confirms in batches — accepting a group of
@@ -107,10 +107,10 @@ alongside `pr-management-triage` is out of scope here.
 ## Stage 1: invoking the `pr-management-triage` skill
 
 The skill is provided by the [`apache/magpie`](https://github.com/apache/magpie) framework,
-adopted via its snapshot mechanism (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for first-time setup). After running `/magpie-setup` the
-framework lives gitignored at `.apache-magpie/` and a `.claude/skills/pr-management-triage` symlink picks it up
-so Claude Code finds it without any per-developer config. Its entry point is
-[`SKILL.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
+installed from its plugin marketplace (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for the install commands). Nothing is
+committed to this repo, so the install is per-developer and one-off; afterwards Claude Code
+exposes the skill as `magpie-pr-management:pr-management-triage`. Its entry point is
+[`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
 the logic out by topic (classification, fetch-and-batch, stale sweeps, comment
 templates, etc.).
 
@@ -125,13 +125,13 @@ for a triage. Common phrasings the skill recognises:
 - `run the stale sweep` — close stale drafts / convert inactive PRs to draft
 - `morning triage` — same as the default sweep
 
-The skill's `when_to_use` block (in [`SKILL.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md))
+The skill's `when_to_use` block (in [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md))
 lists the full set of recognised invocation patterns.
 
 ### What the triage skill checks
 
 The first-pass classification is purely deterministic — see
-[`classify-and-act.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/classify-and-act.md) for the full decision matrix
+[`classify-and-act.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/classify-and-act.md) for the full decision matrix
 — and runs against data fetched in a single aliased GraphQL call per page of PRs:
 
 1. **Pending workflow approval** — first-time-contributor PRs whose CI workflows
@@ -144,14 +144,14 @@ The first-pass classification is purely deterministic — see
    `GET /repos/.../actions/runs?status=action_required` endpoint as the primary
    signal, then cross-referenced against `statusCheckRollup`. The REST call is
    needed because the rollup can return `SUCCESS` while real CI is still pending —
-   see Golden rule 1b in [`SKILL.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md#golden-rules).
+   see Golden rule 1b in [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md#golden-rules).
 4. **Unresolved review threads** — open conversations from collaborators or from
    `copilot*[bot]` (Copilot threads are evaluated separately, with a 7-day grace
    window).
 5. **Staleness** — drafts older than 7 days with no author reply after a triage
    comment, untriaged drafts older than 2 weeks, non-draft PRs with 4+ weeks of
    inactivity, and workflow-approval PRs with 4+ weeks of inactivity. See
-   [`stale-sweeps.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/stale-sweeps.md).
+   [`stale-sweeps.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/stale-sweeps.md).
 
 ### Available triage actions
 
@@ -173,14 +173,14 @@ available. The full set of actions:
 | `skip` | Leave the PR alone this run. |
 
 The full action recipes (the `gh` / GraphQL calls each action issues) are in
-[`actions.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/actions.md); the comment bodies posted by
+[`actions.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/actions.md); the comment bodies posted by
 the `draft` / `comment` / `close` / `ping` actions are in
-[`comment-templates.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/comment-templates.md).
+[`comment-templates.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/comment-templates.md).
 
 ### AI-attribution footer on every contributor-facing comment
 
 Every comment the skill posts to a contributor ends with the same AI-attribution
-footer (see [`comment-templates.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/comment-templates.md#ai-attribution-footer)).
+footer (see [`comment-templates.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/comment-templates.md#ai-attribution-footer)).
 The footer:
 
 - tells the contributor the comment was drafted by an AI-assisted tool and may
@@ -191,7 +191,7 @@ The footer:
   section above so the contributor can read the rationale for the two-stage process.
 
 This is non-negotiable per Golden rule 8 in
-[`SKILL.md`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-triage/SKILL.md#golden-rules) — only the
+[`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md#golden-rules) — only the
 intentionally-terse `suspicious-changes` template is exempt.
 
 ## Stage 2: human review
@@ -208,7 +208,7 @@ decisions belongs in that future skill, not in `pr-management-triage`.
 
 ## Backlog statistics — the `pr-management-stats` skill
 
-The [`pr-management-stats`](https://github.com/apache/magpie/blob/main/.claude/skills/pr-management-stats/SKILL.md) skill is the read-only,
+The [`pr-management-stats`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-stats/SKILL.md) skill is the read-only,
 no-mutations counterpart of `pr-management-triage`. It is the successor to the now-removed
 `breeze pr stats` command and produces two summary tables grouped by `area:*` label:
 
@@ -238,9 +238,45 @@ The triage workflow uses the following labels and states:
 | Label / State | Meaning |
 |---|---|
 | `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
+| `need workflow approval` | The PR's CI workflow runs wait for a maintainer, because the `Auto approve workflow runs` workflow did not approve them: a PR to a branch other than `main`, a change to CI definition files, a full-tests or dependency change, a change whose CI jobs are estimated at more than 310 job-minutes, or a change of more than 100 lines of source code (see [Pull Requests](05_pull_requests.rst)). For a PR whose CI runs in the contributor's fork, only a change to CI definition files keeps its runs waiting, and the workflow comments on the PR to say so. The workflow also tries to add the label when processing the PR failed; its run then fails too. Approve the runs after looking at the diff. The workflow removes the label when a later commit is approved automatically. |
 | `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
+| `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
 | **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor is asked to fix the listed issues and mark the PR as "Ready for review" once done. |
+| `fork ci required` | PR runs its CI in the contributor's fork (AIP-120). Applied and managed by the fork CI reconciler, never by the triage skill. |
+| `needs project ci` | Fork CI is green, but the PR changes CI-defining files, so a maintainer must review them and add `use project ci`. Applied and removed by the fork CI reconciler. Filter on it to find PRs waiting only on a maintainer. |
+| `use project ci` / `use fork ci` | Set by a maintainer to override the fork CI decision for one PR: run project CI, or use fork CI for a PR that would otherwise run project CI. |
+
+## Pull requests gated to fork CI
+
+Pull requests labelled `fork ci required` run their CI in the contributor's fork. The scheduled
+fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns four things
+for them, and the triage skill must treat those pull requests as out of scope for each:
+
+- **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
+  latest commit is green, and undrafts only what it drafted.
+- **`ready for maintainer review`.** The reconciler adds it when the fork run is green and the
+  pull request is not a draft the author made (it adds it once the author marks it ready), and
+  removes it when a new push starts a new run.
+- **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
+  changes CI-defining files, and removes it once the state is anything else. These pull requests
+  stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
+- **Closing after inactivity.** The reconciler closes a pull request whose fork CI has not run for
+  `close_after_days`.
+
+Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
+usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
+the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
+releases it on its next run; removing `fork ci required` by hand is not enough, the next run
+labels a gated pull request again. Adding the label does not start project CI by itself, and the
+reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
+reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
+or ask the author to push. Pull requests that change CI-defining files stay in draft even
+when the fork run is green and are labelled `needs project ci`, for a maintainer to review and run
+project CI with `use project ci`. When the fork run is green and trusted, the reconciler also posts
+the `CI passed` status the merge ruleset requires, so these pull requests can be merged or
+auto-merged without project CI. See
+[Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors
 
@@ -268,3 +304,6 @@ Tips for getting through Stage 1 quickly:
    why the suggestion doesn't apply — click "Resolve conversation" yourself.
 6. **Disclose Gen-AI usage.** If you used Gen-AI tools, include the disclosure block
    from the [Gen-AI guidelines](05_pull_requests.rst#gen-ai-assisted-contributions).
+7. **Focus on a few PRs at a time.** Contributors without write access can have at most
+   5 open PRs at a time — see [Limit on open Pull Requests](32_open_pull_request_limit.rst).
+   Getting your open PRs through both stages is what frees up a slot for the next one.

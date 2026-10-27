@@ -36,10 +36,16 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     TaskDoneTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSkipException,
+    conf,
+)
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -90,7 +96,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     """
 
@@ -134,13 +142,15 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             # In some circumstances the ECS Cluster is created immediately,
             # and there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
-        elif self.deferrable:
+        elif should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=ClusterActiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
@@ -178,7 +188,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     """
 
@@ -211,13 +223,15 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
             # if the cluster doesn't have capacity providers that are associated with it,
             # the deletion is instantaneous, and we don't need to wait for it.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
-        elif self.deferrable:
+        elif should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=ClusterInactiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
@@ -341,6 +355,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param cluster: the cluster name on Elastic Container Service
     :param overrides: the same parameter that boto3 will receive (templated):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+        Note that ``containerOverrides[].environment`` is merged into the environment defined by
+        the task definition, while the other container override fields replace the task
+        definition's value. See :ref:`howto/operator:EcsRunTaskOperator`.
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
@@ -392,11 +409,17 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure. Can be an int or a container of ints.
+    :param fail_on_exit_code: Non-zero exit codes that fail the task without retrying.
+        Can be an int or a container of ints (default: None). A matching code reported
+        by a stopped container takes precedence over ``skip_on_exit_code`` and other
+        container failures. Missing exit codes do not match this option.
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     :param stop_task_on_failure: If True, attempt to stop the ECS task if the Airflow task fails
@@ -465,6 +488,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         skip_on_exit_code: int | Container[int] | None = None,
+        fail_on_exit_code: int | Container[int] | None = None,
         stop_task_on_failure: bool = True,
         **kwargs,
     ):
@@ -509,6 +533,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
             else []
         )
         self.stop_task_on_failure = stop_task_on_failure
+        self.fail_on_exit_code = (
+            fail_on_exit_code
+            if isinstance(fail_on_exit_code, Container)
+            else [fail_on_exit_code]
+            if fail_on_exit_code is not None
+            else []
+        )
 
     @staticmethod
     def _get_ecs_task_id(task_arn: str | None) -> str | None:
@@ -545,7 +576,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             if self.do_xcom_push:
                 context["ti"].xcom_push(key="ecs_task_arn", value=self.arn)
 
-            if self.deferrable:
+            if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
                 self.defer(
                     trigger=TaskDoneTrigger(
                         cluster=self.cluster,
@@ -622,7 +653,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
             logs_client = AwsLogsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.resolve_awslogs_region()
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.resolve_awslogs_region(),
+                verify=self.verify,
+                config=self.botocore_config,
             ).conn
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,
@@ -777,11 +811,26 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     f" {task.get('stoppedReason', '')}"
                 )
             containers = task["containers"]
+            if self.fail_on_exit_code:
+                failed_container = next(
+                    (
+                        container
+                        for container in containers
+                        if container.get("lastStatus") == "STOPPED"
+                        and container.get("exitCode") not in (None, 0)
+                        and container["exitCode"] in self.fail_on_exit_code
+                    ),
+                    None,
+                )
+                if failed_container is not None:
+                    containers = [failed_container]
             for container in containers:
                 if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
                     exit_code = container.get("exitCode", 1)
-                    if exit_code in self.skip_on_exit_code:
-                        exception_cls: type[AirflowException] = AirflowSkipException
+                    if container.get("exitCode") is not None and exit_code in self.fail_on_exit_code:
+                        exception_cls: type[AirflowException] = AirflowFailException
+                    elif exit_code in self.skip_on_exit_code:
+                        exception_cls = AirflowSkipException
                     else:
                         exception_cls = AirflowException
 

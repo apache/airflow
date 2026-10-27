@@ -16,22 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 import time_machine
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
-from airflow.models.deadline import Deadline, _fetch_from_db
+from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import timezone
+from airflow.sdk import serde, timezone
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import (
     AverageRuntimeDeadline,
@@ -43,7 +45,7 @@ from airflow.sdk.definitions.deadline import (
     deadline_reference,
 )
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
-from airflow.utils.state import DagRunState
+from airflow.utils.state import CallbackState, DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -55,15 +57,6 @@ DAG_ID = "dag_id_1"
 INVALID_DAG_ID = "invalid_dag_id"
 INVALID_RUN_ID = -1
 
-REFERENCE_TYPES = [
-    pytest.param(SerializedReferenceModels.DagRunLogicalDateDeadline(), id="logical_date"),
-    pytest.param(SerializedReferenceModels.DagRunQueuedAtDeadline(), id="queued_at"),
-    pytest.param(SerializedReferenceModels.FixedDatetimeDeadline(DEFAULT_DATE), id="fixed_deadline"),
-    pytest.param(
-        SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=10), id="average_runtime"
-    ),
-]
-
 
 async def callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
@@ -71,6 +64,47 @@ async def callback_for_deadline():
 
 
 TEST_CALLBACK_PATH = f"{__name__}.{callback_for_deadline.__name__}"
+
+
+class _ContextValue:
+    """A class named by a value in the Dag run conf, to tell whether that value is rebuilt."""
+
+    instantiated = False
+
+    def __init__(self):
+        type(self).instantiated = True
+
+    def serialize(self):
+        return {}
+
+    @staticmethod
+    def deserialize(data, version):
+        return _ContextValue()
+
+
+_CONTEXT_VALUE_NAME = f"{_ContextValue.__module__}.{_ContextValue.__qualname__}"
+_CLASSNAME_SHAPED_CONF = {"value": {"__classname__": _CONTEXT_VALUE_NAME, "__version__": 0, "__data__": {}}}
+
+received_sync_kwargs: dict = {}
+
+
+def recording_sync_callback(**kwargs):
+    """Sync callable which records the kwargs it was called with."""
+    received_sync_kwargs.clear()
+    received_sync_kwargs.update(kwargs)
+
+
+@pytest.fixture
+def classname_shaped_conf(dagrun, session):
+    from airflow.sdk import serde
+
+    _ContextValue.instantiated = False
+    dagrun.conf = _CLASSNAME_SHAPED_CONF
+    session.flush()
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {_CONTEXT_VALUE_NAME}):
+        yield
+
+
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 TEST_ASYNC_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
 TEST_SYNC_CALLBACK = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
@@ -307,6 +341,58 @@ class TestDeadline:
         session.commit()
 
     @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("reserved_value", "keys"),
+        [
+            pytest.param({"__type": "airflow.ConfProbe", "__var": {}}, "__type, __var", id="legacy"),
+            pytest.param(
+                {"__classname__": "airflow.ConfProbe", "__version__": 0, "__data__": {}},
+                "__classname__, __data__, __version__",
+                id="current",
+            ),
+        ],
+    )
+    @mock.patch("airflow.models.deadline.stats")
+    def test_handle_miss_fails_triggerer_callback_with_reserved_keys_in_context(
+        self, mock_stats, dagrun, session, reserved_value, keys
+    ):
+        dagrun.conf = {"nested": {"probe": reserved_value}}
+        session.flush()
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        probe = mock.MagicMock()
+        real_import_string = serde.import_string
+
+        def import_string(path):
+            return probe if path == "airflow.ConfProbe" else real_import_string(path)
+
+        with mock.patch.object(serde, "import_string", side_effect=import_string):
+            deadline_orm.handle_miss(session)
+            session.flush()
+            for trigger in session.scalars(select(Trigger)):
+                Trigger._decrypt_kwargs(trigger.encrypted_kwargs)
+
+        probe.assert_not_called()
+        probe.deserialize.assert_not_called()
+        assert session.scalars(select(Trigger)).all() == []
+        callback = deadline_orm.callback
+        assert callback.trigger is None
+        assert callback.state == CallbackState.FAILED
+        assert callback.output == f"Not queued: the callback context holds reserved serialization keys {keys}"
+        assert "context" not in callback.data["kwargs"]
+        assert deadline_orm.missed
+        assert session.scalars(select(Deadline).where(~Deadline.missed)).all() == []
+        mock_stats.incr.assert_any_call(stat="deadline_alerts.callback_failed", tags=mock.ANY)
+
+    @pytest.mark.db_test
     def test_handle_miss_persists_executor_callback_routing_data(self, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
@@ -333,140 +419,111 @@ class TestDeadline:
         assert callback.data["dag_id"] == dag_id
         assert callback.data["deadline_id"] == str(deadline_id)
 
+    @pytest.mark.db_test
+    @pytest.mark.usefixtures("classname_shaped_conf")
+    def test_handle_miss_never_rebuilds_runtime_context_for_triggerer(self, dagrun, session):
+        """A conf value shaped like an encoded object never reaches the triggerer to be rebuilt."""
+        from airflow.models.trigger import Trigger
+
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        # Strict serialization refuses the context, either by raising here or by failing the
+        # callback without queueing it; both keep the value away from the triggerer.
+        with contextlib.suppress(AttributeError):
+            deadline_orm.handle_miss(session)
+
+        assert deadline_orm.callback.trigger is None
+        assert session.scalars(select(Trigger)).all() == []
+        assert _ContextValue.instantiated is False
+
+    @pytest.mark.db_test
+    @pytest.mark.usefixtures("classname_shaped_conf")
+    def test_handle_miss_passes_runtime_context_as_is_to_executor_callback(self, dagrun, session):
+        from pathlib import Path
+
+        import structlog
+
+        from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY, CallbackDTO
+        from airflow.sdk.execution_time.callback_supervisor import execute_callback
+
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=SyncCallback(f"{__name__}.recording_sync_callback", TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+        deadline_id = deadline_orm.id
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        workload_callback = CallbackDTO.model_validate_json(
+            CallbackDTO.model_validate(callback, from_attributes=True).model_dump_json()
+        )
+
+        success, error = execute_callback(
+            callback_path=workload_callback.data["path"],
+            callback_kwargs=workload_callback.data["kwargs"],
+            dag_rel_path=Path("test.py"),
+            bundle_path=None,
+            log=structlog.get_logger(),
+            callback_kwargs_encoding=workload_callback.data[CALLBACK_KWARGS_ENCODING_KEY],
+        )
+
+        assert (success, error) == (True, None)
+        assert _ContextValue.instantiated is False
+        assert received_sync_kwargs["context"]["dag_run"]["conf"] == _CLASSNAME_SHAPED_CONF
+        assert received_sync_kwargs["arg1"] == "value1"
+
 
 @pytest.mark.db_test
-class TestCalculatedDeadlineDatabaseCalls:
+class TestCalculatedDeadlineReferences:
     @staticmethod
     def teardown_method():
         _clean_db()
 
     @pytest.mark.parametrize(
-        ("column", "conditions", "expected_query"),
+        ("reference", "attribute"),
         [
             pytest.param(
-                DagRun.logical_date,
-                {"dag_id": DAG_ID},
-                "SELECT dag_run.logical_date \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1",
-                id="single_condition_logical_date",
+                SerializedReferenceModels.DagRunLogicalDateDeadline(), "logical_date", id="logical_date"
             ),
+            pytest.param(SerializedReferenceModels.DagRunQueuedAtDeadline(), "queued_at", id="queued_at"),
             pytest.param(
-                DagRun.queued_at,
-                {"dag_id": DAG_ID},
-                "SELECT dag_run.queued_at \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1",
-                id="single_condition_queued_at",
+                ReferenceModels.DagRunLogicalDateDeadline(), "logical_date", id="legacy_logical_date"
             ),
-            pytest.param(
-                DagRun.logical_date,
-                {"dag_id": DAG_ID, "state": "running"},
-                "SELECT dag_run.logical_date \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1 AND dag_run.state = :state_1",
-                id="multiple_conditions",
-            ),
+            pytest.param(ReferenceModels.DagRunQueuedAtDeadline(), "queued_at", id="legacy_queued_at"),
         ],
     )
-    @mock.patch("sqlalchemy.orm.Session")
-    def test_fetch_from_db_success(self, mock_session, column, conditions, expected_query):
-        """Test successful database queries."""
-        mock_session.scalar.return_value = DEFAULT_DATE
-
-        result = _fetch_from_db(column, session=mock_session, **conditions)
-
-        assert isinstance(result, datetime)
-        mock_session.scalar.assert_called_once()
-
-        # Check that the correct query was constructed
-        call_args = mock_session.scalar.call_args[0][0]
-        assert str(call_args) == expected_query
-
-        # Verify the actual parameter values
-        compiled = call_args.compile()
-        for key, value in conditions.items():
-            # Note that SQLAlchemy appends the _1 to ensure unique template field names
-            assert compiled.params[f"{key}_1"] == value
-
-    @pytest.mark.parametrize(
-        ("use_valid_conditions", "scalar_side_effect", "expected_error", "expected_message"),
-        [
-            pytest.param(
-                False,
-                mock.DEFAULT,  # This will allow the call to pass through
-                AttributeError,
-                None,
-                id="invalid_attribute",
-            ),
-            pytest.param(
-                True,
-                SQLAlchemyError("Database connection failed"),
-                SQLAlchemyError,
-                "Database connection failed",
-                id="database_error",
-            ),
-            pytest.param(
-                True, lambda x: None, ValueError, "No matching record found in the database", id="no_results"
-            ),
-        ],
-    )
-    @mock.patch("sqlalchemy.orm.Session")
-    def test_fetch_from_db_error_cases(
-        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message
-    ):
-        """Test database access error handling."""
-        model_reference = DagRun.logical_date
-        conditions = {"dag_id": "test_dag"} if use_valid_conditions else {"non_existent_column": "some_value"}
-
-        # Configure mock session
-        mock_session.scalar.side_effect = scalar_side_effect
-
-        with pytest.raises(expected_error, match=expected_message):
-            _fetch_from_db(model_reference, session=mock_session, **conditions)
-
-    @pytest.mark.parametrize(
-        ("reference", "expected_column"),
-        [
-            pytest.param(
-                SerializedReferenceModels.DagRunLogicalDateDeadline(), DagRun.logical_date, id="logical_date"
-            ),
-            pytest.param(
-                SerializedReferenceModels.DagRunQueuedAtDeadline(), DagRun.queued_at, id="queued_at"
-            ),
-            pytest.param(
-                SerializedReferenceModels.FixedDatetimeDeadline(DEFAULT_DATE), None, id="fixed_deadline"
-            ),
-            pytest.param(
-                SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=10),
-                None,
-                id="average_runtime",
-            ),
-        ],
-    )
-    def test_deadline_database_integration(self, reference, expected_column, session):
-        """
-        Test database integration for all deadline types.
-
-        Verifies:
-        1. Calculated deadlines call _fetch_from_db with correct column.
-        2. Fixed deadlines do not interact with database.
-        3. Intervals are added to reference times.
-        """
-        conditions = {"dag_id": DAG_ID, "run_id": "dagrun_1"}
+    def test_dagrun_references_use_supplied_dagrun(self, reference, attribute, session):
+        """DagRun references use the in-memory DagRun instead of querying it again."""
+        dagrun = SimpleNamespace(dag_id=DAG_ID, logical_date=DEFAULT_DATE, queued_at=DEFAULT_DATE)
         interval = timedelta(hours=1)
-        with mock.patch("airflow.serialization.definitions.deadline._fetch_from_db") as mock_fetch:
-            mock_fetch.return_value = DEFAULT_DATE
 
-            if expected_column is not None:
-                result = reference.evaluate_with(session=session, interval=interval, **conditions)
-                mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
-            elif isinstance(reference, SerializedReferenceModels.AverageRuntimeDeadline):
-                with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
-                    mock_utcnow.return_value = DEFAULT_DATE
-                    # No DAG runs exist, so it should use 24-hour default
-                    result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
-                    mock_fetch.assert_not_called()
-                    # Should return None when no DAG runs exist
-                    assert result is None
-            else:
-                result = reference.evaluate_with(session=session, interval=interval)
-                mock_fetch.assert_not_called()
-                assert result == DEFAULT_DATE + interval
+        assert getattr(dagrun, attribute) == DEFAULT_DATE
+        assert (
+            reference.evaluate_with(
+                session=session,
+                interval=interval,
+                dagrun=dagrun,
+                dag_id=DAG_ID,
+                run_id="dagrun_1",
+                unexpected="ignored",
+            )
+            == DEFAULT_DATE + interval
+        )
 
     def test_average_runtime_with_sufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when enough historical data exists."""
@@ -497,7 +554,9 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
-            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
 
             # Calculate expected average: sum(durations) / len(durations)
             expected_avg_seconds = sum(durations) / len(durations)
@@ -534,7 +593,9 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
-            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
 
             # Should return None since insufficient runs
             assert result is None
@@ -568,7 +629,9 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
-            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
 
             # Should calculate average from 3 runs
             expected_avg_seconds = sum(durations) / len(durations)  # 4200 seconds
@@ -581,7 +644,9 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
-            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
             assert result is None
 
     def test_average_runtime_min_runs_validation(self):
@@ -630,7 +695,9 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
-            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
 
         # Average must be over the 3 successful 60s runs only (not the 36000s failures).
         expected = DEFAULT_DATE + timedelta(seconds=success_duration) + interval
@@ -654,60 +721,14 @@ class TestCalculatedDeadlineDatabaseCalls:
         session.commit()
 
         reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
-        result = reference.evaluate_with(session=session, interval=timedelta(hours=1), dag_id=DAG_ID)
+        result = reference.evaluate_with(
+            session=session, interval=timedelta(hours=1), dagrun=SimpleNamespace(dag_id=DAG_ID)
+        )
         assert result is None
 
 
 class TestDeadlineReference:
     """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
-
-    DEFAULT_INTERVAL = timedelta(hours=1)
-    DEFAULT_ARGS = {"interval": DEFAULT_INTERVAL}
-
-    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-    @pytest.mark.db_test
-    def test_deadline_evaluate_with(self, reference, session):
-        """Test that all deadline types evaluate correctly with their required conditions."""
-        conditions = {
-            "dag_id": DAG_ID,
-            "run_id": "dagrun_1",
-            "unexpected": "param",  # Add an unexpected parameter.
-            "extra": "kwarg",  # Add another unexpected parameter.
-        }
-
-        with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
-            mock_evaluate.return_value = DEFAULT_DATE
-
-            if reference.required_kwargs:
-                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session, **conditions)
-            else:
-                result = reference.evaluate_with(**self.DEFAULT_ARGS, session=session)
-
-            # Verify only expected kwargs are passed through.
-            expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
-            expected_kwargs["session"] = session
-
-            mock_evaluate.assert_called_once_with(**expected_kwargs)
-
-            assert result == DEFAULT_DATE + self.DEFAULT_INTERVAL
-
-    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-    @pytest.mark.db_test
-    def test_deadline_missing_required_kwargs(self, reference, session):
-        """Test that deadlines raise appropriate errors for missing required parameters."""
-        if reference.required_kwargs:
-            with pytest.raises(
-                ValueError, match=re.escape(f"{reference.__class__.__name__} is missing required parameters:")
-            ) as raised_exception:
-                reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
-
-            assert all(substring in str(raised_exception.value) for substring in reference.required_kwargs)
-        else:
-            # Let the lack of an exception here effectively assert that no exception is raised.
-            reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
-
-        for required_param in reference.required_kwargs:
-            assert required_param in str(raised_exception.value)
 
     def test_deadline_reference_creation(self):
         """Test that DeadlineReference provides consistent interface and types."""

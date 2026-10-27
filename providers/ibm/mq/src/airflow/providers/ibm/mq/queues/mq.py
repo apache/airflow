@@ -37,24 +37,9 @@ class IBMMQMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for IBM MQ integration with common-messaging.
 
-    [START ibmmq_message_queue_provider_description]
-
-    * It uses ``ibmmq`` as scheme for identifying IBM MQ queues.
-    * For parameter definitions take a look at
-      :class:`~airflow.providers.ibm.mq.triggers.mq.AwaitMessageTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            queue="ibmmq://mq_default/MY.QUEUE.NAME",
-        )
-
-        asset = Asset("mq_topic_asset", watchers=[AssetWatcher(name="mq_watcher", trigger=trigger)])
-
-    [END ibmmq_message_queue_provider_description]
+    Dispatches ``scheme="ibmmq"`` to
+    :class:`~airflow.providers.ibm.mq.triggers.mq.AwaitMessageTrigger`,
+    which also defines the accepted parameters.
     """
 
     scheme = "ibmmq"

@@ -158,6 +158,9 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
@@ -228,6 +231,9 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHo
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
@@ -297,6 +303,9 @@ class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
@@ -386,6 +395,9 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
@@ -407,8 +419,8 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
     :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
-    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 5)
-    :param max_retries: Number of times before returning the current state (default: 24)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 120)
+    :param max_retries: Number of times before returning the current state (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -428,6 +440,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         Bedrock adds batch inference jobs to a queue, and they may take some time to complete.
         If you want to wait for the job to complete, use TargetState.COMPLETED, but if you only want
         to wait until the service confirms that the job is in the queue, use TargetState.SCHEDULED.
+        TargetState.SCHEDULED also succeeds if the job has already moved past Scheduled.
 
         The normal successful progression of states is:
             Submitted > Validating > Scheduled > InProgress > PartiallyCompleted > Completed
@@ -462,25 +475,25 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         self.success_state = success_state
 
         base_success_states: tuple[str, ...] = ("Completed",)
-        base_intermediate_states: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating")
-        scheduled_state = ("Scheduled",)
+        base_intermediate_states: tuple[str, ...] = ("Submitted", "Stopping", "Validating")
+        scheduled_states = ("Scheduled", "InProgress")
         self.trigger_class: type[BedrockBaseBatchInferenceTrigger]
 
         if self.success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
-            intermediate_states = base_intermediate_states + scheduled_state
+            intermediate_states = base_intermediate_states + scheduled_states
             success_states = base_success_states
             self.trigger_class = BedrockBatchInferenceCompletedTrigger
         elif self.success_state == BedrockBatchInferenceSensor.SuccessState.SCHEDULED:
             intermediate_states = base_intermediate_states
-            success_states = base_success_states + scheduled_state
+            success_states = base_success_states + scheduled_states
             self.trigger_class = BedrockBatchInferenceScheduledTrigger
         else:
             raise ValueError(
                 "Success states for BedrockBatchInferenceSensor must be set using a BedrockBatchInferenceSensor.SuccessState"
             )
 
-        BedrockBatchInferenceSensor.INTERMEDIATE_STATES = intermediate_states or base_intermediate_states
-        BedrockBatchInferenceSensor.SUCCESS_STATES = success_states or base_success_states
+        self.INTERMEDIATE_STATES = intermediate_states
+        self.SUCCESS_STATES = success_states
 
     def get_state(self) -> str:
         return self.hook.conn.get_model_invocation_job(jobIdentifier=self.job_arn)["status"]
@@ -493,6 +506,9 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )

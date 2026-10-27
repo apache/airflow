@@ -27,6 +27,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
+from tenacity import wait_none
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
@@ -586,7 +587,7 @@ class TestGlueJobHook:
     @mock.patch.object(GlueJobHook, "conn")
     def test_get_job_state_fails_after_all_retries(self, mock_conn):
         """Test get_job_state raises exception when all retries are exhausted."""
-        hook = GlueJobHook()
+        hook = GlueJobHook(api_retry_args={"wait": wait_none()})
         job_name = "test_job"
         run_id = "test_run_id"
 
@@ -649,7 +650,7 @@ class TestGlueJobHook:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "get_async_conn")
     async def test_async_get_job_state_fails_after_all_retries(self, mock_get_async_conn):
-        hook = GlueJobHook()
+        hook = GlueJobHook(api_retry_args={"wait": wait_none()})
         job_name = "test_job"
         run_id = "test_run_id"
 

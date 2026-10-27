@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import type { DAGDetailsResponse } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -80,6 +80,41 @@ describe("Header", () => {
 
     expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
+  });
+
+  it("shows active runs against the maximum number of active runs", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 2, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
+    expect(screen.getByText("2 of 2")).toBeInTheDocument();
+  });
+
+  it("shows only the active runs when the Dag has no maximum", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 2, max_active_runs: null }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText(/null/u)).not.toBeInTheDocument();
+  });
+
+  it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, is_stale: false, scheduling_state: "draining" }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
+    expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
   });
 
   it("shows the team alongside the owner when multi-team is enabled", () => {

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -29,8 +30,10 @@ import {
   useXcomServiceUpdateXcomEntry,
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
+
+import { Modal, ProgressBar, toaster } from "src/system-components";
+
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar, toaster } from "src/components/ui";
 
 type XComModalProps = {
   readonly dagId: string;
@@ -38,12 +41,25 @@ type XComModalProps = {
   readonly mapIndex: number;
   readonly mode: "add" | "edit";
   readonly onClose: () => void;
+  readonly regionId?: string;
+  readonly regionIndex?: number;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey?: string;
 };
 
-const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcomKey }: XComModalProps) => {
+const XComModal = ({
+  dagId,
+  isOpen,
+  mapIndex,
+  mode,
+  onClose,
+  regionId,
+  regionIndex,
+  runId,
+  taskId,
+  xcomKey,
+}: XComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const queryClient = useQueryClient();
   const [key, setKey] = useState("");
@@ -58,6 +74,8 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
       dagRunId: runId,
       deserialize: true,
       mapIndex,
+      regionId,
+      regionIndex,
       taskId,
       xcomKey: xcomKey ?? "",
     },
@@ -144,6 +162,8 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
         dagRunId: runId,
         requestBody: {
           map_index: mapIndex,
+          region_id: regionId,
+          region_index: regionIndex,
           value: parsedValue,
         },
         taskId,
@@ -156,6 +176,8 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
         requestBody: {
           key,
           map_index: mapIndex,
+          region_id: regionId,
+          region_index: regionIndex,
           value: parsedValue,
         },
         taskId,

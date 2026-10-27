@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining runners."
         required: true
         type: string
+      in-memory-runners:
+        description: "The same as runners, with docker in RAM on self-hosted runners."
+        required: true
+        type: string
       platform:
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
@@ -94,7 +98,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -119,7 +123,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -144,7 +148,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -169,7 +173,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -194,7 +198,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -220,7 +224,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -246,7 +250,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -272,7 +276,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.in-memory-runners, 8, '32+64') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -298,7 +302,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 4, 16) }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -323,7 +327,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 4, 16) }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -348,7 +352,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, 32, 128) }}
       platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"

@@ -17,17 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sys
 from collections.abc import Callable
+from email.message import Message
+from importlib.metadata import EntryPoint
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import airflow._shared.providers_discovery.providers_discovery as provider_discovery_module
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.sdk import BaseHook
 
 PY313 = sys.version_info >= (3, 13)
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -38,6 +43,7 @@ from airflow.providers_manager import (
     ProviderInfo,
     ProvidersManager,
     RemoteLoggingInfo,
+    provider_incompatibility_reason,
 )
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -246,6 +252,10 @@ class TestProviderManager:
         assert "bad" not in providers_manager._remote_logging_by_scheme
         assert providers_manager._remote_logging_info_list == []
 
+    # The first test in the suite's order to hit _import_info_from_all_hooks() pays the one-time
+    # cost of cold-importing every provider hook module, which can exceed the default 60s
+    # execution timeout on slower or loaded runners.
+    @pytest.mark.execution_timeout(120)
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
@@ -571,3 +581,63 @@ class TestProvidersMetadataLoading:
         pm = ProvidersManager()
         with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
             pm.already_initialized_provider_configs
+
+
+def make_distribution(name: str, version: str, direct_url: dict | None = None) -> SimpleNamespace:
+    metadata = Message()
+    metadata["Name"] = name
+    return SimpleNamespace(
+        metadata=metadata,
+        version=version,
+        read_text=lambda filename: json.dumps(direct_url) if direct_url else None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("version", "direct_url", "allowed"),
+    [
+        pytest.param("0.10.0", None, False, id="released-0.10.0"),
+        pytest.param("1.0.0rc1", None, True, id="release-candidate-1.0.0rc1"),
+        pytest.param("1.0.0", None, True, id="released-1.0.0"),
+        pytest.param("1.1.0", None, True, id="released-1.1.0"),
+        pytest.param("0.10.0", {"dir_info": {"editable": True}}, True, id="editable-source-install"),
+        pytest.param("0.10.0", {"dir_info": {}}, True, id="directory-source-install"),
+        pytest.param("0.10.0", {"archive_info": {}}, False, id="local-archive-install"),
+    ],
+)
+def test_common_ai_provider_discovery_checks_installed_version_before_import(
+    monkeypatch, caplog, version, direct_url, allowed
+):
+    distribution = make_distribution("apache-airflow-providers-common-ai", version, direct_url)
+    entry_point = Mock(spec=EntryPoint)
+    entry_point.load.return_value = lambda: {"package-name": "apache-airflow-providers-common-ai"}
+    monkeypatch.setattr(
+        provider_discovery_module,
+        "entry_points_with_dist",
+        lambda group: [(entry_point, distribution)],
+    )
+    providers = {}
+
+    with caplog.at_level(logging.WARNING):
+        provider_discovery_module.discover_all_providers_from_packages(
+            providers, Mock(spec=["validate"]), provider_incompatibility_reason
+        )
+
+    assert ("apache-airflow-providers-common-ai" in providers) is allowed
+    assert entry_point.load.called is allowed
+    if not allowed:
+        assert f"apache-airflow-providers-common-ai {version}" in caplog.text
+        assert "apache-airflow-providers-common-ai>=1.0.0" in caplog.text
+
+
+def test_unrelated_provider_is_not_blocked():
+    distribution = make_distribution("apache-airflow-providers-standard", "0.1.0")
+
+    assert provider_incompatibility_reason(distribution) is None
+
+
+def test_core_provider_manager_passes_compatibility_policy(cleanup_providers_manager):
+    with patch("airflow.providers_manager.discover_all_providers_from_packages", autospec=True) as discover:
+        ProvidersManager.initialize_providers_list.__wrapped__(ProvidersManager())
+
+    assert discover.call_args.args[2] is provider_incompatibility_reason

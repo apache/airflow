@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypeAlias
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -48,6 +49,8 @@ class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
     :param wait_timeout: Optional. How many seconds wait for job to be ready.
         Used only if ``asynchronous`` is False.
     """
+
+    template_fields: Sequence[str] = ("looker_conn_id",)
 
     def __init__(
         self,

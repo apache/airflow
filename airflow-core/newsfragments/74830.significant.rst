@@ -1,0 +1,10 @@
+Deadline Alert callback kwargs are decoded where the callback runs
+
+The keyword arguments of Deadline Alert callbacks are no longer decoded by the scheduler. They
+are kept in their serialized form and decoded where the callback runs: by the triggerer for an
+``AsyncCallback``, and by the callback runner on the worker for a ``SyncCallback``.
+
+Workers that run ``SyncCallback`` Deadline Alerts need a Task SDK that includes this change, so
+upgrade ``apache-airflow`` and ``apache-airflow-task-sdk`` on workers together. A worker with
+an upgraded ``apache-airflow`` and an older Task SDK fails such callbacks with an error instead
+of running them. Callbacks created before the upgrade run as before.

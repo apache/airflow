@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "packaging>=25",
 #   "rich>=13.6.0",
-#   "tomli>=2.0.1",
 # ]
 # ///
 """
@@ -43,6 +42,7 @@ too, since the URL already names the exact artifact.
 from __future__ import annotations
 
 import sys
+import tomllib
 from functools import cache
 from pathlib import Path
 
@@ -50,11 +50,6 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, console
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from rich.markup import escape
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 # Operators that place a floor under the resolved version; anything else (``!=``, ``<``,
 # ``<=``) leaves the resolver free to reach back to the oldest release ever published.

@@ -16,21 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Badge, Box, Button, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Modal, Menu, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
-import { Modal, Menu } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { formatNumber } from "src/utils";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -38,7 +43,7 @@ type Props = {
 };
 
 const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<TaskInstanceState>("success");
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
@@ -48,8 +53,9 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
     onSuccessConfirm: onClose,
   });
 
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
+  const hasRegional = selectedTaskInstances.some(isLoopTaskInstance);
+  const past = !hasRegional && selectedOptions.includes("past");
+  const future = !hasRegional && selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
@@ -110,7 +116,7 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
                 <HStack justify="space-between" width="full">
                   <StateBadge state={menuState}>{translate(`common:states.${menuState}`)}</StateBadge>
                   <Badge colorPalette="gray" variant="subtle">
-                    {count}
+                    {formatNumber(count, i18n.language)}
                   </Badge>
                 </HStack>
               </Menu.Item>
@@ -131,6 +137,9 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
                     action: "update" as const,
                     action_on_non_existence: "skip",
                     entities: directlyAffected.map((ti) => ({
+                      ...(ti.region_id === undefined
+                        ? {}
+                        : { region_id: ti.region_id, region_index: ti.region_index }),
                       dag_id: ti.dag_id,
                       dag_run_id: ti.dag_run_id,
                       include_downstream: downstream,
@@ -170,12 +179,12 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
             onChange={setSelectedOptions}
             options={[
               {
-                disabled: !hasLogicalDate,
+                disabled: !hasLogicalDate || hasRegional,
                 label: translate("dags:runAndTaskActions.options.past"),
                 value: "past",
               },
               {
-                disabled: !hasLogicalDate,
+                disabled: !hasLogicalDate || hasRegional,
                 label: translate("dags:runAndTaskActions.options.future"),
                 value: "future",
               },

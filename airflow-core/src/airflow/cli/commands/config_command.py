@@ -657,6 +657,13 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("api", "page_size"),
         renamed_to=ConfigParameter("api", "fallback_page_limit"),
     ),
+    ConfigChange(
+        config=ConfigParameter("api", "expose_config"),
+        was_removed=False,
+        is_invalid_if="non-sensitive-only",
+        suggestion="This value is deprecated and treated as `True`. Set `expose_config` to `True` instead; "
+        "sensitive configuration values are always masked.",
+    ),
     # scheduler
     ConfigChange(
         config=ConfigParameter("scheduler", "dependency_detector"),

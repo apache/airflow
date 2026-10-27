@@ -18,8 +18,19 @@
 
 from __future__ import annotations
 
+import ast
+import re
+from pathlib import Path
+
 import pytest
-from derive_wave_providers import derive
+from derive_wave_providers import META_TOKENS, NON_PROVIDER_TOKENS, derive
+
+AIRFLOW_ROOT = Path(__file__).parents[3]
+GLOBAL_CONSTANTS = AIRFLOW_ROOT / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+PUBLISH_DOCS_WORKFLOW = AIRFLOW_ROOT / ".github" / "workflows" / "publish-docs-to-s3.yml"
+PUBLISH_DOCS_TO_S3 = (
+    AIRFLOW_ROOT / "dev" / "breeze" / "src" / "airflow_breeze" / "utils" / "publish_docs_to_s3.py"
+)
 
 
 def fake_git(wave_tags=None, provider_tags=None):
@@ -95,6 +106,13 @@ WAVE_PROVIDER_TAGS = [
         ("amazon amazon google", "any", "amazon google", False, ""),
         # Empty.
         ("", "any", "", False, ""),
+        # Language-SDK doc packages are distributions, not providers. Passing one
+        # through as a provider ID fails registry extraction (`provider(s) not found
+        # in provider.yaml files`) and blocks the docs publish.
+        ("ts-sdk", "any", "", False, ""),
+        ("java-sdk ts-sdk task-sdk", "any", "", False, ""),
+        # A real provider alongside an SDK token still rebuilds, minus the SDK.
+        ("ts-sdk amazon", "any", "amazon", False, ""),
     ],
 )
 def test_derive(include_docs, ref, expected_providers, expected_full_build, log_substr):
@@ -167,3 +185,64 @@ def test_glob_matches_non_wave_tag_is_filtered_out():
     assert providers == "amazon"
     assert full_build is False
     assert "providers/2026-02-10 -> providers/2026-02-20" in log
+
+
+def _string_collection_constant(path: Path, name: str) -> set[str]:
+    """Parse a collection-of-strings constant out of a Python file via AST.
+
+    `derive_wave_providers.py` runs under bare `python3` on the runner, where
+    breeze is not installed, so these constants are parsed rather than imported.
+
+    Anything but a flat literal of string constants raises. Skipping an element
+    we cannot read would shrink both sides of the comparisons below in step, so
+    the guard would pass vacuously on exactly the drift it exists to catch.
+    """
+    tree = ast.parse(path.read_text(), filename=str(path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == name for target in targets):
+            continue
+        if not isinstance(node.value, (ast.List, ast.Tuple, ast.Set)):
+            raise AssertionError(f"{name} in {path} is not a list/tuple/set literal")
+        values = set()
+        for elt in node.value.elts:
+            if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
+                raise AssertionError(f"{name} in {path} has a non-literal element: {ast.unparse(elt)}")
+            values.add(elt.value)
+        return values
+    raise AssertionError(f"{name} not found in {path}")
+
+
+def _workflow_non_provider_tokens() -> set[str]:
+    """The NON_PROVIDER_TOKENS bash array from publish-docs-to-s3.yml."""
+    match = re.search(
+        r"^\s*NON_PROVIDER_TOKENS=\((.*?)\)\s*$",
+        PUBLISH_DOCS_WORKFLOW.read_text(),
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        raise AssertionError(f"NON_PROVIDER_TOKENS array not found in {PUBLISH_DOCS_WORKFLOW}")
+    return set(re.findall(r'"([^"]+)"', match.group(1)))
+
+
+def test_non_provider_tokens_match_breeze_doc_packages():
+    # A doc package added to breeze but not here is parsed as a provider ID and
+    # fails registry extraction, which is how ts-sdk (#70812) broke docs publishing.
+    regular_doc_packages = _string_collection_constant(GLOBAL_CONSTANTS, "REGULAR_DOC_PACKAGES")
+    assert regular_doc_packages - META_TOKENS == NON_PROVIDER_TOKENS
+
+
+def test_workflow_non_provider_list_matches_script():
+    assert _workflow_non_provider_tokens() == NON_PROVIDER_TOKENS
+
+
+def test_breeze_publish_docs_non_short_names_match_script():
+    # A third copy, with the same "not in the list means expand to
+    # apache-airflow-providers-{}" semantics. In sync today; pinned so it stays that way.
+    non_short_name_packages = _string_collection_constant(PUBLISH_DOCS_TO_S3, "NON_SHORT_NAME_PACKAGES")
+    assert non_short_name_packages == NON_PROVIDER_TOKENS

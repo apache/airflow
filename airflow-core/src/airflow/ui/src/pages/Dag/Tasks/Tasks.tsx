@@ -23,12 +23,17 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
-import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 type TaskRow = { row: { original: TaskResponse } };
 
@@ -38,7 +43,7 @@ const createColumns = ({
 }: {
   dagId: string;
   translate: TFunction;
-}): Array<ColumnDef<TaskResponse>> => [
+}): Array<ColumnDef<DataTableFeatures, TaskResponse>> => [
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }: TaskRow) => (
@@ -88,7 +93,6 @@ export const Tasks = () => {
   const {
     data,
     error: tasksError,
-    isFetching,
     isLoading,
   } = useTaskServiceGetTasks({
     dagId,
@@ -133,10 +137,9 @@ export const Tasks = () => {
         data={filteredTasks}
         displayMode="card"
         filterActions={<TaskFilters tasksData={data} />}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:task"
-        total={data ? data.total_entries : 0}
+        total={filteredTasks.length}
       />
     </>
   );

@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.triggers.comprehend import (
     ComprehendPiiEntitiesDetectionJobCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 
@@ -108,7 +109,9 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -184,7 +187,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
         )
         self.log.info("You can view the PII entities detection job at %s", job_url)
         message_description = f"start pii entities detection job {job_id} to complete."
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", message_description)
             self.defer(
                 trigger=ComprehendPiiEntitiesDetectionJobCompletedTrigger(
@@ -192,6 +195,9 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -238,9 +244,11 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
 
     :param wait_for_completion: Whether to wait for job to stop. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 60)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -285,7 +293,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         document_classifier_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
-        waiter_max_attempts: int = 20,
+        waiter_max_attempts: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -333,7 +341,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         self.log.info("You can monitor the classifier at %s", job_url)
 
         message_description = f"document classifier {document_classifier_arn} to complete."
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", message_description)
             self.defer(
                 trigger=ComprehendCreateDocumentClassifierCompletedTrigger(
@@ -341,6 +349,9 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )

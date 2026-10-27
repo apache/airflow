@@ -17,12 +17,21 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { CLEAR_PREVENT_RUNNING_TASK_KEY, DEFAULT_GRAPH_DIRECTION_KEY } from "src/constants/localStorage";
+import {
+  CLEAR_KEEP_TASK_STATE_KEY,
+  CLEAR_PREVENT_RUNNING_TASK_KEY,
+  DAGS_LIST_SHOW_RECENT_TASKS_KEY,
+  DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_MATCH_ANYWHERE_KEY,
+  DEFAULT_TASK_GROUPS_EXPANDED_KEY,
+  DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_TASK_INSTANCE_TAB_KEY,
+} from "src/constants/localStorage";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Settings } from "./Settings";
@@ -39,19 +48,41 @@ beforeAll(async () => {
         common: {
           settings: {
             clearing: {
+              keepTaskState: { helper: "helper", label: "Keep task state on clear" },
               preventRunningTask: { helper: "helper", label: "Prevent clearing running tasks" },
               runSelection: { helper: "helper", label: "Default run clear selection" },
               taskSelection: { helper: "helper", label: "Default task clear selection" },
               title: "Clearing",
             },
+            dagsList: {
+              recentTasks: { helper: "helper", label: "Show recent tasks" },
+              title: "Dags List",
+            },
             description: "browser only",
+            general: {
+              landingPage: {
+                helper: "helper",
+                label: "Landing page",
+                options: { dags: "Dags", dashboard: "DASHBOARD-OPT" },
+              },
+              title: "General",
+            },
             graph: {
               defaultDirection: { helper: "helper", label: "Default graph direction" },
+              taskGroupsExpanded: { helper: "helper", label: "Expand task groups by default" },
               title: "Graph",
             },
             marking: {
               taskSelection: { helper: "helper", label: "Default mark selection" },
               title: "Marking",
+            },
+            search: {
+              matchAnywhere: { helper: "helper", label: "Match anywhere by default" },
+              title: "Search",
+            },
+            taskInstance: {
+              defaultTab: { helper: "helper", label: "Default task instance tab" },
+              title: "Task Instance",
             },
             title: "Settings",
           },
@@ -62,6 +93,17 @@ beforeAll(async () => {
             directionLeft: "LEFT-LABEL",
             directionRight: "RIGHT-LABEL",
             directionUp: "UP-LABEL",
+          },
+        },
+        dag: {
+          tabs: {
+            assetEvents: "Asset Events",
+            auditLog: "Audit Log",
+            code: "Code",
+            details: "DETAILS-TAB",
+            logs: "Logs",
+            renderedTemplates: "Rendered Templates",
+            xcom: "XCom",
           },
         },
         dags: {
@@ -93,7 +135,13 @@ describe("Settings page", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
 
     // Selects and the switch expose test ids.
-    for (const testId of ["default-graph-direction", "clear-prevent-running-task"]) {
+    for (const testId of [
+      "default-landing-page",
+      "default-graph-direction",
+      "default-task-instance-tab",
+      "clear-prevent-running-task",
+      "clear-keep-task-state",
+    ]) {
       expect(screen.getByTestId(testId)).toBeInTheDocument();
     }
 
@@ -104,15 +152,65 @@ describe("Settings page", () => {
 
     // The prevent-running switch defaults to on.
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "checked");
+
+    // The keep-task-state switch defaults to off, matching discard-by-default.
+    expect(screen.getByTestId("clear-keep-task-state")).toHaveAttribute("data-state", "unchecked");
   });
 
   it("reflects stored values in the controls", () => {
     localStorage.setItem(DEFAULT_GRAPH_DIRECTION_KEY, JSON.stringify("DOWN"));
     localStorage.setItem(CLEAR_PREVENT_RUNNING_TASK_KEY, JSON.stringify(false));
+    localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(true));
+
+    localStorage.setItem(DEFAULT_TASK_INSTANCE_TAB_KEY, JSON.stringify("details"));
+    localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dashboard"));
 
     render(<Settings />, { wrapper: BaseWrapper });
 
+    expect(screen.getByTestId("default-landing-page")).toHaveTextContent("DASHBOARD-OPT");
     expect(screen.getByTestId("default-graph-direction")).toHaveTextContent("DOWN-LABEL");
+    expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
+    expect(screen.getByTestId("clear-keep-task-state")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("task group setting", () => {
+  it("defaults to collapsed and persists the expanded preference", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+    const toggle = screen.getByTestId("default-task-groups-expanded");
+
+    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Expand task groups by default" }));
+    await waitFor(() => expect(localStorage.getItem(DEFAULT_TASK_GROUPS_EXPANDED_KEY)).toBe("true"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("default-task-groups-expanded")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("match anywhere setting", () => {
+  it("defaults to off and persists the preference", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("default-match-anywhere")).toHaveAttribute("data-state", "unchecked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Match anywhere by default" }));
+    await waitFor(() => expect(localStorage.getItem(DEFAULT_MATCH_ANYWHERE_KEY)).toBe("true"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("default-match-anywhere")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("Dags list recent tasks setting", () => {
+  it("defaults to shown and persists turning it off", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "checked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show recent tasks" }));
+    await waitFor(() => expect(localStorage.getItem(DAGS_LIST_SHOW_RECENT_TASKS_KEY)).toBe("false"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "unchecked");
   });
 });

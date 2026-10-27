@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "區段"
-    }
+    },
+    "config_one": "設定",
+    "config_other": "設定"
   },
   "connections": {
     "add": "新增連線",
@@ -23,19 +25,21 @@
     "connection_other": "連線",
     "delete": {
       "deleteConnection_one": "刪除 1 個連線",
-      "deleteConnection_other": "刪除 {{count}} 個連線",
+      "deleteConnection_other": "刪除 {{count, number}} 個連線",
       "firstConfirmMessage_one": "您即將刪除以下連線：",
       "firstConfirmMessage_other": "您即將刪除以下連線：",
       "title": "刪除連線"
     },
+    "duplicate": "複製 $t(connections.connection_one)",
     "edit": "編輯連線",
     "form": {
       "connectionIdRequired": "連線 ID 是必填的",
       "connectionIdRequirement": "連線 ID 不能只包含空格",
+      "connectionTypeFields": "{{connectionType}} 欄位",
       "connectionTypeRequired": "連線類型是必填的",
-      "extraFields": "額外欄位",
       "extraFieldsJson": "額外欄位 JSON",
-      "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow Providers 套件。",
+      "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow 整合套件。",
+      "helperTextForDuplicatedRedactedFields": "遮蔽的欄位（「***」）不會被複製。請在新的連線中重新填寫這些欄位。",
       "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
@@ -95,7 +99,9 @@
       "dagProcessorJob": "Dag 處理器工作",
       "schedulerJob": "排程器工作",
       "triggererJob": "觸發者工作"
-    }
+    },
+    "job_one": "工作",
+    "job_other": "工作"
   },
   "plugins": {
     "columns": {
@@ -103,6 +109,8 @@
     },
     "importError_one": "外掛匯入錯誤",
     "importError_other": "外掛匯入錯誤",
+    "plugin_one": "外掛",
+    "plugin_other": "外掛",
     "searchPlaceholder": "搜尋檔案"
   },
   "pools": {
@@ -136,7 +144,9 @@
     "columns": {
       "packageName": "套件名稱",
       "version": "版本"
-    }
+    },
+    "provider_one": "整合套件",
+    "provider_other": "整合套件"
   },
   "variables": {
     "add": "新增變數",
@@ -145,7 +155,7 @@
     },
     "delete": {
       "deleteVariable_one": "刪除 1 個變數",
-      "deleteVariable_other": "刪除 {{count}} 個變數",
+      "deleteVariable_other": "刪除 {{count, number}} 個變數",
       "firstConfirmMessage_one": "您即將刪除以下變數：",
       "firstConfirmMessage_other": "您即將刪除以下變數：",
       "title": "刪除變數",

@@ -1,6 +1,54 @@
-# .apache-magpie.lock — committed; the project's pin.
-# Edited only by /magpie-setup; do not modify by hand.
+# .apache-magpie.lock — committed; the project's floor.
 
-method: git-branch
-url:    https://github.com/apache/magpie.git
-ref:    main
+method:       marketplace
+url:          apache/magpie
+min_version:  0.9.0.dev202610192305
+
+plugins:
+  - magpie-setup
+  - magpie-utilities
+  - magpie-agent-guard
+  - magpie-release-management
+
+reconciled:
+  version: 0.9.0.dev202610250024
+  at:      2026-10-25
+  skills:
+    activity-sweep:             sha256:a39919af92a37e2d
+    announce-draft:             sha256:edffafcd9d9948ab
+    archive-sweep:              sha256:1665af8aae9c2b58
+    audit-finding-fix:          sha256:a31ea1f8e96846eb
+    audit-report:               sha256:ecab5c5c3e52d580
+    backlog-stats:              sha256:0f124437a9fa54f9
+    code-review:                sha256:0e09164d15647a70
+    deduplicate:                sha256:10a3cb1b8a2892e2
+    dependency-audit:           sha256:19ba62ec34a55604
+    fix-workflow:               sha256:cdd7487f53514882
+    flaky-test-triage:          sha256:eda3c3891897f08d
+    identity-map:               sha256:78eccfcead182fca
+    isolated-setup-install:     sha256:6358702510d21c26
+    issue-fix:                  sha256:550eabe3b9bb3689
+    issue-import-from-scan:     sha256:7adfbe73f79606b1
+    issue-import-via-forwarder: sha256:43894008501eb56d
+    keys-sync:                  sha256:61e10c986bb0d3ec
+    license-compliance-audit:   sha256:b40b2993e5f18f54
+    newcomer-issue-explainer:   sha256:8cfe453a3113abe2
+    pr-stale-sweep:             sha256:086e859fb8751476
+    pr-triage:                  sha256:54dc4ba1be7b36d4
+    pre-first-pr-check:         sha256:4219bd5fdce4e81d
+    prepare:                    sha256:9380580d6421d8b4
+    promote:                    sha256:ecfb43e47fa5905e
+    quick-merge:                sha256:99ac70a7b7f1228c
+    rc-cut:                     sha256:60623e456e72bbf6
+    reassess:                   sha256:cb023dff6e95a57a
+    reassess-stats:             sha256:44c7826660a3ae71
+    reproducer:                 sha256:85440f7009f84de6
+    stack-review:               sha256:f0872f2cf794b6d2
+    stale-sweep:                sha256:65673690910c37f0
+    stats:                      sha256:9e5dedfbf2f9f716
+    triage:                     sha256:fb90bdc45aec5f8a
+    verify-rc:                  sha256:68f688faf6363ba7
+    vote-draft:                 sha256:6d70a52ead840ca2
+    vote-tally:                 sha256:34592bfacb7cf955
+    welcome:                    sha256:a61c6575d69da08a
+    workflow-security-audit:    sha256:e50eafff464d131a

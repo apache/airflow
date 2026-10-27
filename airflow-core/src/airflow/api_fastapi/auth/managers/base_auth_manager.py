@@ -29,9 +29,11 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -48,10 +50,10 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -72,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -162,7 +163,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB lookup, kept off the event loop
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
@@ -183,6 +185,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        Middlewares added by this method will be initialised before middleware from
+        ``get_fastapi_middlewares()``. To disable JWT refresh return an empty list.
+        To add more middleware, simply add more tuples here in the same format as
+        ``get_fastapi_middlewares()``.
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
+
+        return [(JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
+
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
@@ -190,6 +206,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
             self.serialize_user(user)
         )
+
+    def generate_api_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+    ) -> str:
+        """
+        Return the JWT token for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so an auth manager that keeps part of its state in
+        cookies has to put that state in the token's claims instead for the request to be
+        authorized. Auth managers whose tokens are already self-contained need not override
+        this.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self.generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -457,10 +489,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Check if a user is allowed to approve/reject a HITL task.
 
+        Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow
+        skips this method and any user allowed to update the task's HITL detail (``is_authorized_dag``
+        with ``DagAccessEntity.HITL_DETAIL``) can respond.
+
         By default, checks if the user's ID is in the assigned_users set.
         Auth managers can override this method to implement custom logic.
 
-        :param assigned_users: set of user IDs assigned to the task
+        :param assigned_users: set of user IDs assigned to the task, never empty
         :param user: the user to check authorization for
         """
         return user.get_id() in assigned_users
@@ -567,6 +603,52 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         )
 
     @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id, AssetModel.name, AssetModel.uri)).all()
+        assets = [AssetDetails(id=str(asset_id), name=name, uri=uri) for asset_id, name, uri in rows]
+        authorized_ids = self.filter_authorized_assets(assets=assets, user=user, method=method)
+        return {asset_id for asset_id, _, _ in rows if str(asset_id) in authorized_ids}
+
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        """
+        Filter assets the user has access to, returning the ids of the authorized ones.
+
+        By default, check individually if the user has permissions to access the asset. An auth manager
+        whose ``is_authorized_asset`` performs a remote call must override this method: a deployment can
+        hold far more assets than connections or pools, and the default costs one round trip per asset on
+        every asset listing.
+
+        :param assets: the assets to filter. Each item carries the asset id, name and uri, so an auth
+            manager can authorize on any of them (e.g. restrict by uri prefix).
+        :param user: the user
+        :param method: the method to filter on
+        """
+        return {
+            details.id
+            for details in assets
+            if details.id is not None and self.is_authorized_asset(method=method, details=details, user=user)
+        }
+
+    @provide_session
     def get_authorized_connections(
         self,
         *,
@@ -651,7 +733,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
         )
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-        rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        rows: Sequence[Row[*tuple[str, str]]] = session.execute(stmt).all()  # type: ignore[type-arg]
         dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)
@@ -720,7 +802,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
-            pools_by_team[team_name].add(pool_name)
+            if pool_name is not None:
+                pools_by_team[team_name].add(pool_name)
 
         pool_names: set[str] = set()
         for team_name, team_pool_names in pools_by_team.items():

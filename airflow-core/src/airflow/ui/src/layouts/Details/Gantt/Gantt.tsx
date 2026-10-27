@@ -16,22 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex } from "@chakra-ui/react";
 import { useRef } from "react";
 import type { RefObject } from "react";
+
+import { Box, Flex } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
-import { useGroups } from "src/context/groups";
-import { useTimezone } from "src/context/timezone";
-import { NavigationModes, useNavigation } from "src/hooks/navigation";
+
 import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_ROW_OFFSET_PX,
   GANTT_TOP_PADDING_PX,
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useGroups } from "src/context/groups";
+import { useTimezone } from "src/context/timezone";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries";
@@ -81,6 +85,12 @@ export const Gantt = ({
   const depthParam = searchParams.get("depth");
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
+  // Task-level time window, written by the Start/End Date pills in GridFilters.
+  const startDateGte = searchParams.get(SearchParamsKeys.START_DATE_GTE) ?? undefined;
+  const startDateLte = searchParams.get(SearchParamsKeys.START_DATE_LTE) ?? undefined;
+  const endDateGte = searchParams.get(SearchParamsKeys.END_DATE_GTE) ?? undefined;
+  const endDateLte = searchParams.get(SearchParamsKeys.END_DATE_LTE) ?? undefined;
+
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
     limit,
@@ -114,7 +124,7 @@ export const Gantt = ({
   const summariesLoading = Boolean(runId && selectedRun && !summariesByRunId.has(runId));
 
   const { data: ganttData, isLoading: ganttLoading } = useGanttServiceGetGanttData(
-    { dagId, runId },
+    { dagId, endDateGte, endDateLte, runId, startDateGte, startDateLte },
     undefined,
     {
       enabled: Boolean(dagId) && Boolean(runId) && Boolean(selectedRun),
@@ -160,7 +170,6 @@ export const Gantt = ({
       <GanttTimeline
         dagId={dagId}
         flatNodes={flatNodes}
-        ganttDataItems={ganttDataItems}
         gridSummaries={gridSummaries}
         maxMs={maxMs}
         minMs={minMs}

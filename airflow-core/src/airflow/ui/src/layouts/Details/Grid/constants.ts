@@ -19,7 +19,7 @@
 
 // Grid layout constants - shared between Grid and Gantt for alignment
 export const ROW_HEIGHT = 20;
-/** Height of a task bar / badge within a row — matches the GridTI badge height. */
+/** Height of a task bar / badge within a row — matches the unmapped GridTI badge height. */
 export const TASK_BAR_HEIGHT_PX = 14;
 export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars

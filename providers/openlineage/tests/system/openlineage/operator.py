@@ -23,8 +23,9 @@ import os
 import re
 import time
 import uuid
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from collections import defaultdict
+from collections.abc import Callable, Collection
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import urlparse
 
 from dateutil.parser import parse
@@ -251,6 +252,173 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
     return True
 
 
+class Attempt(NamedTuple):
+    """
+    Which execution of a job an event belongs to.
+
+    ``try_number``, ``map_index``, ``loop_index`` and ``region_id`` are None for a Dag event and when the task has
+    none. ``clear_number`` plays for a Dag run the role ``try_number`` plays for a task instance, and ``region_id``
+    tells apart two executions of one loop iteration after the loop was cleared, which can share every other field.
+    """
+
+    dag_run_id: Any
+    clear_number: Any
+    try_number: Any
+    map_index: Any
+    loop_index: Any
+    region_id: Any
+
+
+def _get_attempt(event: dict) -> Attempt | None:
+    """Return the attempt of an event, or None for an event without the airflow facet."""
+    facets = (event.get("run") or {}).get("facets") or {}
+    # Task events carry the airflow facet, Dag run events carry the same content in airflowDagRun.
+    airflow_facet = facets.get("airflow") or facets.get("airflowDagRun")
+    if not isinstance(airflow_facet, dict):
+        return None
+    dag_run = airflow_facet.get("dagRun") or {}
+    task_instance = airflow_facet.get("taskInstance") or {}
+    return Attempt(
+        dag_run_id=dag_run.get("run_id"),
+        clear_number=dag_run.get("clear_number"),
+        try_number=task_instance.get("try_number"),
+        map_index=task_instance.get("map_index"),
+        loop_index=(task_instance.get("loop") or {}).get("index"),
+        region_id=task_instance.get("region_id"),
+    )
+
+
+def _get_job_type(event: dict) -> str | None:
+    return (((event.get("job") or {}).get("facets") or {}).get("jobType") or {}).get("jobType")
+
+
+def check_run_id_integrity(
+    events_by_key: dict[str, list[dict]], repeated_start_keys: Collection[str] = ()
+) -> list[str]:
+    """
+    Check that ``run.runId`` identifies exactly one attempt of exactly one job, and return the problems found.
+
+    Events are grouped by ``runId``. The attempt of an event is its Dag run id and clear number, plus for a task
+    event ``(try_number, map_index, loop.index, region_id)``, all from ``run.facets.airflow`` (``airflowDagRun`` for Dag
+    events). Query events, which are child runs of a task, have no attempt. For every group:
+
+    1. all events share one ``job.name``;
+    2. all events share one attempt, so another Dag run, clear, retry, map index or loop iteration can't reuse
+       a ``runId``;
+    3. the lifecycle is complete, so START and COMPLETE/FAIL of an attempt can't carry different ``runId`` values:
+
+       * task and query: exactly one START, or several when the key of the START events is in
+         ``repeated_start_keys`` (deferral re-emits START on every resume), and exactly one COMPLETE or FAIL;
+       * Dag run: one START and at most one COMPLETE or FAIL. The Dag run that contains the checking task is
+         still running when the check happens, so its COMPLETE/FAIL is missing, while Dag runs triggered by it
+         can already have finished.
+
+    Across groups:
+
+    4. one attempt of a job has one ``runId``.
+
+    For a task in a loop, i.e. with ``task.loop``, also:
+
+    5. ``runId`` is ``taskInstance.id``, as its iterations share every other coordinate;
+    6. ``taskInstance.loop.region_id`` is ``taskInstance.region_id`` for a task that isn't mapped, and another region
+       for a mapped one, whose own region is its expansion inside the loop's;
+    7. one run of a loop, i.e. its Dag run, clear and ``loop.trajectory``, has one ``loop.region_id``.
+
+    Only the events passed in are checked, i.e. those of the keys listed in the expected events.
+    """
+    problems: list[str] = []
+    groups: dict[str, list[tuple[str, dict]]] = defaultdict(list)
+    for key, events in events_by_key.items():
+        for event in events:
+            run_id = (event.get("run") or {}).get("runId")
+            if run_id:
+                groups[run_id].append((key, event))
+            else:
+                problems.append(f"[{key}] {event.get('eventType')} event has no run.runId")
+
+    run_ids_by_attempt: dict[tuple, set[str]] = defaultdict(set)
+    for run_id, members in sorted(groups.items()):
+        job_names = {event["job"]["name"] for _, event in members}
+        if len(job_names) > 1:
+            problems.append(f"runId {run_id} is shared by different jobs: {sorted(job_names)}")
+            continue
+        job_name = next(iter(job_names))
+
+        attempts = {attempt for _, event in members if (attempt := _get_attempt(event)) is not None}
+        if len(attempts) > 1:
+            problems.append(
+                f"runId {run_id} of `{job_name}` is shared by different attempts: {sorted(attempts, key=str)}"
+            )
+        for attempt in attempts:
+            run_ids_by_attempt[(job_name, attempt)].add(run_id)
+
+        job_type = _get_job_type(members[0][1])
+        if job_type not in ("TASK", "QUERY", "DAG"):
+            continue
+        event_types = [event.get("eventType") for _, event in members]
+        start_keys = {key for key, event in members if event.get("eventType") == "START"}
+        terminals = [event_type for event_type in event_types if event_type in ("COMPLETE", "FAIL")]
+        starts = event_types.count("START")
+        repeated_starts_allowed = job_type != "DAG" and bool(start_keys & set(repeated_start_keys))
+        too_many_starts = starts > 1 and not repeated_starts_allowed
+        too_many_terminals = len(terminals) > 1 or (job_type != "DAG" and not terminals)
+        if starts < 1 or too_many_starts or too_many_terminals:
+            expected = (
+                "one START (several only if the Dag expects repeated STARTs, see event_count_assertions) "
+                "and one COMPLETE/FAIL"
+                if job_type != "DAG"
+                else "one START and at most one COMPLETE/FAIL"
+            )
+            problems.append(
+                f"runId {run_id} of {job_type} `{job_name}` should have {expected}, "
+                f"got: {sorted(str(event_type) for event_type in event_types)}"
+            )
+
+    for (job_name, attempt_fields), run_ids in sorted(run_ids_by_attempt.items(), key=str):
+        if len(run_ids) > 1:
+            problems.append(f"`{job_name}` {attempt_fields} has several runIds: {sorted(run_ids)}")
+    return problems + _check_loop_runs(groups)
+
+
+def _check_loop_runs(groups: dict[str, list[tuple[str, dict]]]) -> list[str]:
+    """Check the events of tasks in a loop, see ``check_run_id_integrity``."""
+    problems: list[str] = []
+    loop_region_ids: dict[tuple, set[str]] = defaultdict(set)
+    for run_id, members in sorted(groups.items()):
+        for key, event in members:
+            airflow_facet = ((event.get("run") or {}).get("facets") or {}).get("airflow") or {}
+            if (loop_group := ((airflow_facet.get("task") or {}).get("loop") or {}).get("group_id")) is None:
+                continue
+            task_instance = airflow_facet.get("taskInstance") or {}
+            if task_instance.get("id") not in (None, run_id):
+                problems.append(f"[{key}] runId {run_id} in loop `{loop_group}` isn't taskInstance.id")
+            loop = task_instance.get("loop") or {}
+            if (loop_region_id := loop.get("region_id")) is None:
+                continue
+            mapped = task_instance.get("map_index") is not None
+            if (loop_region_id == task_instance.get("region_id")) is mapped:
+                problem = "of a mapped task is its own region_id" if mapped else "differs from its region_id"
+                problems.append(f"[{key}] runId {run_id}: loop.region_id {problem}")
+            dag_run = airflow_facet.get("dagRun") or {}
+            run = (dag_run.get("run_id"), dag_run.get("clear_number"), loop_group, loop.get("trajectory"))
+            loop_region_ids[run].add(loop_region_id)
+    for run, region_ids in sorted(loop_region_ids.items(), key=str):
+        if len(region_ids) > 1:
+            problems.append(f"loop run {run} has several loop.region_id: {sorted(region_ids)}")
+    return problems
+
+
+def sort_by_execution(event: dict) -> tuple[int, int, int]:
+    """Order the events of a task's executions by loop iteration, map index and try, as ``event_sort_fn``."""
+    # Dag run events have no airflow facet
+    task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
+    return (
+        task_instance.get("loop", {}).get("index", -1),
+        task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
+        task_instance.get("try_number", -1),
+    )
+
+
 class OpenLineageTestOperator(BaseOperator):
     """
     This operator is added for system testing purposes.
@@ -289,6 +457,10 @@ class OpenLineageTestOperator(BaseOperator):
         ascending before comparison. Useful for mapped tasks whose events arrive in non-deterministic
         order. When the template for a key is a list, sorting is required for pairwise comparison to
         be meaningful.
+    :param check_run_ids: if True (default), additionally check the collected events with
+        ``check_run_id_integrity``: START and COMPLETE/FAIL of one attempt share a ``runId``, while another
+        try, map index or loop iteration gets its own. Set to False only for a Dag whose expected events
+        intentionally list a task's lifecycle partially. It runs only once every key matches its template.
 
     Special sentinel values in expected dicts:
 
@@ -316,8 +488,12 @@ class OpenLineageTestOperator(BaseOperator):
         clear_variables: bool = True,
         fail_fast: bool = False,
         event_sort_fn: Callable[[dict], Any] | None = None,
+        check_run_ids: bool = True,
         **kwargs,
     ):
+        # Never from the Dag's default_args: a retry would hide the mismatch the first try failed on, as that try
+        # deletes the Variables it checked
+        kwargs.setdefault("retries", 0)
         super().__init__(**kwargs)
         self.event_templates = event_templates
         self.file_path = file_path
@@ -325,6 +501,7 @@ class OpenLineageTestOperator(BaseOperator):
         self.event_count_assertions = event_count_assertions
         self.clear_variables = clear_variables
         self.fail_fast = fail_fast
+        self.check_run_ids = check_run_ids
         self.event_sort_fn = event_sort_fn
         if event_templates is None and file_path is None:
             raise ValueError("Either event_templates or file_path must be provided")
@@ -351,15 +528,28 @@ class OpenLineageTestOperator(BaseOperator):
                     else:
                         self.event_templates[key] = [existing, event]
         errors: dict[str, str] = {}
+        events_by_key: dict[str, list[dict]] = {}
         try:
             for key, template in self.event_templates.items():  # type: ignore[union-attr]
                 log.info("Checking key: `%s`", key)
                 try:
-                    self._check_key(key, template)
+                    events_by_key[key] = self._check_key(key, template)
                 except ValueError as e:
                     if self.fail_fast:
                         raise
                     errors[key] = str(e)
+            if self.check_run_ids and errors:
+                # A key that failed its template is missing from events_by_key, so its runIds would look incomplete
+                log.info("Skipping the runId integrity check until the event templates match")
+            elif self.check_run_ids:
+                if problems := check_run_id_integrity(
+                    events_by_key,
+                    repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
+                ):
+                    message = "\n".join(f"    {problem}" for problem in problems)
+                    if self.fail_fast:
+                        raise ValueError(f"runId integrity check failed:\n{message}")
+                    errors["<runId integrity>"] = f"\n{message}"
         finally:
             if self.clear_variables:
                 for key in self.event_templates:  # type: ignore[union-attr]
@@ -367,9 +557,10 @@ class OpenLineageTestOperator(BaseOperator):
                     Variable.delete(key=key)
         if errors:
             failures = "\n".join(f"  [{key}] {error}" for key, error in errors.items())
+            log.error("Event check failures:\n%s", failures)
             raise ValueError(f"Event check failures:\n{failures}")
 
-    def _check_key(self, key: str, template: Any) -> None:
+    def _check_key(self, key: str, template: Any) -> list[dict]:
         if isinstance(template, dict) and "$absent" in template:
             reason = template["$absent"]
             try:
@@ -377,7 +568,7 @@ class OpenLineageTestOperator(BaseOperator):
                 raise ValueError(f"Expected no events for key {key} ({reason}), got {len(actual)}")
             except NoVariableError:
                 log.info("Key `%s` absent as expected (%s).", key, reason)
-                return
+                return []
 
         try:
             actual_events = Variable.get(key=key, deserialize_json=True)
@@ -403,15 +594,17 @@ class OpenLineageTestOperator(BaseOperator):
         default_count = str(len(template)) if isinstance(template, list) else "1"
         self._assert_event_count(key, len(actual_events), default=default_count)
 
+        parsed_events = [json.loads(evt_str) for evt_str in actual_events]
         if isinstance(template, list):
             # Multiple expected events: compare each one after sorting.
-            for i, (tmpl, evt_str) in enumerate(zip(template, actual_events)):
-                if not match(tmpl, json.loads(evt_str), self.env, [i]):
+            for i, (tmpl, event) in enumerate(zip(template, parsed_events)):
+                if not match(tmpl, event, self.env, [i]):
                     raise ValueError(f"Event at index {i} does not match template for key `{key}`")
         else:
             # Last event is checked against the template
-            if not match(template, json.loads(actual_events[-1]), self.env):
+            if not match(template, parsed_events[-1], self.env):
                 raise ValueError(f"Event received does not match one specified in test for key `{key}`")
+        return parsed_events
 
     def _assert_event_count(self, key: str, actual: int, default: str = "1") -> None:
         """
@@ -422,13 +615,25 @@ class OpenLineageTestOperator(BaseOperator):
         templates, str(len(template)) for list templates — supplied by the caller).
         Delegates the numeric check to _check_count_expr.
         """
-        expr = default
+        self._check_count_expr(key, actual, self._get_count_expr(key, default))
+
+    def _get_count_expr(self, key: str, default: str) -> str:
         if self.event_count_assertions:
             for pattern, count_expr in self.event_count_assertions.items():
                 if re.fullmatch(pattern, key):
-                    expr = str(count_expr)
-                    break
-        self._check_count_expr(key, actual, expr)
+                    return str(count_expr)
+        return default
+
+    def _expects_repeated_events(self, key: str) -> bool:
+        """
+        Tell whether the Dag declares that a START key holds several START events of one run.
+
+        An open-ended ``">=N"`` (N >= 2) assertion on a START key does that, e.g. for a deferrable task that
+        emits START again after every resume. Exact counts don't: they also cover mapped tasks, where each
+        instance emits its own START under its own ``runId``.
+        """
+        expr = self._get_count_expr(key, default="1").strip()
+        return key.endswith(".event.start") and expr.startswith(">=") and int(expr[2:]) >= 2
 
     @staticmethod
     def _check_count_expr(key: str, actual: int, expr: str) -> None:
