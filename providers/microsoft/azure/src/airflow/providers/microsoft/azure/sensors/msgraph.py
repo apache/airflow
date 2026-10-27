@@ -21,7 +21,12 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    BaseSensorOperator,
+    timezone,
+)
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
@@ -108,6 +113,16 @@ class MSGraphSensor(BaseSensorOperator):
         self.serializer = serializer()
 
     def execute(self, context: Context):
+        self._defer_request(timezone.utcnow().timestamp(), self.timeout)
+
+    def retry_execute(self, context: Context, sensor_started_at: float | None = None, **kwargs) -> Any:
+        started_at = self._anchor(sensor_started_at)
+        remaining = self._remaining_timeout(started_at)
+        if remaining is not None:
+            remaining = max(remaining, self.retry_delay.total_seconds())
+        self._defer_request(started_at, remaining)
+
+    def _defer_request(self, started_at: float, remaining: float | None) -> None:
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -119,26 +134,30 @@ class MSGraphSensor(BaseSensorOperator):
                 headers=self.headers,
                 data=self.data,
                 conn_id=self.conn_id,
-                timeout=self.timeout,
                 proxies=self.proxies,
                 scopes=self.scopes,
                 api_version=self.api_version,
                 serializer=type(self.serializer),
             ),
             method_name=self.execute_complete.__name__,
+            kwargs={"sensor_started_at": started_at},
+            timeout=timedelta(seconds=remaining) if remaining is not None else None,
         )
 
-    def retry_execute(
-        self,
-        context: Context,
-        **kwargs,
-    ) -> Any:
-        self.execute(context=context)
+    @staticmethod
+    def _anchor(sensor_started_at: float | None) -> float:
+        return sensor_started_at if sensor_started_at is not None else timezone.utcnow().timestamp()
+
+    def _remaining_timeout(self, started_at: float) -> float | None:
+        if self.timeout is None:
+            return None
+        return self.timeout - max(timezone.utcnow().timestamp() - started_at, 0)
 
     def execute_complete(
         self,
         context: Context,
         event: dict[Any, Any] | None = None,
+        sensor_started_at: float | None = None,
     ) -> Any:
         """
         Execute callback when MSGraphSensor finishes execution.
@@ -183,11 +202,22 @@ class MSGraphSensor(BaseSensorOperator):
 
                     return result
 
-                # Re-defer with timeout so Airflow enforces the sensor timeout natively
+                started_at = self._anchor(sensor_started_at)
+                remaining = self._remaining_timeout(started_at)
+                if remaining is not None and remaining <= 0:
+                    raise AirflowSensorTimeout(
+                        f"Sensor has timed out; run duration of {self.timeout - remaining} seconds "
+                        f"exceeds the specified timeout of {self.timeout}."
+                    )
+                delay = (
+                    self.retry_delay
+                    if remaining is None
+                    else min(self.retry_delay, timedelta(seconds=remaining))
+                )
                 self.defer(
-                    trigger=TimeDeltaTrigger(self.retry_delay),
+                    trigger=TimeDeltaTrigger(delay),
                     method_name=self.retry_execute.__name__,
-                    timeout=timedelta(seconds=self.timeout) if self.timeout is not None else None,
+                    kwargs={"sensor_started_at": started_at},
                 )
 
         return None
