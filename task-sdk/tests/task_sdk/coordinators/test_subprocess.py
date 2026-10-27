@@ -1272,7 +1272,7 @@ class TestPopenActivitySubprocessProcessGroup:
     def test_a_runtime_that_dies_before_connecting_does_not_leave_its_child(self, tmp_path):
         """The runtime is reaped before start() fails, so its group is swept by the leader's pid."""
         pid_file = tmp_path / "child.pid"
-        with pytest.raises(RuntimeError, match="before connecting"):
+        with pytest.raises(TaskLaunchError, match="before connecting"):
             _PopenActivitySubprocess.start(
                 what=_make_ti(),
                 dag_rel_path="bundle",
