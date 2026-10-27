@@ -258,7 +258,9 @@ def _report_startup_output(
     Write what a runtime printed before it failed to connect to the task log, one event per line.
 
     The output goes through the forwarder a connected runtime's output goes through, rather than
-    into the error message, so every line keeps its own level and timestamp.
+    into the error message, so every line keeps its own level and timestamp. The supervisor has not
+    started the task instance yet, so if it then rejects the start because the task was cleared,
+    the log keeps output for a try that never ran.
     """
     for key, soc in drains.items():
         output = drained[soc] + _read_available(soc, drain_size)
@@ -741,6 +743,10 @@ class SubprocessCoordinator(BaseCoordinator):
         :class:`_PopenActivitySubprocess` once the listening sockets have been
         bound. A ``None`` schema version disables schema migration; messages are
         then exchanged at the runtime's native wire format.
+
+        Raise ``TaskLaunchError(..., retryable=...)`` when the implementation knows whether
+        retrying can help. Any other exception is reported as a launch failure with a
+        retryability guessed from its type.
         """
         raise NotImplementedError
 
@@ -751,8 +757,9 @@ class SubprocessCoordinator(BaseCoordinator):
         Build the command that runs *what* from the native Dag file at *path*.
 
         Subclasses can retrieve the root of the Dag bundle holding *path* with
-        :meth:`_get_scan_roots`. The contract is that of :meth:`_build_execute_task_command`.
-        Raise an exception when the file cannot run *what*.
+        :meth:`_get_scan_roots`. The contract is that of :meth:`_build_execute_task_command`,
+        including how to report whether a failure is worth retrying. Raise an exception when the
+        file cannot run *what*.
         """
         raise NotImplementedError(f"{type(self).__name__} cannot run the tasks of a native Dag")
 
