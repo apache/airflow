@@ -347,7 +347,7 @@ then the gate job does not run either. A gated pull request would stay in the ma
 queue even though its project CI run only executes the gate, and the reconciler could not delete a
 gated run that never ran.
 
-`breeze ci approve-workflow-runs`, run every 30 minutes by `auto-approve-workflow-runs.yml` (see
+`breeze ci approve-workflow-runs`, run every 15 minutes by `auto-approve-workflow-runs.yml` (see
 [CI workflows](05_workflows.md#approval-of-pull-request-runs)), handles them. For a pull request to
 `main` it calls `fork_ci_gate.decide` with the configuration of its own `main` checkout and the
 pull request's author, association, creation time, head repository and current labels, the inputs
@@ -833,36 +833,6 @@ name within its time limit, and its run is the evidence. A re-run is kept too: d
 deletes every attempt, and an earlier attempt may have run project CI. Nothing is deleted for a
 pull request in the `gate_bypassed` state. A dry run only reports the deletions.
 
-### Cancelling runs of merged pull requests
-
-Merging a pull request does not stop its `pull_request` runs. They keep using `apache/airflow`'s
-capacity, GitHub-hosted minutes from the ASF's allocation and the self-hosted runners, for a
-result nobody reads once the change is on its target branch. This is not specific to fork CI; the
-monitor does it because it already runs every 15 minutes with `actions: write`.
-
-Each monitor run lists the `pull_request` runs of `apache/airflow` that are `queued`,
-`in_progress`, `waiting`, `pending` or `requested`, and looks up the pull requests of their head
-branches in one GraphQL query per 25 branches, paging through every pull request of a branch: a
-common branch name such as `main` has pull requests from many forks, and an open one with the
-run's head must not be missed. A run is cancelled when:
-
-- a merged pull request has the run's head repository, branch and commit (runs of pull requests
-  from forks do not list their pull request, so they are matched this way);
-- no open pull request has the same head, since a branch can be reused for a new pull request;
-- the run was created before the merge. A workflow triggered by the merge itself, such as one
-  on the `closed` event, is meant to run.
-
-It applies to the pull requests of every author, not only gated ones. A run is cancelled with
-`POST /repos/apache/airflow/actions/runs/<id>/cancel`; one still `in_progress` 30 minutes after the
-merge, for example because a step ignores the cancellation, is force-cancelled
-(`.../force-cancel`). A run that finished in the meantime (HTTP 409) is not a problem; any other
-failure is reported to Slack with the pull request, and a failure of the whole pass is reported
-as a note, without affecting the reconciliation of gated pull requests. A dry run only reports
-the cancellations. `cancel_merged_runs = false` in `.github/fork-ci-gate.toml` turns it off.
-
-Only runs of the merged head commit are matched. A run of an earlier commit of the pull request is
-normally cancelled by the workflow's concurrency group when the next commit is pushed.
-
 ### Far behind the base branch
 
 A fork run tests the pushed commit as it is, while project CI tests it merged with the base
@@ -898,7 +868,8 @@ in their own section of the message so they are not mistaken for reconciler fail
 
 Unknown means any of:
 
-- GraphQL or REST error that is not a rate-limit wait (rate limits back off and retry).
+- GraphQL or REST error that is not a rate limit or a GitHub server error, or one of those
+  that outlasted its retries.
 - A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
   conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
@@ -917,8 +888,7 @@ Per run, with ~700 gated pull requests: ~28 GraphQL calls for pass 2, ~14 for fo
 calls for the recent `pull_request` runs, one REST call per base branch for its workflow
 files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated pull request,
 one changed-files call per head commit that turns green, plus one mutation per actual state
-change. Cancelling runs of merged pull requests adds five paginated run listings, one GraphQL
-query per 25 head branches with unfinished runs, and one mutation per cancelled run. Job statuses add a jobs call and a status call per pull request with a fork run in
+change. Job statuses add a jobs call and a status call per pull request with a fork run in
 progress or a completed run not yet reported, and up to two status mutations per job, at most
 `MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Well inside
 the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
@@ -958,8 +928,10 @@ budget stays observable.
   describe changes it did not make, a second Slack step that reports the first of consecutive
   runs failing before they could write their message, and saving what Slack accepted to the
   cache.
-- Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
-  four attempts, without waiting after the last one.
+- Every `gh` call times out after 120 seconds, and a rate limit or a GitHub server error
+  (HTTP 5xx, such as a GraphQL search ending in 504) is retried with backoff up to four
+  attempts, without waiting after the last one. Creating a comment is not retried after a
+  server error, because the comment may have been created anyway.
 
 The workflow does not exit early when `enabled` is false, because both pilots rely on it.
 With `enabled = false`, an empty `[pilot]` and no `use fork ci` labels, every pull request

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
+    Discriminator,
     Field,
     JsonValue,
     Tag,
@@ -297,7 +298,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIAwaitingInputStatePayload, Tag("awaiting_input")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Field(discriminator=ti_state_discriminator),
+    Discriminator(ti_state_discriminator),
 ]
 
 

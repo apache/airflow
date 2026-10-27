@@ -52,7 +52,7 @@ dependencies = [
     "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=24.2.0, !=25.2.0",
     "babel>=2.17.0",
-    "cadwyn>=6.1.1",
+    "cadwyn>=8.1.0",
     "fsspec>=2023.10.0",
     "greenback>=1.2.1",
     "httpx2>=2.0.0",
