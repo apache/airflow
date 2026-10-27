@@ -1422,12 +1422,12 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
-    def after(self, after: str) -> Self:
+    def after(self, after: datetime | str) -> Self:
         self._after = after
         self._reset_cache()
         return self
 
-    def before(self, before: str) -> Self:
+    def before(self, before: datetime | str) -> Self:
         self._before = before
         self._reset_cache()
         return self

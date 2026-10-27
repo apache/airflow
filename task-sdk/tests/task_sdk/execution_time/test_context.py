@@ -1083,6 +1083,29 @@ class TestInletEventAccessor:
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
 
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param("2024-01-01T00:00:00Z", id="str"),
+            pytest.param(datetime(2024, 1, 1, tzinfo=UTC), id="datetime"),
+        ],
+    )
+    def test__get_item__with_bounds(self, sample_inlet_evnets_accessor, mock_supervisor_comms, bound):
+        mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[])]
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].after(bound).before(bound))
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name="test_uri",
+                uri="test://test/",
+                after=datetime(2024, 1, 1, tzinfo=UTC),
+                before=datetime(2024, 1, 1, tzinfo=UTC),
+                limit=None,
+                ascending=True,
+            )
+        )
+
     def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
         asset_event_resp = AssetEventResult(
             id=1,
