@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.module_loading import import_string
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
+    from airflow.sdk.execution_time.context import InletEventsAccessor
 
 
 def _serialize_events(events: list[Any]) -> list[Any]:
@@ -147,8 +149,17 @@ class AssetEventSensor(BaseSensorOperator):
         func = self.process_result if callable(self.process_result) else import_string(self.process_result)
         return func(events)
 
+    def _get_accessor(self, context: Context) -> InletEventsAccessor:
+        # The mapped operator's inlets don't include the asset added in init.
+        # TODO: Remove this once the min Airflow refreshes after unmapping.
+        with contextlib.suppress(KeyError):
+            return context["inlet_events"][self.asset]
+        from airflow.sdk.execution_time.context import InletEventsAccessors
+
+        return InletEventsAccessors([self.asset])[self.asset]
+
     def poke(self, context: Context) -> PokeReturnValue:
-        accessor = context["inlet_events"][self.asset]
+        accessor = self._get_accessor(context)
         if self.after is not None:
             accessor.after(self.after if isinstance(self.after, str) else self.after.isoformat())
         if self.before is not None:

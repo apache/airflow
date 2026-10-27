@@ -22,7 +22,7 @@ from unittest.mock import call
 
 import pytest
 
-from airflow.providers.common.compat.sdk import Asset, AssetAlias, PokeReturnValue
+from airflow.providers.common.compat.sdk import DAG, Asset, AssetAlias, PokeReturnValue
 from airflow.providers.standard.sensors.asset import AssetEventSensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
@@ -278,6 +278,20 @@ class TestPoke:
         sensor = AssetEventSensor(task_id="s", asset=asset)
         result = sensor.execute(_get_context(sensor))
         assert result == [event.model_dump(mode="json") for event in events_response.asset_events]
+
+    def test_mapped_task(self, asset, events_response, create_runtime_ti, mock_supervisor_comms):
+        with DAG("test_dag"):
+            mapped = AssetEventSensor.partial(task_id="s", asset=asset).expand(
+                partition_key=["us|2024-01-01", "us|2024-01-02"]
+            )
+        ti = create_runtime_ti(task=mapped, map_index=1)
+        context = ti.get_template_context()
+        ti.render_templates(context=context)
+        mock_supervisor_comms.send.return_value = events_response
+        assert bool(ti.task.poke(context)) is True
+        mock_supervisor_comms.send.assert_called_with(
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, partition_key="us|2024-01-02")
+        )
 
 
 class TestProcessResult:
