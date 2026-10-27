@@ -461,6 +461,16 @@ class ObjectStoragePath(ProxyUPath):
             get_hook_lineage_collector().add_output_asset(context=path, uri=str(path))
             return self.fs.move(self.path, path.path, recursive=recursive, **kwargs)
 
+        if (
+            self.protocol == path.protocol
+            and self.bucket == path.bucket
+            and (not self.key or self.key == path.key or path.key.startswith(f"{self.key}/"))
+        ):
+            raise ValueError(f"Cannot move {self} to {path}: the destination is the source or inside it.")
+
+        if not recursive and self.is_dir():
+            raise IsADirectoryError(f"{self} is a directory, set recursive=True to move it.")
+
         # non-local copy
         self.copy(path, recursive=recursive, **kwargs)
         self.fs.rm(self.path, recursive=recursive)
