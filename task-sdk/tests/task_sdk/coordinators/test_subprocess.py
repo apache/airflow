@@ -52,6 +52,7 @@ from airflow.sdk.coordinators._subprocess import (
     _is_file_in_bundle,
     _PopenActivitySubprocess,
     _ResourceTracker,
+    _signal_process_tree,
     _start_server,
     log,
 )
@@ -560,10 +561,30 @@ class TestResourceTracker:
         sock.close.assert_called_once()
 
     def test_context_manager_terminates_tracked_popen_on_exit(self):
+        """A failed startup signals the runtime's whole process group, not just its pid."""
         proc = MagicMock(spec=subprocess.Popen)
-        with _ResourceTracker(timeout=0.1) as tracker:
+        proc.pid = 6767
+        with (
+            patch("os.getpgid", side_effect=lambda pid: 6767 if pid == 6767 else os.getpid()),
+            patch("os.killpg") as mock_killpg,
+            _ResourceTracker(timeout=0.1) as tracker,
+        ):
             tracker.track(proc)
-        proc.terminate.assert_called_once()
+        mock_killpg.assert_called_once_with(6767, signal.SIGTERM)
+        proc.send_signal.assert_not_called()
+
+    def test_context_manager_kills_tracked_popen_group_on_timeout(self):
+        """A runtime that ignores SIGTERM during startup has its group SIGKILLed."""
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = 6767
+        proc.wait.side_effect = subprocess.TimeoutExpired(cmd="runtime", timeout=0.1)
+        with (
+            patch("os.getpgid", side_effect=lambda pid: 6767 if pid == 6767 else os.getpid()),
+            patch("os.killpg") as mock_killpg,
+            _ResourceTracker(timeout=0.1) as tracker,
+        ):
+            tracker.track(proc)
+        assert mock_killpg.call_args_list == [call(6767, signal.SIGTERM), call(6767, signal.SIGKILL)]
 
     def test_untracked_socket_not_closed_on_exit(self):
         sock = MagicMock(spec=socket.socket)
@@ -1148,6 +1169,164 @@ class TestPopenActivitySubprocessClearXComs:
             "exc_info": ANY,
             "loc": ANY,
         } in captured_logs
+
+
+_RUNTIME_SPAWNING_A_CHILD = """
+import socket
+import subprocess
+import sys
+
+def connect(flag):
+    host, _, port = next(arg for arg in sys.argv if arg.startswith(flag)).split("=", 1)[1].rpartition(":")
+    return socket.create_connection((host, int(port)))
+
+comm = connect("--comm=")
+logs = connect("--logs=")
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+with open(sys.argv[1], "w") as handle:
+    handle.write(str(child.pid))
+comm.settimeout(30)
+try:
+    comm.recv(1)
+except TimeoutError:
+    sys.exit(3)
+"""
+
+
+def _wait_until_gone(pid: int, timeout: float = 10.0) -> bool:
+    """Return whether *pid* has stopped running, treating a not-yet-reaped zombie as gone."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+class TestSignalProcessTree:
+    """``_signal_process_tree`` reaches the runtime's group, or the pid when it cannot."""
+
+    def test_signals_the_group(self):
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = 6767
+        with (
+            patch("os.getpgid", side_effect=lambda pid: 6767 if pid == 6767 else os.getpid()),
+            patch("os.killpg") as mock_killpg,
+        ):
+            _signal_process_tree(proc, signal.SIGTERM)
+        mock_killpg.assert_called_once_with(6767, signal.SIGTERM)
+        proc.send_signal.assert_not_called()
+
+    def test_signals_the_pid_when_the_runtime_shares_our_group(self):
+        """Signalling our own group would hit the supervisor itself and its siblings."""
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = 6767
+        with (
+            patch("os.getpgid", return_value=os.getpid()),
+            patch("os.killpg") as mock_killpg,
+        ):
+            _signal_process_tree(proc, signal.SIGTERM)
+        mock_killpg.assert_not_called()
+        proc.send_signal.assert_called_once_with(signal.SIGTERM)
+
+    @pytest.mark.parametrize("failing", ["getpgid", "killpg"])
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    def test_signals_the_pid_when_the_group_cannot_be_signalled(self, failing, error):
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = 6767
+        own_group = os.getpgid(0)
+
+        def resolve(pid):
+            return 6767 if pid == 6767 else own_group
+
+        getpgid = {"side_effect": error if failing == "getpgid" else resolve}
+        killpg = {"side_effect": error} if failing == "killpg" else {}
+        with patch("os.getpgid", **getpgid), patch("os.killpg", **killpg) as mock_killpg:
+            _signal_process_tree(proc, signal.SIGTERM)
+        assert mock_killpg.called is (failing == "killpg")
+        proc.send_signal.assert_called_once_with(signal.SIGTERM)
+
+
+class TestPopenActivitySubprocessProcessGroup:
+    """A language SDK runtime runs in its own process group so a stop reaches what it spawned."""
+
+    def test_popen_asks_for_a_new_process_group(self, mock_client):
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        with (
+            patch(
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen", return_value=mock_proc
+            ) as popen_mock,
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+        ):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                command=["/bin/true"],
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert popen_mock.call_args.kwargs["process_group"] == 0
+        # The supervisor only uses killpg when it knows the child has its own group.
+        assert proc._new_process_group is True
+
+    def test_runtime_runs_in_its_own_process_group(self, tmp_path):
+        """Regression for #75533: a real runtime is a group leader, so killpg reaches its children."""
+        pid_file = tmp_path / "child.pid"
+        with patch.object(ActivitySubprocess, "_on_child_started"):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[sys.executable, "-c", _RUNTIME_SPAWNING_A_CHILD, str(pid_file)],
+                subprocess_logs_to_stdout=False,
+            )
+        try:
+            assert os.getpgid(proc.pid) == proc.pid
+        finally:
+            proc.kill(signal.SIGKILL)
+
+    def test_stopping_the_task_also_stops_what_the_runtime_spawned(self, tmp_path):
+        """Regression for #75533: SIGTERM reaches the CLI the task started, not only the runtime."""
+        pid_file = tmp_path / "child.pid"
+        with patch.object(ActivitySubprocess, "_on_child_started"):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[sys.executable, "-c", _RUNTIME_SPAWNING_A_CHILD, str(pid_file)],
+                subprocess_logs_to_stdout=False,
+            )
+
+        deadline = time.monotonic() + 10.0
+        while not (reported := pid_file.read_text().strip() if pid_file.exists() else ""):
+            assert time.monotonic() < deadline, "the runtime did not report the pid it spawned"
+            time.sleep(0.05)
+        spawned_pid = int(reported)
+
+        try:
+            proc.kill(signal.SIGTERM, force=True, escalation_delay=5.0)
+            assert _wait_until_gone(proc.pid), "the runtime outlived the stop"
+            assert _wait_until_gone(spawned_pid), "the process the task spawned outlived the stop"
+        finally:
+            with contextlib.suppress(OSError):
+                os.kill(spawned_pid, signal.SIGKILL)
 
 
 class TestPopenActivitySubprocessExecutionTimeout:

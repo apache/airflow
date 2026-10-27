@@ -206,6 +206,20 @@ def _build_runtime_env() -> dict[str, str]:
     }
 
 
+def _signal_process_tree(proc: subprocess.Popen, sig: signal.Signals) -> None:
+    """
+    Deliver ``sig`` to *proc*'s process group, so everything the task spawned is reached.
+
+    Falls back to the pid when the group cannot be signalled, and when *proc* is in the
+    supervisor's own group, which ``killpg`` would signal too.
+    """
+    with contextlib.suppress(OSError):
+        if (pgid := os.getpgid(proc.pid)) != os.getpgid(0):
+            os.killpg(pgid, sig)
+            return
+    proc.send_signal(sig)
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
@@ -305,11 +319,11 @@ class _ResourceTracker:
                 case socket.socket():
                     o.close()
                 case subprocess.Popen():
-                    o.terminate()
+                    _signal_process_tree(o, signal.SIGTERM)
                     try:
                         o.wait(self.timeout)
                     except subprocess.TimeoutExpired:
-                        o.kill()
+                        _signal_process_tree(o, signal.SIGKILL)
 
     def track(self, *objects: Tracked) -> tuple[Tracked, ...]:
         self.tracked.update((id(o), o) for o in objects)
@@ -365,6 +379,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
                 env=_build_runtime_env(),
+                # Own process group, so the supervisor can signal everything the runtime
+                # spawned with os.killpg, as the Python task runner has done since #65505.
+                # Popen returns only once the child has exec'd, so the group always exists
+                # before kill() can run.
+                process_group=0,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -387,6 +406,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 start_time=time.monotonic(),
                 stdin=socks[comm_server],
                 subprocess_schema_version=subprocess_schema_version,
+                new_process_group=True,
                 comm_server=comm_server,
                 logs_server=logs_server,
                 **kwargs,
