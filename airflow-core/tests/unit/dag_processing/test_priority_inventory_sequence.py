@@ -37,6 +37,8 @@ from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager, PendingBundleInventory
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 
+from unit.dag_processing.requested_work_helpers import get_api_work_source
+
 
 @pytest.fixture
 def api_manager(tmp_path):
@@ -89,7 +91,7 @@ def test_local_refresh_attaches_claim_after_new_inventory_without_invalidating_a
     source = manager._bundle_parse_sources[bundle.name]
     assert source.refresh_generation == old.parse_source.refresh_generation == 3
     assert source.inventory_sequence > old.parse_source.inventory_sequence
-    claim = manager._priority_claims[work.id, work.claim_id]
+    claim = get_api_work_source(manager)._priority_claims[work.id, work.claim_id]
     assert claim.attempt_id is None
     manager._start_new_processes()
     create.assert_not_called()
@@ -116,15 +118,15 @@ def test_inventory_created_before_claim_cannot_acknowledge_new_missing_file_requ
 
     manager._publish_bundle_inventory(bundle.name, {})
 
-    assert (work.id, work.claim_id) in manager._priority_claims
-    assert not manager._pending_work_acks
+    assert (work.id, work.claim_id) in get_api_work_source(manager)._priority_claims
+    assert not get_api_work_source(manager)._pending_work_acks
 
     new_inventory = old_inventory.model_copy(update={"attempt_id": uuid7(), "dispatch_sequence": 8})
     manager._pending_inventories[bundle.name] = PendingBundleInventory(new_inventory, set(), source)
     manager._publish_bundle_inventory(bundle.name, {})
 
-    assert (work.id, work.claim_id) not in manager._priority_claims
-    assert manager._pending_work_acks == [("priority", work)]
+    assert (work.id, work.claim_id) not in get_api_work_source(manager)._priority_claims
+    assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]
 
 
 @pytest.mark.parametrize("callback_version", [None, "v1"])
@@ -158,14 +160,14 @@ def test_callbacks_run_while_priority_parse_waits_for_new_inventory(create, api_
     create.assert_called_once_with(
         manager, callback_file, source=DagParseSource.for_callback(callback_version)
     )
-    assert manager._priority_claims[work.id, work.claim_id].attempt_id is None
+    assert get_api_work_source(manager)._priority_claims[work.id, work.claim_id].attempt_id is None
     manager._processors.pop(callback_file)
     manager._start_new_processes()
 
     assert create.call_count == 1
     assert file in manager._files_awaiting_source
     assert file not in manager._file_queue
-    assert not manager._pending_work_acks
+    assert not get_api_work_source(manager)._pending_work_acks
 
 
 @pytest.mark.parametrize("callback_already_running", [False, True])
@@ -184,8 +186,8 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
     manager._refresh_dag_bundles({bundle.name: {file}})
 
     assert client.publish_inventory.call_args.args[1].files == []
-    assert not manager._priority_claims
-    assert manager._pending_work_acks == [("priority", work)]
+    assert not get_api_work_source(manager)._priority_claims
+    assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]
     assert file in manager._file_queue
 
     def create_process(_, file, *, source):
@@ -208,7 +210,7 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
     assert not manager._files_awaiting_source
     assert not manager._file_queue
     manager._collect_results()
-    manager._acknowledge_requested_work()
+    manager.work_source.flush()
     manager._start_new_processes()
 
     create.assert_called_once_with(manager, file, source=DagParseSource.for_callback(None))
@@ -276,7 +278,7 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
     assert file not in manager._file_queue
     assert manager._bundle_parse_sources[bundle.name].refresh_generation == 4
     assert manager._bundle_parse_sources[bundle.name].inventory_sequence == 7
-    claim = manager._priority_claims[work.id, work.claim_id]
+    claim = get_api_work_source(manager)._priority_claims[work.id, work.claim_id]
     assert claim.attempt_id is None
     client.publish_inventory.assert_not_called()
 
@@ -293,7 +295,7 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
         manager._collect_results()
         manager._publish_pending_results()
     assert all(call.args[1] == healthy_file for call in create.call_args_list)
-    assert not manager._pending_work_acks
+    assert not get_api_work_source(manager)._pending_work_acks
 
     bundle.refresh.side_effect = None
     manager._refresh_dag_bundles(known_files)
@@ -305,4 +307,4 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
     manager._collect_results()
     manager._publish_pending_results()
     assert manager._file_stats[file].run_count == 1
-    assert manager._pending_work_acks == [("priority", work)]
+    assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]

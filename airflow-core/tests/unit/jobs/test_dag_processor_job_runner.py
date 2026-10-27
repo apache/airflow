@@ -28,8 +28,10 @@ from airflow.dag_processing.api_client import (
     DagProcessorJobAlreadyRunning,
     DagProcessorRegistrationRetired,
 )
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 from airflow.dag_processing.health import check_processor_health
 from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource
 from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState, run_job
 
@@ -93,6 +95,29 @@ def test_api_lifecycle_cleans_up_before_completion(complete, prepare, runner, cl
     assert events == ["terminate", "end", outcome]
     prepare.assert_not_called()
     complete.assert_not_called()
+
+
+@mock.patch.object(DagFileProcessorManager, "end", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "terminate", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "run", autospec=True)
+def test_api_lifecycle_replaces_the_database_work_source_before_parsing(run, terminate, end, runner, client):
+    manager = DagFileProcessorManager(max_runs=1)
+    assert isinstance(manager.work_source, DatabaseRequestedWorkSource)
+    runner.processor = manager
+    client.claim_work.return_value = []
+
+    def fetch_callbacks(processor):
+        assert isinstance(processor.work_source, ExecutionAPIWorkSource)
+        assert processor.fetch_callbacks() == []
+
+    run.side_effect = fetch_callbacks
+
+    runner.run_with_api(client)
+
+    run.assert_called_once_with(manager)
+    client.claim_work.assert_called_once_with("callbacks", [], manager.max_callbacks_per_loop)
+    terminate.assert_called_once_with(manager)
+    end.assert_called_once_with(manager)
 
 
 def test_failed_registration_never_starts_parsing(runner, client):
