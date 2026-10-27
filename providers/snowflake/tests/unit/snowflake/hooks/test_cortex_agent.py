@@ -378,7 +378,7 @@ class TestSnowflakeCortexAgentHook:
         assert headers["Authorization"] == "Bearer my-pat-value"
         assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
 
-    @mock.patch("snowflake.connector.wif_util.create_attestation")
+    @mock.patch("airflow.providers.snowflake.utils._rest_auth._fetch_gcp_identity_token")
     @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
     @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
     @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
@@ -392,7 +392,7 @@ class TestSnowflakeCortexAgentHook:
         mock_conn_params,
         mock_get_private_key,
         mock_request,
-        mock_create_attestation,
+        mock_fetch_token,
     ):
         """WORKLOAD_IDENTITY connections without a private key authenticate with a WIF token."""
         mock_static_conn_params.return_value = STATIC_CONN_PARAMS
@@ -400,7 +400,7 @@ class TestSnowflakeCortexAgentHook:
             "account": ACCOUNT,
             "workload_identity_provider": "GCP",
         }
-        mock_create_attestation.return_value.credential = "gcp-id-token"
+        mock_fetch_token.return_value = "gcp-id-token"
         mock_request.return_value = create_response(json_body={"name": AGENT_NAME})
 
         hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")

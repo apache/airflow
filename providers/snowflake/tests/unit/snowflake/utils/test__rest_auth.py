@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 from unittest import mock
@@ -29,6 +30,9 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils._rest_auth import (
     SnowflakeRestToken,
     SnowflakeRestTokenProvider,
+    _fetch_aws_identity_token,
+    _fetch_azure_identity_token,
+    _fetch_gcp_identity_token,
     get_cortex_base_url,
 )
 
@@ -46,7 +50,7 @@ CONN_PARAMS_WIF = {
     "authenticator": "WORKLOAD_IDENTITY",
     "workload_identity_provider": "GCP",
 }
-CREATE_ATTESTATION = "snowflake.connector.wif_util.create_attestation"
+FETCH_TOKEN = MODULE_PATH + "._fetch_{}_identity_token"
 
 
 def _make_jwt(**claims) -> str:
@@ -166,82 +170,35 @@ class TestSnowflakeRestTokenProvider:
 
         assert provider.get_token().token_type == "KEYPAIR_JWT"
 
-    @pytest.mark.parametrize("provider_name", ["GCP", "AZURE", "gcp"])
-    @mock.patch(CREATE_ATTESTATION)
+    @pytest.mark.parametrize("provider_name", ["GCP", "AZURE", "AWS", "gcp"])
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity(self, mock_conn_params, mock_create_attestation, provider_name):
-        from snowflake.connector.wif_util import AttestationProvider
-
+    def test_get_token_workload_identity(self, mock_conn_params, provider_name):
         credential = _make_jwt(exp=int(time.time()) + 3600)
         mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": provider_name}
-        mock_create_attestation.return_value.credential = credential
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        token = provider.get_token()
+        with mock.patch(FETCH_TOKEN.format(provider_name.lower()), return_value=credential) as fetch:
+            token = provider.get_token()
 
         assert token.token == f"WIF.{provider_name.upper()}.{credential}"
         assert token.token_type == "WORKLOAD_IDENTITY_FEDERATION"
-        mock_create_attestation.assert_called_once_with(AttestationProvider[provider_name.upper()])
+        fetch.assert_called_once_with()
 
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_aws_requests_outbound_jwt(
-        self, mock_conn_params, mock_create_attestation
-    ):
-        from snowflake.connector.wif_util import AttestationProvider
-
-        mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": "AWS"}
-        mock_create_attestation.return_value.credential = _make_jwt(exp=int(time.time()) + 3600)
-        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
-        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
-
-        token = provider.get_token()
-
-        assert token.token.startswith("WIF.AWS.")
-        mock_create_attestation.assert_called_once_with(AttestationProvider.AWS, aws_use_outbound_token=True)
-
-    @mock.patch(CREATE_ATTESTATION)
-    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_aws_old_connector_raises(
-        self, mock_conn_params, mock_create_attestation
-    ):
-        mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": "AWS"}
-        mock_create_attestation.side_effect = TypeError(
-            "unexpected keyword argument 'aws_use_outbound_token'"
-        )
-        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
-        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
-
-        with pytest.raises(ValueError, match=r"snowflake-connector-python>=4\.7\.1"):
-            provider.get_token()
-
-    @mock.patch(CREATE_ATTESTATION)
-    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_oidc_token(self, mock_conn_params, mock_create_attestation):
-        from snowflake.connector.wif_util import AttestationProvider
-
+    def test_get_token_workload_identity_oidc_token(self, mock_conn_params):
         mock_conn_params.return_value = {
             **CONN_PARAMS_WIF,
             "workload_identity_provider": "OIDC",
             "token": "oidc-id-token",
         }
-        mock_create_attestation.return_value.credential = "oidc-id-token"
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        token = provider.get_token()
+        assert provider.get_token().token == "WIF.OIDC.oidc-id-token"
 
-        assert token.token == "WIF.OIDC.oidc-id-token"
-        mock_create_attestation.assert_called_once_with(AttestationProvider.OIDC, token="oidc-id-token")
-
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_oidc_token_file(
-        self, mock_conn_params, mock_create_attestation, tmp_path
-    ):
-        from snowflake.connector.wif_util import AttestationProvider
-
+    def test_get_token_workload_identity_oidc_token_file(self, mock_conn_params, tmp_path):
         token_file = tmp_path / "token"
         token_file.write_text("file-id-token\n")
         mock_conn_params.return_value = {
@@ -249,19 +206,13 @@ class TestSnowflakeRestTokenProvider:
             "workload_identity_provider": "OIDC",
             "token_file_path": str(token_file),
         }
-        mock_create_attestation.return_value.credential = "file-id-token"
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        provider.get_token()
+        assert provider.get_token().token == "WIF.OIDC.file-id-token"
 
-        mock_create_attestation.assert_called_once_with(AttestationProvider.OIDC, token="file-id-token")
-
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_oidc_without_token_raises(
-        self, mock_conn_params, mock_create_attestation
-    ):
+    def test_get_token_workload_identity_oidc_without_token_raises(self, mock_conn_params):
         mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": "OIDC"}
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
@@ -269,23 +220,29 @@ class TestSnowflakeRestTokenProvider:
         with pytest.raises(ValueError, match="'token' or 'token_file_path'"):
             provider.get_token()
 
-        mock_create_attestation.assert_not_called()
-
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_is_cached_until_expiry(
-        self, mock_conn_params, mock_create_attestation
-    ):
-        mock_conn_params.return_value = CONN_PARAMS_WIF
-        mock_create_attestation.return_value.credential = _make_jwt(exp=int(time.time()) + 3600)
+    def test_get_token_workload_identity_unknown_provider_raises(self, mock_conn_params):
+        mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": "nope"}
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        first = provider.get_token()
-        second = provider.get_token()
+        with pytest.raises(ValueError, match="AWS, AZURE, GCP or OIDC"):
+            provider.get_token()
+
+    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
+    def test_get_token_workload_identity_is_cached_until_expiry(self, mock_conn_params):
+        mock_conn_params.return_value = CONN_PARAMS_WIF
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
+
+        with mock.patch(
+            FETCH_TOKEN.format("gcp"), return_value=_make_jwt(exp=int(time.time()) + 3600)
+        ) as fetch:
+            first = provider.get_token()
+            second = provider.get_token()
 
         assert first == second
-        mock_create_attestation.assert_called_once()
+        fetch.assert_called_once()
 
     @pytest.mark.parametrize(
         "claims",
@@ -294,34 +251,28 @@ class TestSnowflakeRestTokenProvider:
             pytest.param({}, id="no-exp-claim"),
         ],
     )
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_is_refetched_when_not_reusable(
-        self, mock_conn_params, mock_create_attestation, claims
-    ):
+    def test_get_token_workload_identity_is_refetched_when_not_reusable(self, mock_conn_params, claims):
         if "exp" in claims:
             claims = {"exp": int(time.time()) + claims["exp"]}
         mock_conn_params.return_value = CONN_PARAMS_WIF
-        mock_create_attestation.return_value.credential = _make_jwt(**claims)
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        provider.get_token()
-        provider.get_token()
+        with mock.patch(FETCH_TOKEN.format("gcp"), return_value=_make_jwt(**claims)) as fetch:
+            provider.get_token()
+            provider.get_token()
 
-        assert mock_create_attestation.call_count == 2
+        assert fetch.call_count == 2
 
-    @mock.patch(CREATE_ATTESTATION)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_credential_is_not_a_jwt(
-        self, mock_conn_params, mock_create_attestation
-    ):
+    def test_get_token_workload_identity_credential_is_not_a_jwt(self, mock_conn_params):
         mock_conn_params.return_value = CONN_PARAMS_WIF
-        mock_create_attestation.return_value.credential = "opaque-access-token"
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        assert provider.get_token().token == "WIF.GCP.opaque-access-token"
+        with mock.patch(FETCH_TOKEN.format("gcp"), return_value="opaque-access-token"):
+            assert provider.get_token().token == "WIF.GCP.opaque-access-token"
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
     def test_get_token_without_any_credential_raises(self, mock_conn_params):
@@ -393,6 +344,96 @@ class TestSnowflakeRestTokenProvider:
         assert set(headers) == {"Authorization", "X-Snowflake-Authorization-Token-Type"}
         assert headers["Authorization"] == "Bearer my_pat_token_value"
         assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
+
+
+class TestFetchIdentityTokens:
+    @staticmethod
+    def _fake_google() -> tuple[mock.MagicMock, dict[str, mock.MagicMock]]:
+        google = mock.MagicMock()
+        modules = {
+            "google": google,
+            "google.auth": google.auth,
+            "google.auth.transport": google.auth.transport,
+            "google.auth.transport.requests": google.auth.transport.requests,
+            "google.oauth2": google.oauth2,
+            "google.oauth2.id_token": google.oauth2.id_token,
+        }
+        return google, modules
+
+    def test_aws_requests_web_identity_token_for_snowflake(self):
+        boto3 = mock.MagicMock()
+        boto3.client.return_value.get_web_identity_token.return_value = {"WebIdentityToken": "aws-jwt"}
+
+        with mock.patch.dict(sys.modules, {"boto3": boto3}):
+            assert _fetch_aws_identity_token() == "aws-jwt"
+
+        boto3.client.assert_called_once_with("sts")
+        boto3.client.return_value.get_web_identity_token.assert_called_once_with(
+            Audience=["snowflakecomputing.com"], SigningAlgorithm="ES384"
+        )
+
+    def test_aws_old_boto3_raises(self):
+        boto3 = mock.MagicMock()
+        boto3.client.return_value = mock.Mock(spec=[])
+
+        with mock.patch.dict(sys.modules, {"boto3": boto3}):
+            with pytest.raises(ValueError, match="sts:GetWebIdentityToken"):
+                _fetch_aws_identity_token()
+
+    @pytest.mark.parametrize(
+        ("fetch", "module", "package"),
+        [
+            pytest.param(_fetch_aws_identity_token, "boto3", "boto3", id="aws"),
+            pytest.param(_fetch_azure_identity_token, "azure.identity", "azure-identity", id="azure"),
+            pytest.param(_fetch_gcp_identity_token, "google.oauth2", "google-auth", id="gcp"),
+        ],
+    )
+    def test_missing_cloud_library_raises(self, fetch, module, package):
+        with mock.patch.dict(sys.modules, {module: None}):
+            with pytest.raises(ValueError, match=package):
+                fetch()
+
+    def test_azure_uses_managed_identity_with_client_id(self, monkeypatch):
+        for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE"):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv("MANAGED_IDENTITY_CLIENT_ID", "mi-client-id")
+        identity = mock.MagicMock()
+        identity.ManagedIdentityCredential.return_value.get_token.return_value.token = "azure-token"
+        modules = {"azure": identity, "azure.identity": identity}
+
+        with mock.patch.dict(sys.modules, modules):
+            assert _fetch_azure_identity_token() == "azure-token"
+
+        identity.ManagedIdentityCredential.assert_called_once_with(client_id="mi-client-id")
+        identity.WorkloadIdentityCredential.assert_not_called()
+        identity.ManagedIdentityCredential.return_value.get_token.assert_called_once_with(
+            "api://fd3f753b-eed3-462c-b6a7-a4b5bb650aad/.default"
+        )
+        identity.ManagedIdentityCredential.return_value.close.assert_called_once_with()
+
+    def test_azure_uses_workload_identity_on_aks(self, monkeypatch):
+        monkeypatch.setenv("AZURE_CLIENT_ID", "client")
+        monkeypatch.setenv("AZURE_TENANT_ID", "tenant")
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/var/run/secrets/azure/tokens/azure-identity-token")
+        identity = mock.MagicMock()
+        identity.WorkloadIdentityCredential.return_value.get_token.return_value.token = "aks-token"
+        modules = {"azure": identity, "azure.identity": identity}
+
+        with mock.patch.dict(sys.modules, modules):
+            assert _fetch_azure_identity_token() == "aks-token"
+
+        identity.ManagedIdentityCredential.assert_not_called()
+
+    def test_gcp_requests_id_token_for_snowflake(self):
+        google, modules = self._fake_google()
+        google.oauth2.id_token.fetch_id_token.return_value = "gcp-id-token"
+
+        with mock.patch.dict(sys.modules, modules):
+            assert _fetch_gcp_identity_token() == "gcp-id-token"
+
+        google.oauth2.id_token.fetch_id_token.assert_called_once_with(
+            google.auth.transport.requests.Request.return_value, "snowflakecomputing.com"
+        )
 
 
 class TestSnowflakeRestTokenRepr:

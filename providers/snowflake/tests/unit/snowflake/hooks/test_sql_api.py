@@ -539,14 +539,14 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result["X-Snowflake-Authorization-Token-Type"] == "KEYPAIR_JWT"
 
-    @mock.patch("snowflake.connector.wif_util.create_attestation")
+    @mock.patch("airflow.providers.snowflake.utils._rest_auth._fetch_gcp_identity_token")
     @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
     @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
     def test_get_headers_uses_workload_identity_without_private_key(
-        self, mock_conn_param, mock_private_key, mock_create_attestation
+        self, mock_conn_param, mock_private_key, mock_fetch_token
     ):
         mock_conn_param.return_value = {**CONN_PARAMS, "workload_identity_provider": "GCP"}
-        mock_create_attestation.return_value.credential = "gcp-id-token"
+        mock_fetch_token.return_value = "gcp-id-token"
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         result = hook.get_headers()
         assert result["Authorization"] == "Bearer WIF.GCP.gcp-id-token"
