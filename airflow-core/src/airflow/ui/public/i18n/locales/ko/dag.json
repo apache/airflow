@@ -340,6 +340,10 @@
       "changed": "변경됨",
       "removed": "제거됨"
     },
+    "pathOccurrences_one": "변경 {{count, number}}개가 이 경로를 공유합니다",
+    "pathOccurrences_other": "변경 {{count, number}}개가 이 경로를 공유합니다",
+    "pathOccurrencesAtLeast_one": "변경 {{count, number}}개 이상이 이 경로를 공유합니다",
+    "pathOccurrencesAtLeast_other": "변경 {{count, number}}개 이상이 이 경로를 공유합니다",
     "record_one": "레코드",
     "record_other": "레코드",
     "selectPrompt": "두 버전을 선택하면 그 사이에 변경된 내용을 볼 수 있습니다.",
