@@ -69,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     DagRunState,
     DagRunTriggeredByType,
     DagRunType,
+    DagScheduleAssetReference,
     DagStatsCollectionResponse,
     DagStatsResponse,
     DagStatsStateResponse,
@@ -97,9 +98,13 @@ from airflowctl.api.datamodels.generated import (
     ReprocessBehavior,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
+    TaskInletAssetReference,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
+    TaskOutletAssetReference,
+    TaskStateStoreCollectionResponse,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -403,6 +408,38 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
+    def test_get_asset_ignores_fields_added_by_newer_servers(self):
+        created_at = datetime.datetime(2024, 12, 31, 23, 59, 59)
+        updated_at = datetime.datetime(2025, 1, 1, 0, 0, 0)
+        expected = self.asset_response.model_copy(
+            update={
+                "scheduled_dags": [
+                    DagScheduleAssetReference(
+                        dag_id=self.dag_id, created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "producing_tasks": [
+                    TaskOutletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "consuming_tasks": [
+                    TaskInletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+            }
+        )
+        asset_json = json.loads(expected.model_dump_json())
+        for field in ("scheduled_dags", "producing_tasks", "consuming_tasks"):
+            asset_json[field][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=asset_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.assets.get(self.asset_id) == expected
+
     def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
@@ -464,6 +501,17 @@ class TestAssetsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
         assert response == asset_event_response
+
+    def test_create_event_ignores_fields_added_by_newer_servers(self):
+        event_json = json.loads(self.asset_event_response.model_dump_json())
+        event_json["created_dagruns"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=event_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
+        assert response == self.asset_event_response
 
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -757,6 +805,23 @@ class TestConfigOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.list()
         assert response == response_config
+
+    def test_get_ignores_fields_added_by_newer_servers(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name=self.section, options=[ConfigOption(key=self.option, value="config")])
+            ]
+        )
+        config_json = response_config.model_dump()
+        config_json["field_from_newer_server"] = "value"
+        config_json["sections"][0]["field_from_newer_server"] = "value"
+        config_json["sections"][0]["options"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=config_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.configs.get(section=self.section, option=self.option) == response_config
 
     def test_get_masked_value(self):
         """Verify that masked values from API are preserved in get() operation."""
@@ -1914,6 +1979,12 @@ class TestTaskInstancesOperations:
     task_dependency_collection_response = TaskDependencyCollectionResponse(
         dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")],
     )
+    task_state_store_response = TaskStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        expires_at=None,
+    )
 
     def _make_client_asserting_path(self, expected_path: str, response_model) -> Client:
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1968,6 +2039,141 @@ class TestTaskInstancesOperations:
         )
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
         assert response == self.task_instance_collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_list_state_store(self, map_index):
+        collection_response = TaskStateStoreCollectionResponse(
+            task_state_store=[self.task_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list_state_store(
+            "dag_id", "dag_run_id", "task_id", map_index=map_index
+        )
+        assert response == collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_get_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(self.task_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == self.task_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected, "expires_at": "default"}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.set_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_update_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(200)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.update_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_delete_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.delete_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("map_index", "all_map_indices", "expected_params"),
+        [
+            (None, False, {}),
+            (2, False, {"map_index": "2"}),
+            (None, True, {"all_map_indices": "true"}),
+        ],
+    )
+    def test_clear_state_store(self, map_index, all_map_indices, expected_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear_state_store(
+            "dag_id",
+            "dag_run_id",
+            "task_id",
+            map_index=map_index,
+            all_map_indices=all_map_indices,
+        )
+        assert response == "task_id"
 
 
 class TestTasksOperations:

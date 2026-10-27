@@ -51,8 +51,10 @@ if TYPE_CHECKING:
         BaseAssetUniqueKey,
     )
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.comms import DagResult
+    from airflow.sdk.execution_time.loop import LoopContextAccessor
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -156,6 +158,15 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @property
     def stats_tags(self) -> dict[str, str]: ...
+
+    @property
+    def loop(self) -> LoopContextAccessor | None: ...
+
+    @property
+    def loop_decision(self) -> LoopDecision | None: ...
+
+    @property
+    def expanded_ti_count(self) -> int | None: ...
 
     def xcom_pull(
         self,

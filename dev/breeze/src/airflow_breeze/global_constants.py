@@ -38,6 +38,25 @@ from airflow_breeze.utils.path_utils import (
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+# RunsOn (runs-on.com) EC2 runner label templates. Jobs fill in their size class with
+# `format(<label>, cpu, ram)` in the workflow; the same call leaves the public labels unchanged.
+RUNS_ON_AMD_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={{0}}/ram={{1}}"
+)
+RUNS_ON_ARM_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={{0}}/ram={{1}}"
+)
+# The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
+# databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
+# ask for memory headroom and also accept the memory-optimized r-family.
+RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m7a+m7i+m6a+m6i+r7a+r7i+r6a+r6i/image=ubuntu22-full-x64/volume=150gb"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
+RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
 
 # Platform the tests of a CI run execute on.
 CI_AMD_PLATFORM = "linux/amd64"
@@ -135,7 +154,12 @@ OPENLINEAGE_INTEGRATION = "openlineage"
 OPENSEARCH_INTEGRATION = "opensearch"
 OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
 OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
+# The first one is the default. Only the PROD image can be built on the others - the CI image is
+# always built on the default one.
+ALLOWED_DEBIAN_VERSIONS = ["trixie", "bookworm"]
+# "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
+# source on a plain debian-slim base - the way all images were built before.
+ALLOWED_IMAGE_FLAVORS = ["hardened", "legacy"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
         *TESTABLE_CORE_INTEGRATIONS,
@@ -295,7 +319,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.2.1"
-UV_VERSION = "0.13.1"
+UV_VERSION = "0.13.4"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -903,12 +927,35 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.21",
+    "3.10": "3.10.22",
     "3.11": "3.11.17",
     "3.12": "3.12.15",
     "3.13": "3.13.16",
     "3.14": "3.14.8",
 }
+
+# Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
+# apt, a shell and runs as root; the tags encode the Debian release rather than its codename.
+# Pulling from dhi.io requires a Docker Hub login, so the tags Airflow builds against are mirrored
+# to a public ghcr.io repository by the "Mirror hardened base images" workflow - building Airflow
+# images needs no registry credentials at all, which is what the default below points at.
+HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
+HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
+DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"trixie": "debian13", "bookworm": "debian12"}
+
+
+def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[debian_version]
+    return f"{ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python)}-{distro}-dev"
+
+
+def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_tag(python, debian_version)}"
+
+
+def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"debian:{debian_version}-slim"
+
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5

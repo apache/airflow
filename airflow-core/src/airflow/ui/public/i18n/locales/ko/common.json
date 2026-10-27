@@ -92,7 +92,6 @@
   "dagRun_other": "Dag 실행들",
   "dagRunId": "Dag 실행 ID",
   "dagRunState": "Dag 실행 상태",
-  "dagWarnings": "Dag 경고/오류",
   "delete": "삭제",
   "diff": "비교",
   "diffCompareWith": "비교 대상",

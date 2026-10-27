@@ -60,7 +60,7 @@
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
-    "count_one": "{{count, number}} 個期限",
+    "count_one": "1 個期限",
     "count_other": "{{count, number}} 個期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均執行時間",
@@ -76,12 +76,12 @@
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",
-    "missedCount_one": "{{count, number}} 個已逾期的期限",
+    "missedCount_one": "1 個已逾期的期限",
     "missedCount_other": "{{count, number}} 個已逾期的期限",
     "mixedCount": "{{missedCount, number}} 個已逾期，{{upcomingCount, number}} 個即將到期",
     "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
-    "upcomingCount_one": "{{count, number}} 個即將到期的期限",
+    "upcomingCount_one": "1 個即將到期的期限",
     "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
@@ -263,7 +263,7 @@
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
-    "mappedTaskInstances_one": "任務實例 [{{count, number}}]",
+    "mappedTaskInstances_one": "任務實例 [1]",
     "mappedTaskInstances_other": "任務實例 [{{count, number}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
@@ -302,7 +302,6 @@
     "title": "任務儲存區"
   },
   "versions": {
-    "aboutThisComparison": "關於此比較",
     "base": "比較起點",
     "categories": {
       "asset": "資源",
@@ -323,7 +322,6 @@
       "before": "變更前",
       "category": "類別",
       "impact": "影響",
-      "occurrences": "出現次數",
       "operation": "操作",
       "path": "路徑"
     },
@@ -343,19 +341,22 @@
     "maxChanges": "變更數上限",
     "maxChangesDefault": "預設",
     "noChanges": "這些版本的狀態相同。",
-    "observedStateBoundary": "比較的是目前儲存的狀態，而非建立當時的證據。歷史版本無法比較原始碼；請使用「程式碼」分頁比較原始碼。",
     "operations": {
       "added": "新增",
       "changed": "變更",
       "removed": "移除"
     },
+    "pathOccurrences_one": "1 項變更共用此路徑",
+    "pathOccurrences_other": "{{count, number}} 項變更共用此路徑",
+    "pathOccurrencesAtLeast_one": "至少 1 項變更共用此路徑",
+    "pathOccurrencesAtLeast_other": "至少 {{count, number}} 項變更共用此路徑",
     "record_one": "記錄",
     "record_other": "記錄",
     "schemaChange": "序列化 Schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
     "summary_one": "1 項變更",
     "summary_other": "{{count, number}} 項變更",
-    "summaryAtLeast_one": "至少 {{count, number}} 項變更",
+    "summaryAtLeast_one": "至少 1 項變更",
     "summaryAtLeast_other": "至少 {{count, number}} 項變更",
     "target": "比較對象",
     "unavailable": {

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.triggers.kinesis_analytics import (
     KinesisAnalyticsV2ApplicationOperationCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -128,8 +129,9 @@ class KinesisAnalyticsV2StartApplicationOperator(AwsBaseOperator[KinesisAnalytic
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -186,7 +188,7 @@ class KinesisAnalyticsV2StartApplicationOperator(AwsBaseOperator[KinesisAnalytic
 
         describe_response = self.hook.conn.describe_application(ApplicationName=self.application_name)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s to start: %s.", msg, self.application_name)
             self.defer(
                 trigger=KinesisAnalyticsV2ApplicationOperationCompleteTrigger(
@@ -249,8 +251,9 @@ class KinesisAnalyticsV2StopApplicationOperator(AwsBaseOperator[KinesisAnalytics
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -303,7 +306,7 @@ class KinesisAnalyticsV2StopApplicationOperator(AwsBaseOperator[KinesisAnalytics
 
         describe_response = self.hook.conn.describe_application(ApplicationName=self.application_name)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s to stop: %s.", msg, self.application_name)
             self.defer(
                 trigger=KinesisAnalyticsV2ApplicationOperationCompleteTrigger(

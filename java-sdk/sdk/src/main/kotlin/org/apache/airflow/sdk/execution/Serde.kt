@@ -102,6 +102,7 @@ internal fun serializeDag(
     }
   }
 
+  val dagQueue = dag.dagConfig["queue"] as String?
   val result =
     linkedMapOf<String, Any?>(
       "dag_id" to dag.id,
@@ -109,7 +110,7 @@ internal fun serializeDag(
       "relative_fileloc" to relativeFileloc,
       "timezone" to dagTimezone(dag.dagConfig),
       "timetable" to serializeTimetable(dag.id, dag.dagConfig),
-      "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
+      "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId], dagQueue) },
       "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
       "edge_info" to serializeEdgeInfo(dag, expansion),
@@ -124,11 +125,13 @@ internal fun serializeDag(
 /**
  * Converts one task to the Airflow serialization format. `downstream` is the
  * inverted view of the Dag's upstream edges, sorted for stable JSON.
+ * `dagQueue` is the Dag's queue, which the task takes unless it sets its own.
  */
 private fun serializeTask(
   taskId: String,
   def: TaskDef,
   downstream: List<String>?,
+  dagQueue: String?,
 ): Map<String, Any?> {
   val data = linkedMapOf<String, Any?>("task_id" to taskId)
   val trigger = def.trigger
@@ -150,13 +153,16 @@ private fun serializeTask(
   }
   // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
   if (def.decider != null) data["_can_skip_downstream"] = true
+  // A trigger task takes the Dag's queue too, because the Java runtime runs it.
+  val config =
+    if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
   // Emit only config entries that differ from their schema default, mirroring
   // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
   // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
   // __type encoding is stripped. If core grows a task-level fill_config_defaults,
   // every SDK has to keep explicitly set values instead, or an explicit retries=0
   // reads as unset and picks up the configured default.
-  def.configValues.forEach { (key, value) ->
+  config.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
     }

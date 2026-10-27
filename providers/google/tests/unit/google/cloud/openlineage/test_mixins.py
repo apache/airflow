@@ -43,6 +43,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.openlineage.sqlparser import SQLParser
+from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 
 QUERY_JOB_PROPERTIES = {
     "configuration": {
@@ -645,7 +646,7 @@ class TestBigQueryOpenLineageMixin:
             return [input_table2], [output_table2]
 
         mock_get_inputs_and_outputs.side_effect = get_inputs_and_outputs
-        mock_resolve_task_emission_policy.return_value = MagicMock(emit=True)
+        mock_resolve_task_emission_policy.return_value = EmissionPolicy.defaults()
 
         lineage = self.operator.get_openlineage_facets_on_complete(make_task_instance())
 

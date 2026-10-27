@@ -32,7 +32,7 @@ from datetime import UTC, datetime, timedelta
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import attrs
@@ -74,6 +74,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -118,10 +119,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -268,6 +269,27 @@ class RuntimeTaskInstance(TaskInstance):
             self.region_index = self.map_index
 
     @property
+    def loop(self) -> LoopContextAccessor | None:
+        """The iteration of the innermost loop this task instance runs in, ``None`` outside a loop."""
+        if self._ti_context_from_server is None or self._ti_context_from_server.loop is None:
+            return None
+        return LoopContextAccessor(self._ti_context_from_server.loop, self)
+
+    @property
+    def loop_decision(self) -> LoopDecision | None:
+        """A loop gate's decision, set once the gate has evaluated whether the loop stops."""
+        if self._loop_decision is None:
+            return None
+        return LoopDecision(stop=self._loop_decision.stop, reason=self._loop_decision.reason)
+
+    @property
+    def expanded_ti_count(self) -> int | None:
+        """Number of instances in this mapped task's expansion in its loop iteration, None if not mapped."""
+        if self._ti_context_from_server is None:
+            return None
+        return self._ti_context_from_server.expanded_ti_count
+
+    @property
     def stats_tags(self) -> dict[str, str]:
         """Metric tags for this task instance, including dag tags and team_name when available."""
         tags: dict[str, str] = {}
@@ -317,6 +339,7 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
+            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -340,6 +363,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
+                    stats_tags=state_store_stats_tags,
                     scope=TaskScope(
                         dag_id=self.dag_id,
                         run_id=self.run_id,
@@ -352,7 +376,7 @@ class RuntimeTaskInstance(TaskInstance):
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
                 self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets
+                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
                 )
                 # AssetAlias inlets are resolved to their concrete assets at context build time via
                 # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
@@ -360,8 +384,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
-            if from_server.loop is not None:
-                self._cached_template_context["loop"] = LoopContextAccessor(from_server.loop, self)
+            if (loop := self.loop) is not None:
+                self._cached_template_context["loop"] = loop
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
@@ -942,12 +966,14 @@ class RuntimeTaskInstance(TaskInstance):
         map_index = (
             f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
         )
-        try_number_value = self.try_number
-        try_number = (
-            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-        )
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-        return _log_uri
+        query: dict[str, Any] = {}
+        # The UI selects a task instance in a region by its region, which tells loop iterations apart
+        if self.region_id is not None and self.region_id.int != 0:
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number is not None and self.try_number > 0:
+            query["try_number"] = self.try_number
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}"
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:
@@ -1688,9 +1714,10 @@ def _run_task_and_map_outcome(
         log.info("::group::Post Execute")
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
-            end_date=datetime.now(tz=UTC),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
@@ -2084,6 +2111,7 @@ def _handle_trigger_dag_run(
     )
 
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        ti.end_date = datetime.now(tz=UTC)
         if drte.skip_when_already_exists:
             log.info(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
@@ -2091,7 +2119,7 @@ def _handle_trigger_dag_run(
             )
             msg = TaskState(
                 state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=UTC),
+                end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.SKIPPED
@@ -2099,7 +2127,7 @@ def _handle_trigger_dag_run(
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=UTC),
+                end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.FAILED
@@ -2321,7 +2349,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
+            SUPERVISOR_COMMS.send(StartExecutionTimeout())
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)

@@ -46,7 +46,12 @@ TRIGGER_DELAY_SECONDS = 2
 BATCH_TIMEOUT_SECONDS = 360  # 6 min, each dagrun timeout is set to 5 minutes
 
 # Dags that take longer to complete — trigger these first so they run while the rest are triggered.
-LONG_RUNNING_DAG_IDS = ("openlineage_defer_simple_dag",)
+LONG_RUNNING_DAG_IDS = (
+    "openlineage_defer_simple_dag",
+    # Run their loop iterations, retries and mapped instances one after another
+    "openlineage_task_loop_dag",
+    "openlineage_task_loop_groups_dag",
+)
 
 # Child Dags spawned by TriggerDagRunOperator carry this marker; they must not be triggered or
 # state-checked directly (their parent triggers them).

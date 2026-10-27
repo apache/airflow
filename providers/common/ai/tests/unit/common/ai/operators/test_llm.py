@@ -1052,7 +1052,7 @@ class TestLLMOperatorConfidenceGate:
         """The multimodal-prompt guard applies to any review path, not only require_approval."""
         op = LLMOperator(
             task_id="t",
-            prompt=[{"type": "text", "text": "p"}],  # type: ignore[arg-type]
+            prompt=[{"type": "text", "text": "p"}],
             llm_conn_id="c",
             decision_policy=DecisionPolicy(min_confidence=0.7),
         )

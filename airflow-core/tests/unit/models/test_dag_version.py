@@ -274,10 +274,16 @@ class TestResolveVersionData:
         ("dag_version", "bundle_version", "expected"),
         [
             pytest.param(
-                mock.Mock(version_data={"schema_version": 1}),
+                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
                 "abc123",
                 {"schema_version": 1},
                 id="pinned-with-data",
+            ),
+            pytest.param(
+                mock.Mock(bundle_version="def456", version_data={"schema_version": 1}),
+                "abc123",
+                None,
+                id="pinned-to-overwritten-bundle-version",
             ),
             pytest.param(
                 mock.Mock(version_data={"schema_version": 1}),

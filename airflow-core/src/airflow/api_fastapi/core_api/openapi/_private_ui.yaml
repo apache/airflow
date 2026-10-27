@@ -2556,6 +2556,78 @@ paths:
         schema:
           type: string
           title: Run Id
+      - name: start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
+      - name: start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
+      - name: end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
+      - name: end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       responses:
         '200':
           description: Successful Response
@@ -3967,7 +4039,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -5042,7 +5113,9 @@ components:
           title: Loop Id
         iteration:
           type: integer
+          minimum: 1.0
           title: Iteration
+          description: Position in the enclosing loop, counting from one.
       type: object
       required:
       - loop_id
@@ -5744,7 +5817,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -5926,9 +5998,9 @@ components:
           - type: 'null'
           title: State Reason
           description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
+            recorded by a retry policy. May describe a previous attempt: a task waiting
+            to be retried still carries the reason its last attempt ended. It is cleared
+            when the task is cleared and when the next attempt is scheduled or deferred.'
       type: object
       required:
       - id
@@ -6093,7 +6165,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id

@@ -141,6 +141,24 @@ def init_ui_translation_views(app: FastAPI, *, dev_mode: bool, dist_directory: P
             )
 
 
+def base_react_app_bundle_urls() -> list[str]:
+    """
+    Bundle URLs of the React apps that render on every page, for the server to preload.
+
+    Only plugins without a team are included: the page is rendered before the user is known, and
+    the plugins endpoint hides a team-scoped plugin from users outside its team.
+    """
+    from airflow import plugins_manager
+
+    return [
+        react_app["bundle_url"]
+        for plugin in plugins_manager.get_plugin_info(attrs_to_dump=["react_apps"])
+        if plugin["team_name"] is None
+        for react_app in plugin["react_apps"]
+        if react_app.get("destination") == "base" and isinstance(react_app.get("bundle_url"), str)
+    ]
+
+
 def init_views(app: FastAPI) -> None:
     """Init views by registering the different routers."""
     from airflow.api_fastapi.core_api.routes.public import public_router
@@ -158,6 +176,7 @@ def init_views(app: FastAPI) -> None:
     Path(directory).mkdir(exist_ok=True)
 
     templates = Jinja2Templates(directory=directory)
+    preload_bundle_urls = base_react_app_bundle_urls()
 
     # Ahead of the static mounts below so plugin-overridden locales take precedence.
     init_ui_translation_views(app, dev_mode=dev_mode, dist_directory=directory)
@@ -209,7 +228,10 @@ def init_views(app: FastAPI) -> None:
         return templates.TemplateResponse(
             request,
             "/index.html",
-            {"backend_server_base_url": request.base_url.path},
+            {
+                "backend_server_base_url": request.base_url.path,
+                "preload_bundle_urls": preload_bundle_urls,
+            },
             media_type="text/html",
         )
 
@@ -282,11 +304,13 @@ def init_config(app: FastAPI) -> None:
 
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
-    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
-    app.add_middleware(JWTRefreshMiddleware, skip_path_prefixes=(f"{_STATIC_URL_PATH}/",))
+    auth_manager = get_auth_manager()
 
-    for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
+    for middleware_cls, middleware_kwargs in (
+        *auth_manager.get_jwt_refresh_middleware(),
+        *auth_manager.get_fastapi_middlewares(),
+    ):
         app.add_middleware(middleware_cls, **middleware_kwargs)
 
     # GZipMiddleware must be inside HttpMetricsMiddleware and HttpAccessLogMiddleware so that both
