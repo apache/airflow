@@ -46,6 +46,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.context import AssetStateStoreAccessor, InletEventsAccessor
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
 from tests_common.test_utils.mock_operators import (
@@ -760,8 +761,8 @@ def test_mapped_render_template_fields_refreshes_constructor_inlets(create_runti
     assert context["inlets"] == [Asset("b")]
     assert context["outlets"] == []
     assert list(context["inlet_events"]) == [Asset("b")]
-    context["inlet_events"][Asset("b")]  # Should not raise KeyError.
-    context["asset_state_store"][Asset("b")]  # Should not raise KeyError.
+    assert context["inlet_events"][Asset("b")] == InletEventsAccessor(asset_name="b", asset_uri="b")
+    assert context["asset_state_store"][Asset("b")] == AssetStateStoreAccessor(name="b")
 
 
 def test_mapped_render_template_fields_refreshes_constructor_outlets(
