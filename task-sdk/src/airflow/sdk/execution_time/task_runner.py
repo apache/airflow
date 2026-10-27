@@ -138,13 +138,14 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
-    build_asset_context,
+    build_asset_state_store,
     build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
@@ -343,12 +344,15 @@ class RuntimeTaskInstance(TaskInstance):
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
+                "inlets": self.task.inlets,
                 "map_index_template": self.task.map_index_template,
+                "outlets": self.task.outlets,
                 "run_id": self.run_id,
                 "task": self.task,
                 "task_instance": self,
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
+                "inlet_events": InletEventsAccessors(self.task.inlets),
                 "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
@@ -370,9 +374,8 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            self._cached_template_context.update(
-                build_asset_context(self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags)
-            )
+            if (asset_state_store := build_asset_state_store(self)) is not None:
+                self._cached_template_context["asset_state_store"] = asset_state_store
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

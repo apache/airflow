@@ -1672,25 +1672,22 @@ def build_state_store_stats_tags(ti: RuntimeTaskInstanceProtocol) -> dict[str, s
     return {**ti.stats_tags, "operator": ti.task.task_type}
 
 
-def build_asset_context(inlets: list, outlets: list, *, stats_tags: dict[str, str]) -> Context:
+def build_asset_state_store(ti: RuntimeTaskInstanceProtocol) -> AssetStateStoreAccessors | None:
     """
-    Build template context entries derived from a task's inlets and outlets.
+    Build the asset state store accessor for a task instance's inlets and outlets.
 
-    ``asset_state_store`` is only included if the task has at least one asset
-    (or asset reference or alias) in its inlets or outlets.
+    Return *None* if the task has no asset (or asset reference or alias) in its
+    inlets or outlets.
 
     :meta private:
     """
-    context: Context = {"inlets": inlets, "outlets": outlets, "inlet_events": InletEventsAccessors(inlets)}
-    if any(
-        isinstance(obj, (Asset, AssetNameRef, AssetUriRef, AssetAlias))
-        for obj in itertools.chain(inlets, outlets)
-    ):
-        # Aliases count as assets here, but AssetStateStoreAccessors only
-        # creates accessors for the concrete resolved assets. The store can be
-        # empty if a task has only aliases that resolve to nothing.
-        context["asset_state_store"] = AssetStateStoreAccessors(inlets, outlets, stats_tags=stats_tags)
-    return context
+    all_lets = itertools.chain((inlets := ti.task.inlets), (outlets := ti.task.outlets))
+    if not any(isinstance(t, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for t in all_lets):
+        return None
+    # Aliases count as assets here, but AssetStateStoreAccessors only
+    # creates accessors for the concrete resolved assets. The store can be
+    # empty if a task has only aliases that resolve to nothing.
+    return AssetStateStoreAccessors(inlets, outlets, stats_tags=build_state_store_stats_tags(ti))
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
@@ -1713,14 +1710,13 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
 
-    context.pop("asset_state_store", None)
-    context.update(
-        build_asset_context(
-            task.inlets,
-            task.outlets,
-            stats_tags=build_state_store_stats_tags(ti),
-        )
-    )
+    context["inlets"] = task.inlets
+    context["outlets"] = task.outlets
+    context["inlet_events"] = InletEventsAccessors(task.inlets)
+    if (asset_state_store := build_asset_state_store(ti)) is None:
+        context.pop("asset_state_store", None)
+    else:
+        context["asset_state_store"] = asset_state_store
 
 
 def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:

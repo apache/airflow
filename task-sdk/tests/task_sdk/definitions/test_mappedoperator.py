@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -840,6 +841,23 @@ def test_mapped_render_template_fields_resolves_ref_inlets_lazily(
     assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
     assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
     assert get_asset_by_name_calls() == [mock.call(GetAssetByName(name="a"))]
+
+
+def test_mapped_render_template_fields_with_minimal_context():
+    """A task without assets can be rendered with a hand-built context lacking runtime-only values."""
+    with DAG("test_dag") as dag:
+        mapped = MockOperator.partial(task_id="t").expand(arg1=["{{ ti.map_index }}", "y"])
+
+    context: dict = {
+        "ti": SimpleNamespace(map_index=0),
+        "params": {},
+        "dag": dag,
+        "dag_run": SimpleNamespace(conf={}),
+    }
+    mapped.render_template_fields(context)
+
+    assert context["task"].arg1 == "0"
+    assert "asset_state_store" not in context
 
 
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
