@@ -21,6 +21,10 @@ import yaml
 from check_ci_gate_needs import CI_WORKFLOW, find_problems
 
 
+def _build_jobs(needs):
+    return {"ci-passed": {"needs": [*([needs] if isinstance(needs, str) else needs), "check-timed-out-jobs"]}}
+
+
 def test_real_workflow_gate_needs_every_job():
     assert find_problems(yaml.safe_load(CI_WORKFLOW.read_text())["jobs"]) == []
 
@@ -29,30 +33,65 @@ def test_real_workflow_gate_needs_every_job():
     ("jobs", "expected"),
     [
         pytest.param(
-            {"build": {}, "test": {}, "notify-slack": {}, "ci-passed": {"needs": ["build", "test"]}},
+            {
+                "build": {},
+                "test": {},
+                "notify-slack": {},
+                "check-timed-out-jobs": {"needs": ["build", "test"]},
+                "ci-passed": {"needs": ["build", "test", "check-timed-out-jobs"]},
+            },
             [],
             id="complete",
         ),
         pytest.param({"build": {}}, ["job 'ci-passed' is missing"], id="no-gate"),
         pytest.param(
-            {"build": {}, "test": {}, "ci-passed": {"needs": ["build"]}},
+            {"build": {}, "test": {}, "check-timed-out-jobs": {"needs": ["build"]}, **_build_jobs(["build"])},
             ["job 'test' is not in ci-passed.needs, so its failure would not stop auto-merge"],
             id="missing-job",
         ),
         pytest.param(
-            {"build": {}, "ci-passed": {"needs": "build"}},
+            {"build": {}, "check-timed-out-jobs": {"needs": "build"}, **_build_jobs("build")},
             [],
             id="needs-as-string",
         ),
         pytest.param(
-            {"build": {}, "ci-passed": {"needs": ["build", "gone"]}},
+            {
+                "build": {},
+                "check-timed-out-jobs": {"needs": ["build", "gone"]},
+                **_build_jobs(["build", "gone"]),
+            },
             ["ci-passed.needs lists 'gone', which is not a job"],
             id="unknown-job",
         ),
         pytest.param(
-            {"build": {}, "summarize-warnings": {}, "ci-passed": {"needs": ["build", "summarize-warnings"]}},
+            {
+                "build": {},
+                "summarize-warnings": {},
+                "check-timed-out-jobs": {"needs": ["build", "summarize-warnings"]},
+                **_build_jobs(["build", "summarize-warnings"]),
+            },
             ["ci-passed.needs lists exempt reporting job 'summarize-warnings'"],
             id="exempt-job-listed",
+        ),
+        pytest.param(
+            {"build": {}, "ci-passed": {"needs": ["build"]}},
+            ["job 'check-timed-out-jobs' is missing, so a job's timeout would not fail ci-passed"],
+            id="no-timeout-check",
+        ),
+        pytest.param(
+            {
+                "build": {},
+                "test": {},
+                "check-timed-out-jobs": {"needs": ["build"]},
+                **_build_jobs(["build", "test"]),
+            },
+            ["check-timed-out-jobs.needs is missing 'test', which ci-passed needs"],
+            id="timeout-check-missing-job",
+        ),
+        pytest.param(
+            {"build": {}, "check-timed-out-jobs": {"needs": ["build", "gone"]}, **_build_jobs(["build"])},
+            ["check-timed-out-jobs.needs lists 'gone', which ci-passed does not need"],
+            id="timeout-check-extra-job",
         ),
     ],
 )
