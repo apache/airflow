@@ -247,7 +247,7 @@ CI workflow runs of external contributors
 
 GitHub does not start the CI workflows of a PR from a fork until a maintainer approves them,
 for the contributors that the repository's approval setting covers. To keep you from waiting
-for a maintainer on every push, a scheduled workflow checks the waiting runs every 30 minutes
+for a maintainer on every push, a scheduled workflow checks the waiting runs every 15 minutes
 and approves them automatically when all of these hold:
 
 * The PR targets ``main``. PRs to release branches, such as ``v3-4-test``, always wait for a
@@ -272,6 +272,10 @@ automatically unless the PR changes files that define CI: anything under ``.gith
 ``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a ``Dockerfile``
 or ``.pre-commit-config.yaml``. Then the runs wait for a maintainer and a comment on the PR explains
 why. CI in your fork runs either way.
+
+The runs of PRs opened from the repositories of trusted stakeholders (``astronomer/airflow``,
+``aws-mwaa/upstream-to-airflow`` and ``VladaZakharova/airflow``) are always approved, so none of
+the rules above apply to them.
 
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not

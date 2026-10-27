@@ -53,6 +53,70 @@ def test_gives_up_after_the_last_attempt_without_waiting(mock_run, mock_sleep):
     assert [c.args[0] for c in mock_sleep.call_args_list] == [30, 60, 120]
 
 
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "gh: HTTP 504",
+        "gh: Server Error (HTTP 502)",
+        'Post "https://api.github.com/graphql": read tcp 10.1.0.4:51234->140.82.112.6:443: read: connection reset by peer',
+        'Post "https://api.github.com/graphql": unexpected EOF',
+        'Post "https://api.github.com/graphql": net/http: TLS handshake timeout',
+        'Post "https://api.github.com/graphql": dial tcp 140.82.112.6:443: i/o timeout',
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_retries_on_server_errors(mock_run, mock_sleep, stderr):
+    mock_run.side_effect = [
+        _completed(1, stderr=stderr),
+        _completed(1, stderr=stderr),
+        _completed(0, stdout=json.dumps({"data": {"ok": True}})),
+    ]
+    client = GitHubClient()
+
+    assert client.graphql("query { ok }") == {"ok": True}
+    assert client.calls["graphql"] == 3
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [10, 20]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_gives_up_on_a_lasting_server_error(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr="gh: HTTP 504")
+
+    with pytest.raises(GitHubError, match="still failing after 4 attempts: gh: HTTP 504"):
+        GitHubClient().rest_get("repos/x/y")
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [10, 20, 40]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_does_not_repeat_creating_a_comment_after_a_server_error(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr="gh: Server Error (HTTP 502)")
+
+    with pytest.raises(GitHubError, match="502"):
+        GitHubClient().create_comment(10, "body")
+    mock_run.assert_called_once()
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        'Post "https://api.github.com/repos/x/y/issues/10/comments": net/http: TLS handshake timeout',
+        'Post "https://api.github.com/repos/x/y/issues/10/comments": dial tcp: lookup api.github.com: no such host',
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_repeats_creating_a_comment_that_did_not_connect(mock_run, mock_sleep, stderr):
+    mock_run.side_effect = [_completed(1, stderr=stderr), _completed(0, stdout="{}")]
+
+    GitHubClient().create_comment(10, "body")
+    assert mock_run.call_count == 2
+    mock_sleep.assert_called_once_with(10)
+
+
 @mock.patch(
     "airflow_breeze.utils.fork_ci_github.subprocess.run",
     autospec=True,
@@ -128,7 +192,6 @@ def test_dry_run_does_not_mutate(mock_run):
     client.close(1)
     client.remove_label(1, "fork ci required")
     client.delete_run(1, 7)
-    client.cancel_run(1, 7)
 
     mock_run.assert_not_called()
 
@@ -171,19 +234,3 @@ def test_set_status_context(mock_run, kwargs, context):
     GitHubClient().set_status(1, "abc", "success", "https://x", "desc", **kwargs)
 
     assert json.loads(mock_run.call_args.kwargs["input"])["context"] == context
-
-
-@pytest.mark.parametrize(("force", "action"), [(False, "cancel"), (True, "force-cancel")])
-@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
-def test_cancel_run(mock_run, force, action):
-    mock_run.return_value = _completed()
-
-    GitHubClient().cancel_run(1, 7, force=force)
-
-    assert mock_run.call_args.args[0] == [
-        "gh",
-        "api",
-        "-X",
-        "POST",
-        f"repos/apache/airflow/actions/runs/7/{action}",
-    ]

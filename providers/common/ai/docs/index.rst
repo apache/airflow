@@ -227,7 +227,7 @@ Install them when installing from PyPI. For example:
 ===============  =======================================================================================================================================
 Extra            Dependencies
 ===============  =======================================================================================================================================
-``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0``
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0,<2``
 ``bedrock``      ``pydantic-ai-slim[bedrock]>=2.36.0``
 ``google``       ``pydantic-ai-slim[google]>=2.36.0``
 ``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
