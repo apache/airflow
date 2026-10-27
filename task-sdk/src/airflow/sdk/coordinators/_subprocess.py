@@ -80,6 +80,16 @@ if TYPE_CHECKING:
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
 
 
+# The tail of each stream is kept: a runtime that fails to start reports why at the end.
+_STARTUP_OUTPUT_LIMIT = 16384
+
+# A runtime that keeps printing while it fails to connect is read no further than this, so it cannot
+# hold up the failure.
+_STARTUP_DRAIN_BUDGET = 1024 * 1024
+
+_STARTUP_OUTPUT_TRUNCATED = f"[earlier output dropped, last {_STARTUP_OUTPUT_LIMIT} bytes]"
+
+
 def _start_server() -> socket.socket:
     server = socket.socket()
     server.bind(("127.0.0.1", 0))
@@ -224,30 +234,40 @@ def _kill_leftover_group(pid: int) -> None:
         os.killpg(pid, signal.SIGKILL)
 
 
-# The tail of each stream is kept: a runtime that fails to start reports why at the end.
-_STARTUP_OUTPUT_LIMIT = 4096
-
-
 def _read_available(soc: socket.socket, drain_size: int) -> bytes:
     """Return the data *soc* holds now, without waiting for more from a process that may still run."""
     soc.setblocking(False)
     chunks = []
+    budget = _STARTUP_DRAIN_BUDGET
     with contextlib.suppress(BlockingIOError, OSError):
-        while chunk := soc.recv(drain_size):
+        while budget > 0 and (chunk := soc.recv(min(drain_size, budget))):
+            budget -= len(chunk)
             chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _build_launch_error(
-    reason: str, drains: dict[str, socket.socket], drained: dict[socket.socket, bytes], drain_size: int
-) -> TaskLaunchError:
-    """Build the error for a runtime that did not connect, with the output it wrote before that."""
-    message = f"The runtime {reason}"
+def _report_startup_output(
+    logger: FilteringBoundLogger,
+    drains: dict[str, socket.socket],
+    drained: dict[socket.socket, bytes],
+    drain_size: int,
+) -> None:
+    """
+    Write what a runtime printed before it failed to connect to the task log, one event per line.
+
+    The output goes to the log the way a connected runtime's output does, rather than into the error
+    message, so every line keeps its own level and timestamp.
+    """
     for key, soc in drains.items():
         output = drained[soc] + _read_available(soc, drain_size)
-        if text := output[-_STARTUP_OUTPUT_LIMIT:].decode(errors="replace").strip():
-            message += f"\n{key}:\n{text}"
-    return TaskLaunchError(message)
+        # A connected runtime's stderr is logged as an error and its stdout as info.
+        write = logger.error if key == "stderr" else logger.info
+        name = f"task.{key}"
+        if len(output) > _STARTUP_OUTPUT_LIMIT:
+            output = output[-_STARTUP_OUTPUT_LIMIT:]
+            write(_STARTUP_OUTPUT_TRUNCATED, logger=name)
+        for line in output.decode(errors="replace").splitlines():
+            write(line, logger=name)
 
 
 @contextlib.contextmanager
@@ -275,17 +295,25 @@ def _accept_connections(
     drains: dict[str, socket.socket],
     proc: subprocess.Popen,
     *,
+    logger: FilteringBoundLogger,
     max_wait: float = 10.0,
     drain_size: int = 4096,
 ) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
     """
     Block until the subprocess connects to servers, draining stdout/stderr along the way.
 
-    :raises TaskLaunchError: when the subprocess exits or *max_wait* elapses before it connects. The
-        message includes what the subprocess wrote to the *drains* until then.
+    :raises TaskLaunchError: when the subprocess exits or *max_wait* elapses before it connects. What
+        the subprocess wrote to the *drains* until then is written to *logger* first.
     """
     accepted: dict[socket.socket, socket.socket] = {}
     drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
+
+    def _fail(reason: str) -> NoReturn:
+        for s in accepted.values():
+            s.close()
+        _report_startup_output(logger, drains, drained, drain_size)
+        raise TaskLaunchError(f"The runtime {reason}")
+
     with selectors.DefaultSelector() as sel:
         for key, soc in itertools.chain(servers.items(), drains.items()):
             sel.register(soc, selectors.EVENT_READ, data=key)
@@ -293,17 +321,9 @@ def _accept_connections(
         while len(accepted) < len(servers):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                for s in accepted.values():
-                    s.close()
-                raise _build_launch_error(
-                    f"did not connect within {max_wait} seconds", drains, drained, drain_size
-                )
+                _fail(f"did not connect within {max_wait} seconds")
             if proc.poll() is not None:
-                for s in accepted.values():
-                    s.close()
-                raise _build_launch_error(
-                    f"exited with {proc.returncode} before connecting", drains, drained, drain_size
-                )
+                _fail(f"exited with {proc.returncode} before connecting")
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
                 soc = cast("socket.socket", event.fileobj)
                 if soc in drained:
@@ -427,6 +447,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         startup_timeout: float = 10.0,
         **kwargs,
     ) -> Self:
+        process_log = logger or structlog.get_logger(logger_name="task").bind()
         with _ResourceTracker(timeout=startup_timeout) as tracker:
             with _raise_as_launch_error("The runtime cannot start"):
                 comm_server, logs_server = tracker.track(_start_server(), _start_server())
@@ -457,6 +478,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     {"comm": comm_server, "logs": logs_server},
                     {"stdout": stdout_r, "stderr": stderr_r},
                     proc,
+                    logger=process_log,
                     max_wait=startup_timeout,
                 )
                 tracker.track(*socks.values())
@@ -465,7 +487,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     id=what.id,
                     pid=proc.pid,
                     process=PopenTracker(proc),
-                    process_log=logger or structlog.get_logger(logger_name="task").bind(),
+                    process_log=process_log,
                     start_time=time.monotonic(),
                     stdin=socks[comm_server],
                     subprocess_schema_version=subprocess_schema_version,
