@@ -2076,7 +2076,7 @@ class TestTIRunState:
             dag_id=str(uuid4()),
         )
         ti.queued_dttm = queued_at
-        # The route reads a serialized spec only for a stub task, which is what fails below.
+        # The gate short-circuits without this, so the mocked spec below never reaches the route.
         ti.is_stub = True
         session.commit()
 
