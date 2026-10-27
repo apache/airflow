@@ -5485,23 +5485,28 @@ class TestFillConfigDefaults:
         }
 
     def test_fills_task_defaults_without_replacing_explicit_values(self, operator_defaults):
-        with operator_defaults({"retries": 3}):
+        with operator_defaults({"retries": 3, "queue": "celery_q"}):
             with DAG(dag_id="native_dag", schedule=None) as dag:
                 BaseOperator(task_id="unset")
-                BaseOperator(task_id="explicit", retries=0)
+                BaseOperator(task_id="explicit", retries=0, queue="default")
 
             data = DagSerialization.to_dict(dag)
             data.pop("client_defaults", None)
             task_vars = {task["__var"]["task_id"]: task["__var"] for task in data["dag"]["tasks"]}
             task_vars["unset"].pop("retries", None)
+            task_vars["unset"].pop("queue", None)
             task_vars["explicit"]["retries"] = 0
+            task_vars["explicit"]["queue"] = "default"
 
             DagSerialization.fill_config_defaults(data)
             tasks = DagSerialization.from_dict(data).task_dict
 
             assert data["client_defaults"]["tasks"]["retries"] == 3
+            assert data["client_defaults"]["tasks"]["queue"] == "celery_q"
             assert tasks["unset"].retries == 3
+            assert tasks["unset"].queue == "celery_q"
             assert tasks["explicit"].retries == 0
+            assert tasks["explicit"].queue == "default"
 
     def test_merges_task_defaults_without_replacing_existing_defaults(self, monkeypatch):
         monkeypatch.setattr(

@@ -31,10 +31,10 @@ import (
 // A serialized Dag is the Dag JSON that Airflow stores for a Dag and that its scheduler reads.
 // Airflow core owns the format. airflow-core/src/airflow/serialization/schema.json describes it,
 // and Python's DagSerialization writes it for a Dag authored in Python. The serializer in this file
-// does not write the same bytes as Python. Python picks the fields to leave out with a
-// client_defaults table that a bundle never gets, so Python writes some fields at their schema
-// default, such as retry_delay, that this serializer leaves out. Airflow reads a missing field as
-// its schema default, so it loads the same Dag from either serialization.
+// does not write the same bytes as Python. Python resolves config-backed task defaults from its
+// client_defaults table, which a bundle never gets. This serializer omits unset Go fields, and
+// Airflow fills omitted config-backed fields from its own config when it loads the Dag. Other
+// omitted fields retain the serialization schema's defaults.
 // scripts/ci/lang_sdk_serialization/compare.py checks that for the Dags in test_dags.yaml in the
 // same directory.
 

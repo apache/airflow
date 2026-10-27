@@ -151,12 +151,11 @@ private fun serializeTask(
   // A trigger task takes the Dag's queue too, because the Java runtime runs it.
   val config =
     if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
-  // Emit only config entries that differ from their schema default, mirroring
-  // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
-  // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
-  // __type encoding is stripped. If core grows a task-level fill_config_defaults,
-  // every SDK has to keep explicitly set values instead, or an explicit retries=0
-  // reads as unset and picks up the configured default.
+  // Preserve every task config entry explicitly set by the Dag author, even
+  // when it equals the schema default. Core fills omitted config-backed fields
+  // from its own config; dropping an explicit default here would let that fill
+  // override the author's value. Operator fields are stored unwrapped, so strip
+  // the __type encoding.
   config.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
