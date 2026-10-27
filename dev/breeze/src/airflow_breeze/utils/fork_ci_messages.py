@@ -116,11 +116,12 @@ def fork_actions_url(fork: str) -> str:
 def _setup_instructions(fork: str) -> str:
     return (
         "To get CI for this pull request:\n\n"
-        "1. Enable the workflow in your fork (once per fork):\n\n"
+        "1. Sync your fork's `main` with apache/airflow, so that it has the current version of the "
+        "workflow:\n\n"
+        f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
+        "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
-        "   If your fork's `main` is older than the workflow, sync it first with "
-        f"`gh repo sync {fork} --branch main`.\n"
-        "2. Push your branch again. Every push then runs CI in your fork.\n\n"
+        "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
         f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
     )
@@ -192,6 +193,23 @@ def nudge_comment(*, fork: str) -> str:
     return (
         f"The `Tests (AMD)` workflow is now enabled in {fork}. Push this branch again to start CI "
         "for this pull request; the workflow only runs for pushes made after it was enabled." + FOOTER
+    )
+
+
+_DISABLED_REASONS = {
+    "disabled_manually": "was disabled in your fork, from its Actions tab or with `gh workflow disable`",
+    "disabled_inactivity": "was disabled by GitHub because your fork had no activity for 60 days",
+    "disabled_fork": "is disabled in your fork",
+    "missing": "is missing from your fork, for example because its `main` was reset to an older commit",
+}
+
+
+def workflow_disabled_comment(*, fork: str, workflow_state: str | None) -> str:
+    reason = _DISABLED_REASONS.get(workflow_state or "missing", "is not enabled in your fork")
+    return (
+        f"**Fork CI stopped running.** The `Tests (AMD)` workflow {reason}, so pushes to this "
+        "branch no longer run CI, and this pull request stays a draft until they do.\n\n"
+        f"{_setup_instructions(fork)}" + FOOTER
     )
 
 

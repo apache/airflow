@@ -490,16 +490,19 @@ that matters. It is matched by file, not by the workflow's display name, which a
 change, and only `push` runs count because only they execute the workflow from the head commit
 itself; a `pull_request` run inside the fork, into the fork's own `main`, runs a merge the
 contributor controls. For pull requests
-whose recorded state is `setup_required` (or that have no recorded state yet), one REST call
-per pull request reads `GET /repos/<fork>/actions/workflows/ci-amd.yml` to distinguish
-"workflows disabled" from "enabled but not yet pushed". This is bounded by the number of
-pull requests in that state, not by the total.
+with no fork run for the head commit, one REST call per pull request reads
+`GET /repos/<fork>/actions/workflows/ci-amd.yml` to distinguish "workflows disabled" from
+"enabled but not yet pushed". It is read on every run, including for pull requests already
+recorded as `awaiting_push`: a workflow can be disabled after it was enabled, by the
+contributor or by GitHub after 60 days without activity in the fork, and the pull request
+would otherwise keep waiting for a push that never runs CI. This is bounded by the number of
+pull requests without a fork run for their head commit, not by the total.
 
 ### State machine
 
 | Observed fork state | Draft | `ready for maintainer review` | Commit status | Comment |
 |---|---|---|---|---|
-| **setup_required**: workflow state is `disabled_fork`, or the fork has no `ci-amd.yml` | draft | remove | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh workflow enable ci-amd.yml -R <fork>` line, and `breeze ci audit` |
+| **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | draft | remove | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | draft | remove | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
 | **running**: run in progress | draft | remove | `pending` (yellow), link to the run | update state and run link |
 | **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
@@ -872,7 +875,7 @@ Unknown means any of:
   that outlasted its retries.
 - A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
   conclusion outside the modelled set.
-- A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
+- A workflow state outside `active` / `disabled_fork` / `disabled_manually` / `disabled_inactivity` / not found.
 - A mutation that returned an error (label, comment, close, status).
 - A head repository that no longer exists.
 - A state comment whose marker cannot be parsed.
@@ -949,18 +952,17 @@ prints one row: status, finding, and the command that fixes it.
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds or repoints it |
 | 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]`; when the membership call fails for any reason but a 404, the role is reported as not checked and checks 2, 3 and 5 stay informational | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: informational, with a hint when it is `active` | `gh workflow enable ci-amd.yml -R <fork>`, or `gh workflow disable ...` shown but not run by `--fix` |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than 200 commits (`MAX_FORK_MAIN_BEHIND`) | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
 The role is determined before checks 2 and 3, though printed as check 4. For a committer,
 collaborator or exempted contributor, whose pull requests run project CI, checks 2 and 3 are
 informational: working from an `apache/airflow` clone without a fork is fine for them, and
-`--fix` only runs the fixes of failed checks. The same goes for check 5: an enabled fork
-workflow runs every push twice and attaches a second status, so they are told they can disable
-it, but it is not a failure, because a committer trying fork CI with the `use fork ci` label
-needs it enabled. Forks of a public repository cannot be made private on GitHub, so disabling
-the workflow is the only recommendation available.
+`--fix` only runs the fixes of failed checks. Check 5 passes for them whether the fork workflow
+is enabled or not. The audit never suggests disabling it: a committer trying fork CI with the
+`use fork ci` label needs it enabled, and a workflow disabled while a pull request waits for its
+fork CI leaves that pull request stuck until the workflow is enabled again.
 
 A failed API call is reported as "could not check" rather than as a finding: a failed fork
 lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".

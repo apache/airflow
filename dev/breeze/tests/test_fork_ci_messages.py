@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
     state_comment,
     tamper_close_comment,
+    workflow_disabled_comment,
 )
 
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
@@ -114,6 +115,9 @@ def test_parse_marker_malformed(body):
         pytest.param(nudge_comment(fork="u/airflow"), id="nudge"),
         pytest.param(inactivity_close_comment(days=7, fork="u/airflow"), id="inactivity"),
         pytest.param(tamper_close_comment(run_url="https://x"), id="tamper"),
+        pytest.param(
+            workflow_disabled_comment(fork="u/airflow", workflow_state="disabled_manually"), id="disabled"
+        ),
     ],
 )
 def test_every_comment_ends_with_footer(text):
@@ -125,9 +129,11 @@ def test_every_comment_ends_with_footer(text):
     [
         pytest.param(state_comment(Marker("setup_required", "a", MARKER.since), fork="u/fork", run_url=None)),
         pytest.param(inactivity_close_comment(days=7, fork="u/fork")),
+        pytest.param(workflow_disabled_comment(fork="u/fork", workflow_state="disabled_manually")),
     ],
 )
 def test_setup_texts_give_the_exact_command(text):
+    assert "gh repo sync u/fork --branch main" in text
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 
