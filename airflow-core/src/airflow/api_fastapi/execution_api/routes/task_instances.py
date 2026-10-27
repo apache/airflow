@@ -192,6 +192,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.is_stub,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -379,8 +380,12 @@ def ti_run(
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (
-            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
+        # ti.is_stub carries the row's own copy of the serialized flag and is checked first, so the
+        # normal Python task path never loads the serialized Dag.
+        if (
+            ti.is_stub
+            and client_supports_arg_bindings()
+            and (arg_bindings := get_arg_bindings(dag_bag, ti, session=session))
         ):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)

@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``ee86eed19e24`` (head) | ``9cffe90fa0c0`` | ``3.4.0``         | Add pending_partition_key to asset_partition_dag_run and     |
+| ``b4f1a7d2c903`` (head) | ``ee86eed19e24`` | ``3.4.0``         | Add is_stub to task_instance.                                |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``ee86eed19e24``        | ``9cffe90fa0c0`` | ``3.4.0``         | Add pending_partition_key to asset_partition_dag_run and     |
 |                         |                  |                   | enforce single pending row per key.                          |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9cffe90fa0c0``        | ``a5d7b9c13e40`` | ``3.4.0``         | Add commit_allows_update to connection_test_request.         |
