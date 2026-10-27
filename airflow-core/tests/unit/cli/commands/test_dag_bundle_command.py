@@ -46,7 +46,9 @@ def source(tmp_path):
 
 @pytest.fixture
 def published_root(tmp_path):
-    return tmp_path / "published"
+    published_root = tmp_path / "published"
+    published_root.mkdir()
+    return published_root
 
 
 # caplog keeps log lines out of the captured stdout that the tests parse as JSON.
@@ -103,8 +105,8 @@ def test_publish_local_releases_source_snapshot(parser, capsys, source, publishe
     assert result == {
         "bundle_name": "manifest-local",
         "version": manifest_ref["version"],
-        "version_path": str(version_path),
-        "manifest_ref_path": str(manifest_ref_path),
+        "snapshot_locator": str(version_path),
+        "ref_locator": str(manifest_ref_path),
         "manifest_sha256": manifest_ref["manifest"]["sha256"],
         "file_count": "2",
         "total_size": str(len("print('dag')") + len("x = 1")),
@@ -221,7 +223,7 @@ def test_publish_local_rejects_malformed_expected_version_before_writing(
 
     with pytest.raises(SystemExit, match="--expected-current-version .* is not a bundle version"):
         dag_bundle_command.dag_bundle_publish_local(args)
-    assert not published_root.exists()
+    assert list(published_root.iterdir()) == []
 
 
 def test_publish_local_keeps_traceback_when_verbose(parser, source):
@@ -263,7 +265,7 @@ def test_publish_local_reports_uncertain_durability_after_reference_replacement(
     args.verbose = verbose
     error_type = BundleManifestRefDurabilityError if verbose else SystemExit
     message = (
-        "Release reference .* was replaced, but durability could not be confirmed"
+        "Release reference .* may have been replaced, but durability could not be confirmed"
         if verbose
         else "Cannot confirm publication of Dag bundle 'manifest-local': Release reference"
     )
@@ -280,7 +282,7 @@ def test_publish_local_reports_uncertain_durability_after_reference_replacement(
     assert capsys.readouterr().out == ""
     if verbose:
         assert exc_info.value.__cause__ is sync_error
-        assert exc_info.value.ref_path == manifest_ref_path
+        assert exc_info.value.ref_locator == str(manifest_ref_path)
         assert exc_info.value.version == current_version
 
     mock_fsync_directory.side_effect = None

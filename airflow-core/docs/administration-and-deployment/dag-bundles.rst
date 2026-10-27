@@ -268,9 +268,13 @@ workers read from:
         }
       ]
 
-``published_root`` is required and must be a filesystem path. ``allow_empty_source`` (default ``false``) lets
-a publication contain no files at all; it is off so that a sync that delivered nothing cannot empty the
-release. It does not catch a partial sync that delivered only some files.
+``published_root`` is required and must name an existing filesystem directory. Create it before the first
+publication; the publisher creates only directories below it. On a shared mount, use a dedicated directory
+inside the mount and ensure the mount is available before publishing.
+
+``allow_empty_source`` (default ``false``) lets a publication contain no files at all; it is off so that a
+sync that delivered nothing cannot empty the release. It does not catch a partial sync that delivered only
+some files.
 
 The Dag processor cannot initialize the bundle until its first release is published. Until then it logs the
 missing release reference and retries on later loops; other bundles are not affected.
@@ -294,9 +298,11 @@ overlap. ``.git`` and ``__pycache__`` directories, files named ``.git``, ``.pyc`
 ``.airflow-bundle-manifest.json`` file are left out of the release. A symlink or other non-regular file
 anywhere else in the source makes the publication fail.
 
-The command prints the bundle name, the version, the snapshot and release reference paths, the manifest hash,
-the file count, the total size, and whether this publication created the snapshot (``False`` when the same
-content was published before). Use ``--output json`` to read the result in a script:
+The command prints the bundle name, the version, the snapshot and release reference identifiers
+(``snapshot_locator`` and ``ref_locator``), the manifest hash, the file count, the total size, and whether this
+publication created the snapshot (``False`` when the same content was published before). The identifiers are
+opaque strings; the filesystem store uses paths, but other stores may use a different format. Use
+``--output json`` to read the result in a script:
 
 .. code-block:: bash
 
@@ -351,17 +357,21 @@ seconds: the bundle's ``refresh_interval`` kwarg if set, otherwise
 version, deferred tasks and callbacks -- uses the snapshot for the recorded version, never the current release,
 and never publishes.
 
-Airflow never deletes snapshots from ``published_root``. Pruning old ``versions/<bundle>/sha256-*`` directories
-is up to you:
+Airflow never deletes snapshots from ``published_root``. Storage grows as new content versions are published;
+automatic cleanup of local bundle caches does not reclaim these authoritative snapshots. Provision and monitor
+shared storage capacity. Airflow does not identify versions that are safe to delete; pruning old
+``versions/<bundle>/sha256-*`` directories is up to you:
 
 - Keep the current release (the ``version`` in ``refs/<bundle>/latest.json``) and every version still recorded
   on a Dag run that can be retried or rerun, or that has deferred tasks or callbacks pending. Pinned work for a
   removed version fails until the snapshot is restored.
 - Prune while holding the bundle's publication lock, for example with ``flock _locks/<bundle>.lock``, so that a
-  publisher cannot reuse a snapshot while it is being removed.
-- Snapshots are read-only: make one writable (``chmod -R u+w``) before removing it. A removal that stops
-  part-way leaves a damaged snapshot, and publishing the same content again then fails until the rest of it is
-  removed.
+  publisher cannot reuse a snapshot while it is being removed. Also ensure that no reader can fetch that
+  version during removal; the publication lock does not block readers.
+- Snapshots are read-only and may belong to a different OS user. Remove them as their owner, or an
+  administrator with permission to change their modes, after making them writable (``chmod -R u+w``).
+  A removal that stops part-way leaves a damaged snapshot, and publishing the same content again then fails
+  until the rest of it is removed.
 
 The bundle cache on each host is disposable. Airflow rebuilds it from ``published_root`` when it is missing, so
 you can delete it while no Airflow component on that host is using it.
@@ -390,10 +400,10 @@ directories are ``0755`` so that Airflow's stale-version cleanup can remove them
 read access to ``published_root``.
 
 Publishers need write access to the bundle's ``versions/<bundle>``, ``refs/<bundle>`` and ``_locks``
-directories and read/write access to its lock file. A publisher creates any of these directories that are
-missing with mode ``0755``, which only its own OS user can write to. When publishers run as different OS users,
-create the directories in advance, owned by a group the publishers share, with group write access and the
-setgid bit (``chmod 2775``); the lock file is created group-writable.
+directories and read/write access to its lock file. New directories use mode ``0755`` plus the group write
+and ``setgid`` bits of ``published_root``. When publishers run as different OS users, give ``published_root``
+a group they share, with group write access and the ``setgid`` bit (``chmod 2775``). Existing directories keep
+their permissions, so grant the same group access to them when needed; the lock file is created group-writable.
 
 ``published_root`` must be one filesystem shared by every publisher and Airflow component that serves the
 bundle. It must support POSIX advisory file locking (``flock``), atomic rename, and durable ``fsync`` of files

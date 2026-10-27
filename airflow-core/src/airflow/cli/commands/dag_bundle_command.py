@@ -94,8 +94,8 @@ def dag_bundle_publish_local(args) -> None:
             {
                 "bundle_name": result.bundle_name,
                 "version": result.version,
-                "version_path": result.version_path,
-                "manifest_ref_path": result.manifest_ref_path,
+                "snapshot_locator": result.snapshot_locator,
+                "ref_locator": result.ref_locator,
                 "manifest_sha256": result.manifest_sha256,
                 "file_count": result.file_count,
                 "total_size": result.total_size,
