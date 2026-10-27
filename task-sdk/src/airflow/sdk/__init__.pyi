@@ -128,6 +128,7 @@ from airflow.sdk.definitions.timetables.trigger import (
     CronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
+    JitteredCronTimetable,
     MultipleCronTriggerTimetable,
 )
 from airflow.sdk.definitions.variable import Variable as Variable
@@ -182,6 +183,7 @@ __all__ = [
     "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
+    "JitteredCronTimetable",
     "Label",
     "LoopDecision",
     "Metadata",
