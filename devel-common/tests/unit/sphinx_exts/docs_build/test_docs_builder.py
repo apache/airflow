@@ -209,9 +209,7 @@ class TestBuildSphinxDocsSpelling:
         assert spelling_errors == []
 
     @pytest.mark.parametrize("theme_mounted", [True, False])
-    def test_autobuild_watches_mounted_sphinx_airflow_theme(
-        self, builder, monkeypatch, theme_mounted
-    ):
+    def test_autobuild_watches_mounted_sphinx_airflow_theme(self, builder, monkeypatch, theme_mounted):
         builder.is_autobuild = True
         seen_cmd: list[str] = []
 
@@ -224,9 +222,11 @@ class TestBuildSphinxDocsSpelling:
         monkeypatch.setattr(
             Path,
             "is_dir",
-            lambda p: theme_mounted
-            if p == Path("/opt/sphinx_airflow_theme/sphinx_airflow_theme")
-            else orig_is_dir(p),
+            lambda p: (
+                theme_mounted
+                if p == Path("/opt/sphinx_airflow_theme/sphinx_airflow_theme")
+                else orig_is_dir(p)
+            ),
         )
 
         builder.build_sphinx_docs(verbose=False)
