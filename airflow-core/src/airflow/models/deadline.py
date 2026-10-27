@@ -278,7 +278,7 @@ class Deadline(Base):
             dagrun = session.get(DagRun, self.dagrun_id)
 
             return {
-                "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
+                "dag_run": DAGRunResponse.from_dag_run_unmasked(dagrun).model_dump(mode="json"),
                 "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
 

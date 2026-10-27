@@ -168,7 +168,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
         session=session,
     )
     if dagrun is not None:
-        data = [DAGRunResponse.model_validate(dagrun).model_dump(mode="json")]
+        data = [DAGRunResponse.from_dag_run_unmasked(dagrun).model_dump(mode="json")]
     else:
         data = []
 

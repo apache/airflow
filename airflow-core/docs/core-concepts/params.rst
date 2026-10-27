@@ -463,6 +463,10 @@ Masking Sensitive Param Values
 
 .. versionadded:: 3.4.0
 
+.. warning::
+    Masking only hides the value in the places listed below. Credentials that should be stored
+    securely or reused across runs belong in a Connection or Variable, not in a Param.
+
 If a ``string``-typed :class:`~airflow.sdk.definitions.param.Param` is declared with ``format="password"``,
 its value is masked wherever Airflow already masks sensitive values:
 
@@ -471,7 +475,7 @@ its value is masked wherever Airflow already masks sensitive values:
     with DAG(
         "the_dag",
         params={
-            "api_token": Param(
+            "one_time_code": Param(
                 default="",
                 type="string",
                 format="password",
@@ -481,11 +485,11 @@ its value is masked wherever Airflow already masks sensitive values:
 
 This is masked in:
 
-- The Trigger UI Form, as a password-style input with a show/hide toggle.
+- The Trigger Dag UI form, as a password-style input with a show/hide toggle.
 - Task Logs, if the value is referenced in task code (e.g. via ``print()`` or ``logging``).
 - Rendered Templates, if the value is used in a templated field.
 - The DAG Run Details page and the REST API, wherever ``conf`` is returned (this includes
-  fetching, listing, triggering, patching, and clearing DagRuns).
+  fetching, listing, triggering, patching, and clearing DagRuns, plus asset materialization).
 
 This is **not** masked in:
 

@@ -302,7 +302,7 @@ class TestDeadline:
 
         assert context["deadline"]["id"] == str(deadline_orm.id)
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
-        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+        assert context["dag_run"] == DAGRunResponse.from_dag_run_unmasked(dagrun).model_dump(mode="json")
 
     @pytest.mark.db_test
     def test_handle_miss_persists_triggerer_callback_context(self, dagrun, session):
@@ -319,7 +319,7 @@ class TestDeadline:
         callback_id = deadline_orm.callback.id
         deadline_id = deadline_orm.id
         deadline_time = deadline_orm.deadline_time
-        expected_dag_run = DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+        expected_dag_run = DAGRunResponse.from_dag_run_unmasked(dagrun).model_dump(mode="json")
 
         deadline_orm.handle_miss(session)
         session.commit()
