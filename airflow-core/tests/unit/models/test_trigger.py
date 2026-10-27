@@ -36,6 +36,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
+from airflow.models.dag_version import DagVersion
 from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -343,24 +344,26 @@ def test_clean_unused_rejects_non_positive_batch_size_before_transaction(session
     assert commit_count == 0
 
 
-@conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): "2"})
-def test_clean_unused_retries_failed_batch_in_fresh_transactions(session):
-    session.add_all(
-        [
-            Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={})
-            for index in range(5)
-        ]
-    )
+def test_clean_unused_runs_in_the_caller_transaction(session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
     session.commit()
 
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 3
+    Trigger.clean_unused(session=session)
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    session.rollback()
+
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 1
+
+
+def test_clean_unused_raises_database_errors_to_the_caller_without_retrying(session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+    # The caller's own pending write must survive the cleanup failing.
+    job = Job()
+    session.add(job)
+    session.flush()
 
     delete_attempt_count = 0
-    cleanup_sessions = []
-    commit_count = 0
-    rollback_count = 0
 
     def fail_delete(connection, cursor, statement, parameters, context, executemany):
         nonlocal delete_attempt_count
@@ -369,42 +372,15 @@ def test_clean_unused_retries_failed_batch_in_fresh_transactions(session):
             delete_attempt_count += 1
             raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
 
-    def capture_session(cleanup_session, transaction, connection):
-        cleanup_sessions.append(cleanup_session)
-
-    def count_commit(committed_session):
-        nonlocal commit_count
-        commit_count += 1
-
-    def count_rollback(rolled_back_session):
-        nonlocal rollback_count
-        rollback_count += 1
-
     event.listen(session.bind, "before_cursor_execute", fail_delete)
-    event.listen(session.__class__, "after_begin", capture_session)
-    event.listen(session.__class__, "after_commit", count_commit)
-    event.listen(session.__class__, "after_rollback", count_rollback)
     try:
         with pytest.raises(OperationalError, match="injected cleanup failure"):
-            Trigger.clean_unused()
+            Trigger.clean_unused(session=session)
     finally:
         event.remove(session.bind, "before_cursor_execute", fail_delete)
-        event.remove(session.__class__, "after_begin", capture_session)
-        event.remove(session.__class__, "after_commit", count_commit)
-        event.remove(session.__class__, "after_rollback", count_rollback)
 
-    assert len({id(cleanup_session) for cleanup_session in cleanup_sessions}) == 3
-    assert (delete_attempt_count, commit_count, rollback_count) == (3, 0, 3)
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 3
-
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 1
-
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    assert delete_attempt_count == 1
+    assert job in session
 
 
 @patch.object(TriggererCallback, "handle_event")
@@ -523,6 +499,76 @@ def test_handle_event_submit_fails_task_with_unusable_next_kwargs(
     assert "stored next_kwargs could not be decoded" in task_instance.next_kwargs["error"]
     # The traceback reaches the task log only through next_kwargs, and the runtime joins the list.
     assert isinstance(task_instance.next_kwargs["traceback"], list)
+
+
+def test_handle_event_submit_keeps_stored_values_encoded(session, create_task_instance, monkeypatch):
+    """
+    Stored values are carried over as encoded, never reconstructed: only the worker resuming the
+    task needs them as objects, so submitting the event must not run their constructors.
+    """
+    from airflow.sdk import Asset
+    from airflow.sdk.serde import serialize
+
+    stored = {"asset": serialize(Asset("resume-data")), "count": 1}
+
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = stored
+    session.flush()
+
+    constructed = []
+    original_init = Asset.__init__
+
+    def spy(self, *args, **kwargs):
+        constructed.append(True)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(Asset, "__init__", spy)
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    assert constructed == []
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "execute_complete"
+    assert task_instance.next_kwargs == {**stored, "event": "payload"}
+
+
+def test_handle_event_submit_keeps_legacy_encoding(session, create_task_instance):
+    """Rows still in the legacy ``{"__type": "dict", "__var": ...}`` form get the event in that form."""
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = BaseSerialization.serialize({"count": 1})
+    session.flush()
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == BaseSerialization.serialize({"count": 1, "event": "payload"})
+
+
+def test_handle_event_submit_fails_task_when_legacy_event_payload_cannot_be_serialized(
+    session, create_task_instance
+):
+    """Legacy-form rows must not resume with an unsupported payload cast to its ``str()``."""
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = BaseSerialization.serialize({"count": 1})
+    session.flush()
+
+    handle_event_submit(TriggerEvent({"data": b"abc"}), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
 
 
 def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
@@ -645,8 +691,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
 def test_submit_event_task_end_callback_includes_version_data(mock_send, session, create_task_instance):
-    """A finished deferred task's callback carries version_data for a pinned run, and its
-    bundle_version is derived from the same dag_version so the two cannot diverge."""
+    """A finished deferred task's callback carries version_data for a pinned run."""
     version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
 
     trigger = Trigger(classpath="does.not.matter", kwargs={})
@@ -668,6 +713,65 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     request = mock_send.call_args.kwargs["callback"]
     assert request.bundle_version == "some_hash"
     assert request.version_data == version_data
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_uses_run_bundle_after_code_only_update(
+    mock_send, session, create_task_instance
+):
+    """A code-only update advances the reused Dag version's bundle while the run stays pinned."""
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.dag_run.bundle_version = "v1-sha"
+    task_instance.dag_version.bundle_version = "v2-sha"
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    assert mock_send.call_args.kwargs["callback"].bundle_version == "v1-sha"
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_uses_run_manifest_when_ti_on_newer_version(
+    mock_send, session, create_task_instance
+):
+    """The callback ships the run's pinned bundle and manifest after the TI moved to a newer Dag version."""
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    run_manifest = {"files": {"dags/my_dag.py": "v1-object-id"}}
+    run_dag_version = task_instance.dag_run.created_dag_version
+    run_dag_version.bundle_version = "v1-sha"
+    run_dag_version.version_data = run_manifest
+    newer_dag_version = DagVersion(
+        dag_id=task_instance.dag_id,
+        version_number=run_dag_version.version_number + 1,
+        bundle_name=run_dag_version.bundle_name,
+        bundle_version="v2-sha",
+        version_data={"files": {"dags/my_dag.py": "v2-object-id"}},
+    )
+    session.add(newer_dag_version)
+    session.flush()
+    task_instance.dag_run.bundle_version = "v1-sha"
+    task_instance.dag_version_id = newer_dag_version.id
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.bundle_version == "v1-sha"
+    assert request.version_data == run_manifest
 
 
 @pytest.mark.parametrize(

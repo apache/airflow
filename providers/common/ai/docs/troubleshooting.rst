@@ -130,7 +130,7 @@ as a task failure.
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.
 
-``message_history and enable_hitl_review=True cannot be used together``
+``message_history and enable_hitl_review=True cannot be used together`` and ``emit_message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
 

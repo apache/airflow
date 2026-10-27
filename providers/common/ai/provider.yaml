@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1791984681
+source-date-epoch: 1792489528
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
   - 1.0.0
   - 0.10.0
   - 0.9.0
@@ -192,16 +193,19 @@ connection-types:
       - Heroku
       - Hugging Face
       - LiteLLM
+      - Meta
       - Mistral AI
       - Moonshot AI
       - Nebius
       - Ollama
       - OpenAI
+      - OpenAI Decisions
       - OpenRouter
       - OVHcloud
       - Pydantic AI Gateway
       - SambaNova
       - Snowflake Cortex
+      - System One
       - Together AI
       - TypeSafe
       - Vercel AI Gateway
@@ -423,7 +427,7 @@ connection-types:
             - 'null'
       vertexai:
         label: Force Vertex AI Mode
-        description: "Ignored (kept for compatibility); mode is now selected via the Model field's prefix."
+        description: "Deprecated and ignored; the Model field's prefix selects the mode."
         schema:
           type:
             - boolean

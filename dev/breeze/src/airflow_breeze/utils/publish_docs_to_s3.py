@@ -398,6 +398,7 @@ class S3DocsPublish:
 SCHEMA_VERSION_FIELDS: dict[str, str] = {
     "execution-api": "info.version",
     "supervisor-schema": "api_version",
+    "dag": "version",
 }
 
 
@@ -479,6 +480,7 @@ def publish_schemas_to_s3(
     destination_location: str,
     execution_api_schema: pathlib.Path | None,
     supervisor_schema: pathlib.Path | None,
+    dag_schema: pathlib.Path | None = None,
     overwrite: bool = False,
     dry_run: bool = False,
 ) -> None:
@@ -494,9 +496,11 @@ def publish_schemas_to_s3(
         to_publish.append(("execution-api", execution_api_schema))
     if supervisor_schema:
         to_publish.append(("supervisor-schema", supervisor_schema))
+    if dag_schema:
+        to_publish.append(("dag", dag_schema))
 
     if not to_publish:
-        console_print("[error]No schema files provided. Pass --execution-api and/or --supervisor.\n")
+        console_print("[error]No schema files provided. Pass --execution-api, --supervisor and/or --dag.\n")
         sys.exit(1)
 
     uploaded_any = False

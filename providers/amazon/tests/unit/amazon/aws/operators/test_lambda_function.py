@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 FUNCTION_NAME = "function_name"
@@ -114,8 +115,9 @@ class TestLambdaCreateFunctionOperator:
         mock_hook_create_lambda.assert_called_once()
         mock_hook_conn.get_waiter.assert_called_once_with("function_active_v2")
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(LambdaHook, "create_lambda")
-    def test_create_lambda_deferrable(self, _):
+    def test_create_lambda_deferrable(self, _, wait_for_completion):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
@@ -123,9 +125,13 @@ class TestLambdaCreateFunctionOperator:
             code={
                 "ImageUri": IMAGE_URI,
             },
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
             operator.execute(None)
 
     @mock.patch.object(LambdaHook, "create_lambda")

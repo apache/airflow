@@ -596,6 +596,12 @@ ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
     help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
     action="store_true",
 )
+ARG_ASSET_IDS = Arg(
+    ("--asset-ids",),
+    default=None,
+    help="Only clean events for these comma-separated positive integer asset IDs; requires --tables asset_event",
+    type=lambda value: [positive_int(allow_zero=False)(item) for item in string_list_type(value)],
+)
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
     default=None,
@@ -890,7 +896,7 @@ ARG_CONN_PASSWORD = Arg(
 ARG_CONN_SCHEMA = Arg(
     ("--conn-schema",), help="Connection schema, optional when adding a connection", type=str
 )
-ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=str)
+ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=int)
 ARG_CONN_EXTRA = Arg(
     ("--conn-extra",), help="Connection `Extra` field, optional when adding a connection", type=str
 )
@@ -1826,6 +1832,7 @@ DB_COMMANDS = (
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
             ARG_DB_BATCH_SIZE,
+            ARG_ASSET_IDS,
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
             ARG_DB_ERROR_ON_CLEANUP_FAILURE,

@@ -53,8 +53,9 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
     get_orm_task_instance_positions,
-    get_regional_task_instance_run_id,
     get_task_documentation,
+    get_task_instance_position,
+    get_task_instance_run_id,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
@@ -263,15 +264,8 @@ class OpenLineageListener:
                 clear_number=clear_number,
             )
 
-            task_uuid = get_regional_task_instance_run_id(
-                task_instance
-            ) or self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
 
@@ -341,6 +335,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
                     ),
                     **debug_facet,
                 },
@@ -427,15 +422,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = get_regional_task_instance_run_id(
-                task_instance
-            ) or self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
 
@@ -504,6 +492,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -605,15 +594,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = get_regional_task_instance_run_id(
-                task_instance
-            ) or self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()
 
@@ -682,6 +664,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -759,15 +742,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = get_regional_task_instance_run_id(
-                task_instance
-            ) or self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
 
@@ -835,6 +811,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -913,16 +890,7 @@ class OpenLineageListener:
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
             position = get_orm_task_instance_positions([ti], session=object_session(ti))[ti.id]
-            if position.in_loop:
-                task_uuid = str(ti.id)
-            else:
-                task_uuid = self.adapter.build_task_instance_run_id(
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    try_number=ti.try_number,
-                    logical_date=date,
-                    map_index=position.map_index,
-                )
+            task_uuid = get_task_instance_run_id(ti, logical_date=date, position=position)
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,
                 logical_date=date,
@@ -959,6 +927,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=include_full_task_info,
+                        ti_position=position,
                     )
 
             adapter_kwargs: dict = {

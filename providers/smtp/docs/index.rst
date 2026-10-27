@@ -37,6 +37,7 @@
     Configuration <configurations-ref>
     Connection types <connections/smtp>
     SMTP Notifications <notifications/smtp_notifier_howto_guide>
+    Email backend <email-backend>
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::
@@ -64,7 +65,7 @@ apache-airflow-providers-smtp package
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 3.1.1
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -98,5 +99,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-smtp 3.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-smtp 3.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-smtp 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-smtp 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_smtp-3.2.0-py3-none-any.whl.sha512>`__)

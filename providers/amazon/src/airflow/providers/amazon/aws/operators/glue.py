@@ -23,7 +23,7 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.triggers.glue import (
     GlueJobCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.openlineage.utils.spark import (
@@ -86,7 +87,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :param wait_for_completion: Whether to wait for job run completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
@@ -145,6 +148,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
 
     operator_extra_links = (GlueJobRunDetailsLink(),)
     TASK_UUID_ARG = "--airflow_task_uuid"
+    TASK_UUID_SCAN_PAGE_SIZE = 200
+    TASK_UUID_SCAN_MAX_PAGES = 10
     external_id_key = "glue_job_run_id"
 
     def __init__(
@@ -294,11 +299,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         return script_args, task_uuid
 
     def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
-        # Unbounded walk with no page cap; a no-match run is the common retry shape and pays the
-        # full scan. Tracked at https://github.com/apache/airflow/issues/71489.
         next_token: str | None = None
-        while True:
-            request = {"JobName": self.job_name, "MaxResults": 50}
+        for _ in range(self.TASK_UUID_SCAN_MAX_PAGES):
+            request = {"JobName": self.job_name, "MaxResults": self.TASK_UUID_SCAN_PAGE_SIZE}
             if next_token:
                 request["NextToken"] = next_token
             response = self.hook.conn.get_job_runs(**request)
@@ -312,6 +315,11 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             next_token = response.get("NextToken")
             if not next_token:
                 return None
+        self.log.warning(
+            "Stopped scanning Glue job runs for task UUID after %s pages without a match",
+            self.TASK_UUID_SCAN_MAX_PAGES,
+        )
+        return None
 
     def execute(self, context: Context) -> str | None:
         """
@@ -319,7 +327,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
 
         :return: the current Glue job ID.
         """
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             # The Triggerer tracks the run, so no id is persisted to task_state_store here -- but
             # durable still reattaches a retry via the task-UUID scan in submit_job.
             job_run_id = self.submit_job(context)
@@ -414,8 +422,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
                 if self.is_job_active(state):
                     return previous_job_run_id
-            except Exception:
-                self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            except (ClientError, BotoCoreError):
+                self.log.exception(
+                    "Failed to get previous Glue job run state; submitting a fresh Glue job run"
+                )
         else:
             try:
                 existing = self._find_job_run_id_by_task_uuid(task_uuid)
@@ -428,8 +438,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     )
                     if self.is_job_active(existing_job_run_state):
                         return existing_job_run_id
-            except Exception:
-                self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
+            except ClientError:
+                self.log.exception(
+                    "Failed to find previous Glue job run by task UUID; submitting a fresh Glue job run"
+                )
         return None
 
     def _has_stored_external_id(self, context: Context) -> bool:
@@ -619,7 +631,9 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -713,7 +727,7 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         message_description = (
             f"AWS Glue data quality ruleset evaluation run RunId: {evaluation_run_id} to complete."
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", message_description)
             self.defer(
                 trigger=GlueDataQualityRuleSetEvaluationRunCompleteTrigger(
@@ -786,7 +800,9 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the job to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -864,7 +880,7 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         message_description = (
             f"AWS Glue data quality recommendation run RunId: {recommendation_run_id} to complete."
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", message_description)
             self.defer(
                 trigger=GlueDataQualityRuleRecommendationRunCompleteTrigger(

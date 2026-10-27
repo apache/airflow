@@ -677,7 +677,7 @@ def test_queued_tasks_setter_emits_warning_and_writes_through():
     executor = BaseExecutor()
     new_queue = {"k": "v"}
     with pytest.warns(RemovedInAirflow4Warning, match="queued_tasks is deprecated"):
-        executor.queued_tasks = new_queue  # type: ignore[misc]
+        executor.queued_tasks = new_queue
     assert executor.executor_queues[WorkloadType.EXECUTE_TASK] is new_queue
 
 
@@ -685,7 +685,7 @@ def test_queued_callbacks_setter_emits_warning_and_writes_through():
     executor = BaseExecutor()
     new_queue = {"k": "v"}
     with pytest.warns(RemovedInAirflow4Warning, match="queued_callbacks is deprecated"):
-        executor.queued_callbacks = new_queue  # type: ignore[misc]
+        executor.queued_callbacks = new_queue
     assert executor.executor_queues[WorkloadType.EXECUTE_CALLBACK] is new_queue
 
 
@@ -743,7 +743,7 @@ def test_unknown_workload_type_sorts_last_without_crashing():
     unknown_workload.type = "SomeFutureType"
     unknown_workload.sort_key = 0
     executor.executor_queues[WorkloadType.EXECUTE_TASK][known_key] = known_workload
-    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload  # type: ignore[index]
+    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload
 
     scheduled = executor._get_workloads_to_schedule(open_slots=10)
 

@@ -147,17 +147,23 @@
                 "airflow": {
                     "taskGroups": {
                         "section_1": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_1"
                         },
                         "section_1.section_2": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
                             "ui_label": "section_2"
                         },
                         "section_1.section_2.section_3": {
+                            "is_mapped": false,
+                            "is_loop": false,
                             "parent_group": "section_1.section_2",
                             "ui_color": "CornflowerBlue",
                             "ui_fgcolor": "#000",
@@ -167,6 +173,8 @@
                     "taskTree": {},
                     "tasks": {
                         "section_1.section_2.section_3.task_7": {
+                            "is_mapped": false,
+                            "loop_group": null,
                             "downstream_task_ids": [
                                 "check_events"
                             ],
@@ -193,6 +201,8 @@
                             "ui_label": "task_6"
                         },
                         "section_1.task_5": {
+                            "is_mapped": true,
+                            "loop_group": null,
                             "downstream_task_ids": [
                                 "section_1.section_2.task_6"
                             ],
@@ -331,6 +341,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -339,6 +350,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.bash.BashOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "owner'2",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -509,6 +521,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -517,6 +530,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.bash.BashOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "owner'2",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -684,7 +698,18 @@
                         "downstream_task_ids": "{{ 'task_3' in result and 'check_events' in result }}",
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
-                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': None, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': None, 'type': 'asset'}]",
+                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {'etag': '\"0x8D0000000000001\"', 'owner': \"O'Brien\", 'has_header': True, 'note': None}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': None, 'type': 'asset'}]",
+                        "inlets_list": [
+                            {
+                                "uri": "file://host1/dir2/file2.txt",
+                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
+                                "type": "asset"
+                            },
+                            {
+                                "uri": "unknown_scheme://host1/dir2/file3.txt",
+                                "type": "asset"
+                            }
+                        ],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -694,6 +719,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -866,7 +892,18 @@
                         "downstream_task_ids": "{{ 'task_3' in result and 'check_events' in result }}",
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
-                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': None, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': None, 'type': 'asset'}]",
+                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {'etag': '\"0x8D0000000000001\"', 'owner': \"O'Brien\", 'has_header': True, 'note': None}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': None, 'type': 'asset'}]",
+                        "inlets_list": [
+                            {
+                                "uri": "file://host1/dir2/file2.txt",
+                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
+                                "type": "asset"
+                            },
+                            {
+                                "uri": "unknown_scheme://host1/dir2/file3.txt",
+                                "type": "asset"
+                            }
+                        ],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -876,6 +913,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1042,6 +1080,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -1049,7 +1088,14 @@
                         "operator_class": "EmptyOperator",
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
-                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': None, 'type': 'asset'}]",
+                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {'checks': [{'passed': True}], 'ratio': 0.5}, 'type': 'asset'}]",
+                        "outlets_list": [
+                            {
+                                "uri": "file://host/dir/file.txt",
+                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
+                                "type": "asset"
+                            }
+                        ],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1217,6 +1263,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -1224,7 +1271,14 @@
                         "operator_class": "EmptyOperator",
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
-                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': None, 'type': 'asset'}]",
+                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {'checks': [{'passed': True}], 'ratio': 0.5}, 'type': 'asset'}]",
+                        "outlets_list": [
+                            {
+                                "uri": "file://host/dir/file.txt",
+                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
+                                "type": "asset"
+                            }
+                        ],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1388,6 +1442,7 @@
                         "external_task_id": "external_task_id",
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -1397,6 +1452,7 @@
                         "operator_class": "SomeCustomOperator",
                         "operator_class_path": "{{ result.endswith('openlineage_base_complex_dag.SomeCustomOperator') }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "owner3",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1552,6 +1608,7 @@
                         "external_task_id": "external_task_id",
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -1561,6 +1618,7 @@
                         "operator_class": "SomeCustomOperator",
                         "operator_class_path": "{{ result.endswith('openlineage_base_complex_dag.SomeCustomOperator') }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "owner3",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1712,6 +1770,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": "{{ result == true }}",
@@ -1719,6 +1778,7 @@
                         "operator_class": "CustomMappedOperator",
                         "operator_class_path": "{{ result.endswith('openlineage_base_complex_dag.CustomMappedOperator') }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -1880,6 +1940,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": "{{ result == true }}",
@@ -1887,6 +1948,7 @@
                         "operator_class": "CustomMappedOperator",
                         "operator_class_path": "{{ result.endswith('openlineage_base_complex_dag.CustomMappedOperator') }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -2047,6 +2109,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -2055,6 +2118,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "sla": "123.0 seconds",
@@ -2065,6 +2129,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_2",
+                            "unique_group_id": "section_1.section_2",
                             "prefix_group_id": "{{ result == true }}",
                             "tooltip": "group_tooltip",
                             "upstream_group_ids": "[]",
@@ -2226,6 +2291,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -2234,6 +2300,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "sla": "123.0 seconds",
@@ -2244,6 +2311,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_2",
+                            "unique_group_id": "section_1.section_2",
                             "prefix_group_id": "{{ result == true }}",
                             "tooltip": "group_tooltip",
                             "upstream_group_ids": "[]",
@@ -2404,6 +2472,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -2412,6 +2481,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -2421,6 +2491,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_3",
+                            "unique_group_id": "section_1.section_2.section_3",
                             "prefix_group_id": "{{ result == true }}",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "[]"
@@ -2581,6 +2652,7 @@
                         "executor_config": {},
                         "ignore_first_depends_on_past": "{{ result == true }}",
                         "inlets": "[]",
+                        "inlets_list": [],
                         "is_setup": false,
                         "is_teardown": false,
                         "mapped": false,
@@ -2589,6 +2661,7 @@
                         "operator_class_path": "airflow.providers.standard.operators.python.PythonOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "airflow",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",
@@ -2598,6 +2671,7 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "[]",
                             "group_id": "section_3",
+                            "unique_group_id": "section_1.section_2.section_3",
                             "prefix_group_id": "{{ result == true }}",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "[]"

@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
 
@@ -49,8 +50,10 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
     :param waiter_max_attempts: Maximum number of attempts to check for completion. (default: 4320)
     :param check_interval: Deprecated, use ``waiter_delay`` instead.
     :param deferrable: If True, the operator will wait asynchronously for the ingestion to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -116,7 +119,7 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         )
         waiter_delay = int(self.waiter_delay if self.check_interval is None else self.check_interval)
         waiter_max_attempts = int(self.waiter_max_attempts)
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=QuickSightIngestionCompletedTrigger(
                     data_set_id=self.data_set_id,

@@ -1956,15 +1956,16 @@ def test_short_circuit_skips_later_tasks_in_task_group_mapped_over_upstream_outp
         assert states[task_id] == {0: "success", 1: "skipped"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker):
-    """Regression test for #39801.
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker, trigger_rule):
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped task group runs once its in-group upstream succeeds.
 
-    A task with the ``NONE_FAILED_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
-    expanded task group must expand and run once its upstream (also inside the group)
-    succeeds, instead of being skipped prematurely at its unexpanded (map_index -1)
-    summary ti before the task group has expanded.
+    It must not be skipped or marked upstream_failed prematurely at its unexpanded
+    (map_index -1) summary ti.
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_mapped_task_group") as dag:
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_mapped_task_group") as dag:
 
         @task
         def init():
@@ -1976,7 +1977,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
             def imsleepy(message):
                 return message
 
-            @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+            @task(trigger_rule=trigger_rule)
             def imawake(message):
                 pass
 
@@ -1994,14 +1995,17 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
     assert states["tg.imawake"] == {0: "success", 1: "success", 2: "success"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker):
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker, trigger_rule):
     """Regression test for #39801, nested-group shape.
 
-    Same as above, but the ``NONE_FAILED_MIN_ONE_SUCCESS`` task lives in a plain task
+    Same as above, but the ``*_MIN_ONE_SUCCESS`` task lives in a plain task
     group nested inside the mapped one (the exact shape of the issue's reproducer), so
     its immediate ``task_group`` is not mapped — only an ancestor is.
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_nested_task_group") as dag:
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_nested_task_group") as dag:
 
         @task
         def init():
@@ -2015,7 +2019,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
             @task_group(group_id="inner")
             def inner(message):
-                @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+                @task(trigger_rule=trigger_rule)
                 def imawake(message):
                     pass
 
@@ -2033,6 +2037,70 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
     assert states["tg.imsleepy"] == {0: "success", 1: "success", 2: "success"}
     assert states["tg.inner.imawake"] == {0: "success", 1: "success", 2: "success"}
+
+
+@pytest.mark.parametrize(
+    ("trigger_rule", "outside_outcome", "inner_outcome", "expected_state"),
+    [
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "skip", "skipped"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.ALL_DONE_MIN_ONE_SUCCESS, "fail", "success", "success"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, None, "fail", "upstream_failed"),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, "skip", "fail", "upstream_failed"),
+    ],
+)
+def test_min_one_success_decides_per_index_in_mapped_task_group(
+    dag_maker, trigger_rule, outside_outcome, inner_outcome, expected_state
+):
+    """A ``*_MIN_ONE_SUCCESS`` task in a mapped group is evaluated per expanded index.
+
+    The middle index of its in-group upstream ends with ``inner_outcome``; an optional
+    upstream outside the group ends with ``outside_outcome``.
+    """
+    with dag_maker(
+        dag_id=f"test_{trigger_rule.value}_outside_{outside_outcome}_inner_{inner_outcome}"
+    ) as dag:
+
+        @task
+        def init():
+            return ["seize", "the", "day"]
+
+        @task
+        def outside():
+            if outside_outcome == "skip":
+                raise AirflowSkipException
+            raise ValueError("boom")
+
+        outside_task = outside() if outside_outcome else None
+
+        @task_group(group_id="tg")
+        def tg(message):
+            @task
+            def imsleepy(message):
+                if message == "the":
+                    if inner_outcome == "skip":
+                        raise AirflowSkipException
+                    if inner_outcome == "fail":
+                        raise ValueError("boom")
+                return message
+
+            @task(trigger_rule=trigger_rule)
+            def imawake(message):
+                pass
+
+            awake = imawake(imsleepy(message))
+            if outside_task is not None:
+                outside_task >> awake
+
+        tg.expand(message=init())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["tg.imawake"] == {0: "success", 1: expected_state, 2: "success"}
 
 
 def test_mapped_operator_retry_delay_default(dag_maker):
@@ -2235,10 +2303,9 @@ def test_zero_length_expansion_leaves_a_region_holding_only_its_skipped_placehol
     assert placeholder.state == TaskInstanceState.SKIPPED
 
 
-def test_promotion_leaves_earlier_placeholder_task_instances_at_their_coordinates(mapped_dag, session):
+def test_promotion_deletes_earlier_placeholder_task_instances(mapped_dag, session):
     dr, serialized, upstream_id = mapped_dag
     placeholder = _live_tis(session, dr, serialized.task_id)[0]
-    region_id = placeholder.region_id
     placeholder.task = serialized
     placeholder.try_number = 1
     placeholder.state = TaskInstanceState.FAILED
@@ -2249,9 +2316,16 @@ def test_promotion_leaves_earlier_placeholder_task_instances_at_their_coordinate
 
     expand_mapped_task(serialized, dr.run_id, upstream_id, 2, session)
 
-    archived = session.get(TaskInstance, archived_id)
-    assert (archived.region_id, archived.region_index, archived.try_number) == (region_id, -1, 1)
-    assert archived.working_set is None
+    # The delete doesn't synchronize the session, so read the database rather than the identity map.
+    session.expire_all()
+    assert (
+        session.scalar(
+            select(TaskInstance.id)
+            .where(TaskInstance.id == archived_id)
+            .execution_options(include_all_attempts=True)
+        )
+        is None
+    )
     live = _live_tis(session, dr, serialized.task_id)
     assert [ti.region_index for ti in live] == [0, 1]
     assert live[0].id == current.id
