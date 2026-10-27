@@ -73,6 +73,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_2_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
     AIRFLOW_V_3_4_PLUS,
@@ -1227,6 +1228,19 @@ class TaskInstanceInfo(InfoJsonEncodable):
         self._end_date = end_date
         super().__init__(obj)
 
+    def _get_start_date(self) -> datetime.datetime | None:
+        if not isinstance(start_date := getattr(self.obj, "start_date", None), datetime.datetime):
+            return None
+        # Before Airflow 3.2.2 a runtime task instance resumed from deferral starts at the resume time, while the
+        # stored start date stays the original one. Leaving it out keeps a wrong duration out of the facet too.
+        if not AIRFLOW_V_3_2_2_PLUS and self._is_resumed_from_deferral():
+            return None
+        return start_date
+
+    def _is_resumed_from_deferral(self) -> bool:
+        ti_context = getattr(self.obj, "_ti_context_from_server", None)
+        return bool(getattr(ti_context, "next_method", None))
+
     def _get_end_date(self) -> datetime.datetime | None:
         if isinstance(end_date := getattr(self.obj, "end_date", None), datetime.datetime):
             return end_date
@@ -1236,8 +1250,11 @@ class TaskInstanceInfo(InfoJsonEncodable):
         self, start_date: datetime.datetime | None, end_date: datetime.datetime | None
     ) -> float | None:
         # The stored duration is what the UI shows, so it wins. A runtime task instance has none -- the API
-        # server computes it after the listener ran.
-        if (duration := getattr(self.obj, "duration", None)) is not None:
+        # server computes it after the listener ran. Airflow 2 keeps the previous try's duration when it clears
+        # end_date for the next try, so the stored duration only counts alongside an end_date.
+        if (duration := getattr(self.obj, "duration", None)) is not None and isinstance(
+            getattr(self.obj, "end_date", None), datetime.datetime
+        ):
             return duration
         if start_date is None or end_date is None:
             return None
@@ -1247,9 +1264,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
             return None
 
     def _extend_fields(self) -> None:
-        start_date = getattr(self.obj, "start_date", None)
-        if not isinstance(start_date, datetime.datetime):
-            start_date = None
+        start_date = self._get_start_date()
         end_date = self._get_end_date()
         for field, field_value in (
             ("start_date", start_date),

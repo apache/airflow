@@ -309,6 +309,7 @@
           "format": "date-time"
         },
         "start_date": {
+          "description": "Absent from the worker's events of a task resumed from deferral before Airflow 3.2.2, whose start date there is the resume time.",
           "type": "string",
           "format": "date-time"
         },

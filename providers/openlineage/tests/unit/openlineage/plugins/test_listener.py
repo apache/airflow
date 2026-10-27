@@ -887,6 +887,49 @@ class TestOpenLineageListenerAirflow2:
         assert listener.adapter.complete_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.complete_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @pytest.mark.parametrize(
+        ("hook_name", "hook_kwargs", "adapter_method"),
+        [
+            pytest.param("on_task_instance_success", {}, "complete_task", id="success"),
+            pytest.param("on_task_instance_failed", {"error": ValueError("boom")}, "fail_task", id="failed"),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_terminal_event_time_comes_from_task_instance_end_date(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        time_machine,
+        hook_name,
+        hook_kwargs,
+        adapter_method,
+    ):
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
+        listener, task_instance = self._create_listener_and_task_instance()
+        task_instance.end_date = timezone.datetime(2023, 1, 2, 3, 4, 5)
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        getattr(listener, hook_name)(
+            previous_state=None, task_instance=task_instance, session=None, **hook_kwargs
+        )
+
+        adapter_call = getattr(listener.adapter, adapter_method)
+        assert adapter_call.call_args.kwargs["end_time"] == "2023-01-02T03:04:05+00:00"
+        assert mock_get_airflow_run_facet.call_args.kwargs["end_date"] == task_instance.end_date
+
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )

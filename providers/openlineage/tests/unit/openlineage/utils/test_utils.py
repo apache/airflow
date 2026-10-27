@@ -6123,12 +6123,24 @@ _DURATION_START = datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
 @pytest.mark.parametrize(
     ("ti_attrs", "end_date", "expected_duration"),
     [
-        pytest.param({"duration": 3.5}, None, 3.5, id="stored_duration"),
+        pytest.param({"duration": 3.5, "end_date": _DURATION_START}, None, 3.5, id="stored_duration"),
         pytest.param(
-            {"duration": 3.5, "start_date": _DURATION_START},
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": _DURATION_START},
             _DURATION_START + datetime.timedelta(seconds=10),
             3.5,
             id="stored_duration_wins_over_passed_end_date",
+        ),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": None},
+            None,
+            None,
+            id="stored_duration_of_previous_try_without_end_date",
+        ),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": None},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            10.0,
+            id="passed_end_date_over_stored_duration_without_end_date",
         ),
         pytest.param(
             {"duration": None, "start_date": _DURATION_START},
@@ -6238,6 +6250,42 @@ def test_task_instance_info_dates(ti_attrs, end_date, expected_dates):
     info = dict(TaskInstanceInfo(ti, end_date=end_date))
 
     assert {key: info[key] for key in ("start_date", "end_date") if key in info} == expected_dates
+
+
+@pytest.mark.parametrize(
+    ("airflow_3_2_2_plus", "next_method", "expected_fields"),
+    [
+        pytest.param(False, "execute_complete", {}, id="resumed_before_3_2_2"),
+        pytest.param(
+            True,
+            "execute_complete",
+            {"start_date": "2024-06-01T12:00:00+00:00", "duration": 9.0},
+            id="resumed_since_3_2_2",
+        ),
+        pytest.param(
+            False,
+            None,
+            {"start_date": "2024-06-01T12:00:00+00:00", "duration": 9.0},
+            id="not_resumed_before_3_2_2",
+        ),
+    ],
+)
+def test_task_instance_info_start_date_of_task_resumed_from_deferral(
+    airflow_3_2_2_plus, next_method, expected_fields
+):
+    ti = SimpleNamespace(
+        id=uuid7(),
+        map_index=-1,
+        start_date=_DURATION_START,
+        end_date=None,
+        _ti_context_from_server=SimpleNamespace(next_method=next_method),
+    )
+
+    with patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_3_2_2_PLUS", airflow_3_2_2_plus):
+        info = dict(TaskInstanceInfo(ti, end_date=_DURATION_START + datetime.timedelta(seconds=9)))
+
+    assert {key: info[key] for key in ("start_date", "duration") if key in info} == expected_fields
+    assert info["end_date"] == "2024-06-01T12:00:09+00:00"
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets", return_value=[])
