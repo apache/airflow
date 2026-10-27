@@ -998,7 +998,7 @@ class TestSuperviseCallbackExchangesTokenFirst:
 
         def record_start(**kwargs):
             calls.append("start")
-            return Mock(wait=Mock(return_value=0))
+            return Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
 
         mock_start.side_effect = record_start
 
@@ -1023,7 +1023,7 @@ class TestSuperviseCallbackExchangesTokenFirst:
     def test_kwargs_encoding_is_passed_to_the_subprocess(
         self, mock_start, _nondumpable, callback_kwargs_encoding
     ):
-        mock_start.return_value = Mock(wait=Mock(return_value=0))
+        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
 
         supervise_callback(
             id=self.CALLBACK_ID,
@@ -1075,7 +1075,7 @@ class TestSuperviseRoutedCallback:
         client.callbacks.get_context.side_effect = lambda callback_id: (
             calls.append("context") or Mock(context=context)
         )
-        mock_start.return_value = Mock(wait=Mock(return_value=0))
+        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
 
         self._supervise(client, fetch_method=fetch_method, execution_timeout=30)
 
@@ -1093,20 +1093,29 @@ class TestSuperviseRoutedCallback:
             pytest.param(
                 -15, True, CallbackState.FAILED, "Callback timed out after 30 seconds", id="timed-out"
             ),
+            pytest.param(
+                0,
+                True,
+                CallbackState.FAILED,
+                "Callback timed out after 30 seconds",
+                id="timed-out-with-clean-exit",
+            ),
         ],
     )
     @patch("airflow.sdk.execution_time.callback_supervisor.stats", autospec=True)
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_outcome_is_reported(
         self, mock_start, _nondumpable, mock_stats, exit_code, timed_out, expected_state, expected_output
     ):
         client = _make_client()
-        process = Mock(wait=Mock(return_value=exit_code), timed_out=timed_out)
+        process = create_autospec(CallbackSubprocess, instance=True)
+        process.wait.return_value = exit_code
+        process.timed_out = timed_out
         process._get_callback_execution_timeout.return_value = 30
         mock_start.return_value = process
 
-        if exit_code:
+        if expected_state == CallbackState.FAILED:
             with pytest.raises(RuntimeError, match=expected_output):
                 self._supervise(client)
         else:
@@ -1127,7 +1136,7 @@ class TestSuperviseRoutedCallback:
         calls: list[str] = []
         client = _make_client()
         client.callbacks.update_state.side_effect = lambda *args: calls.append("report")
-        process = Mock(wait=Mock(return_value=exit_code), timed_out=False)
+        process = Mock(spec=CallbackSubprocess, wait=Mock(return_value=exit_code), timed_out=False)
         process._upload_logs.side_effect = lambda: calls.append("upload")
         mock_start.return_value = process
 
@@ -1144,6 +1153,6 @@ class TestSuperviseRoutedCallback:
     def test_failing_to_report_leaves_the_outcome_to_the_executor(self, mock_start, _nondumpable):
         client = _make_client()
         client.callbacks.update_state.side_effect = RuntimeError("404 Not Found")
-        mock_start.return_value = Mock(wait=Mock(return_value=0))
+        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
 
         assert self._supervise(client) == 0

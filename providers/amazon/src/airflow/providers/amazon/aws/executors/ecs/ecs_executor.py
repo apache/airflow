@@ -68,6 +68,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
@@ -340,6 +341,16 @@ class AwsEcsExecutor(BaseExecutor):
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process
             self.log.exception("Failed to sync %s", self.__class__.__name__)
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Stop submitting or tracking a callback settled by the scheduler."""
+        self.pending_workloads = deque(task for task in self.pending_workloads if task.key != key)
+        self.active_workers.key_to_task_info.pop(key, None)
+        self.active_workers.key_to_failure_counts.pop(key, None)
+        if arn := self.active_workers.key_to_arn.pop(key, None):
+            self.active_workers.arn_to_key.pop(arn, None)
+            self.active_workers.tasks.pop(arn, None)
+        super().release_callback(key)
 
     def sync_running_workloads(self):
         """Check and update state on all running workloads (tasks and callbacks)."""

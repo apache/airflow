@@ -3707,8 +3707,8 @@ callbacks:
       description: |
         The maximum number of Dag processor callbacks each scheduler loop routes to executors, and
         the number it checks for handing back to the Dag processor when they can't be routed.
-        Callbacks take at most half the free executor slots each loop, but one while any is free,
-        and tasks the rest. Must be at least 1.
+        Callbacks take at most half the free slots globally and on each executor per loop, but one
+        while any is free, and tasks the rest. Must be at least 1.
       version_added: 3.5.0
       type: integer
       example: ~

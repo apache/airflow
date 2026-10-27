@@ -17647,7 +17647,24 @@ class TestRouteDagProcessorCallbacks:
             3 - expected_queued
         )
 
-    def test_tasks_keep_the_free_slots_callbacks_leave(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("parallelism", "executor_parallelism", "occupied_slots", "expected_callbacks", "expected_tasks"),
+        [
+            pytest.param(4, 4, 0, 2, 2, id="global-capacity"),
+            pytest.param(8, 2, 0, 1, 1, id="smaller-executor"),
+            pytest.param(8, 4, 1, 1, 2, id="partially-occupied-executor"),
+        ],
+    )
+    def test_tasks_keep_the_free_slots_callbacks_leave(
+        self,
+        dag_maker,
+        session,
+        parallelism,
+        executor_parallelism,
+        occupied_slots,
+        expected_callbacks,
+        expected_tasks,
+    ):
         with dag_maker("busy_dag", session=session):
             for task_id in ("a", "b", "c"):
                 EmptyOperator(task_id=task_id)
@@ -17655,9 +17672,12 @@ class TestRouteDagProcessorCallbacks:
         for ti in busy_run.get_task_instances(session=session):
             ti.state = TaskInstanceState.SCHEDULED
         session.commit()
-        executor = MockExecutor(do_update=False, parallelism=4)
+        executor = MockExecutor(do_update=False, parallelism=executor_parallelism)
         executor.supported_workload_types = RUNS_CALLBACKS
-        runner = self._make_runner([executor], **{"core.parallelism": "4"})
+        executor.running.update(TaskInstanceUuid(uuid4()) for _ in range(occupied_slots))
+        runner = self._make_runner(
+            [executor, self._make_executor("other_exec")], **{"core.parallelism": str(parallelism)}
+        )
         for _ in range(5):
             _add_waiting_callback(session, self._dag_request(busy_run))
 
@@ -17665,8 +17685,9 @@ class TestRouteDagProcessorCallbacks:
         session.commit()
         queued_tasks = runner._critical_section_enqueue_task_instances(session)
 
-        assert len(self._queued_callbacks(executor)) == 2
-        assert queued_tasks == 2
+        assert len(self._queued_callbacks(executor)) == expected_callbacks
+        assert queued_tasks == expected_tasks
+        assert len(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == expected_tasks
 
     @pytest.mark.parametrize("occupied", [False, True])
     def test_routes_only_into_the_target_executors_free_slots(self, dag_run, session, occupied):

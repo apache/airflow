@@ -678,12 +678,11 @@ def supervise_callback(
                 duration=end - start,
             )
             output = None
-            if exit_code != 0:
-                if process.timed_out:
-                    stats.incr("callback.timeouts")
-                    output = f"Callback timed out after {process._get_callback_execution_timeout()} seconds"
-                else:
-                    output = f"Callback subprocess exited with code {exit_code}"
+            if process.timed_out:
+                stats.incr("callback.timeouts")
+                output = f"Callback timed out after {process._get_callback_execution_timeout()} seconds"
+            elif exit_code != 0:
+                output = f"Callback subprocess exited with code {exit_code}"
             _report_callback_state(
                 client, id, CallbackState.FAILED if output else CallbackState.SUCCESS, output
             )

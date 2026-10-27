@@ -1530,11 +1530,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         QUEUED in the transaction that queues it. One that can't be routed becomes a Dag processor
         callback again for a Dag processor to run, and so does every waiting one once routing is off.
 
-        Callbacks take at most half the free executor slots, but one while any is free, before the
-        loop queues tasks into the rest: executors send callbacks first, and one left waiting in an
-        executor for a slot would age toward its start deadline. Callbacks that could be routed but
-        find no free slot wait for a later loop, while those that can't be routed are handed back
-        without waiting for one.
+        Callbacks take at most half the free slots globally and on each executor, but one while any
+        is free, before the loop queues tasks into the rest: executors send callbacks first, and one
+        left waiting in an executor for a slot would age toward its start deadline. Callbacks that
+        could be routed but find no free slot wait for a later loop, while those that can't be routed
+        are handed back without waiting for one.
         """
         if not self._route_dag_processor_callbacks_enabled:
             self._hand_back_waiting_callbacks(session=session)
@@ -1542,14 +1542,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         free_slots = self._parallelism - sum(executor.slots_occupied for executor in self.executors)
         budget = min(self._max_routed_callbacks_per_loop, max(1, free_slots // 2)) if free_slots > 0 else 0
+        executor_budgets = {
+            executor: max(1, executor.slots_available // 2) if executor.slots_available > 0 else 0
+            for executor in self.executors
+        }
         now = timezone.utcnow()
         examined: set[UUID] = set()
         if budget > 0:
             # Oldest first, so callbacks are routed in the order they were requested.
             for callback in self._select_waiting_callbacks(session=session):
                 examined.add(callback.id)
-                if self._settle_waiting_callback(callback, now=now, can_queue=budget > 0, session=session):
+                if executor := self._settle_waiting_callback(
+                    callback,
+                    now=now,
+                    can_queue=budget > 0,
+                    executor_budgets=executor_budgets,
+                    session=session,
+                ):
                     budget -= 1
+                    executor_budgets[executor] -= 1
 
         # Each loop also checks the next window of waiting callbacks, resuming after the last one it
         # checked, so callbacks waiting for a slot don't keep the rest from being routed or handed back.
@@ -1560,8 +1571,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             swept[-1].id if len(swept) == self._max_routed_callbacks_per_loop else None
         )
         for callback in swept:
-            if self._settle_waiting_callback(callback, now=now, can_queue=budget > 0, session=session):
+            if executor := self._settle_waiting_callback(
+                callback,
+                now=now,
+                can_queue=budget > 0,
+                executor_budgets=executor_budgets,
+                session=session,
+            ):
                 budget -= 1
+                executor_budgets[executor] -= 1
 
     def _select_waiting_callbacks(
         self, *, session: Session, after: UUID | None = None, exclude: set[UUID] | None = None
@@ -1582,19 +1600,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return session.scalars(with_row_locks(query, session, of=ExecutorCallback, skip_locked=True)).all()
 
     def _settle_waiting_callback(
-        self, callback: ExecutorCallback, *, now: datetime, can_queue: bool, session: Session
-    ) -> bool:
+        self,
+        callback: ExecutorCallback,
+        *,
+        now: datetime,
+        can_queue: bool,
+        executor_budgets: dict[BaseExecutor, int],
+        session: Session,
+    ) -> BaseExecutor | None:
         """
         Route a waiting callback, hand it back if it can't be routed, or leave it waiting.
 
-        :return: Whether it was queued on an executor.
+        :return: The executor it was queued on, or ``None`` if it wasn't queued.
         """
         try:
             with session.begin_nested():
                 target = self._get_callback_target(callback, session=session)
-                if target is not None and can_queue and target.executor.slots_available > 0:
+                if (
+                    target is not None
+                    and can_queue
+                    and executor_budgets[target.executor] > 0
+                    and target.executor.slots_available > 0
+                ):
                     self._queue_routed_callback(callback, target, now=now, session=session)
-                    return True
+                    return target.executor
         except Exception:
             self.log.exception("Failed to route callback %s", callback.id)
             target = None
@@ -1603,7 +1632,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 callback.id, from_state=CallbackState.SCHEDULED, session=session
             )
             session.expunge(callback)
-        return False
+        return None
 
     def _get_callback_target(self, callback: ExecutorCallback, *, session: Session) -> _CallbackTarget | None:
         """Return where a waiting Dag processor callback runs, or ``None`` if it can't be routed."""

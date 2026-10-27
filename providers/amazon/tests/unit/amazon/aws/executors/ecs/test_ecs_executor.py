@@ -2325,6 +2325,71 @@ class TestEcsExecutorConfig:
 class TestEcsExecutorCallbackSupport:
     """Tests for ExecuteCallback support in the ECS Executor."""
 
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize("submitted", [False, True], ids=["pending", "submitted"])
+    def test_release_callback_stops_submission_and_tracking(
+        self, mock_executor, callback_workload, submitted, time_machine
+    ):
+        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
+
+        time_machine.move_to("2026-10-27T00:00:00Z", tick=False)
+        callback_key = callback_workload.key
+        pending_key, active_key, queued_key = (TaskInstanceUuid(uuid4()) for _ in range(3))
+        command = ["unrelated", "task"]
+        queued_workload = mock.Mock(spec=ExecuteTask)
+        task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[queued_key] = queued_workload
+        mock_executor.execute_async(pending_key, command)
+        mock_executor.active_workers.add_task(mock_task("active-task"), active_key, None, command, {}, 1)
+        mock_executor.running.update((callback_key, pending_key, active_key))
+        if submitted:
+            mock_executor.active_workers.add_task(
+                mock_task("callback-task"), callback_key, None, ["callback"], {}, 2
+            )
+        else:
+            mock_executor.execute_async(callback_key, [callback_workload])
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+
+        mock_executor.release_callback(callback_key)
+        mock_executor.release_callback(callback_key)
+
+        assert [task.key for task in mock_executor.pending_workloads] == [pending_key]
+        assert mock_executor.active_workers.key_to_arn == {active_key: "active-task"}
+        assert mock_executor.active_workers.arn_to_key == {"active-task": active_key}
+        assert set(mock_executor.active_workers.tasks) == {"active-task"}
+        assert set(mock_executor.active_workers.key_to_task_info) == {active_key}
+        assert set(mock_executor.active_workers.key_to_failure_counts) == {active_key}
+        assert mock_executor.running == {pending_key, active_key}
+        assert task_queue == {queued_key: queued_workload}
+        assert callback_key not in mock_executor.event_buffer
+
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
+        active_task = {
+            "taskArn": "active-task",
+            "lastStatus": "RUNNING",
+            "desiredStatus": "RUNNING",
+            "containers": [],
+        }
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [active_task], "failures": []}
+        mock_executor.ecs.run_task.return_value = {
+            "tasks": [{**active_task, "taskArn": "new-task"}],
+            "failures": [],
+        }
+        mock_executor.sync()
+
+        mock_executor.ecs.describe_tasks.assert_called_once_with(
+            tasks=["active-task"], cluster="some-cluster"
+        )
+        mock_executor.ecs.run_task.assert_called_once()
+        overrides = mock_executor.ecs.run_task.call_args.kwargs["overrides"]["containerOverrides"]
+        assert overrides[0]["command"] == command
+        assert mock_executor.active_workers.key_to_arn == {active_key: "active-task", pending_key: "new-task"}
+        assert callback_key not in mock_executor.event_buffer
+        mock_executor.ecs.stop_task.assert_not_called()
+
     @pytest.fixture
     def callback_workload(self):
         """Create a mock ExecuteCallback workload for testing."""

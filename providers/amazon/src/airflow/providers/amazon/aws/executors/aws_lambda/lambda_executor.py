@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
 
     if AIRFLOW_V_3_3_PLUS:
@@ -442,6 +443,16 @@ class AwsLambdaExecutor(BaseExecutor):
             stacklevel=2,
         )
         return self.attempt_workload_runs()
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Stop submitting or tracking a callback settled by the scheduler."""
+        self.pending_workloads = deque(task for task in self.pending_workloads if task.key != key)
+        self.running_workloads = {
+            transport_key: workload_key
+            for transport_key, workload_key in self.running_workloads.items()
+            if workload_key != key
+        }
+        super().release_callback(key)
 
     def sync_running_workloads(self):
         """

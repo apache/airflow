@@ -52,4 +52,6 @@ class AddCallbackContextAndStateEndpoints(VersionChange):
 
     @convert_request_to_next_version_for("/callbacks/{callback_id}/run", ["PATCH"])  # type: ignore[arg-type]
     def drop_callback_run_payload(request: RequestInfo):  # type: ignore[misc]
-        request.body = None
+        # Mypy treats Cadwyn's required request parameter as self inside this class.
+        request_info: RequestInfo = request
+        request_info.body = None
