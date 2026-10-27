@@ -93,6 +93,7 @@ from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes, Encoding
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -1215,8 +1216,11 @@ class TestStringifiedDAGs:
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-        with pytest.raises(ValueError, match=message):
-            DagSerialization.from_dict(serialized)
+        dag = DagSerialization.from_dict(serialized)
+
+        assert dag.dag_id == "simple_dag"
+        with pytest.raises(TimetableNotRegistered, match=message):
+            dag.timetable
 
     @pytest.mark.parametrize(
         ("val", "expected"),

@@ -1877,7 +1877,7 @@ class DagSerialization(BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = decode_timetable(v)
+                k = "_encoded_timetable"
             elif k == "weight_rule":
                 v = _decode_priority_weight_strategy(v)
             elif k in cls._decorated_fields:
@@ -2211,22 +2211,21 @@ class DagSerialization(BaseSerialization):
             )
         try:
             deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
+            timetable = deserialized.timetable
         except Exception as e:
             cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
             ) from e
-        if (
-            limit := deserialized.timetable.active_runs_limit
-        ) is not None and deserialized.max_active_runs > limit:
+        if (limit := timetable.active_runs_limit) is not None and deserialized.max_active_runs > limit:
             raise DeserializationError(
                 dag_id,
                 f"Dag {dag_id!r} sets max_active_runs {deserialized.max_active_runs}, "
-                f"but {type(deserialized.timetable).__name__} allows at most {limit}",
+                f"but {type(timetable).__name__} allows at most {limit}",
             )
         if (
             deserialized.catchup
-            and deserialized.timetable.can_be_scheduled
+            and timetable.can_be_scheduled
             and not (deserialized.start_date or "start_date" in deserialized.default_args)
         ):
             raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")
