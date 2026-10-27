@@ -59,6 +59,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -2062,7 +2063,9 @@ class TestQueuedEventsDagAxisAuthorization:
     @pytest.fixture
     def routes_by_path(self, test_client):
         return {
-            (r.path, tuple(sorted(r.methods))): r for r in test_client.app.routes if hasattr(r, "dependant")
+            (r.path, tuple(sorted(r.methods))): r
+            for r in iter_api_routes(test_client.app.routes)
+            if hasattr(r, "dependant")
         }
 
     @pytest.mark.parametrize(
