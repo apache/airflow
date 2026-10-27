@@ -254,11 +254,6 @@ When unit tests run, selective checks narrow *which* test types execute, separat
   parent type is selected, so the parent's tests always run in full. DB tests run each test type
   serially in its own container, so splitting a heavy type lets its parts run in parallel instead of
   being the long pole of the job.
-* **Core slices** (`core-test-types-list-as-strings-in-json`): when more than `NUMBER_OF_CORE_SLICES`
-  core test types run, they are split into that many jobs by the estimated minutes of each type
-  (`CORE_TEST_TYPE_ESTIMATED_MINUTES`, measured from CI logs), heaviest first into the currently
-  lightest job, so the jobs take about as long as each other. The lightest job comes first, because CI
-  runs the migration tests in the first job only.
 * **Provider test types** (`_get_providers_test_types_to_run`): empty on non-`main` branches. In full
   mode (or when dependencies were upgraded) → `Providers` (all). Otherwise selective checks compute the
   **affected providers** from the changed files and add their **direct upstream and downstream
