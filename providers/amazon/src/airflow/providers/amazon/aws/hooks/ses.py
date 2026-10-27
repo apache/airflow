@@ -31,7 +31,11 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 def _get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
-    """Return a list of email addresses; a string may separate them with ``,`` or ``;``."""
+    """
+    Return a list of email addresses; a string may separate them with ``,`` or ``;``.
+
+    Copied from ``airflow.providers.smtp.utils.emailer.get_email_address_list``.
+    """
     if isinstance(addresses, str):
         return re.split(r"\s*[,;]\s*", addresses)
     if isinstance(addresses, Iterable):
@@ -56,8 +60,7 @@ def _build_mime_message(
     """
     Build the MIME message and return it with the full list of recipients, including CC and BCC.
 
-    Private copy of ``airflow.utils.email.build_mime_message``, so the hook needs neither the core
-    email utilities nor the SMTP provider.
+    Copied from ``airflow.providers.smtp.utils.emailer.build_mime_message``.
     """
     to = _get_email_address_list(to)
 
