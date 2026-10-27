@@ -762,7 +762,7 @@ approval `use self-hosted runners` needs, so for that label approve the head com
 reopen the PR.
 
 The RunsOn value is a label template such as
-`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
+`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]`. Every job
 picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
 or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
