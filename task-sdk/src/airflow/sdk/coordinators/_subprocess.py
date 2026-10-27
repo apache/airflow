@@ -498,8 +498,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     **kwargs,
                 )
                 self._register_pipe_readers(
-                    *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
-                    data=drained,
+                    stdout_r, stderr_r, socks[comm_server], socks[logs_server], data=drained
                 )
             self._on_child_started(
                 ti=what,
@@ -508,9 +507,18 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 sentry_integration=sentry_integration,
             )
 
-            # Untrack everything left. 'self' keeps track of these and closes
-            # the servers when the subprocess exits in 'wait'.
-            tracker.untrack(comm_server, logs_server, proc)
+            # 'self' owns everything from here: it closes the pipes and the servers when the
+            # subprocess exits in 'wait'. Until this point the tracker still owns them, so a
+            # failure registering the pipes or starting the task instance releases them.
+            tracker.untrack(
+                stdout_r,
+                stderr_r,
+                socks[comm_server],
+                socks[logs_server],
+                comm_server,
+                logs_server,
+                proc,
+            )
 
         return self
 

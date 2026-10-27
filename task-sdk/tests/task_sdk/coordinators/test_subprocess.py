@@ -1590,6 +1590,50 @@ class TestExecuteTaskLaunchFailure:
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
+    @pytest.mark.parametrize(
+        ("failing", "expected"),
+        [
+            pytest.param("_register_pipe_readers", TaskLaunchError, id="registering-the-pipes"),
+            pytest.param("_on_child_started", RuntimeError, id="starting-the-task-instance"),
+        ],
+    )
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    def test_releases_the_runtime_sockets_when_the_launch_fails_after_they_are_open(
+        self, mock_accept, mock_client, failing, expected
+    ):
+        """The sockets stay with the tracker until 'self' has taken them over, so nothing leaks."""
+        mock_accept.side_effect = _connect_without_output
+        registered: list = []
+
+        def record(_self, *socks, data):
+            registered.extend(socks)
+            if failing == "_register_pipe_readers":
+                raise RuntimeError("boom")
+
+        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"])
+
+        with (
+            patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True, side_effect=record),
+            patch.object(
+                ActivitySubprocess, "_on_child_started", autospec=True, side_effect=RuntimeError("boom")
+            ),
+            pytest.raises(expected, match="boom"),
+        ):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        # _register_pipe_readers takes stdout and stderr, then the accepted comm and logs connections.
+        stdout, stderr, *connections = registered
+        assert (stdout.fileno(), stderr.fileno()) == (-1, -1)
+        for connection in connections:
+            connection.close.assert_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
     @patch.object(
         ActivitySubprocess, "_on_child_started", autospec=True, side_effect=RuntimeError("API unreachable")
     )
