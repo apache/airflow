@@ -19,6 +19,69 @@ paths:
           content:
             application/json:
               schema: {}
+  /auth/login/cli:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Login Cli
+      description: 'Start the browser login of a command-line client.
+
+
+        Keycloak redirects straight back to the client''s loopback ``redirect_uri``,
+        and the client
+
+        exchanges the code at ``/token/cli``. PKCE is required here rather than on
+        the Keycloak
+
+        client, because requiring it there would break the web login, which does not
+        use it.'
+      operationId: login_cli
+      parameters:
+      - name: redirect_uri
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Redirect Uri
+      - name: state
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 512
+          title: State
+      - name: code_challenge
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          title: Code Challenge
+      - name: code_challenge_method
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Code Challenge Method
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/login_callback:
     get:
       tags:
@@ -109,7 +172,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TokenPasswordBody'
+              $ref: '#/components/schemas/TokenCliBody'
         required: true
       responses:
         '201':
@@ -160,6 +223,33 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    TokenAuthorizationCodeBody:
+      properties:
+        grant_type:
+          type: string
+          const: authorization_code
+          title: Grant Type
+        code:
+          type: string
+          title: Code
+        code_verifier:
+          type: string
+          maxLength: 128
+          minLength: 43
+          title: Code Verifier
+        redirect_uri:
+          type: string
+          title: Redirect Uri
+      additionalProperties: false
+      type: object
+      required:
+      - grant_type
+      - code
+      - code_verifier
+      - redirect_uri
+      title: TokenAuthorizationCodeBody
+      description: Authorization code grant serializer for post bodies, used by the
+        browser login of CLI clients.
     TokenBody:
       oneOf:
       - $ref: '#/components/schemas/TokenPasswordBody'
@@ -173,6 +263,19 @@ components:
           client_credentials: '#/components/schemas/TokenClientCredentialsBody'
           password: '#/components/schemas/TokenPasswordBody'
           urn:ietf:params:oauth:grant-type:jwt-bearer: '#/components/schemas/TokenJwtFederatedBody'
+    TokenCliBody:
+      oneOf:
+      - $ref: '#/components/schemas/TokenPasswordBody'
+      - $ref: '#/components/schemas/TokenRefreshBody'
+      - $ref: '#/components/schemas/TokenAuthorizationCodeBody'
+      title: TokenCliBody
+      description: Token request body for command-line clients.
+      discriminator:
+        propertyName: grant_type
+        mapping:
+          authorization_code: '#/components/schemas/TokenAuthorizationCodeBody'
+          password: '#/components/schemas/TokenPasswordBody'
+          refresh_token: '#/components/schemas/TokenRefreshBody'
     TokenClientCredentialsBody:
       properties:
         grant_type:
@@ -237,6 +340,23 @@ components:
       - password
       title: TokenPasswordBody
       description: Password grant token serializer for post bodies.
+    TokenRefreshBody:
+      properties:
+        grant_type:
+          type: string
+          const: refresh_token
+          title: Grant Type
+        token:
+          type: string
+          title: Token
+      additionalProperties: false
+      type: object
+      required:
+      - grant_type
+      - token
+      title: TokenRefreshBody
+      description: Refresh grant serializer for post bodies; ``token`` is the current
+        CLI token.
     TokenResponse:
       properties:
         access_token:

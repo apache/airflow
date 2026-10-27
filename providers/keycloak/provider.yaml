@@ -96,6 +96,15 @@ config:
         version_added: 0.0.1
         example: ~
         default: ~
+      cli_authorization_code_enabled:
+        description: |
+          Let command-line clients such as ``airflowctl`` log in through the browser, with the
+          authorization code flow and PKCE. The Keycloak client must allow the loopback redirect
+          URIs ``http://127.0.0.1/callback`` and ``http://[::1]/callback``.
+        type: boolean
+        version_added: 0.12.0
+        example: ~
+        default: "False"
       jwt_federated_client_ids:
         description: |
           Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to

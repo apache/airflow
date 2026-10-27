@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
@@ -398,6 +399,36 @@ class TestKeycloakAuthManager:
     def test_get_url_logout(self, auth_manager):
         result = auth_manager.get_url_logout()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="CLI login discovery was added in Airflow 3.4")
+    @pytest.mark.parametrize(
+        ("authorization_code_enabled", "expected"),
+        [
+            (
+                "False",
+                {
+                    "grant_types_supported": ["password", "refresh_token"],
+                    "code_challenge_methods_supported": [],
+                    "authorization_endpoint": None,
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
+            (
+                "True",
+                {
+                    "grant_types_supported": ["password", "refresh_token", "authorization_code"],
+                    "code_challenge_methods_supported": ["S256"],
+                    "authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
+        ],
+    )
+    def test_get_cli_login_methods(self, auth_manager, authorization_code_enabled, expected):
+        with conf_vars({(CONF_SECTION_NAME, "cli_authorization_code_enabled"): authorization_code_enabled}):
+            assert dataclasses.asdict(auth_manager.get_cli_login_methods()) == expected
 
     @patch.object(KeycloakAuthManager, "_token_expired")
     def test_refresh_user_not_expired(self, mock_token_expired, auth_manager):

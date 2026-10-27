@@ -43,6 +43,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliLoginMetadataResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -268,6 +269,41 @@ class LoginOperations:
         """Login to the API server."""
         return LoginResponse.model_validate_json(
             self.client.post("/token/cli", json=login.model_dump(mode="json")).content
+        )
+
+    def get_cli_login_metadata(self, api_url: str) -> CliLoginMetadataResponse:
+        """Return the login methods the API server offers, or none for servers without CLI login discovery."""
+        try:
+            response = self.client.get(
+                f"{api_url.rstrip('/')}/api/v2/auth/cli/metadata",
+                extensions={"airflowctl_suppress_error_log": True},
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                raise
+            return CliLoginMetadataResponse(
+                grant_types_supported=[],
+                code_challenge_methods_supported=[],
+                authorization_endpoint=None,
+                device_authorization_endpoint=None,
+                token_endpoint=None,
+            )
+        return CliLoginMetadataResponse.model_validate_json(response.content)
+
+    def login_with_authorization_code(
+        self, token_url: str, code: str, code_verifier: str, redirect_uri: str
+    ) -> LoginResponse:
+        """Redeem an authorization code from the browser login for a CLI token."""
+        return LoginResponse.model_validate_json(
+            self.client.post(
+                token_url,
+                json={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "code_verifier": code_verifier,
+                    "redirect_uri": redirect_uri,
+                },
+            ).content
         )
 
 

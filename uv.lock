@@ -6666,7 +6666,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "python-keycloak", specifier = ">=5.0.0" },
+    { name = "python-keycloak", specifier = ">=6.0.0" },
 ]
 
 [package.metadata.requires-dev]

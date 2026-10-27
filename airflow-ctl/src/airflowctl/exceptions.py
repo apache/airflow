@@ -44,3 +44,7 @@ class AirflowCtlConnectionException(AirflowCtlException):
 
 class AirflowCtlKeyringException(AirflowCtlException):
     """Raise when a keyring error occurs while performing an operation."""
+
+
+class AirflowCtlBrowserLoginException(AirflowCtlException):
+    """Raise when the browser login of ``auth login --sso`` cannot complete."""

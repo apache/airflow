@@ -25,8 +25,57 @@ from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
+CLI_LOGIN_PARAMS = {
+    "redirect_uri": "http://127.0.0.1:53682/callback",
+    "state": "state",
+    "code_challenge": "c" * 43,
+    "code_challenge_method": "S256",
+}
+
 
 class TestLoginRouter:
+    @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_cli(self, mock_get_keycloak_client, client):
+        mock_get_keycloak_client.return_value.auth_url.return_value = "https://keycloak/auth"
+
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login/cli", params=CLI_LOGIN_PARAMS, follow_redirects=False
+        )
+
+        assert response.status_code == 307
+        assert response.headers["location"] == "https://keycloak/auth"
+        mock_get_keycloak_client.return_value.auth_url.assert_called_once_with(
+            redirect_uri="http://127.0.0.1:53682/callback",
+            scope="openid",
+            state="state",
+            code_challenge="c" * 43,
+            code_challenge_method="S256",
+        )
+
+    @pytest.mark.parametrize(
+        ("enabled", "overrides", "expected_status"),
+        [
+            pytest.param("False", {}, 400, id="disabled"),
+            pytest.param(
+                "True", {"redirect_uri": "https://evil.example.com/callback"}, 400, id="not-loopback"
+            ),
+            pytest.param("True", {"code_challenge_method": "plain"}, 400, id="plain-challenge"),
+            pytest.param("True", {"code_challenge": "c" * 42 + "&"}, 422, id="challenge-injection"),
+            pytest.param("True", {"code_challenge": None}, 422, id="missing-challenge"),
+        ],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_cli_rejected(self, mock_get_keycloak_client, client, enabled, overrides, expected_status):
+        params = {k: v for k, v in {**CLI_LOGIN_PARAMS, **overrides}.items() if v is not None}
+        with conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): enabled}):
+            response = client.get(
+                AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login/cli", params=params, follow_redirects=False
+            )
+
+        assert response.status_code == expected_status
+        mock_get_keycloak_client.assert_not_called()
+
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login(self, mock_get_keycloak_client, client):
         redirect_url = "redirect_url"

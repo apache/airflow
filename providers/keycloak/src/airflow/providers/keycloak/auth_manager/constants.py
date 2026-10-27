@@ -30,6 +30,7 @@ CONF_REQUESTS_RETRIES_KEY = "requests_retries"
 # Comma-separated allow-list of federated Keycloak client ids (azp claim) permitted
 # to use the jwt-bearer grant. Empty/unset denies all callers.
 CONF_JWT_FEDERATED_CLIENT_IDS_KEY = "jwt_federated_client_ids"
+CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY = "cli_authorization_code_enabled"
 
 # Extra Cookie names
 COOKIE_NAME_ACCESS_TOKEN = "_access_token"

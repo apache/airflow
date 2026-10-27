@@ -26,7 +26,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.datamodels.token import (
     TokenBody,
-    TokenPasswordBody,
+    TokenCliBody,
     TokenResponse,
 )
 
@@ -51,8 +51,8 @@ def create_token(body: TokenBody) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN]),
 )
-def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
-    token = body.create_token(
+def create_token_cli(body: TokenCliBody) -> TokenResponse:
+    token = body.root.create_token(
         expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time"))
     )
     return TokenResponse(access_token=token)
