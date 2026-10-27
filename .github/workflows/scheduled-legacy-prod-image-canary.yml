@@ -129,7 +129,7 @@ jobs:
       # Same artifact name and layout as generate-constraints.yml uploads, which is what the PROD image
       # build downloads.
       - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: constraints-${{ matrix.python-version }}
           path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
@@ -239,6 +239,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-prod-image-tests: "true"
 
   tests-kubernetes:
     name: "Kubernetes tests"

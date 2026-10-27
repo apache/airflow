@@ -355,6 +355,7 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "logical_date", name="dag_run_dag_id_logical_date_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index("idx_dag_run_run_after", run_after),
+        Index("idx_dag_run_dag_id_run_after", dag_id, run_after),
         Index("idx_dag_run_created_dag_version_id", created_dag_version_id),
         Index(
             "idx_dag_run_running_dags",
@@ -2717,6 +2718,9 @@ class DagRun(Base, LoggingMixin):
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
                         try_number=next_try_number,
+                        # Already archived with the finished try; the new one must not inherit it.
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2767,6 +2771,8 @@ class DagRun(Base, LoggingMixin):
                         end_date=timezone.utcnow(),
                         duration=0,
                         try_number=next_try_number,
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(
                         synchronize_session=False,

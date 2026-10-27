@@ -23,7 +23,8 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
 - Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uv run --locked` from the current git worktree's `dev/breeze`, with dependencies pinned by `dev/breeze/uv.lock` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
-- **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`.
+- **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`. The only exception is the `uv run --project <PROJECT> ...` commands listed below, run against the workspace sources.
+- If a step needs `breeze` and it cannot run (Docker missing, or its Docker calls refused by a sandbox or socket proxy), stop and tell the user which call failed. Do not build a substitute host environment instead, such as a virtualenv with a released Airflow version.
 - Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
 ## Commands
@@ -47,6 +48,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
+- **Run provider tests against a released Airflow version:** `breeze shell --use-airflow-version <VERSION> --mount-sources providers-and-tests`, then `pytest providers/<provider>/tests/...` inside the shell
 - **Type-check (non-providers):** run the prek hook — `prek run mypy-<project> --all-files` (e.g. `mypy-airflow-core`, `mypy-task-sdk`, `mypy-shared-logging`; each `shared/<dist>` workspace member has its own `mypy-shared-<dist>` hook). The hook uses a dedicated virtualenv and mypy cache under `.build/mypy-venvs/<hook>/` and `.build/mypy-caches/<hook>/`; mypy itself is installed from `uv.lock` via the `mypy` dependency group (`uv sync --group mypy`), so it never mutates your project `.venv`. The hook prefers `uv` from the project's main `.venv/bin/uv` (installed by `uv sync` — `uv` is part of the `dev` dependency group via the `all` extras) for a project-pinned uv version; it falls back to `uv` on `$PATH` with a warning if that binary is missing. Clear with `breeze down --cleanup-mypy-cache`.
 - **Type-check (providers):** `breeze run mypy path/to/code`
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`

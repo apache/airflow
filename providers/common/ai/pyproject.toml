@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "1.0.0"
+version = "1.1.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -66,7 +66,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.21.0",  # use next version
+    "apache-airflow-providers-common-compat>=1.22.0",
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
@@ -89,8 +89,10 @@ dependencies = [
 # 2.47.0 is the first release that accepts the httpx2 client pydantic-ai-slim>=2.33 hands it
 # (2.45 and 2.46 raise TypeError on it); pydantic-ai-slim[openai]>=2.33.0 itself asks for
 # openai>=3, so this floor only matters where that requirement is overridden, as in this
-# repository's lock.
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.36.0", "anthropic>=1.1.0"]
+# repository's lock. anthropic is capped below 2 because pydantic-ai's Anthropic model
+# (up to 2.59.0) calls BetaMessageParam(...), which anthropic 2 turned into a Union that
+# cannot be instantiated.
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.36.0", "anthropic>=1.1.0,<2"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.36.0"]
 "google" = ["pydantic-ai-slim[google]>=2.36.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.36.0", "openai>=2.47.0"]
@@ -200,7 +202,7 @@ dev = [
     # @task.llm_batch's OpenAI/Anthropic adapters call these SDKs directly. The dev group
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
-    "anthropic>=1.1.0",
+    "anthropic>=1.1.0,<2",
     # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
     "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
@@ -237,8 +239,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

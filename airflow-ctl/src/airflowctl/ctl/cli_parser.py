@@ -139,6 +139,8 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
 
 
 def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
+    if isinstance(sub, GroupCommand):
+        sub = GroupCommandParser.from_group_command(sub)
     if isinstance(sub, ActionCommand) and sub.hide:
         sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
     else:

@@ -118,15 +118,14 @@ jobs:
           constraints_branch="constraints-${major}-${minor}"
           echo "constraints-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
           # A pre-release - beta or rc - pins the providers at the versions PyPI holds (rc provider
-          # waves included) and lands on a branch and tag of its own, so it never moves the shared
-          # constraints-X-Y branch. A final pins released providers and commits onto the shared branch.
+          # waves included); a final pins released providers. Both commit onto the shared
+          # constraints-X-Y branch and are tagged constraints-<VERSION>.
           if [[ "${VERSION}" =~ (b|rc)[0-9]+$ ]]; then
             echo "allow-pre-releases=true" >> "${GITHUB_OUTPUT}"
-            echo "target-branch=constraints-${VERSION}" >> "${GITHUB_OUTPUT}"
           else
             echo "allow-pre-releases=false" >> "${GITHUB_OUTPUT}"
-            echo "target-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
           fi
+          echo "target-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
       - name: "Parameters summary"
         shell: bash
         env:
@@ -231,30 +230,29 @@ jobs:
         with:
           pattern: constraints-*
           path: ./files
-      # A candidate's branch and tag belong to that candidate alone, so re-running for the same
-      # rc replaces them rather than adding to them: the branch would otherwise already hold the
-      # previous run's constraints (making the push a non-fast-forward) and the tag already exist.
-      # A final never gets this - it commits onto the shared constraints-X-Y branch, whose history
-      # every other build reads.
-      - name: "Delete the previous ${{ needs.build-info.outputs.target-branch }} branch and tag"
+      # Re-running for the same pre-release adds a commit on constraints-X-Y and moves its tag, so
+      # the previous run's tag is deleted first. A leftover constraints-<VERSION> branch (from when
+      # pre-releases had a branch of their own) would make that tag name ambiguous, so it fails fast.
+      - name: "Check for a stale constraints-${{ inputs.version }} branch and replace the tag"
         if: needs.build-info.outputs.allow-pre-releases == 'true'
         working-directory: "constraints"
         shell: bash
         run: |
-          if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" > /dev/null; then
-            echo "Deleting the existing '${TARGET_BRANCH}' branch."
-            git push origin --delete "refs/heads/${TARGET_BRANCH}"
+          if git ls-remote --exit-code origin "refs/heads/constraints-${VERSION}" > /dev/null; then
+            echo "ERROR! Branch 'constraints-${VERSION}' must not exist -" \
+              "it would make the 'constraints-${VERSION}' tag ambiguous."
+            echo "Delete it first, e.g.: git push origin --delete 'refs/heads/constraints-${VERSION}'"
+            exit 1
           fi
           if git ls-remote --exit-code origin "refs/tags/constraints-${VERSION}" > /dev/null; then
             echo "Deleting the existing 'constraints-${VERSION}' tag."
             git push origin --delete "refs/tags/constraints-${VERSION}"
           fi
           git tag --delete "constraints-${VERSION}" > /dev/null 2>&1 || true
-          git branch --delete --force "${TARGET_BRANCH}" > /dev/null 2>&1 || true
       - name: "Switch to ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
-        run: git switch -c "${TARGET_BRANCH}" 2>/dev/null || git switch "${TARGET_BRANCH}"
+        run: git switch "${TARGET_BRANCH}"
       - name: "Diff in constraints for Python: ${{ needs.build-info.outputs.python-versions-list-as-string }}"
         run: ./scripts/ci/constraints/ci_diff_constraints.sh
       - name: "Commit changed constraint files"
@@ -262,9 +260,21 @@ jobs:
       - name: "Push ${{ needs.build-info.outputs.target-branch }}"
         working-directory: "constraints"
         shell: bash
-        # Qualify as refs/heads/ -- for a release candidate the branch and the tag share a name
-        # (both constraints-<VERSION>), so a bare refspec is ambiguous ("matches more than one").
-        run: git push origin "refs/heads/${TARGET_BRANCH}"
+        # constraints-X-Y is also written by update-constraints-on-push.yml on every vX-Y-test
+        # uv.lock change, which can land during the beta/rc window this workflow runs in. A
+        # concurrent write makes this push a non-fast-forward, so rebase onto the latest and retry.
+        # Qualify as refs/heads/ so the push never resolves to a same-named tag.
+        run: |
+          for attempt in $(seq 1 5); do
+            if git push origin "refs/heads/${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push of '${TARGET_BRANCH}' rejected (it moved underneath us);" \
+              "rebasing onto the latest and retrying (attempt ${attempt}/5)."
+            git pull --rebase origin "${TARGET_BRANCH}"
+          done
+          echo "ERROR! Could not push '${TARGET_BRANCH}' after 5 attempts."
+          exit 1
       - name: "Tag constraints-${{ inputs.version }}"
         working-directory: "constraints"
         shell: bash
