@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands import kubernetes_commands
 
 FORK_REPOSITORY = "contributor/airflow"
@@ -54,18 +55,20 @@ def test_rebuild_k8s_image_builds_from_the_image_of_the_github_repository(mock_e
     )
 
     assert returncode == 0
-    mock_exists.assert_called_once_with(image="ghcr.io/contributor/airflow/main/prod/python3.11")
+    mock_exists.assert_called_once_with(
+        image=f"ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11"
+    )
     command = mock_run_command.call_args.args[0]
     assert command[:4] == [
         "docker",
         "build",
         "--tag",
-        "ghcr.io/contributor/airflow/main/prod/python3.11-kubernetes:latest",
+        f"ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11-kubernetes:latest",
     ]
     assert (
         mock_run_command.call_args.kwargs["input"]
         .lstrip()
-        .startswith("FROM ghcr.io/contributor/airflow/main/prod/python3.11\n")
+        .startswith(f"FROM ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11\n")
     )
 
 
@@ -78,7 +81,7 @@ def test_upload_k8s_image_loads_the_image_of_the_github_repository(mock_run_comm
     )
 
     assert mock_run_command.call_args.args[0][-1] == (
-        "ghcr.io/contributor/airflow/main/prod/python3.11-kubernetes"
+        f"ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11-kubernetes"
     )
 
 
