@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import sqlite_rebuilds
+
 # revision identifiers, used by Alembic.
 revision = "b4f1a7d2c903"
 down_revision = "ee86eed19e24"
@@ -48,5 +50,7 @@ def upgrade():
 
 def downgrade():
     """Remove is_stub from task_instance."""
-    with op.batch_alter_table(TABLE_NAME) as batch_op:
+    # Dropping a column rebuilds the table on SQLite, unlike adding one, so the foreign keys of
+    # everything that points at task_instance have to be held off while the rows are copied.
+    with sqlite_rebuilds(op), op.batch_alter_table(TABLE_NAME) as batch_op:
         batch_op.drop_column("is_stub")
