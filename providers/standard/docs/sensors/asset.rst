@@ -95,7 +95,7 @@ A mapped sensor works, but its asset is only recorded as an inlet in lineage if
 it is also passed through ``partial(inlets=[...])``.
 
 Run-relative time bounds
------------------------
+------------------------
 
 The ``after`` and ``before`` arguments accept datetime values, ISO strings,
 Jinja templates, and these bound objects from
