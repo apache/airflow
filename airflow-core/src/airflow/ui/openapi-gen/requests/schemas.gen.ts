@@ -11327,6 +11327,20 @@ export const $DeadlineAlertResponse = {
             ],
             title: 'Name'
         },
+        run_type_filter: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Type Filter'
+        },
         reference_type: {
             type: 'string',
             title: 'Reference Type'

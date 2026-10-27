@@ -58,6 +58,7 @@
     "parsedAt": "Parsed at:"
   },
   "deadlineAlerts": {
+    "appliesTo": "Applies to: {{runTypes}}",
     "completionRule": "Must complete within {{interval}} of {{reference}}",
     "completionRuleDynamic": "Must complete within a variable interval measured from {{reference}}",
     "count_one": "{{count, number}} deadline",

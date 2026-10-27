@@ -24,6 +24,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -49,11 +50,22 @@ from airflow.models.backfill import (
     _get_latest_dag_run_row_query,
     _handle_clear_run,
 )
+from airflow.models.callback import Callback
+from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
+from airflow.sdk import (
+    Asset,
+    AsyncCallback,
+    CronPartitionTimetable,
+    DeadlineReference,
+    PartitionedAssetTimetable,
+)
+from airflow.serialization.serde import serialize
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
-from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1593,6 +1605,103 @@ def test_create_backfill_real_empty_window_no_orphan(dag_maker, session):
         dag_run_conf=None,
     )
     assert br is not None
+
+
+@pytest.mark.parametrize(
+    ("run_type_filter", "missed", "retained"),
+    [
+        (["scheduled"], False, False),
+        (["scheduled", "backfill"], False, True),
+        (None, False, True),
+        (["scheduled"], True, True),
+    ],
+)
+@time_machine.travel("2026-01-12T00:00:00Z", tick=False)
+def test_handle_clear_run_removes_only_unhandled_excluded_deadlines(
+    dag_maker, session, run_type_filter, missed, retained
+):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    logical_date = timezone.parse("2026-01-10")
+    dr = dag_maker.create_dagrun(
+        logical_date=logical_date, run_type=DagRunType.SCHEDULED, state=DagRunState.QUEUED
+    )
+    dr.state = DagRunState.FAILED
+    callback = AsyncCallback("asyncio.sleep", kwargs={"delay": 0})
+    alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(
+                SerializedDagModel.dag_version_id == dr.created_dag_version_id
+            )
+        ),
+        reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+        interval=serialize(timedelta(hours=1)),
+        callback_def=serialize(callback),
+        run_type_filter=run_type_filter,
+    )
+    session.add(alert)
+    session.flush()
+    deadline = Deadline(
+        dagrun_id=dr.id,
+        deadline_alert_id=alert.id,
+        deadline_time=timezone.parse("2026-01-12T01:00:00Z"),
+        callback=callback,
+        dag_id=dag.dag_id,
+    )
+    session.add(deadline)
+    session.flush()
+    deadline.missed = missed
+    deadline.callback.state = CallbackState.QUEUED if missed else CallbackState.SCHEDULED
+    deadline_id, callback_id = deadline.id, deadline.callback_id
+    dr.get_task_instance("hi", session=session).state = TaskInstanceState.FAILED
+
+    other_run = dag_maker.create_dagrun(
+        logical_date=logical_date + timedelta(days=1),
+        run_type=DagRunType.SCHEDULED,
+        state=DagRunState.QUEUED,
+    )
+    other_run.state = DagRunState.FAILED
+    other_deadline = Deadline(
+        dagrun_id=other_run.id,
+        deadline_alert_id=alert.id,
+        deadline_time=timezone.parse("2026-01-12T01:00:00Z"),
+        callback=callback,
+        dag_id=dag.dag_id,
+    )
+    session.add(other_deadline)
+    session.flush()
+    other_deadline_id, other_callback_id = other_deadline.id, other_deadline.callback_id
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=logical_date,
+        to_date=logical_date,
+        dag_run_conf=None,
+        max_active_runs=1,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.add(backfill)
+    session.flush()
+
+    _handle_clear_run(
+        session=session,
+        dag=dag_maker.serialized_dag,
+        dr=dr,
+        info=DagRunInfo.interval(logical_date, logical_date + timedelta(days=1)),
+        backfill_id=backfill.id,
+        sort_ordinal=1,
+    )
+    session.flush()
+
+    assert session.scalar(select(DagRun.run_type).where(DagRun.id == dr.id)) == DagRunType.BACKFILL_JOB
+    assert (session.scalar(select(Deadline.id).where(Deadline.id == deadline_id)) is not None) == retained
+    assert (session.scalar(select(Callback.id).where(Callback.id == callback_id)) is not None) == retained
+    assert session.scalar(select(Deadline.id).where(Deadline.id == other_deadline_id)) == other_deadline_id
+    assert session.scalar(select(Callback.id).where(Callback.id == other_callback_id)) == other_callback_id
+    if missed:
+        assert (
+            session.scalar(select(Callback.state).where(Callback.id == callback_id)) == CallbackState.QUEUED
+        )
 
 
 def test_handle_clear_run_preserves_partition_key(dag_maker, session):

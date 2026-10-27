@@ -50,6 +50,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
+from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert
 from airflow.utils.db import get_dialect_name
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -628,6 +630,23 @@ def _handle_clear_run(
     from airflow.models import DagRun
     from airflow.utils.state import DagRunState
     from airflow.utils.types import DagRunType
+
+    # Lock before clearing: clear recalculates queued-at deadlines, while the scheduler
+    # can concurrently claim them and queue callbacks. Already missed rows remain history.
+    deadlines = session.execute(
+        with_row_locks(
+            select(Deadline, DeadlineAlert)
+            .join(DeadlineAlert, Deadline.deadline_alert_id == DeadlineAlert.id)
+            .where(Deadline.dagrun_id == dr.id, ~Deadline.missed)
+            .execution_options(populate_existing=True),
+            session=session,
+            of=Deadline,
+        )
+    ).all()
+    for deadline, alert in deadlines:
+        if alert.run_type_filter is not None and DagRunType.BACKFILL_JOB not in alert.run_type_filter:
+            session.delete(deadline)
+    session.flush()
 
     dag.clear(
         run_id=dr.run_id,

@@ -2955,6 +2955,7 @@ export type DeadlineAlertCollectionResponse = {
 export type DeadlineAlertResponse = {
     id: string;
     name?: string | null;
+    run_type_filter?: Array<(string)> | null;
     reference_type: string;
     /**
      * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
@@ -5518,6 +5519,7 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 
 export type GetDagDeadlineAlertsData = {
     dagId: string;
+    dagRunId?: string | null;
     limit?: number;
     offset?: number;
     /**
@@ -9903,6 +9905,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

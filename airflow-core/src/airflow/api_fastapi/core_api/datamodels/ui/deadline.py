@@ -60,6 +60,7 @@ class DeadlineAlertResponse(BaseModel):
 
     id: UUID
     name: str | None = None
+    run_type_filter: list[str] | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
     interval: float | None = Field(
         default=None,

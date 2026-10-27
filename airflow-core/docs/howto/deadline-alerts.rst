@@ -39,11 +39,12 @@ For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/
 Creating a Deadline Alert
 -------------------------
 
-Creating a Deadline Alert requires three mandatory parameters:
+A Deadline Alert accepts the following parameters:
 
 * Reference: When to start counting from
 * Interval: How far before or after the reference point to trigger the alert (either a timedelta or a dynamic interval such as VariableInterval)
 * Callback: A Callback object which contains a path to a callable and optional kwargs to pass to it if the deadline is exceeded
+* Run type filter (optional): Run types to monitor, using :class:`airflow.sdk.DagRunType` members; defaults to ``None`` for all run types
 
 Here is how Deadlines are calculated:
 
@@ -54,12 +55,13 @@ Here is how Deadlines are calculated:
         |                                     |
      Start time                          Trigger point
 
-Below is an example Dag implementation. If the Dag has not finished 15 minutes after it was queued, send a Slack message:
+Below is an example Dag implementation. It sends a Slack message if a scheduled
+or asset-triggered run has not finished 15 minutes after it was queued:
 
 .. code-block:: python
 
     from datetime import datetime, timedelta
-    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
+    from airflow.sdk import AsyncCallback, DAG, DagRunType, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -68,6 +70,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=15),
+            run_type_filter={DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED},
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
