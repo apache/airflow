@@ -1699,12 +1699,6 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
 
-    # Only rebuild accessors if needed, since building them may require
-    # communicating with the supervisor to resolve asset refs and aliases.
-    if task.inlets == context.get("inlets", []) and task.outlets == context.get("outlets", []):
-        context["inlets"] = task.inlets
-        context["outlets"] = task.outlets
-        return
     context.pop("asset_state_store", None)
     context.update(
         build_asset_context(

@@ -33,7 +33,9 @@ from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     ErrorResponse,
+    GetAssetByName,
     GetTICount,
     GetXCom,
     GetXComSequenceItem,
@@ -780,9 +782,7 @@ def test_mapped_render_template_fields_refreshes_constructor_outlets(
     assert accessor._stats_tags == {**ti.stats_tags, "operator": "_OperatorWithConstructorLineage"}
 
 
-def test_mapped_render_template_fields_keeps_unchanged_asset_context(
-    create_runtime_ti, mock_supervisor_comms
-):
+def test_mapped_render_template_fields_rebinds_asset_context(create_runtime_ti, mock_supervisor_comms):
     with DAG("test_dag"):
         mapped = MockOperator.partial(task_id="t", inlets=[Asset("a")], outlets=[Asset("b")]).expand(
             arg1=["x", "y"]
@@ -797,10 +797,31 @@ def test_mapped_render_template_fields_keeps_unchanged_asset_context(
 
     assert context["inlets"] is ti.task.inlets
     assert context["outlets"] is ti.task.outlets
-    assert context["inlets"] == [Asset("a")]
-    assert context["outlets"] == [Asset("b")]
-    assert context["inlet_events"] is inlet_events
-    assert context["asset_state_store"] is asset_state_store
+    assert context["inlet_events"] is not inlet_events
+    assert context["asset_state_store"] is not asset_state_store
+
+    ti.task.inlets.append(Asset("c"))
+    assert list(context["inlet_events"]) == [Asset("a"), Asset("c")]
+
+
+def test_mapped_render_template_fields_resolves_partial_ref_inlets_lazily(
+    create_runtime_ti, mock_supervisor_comms
+):
+    def get_asset_by_name_calls():
+        return [c for c in mock_supervisor_comms.send.call_args_list if isinstance(c.args[0], GetAssetByName)]
+
+    mock_supervisor_comms.send.return_value = AssetResult(name="a", uri="a", group="asset")
+    with DAG("test_dag"):
+        mapped = MockOperator.partial(task_id="t", inlets=[Asset.ref(name="a")]).expand(arg1=["x", "y"])
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    ti.task.render_template_fields(context=context)
+    assert get_asset_by_name_calls() == []
+
+    context["inlet_events"][Asset.ref(name="a")]
+    context["inlet_events"][Asset.ref(name="a")]
+    assert get_asset_by_name_calls() == [mock.call(GetAssetByName(name="a"))]
 
 
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
