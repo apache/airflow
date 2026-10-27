@@ -199,8 +199,11 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        # The cursor executing a statement right now (set by ``_run_command``), used by ``cancel_query``
+        # The cursor whose statement is running right now (set by ``_track_running_cursor``), used by
+        # ``cancel_query``
         self._running_cursor: Any = None
+        # Whether ``_track_running_cursor`` cancels a statement interrupted by a timeout or keyboard interrupt
+        self._cancel_on_interrupt = True
         self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
@@ -857,10 +860,14 @@ class DbApiHook(BaseHook):
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self._run_command(cur, sql_statement, parameters)
+                    # Tracked through the handler too: drivers such as ``trino`` return from ``execute``
+                    # with the first rows and keep the statement running while the handler fetches the rest.
+                    with self._track_running_cursor(cur):
+                        self._run_command(cur, sql_statement, parameters)
+                        if handler is not None:
+                            result = self._make_common_data_structure(handler(cur))
 
                     if handler is not None:
-                        result = self._make_common_data_structure(handler(cur))
                         if handlers.return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -902,10 +909,7 @@ class DbApiHook(BaseHook):
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
-        # Keep a reference to the cursor while the statement is in flight, so that ``cancel_query`` can
-        # reach it when the task is killed in the middle of a long-running statement.
-        self._running_cursor = cur
-        try:
+        with self._track_running_cursor(cur):
             if parameters:
                 # If we're using psycopg3, we might need to handle parameters differently
                 if (
@@ -917,8 +921,6 @@ class DbApiHook(BaseHook):
                 cur.execute(sql_statement, parameters)
             else:
                 cur.execute(sql_statement)
-        finally:
-            self._running_cursor = None
 
         send_sql_hook_lineage(
             context=self,
@@ -930,6 +932,38 @@ class DbApiHook(BaseHook):
         if (row_count := handlers.get_row_count(cur)) is not None:
             self.log.info("Rows affected: %s", row_count)
 
+    @contextmanager
+    def _track_running_cursor(self, cur) -> Generator[None, None, None]:
+        """
+        Make ``cur`` the cursor that ``cancel_query`` cancels while the block runs.
+
+        An interruption that is not an ``Exception`` (``AirflowTaskTimeout`` raised from ``SIGALRM`` when the
+        ``execution_timeout`` of the task elapses, ``KeyboardInterrupt``) cancels the statement before it
+        propagates (unless ``_cancel_on_interrupt`` is ``False``): ``on_kill`` is only called after it has
+        unwound through ``run``, which closes the cursor and the connection on the way, so cancelling there
+        would be too late.
+
+        Nested blocks for the same cursor leave the tracking to the outermost one, so that ``run`` keeps the
+        cursor tracked from ``_run_command`` through the result handler.
+        """
+        if self._running_cursor is cur:
+            yield
+            return
+        self._running_cursor = cur
+        try:
+            yield
+        except Exception:
+            raise
+        except BaseException:
+            if self._cancel_on_interrupt:
+                try:
+                    self.cancel_query()
+                except Exception:
+                    self.log.exception("Failed to cancel the running SQL statement")
+            raise
+        finally:
+            self._running_cursor = None
+
     def cancel_query(self) -> bool:
         """
         Cancel the SQL statement that this hook is currently executing, if there is one.
@@ -938,20 +972,27 @@ class DbApiHook(BaseHook):
         ``on_kill`` when the task instance is killed while a statement is still running, so that the
         database stops working on a query whose result nobody is waiting for anymore.
 
+        A statement is tracked from the moment ``run`` executes it until its result handler returns, in
+        hooks that execute statements through ``run`` or ``_run_command``. Hooks that execute statements
+        in another way can override this method.
+
         The default implementation relies on the cancellation extensions offered by many DB-API drivers:
         ``cursor.cancel()`` is used when the cursor provides it, otherwise ``connection.cancel()`` is used
-        when the cursor exposes its connection and the connection provides it (e.g. ``psycopg2``,
-        ``psycopg`` or ``oracledb``). Hooks for databases whose driver has no such extension can override
-        this method and cancel the statement in a database specific way, for example by issuing a
-        ``KILL QUERY`` command on a separate connection.
+        when the cursor exposes its connection and the connection provides it (e.g. ``psycopg``,
+        ``oracledb`` or ``trino``). This only helps with drivers that return to Python to handle signals
+        while a statement is running: ``psycopg2``, for instance, blocks in ``libpq`` until the statement
+        completes, so the task is only killed after that. Hooks for databases whose driver has no such
+        extension can override this method and cancel the statement in a database specific way, for
+        example by issuing a ``KILL QUERY`` command on a separate connection.
 
-        :return: ``True`` if a cancellation request was sent to the database, ``False`` if no statement
-            is running or the driver does not support cancelling a running statement.
+        :return: ``True`` if a cancellation request was sent to the database, ``False`` if no running
+            statement is tracked or the driver does not support cancelling a running statement.
         """
-        # getattr: a subclass that does not call ``DbApiHook.__init__`` should still get the no-op path
-        cur = getattr(self, "_running_cursor", None)
+        cur = self._running_cursor
         if cur is None:
-            self.log.info("No SQL statement is currently running, there is nothing to cancel.")
+            self.log.warning(
+                "No running SQL statement is tracked by %s, there is nothing to cancel.", type(self).__name__
+            )
             return False
         for name, target in (("cursor", cur), ("connection", getattr(cur, "connection", None))):
             cancel = getattr(target, "cancel", None)

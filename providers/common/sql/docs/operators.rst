@@ -35,13 +35,16 @@ different databases. Parameters of the operators are:
 - ``handler`` (optional) the function that will be applied to the cursor. If it's ``None`` results won't returned (default: fetch_all_handler).
 - ``split_statements`` (optional) if split single SQL string into statements and run separately (default: False).
 - ``return_last`` (optional) depends ``split_statements`` and if it's ``True`` this parameter is used to return the result of only last statement or all split statements (default: True).
+- ``cancel_on_kill`` (optional) if the statement that is still running when the task instance is killed should be cancelled on the database (default: True).
 
 When the task instance is killed while a statement is still running (for example because the task was marked as
-failed or its ``execution_timeout`` elapsed), the operator asks the hook to cancel that statement through
-:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`. The default implementation uses the
-``cancel()`` extension of the DB-API cursor or connection when the database driver provides one; when it does not,
-a warning is logged and the statement keeps running on the database until it completes. Hooks can override
-``cancel_query`` to cancel the statement in a database specific way.
+failed or its ``execution_timeout`` elapsed), the hook cancels that statement through
+:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, unless ``cancel_on_kill`` is ``False``.
+The default implementation uses the ``cancel()`` extension of the DB-API cursor or connection when the database
+driver provides one, and only takes effect with drivers that handle signals while a statement is running (for
+example ``psycopg``, but not ``psycopg2``). When the driver has no such extension, or the hook runs statements
+without going through ``DbApiHook.run``, a warning is logged and the statement keeps running on the database until
+it completes. Hooks can override ``cancel_query`` to cancel the statement in a database specific way.
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
