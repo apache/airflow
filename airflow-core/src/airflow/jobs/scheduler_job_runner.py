@@ -594,6 +594,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instance: TI,
         concurrency_map: ConcurrencyMap,
         session: Session,
+        starved_dag_runs: set[tuple[str, str]],
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
     ) -> bool:
@@ -602,10 +603,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_id = task_instance.task_id
         run_id = task_instance.run_id
 
-        serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
-            dag_run=task_instance.dag_run,
-            session=session,
-        )
+        if (dag_id, run_id) in starved_dag_runs:
+            return False
+
+        try:
+            serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
+                dag_run=task_instance.dag_run,
+                session=session,
+            )
+        except DBAPIError:
+            raise
+        except Exception:
+            self.log.exception("Failed to load Dag %s for run %s, skipping it", dag_id, run_id)
+            starved_dag_runs.add((dag_id, run_id))
+            return False
 
         # If the DAG is missing, fail all scheduled TIs for this DAG.
         if not serialized_dag:
@@ -924,6 +935,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         task_instance=task_instance,
                         concurrency_map=concurrency_map,
                         session=session,
+                        starved_dag_runs=starved_dag_runs,
                         starved_tasks=starved_tasks,
                         starved_tasks_task_dagrun_concurrency=(starved_tasks_task_dagrun_concurrency),
                     )

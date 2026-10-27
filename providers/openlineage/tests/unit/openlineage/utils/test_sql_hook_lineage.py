@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -28,6 +29,7 @@ from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.sqlparser import SQLParser
 from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, Rule
 from airflow.providers.openlineage.utils.sql_hook_lineage import (
+    _create_ol_event_pair,
     _get_hook_conn_id,
     emit_lineage_from_sql_extras,
 )
@@ -327,3 +329,47 @@ class TestEmitLineageFromSqlExtras:
         # Both hooks should have had get_openlineage_database_info called
         hook_a.get_openlineage_database_info.assert_called_once()
         hook_b.get_openlineage_database_info.assert_called_once()
+
+
+class TestCreateOlEventPair:
+    @pytest.mark.parametrize(
+        "root_job_type",
+        [
+            pytest.param(
+                {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DAG"}, id="root-type"
+            ),
+            pytest.param(None, id="unknown-root-type"),
+        ],
+    )
+    @mock.patch(f"{_MODULE}._get_logical_date", autospec=True)
+    @mock.patch(f"{_MODULE}.lineage_root_job_type", autospec=True)
+    @mock.patch(f"{_MODULE}.lineage_root_job_namespace", autospec=True, return_value="root_ns")
+    @mock.patch(f"{_MODULE}.lineage_root_job_name", autospec=True, return_value="root_job")
+    @mock.patch(f"{_MODULE}.lineage_root_run_id", autospec=True, return_value=str(uuid4()))
+    @mock.patch(f"{_MODULE}.lineage_job_name", autospec=True, return_value="dag_id.task_id")
+    @mock.patch(f"{_MODULE}.lineage_run_id", autospec=True, return_value=str(uuid4()))
+    def test_parent_run_facet_has_task_and_root_job_types(
+        self,
+        _mock_run_id,
+        _mock_job_name,
+        _mock_root_run_id,
+        _mock_root_job_name,
+        _mock_root_job_namespace,
+        mock_root_job_type,
+        _mock_logical_date,
+        root_job_type,
+    ):
+        mock_root_job_type.return_value = root_job_type
+        start, end = _create_ol_event_pair(
+            task_instance=mock.MagicMock(), job_name="dag_id.task_id.hll_query.1", is_successful=True
+        )
+
+        for event in (start, end):
+            parent_facet = event.run.facets["parent"]
+            assert parent_facet.job.facets["jobType"].jobType == "TASK"
+            assert parent_facet.job.facets["jobType"].integration == "AIRFLOW"
+            assert parent_facet.job.facets["jobType"].processingType == "BATCH"
+            if root_job_type is None:
+                assert not parent_facet.root.job.facets
+            else:
+                assert parent_facet.root.job.facets["jobType"].jobType == "DAG"

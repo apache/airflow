@@ -233,7 +233,6 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
-          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         # A base branch with neither gate file predates the gate (the pull request adding it,
         # or a release branch cut before it) and keeps running project CI. With only one of
         # them present, the missing file fails the job instead of opening the gate.
@@ -1515,26 +1514,12 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  ci-passed:
-    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
-    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
-    # "CI passed" then would let it merge on no CI, so the job reports under another name and
-    # the fork CI reconciler posts "CI passed" from the fork run instead.
-    # A run with cancelled jobs and no failed one -- usually a duplicate run of the same commit that
-    # concurrency cancelled, such as the two `synchronize` events GitHub sends when a stacked pull
-    # request's base and head are force-pushed together -- reports under another name too, so it
-    # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
-    # missing for that run, which keeps the merge blocked until another run of the commit reports it.
-    # A job cancelled by its timeout gets that name too, since `name` cannot test whether the run
-    # itself was cancelled, but the job still fails.
-    name: >-
-      ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
-      'CI passed (run cancelled)') ||
-      (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
-    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
-    # skipped required check as passed, so this job always runs and fails itself when any job it
-    # needs failed or timed out. Jobs skipped by selective checks count as passed.
-    if: always()
+  check-timed-out-jobs:
+    # A job-level `if` is the only place `cancelled()` tells a cancelled run from a job cancelled by
+    # its timeout: the steps of `ci-passed` start after the cancellation. Its `needs` must match
+    # those of `ci-passed`, so a timeout in any job fails the gate.
+    name: "Check for timed-out CI jobs"
+    if: always() && !cancelled() && contains(needs.*.result, 'cancelled')
     needs:
       - additional-ci-image-checks
       - additional-prod-image-tests
@@ -1576,20 +1561,80 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     runs-on: ["ubuntu-slim"]
     steps:
+      - name: "Fail because a CI job was cancelled without the run being cancelled"
+        run: |
+          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
+          exit 1
+
+  ci-passed:
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead.
+    # A run with cancelled jobs and no failed one -- usually a duplicate run of the same commit that
+    # concurrency cancelled, such as the two `synchronize` events GitHub sends when a stacked pull
+    # request's base and head are force-pushed together -- reports under another name too, so it
+    # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
+    # missing for that run, which keeps the merge blocked until another run of the commit reports it.
+    # A job cancelled by its timeout, while the run is not, makes `check-timed-out-jobs` fail, and
+    # so this job fails.
+    name: >-
+      ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
+      'CI passed (run cancelled)') ||
+      (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
+    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
+    # skipped required check as passed, so this job always runs and fails itself when any job it
+    # needs failed or timed out. Jobs skipped by selective checks count as passed.
+    if: always()
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-ts-sdk-docs
+      - check-run-needed
+      - check-timed-out-jobs
+      - ci-image-checks
+      - finalize-tests
+      - gate
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
       - name: "Fail if any CI job failed"
         if: contains(needs.*.result, 'failure')
         run: |
           echo "At least one CI job failed."
           exit 1
-      # A job that hits its timeout is cancelled while the run is not, and must fail this check, as
-      # the scheduled canary's Slack report lists only failed jobs.
-      - name: "Fail if a CI job was cancelled without the run being cancelled"
-        if: contains(needs.*.result, 'cancelled') && !cancelled()
-        run: |
-          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
-          exit 1
       - name: "Report that CI jobs were cancelled"
-        if: contains(needs.*.result, 'cancelled') && cancelled()
+        if: contains(needs.*.result, 'cancelled')
         run: |
           echo "At least one CI job was cancelled, so this run does not report CI passed."
           echo 'CI jobs were cancelled: this run does not report `CI passed`.' >> "${GITHUB_STEP_SUMMARY}"
@@ -1602,7 +1647,7 @@ jobs:
     needs:
       - build-info
       - check-run-needed
-      # Waits for the gate job, which is the only failed job when a CI job timed out.
+      # Waits for the gate job, which also fails when a CI job timed out.
       - ci-passed
       - finalize-tests
       - tests-agent-frameworks

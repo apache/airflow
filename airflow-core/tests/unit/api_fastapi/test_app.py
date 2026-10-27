@@ -24,6 +24,9 @@ from unittest import mock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from starlette.middleware.gzip import GZipMiddleware
@@ -211,6 +214,28 @@ def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
     installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
 
     assert HttpMetricsMiddleware not in installed
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        pytest.param("/api/v2/monitor/health", id="root-app"),
+        pytest.param("/auth/token", id="mounted-auth-manager-app"),
+        pytest.param("/execution/health", id="mounted-execution-app"),
+    ],
+)
+def test_fastapi_native_telemetry_records_no_spans(path):
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+
+    with mock.patch("opentelemetry.trace.get_tracer_provider", return_value=provider):
+        TestClient(app_module.create_app(apps="all")).get(path, headers={"traceparent": traceparent})
+
+    assert [
+        span.name for span in exporter.get_finished_spans() if span.instrumentation_scope.name == "fastapi"
+    ] == []
 
 
 def test_jwt_refresh_middleware_skips_static_mount():

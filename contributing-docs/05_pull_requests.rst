@@ -247,13 +247,15 @@ CI workflow runs of external contributors
 
 GitHub does not start the CI workflows of a PR from a fork until a maintainer approves them,
 for the contributors that the repository's approval setting covers. To keep you from waiting
-for a maintainer on every push, a scheduled workflow checks the waiting runs every 30 minutes
+for a maintainer on every push, a scheduled workflow checks the waiting runs every 15 minutes
 and approves them automatically when all of these hold:
 
 * The PR targets ``main``. PRs to release branches, such as ``v3-4-test``, always wait for a
   maintainer.
-* The PR does not change anything under ``.github/``, ``dev/breeze/`` or ``scripts/ci/``. Those
-  files define the CI workflows and choose the runners they use.
+* The PR does not change files that define CI: anything under ``.github/``, ``dev/breeze/``,
+  ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a top-level ``Dockerfile*``,
+  or a ``.pre-commit-config.yaml`` in any directory. Those files define the CI workflows, what
+  their jobs run and the runners they use.
 * The change does not need the full set of tests, does not change dependencies (``pyproject.toml``,
   lock files, ``package.json``, ``go.mod``, Gradle build files) and does not add a new provider.
 * The CI jobs your change selects are estimated to take at most 310 job-minutes, about a quarter of
@@ -269,9 +271,13 @@ and approves them automatically when all of these hold:
 If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
 ``apache/airflow`` only checks that, so none of the rules above apply. Its runs are approved
 automatically unless the PR changes files that define CI: anything under ``.github/``,
-``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a ``Dockerfile``
-or ``.pre-commit-config.yaml``. Then the runs wait for a maintainer and a comment on the PR explains
+``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a top-level
+``Dockerfile*``, or a ``.pre-commit-config.yaml`` in any directory. Then the runs wait for a maintainer and a comment on the PR explains
 why. CI in your fork runs either way.
+
+The runs of PRs opened from the repositories of trusted stakeholders (``astronomer/airflow``,
+``aws-mwaa/upstream-to-airflow`` and ``VladaZakharova/airflow``) are always approved, so none of
+the rules above apply to them.
 
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
