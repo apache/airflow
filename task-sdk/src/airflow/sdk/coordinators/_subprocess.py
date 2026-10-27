@@ -627,12 +627,18 @@ def _is_file_in_bundle(bundle: BaseDagBundle, rel_path: str) -> bool:
 
 
 def _require_supported_schema_version(version: str) -> None:
-    """Raise ``ValueError`` unless the supervisor of this worker's Task SDK knows *version*."""
+    """
+    Check that the supervisor of this worker's Task SDK knows *version*.
+
+    :raises TaskLaunchError: when it does not. Retrying cannot fix it, so this does not retry.
+    """
     try:
         get_schema_version_migrator().resolve_version(version)
     except ValueError as e:
-        raise ValueError(
-            f"uses supervisor schema version {version!r}, which this worker's Task SDK does not support"
+        raise TaskLaunchError(
+            f"The runtime uses supervisor schema version {version!r}, which this worker's Task SDK "
+            "does not support. Upgrade the worker's Airflow, or rebuild the artifact against it.",
+            retryable=False,
         ) from e
 
 
@@ -818,8 +824,7 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         Check that *rel_path* is a file of *bundle* that this coordinator can run, and return its command.
 
-        :raises TaskLaunchError: when the file is missing or cannot be read, cannot run *what*, or needs
-            a supervisor schema version that this worker's Task SDK does not support.
+        :raises TaskLaunchError: when the file is missing or cannot be read, or cannot run *what*.
         """
         version = f" at version {bundle.version!r}" if bundle.version is not None else ""
         try:
@@ -834,8 +839,6 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         try:
             command, schema_version = self._build_dag_file_command(what=what, path=bundle.path / rel_path)
-            if schema_version is not None:
-                _require_supported_schema_version(schema_version)
         except Exception as e:
             raise TaskLaunchError(
                 f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run: {e}"
@@ -863,7 +866,8 @@ class SubprocessCoordinator(BaseCoordinator):
         artifact found by scanning the bundle that holds the artifacts.
 
         :raises TaskLaunchError: when the runtime cannot start: a native Dag file cannot run, the
-            artifact of any other task cannot be found or run, or the runtime exits or times out
+            artifact of any other task cannot be found or run, the artifact needs a supervisor schema
+            version that this worker's Task SDK does not support, or the runtime exits or times out
             before it connects.
         """
         task_logger = logger or log
@@ -890,6 +894,8 @@ class SubprocessCoordinator(BaseCoordinator):
                     )
                 else:
                     command, subprocess_schema_version = self._build_execute_task_command(what=what)
+                if subprocess_schema_version is not None:
+                    _require_supported_schema_version(subprocess_schema_version)
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,

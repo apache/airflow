@@ -1543,15 +1543,10 @@ class TestExecuteTaskLaunchFailure:
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
-    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
-    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
-    def test_fails_with_a_retry_for_a_schema_version_the_worker_does_not_support(
-        self, mock_accept, _, mock_client
-    ):
-        mock_accept.side_effect = _connect_without_output
-        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"], schema_version="1999-01-01")
+    def test_fails_without_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], schema_version="1999-01-01")
 
-        with pytest.raises(TaskLaunchError, match=r"^The runtime cannot start: .*1999-01-01") as raised:
+        with pytest.raises(TaskLaunchError) as raised:
             coordinator.execute_task(
                 what=_make_ti(),
                 dag_rel_path="dag.py",
@@ -1560,7 +1555,11 @@ class TestExecuteTaskLaunchFailure:
                 subprocess_logs_to_stdout=False,
             )
 
-        assert raised.value.retryable is True
+        assert str(raised.value).startswith(
+            "The runtime uses supervisor schema version '1999-01-01', which this worker's Task SDK "
+            "does not support."
+        )
+        assert raised.value.retryable is False
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
@@ -1934,16 +1933,16 @@ class TestExecuteTaskNativeDagFile:
         assert isinstance(raised.value.__cause__, ValueError)
 
     @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
-    def test_fails_with_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
+    def test_fails_without_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
         coordinator = _NativeStubCoordinator(command=["/runtime"], schema_version="1999-01-01")
 
         with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
             self._execute(coordinator, mock_client)
 
-        assert raised.value.retryable is True
+        assert raised.value.retryable is False
         assert str(raised.value).startswith(
-            "Dag file 'sub/dag.native' in Dag bundle 'dags' at version 'v9' cannot run: "
-            "uses supervisor schema version '1999-01-01', which this worker's Task SDK does not support"
+            "The runtime uses supervisor schema version '1999-01-01', which this worker's Task SDK "
+            "does not support."
         )
 
     @pytest.mark.usefixtures("mock_start", "mock_lock")
