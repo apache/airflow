@@ -137,15 +137,14 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateStoreAccessors,
     ConnectionAccessor,
-    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_asset_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -343,15 +342,12 @@ class RuntimeTaskInstance(TaskInstance):
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
-                "inlets": self.task.inlets,
                 "map_index_template": self.task.map_index_template,
-                "outlets": self.task.outlets,
                 "run_id": self.run_id,
                 "task": self.task,
                 "task_instance": self,
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
-                "inlet_events": InletEventsAccessors(self.task.inlets),
                 "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
@@ -373,14 +369,9 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
-            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
-                )
-                # AssetAlias inlets are resolved to their concrete assets at context build time via
-                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
-                # asset_state. AssetAlias outlets are skipped downstream in context.py
+            self._cached_template_context.update(
+                build_asset_context(self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags)
+            )
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

@@ -21,6 +21,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import itertools
 import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
@@ -1653,6 +1654,27 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def build_asset_context(inlets: list, outlets: list, *, stats_tags: dict[str, str]) -> Context:
+    """
+    Build template context entries derived from a task's inlets and outlets.
+
+    ``asset_state_store`` is only included if the task has at least one asset
+    (or asset reference or alias) in its inlets or outlets.
+
+    :meta private:
+    """
+    context: Context = {"inlets": inlets, "outlets": outlets, "inlet_events": InletEventsAccessors(inlets)}
+    if any(
+        isinstance(obj, (Asset, AssetNameRef, AssetUriRef, AssetAlias))
+        for obj in itertools.chain(inlets, outlets)
+    ):
+        # Aliases count as assets here, but AssetStateStoreAccessors only
+        # creates accessors for the concrete resolved assets. The store can be
+        # empty if a task has only aliases that resolve to nothing.
+        context["asset_state_store"] = AssetStateStoreAccessors(inlets, outlets, stats_tags=stats_tags)
+    return context
+
+
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     """
     Update context after task unmapping.
@@ -1661,13 +1683,31 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     contains information about the mapped task. We need to do some in-place
     updates to ensure the template context reflects the unmapped task instead.
 
+    This includes entries derived from inlets and outlets, since the operator's
+    ``__init__`` (which only runs on unmapping) may add to them.
+
     :meta private:
     """
     from airflow.sdk.definitions.param import process_params
 
-    context["task"] = context["ti"].task = task
+    context["task"] = (ti := context["ti"]).task = task
     context["params"] = process_params(
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
+    )
+
+    # Only rebuild accessors if needed, since building them may require
+    # communicating with the supervisor to resolve asset refs and aliases.
+    if task.inlets == context.get("inlets", []) and task.outlets == context.get("outlets", []):
+        context["inlets"] = task.inlets
+        context["outlets"] = task.outlets
+        return
+    context.pop("asset_state_store", None)
+    context.update(
+        build_asset_context(
+            task.inlets,
+            task.outlets,
+            stats_tags={**ti.stats_tags, "operator": task.task_type},
+        )
     )
 
 

@@ -28,6 +28,7 @@ import pytest
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -730,6 +731,76 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
             mapped_ti.task.render_template_fields(context)
             mapped_ti.task.execute(context)
     assert results == expected_values
+
+
+class _OperatorWithConstructorLineage(BaseOperator):
+    """Operator that derives inlets and outlets from constructor arguments."""
+
+    def __init__(self, *, inlet_name: str | None = None, outlet_name: str | None = None, **kwargs):
+        super().__init__(**kwargs)
+        if inlet_name is not None:
+            self.inlets.append(Asset(inlet_name))
+        if outlet_name is not None:
+            self.outlets.append(Asset(outlet_name))
+
+
+def test_mapped_render_template_fields_refreshes_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    with DAG("test_dag"):
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(inlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=mapped, map_index=1)
+    context = ti.get_template_context()
+    assert context["inlets"] == []
+    assert "asset_state_store" not in context
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] == [Asset("b")]
+    assert context["outlets"] == []
+    assert list(context["inlet_events"]) == [Asset("b")]
+    context["inlet_events"][Asset("b")]  # Should not raise KeyError.
+    context["asset_state_store"][Asset("b")]  # Should not raise KeyError.
+
+
+def test_mapped_render_template_fields_refreshes_constructor_outlets(
+    create_runtime_ti, mock_supervisor_comms
+):
+    with DAG("test_dag"):
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(outlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    assert "asset_state_store" not in context
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] == []
+    assert context["outlets"] == [Asset("a")]
+    accessor = context["asset_state_store"][Asset("a")]
+    assert accessor._stats_tags == {**ti.stats_tags, "operator": "_OperatorWithConstructorLineage"}
+
+
+def test_mapped_render_template_fields_keeps_unchanged_asset_context(
+    create_runtime_ti, mock_supervisor_comms
+):
+    with DAG("test_dag"):
+        mapped = MockOperator.partial(task_id="t", inlets=[Asset("a")], outlets=[Asset("b")]).expand(
+            arg1=["x", "y"]
+        )
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    inlet_events = context["inlet_events"]
+    asset_state_store = context["asset_state_store"]
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] is ti.task.inlets
+    assert context["outlets"] is ti.task.outlets
+    assert context["inlets"] == [Asset("a")]
+    assert context["outlets"] == [Asset("b")]
+    assert context["inlet_events"] is inlet_events
+    assert context["asset_state_store"] is asset_state_store
 
 
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
