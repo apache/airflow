@@ -55,9 +55,7 @@ def test_rebuild_k8s_image_builds_from_the_image_of_the_github_repository(mock_e
     )
 
     assert returncode == 0
-    mock_exists.assert_called_once_with(
-        image=f"ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11"
-    )
+    mock_exists.assert_called_once_with(image=f"ghcr.io/contributor/airflow/{AIRFLOW_BRANCH}/prod/python3.11")
     command = mock_run_command.call_args.args[0]
     assert command[:4] == [
         "docker",
