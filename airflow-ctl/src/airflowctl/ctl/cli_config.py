@@ -597,6 +597,7 @@ class CommandFactory:
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
         self.subgroups: dict[str, set[str]] = {
+            "AssetsOperations": {"state_store"},
             "TaskInstancesOperations": {"state_store"},
         }
 
