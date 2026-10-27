@@ -93,6 +93,13 @@ class _E2ETestState:
     airflow_dags_path: Path | None = None
 
 
+def _is_image_present_locally(image: str) -> bool:
+    return (
+        subprocess.run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode
+        == 0
+    )
+
+
 def _copy_localstack_files(tmp_dir):
     """Copy localstack compose file and init script into the temp directory."""
     copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
@@ -960,10 +967,11 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     #
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
-    # Skip pull for images that exist only locally and cannot be fetched from a registry:
-    # - ghcr.io/apache/airflow/: pre-pulled by the prepare_breeze_and_image CI step
-    # - openlineage-e2e/: locally built by _build_openlineage_e2e_compat_image (never pushed)
-    pull = not DOCKER_IMAGE.startswith(("ghcr.io/apache/airflow/", "openlineage-e2e/"))
+    # Pull only an image that is not there yet. CI loads the PROD image it built under the repository
+    # running the workflow (ghcr.io/<owner>/airflow/..., a fork's owner on fork CI), and pulling that
+    # tag would replace it with whatever the registry has. openlineage-e2e/ images are built locally,
+    # before the tests start, by breeze's _build_openlineage_e2e_compat_image and never pushed.
+    pull = not _is_image_present_locally(DOCKER_IMAGE)
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

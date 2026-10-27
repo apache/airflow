@@ -2012,6 +2012,7 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
     assert ti.state == TaskInstanceState.SKIPPED
+    assert ti.end_date == instant
 
     mock_supervisor_comms.send.assert_called_with(
         TaskState(state=TaskInstanceState.SKIPPED, end_date=instant)
@@ -6398,6 +6399,7 @@ class TestTaskRunnerCallsListeners:
             self.state = []
             self.component = None
             self.error = None
+            self.end_date = None
 
         @hookimpl
         def on_starting(self, component):
@@ -6419,6 +6421,7 @@ class TestTaskRunnerCallsListeners:
         @hookimpl
         def on_task_instance_skipped(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.SKIPPED)
+            self.end_date = task_instance.end_date
 
         @hookimpl
         def before_stopping(self, component):
@@ -6638,10 +6641,12 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
         context = runtime_ti.get_template_context()
-        state, _, _ = run(runtime_ti, context, log)
+        state, msg, _ = run(runtime_ti, context, log)
         finalize(runtime_ti, state, context, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
+        assert listener.end_date is not None
+        assert listener.end_date == msg.end_date
 
     def test_listener_access_outlet_event_on_running_and_success(
         self, mocked_parse, mock_supervisor_comms, listener_manager
@@ -7205,6 +7210,8 @@ class TestTriggerDagRunOperator:
 
         assert state == expected_state
         assert msg.state == expected_state
+        assert ti.end_date is not None
+        assert ti.end_date == msg.end_date
 
         expected_calls = [
             mock.call.send(

@@ -91,6 +91,9 @@
         "retries": {
           "type": "integer"
         },
+        "retry_delay": {
+          "type": "string"
+        },
         "retry_exponential_backoff": {
           "type": "boolean"
         },
@@ -125,6 +128,10 @@
             "group_id": {
               "type": "string"
             },
+            "unique_group_id": {
+              "description": "Id that identifies the group in the Dag, as the job facet names it.",
+              "type": "string"
+            },
             "downstream_group_ids": {
               "type": "string"
             },
@@ -146,6 +153,28 @@
           },
           "additionalProperties": true,
           "required": ["group_id"]
+        },
+        "loop": {
+          "description": "The loop the task runs in (Airflow 3.4+).",
+          "type": "object",
+          "properties": {
+            "group_id": {
+              "type": "string"
+            },
+            "max_iterations": {
+              "type": "integer"
+            },
+            "has_until": {
+              "type": "boolean"
+            },
+            "gate_task_id": {
+              "type": "string"
+            },
+            "terminal_task_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true,
@@ -195,6 +224,79 @@
         },
         "map_index": {
           "type": "integer"
+        },
+        "id": {
+          "description": "Id of the task instance attempt (Airflow 3+). Absent from the FAIL events the scheduler sends itself before Airflow 3.4, when the task instance already holds its next attempt's id.",
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "max_tries": {
+          "type": "integer"
+        },
+        "rendered_map_index": {
+          "type": "string"
+        },
+        "expanded_ti_count": {
+          "description": "Number of instances, removed ones excluded, in the mapped task's expansion, of this loop iteration in a loop (Airflow 3.4+). Absent from the events the scheduler sends itself.",
+          "type": "integer"
+        },
+        "region_id": {
+          "description": "Region the task instance is stored in (Airflow 3.4+): the mapped task's expansion, in a loop or not, and otherwise the loop's region, as `loop.region_id`.",
+          "type": "string"
+        },
+        "region_index": {
+          "description": "Position of the task instance in its region (Airflow 3.4+): the map index, from 0, of a mapped task, and otherwise the loop iteration, from 1, as `loop.index`. With `region_id`, the coordinates Airflow's REST API and UI select the task instance by.",
+          "type": "integer"
+        },
+        "dag_version_id": {
+          "type": "string"
+        },
+        "dag_bundle_name": {
+          "type": "string"
+        },
+        "dag_bundle_version": {
+          "type": "string"
+        },
+        "loop": {
+          "description": "The loop iteration of the task instance (Airflow 3.4+). The events the scheduler sends itself have at most `index`, for a task that isn't mapped.",
+          "type": "object",
+          "properties": {
+            "index": {
+              "description": "The iteration, from 1.",
+              "type": "integer"
+            },
+            "region_id": {
+              "description": "Region of the loop's run, shared by all its iterations; after a clear, the region of the rerun.",
+              "type": "string"
+            },
+            "trajectory": {
+              "description": "1 for the loop's first run, n + 1 for its n-th rerun after a clear.",
+              "type": "integer"
+            },
+            "forked_from_region_id": {
+              "description": "Region of the run a rerun after a clear was forked from.",
+              "type": "string"
+            },
+            "resumes_from_index": {
+              "description": "Iteration a rerun after a clear resumes from.",
+              "type": "integer"
+            },
+            "decision": {
+              "description": "Whether a loop gate stops the loop, once it decided.",
+              "type": "object",
+              "properties": {
+                "stop": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": true
         },
         "pool": {
           "type": "string"

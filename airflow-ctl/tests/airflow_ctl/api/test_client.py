@@ -362,6 +362,17 @@ class TestCredentials:
 
         assert not os.path.exists(config_dir)
 
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_EMPTY_CREDENTIALS"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_empty_or_corrupt_credentials(self, mock_keyring):
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_EMPTY_CREDENTIALS.json"), "w") as f:
+            f.write("")
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No credentials file found"):
+            Credentials(client_kind=cli_client).load()
+
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CONFIG_WITH_EXPLICIT_TOKEN"})
     @patch("airflowctl.api.client.keyring")
     def test_load_no_config_with_explicit_token(self, mock_keyring):
