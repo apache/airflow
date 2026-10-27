@@ -1077,6 +1077,7 @@ class AssetStateStoreAccessor:
         return msg
 
 
+@attrs.define
 class AssetStateStoreAccessors:
     """
     Mapping of asset state accessors for all concrete inlets and outlets of a task.
@@ -1089,42 +1090,38 @@ class AssetStateStoreAccessors:
     ``adelete``, ``aclear``) can be called directly without subscripting.
     """
 
-    def __init__(
-        self, inlets: list, outlets: list | None = None, stats_tags: dict[str, str] | None = None
-    ) -> None:
-        self._by_name: dict[str, AssetStateStoreAccessor] = {}
-        self._by_uri: dict[str, AssetStateStoreAccessor] = {}
-        self._stats_tags = stats_tags
+    _inlets: list
+    _outlets: list = attrs.field(factory=list)
+    _stats_tags: dict[str, str] | None = None
 
-        for inlet in inlets:
+    @functools.cached_property
+    def _by_name(self) -> dict[str, AssetStateStoreAccessor]:
+        by_name: dict[str, AssetStateStoreAccessor] = {}
+        for inlet in self._inlets:
             if isinstance(inlet, (Asset, AssetNameRef)):
-                self._by_name[inlet.name] = AssetStateStoreAccessor(
-                    name=inlet.name, stats_tags=self._stats_tags
-                )
-            elif isinstance(inlet, AssetUriRef):
-                self._by_uri[inlet.uri] = AssetStateStoreAccessor(uri=inlet.uri, stats_tags=self._stats_tags)
+                by_name[inlet.name] = AssetStateStoreAccessor(name=inlet.name, stats_tags=self._stats_tags)
             elif isinstance(inlet, AssetAlias):
                 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
                 resp = SUPERVISOR_COMMS.send(GetAssetsByAlias(alias_name=inlet.name))
                 if isinstance(resp, AssetsByAliasResult):
                     for asset in resp.assets:
-                        self._by_name[asset.name] = AssetStateStoreAccessor(
+                        by_name[asset.name] = AssetStateStoreAccessor(
                             name=asset.name, stats_tags=self._stats_tags
                         )
-
-        for outlet in outlets or []:
+        for outlet in self._outlets:
             # AssetAlias outlets are for dynamic event emission, not state access, so skip them
-            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in self._by_name:
-                self._by_name[outlet.name] = AssetStateStoreAccessor(
-                    name=outlet.name, stats_tags=self._stats_tags
-                )
-            elif isinstance(outlet, AssetUriRef) and outlet.uri not in self._by_uri:
-                self._by_uri[outlet.uri] = AssetStateStoreAccessor(
-                    uri=outlet.uri, stats_tags=self._stats_tags
-                )
+            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in by_name:
+                by_name[outlet.name] = AssetStateStoreAccessor(name=outlet.name, stats_tags=self._stats_tags)
+        return by_name
 
-        self._total = len(self._by_name) + len(self._by_uri)
+    @functools.cached_property
+    def _by_uri(self) -> dict[str, AssetStateStoreAccessor]:
+        by_uri: dict[str, AssetStateStoreAccessor] = {}
+        for obj in itertools.chain(self._inlets, self._outlets):
+            if isinstance(obj, AssetUriRef) and obj.uri not in by_uri:
+                by_uri[obj.uri] = AssetStateStoreAccessor(uri=obj.uri, stats_tags=self._stats_tags)
+        return by_uri
 
     def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateStoreAccessor:
         try:
@@ -1137,9 +1134,10 @@ class AssetStateStoreAccessors:
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
 
     def _single_accessor(self) -> AssetStateStoreAccessor:
-        if self._total != 1:
+        if (total := len(self._by_name) + len(self._by_uri)) != 1:
             raise ValueError(
-                f"Task has {self._total} concrete inlets and outlets — use context['asset_state_store'][MY_ASSET] to specify which"
+                f"Task has {total} concrete inlets and outlets; "
+                f"use context['asset_state_store'][MY_ASSET] to specify which"
             )
         if self._by_name:
             return next(iter(self._by_name.values()))
@@ -1510,7 +1508,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         return self._asset_events[key]
 
 
-@attrs.define(init=False)
+@attrs.define
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
     _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
@@ -1518,25 +1516,31 @@ class InletEventsAccessors(
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
-    _assets: dict[AssetUniqueKey, Asset]
-    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
 
-    def __init__(self, inlets: list) -> None:
-        self._inlets = inlets
-        self._assets = {}
-        self._asset_aliases = {}
-
-        for inlet in inlets:
+    @functools.cached_property
+    def _assets(self) -> dict[AssetUniqueKey, Asset]:
+        # Built on first access since resolving refs requires communicating
+        # with the supervisor.
+        assets: dict[AssetUniqueKey, Asset] = {}
+        for inlet in self._inlets:
             if isinstance(inlet, Asset):
-                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
-            elif isinstance(inlet, AssetAlias):
-                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
+                asset = inlet
             elif isinstance(inlet, AssetNameRef):
                 asset = OutletEventAccessors._get_asset_from_db(name=inlet.name)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
             elif isinstance(inlet, AssetUriRef):
                 asset = OutletEventAccessors._get_asset_from_db(uri=inlet.uri)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+            else:
+                continue
+            assets[AssetUniqueKey.from_asset(asset)] = asset
+        return assets
+
+    @functools.cached_property
+    def _asset_aliases(self) -> dict[AssetAliasUniqueKey, AssetAlias]:
+        return {
+            AssetAliasUniqueKey.from_asset_alias(inlet): inlet
+            for inlet in self._inlets
+            if isinstance(inlet, AssetAlias)
+        }
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(self._inlets)
