@@ -914,8 +914,6 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         task_logger = logger or log
         rel_path = os.fspath(dag_rel_path)
-        # The lock and the scan roots are entered under _raise_as_launch_error, so failing to enter
-        # them is reported as a launch failure too, but released only once wait() returns.
         with contextlib.ExitStack() as stack:
             with _raise_as_launch_error(
                 f"Cannot prepare the runtime of task {what.task_id!r} in Dag {what.dag_id!r}"
