@@ -137,6 +137,8 @@ from tests_common.test_utils.taskinstance import (
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
@@ -650,7 +652,7 @@ class TestTaskInstance:
         )
 
         ti.run(session=session)
-        executor_configs = session.scalars(
+        executor_configs: Sequence[dict | None] = session.scalars(
             select(TaskInstance.executor_config).where(TaskInstance.dag_id == ti.dag_id)
         ).all()
         assert executor_configs == [{"foo": "bar"}]
@@ -1971,6 +1973,30 @@ class TestTaskInstance:
 
         expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op/mapped/1?try_number=2"
         assert ti.log_url == expected_url
+
+    @pytest.mark.parametrize(
+        ("mapped", "mapped_path"),
+        [
+            pytest.param(False, "", id="loop_iteration"),
+            pytest.param(True, "/mapped/1", id="mapped"),
+            pytest.param(None, "", id="task_not_attached"),
+        ],
+    )
+    def test_log_url_selects_a_task_instance_in_a_region_by_its_region(self, dag_maker, mapped, mapped_path):
+        with dag_maker("my_dag", serialized=True):
+            if mapped:
+                BashOperator.partial(task_id="op").expand(bash_command=["echo 1", "echo 2"])
+            else:
+                EmptyOperator(task_id="op")
+        ti = dag_maker.create_dagrun(run_id="test").task_instances[0]
+        ti.region_id, ti.region_index, ti.try_number = uuid6.uuid7(), 1, 2
+        if mapped is None:
+            ti.task = None
+
+        assert ti.log_url == (
+            f"http://localhost:8080/dags/my_dag/runs/test/tasks/op{mapped_path}"
+            f"?region_id={ti.region_id}&region_index=1&try_number=2"
+        )
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -3992,7 +4018,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        with assert_queries_count(11, margin=2):
+        with assert_queries_count(10):
             mapped_tis, max_map_index = expand_mapped_task_instances(
                 show_task, dag_run.run_id, session=session
             )
@@ -5105,6 +5131,74 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize(
+    "state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+)
+def test_set_state_clears_retry_policy_columns_when_leaving_up_for_retry(dag_maker, session, state):
+    """A retry marked terminal by hand never runs, so it must not keep the previous attempt's values."""
+    with dag_maker("test_set_state_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(state, session=session)
+
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
+
+
+@pytest.mark.db_test
+def test_set_state_keeps_retry_policy_columns_while_up_for_retry(dag_maker, session):
+    """next_retry_datetime() reads the override while the task waits, so a re-set must not clear it."""
+    with dag_maker("test_set_state_keeps_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(TaskInstanceState.UP_FOR_RETRY, session=session)
+
+    assert ti.retry_reason == "rate limit"
+    assert ti.retry_delay_override == 300.0
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
+    """Neither column may survive the clear."""
+    with dag_maker("test_clear_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.FAILED
+    ti.retry_reason = "auth error, do not retry"
+    ti.retry_delay_override = 300.0
+    session.flush()
+    old_id = ti.id
+
+    clear_task_instances([ti], session)
+    session.flush()
+    session.expire_all()
+
+    # The archived try keeps its own values, so the reset cannot move above the archive.
+    archived = session.get(TI, old_id)
+    assert archived.working_set is None
+    assert archived.retry_reason == "auth error, do not retry"
+    assert archived.retry_delay_override == 300.0
+
+    successor = dag_run.get_task_instance("t1", session=session)
+    assert successor.id != old_id
+    assert successor.retry_reason is None
+    assert successor.retry_delay_override is None
+
+
+@pytest.mark.db_test
 def test_clear_task_instances_preserves_detail_level(dag_maker, session):
     """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
     from airflow._shared.observability.traces import (
@@ -5223,16 +5317,17 @@ def display_coordinates_tis(dag_maker, session):
         run_id=dr.run_id,
         node_id="body.inner_mapped",
         parent_region_id=loop_region.id,
-        parent_region_index=1,
+        parent_region_index=2,
         session=session,
     )
-    for task_id, region in (("body.step", loop_region), ("body.inner_mapped", inner_region)):
-        tis[task_id, 1] = TaskInstance(
+    # Keyed by iteration: `step` carries it as its own index, `inner_mapped` carries a map index instead.
+    for task_id, region, index in (("body.step", loop_region, 2), ("body.inner_mapped", inner_region, 1)):
+        tis[task_id, 2] = TaskInstance(
             dag.get_task(task_id),
             run_id=dr.run_id,
             dag_version_id=dr.created_dag_version_id,
             region_id=region.id,
-            region_index=1,
+            region_index=index,
         )
     return tis
 
@@ -5243,7 +5338,7 @@ def display_coordinates_tis(dag_maker, session):
         pytest.param(("mapped", 1), False, {"map_index": 1}, id="mapped task outside a loop"),
         pytest.param(("plain", -1), False, {}, id="unmapped task"),
         pytest.param(("plain", -1), True, {"map_index": -1}, id="unmapped task, index requested"),
-        pytest.param(("body.step", 1), False, {"iteration": 1}, id="unmapped loop-body task"),
+        pytest.param(("body.step", 2), False, {"iteration": 2}, id="unmapped loop-body task"),
     ],
 )
 def test_display_coordinates(display_coordinates_tis, key, include_unmapped, expected):
@@ -5252,7 +5347,7 @@ def test_display_coordinates(display_coordinates_tis, key, include_unmapped, exp
 
 
 def test_display_coordinates_of_a_mapped_loop_body_task_keep_the_region(display_coordinates_tis):
-    ti = display_coordinates_tis["body.inner_mapped", 1]
+    ti = display_coordinates_tis["body.inner_mapped", 2]
     assert ti.get_display_coordinates() == {"region_id": str(ti.region_id), "region_index": 1}
 
 
@@ -5261,7 +5356,7 @@ def test_display_coordinates_of_a_mapped_loop_body_task_keep_the_region(display_
     [
         pytest.param(("mapped", 1), True, True, id="mapped task outside a loop"),
         pytest.param(("mapped", 1), False, False, id="detached mapped task outside a loop"),
-        pytest.param(("body.inner_mapped", 1), True, False, id="mapped loop-body task"),
+        pytest.param(("body.inner_mapped", 2), True, False, id="mapped loop-body task"),
     ],
 )
 def test_display_coordinates_without_the_task_definition(
@@ -5455,7 +5550,7 @@ def test_archive_decides_from_the_state_committed_after_the_lock(completed_loop,
     stale = next(
         ti
         for ti in dr.get_task_instances(session=session)
-        if ti.task_id == "body.consume" and ti.region_index == 2
+        if ti.task_id == "body.consume" and ti.region_index == 3
     )
     stale.state, stale.start_date, stale.end_date = State.QUEUED, None, None
     session.flush()
@@ -5477,11 +5572,11 @@ def test_archive_decides_from_the_state_committed_after_the_lock(completed_loop,
 def test_mapped_archival_ack_uses_fork_facts_when_definition_is_missing(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     archiving = next(
-        ti for ti in tis if ti.task_id == "body.process" and iteration(ti) == 3 and ti.region_index == 0
+        ti for ti in tis if ti.task_id == "body.process" and iteration(ti) == 4 and ti.region_index == 0
     )
     archiving.state = State.RUNNING
     session.flush()
-    gate = next(ti for ti in tis if ti.task_id == loop.gate_task_id and ti.region_index == 2)
+    gate = next(ti for ti in tis if ti.task_id == loop.gate_task_id and ti.region_index == 3)
     clear_loop_task_instances([gate], downstream=False, session=session)
     session.execute(
         delete(SerializedDagModel).where(SerializedDagModel.dag_version_id == archiving.dag_version_id)

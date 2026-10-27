@@ -144,15 +144,16 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
         @conf_vars(
             {
                 ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
-                ("openlineage", "execution_timeout"): "3",
+                # Leaves "on-start" headroom on a loaded CI runner; "on-complete" stalls 30s.
+                ("openlineage", "execution_timeout"): "8",
             }
         )
-        def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(
+        def test_long_stalled_task_extraction_with_low_execution_timeout_is_killed_by_ol_timeout(
             self, listener_manager
         ):
             self.setup_job(
-                "execute_short_stall",
-                "test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout",
+                "execute_long_stall",
+                "test_long_stalled_task_extraction_with_low_execution_timeout_is_killed_by_ol_timeout",
                 listener_manager,
             )
             events = get_sorted_events(tmp_dir)

@@ -23,7 +23,9 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import requests
 from requests import HTTPError
+from requests.exceptions import JSONDecodeError
 from tenacity import RetryError
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
@@ -852,3 +854,32 @@ class TestGoogleDataprepFlowPathHooks:
             )
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
+
+
+class TestGoogleDataprepHookRaiseForStatus:
+    def setup_method(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
+            conn.return_value.extra_dejson = EXTRA
+            self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
+
+    @pytest.mark.parametrize(
+        ("json_kwargs", "text"),
+        [
+            pytest.param(
+                {"side_effect": JSONDecodeError("Expecting value", "", 0)},
+                "<html>502 Bad Gateway</html>",
+                id="body-is-not-json",
+            ),
+            pytest.param({"return_value": ["boom"]}, '["boom"]', id="body-is-not-an-object"),
+        ],
+    )
+    @mock.patch.object(GoogleDataprepHook, "log", new_callable=mock.PropertyMock)
+    def test_raises_http_error_and_logs_raw_body(self, mock_log, json_kwargs, text):
+        response = mock.create_autospec(requests.Response, instance=True)
+        response.raise_for_status.side_effect = HTTPError()
+        response.json.configure_mock(**json_kwargs)
+        response.text = text
+
+        with pytest.raises(HTTPError):
+            self.hook._raise_for_status(response)
+        mock_log.return_value.error.assert_called_once_with(text)

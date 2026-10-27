@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button, Box, Spacer, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
@@ -64,6 +64,8 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore(namespace);
+  // The request this form was loaded for. The server refuses the answer if the task has asked again since.
+  const loadedCreatedAt = useRef(hitlDetail.created_at);
   const [searchParams] = useSearchParams();
   const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
 
@@ -77,6 +79,16 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
 
   const isPending = isHITLPending(hitlDetail.task_instance.state);
 
+  const chosenOptionsValue = paramsDict.chosen_options?.value;
+  const isChosenOptionsEmpty = Array.isArray(chosenOptionsValue)
+    ? chosenOptionsValue.length === 0
+    : chosenOptionsValue === undefined || chosenOptionsValue === null || chosenOptionsValue === "";
+  const isSelectionMissing =
+    !(shouldRenderOptionButton || isApprovalTask) &&
+    isPending &&
+    !hitlDetail.response_received &&
+    isChosenOptionsEmpty;
+
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
@@ -88,7 +100,7 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   });
 
   const handleSubmit = (option?: string) => {
-    if (errors || isSubmitting) {
+    if (errors || isSubmitting || isSelectionMissing) {
       return;
     }
 
@@ -97,7 +109,7 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
     try {
       const formData = getHITLFormData(paramsDict, option);
 
-      updateHITLResponse(formData);
+      updateHITLResponse({ ...formData, request_created_at: loadedCreatedAt.current });
     } catch {
       setErrors(true);
     }
@@ -148,13 +160,20 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
               </Button>
             ))
           ) : hitlDetail.response_received ? undefined : (
-            <Button
-              disabled={errors || isSubmitting || !isPending}
-              loading={isSubmitting}
-              onClick={() => handleSubmit()}
-            >
-              <FiSend /> {translate("response.respond")}
-            </Button>
+            <>
+              {isSelectionMissing ? (
+                <Text color="fg.muted" fontSize="sm">
+                  {translate("response.selectAtLeastOne")}
+                </Text>
+              ) : undefined}
+              <Button
+                disabled={errors || isSubmitting || !isPending || isSelectionMissing}
+                loading={isSubmitting}
+                onClick={() => handleSubmit()}
+              >
+                <FiSend /> {translate("response.respond")}
+              </Button>
+            </>
           )}
         </HStack>
       </Box>

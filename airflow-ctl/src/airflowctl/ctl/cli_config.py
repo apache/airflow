@@ -248,7 +248,7 @@ ARG_AUTH_URL = Arg(
     type=str,
     default="http://localhost:8080",
     dest="api_url",
-    help="The URL of the metadata database API",
+    help="The URL of the Airflow API server",
 )
 ARG_AUTH_TOKEN = Arg(
     flags=("--api-token",),
@@ -492,7 +492,7 @@ class CommandFactory:
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
-    commands_map: dict[str, list[ActionCommand]]
+    commands_map: dict[str, list[CLICommand]]
     group_commands_list: list[CLICommand]
     auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
@@ -535,6 +535,12 @@ class CommandFactory:
         self.excluded_output_keys = [
             "total_entries",
         ]
+        # Lookup for building nested subcommands. Each entry is the shared method suffix
+        # (hyphenated into the subcommand name).
+        # e.g. list_state_store -> "taskinstances state-store list".
+        self.subgroups: dict[str, set[str]] = {
+            "TaskInstancesOperations": {"state_store"},
+        }
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -699,6 +705,13 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
+        """Find the subgroup suffix an operation belongs to, if one exists."""
+        for suffix in self.subgroups.get(operation_group_name, set()):
+            if operation_name.endswith(f"_{suffix}"):
+                return suffix
+        return None
 
     @staticmethod
     def _get_bool_arg_default(field_default: Any) -> bool | None:
@@ -961,6 +974,7 @@ class CommandFactory:
 
     def _create_group_commands_from_operation(self):
         """Create GroupCommand from Operation Methods."""
+        subgroup_commands_map: dict[tuple[str, str], list[ActionCommand]] = {}
         for operation in self.operations:
             operation_name = operation["name"]
             operation_group_name = operation["parent"].name
@@ -969,12 +983,34 @@ class CommandFactory:
             )
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
+            subgroup_suffix = self._find_subgroup_suffix(
+                operation_group_name=operation_group_name, operation_name=operation_name
+            )
+            command_name = (
+                operation_name.removesuffix(f"_{subgroup_suffix}") if subgroup_suffix else operation_name
+            )
+            action_command = ActionCommand(
+                name=command_name.replace("_", "-"),
+                help=help_text,
+                func=self.func_map[(operation_name, operation_group_name)],
+                args=self.args_map[(operation_name, operation_group_name)],
+            )
+            if subgroup_suffix:
+                subgroup_commands_map.setdefault((operation_group_name, subgroup_suffix), []).append(
+                    action_command
+                )
+            else:
+                self.commands_map[operation_group_name].append(action_command)
+
+        for (operation_group_name, subgroup_suffix), action_commands in subgroup_commands_map.items():
+            subgroup_name = subgroup_suffix.replace("_", "-")
             self.commands_map[operation_group_name].append(
-                ActionCommand(
-                    name=operation["name"].replace("_", "-"),
-                    help=help_text,
-                    func=self.func_map[(operation_name, operation_group_name)],
-                    args=self.args_map[(operation_name, operation_group_name)],
+                GroupCommand(
+                    name=subgroup_name,
+                    help=self.help_texts.get(operation_group_name.replace("Operations", "").lower(), {}).get(
+                        subgroup_name
+                    ),
+                    subcommands=action_commands,
                 )
             )
 
@@ -1081,8 +1117,12 @@ command_factory = CommandFactory()
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
-        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
-        description="Login to the metadata database",
+        help="Log in to the Airflow API server with an API token or a username and password",
+        description=(
+            "Log in to the Airflow API server and store the credentials for the selected environment. "
+            "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
+            "missing credentials are prompted for when running in a terminal."
+        ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
             ARG_AUTH_URL,

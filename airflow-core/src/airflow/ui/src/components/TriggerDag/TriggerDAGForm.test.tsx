@@ -17,11 +17,14 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 
+import { MOCK_DAG } from "src/mocks/handlers/dag";
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -64,7 +67,21 @@ vi.mock("src/queries/useTogglePause", () => ({
 vi.mock("openapi/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof OpenapiQueries>();
 
-  return { ...actual, useDagRunServiceGetDagRuns: vi.fn(() => ({ data: undefined })) };
+  return {
+    ...actual,
+    useDagRunServiceGetDagRuns: vi.fn(() => ({
+      data: {
+        dag_runs: [
+          {
+            conf: { message: "From recent" },
+            dag_run_id: "run_recent",
+            run_after: "2025-01-01T00:00:00Z",
+          },
+        ],
+      },
+      isLoading: false,
+    })),
+  };
 });
 
 vi.mock("../DateTimeInput", () => ({
@@ -158,6 +175,49 @@ describe("TriggerDAGForm", () => {
 
     expect(screen.queryByText("pausedDag.drain")).not.toBeInTheDocument();
   });
+
+  it.each([
+    {
+      dates: { end_date: null, start_date: "2000-01-01T00:00:00Z" },
+      scenario: "within the Dag's dates",
+      text: "components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: null, start_date: "2999-01-01T00:00:00Z" },
+      scenario: "before the Dag's start date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: "2000-01-01T00:00:00Z", start_date: "1999-01-01T00:00:00Z" },
+      scenario: "after the Dag's end date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.both",
+    },
+  ])(
+    "shows the Dag start and end dates when the default logical date is $scenario",
+    async ({ dates, text }) => {
+      server.use(
+        http.get("/api/v2/dags/dated_dag/details", () =>
+          HttpResponse.json({ ...MOCK_DAG, ...dates, dag_id: "dated_dag" }),
+        ),
+      );
+
+      render(
+        <TriggerDAGForm
+          dagId="dated_dag"
+          error={undefined}
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused={false}
+          isPending={false}
+          onSubmitTrigger={vi.fn()}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      expect(await screen.findByText(text)).toBeInTheDocument();
+    },
+  );
 
   it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
     useDagParamsMock.mockReturnValue({ paramsDict: {} });
@@ -272,5 +332,106 @@ describe("TriggerDAGForm", () => {
 
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
+
+  it("prefills the form when a recent configuration is selected from the dropdown", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"From recent"');
+    });
+  });
+
+  it("keeps user-entered run id and note when a recent configuration is selected", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const runIdInput = await screen.findByLabelText("runId");
+
+    fireEvent.change(runIdInput, { target: { value: "my_custom_run" } });
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+    expect(screen.getByLabelText("runId")).toHaveValue("my_custom_run");
+  });
+
+  it("hides the recent configuration dropdown when re-triggering with a prior run's config", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={{
+          conf: { message: "Original message" },
+          logicalDate: undefined,
+          runId: "manual__test",
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "Original message",
+      ),
+    );
+    expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
   });
 });

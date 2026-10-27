@@ -23,6 +23,7 @@
 - [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [CI of the `vX-Y-test` branch](#ci-of-the-vx-y-test-branch)
   - [Beta releases: fast-forwarding `vX-Y-test` to `main`](#beta-releases-fast-forwarding-vx-y-test-to-main)
   - [i18n workflow](#i18n-workflow)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
@@ -105,6 +106,54 @@ The first step of a release is to work out what is being included. This differs 
 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
 
+## CI of the `vX-Y-test` branch
+
+Release branches do not run the full CI on every push. Backports land in bursts while a release is
+prepared, and a full AMD + ARM run per merged commit was mostly cancelled by the next merge. Instead:
+
+- **Full runs** are started by
+  [`release-branch-ci.yml`](../.github/workflows/release-branch-ci.yml) on every release branch whose
+  HEAD has not had a successful full run yet: `Tests (AMD)` at 04:43 and 16:43 UTC, `Tests (ARM)` at
+  10:43 and 22:43 UTC. A failed or cancelled run of HEAD is repeated at the next slot. They are
+  `workflow_dispatch` runs of `ci-amd.yml` / `ci-arm.yml` on the branch, run the full matrix, and
+  refresh the branch's constraints and image cache, as the push runs used to.
+- **Incremental tests on push**: every push starts a `Tests (AMD)` run that tests only what changed
+  since the last successful run of `Tests (AMD)` on the branch (push or full run), selected the same
+  way as for a PR with those changes. A newer push cancels the push run still in progress, and its
+  run then also covers the cancelled run's changes; changes from a failed run are tested again by
+  the next one. A broken backport therefore shows up within the hour, not at the next full run.
+
+Nothing needs to be switched on or off for a release. Branches cut from `main` after this was
+introduced have it already. An older release branch only behaves this way once the change to
+`ci-amd.yml` / `ci-arm.yml` that introduced it has been backported to it; until then it keeps
+running the full CI on every push.
+
+### Before cutting an RC: check the full run of the branch HEAD
+
+The incremental push runs do not replace the full run. Before you cut an RC (or open the PR syncing
+`vX-Y-test` into `vX-Y-stable`), make sure both the AMD and the ARM full run of the current HEAD of
+`vX-Y-test` have succeeded:
+
+```shell script
+git ls-remote https://github.com/apache/airflow.git refs/heads/vX-Y-test
+gh run list --repo apache/airflow --workflow ci-amd.yml --branch vX-Y-test --event workflow_dispatch \
+    --limit 1 --json headSha,status,conclusion,url
+gh run list --repo apache/airflow --workflow ci-arm.yml --branch vX-Y-test --event workflow_dispatch \
+    --limit 1 --json headSha,status,conclusion,url
+```
+
+The `headSha` of each run must be the SHA `git ls-remote` printed. If the last run is for an older
+commit, start the full runs now instead of waiting for the next slot, and check again when they finish:
+
+```shell script
+gh workflow run release-branch-ci.yml --repo apache/airflow -f branch=vX-Y-test
+```
+
+This starts both architectures for the branch HEAD (add `-f platform=amd` or `-f platform=arm` for
+one of them, and `-f force=true` to repeat a run that already succeeded for HEAD). You can also start
+one directly with `gh workflow run ci-amd.yml --repo apache/airflow --ref vX-Y-test`. Starting a new
+full run cancels the full run of the same workflow already in progress on the branch.
+
 ## Beta releases: fast-forwarding `vX-Y-test` to `main`
 
 For a *major* or *minor* release, the `vX-Y-test` branch is created early (see
@@ -133,8 +182,8 @@ no vote.
 
    It validates that `vX-Y-test` exists, checks out its tip, tags the beta there, builds and signs
    the artifacts, resolves constraints through the `release-constraints` workflow from `vX-Y-test`
-   (exactly like an `rc`: provider rc waves are allowed and the result lands on its own
-   `constraints-X.Y.0bN` branch and tag, leaving the shared `constraints-X-Y` untouched), uploads to
+   (exactly like an `rc`: provider rc waves are allowed, the result is committed onto the shared
+   `constraints-X-Y` branch and tagged `constraints-X.Y.0bN`), uploads to
    SVN dev and PyPI, and pushes the tags. Everything downstream of the tag is the same as an `rc`;
    only the branch/sync/vote handling differs.
 
@@ -608,10 +657,12 @@ still works but is no longer recommended.
 > RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
 > without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
-> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
-> check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
-> (adjust the branch filter for the relevant `v3-X-test` branch).
+> verify that the full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the `v3-X-test` HEAD have
+> succeeded before cutting the RC, as described in
+> [Before cutting an RC: check the full run of the branch HEAD](#before-cutting-an-rc-check-the-full-run-of-the-branch-head).
+> You can see them at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Aworkflow_dispatch+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch, and check `ci-arm.yml` the same way).
 
 - When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
 
@@ -671,9 +722,9 @@ still works but is no longer recommended.
    allowance is scoped to `apache-airflow-providers-*`; no other package can resolve to a
    pre-release, so a beta of some third-party library cannot slip into what the candidate ships.
 
-   The result lands on a branch of its own (`constraints-${VERSION_RC}`) and is tagged
-   `constraints-${VERSION_RC}`. The shared `constraints-X-Y` branch is left where it was — only
-   the final release moves it.
+   The result is committed onto the shared `constraints-X-Y` branch and tagged
+   `constraints-${VERSION_RC}`. There is no `constraints-${VERSION_RC}` branch — a branch with the
+   same name as the tag would make the name ambiguous, so the workflow fails if it finds one.
 
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
@@ -1506,7 +1557,7 @@ disagree with the version:
 
 | `--version` | Provider pins | Lands on | Tagged |
 |---|---|---|---|
-| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3.3.1rc1`, branched off `constraints-3-3` | `constraints-3.3.1rc1` |
+| `3.3.1rc1` | newest in PyPI, `rcN` included | `constraints-3-3` (commit) | `constraints-3.3.1rc1` |
 | `3.3.1` | newest final in PyPI | `constraints-3-3` (commit) | `constraints-3.3.1` |
 
 The providers are pinned rather than resolved: every `apache-airflow-providers-*` is named with
@@ -1517,9 +1568,10 @@ candidate in the wave keeps its release. A final ignores candidates entirely, wh
 it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
 graph can resolve to a pre-release, since no other requirement mentions one.
 
-Re-running the workflow for the same candidate deletes and re-creates that candidate's branch and
-tag, so redoing a candidate's constraints just works. A final is never treated this way - it commits
-onto the shared `constraints-X-Y` branch, whose history everything downstream reads.
+Re-running the workflow for the same candidate adds another commit onto `constraints-X-Y` and
+re-creates the candidate's tag on it, so redoing a candidate's constraints just works. If a
+leftover `constraints-${VERSION}` branch exists (from when candidates had a branch of their own),
+the workflow stops and asks for it to be deleted first.
 
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in

@@ -320,6 +320,7 @@ These macros:
 
   * ``lineage_job_namespace()`` - Returns OpenLineage namespace for a given task_instance
   * ``lineage_job_name(task_instance)`` - Returns OpenLineage job name for a given task_instance
+  * ``lineage_job_type()`` - Returns OpenLineage job type facet fields (``processingType``, ``integration``, ``jobType``) of an Airflow task
   * ``lineage_run_id(task_instance)`` - Returns the generated OpenLineage run id for a given task_instance
 
 describe the Airflow task and should be used as **parent** information when configuring child jobs. From the child job's perspective,
@@ -367,6 +368,9 @@ These macros:
   * ``lineage_root_job_namespace(task_instance)`` - Returns OpenLineage namespace of root job of a given task_instance
   * ``lineage_root_job_name(task_instance)`` - Returns OpenLineage job name of root job of a given task_instance
   * ``lineage_root_run_id(task_instance)`` - Returns OpenLineage run ID of root run of a given task_instance
+  * ``lineage_root_job_type(task_instance)`` - Returns OpenLineage job type facet fields (``processingType``, ``integration``,
+    ``jobType``) of root job of a given task_instance, or ``None`` if the root comes from the DagRun conf and its job type
+    is missing or invalid
 
 forward the Airflow task's root information into the child job and should be used as **root** information when configuring child jobs.
 This allows the child job to maintain the complete job hierarchy, especially in scenarios where tasks are executed as part of a larger workflow.
@@ -384,6 +388,34 @@ This allows the child job to maintain the complete job hierarchy, especially in 
             "spark.openlineage.rootRunId": "{{ macros.OpenLineageProviderPlugin.lineage_root_run_id(task_instance) }}",
         },
     )
+
+Job type macros
+^^^^^^^^^^^^^^^^
+
+Unlike the other ``lineage_*`` macros, ``lineage_job_type()`` and ``lineage_root_job_type(task_instance)`` return a
+dictionary (``lineage_root_job_type`` may also return ``None``) instead of a string. Rendered in a template as is,
+the dictionary becomes its Python representation (with single quotes, and ``None`` for an unknown type), which is not
+valid JSON. When the value is passed as a string, for example in a Spark conf or an HTTP payload, serialize it with
+the ``tojson`` filter:
+
+.. code-block:: python
+
+    PythonOperator(
+        task_id="trigger_external_job",
+        python_callable=call_external_api,
+        op_kwargs={
+            "parent_job_type": "{{ macros.OpenLineageProviderPlugin.lineage_job_type() | tojson }}",
+            "root_job_type": "{{ macros.OpenLineageProviderPlugin.lineage_root_job_type(task_instance) | tojson }}",
+        },
+    )
+
+Alternatively, set ``render_template_as_native_obj=True`` on the Dag to get the dictionaries as they are, or call
+the macros directly from Python.
+
+When a Dag run is triggered with job types in its ``openlineage`` conf (``parentJobType`` and ``rootParentJobType``,
+as injected by ``TriggerDagRunOperator``), they are added as the ``jobType`` facet of the parent and root jobs in
+the ``ParentRunFacet``. Only complete job type information is supported - a value missing any of ``processingType``,
+``integration`` or ``jobType`` is ignored.
 
 Joined identifiers
 ^^^^^^^^^^^^^^^^^^^

@@ -985,6 +985,7 @@ export const $BackfillPostBody = {
         },
         max_active_runs: {
             type: 'integer',
+            minimum: 1,
             title: 'Max Active Runs',
             default: 10
         },
@@ -2586,7 +2587,6 @@ export const $Config = {
             title: 'Sections'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['sections'],
     title: 'Config',
@@ -2621,7 +2621,6 @@ export const $ConfigOption = {
             title: 'Value'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['key', 'value'],
     title: 'ConfigOption',
@@ -2642,7 +2641,6 @@ export const $ConfigSection = {
             title: 'Options'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['name', 'options'],
     title: 'ConfigSection',
@@ -5202,7 +5200,6 @@ export const $DagRunAssetReference = {
             description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
@@ -5269,7 +5266,6 @@ export const $DagScheduleAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
@@ -6708,7 +6704,9 @@ export const $LoopIterationResponse = {
         },
         iteration: {
             type: 'integer',
-            title: 'Iteration'
+            minimum: 1,
+            title: 'Iteration',
+            description: 'Position in the enclosing loop, counting from one.'
         }
     },
     type: 'object',
@@ -7003,6 +7001,126 @@ export const $PluginImportErrorResponse = {
     description: 'Plugin Import Error serializer for responses.'
 } as const;
 
+export const $PluginLinkActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'link',
+            title: 'Action Type'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'href'],
+    title: 'PluginLinkActionResponse',
+    description: 'Serializer for a UI action that opens a URL.'
+} as const;
+
+export const $PluginReactActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'react',
+            title: 'Action Type'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'bundle_url'],
+    title: 'PluginReactActionResponse',
+    description: 'Serializer for a UI action that mounts a React component behind a button.'
+} as const;
+
 export const $PluginResponse = {
     properties: {
         name: {
@@ -7063,6 +7181,28 @@ export const $PluginResponse = {
             type: 'array',
             title: 'React Apps'
         },
+        ui_actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/PluginLinkActionResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/PluginReactActionResponse'
+                    }
+                ],
+                discriminator: {
+                    propertyName: 'action_type',
+                    mapping: {
+                        link: '#/components/schemas/PluginLinkActionResponse',
+                        react: '#/components/schemas/PluginReactActionResponse'
+                    }
+                }
+            },
+            type: 'array',
+            title: 'Ui Actions',
+            description: 'User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.'
+        },
         appbuilder_views: {
             items: {
                 '$ref': '#/components/schemas/AppBuilderViewResponse'
@@ -7122,6 +7262,7 @@ export const $PoolBody = {
         name: {
             type: 'string',
             maxLength: 256,
+            pattern: '\\S',
             title: 'Name'
         },
         slots: {
@@ -7697,7 +7838,6 @@ export const $TaskInletAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskInletAssetReference',
@@ -8053,7 +8193,7 @@ export const $TaskInstanceHistoryResponse = {
                 }
             ],
             title: 'State Reason',
-            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
+            description: 'The reason this try ended, as recorded by a retry policy.'
         }
     },
     type: 'object',
@@ -8388,7 +8528,7 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'State Reason',
-            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.'
         }
     },
     type: 'object',
@@ -8848,7 +8988,6 @@ export const $TaskOutletAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskOutletAssetReference',
@@ -9549,6 +9688,19 @@ export const $UpdateHITLDetailPayload = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
+        },
+        request_created_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Request Created At',
+            description: 'The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.'
         }
     },
     type: 'object',
@@ -9599,6 +9751,7 @@ export const $VariableBody = {
         key: {
             type: 'string',
             maxLength: 250,
+            pattern: '\\S',
             title: 'Key'
         },
         value: {
@@ -10293,6 +10446,13 @@ export const $CalendarTimeRangeResponse = {
     required: ['date', 'state', 'count'],
     title: 'CalendarTimeRangeResponse',
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
+} as const;
+
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ConfigResponse = {
@@ -11277,10 +11437,40 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        callback_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Callback Id'
+        },
+        callback_type: {
+            type: 'string',
+            title: 'Callback Type'
+        },
+        callback_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/CallbackState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        callback_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Path'
         }
     },
     type: 'object',
-    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
+    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id', 'callback_id', 'callback_type'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
 } as const;
@@ -12098,6 +12288,29 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Loop Iterations Count'
+        },
+        latest_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Id'
+        },
+        latest_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Index'
         }
     },
     type: 'object',
@@ -12150,6 +12363,11 @@ export const $LoopIterationSummary = {
             type: 'integer',
             title: 'Index'
         },
+        task_count: {
+            type: 'integer',
+            title: 'Task Count',
+            default: 0
+        },
         state: {
             anyOf: [
                 {
@@ -12183,6 +12401,11 @@ export const $LoopIterationSummary = {
                 }
             ],
             title: 'End Date'
+        },
+        decision_reason: {
+            type: 'string',
+            title: 'Decision Reason',
+            description: "Why the loop's gate continued or stopped the loop at this iteration, if its until callable said."
         }
     },
     type: 'object',

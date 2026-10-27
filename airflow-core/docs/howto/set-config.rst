@@ -175,7 +175,7 @@ the example below.
 .. _set-config:configuring-local-settings:
 
 Configuring local settings
-==========================
+--------------------------
 
 Some Airflow configuration is configured via local setting, because they require changes in the
 code that is executed when Airflow is initialized. Usually it is mentioned in the detailed documentation

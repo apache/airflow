@@ -337,6 +337,7 @@ class LocalExecutor(BaseExecutor):
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             key = self.get_workload_key(workload)
+            self._read_results()
             self.activity_queue.put(workload)
             removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:

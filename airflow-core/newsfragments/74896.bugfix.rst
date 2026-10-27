@@ -1,0 +1,1 @@
+The REST API now rejects a pool name or variable key that is empty or only whitespace. ``POST /api/v2/pools`` and ``POST /api/v2/variables`` return 422 for such a value, and ``PATCH /api/v2/pools/{pool_name}`` returns 400 instead of renaming the pool to the empty string. Pools and variables that already have a blank name can still be read and deleted.

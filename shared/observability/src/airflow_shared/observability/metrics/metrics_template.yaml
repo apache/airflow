@@ -53,35 +53,37 @@ metrics:
 
   - name: "resumable_job.fresh_submit"
     description: "Number of times a ResumableJobMixin operator submitted a fresh job
-    with no prior run ID stored (first run). Metric with operator tagging."
+    with no prior run ID stored (first run). Metric with operator, dag_id and task_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "resumable_job.already_succeeded"
     description: "Number of times a ResumableJobMixin operator found a stored run ID
-    whose job had already completed successfully and skipped resubmission. Metric with operator tagging."
+    whose job had already completed successfully and skipped resubmission. Metric with operator,
+    dag_id and task_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "resumable_job.terminal_resubmit"
     description: "Number of times a ResumableJobMixin operator found a stored run ID
-    whose job was in a terminal (failed) state and submitted a fresh job. Metric with operator tagging."
+    whose job was in a terminal (failed) state and submitted a fresh job. Metric with operator,
+    dag_id and task_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "resumable_job.reconnect_attempt"
     description: "Number of times a ResumableJobMixin operator found a stored run ID
-    on retry and attempted to reconnect. Metric with operator tagging."
+    on retry and attempted to reconnect. Metric with operator, dag_id and task_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "resumable_job.reconnect_success"
     description: "Number of times a ResumableJobMixin operator successfully reconnected
-    to an active job on retry. Metric with operator tagging."
+    to an active job on retry. Metric with operator, dag_id and task_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -207,6 +209,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.critical_section_refill_limit_reached"
+    description: "Count of times the scheduler stopped querying for more task instances to fill
+    its batch because it reached the per-loop limit of refill queries. The remaining runnable
+    task instances are considered in the next scheduler loop."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti.start"
     description: "Number of started task in a given Dag. Similar to {job_name}_start but for task.
     Metric with dag_id and task_id tagging."
@@ -326,6 +336,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_creation_failed"
+    description: "Number of deadline alerts skipped because their deadline could not be created"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_missed"
     description: "Number of deadline alerts that fired because a Dag run missed its deadline"
     type: "counter"
@@ -422,8 +438,9 @@ metrics:
 
   - name: "common_ai.tool_calls"
     description: "Number of calls to a toolset of the common.ai provider. Metric with toolset
-    (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain`` or
-    ``none``) and outcome (``executed``, ``failed`` or ``replayed``) tagging."
+    (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain``,
+    ``anthropic``, ``openai_agents`` or ``none``) and outcome (``executed``, ``failed`` or
+    ``replayed``) tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: ["toolset", "framework", "outcome"]

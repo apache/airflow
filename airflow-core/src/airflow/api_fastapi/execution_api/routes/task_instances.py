@@ -24,6 +24,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterator, Sequence
+from datetime import datetime
 from typing import Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -43,6 +44,7 @@ from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -57,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_ar
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
-    LoopContext,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -75,11 +76,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
     CurrentTIToken,
+    DagInGrantedBundle,
     ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
     get_team_name_for_ti,
     issue_execution_token,
     require_auth,
@@ -88,6 +92,8 @@ from airflow.api_fastapi.execution_api.security import (
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
+    get_execution_timeout,
+    get_task,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
@@ -114,10 +120,10 @@ from airflow.models.xcom import build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, is_deadlock_error
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 ti_id_router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -184,6 +190,8 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.queue,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -225,6 +233,10 @@ def ti_run(
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     previous_state = ti.state
+    # Set on a genuine QUEUED -> RUNNING transition so task.queued_duration is emitted once the
+    # DagRun is loaded below (its stats_tags supply the tags). A duplicate start request falls
+    # through the branch below without raising, so the flag keeps it from emitting twice.
+    emit_queued_duration = False
 
     if previous_state == TaskInstanceState.RESTARTING and (ti.hostname, ti.unixname, ti.pid) != (
         ti_run_payload.hostname,
@@ -274,6 +286,13 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
+        # queueing, so a retry and a resume from deferral each waited for a slot of their own.
+        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
+        # end_date is set), so the two disagree on retries by design.
+        # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
+        emit_queued_duration = ti.queued_dttm is not None
+
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
@@ -290,11 +309,23 @@ def ti_run(
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
+        # stats_tags lazy-loads dag_model.tags when dag tags are emitted as metric tags, and ti_run
+        # runs once per task start -- load them up front as the scheduler loop does.
+        dag_tag_options = (
+            (joinedload(DR.dag_model).selectinload(DagModel.tags),)
+            if emit_queued_duration and conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
+            else ()
+        )
+
         dr = (
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
+                .options(
+                    joinedload(DR.consumed_asset_events),
+                    *eager_load_teams(DR.dag_model),
+                    *dag_tag_options,
+                )
             )
             .unique()
             .one_or_none()
@@ -310,13 +341,15 @@ def ti_run(
                 },
             )
 
-        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
-        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
-        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
-        # can issue the purge.
+        # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
+        # because for a Python task the task runner also purges them from a custom XCom backend, and only
+        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
+        # deletes these XComs before the runtime starts the task and does not purge them, because those
+        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
+        # backend.
 
         # However, do not clear it for deferral
-        xcom_keys = []
+        xcom_keys: list[str] = []
         if not ti.next_method:
             read = build_xcom_read_query(producer_ids=select(TI.id).where(TI.id == task_instance_id))
             entity = xcom_entity(read)
@@ -339,27 +372,21 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
             multi_team=conf.getboolean("core", "multi_team"),
         )
-        resolver = TaskCoordinateResolver(dag_bag, session)
-        if loop_context := resolver.loop_context(ti):
-            group, index = loop_context
-            terminal = resolver.get_task(
-                ti.dag_id, ti.run_id, group.terminal_task_id, dag_version_id=ti.dag_version_id
-            )
-            context.loop = LoopContext(
-                node_id=group.node_id,
-                index=index,
-                max_iterations=group.max_iterations,
-                terminal_task_id=group.terminal_task_id,
-                terminal_is_mapped=terminal.get_needs_expansion(),
-            )
+        if ti.region_id != SENTINEL_REGION_ID:
+            resolver = TaskCoordinateResolver(dag_bag, session)
+            task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            if (expanded_ti_count := resolver.get_expanded_ti_count(ti, task=task)) is not None:
+                context.expanded_ti_count = expanded_ti_count
+            if (loop := resolver.get_loop_context(ti, task=task)) is not None:
+                context.loop = loop
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
+        serialized_task = get_task(dag_bag, ti, session=session)
+
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (
-            arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
-        ):
+        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
             except ValidationError:
@@ -377,6 +404,9 @@ def ti_run(
                     },
                 )
 
+        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+            context.execution_timeout = execution_timeout
+
         # Only set if they are non-null
         if ti.next_method:
             context.next_method = ti.next_method
@@ -392,6 +422,17 @@ def ti_run(
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
     if token.claims.scope == "workload":
         issue_execution_token(services, response, sub=str(task_instance_id))
+
+    if emit_queued_duration:
+        # Emitted last so a 5xx cannot double-count the wait: the SDK retries those, and the
+        # rollback returns the TI to QUEUED for the retry to sample it again. Only the session
+        # commit can still fail past this point.
+        # Tags mirror the sibling task.scheduled_duration, which emit_state_change_metric sends
+        # as {**ti.stats_tags, "queue": ti.queue}; stats_tags reads the team off the transient
+        # _team_name. stats.timing also emits the legacy dotted name from the metrics registry.
+        dr._team_name = dr.team_name
+        tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
+        stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
 
     return context
 
@@ -527,6 +568,19 @@ def ti_update_state(
         .with_for_update(of=TI)
         .execution_options(include_all_attempts=True)
     )
+    # A 12-column select exceeds SQLAlchemy's typed ``select()`` overloads, so the row is untyped.
+    previous_state: str | None
+    try_number: int
+    max_tries: int
+    dag_id: str
+    task_id: str
+    run_id: str
+    region_index: int
+    region_id: UUID
+    hostname: str | None
+    logical_date: datetime | None
+    owners: str | None
+    working_set: bool | None
     try:
         (
             previous_state,
@@ -541,7 +595,7 @@ def ti_update_state(
             logical_date,
             owners,
             working_set,
-        ) = session.execute(old).one()
+        ) = tuple(session.execute(old).one())
         log.debug(
             "Retrieved current task instance state",
             previous_state=previous_state,
@@ -598,9 +652,15 @@ def ti_update_state(
         and loop_group is not None
         and isinstance(ti_patch_payload, TISuccessStatePayload)
     ):
+        decision = ti_patch_payload.loop_decision
         try:
             loop_gate.dag_run.complete_loop_gate(
-                loop_gate, loop_group, TaskInstanceState.SUCCESS, session=session
+                loop_gate,
+                loop_group,
+                TaskInstanceState.SUCCESS,
+                stop=decision.stop if decision is not None else None,
+                reason=decision.reason if decision is not None else None,
+                session=session,
             )
             gate_completed = True
         except InvalidLoopDecision as error:
@@ -613,7 +673,7 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -633,8 +693,9 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
-        if loop_gate is not None:
+    except Exception as e:
+        # A deadlock is transient: return a 5xx so the Task SDK client retries instead of failing the TI.
+        if loop_gate is not None or is_deadlock_error(e):
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
@@ -687,7 +748,17 @@ def ti_update_state(
         raise
 
     if loop_gate is not None and loop_group is not None and not gate_completed:
-        loop_gate.dag_run.complete_loop_gate(loop_gate, loop_group, updated_state, session=session)
+        decision = (
+            ti_patch_payload.loop_decision if isinstance(ti_patch_payload, TITerminalStatePayload) else None
+        )
+        loop_gate.dag_run.complete_loop_gate(
+            loop_gate,
+            loop_group,
+            updated_state,
+            stop=None,
+            reason=decision.reason if decision is not None else None,
+            session=session,
+        )
 
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):
@@ -857,7 +928,8 @@ def _create_ti_state_update_query_and_update_state(
                 if "rendered_map_index" in ti_patch_payload.model_fields_set:
                     ti._rendered_map_index = ti_patch_payload.rendered_map_index
             # Store retry policy overrides so next_retry_datetime() can read them.
-            # These are cleared when the task enters RUNNING (ti_run).
+            # These are cleared on clear, when the next attempt is scheduled or deferred, and
+            # when the task enters RUNNING (ti_run).
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
@@ -1064,7 +1136,7 @@ def ti_skip_downstream(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
     if not selects:
         return
-    selected_ids = set(session.scalars(union(*selects)))
+    selected_ids: set[UUID] = set(session.scalars(union(*selects)))
 
     # Don't overwrite tasks that are already executing or finished.
     # See: https://github.com/apache/airflow/issues/59378
@@ -1462,6 +1534,7 @@ def _find_superseded_ids(
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),
@@ -1529,6 +1602,7 @@ _MAX_PREVIOUS_TIS_SCANNED = 500
 @router.get(
     "/previous/{dag_id}/{task_id}",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")]
     ),
@@ -1541,7 +1615,7 @@ def get_previous_task_instance(
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
-    token: TIToken = CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> PreviousTIResponse | None:
     """
     Get the previous task instance matching the given criteria.
@@ -1584,7 +1658,7 @@ def get_previous_task_instance(
         if ti.region_id == SENTINEL_REGION_ID:
             break
         if iterations is None:
-            requester = session.get(TI, token.id)
+            requester = session.get(TI, token.id) if token.claims.scope == "execution" else None
             iterations = (
                 resolver.loop_iterations(requester)
                 if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
@@ -1645,6 +1719,7 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),
