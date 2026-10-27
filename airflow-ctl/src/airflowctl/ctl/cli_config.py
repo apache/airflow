@@ -782,6 +782,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
