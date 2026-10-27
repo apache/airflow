@@ -8155,7 +8155,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "3.1.1"
+version = "3.2.0"
 source = { editable = "providers/smtp" }
 dependencies = [
     { name = "aiosmtplib" },
