@@ -85,10 +85,10 @@ policy, or not greater than ``expected_count`` with the *exact* policy.
 Post-processing results
 -----------------------
 
-Pass a ``process_result`` callable (or a dotted import path to one) to transform, deduplicate or
-filter the fetched events **before** the count check. It receives the list of asset events and must
-return a list; the processed events are pushed to XCom. It runs on every poke, so it should be
-idempotent and free of side effects.
+Pass a ``process_result`` callable to transform, deduplicate or filter the
+fetched events before the count check. It receives the list of asset events and
+must return a list; the processed events are pushed to XCom. It runs on every
+poke, so it should be idempotent and free of side effects.
 
 The query applies ``limit`` **before** processing. A callback may expand the fetched list, so
 ``limit < expected_count`` is allowed when a callback is supplied; the count is checked on its

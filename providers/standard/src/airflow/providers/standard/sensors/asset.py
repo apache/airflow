@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseSensorOperator,
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
+    from airflow.sdk.execution_time.comms import AssetEventResult
     from airflow.sdk.execution_time.context import InletEventsAccessor
 
 
@@ -81,12 +81,11 @@ class AssetEventSensor(BaseSensorOperator):
     :param count_policy: ``"minimum"`` (the default) waits for at least
         ``expected_count`` events; ``"exact"`` requires exactly that number. To
         check for no events, use ``"exact"`` and zero.
-    :param process_result: A callable (or a dotted import path to one) applied
-        to the fetched events before the count check, to transform, deduplicate
-        or filter them. It receives the list of asset events and must return a
-        list. It runs on every poke, so it should be idempotent and free of
-        side-effects. Its return value must be JSON-serializable to be pushed
-        into XCom.
+    :param process_result: A callable applied to the fetched events before the
+        count check, to transform, deduplicate or filter them. It receives the
+        list of asset events and must return a list. It runs on every poke, so
+        it should be idempotent and free of side-effects. Its return value must
+        be JSON-serializable to be pushed into XCom.
     """
 
     template_fields: Sequence[str] = (
@@ -110,7 +109,7 @@ class AssetEventSensor(BaseSensorOperator):
         extra: dict[str, str] | None = None,
         expected_count: int = 1,
         count_policy: Literal["minimum", "exact"] = "minimum",
-        process_result: Callable[[list[Any]], list[Any]] | str | None = None,
+        process_result: Callable[[list[AssetEventResult]], list[Any]] | None = None,
         **kwargs,
     ) -> None:
         if not AIRFLOW_V_3_4_PLUS and (
@@ -121,15 +120,10 @@ class AssetEventSensor(BaseSensorOperator):
                 "need Airflow 3.4+."
             )
         super().__init__(**kwargs)
-        if not isinstance(expected_count, int) or isinstance(expected_count, bool):
-            raise TypeError("`expected_count` must be an integer.")
         if expected_count < 0:
             raise ValueError(f"`expected_count` must be a non-negative integer, got {expected_count}.")
-        if limit is not None:
-            if not isinstance(limit, int) or isinstance(limit, bool):
-                raise TypeError("`limit` must be an integer.")
-            if limit <= 0:
-                raise ValueError("`limit` must be positive.")
+        if limit is not None and limit <= 0:
+            raise ValueError("`limit` must be positive.")
         if count_policy not in {"minimum", "exact"}:
             raise ValueError(f"`count_policy` must be 'minimum' or 'exact', got {count_policy!r}.")
         if process_result is None and limit is not None:
@@ -157,12 +151,6 @@ class AssetEventSensor(BaseSensorOperator):
         self.count_policy = count_policy
         self.process_result = process_result
 
-    def _apply_process_result(self, events: list[Any]) -> list[Any]:
-        if self.process_result is None:
-            return events
-        func = self.process_result if callable(self.process_result) else import_string(self.process_result)
-        return func(events)
-
     def _get_accessor(self, context: Context) -> InletEventsAccessor:
         # The mapped operator's inlets don't include the asset added in init.
         # TODO: Remove this once the min Airflow refreshes after unmapping.
@@ -185,10 +173,12 @@ class AssetEventSensor(BaseSensorOperator):
             accessor.partition_key(self.partition_key)
         if self.partition_key_regexp_pattern is not None:
             accessor.partition_key_regexp_pattern(self.partition_key_regexp_pattern)
-        if self.extra:
+        if self.extra is not None:
             for key, value in self.extra.items():
                 accessor.extra(key, value)
-        processed = self._apply_process_result(list(accessor))
+        processed = list(accessor)
+        if self.process_result is not None:
+            processed = self.process_result(processed)
         count = len(processed)
         done = (
             count >= self.expected_count if self.count_policy == "minimum" else count == self.expected_count

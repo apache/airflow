@@ -119,19 +119,9 @@ class TestInit:
         assert sensor.inlets == [other_asset, asset]
         assert inlets == original_inlets
 
-    @pytest.mark.parametrize("expected_count", [1.5, "1", True, None])
-    def test_rejects_noninteger_expected_count(self, asset, expected_count):
-        with pytest.raises(TypeError, match="expected_count"):
-            AssetEventSensor(task_id="s", asset=asset, expected_count=expected_count)
-
     def test_rejects_negative_expected_count(self, asset):
         with pytest.raises(ValueError, match="expected_count"):
             AssetEventSensor(task_id="s", asset=asset, expected_count=-1)
-
-    @pytest.mark.parametrize("limit", [0.5, "1", True])
-    def test_rejects_noninteger_limit(self, asset, limit):
-        with pytest.raises(TypeError, match="limit"):
-            AssetEventSensor(task_id="s", asset=asset, limit=limit)
 
     @pytest.mark.parametrize("limit", [0, -1])
     def test_rejects_nonpositive_limit(self, asset, limit):
@@ -333,7 +323,6 @@ class TestProcessResult:
         ("process_result", "expected_count", "expected_ids", "done"),
         [
             (only_us_partitions, 3, [1, 2, 4], True),
-            (f"{__name__}.only_us_partitions", 3, [1, 2, 4], True),
             (dedup_by_partition_key, 4, [1, 2, 3, 5], True),
             (only_us_partitions, 5, None, False),
             (lambda events: [], 1, None, False),
