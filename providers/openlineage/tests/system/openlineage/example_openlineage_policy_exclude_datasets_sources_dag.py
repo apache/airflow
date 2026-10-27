@@ -21,7 +21,6 @@ Every source is filtered with the same Dag list, which has two patterns. Hook an
 on the names of the stand-in classes below.
 
 - ``t_declared``: declared inlets and outlets. A Dag + hook list for another hook does not apply to them.
-- ``t_runtime_outlets``: outlets added at runtime through an ``AssetAlias``, next to declared ones.
 - ``t_extractor``: datasets of an extractor, which have no hook.
 - ``t_extractor_all_excluded``: when every dataset of an extractor is excluded, hook lineage is not used instead.
 - ``t_extractor_empty_hook``: an extractor without datasets leaves them to hook lineage, which is filtered.
@@ -37,8 +36,6 @@ on the names of the stand-in classes below.
   event when all of them are excluded, while a call of the same task with a kept dataset does.
 - ``t_emit_query``, ``t_emit_query_all_excluded``: ``emit_query_lineage`` filters its datasets, given and parsed
   from the query, and still emits its events when all of them are excluded, next to a call that keeps its datasets.
-- ``t_collector_cap``: exclusion happens after the hook lineage collector cap, so it does not make room for the assets
-  the cap dropped (requires ``AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR=67``).
 - ``t_failed``: the FAIL event of a failed task is filtered too.
 
 Required global conf::
@@ -81,7 +78,7 @@ from typing import Any
 from openlineage.client.event_v2 import Dataset
 
 from airflow import DAG
-from airflow.providers.common.compat.assets import Asset, AssetAlias
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.api import emit_dataset_lineage, emit_query_lineage
@@ -193,14 +190,6 @@ def _do_nothing():
     pass
 
 
-ALIAS = AssetAlias("exclude-datasets-alias")
-
-
-def _runtime_outlets(outlet_events):
-    for stem in ["dag_excluded_runtime", "hook_scoped", "keep"]:
-        outlet_events[ALIAS].add(Asset(uri=f"file://host1/{stem}_out.txt"))
-
-
 def _extractor_all_excluded():
     _register_stems(QuietHook(), ["keep"])
 
@@ -281,12 +270,6 @@ def _emit_query_all_excluded():
     )
 
 
-def _collector_cap():
-    # The first 5 assets are excluded and the cap keeps the first 67, so the last 3 of the 70 are lost, not recovered.
-    stems = [f"dag_excluded_{i:02d}" for i in range(1, 6)] + [f"cap_keep_{i:02d}" for i in range(6, 71)]
-    _register_stems(QuietHook(), stems)
-
-
 def _failed():
     _register_stems(QuietHook(), ["dag_excluded", "keep"])
     raise ValueError("Intentional failure to check the FAIL event")
@@ -307,12 +290,6 @@ with DAG(
         python_callable=_do_nothing,
         inlets=_inlets(["dag_excluded", "hook_scoped", "keep"]),
         outlets=_outlets(["dag_excluded", "hook_scoped", "keep"]),
-    )
-    t_runtime_outlets = PythonOperator(
-        task_id="t_runtime_outlets",
-        python_callable=_runtime_outlets,
-        inlets=_inlets(["dag_excluded_declared", "keep_declared"]),
-        outlets=[*_outlets(["dag_excluded_declared", "keep_declared"]), ALIAS],
     )
     t_extractor = ExtractorOperator(
         task_id="t_extractor",
@@ -346,7 +323,6 @@ with DAG(
     t_emit_query_all_excluded = PythonOperator(
         task_id="t_emit_query_all_excluded", python_callable=_emit_query_all_excluded
     )
-    t_collector_cap = PythonOperator(task_id="t_collector_cap", python_callable=_collector_cap)
     t_failed = PythonOperator(task_id="t_failed", python_callable=_failed)
     t_after_failed = EmptyOperator(task_id="t_after_failed", trigger_rule=TriggerRule.ONE_FAILED)
     check_events = OpenLineageTestOperator(
@@ -354,7 +330,6 @@ with DAG(
     )
     (
         t_declared
-        >> t_runtime_outlets
         >> t_extractor
         >> t_extractor_all_excluded
         >> t_extractor_empty_hook
@@ -368,7 +343,6 @@ with DAG(
         >> t_emit_dataset_all_excluded
         >> t_emit_query
         >> t_emit_query_all_excluded
-        >> t_collector_cap
         >> check_events
     )
     t_failed >> t_after_failed >> check_events

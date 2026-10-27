@@ -100,10 +100,11 @@ x-ol-common-env: &ol-common-env
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag"}, "controls": {"exclude_datasets": [".*/dag_excluded_.*", ".*sql_excluded.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SqlRuledHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*sql_hook_excluded.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SqlDroppedHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
-    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SourceHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/hook_scoped_.*"]}}
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SourceHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/hook_scoped_.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag"}, "controls": {"exclude_datasets": [".*/dag_excluded_.*"]}}
     ]
   AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
-  # openlineage_policy_exclude_datasets_sources_dag checks that exclusion runs after this cap; no other DAG
+  # openlineage_policy_exclude_datasets_versioned_dag checks that exclusion runs after this cap; no other DAG
   # reports more than a few assets per hook, so 67 (instead of the default 100) does not affect them.
   AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR: '67'
   # Both control how quickly the dag-processor picks up dags: REFRESH_INTERVAL is how often it
