@@ -4906,12 +4906,14 @@ class TestDagFileProcessorManager:
 
         assert not manager._callback_to_execute
 
-    def test_fetch_callbacks_delegates_to_private_method(self):
+    @mock.patch.object(DagFileProcessorManager, "_fetch_callbacks_from_db", autospec=True)
+    def test_fetch_callbacks_delegates_to_private_method(self, private):
         manager = DagFileProcessorManager(max_runs=1)
         expected: list = [mock.sentinel.callback]
-        with mock.patch.object(manager, "_fetch_callbacks_from_db", return_value=expected) as private:
-            assert manager.fetch_callbacks() is expected
-        private.assert_called_once_with()
+        private.return_value = expected
+
+        assert manager.fetch_callbacks() is expected
+        private.assert_called_once_with(manager)
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_reassign_called_once_at_startup_not_on_refresh(self, mock_bundle_manager):
