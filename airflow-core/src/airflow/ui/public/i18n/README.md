@@ -202,6 +202,12 @@ Remove unused entries for all locales:
 breeze ui check-translation-completeness --remove-unused
 ```
 
+Print the report as machine-readable JSON, e.g. for scripts or agents (stdout carries only the JSON document, so it can be piped straight to `jq`):
+
+```bash
+breeze ui check-translation-completeness --language <language_code> --json
+```
+
 ## Locale-specific guidance
 
 Before translating, read the locale-specific guide if one exists. Those files contain glossary and style choices

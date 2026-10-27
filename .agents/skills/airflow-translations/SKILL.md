@@ -146,6 +146,13 @@ and 100% coverage:
 breeze ui check-translation-completeness --language <locale>
 ```
 
+For machine-readable validation, add `--json` and check the language's totals
+instead — stdout carries only the JSON document:
+
+```bash
+breeze ui check-translation-completeness --language <locale> --json
+```
+
 Run pre-commit hooks to fix formatting, licenses, and linting issues:
 
 ```bash
