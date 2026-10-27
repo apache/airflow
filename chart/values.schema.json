@@ -2000,8 +2000,8 @@
                                 "authenticationRef": {
                                     "description": "Reference to a KEDA TriggerAuthentication (or ClusterTriggerAuthentication) holding the database connection for the scaler. When set, it is used instead of the connection passed through the worker environment. The TriggerAuthentication must be created outside of this chart.",
                                     "type": [
-                                        "object",
-                                        "null"
+                                        "null",
+                                        "object"
                                     ],
                                     "default": null,
                                     "additionalProperties": false,
