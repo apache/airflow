@@ -26,6 +26,38 @@
 Changelog
 ---------
 
+7.23.0
+......
+
+.. note::
+
+    **Significant change: OpenLineage query lineage events**
+
+    The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
+    instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
+    or later; with an older version it is skipped and only a log message is written.
+    Users on OpenLineage provider 2.5.0 through 2.15.x must upgrade to retain query lineage.
+
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``DATABRICKS`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
+Features
+~~~~~~~~
+
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.22.0
 ......
 

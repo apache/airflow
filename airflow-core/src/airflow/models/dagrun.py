@@ -122,7 +122,7 @@ if TYPE_CHECKING:
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Select
 
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -154,7 +154,7 @@ class InvalidLoopDecision(ValueError):
 
 def validate_loop_decision(stop: bool | None, region_index: int, group: SerializedLoopTaskGroup) -> None:
     """Raise :class:`InvalidLoopDecision` unless ``stop`` is valid for the gate of pass ``region_index``."""
-    at_limit = region_index + 1 >= group.max_iterations
+    at_limit = region_index >= group.max_iterations
     if stop is None:
         raise InvalidLoopDecision("Successful loop gate requires a decision")
     if not stop and at_limit:
@@ -585,7 +585,7 @@ class DagRun(Base, LoggingMixin):
 
     @duration.expression  # type: ignore[no-redef]
     @provide_session
-    def duration(cls, *, session: Session = NEW_SESSION) -> Case:
+    def duration(cls: type[DagRun], *, session: Session = NEW_SESSION) -> ColumnElement[Any]:
         dialect_name = get_dialect_name(session)
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
@@ -2433,7 +2433,8 @@ class DagRun(Base, LoggingMixin):
                 region = DynamicRegion.get_or_create(
                     dag_id=self.dag_id, run_id=self.run_id, node_id=loops[group_id].node_id, session=session
                 )
-                coordinates = [(region.id, 0)]
+                # Iterations count from one; a mapped expansion's slots still count from zero.
+                coordinates = [(region.id, 1)]
             for region_id, region_index in coordinates:
                 if DynamicRegion.is_coordinate_superseded(region_id, region_index, regions):
                     continue
@@ -2716,6 +2717,9 @@ class DagRun(Base, LoggingMixin):
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
                         try_number=next_try_number,
+                        # Already archived with the finished try; the new one must not inherit it.
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2766,6 +2770,8 @@ class DagRun(Base, LoggingMixin):
                         end_date=timezone.utcnow(),
                         duration=0,
                         try_number=next_try_number,
+                        retry_reason=None,
+                        retry_delay_override=None,
                     )
                     .execution_options(
                         synchronize_session=False,

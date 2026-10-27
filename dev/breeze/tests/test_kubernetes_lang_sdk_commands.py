@@ -458,10 +458,12 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
 
-        kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.11", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert captured == {
             "go": expected_native,
@@ -494,12 +496,14 @@ class TestSetupLangSdkTestSteps:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
         return recorded
 
     def test_builds_go_java_ts_and_the_runtime_image_by_default(self, recorded):
-        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.10", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert recorded["steps"] == [
             "Build Go bundle",
@@ -511,7 +515,10 @@ class TestSetupLangSdkTestSteps:
 
     def test_skips_the_runtime_image_build_when_an_override_is_given(self, recorded):
         kubernetes_commands._setup_lang_sdk_test(
-            python="3.10", kubernetes_version="v1.35.0", runtime_image="my-runtime:1"
+            python="3.10",
+            kubernetes_version="v1.35.0",
+            github_repository="apache/airflow",
+            runtime_image="my-runtime:1",
         )
 
         assert recorded["steps"] == [
@@ -591,3 +598,49 @@ class TestLangSdkResolveSdkSources:
 
         mock_fetch.assert_called_once_with(tmp_path, None)
         assert (go_sdk, java_sdk) == (tmp_path / "go-sdk", tmp_path / "java-sdk")
+
+
+class TestRunCompleteTestsLangSdkSetupFailure:
+    @mock.patch.object(kubernetes_commands, "_run_tests", autospec=True)
+    @mock.patch.object(kubernetes_commands, "_logs", autospec=True)
+    @mock.patch.object(
+        kubernetes_commands,
+        "_setup_lang_sdk_test",
+        autospec=True,
+        side_effect=kubernetes_commands.subprocess.CalledProcessError(1, ["helm", "upgrade"]),
+    )
+    @mock.patch.object(kubernetes_commands, "_deploy_airflow", autospec=True, return_value=(0, ""))
+    @mock.patch.object(
+        kubernetes_commands, "_preload_test_images_to_kind", autospec=True, return_value=(0, "")
+    )
+    @mock.patch.object(kubernetes_commands, "_upload_k8s_image", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_configure_k8s_cluster", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_create_cluster", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_rebuild_k8s_image", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_delete_cluster", autospec=True)
+    def test_failed_lang_sdk_setup_exports_logs_before_the_cluster_is_deleted(self, delete_cluster, *mocks):
+        run_tests, logs = mocks[-1], mocks[-2]
+        returncode, message = kubernetes_commands._run_complete_tests(
+            python="3.11",
+            kubernetes_version="v1.31.12",
+            include_success_outputs=False,
+            executor=kubernetes_commands.KUBERNETES_EXECUTOR,
+            rebuild_base_image=False,
+            copy_local_sources=False,
+            use_uv=True,
+            upgrade=False,
+            wait_time_in_seconds=0,
+            force_recreate_cluster=False,
+            use_standard_naming=False,
+            lang_sdk_test=True,
+            num_tries=1,
+            github_repository="apache/airflow",
+            extra_options=None,
+            test_args=[],
+            output=None,
+        )
+
+        assert returncode == 1
+        assert "Lang-SDK test setup failed" in message
+        logs.assert_called_once_with(python="3.11", kubernetes_version="v1.31.12")
+        run_tests.assert_not_called()

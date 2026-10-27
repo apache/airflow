@@ -55,6 +55,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import SetTaskStateStore
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
@@ -523,6 +524,25 @@ class TestConnectionFromProcess:
         mock_owned.assert_called_once_with(("127.0.0.1", 5000), ("127.0.0.1", 6000), 999)
 
 
+_RUNTIME_PID = 6767
+
+
+@pytest.fixture
+def runtime_process_group(monkeypatch):
+    """
+    Resolve ``_RUNTIME_PID`` to its own group and any other pid to the supervisor's real group.
+
+    ``os.killpg`` is mocked and returned so a test can assert what was signalled, and the runtime's
+    pid is reported as still in use so the leftover sweep stays out of the way.
+    """
+    own_group = os.getpgid(0)
+    killpg = MagicMock()
+    monkeypatch.setattr(os, "getpgid", lambda pid: _RUNTIME_PID if pid == _RUNTIME_PID else own_group)
+    monkeypatch.setattr(os, "killpg", killpg)
+    monkeypatch.setattr(psutil, "pid_exists", lambda pid: True)
+    return killpg
+
+
 class TestResourceTracker:
     """
     Unit tests for the _ResourceTracker context manager.
@@ -558,11 +578,26 @@ class TestResourceTracker:
             tracker.track(sock)
         sock.close.assert_called_once()
 
-    def test_context_manager_terminates_tracked_popen_on_exit(self):
+    def test_context_manager_terminates_tracked_popen_on_exit(self, runtime_process_group):
+        """A failed startup signals the runtime's whole process group, not just its pid."""
         proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = _RUNTIME_PID
         with _ResourceTracker(timeout=0.1) as tracker:
             tracker.track(proc)
-        proc.terminate.assert_called_once()
+        runtime_process_group.assert_called_once_with(_RUNTIME_PID, signal.SIGTERM)
+        proc.send_signal.assert_not_called()
+
+    def test_context_manager_kills_tracked_popen_group_on_timeout(self, runtime_process_group):
+        """A runtime that ignores SIGTERM during startup has its group SIGKILLed."""
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = _RUNTIME_PID
+        proc.wait.side_effect = subprocess.TimeoutExpired(cmd="runtime", timeout=0.1)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(proc)
+        assert runtime_process_group.call_args_list == [
+            call(_RUNTIME_PID, signal.SIGTERM),
+            call(_RUNTIME_PID, signal.SIGKILL),
+        ]
 
     def test_untracked_socket_not_closed_on_exit(self):
         sock = MagicMock(spec=socket.socket)
@@ -938,6 +973,49 @@ class TestPopenActivitySubprocessStart:
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
 
 
+class TestPopenActivitySubprocessSetTaskStateStore:
+    @pytest.mark.parametrize(
+        ("limit", "value", "warns"),
+        [
+            # json.dumps gives '{"a": "\\u00e9"}', 15 bytes; Go's encoding/json gives 11.
+            pytest.param("14", {"a": "é"}, True, id="over-limit"),
+            pytest.param("15", {"a": "é"}, False, id="at-limit"),
+            pytest.param("0", {"a": "é"}, False, id="limit-disabled"),
+        ],
+    )
+    def test_warns_when_value_exceeds_max_value_storage_bytes(self, limit, value, warns):
+        client = MagicMock(spec=Client)
+        process_log = MagicMock()
+        proc = _PopenActivitySubprocess(
+            process_log=process_log,
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+        msg = SetTaskStateStore(ti_id=proc.id, key="k", value=value, expires_at=None)
+
+        with (
+            conf_vars({("state_store", "max_value_storage_bytes"): limit}),
+            patch.object(_PopenActivitySubprocess, "send_msg", autospec=True),
+        ):
+            proc._handle_request(msg, log=MagicMock(), req_id=1)
+
+        client.task_state_store.set.assert_called_once_with(proc.id, "k", value, expires_at=None)
+        if warns:
+            process_log.warning.assert_called_once_with(
+                "Task store value exceeds configured max_value_storage_bytes",
+                key="k",
+                size=15,
+                max_value_storage_bytes=14,
+            )
+        else:
+            process_log.warning.assert_not_called()
+
+
 # This script connects back to the supervisor the way a language SDK runtime does, then waits for
 # StartupDetails. It exits with code 0 as soon as the supervisor sends anything or closes the
 # connection. It exits with code 3 if 10 seconds pass and neither has happened.
@@ -1104,6 +1182,180 @@ class TestPopenActivitySubprocessClearXComs:
             "exc_info": ANY,
             "loc": ANY,
         } in captured_logs
+
+
+_RUNTIME_SPAWNING_A_CHILD = """
+import socket
+import subprocess
+import sys
+
+def connect(flag):
+    host, _, port = next(arg for arg in sys.argv if arg.startswith(flag)).split("=", 1)[1].rpartition(":")
+    return socket.create_connection((host, int(port)))
+
+comm = connect("--comm=")
+logs = connect("--logs=")
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+with open(sys.argv[1], "w") as handle:
+    handle.write(str(child.pid))
+comm.settimeout(30)
+try:
+    comm.recv(1)
+except TimeoutError:
+    sys.exit(3)
+"""
+
+
+_RUNTIME_SPAWNING_A_CHILD_THEN_DYING = """
+import subprocess
+import sys
+
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+with open(sys.argv[1], "w") as handle:
+    handle.write(str(child.pid))
+sys.exit(1)
+"""
+
+
+def _wait_until_gone(pid: int, timeout: float = 10.0) -> bool:
+    """Return whether *pid* has stopped running, treating a not-yet-reaped zombie as gone."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+class TestPopenActivitySubprocessProcessGroup:
+    """A language SDK runtime runs in its own process group so a stop reaches what it spawned."""
+
+    def test_popen_asks_for_a_new_process_group(self, mock_client):
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        with (
+            patch(
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen", return_value=mock_proc
+            ) as popen_mock,
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+        ):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                command=["/bin/true"],
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert popen_mock.call_args.kwargs["process_group"] == 0
+        assert proc._new_process_group is True
+
+    def test_a_runtime_that_dies_before_connecting_does_not_leave_its_child(self, tmp_path):
+        """The runtime is reaped before start() fails, so its group is swept by the leader's pid."""
+        pid_file = tmp_path / "child.pid"
+        with pytest.raises(RuntimeError, match="before connecting"):
+            _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[
+                    sys.executable,
+                    "-c",
+                    _RUNTIME_SPAWNING_A_CHILD_THEN_DYING,
+                    str(pid_file),
+                ],
+                subprocess_logs_to_stdout=False,
+            )
+
+        spawned_pid = int(pid_file.read_text())
+        try:
+            assert _wait_until_gone(spawned_pid), "the process the runtime spawned outlived the failure"
+        finally:
+            with contextlib.suppress(OSError):
+                os.kill(spawned_pid, signal.SIGKILL)
+
+    def test_stopping_the_task_also_stops_what_the_runtime_spawned(self, tmp_path):
+        """Regression for #75533: SIGTERM reaches the CLI the task started, not only the runtime."""
+        pid_file = tmp_path / "child.pid"
+        with patch.object(ActivitySubprocess, "_on_child_started"):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[sys.executable, "-c", _RUNTIME_SPAWNING_A_CHILD, str(pid_file)],
+                subprocess_logs_to_stdout=False,
+            )
+
+        deadline = time.monotonic() + 10.0
+        while not (reported := pid_file.read_text().strip() if pid_file.exists() else ""):
+            assert time.monotonic() < deadline, "the runtime did not report the pid it spawned"
+            time.sleep(0.05)
+        spawned_pid = int(reported)
+
+        try:
+            proc.kill(signal.SIGTERM, force=True, escalation_delay=5.0)
+            assert _wait_until_gone(proc.pid), "the runtime outlived the stop"
+            assert _wait_until_gone(spawned_pid), "the process the task spawned outlived the stop"
+        finally:
+            with contextlib.suppress(OSError):
+                os.kill(spawned_pid, signal.SIGKILL)
+
+
+class TestPopenActivitySubprocessExecutionTimeout:
+    @pytest.mark.parametrize(
+        ("execution_timeout", "killed"),
+        [
+            pytest.param(30.0, True, id="with-timeout"),
+            pytest.param(None, False, id="without-timeout"),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+    @patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
+    @patch("time.monotonic", autospec=True, return_value=1.0)
+    def test_arms_execution_timeout_from_run_context(
+        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, killed
+    ):
+        client = MagicMock()
+        client.task_instances.start.return_value = TIRunContext.model_construct(
+            should_retry=False, execution_timeout=execution_timeout, xcom_keys_to_clear=[]
+        )
+        proc = _PopenActivitySubprocess(
+            process_log=MagicMock(),
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+
+        proc._on_child_started(
+            ti=_make_ti(),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
+
+        mock_monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        assert mock_kill.called is killed
 
 
 class TestResolveArtifactBundle:

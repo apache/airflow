@@ -25,7 +25,7 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
@@ -451,13 +451,12 @@ class PydanticAIHook(BaseHook):
             def _provider_factory(pname: str) -> Any:
                 try:
                     return infer_provider_class(pname)(**_kwargs)
-                except TypeError:
-                    self.log.warning(
-                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                        pname,
-                        list(_kwargs),
-                    )
-                    return infer_provider(pname)
+                except TypeError as e:
+                    raise ValueError(
+                        f"Could not build provider '{pname}' from the fields on connection "
+                        f"'{self.llm_conn_id}' (fields passed: {', '.join(_kwargs)}): {e}. "
+                        "Not falling back to environment-variable auth, which would authenticate as a different identity."
+                    ) from e
 
             return infer_model(model_name, provider_factory=_provider_factory)
 
@@ -678,11 +677,10 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        A provider class that cannot be built from the connection's fields is reported as a failure
+        naming the provider, the fields passed and the provider's ``TypeError`` text.
+
+        Does NOT make an LLM API call — that would be expensive and fail for
         reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
@@ -691,9 +689,9 @@ class PydanticAIHook(BaseHook):
         """
         try:
             self.get_conn()
-            return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
+        return True, "Model resolved successfully."
 
 
 class PydanticAIAzureHook(PydanticAIHook):
@@ -848,7 +846,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
     1. ``service_account_info`` (JSON object) in ``extra``
        — loaded into a ``google.auth.credentials.Credentials``
-       object and passed as ``credentials`` to ``GoogleProvider``.
+       object and passed as ``credentials`` to ``GoogleCloudProvider``.
     2. ``api_key`` in ``extra`` — for Generative Language API (non-Vertex) or
        Vertex API-key auth.
     3. Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
@@ -880,8 +878,11 @@ class PydanticAIVertexHook(PydanticAIHook):
     above), so its presence alone cannot tell the two platforms apart; guessing
     would risk silently authenticating against the wrong endpoint. To use the
     Generative Language API, set an explicit ``google:``-prefixed model id (on
-    the hook or the connection's ``model`` extra) -- that spelling already
-    works today.
+    the hook or the connection's ``model`` extra). ``GoogleProvider`` accepts only
+    ``api_key`` and ``base_url`` (without a key it reads ``GOOGLE_API_KEY``), so on
+    this connection type that spelling must not set Vertex-only fields
+    (``project``, ``location``, ``service_account_info``): they are rejected
+    (fail closed).
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.5-flash"``. A
@@ -919,7 +920,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         sa_info = extra.get("service_account_info")
         kwargs: dict[str, Any] = {}
 
-        # Direct GoogleProvider scalar kwargs.
+        # Scalar kwargs: GoogleCloudProvider takes all four; GoogleProvider only api_key/base_url.
         for _key in ("api_key", "project", "location", "base_url"):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
@@ -927,11 +928,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
-        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # catch: it logs a warning and falls back to env-var auth rather than raising --
-        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
-        # the field for backward compatibility but never forward it: which API is used is
-        # now controlled by the model prefix.
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would turn
+        # into a ValueError rejecting the whole connection. Accept the field for backward
+        # compatibility but never forward it: which API is used is now controlled by the
+        # model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "

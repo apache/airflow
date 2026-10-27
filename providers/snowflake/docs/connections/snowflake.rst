@@ -100,6 +100,12 @@ Extra (optional)
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
     * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
     * ``ocsp_fail_open``: Specify `ocsp_fail_open <https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect#label-python-ocsp-choosing-fail-open-or-fail-close-mode>`_.
+    * ``enable_server_session_keep_alive_auto_detection``: Whether closing the connection checks for
+      async queries still running on it first. ``true`` (the default) keeps the server session open
+      while any are running, so they finish; ``false`` always logs out on close, and Snowflake may
+      cancel those queries. Takes effect with ``snowflake-connector-python>=5.0.0``; earlier connectors
+      always keep the session while async queries run. The hook sets ``true`` when the extra is
+      absent, so the connector's planned default change does not alter behaviour.
     * ``proxy_host``: Proxy hostname to use for connecting to Snowflake.
     * ``proxy_port``: Proxy port to use for connecting to Snowflake.
     * ``proxy_user``: Proxy username for authentication with the proxy server.

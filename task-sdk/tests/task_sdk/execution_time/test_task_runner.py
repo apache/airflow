@@ -151,11 +151,11 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskRescheduleStartDate,
@@ -1997,6 +1997,7 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
     assert ti.state == TaskInstanceState.SKIPPED
+    assert ti.end_date == instant
 
     mock_supervisor_comms.send.assert_called_with(
         TaskState(state=TaskInstanceState.SKIPPED, end_date=instant)
@@ -5419,6 +5420,7 @@ class TestTaskRunnerCallsListeners:
             self.state = []
             self.component = None
             self.error = None
+            self.end_date = None
 
         @hookimpl
         def on_starting(self, component):
@@ -5440,6 +5442,7 @@ class TestTaskRunnerCallsListeners:
         @hookimpl
         def on_task_instance_skipped(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.SKIPPED)
+            self.end_date = task_instance.end_date
 
         @hookimpl
         def before_stopping(self, component):
@@ -5659,10 +5662,12 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
         context = runtime_ti.get_template_context()
-        state, _, _ = run(runtime_ti, context, log)
+        state, msg, _ = run(runtime_ti, context, log)
         finalize(runtime_ti, state, context, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
+        assert listener.end_date is not None
+        assert listener.end_date == msg.end_date
 
     def test_listener_access_outlet_event_on_running_and_success(
         self, mocked_parse, mock_supervisor_comms, listener_manager
@@ -5894,6 +5899,22 @@ class TestTaskRunnerCallsCallbacks:
         with conf_vars({("api", "base_url"): base_url}):
             log_url = runtime_ti.log_url
             assert log_url == expected_url
+
+    @pytest.mark.parametrize(("map_index", "mapped_path"), [(-1, ""), (1, "/mapped/1")])
+    def test_runtime_task_instance_log_url_selects_a_task_instance_in_a_region_by_its_region(
+        self, create_runtime_ti, map_index, mapped_path
+    ):
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id="test_dag", run_id="test_run", try_number=2, map_index=map_index
+        )
+        runtime_ti.region_id, runtime_ti.region_index = uuid7(), 1
+
+        with conf_vars({("api", "base_url"): "http://localhost:8080/"}):
+            assert runtime_ti.log_url == (
+                f"http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task{mapped_path}"
+                f"?region_id={runtime_ti.region_id}&region_index=1&try_number=2"
+            )
 
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
@@ -6210,6 +6231,8 @@ class TestTriggerDagRunOperator:
 
         assert state == expected_state
         assert msg.state == expected_state
+        assert ti.end_date is not None
+        assert ti.end_date == msg.end_date
 
         expected_calls = [
             mock.call.send(
@@ -6887,7 +6910,7 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
-        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
+        mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
 
     def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""

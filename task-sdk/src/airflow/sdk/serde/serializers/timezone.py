@@ -61,8 +61,12 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if tz_name is not None:
         return tz_name, name, __version__, True
 
-    if cast("datetime.tzinfo", o).utcoffset(None) == datetime.timedelta(0):
-        return "UTC", qualname(FixedTimezone), __version__, True
+    offset = cast("datetime.tzinfo", o).utcoffset(None)
+    if offset is not None:
+        seconds = int(offset.total_seconds())
+        if seconds == 0:
+            return "UTC", qualname(FixedTimezone), __version__, True
+        return seconds, qualname(FixedTimezone), __version__, True
 
     return "", "", 0, False
 

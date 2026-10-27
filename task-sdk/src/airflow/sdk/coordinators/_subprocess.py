@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
+import json
 import os
 import selectors
 import signal
@@ -54,7 +55,12 @@ from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
+from airflow.sdk.execution_time.supervisor import (
+    ActivitySubprocess,
+    NeverRaised,
+    ProcessTracker,
+    signal_process_tree,
+)
 
 if TYPE_CHECKING:
     import pathlib
@@ -66,6 +72,8 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.comms import SetTaskStateStore
+    from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -203,6 +211,19 @@ def _build_runtime_env() -> dict[str, str]:
     }
 
 
+def _kill_leftover_group(pid: int) -> None:
+    """
+    Kill what an exited runtime left in its process group, which ``getpgid`` can no longer resolve.
+
+    A group outlives its leader, so it is reached by the leader's pid. Not when another process has
+    reused that pid, since the group could then be that process's.
+    """
+    if psutil.pid_exists(pid):
+        return
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(pid, signal.SIGKILL)
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
@@ -302,11 +323,14 @@ class _ResourceTracker:
                 case socket.socket():
                     o.close()
                 case subprocess.Popen():
-                    o.terminate()
+                    signal_process_tree(o.pid, signal.SIGTERM, fallback=o.send_signal)
                     try:
                         o.wait(self.timeout)
                     except subprocess.TimeoutExpired:
-                        o.kill()
+                        signal_process_tree(o.pid, signal.SIGKILL, fallback=o.send_signal)
+                    # A runtime that exited before connecting was already reaped, so its group
+                    # is out of reach above while what it spawned is still running.
+                    _kill_leftover_group(o.pid)
 
     def track(self, *objects: Tracked) -> tuple[Tracked, ...]:
         self.tracked.update((id(o), o) for o in objects)
@@ -362,6 +386,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
                 env=_build_runtime_env(),
+                # Own process group, so the supervisor can signal everything the runtime
+                # spawned with os.killpg, as the Python task runner has done since #65505.
+                # Popen returns after exec, so the group exists before kill().
+                # Must agree with new_process_group=True below.
+                process_group=0,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -384,6 +413,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 start_time=time.monotonic(),
                 stdin=socks[comm_server],
                 subprocess_schema_version=subprocess_schema_version,
+                # The supervisor signals the group; must agree with process_group=0 above.
+                new_process_group=True,
                 comm_server=comm_server,
                 logs_server=logs_server,
                 **kwargs,
@@ -404,6 +435,23 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             tracker.untrack(comm_server, logs_server, proc)
 
         return self
+
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
+        super()._on_child_started(
+            ti=ti,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
+        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        self._arm_execution_timeout()
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
@@ -444,6 +492,21 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         code = super().wait()
         self._close_unused_sockets(self._comm_server, self._logs_server)
         return code
+
+    def _handle_set_task_state_store(
+        self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # A Python task warns in its own setter; a language SDK runtime cannot compute the size
+        # json.dumps gives, so the supervisor warns for it in the task log.
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            if (size := len(json.dumps(msg.value))) > limit:
+                self.process_log.warning(
+                    "Task store value exceeds configured max_value_storage_bytes",
+                    key=msg.key,
+                    size=size,
+                    max_value_storage_bytes=limit,
+                )
+        return super()._handle_set_task_state_store(msg, log, req_id)
 
 
 def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:

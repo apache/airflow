@@ -1,0 +1,161 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Starts the full CI (`ci-amd.yml` / `ci-arm.yml`) on release-prep and providers branches on a
+# schedule, instead of on every push to them. During release preparation backports land on
+# `vX-Y-test` in bursts, and every push used to start a full AMD + ARM canary that the next push
+# cancelled after it had already used hundreds of runner-minutes. Each backport PR has already run
+# CI against the branch, so the branch needs a full run of its current HEAD a few times a day, not
+# one per merged commit.
+#
+# Each slot dispatches one architecture, for every release branch unless the last full run of that
+# workflow on the branch tested its current HEAD and succeeded (or is still in progress): a run is
+# repeated only when there are new commits, or when the previous run of the same commit failed or
+# was cancelled. Branches without a commit in the last `MAX_IDLE_DAYS` days are skipped, so the
+# long tail of old release branches is never built. Release managers can start a run at any time
+# with `workflow_dispatch` here, or directly on `ci-amd.yml` / `ci-arm.yml` with
+# `gh workflow run ci-amd.yml --repo apache/airflow --ref vX-Y-test`.
+#
+# `schedule` runs only from the default branch, which is why this lives on `main` and dispatches
+# the workflows on the release branch: the dispatched run uses the workflow files of that branch.
+name: Release branch CI
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    # AMD at 04:43 and 16:43, ARM at 10:43 and 22:43 UTC: between the `main` canaries
+    # (AMD 01:58/13:58, ARM 07:28/19:28), so the two never compete for runners at the same time.
+    # Keep these strings in sync with AMD_CRON below.
+    - cron: '43 4,16 * * *'
+    - cron: '43 10,22 * * *'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Which CI workflow to start"
+        type: choice
+        options:
+          - "both"
+          - "amd"
+          - "arm"
+        default: "both"
+      branch:
+        description: "Release branch to build (empty: every release branch with new commits)"
+        type: string
+        default: ""
+      force:
+        description: "Start the run even if the last run of the branch HEAD succeeded"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: release-branch-ci
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    name: "Dispatch release branch CI"
+    if: github.repository == 'apache/airflow'
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: "Start CI for release branches with new commits"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          AMD_CRON: '43 4,16 * * *'
+          PLATFORM: ${{ inputs.platform }}
+          BRANCH: ${{ inputs.branch }}
+          FORCE: ${{ inputs.force }}
+          MAX_IDLE_DAYS: "7"
+          # Same branches as the `pull_request` filter of `ci-amd.yml`, minus the `-stable` ones.
+          RELEASE_BRANCH_REGEX: >-
+            ^(v[0-9]+-[0-9]+-test|providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+|chart/v[0-9]+-[0-9]+x-test|airflow-ctl/v[0-9]+-[0-9]+-test)$
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            if [[ "${SCHEDULE}" == "${AMD_CRON}" ]]; then
+              workflows=("ci-amd.yml")
+            else
+              workflows=("ci-arm.yml")
+            fi
+          else
+            case "${PLATFORM}" in
+              amd) workflows=("ci-amd.yml") ;;
+              arm) workflows=("ci-arm.yml") ;;
+              *) workflows=("ci-amd.yml" "ci-arm.yml") ;;
+            esac
+          fi
+          if [[ -n "${BRANCH}" && ! "${BRANCH}" =~ ${RELEASE_BRANCH_REGEX} ]]; then
+            echo "::error::'${BRANCH}' is not a release branch (expected to match ${RELEASE_BRANCH_REGEX})"
+            exit 1
+          fi
+          cutoff="$(date -u -d "-${MAX_IDLE_DAYS} days" +%s)"
+          {
+            echo "| Branch | Workflow | HEAD | Action |"
+            echo "| --- | --- | --- | --- |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          gh api --paginate "repos/${REPOSITORY}/branches?per_page=100" \
+            --jq '.[] | [.name, .commit.sha] | @tsv' > "${RUNNER_TEMP}/branches.tsv"
+          while IFS=$'\t' read -r branch head_sha; do
+            [[ "${branch}" =~ ${RELEASE_BRANCH_REGEX} ]] || continue
+            [[ -z "${BRANCH}" || "${branch}" == "${BRANCH}" ]] || continue
+            if [[ -z "${BRANCH}" ]]; then
+              committed="$(gh api "repos/${REPOSITORY}/commits/${head_sha}" --jq '.commit.committer.date')"
+              if (( $(date -u -d "${committed}" +%s) < cutoff )); then
+                continue
+              fi
+            fi
+            # A branch without this change backported still builds in full on push, and a run
+            # dispatched there would use its old `ci-image-checks.yml`, which publishes a canary's
+            # partial docs build to the docs bucket of `main`.
+            marker="repos/${REPOSITORY}/contents/.github/workflows/release-branch-ci.yml"
+            if ! gh api --silent "${marker}?ref=${branch//\//%2F}"; then
+              echo "${branch}: skipped, release-branch-ci.yml not backported"
+              echo "| \`${branch}\` | - | \`${head_sha:0:10}\` | skipped: not backported |" \
+                >> "${GITHUB_STEP_SUMMARY}"
+              continue
+            fi
+            for workflow in "${workflows[@]}"; do
+              # The newest full run of this workflow on the branch. Push runs only run the selective
+              # tests of their commit, so they do not count.
+              last="$(gh api \
+                "repos/${REPOSITORY}/actions/workflows/${workflow}/runs?branch=${branch//\//%2F}" \
+                -X GET -f event=workflow_dispatch -F per_page=1 \
+                --jq '.workflow_runs[0] | "\(.head_sha // "") \(.status // "") \(.conclusion // "")"')"
+              read -r last_sha last_status last_conclusion <<< "${last}"
+              if [[ "${FORCE}" != "true" && "${last_sha}" == "${head_sha}" \
+                    && ( "${last_status}" != "completed" || "${last_conclusion}" == "success" ) ]]; then
+                action="skipped: last run of HEAD ${last_conclusion:-${last_status}}"
+              else
+                # A branch cut before `ci-amd.yml` / `ci-arm.yml` existed cannot run them; report it and
+                # carry on with the other branches.
+                if gh workflow run "${workflow}" --repo "${REPOSITORY}" --ref "${branch}"; then
+                  action="started"
+                else
+                  action="could not start"
+                  echo "::warning::Could not start ${workflow} on ${branch}"
+                fi
+              fi
+              echo "${branch} ${workflow} ${head_sha:0:10}: ${action}"
+              echo "| \`${branch}\` | \`${workflow}\` | \`${head_sha:0:10}\` | ${action} |" \
+                >> "${GITHUB_STEP_SUMMARY}"
+            done
+          done < "${RUNNER_TEMP}/branches.tsv"

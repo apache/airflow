@@ -37,7 +37,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets import FunctionToolset, PrefixedToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability, _LoggingToolset
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def logger():
 
 @pytest.fixture
 def logging_toolset(wrapped_toolset, logger):
-    return LoggingToolset(wrapped=wrapped_toolset, logger=logger)
+    return _LoggingToolset(wrapped=wrapped_toolset, logger=logger)
 
 
 class TestLoggingToolset:
@@ -218,7 +218,7 @@ class TestToolLoggingCapability:
 
         wrapped = ToolLoggingCapability(logger=logger).get_wrapper_toolset(toolset)
 
-        assert isinstance(wrapped, LoggingToolset)
+        assert isinstance(wrapped, _LoggingToolset)
         assert wrapped.wrapped is toolset
         assert wrapped.logger is logger
 
