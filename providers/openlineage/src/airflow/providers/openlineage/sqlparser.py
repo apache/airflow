@@ -472,7 +472,7 @@ class SQLParser(LoggingMixin):
         return hierarchy
 
 
-def get_sql_parser_for_hook(hook: DbApiHook, connection: Any, conn_id: str) -> SQLParser | None:
+def get_sql_parser_for_hook(hook: DbApiHook, connection: Any, conn_id: str | None) -> SQLParser | None:
     get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
     get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
     if get_dialect is None or get_default_schema is None:
