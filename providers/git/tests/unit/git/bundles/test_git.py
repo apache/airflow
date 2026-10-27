@@ -742,14 +742,8 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_tracking_ref_commit_sha_promote_fails_without_clearing_storage(self, mock_githook, git_repo):
-        """A SHA created after the bundle's local storage was first populated can't be
-        promoted to in-place: the working clone never fetches it before checkout.
-
-        This documents a known limitation rather than desired behavior -- it should start
-        passing once the fix tracked at https://github.com/apache/airflow/issues/71388 lands,
-        at which point this test should be updated to assert success instead.
-        """
+    def test_tracking_ref_commit_sha_promote_without_clearing_storage(self, mock_githook, git_repo):
+        """A new SHA is materialized without exposing a partial version checkout."""
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         first_commit = repo.head.commit
@@ -767,10 +761,13 @@ class TestGitDagBundle:
         second_commit = repo.index.commit("Another commit")
 
         # Promote in-place: config change re-creates the bundle against the same local
-        # storage. The new commit's objects were never fetched into the working clone.
+        # storage. The new version is built separately and then published atomically.
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
-        with pytest.raises(GitCommandError, match="reference is not a tree|unable to read tree"):
-            bundle.initialize()
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_tracking_ref_commit_sha_promote_succeeds_with_fresh_storage(self, mock_githook, git_repo):
@@ -1868,8 +1865,10 @@ class TestGitDagBundle:
         """Test that submodules are synced and updated when submodules=True during initialization."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
 
-        # Mock exists to return True so we skip the clone logic and go straight to initialization
-        mock_exists.return_value = True
+        mock_repo_class.clone_from.side_effect = lambda url, to_path, **kwargs: Path(to_path).mkdir(
+            parents=True
+        )
+        mock_exists.return_value = False
 
         mock_repo_instance = mock_repo_class.return_value
         # Ensure _has_version returns True so we don't try to fetch origin
@@ -1927,7 +1926,10 @@ class TestGitDagBundle:
     def test_submodules_disabled_by_default(self, mock_repo_class, mock_githook, mock_exists, mock_rmtree):
         """Test that submodules are NOT fetched by default."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
-        mock_exists.return_value = True
+        mock_repo_class.clone_from.side_effect = lambda url, to_path, **kwargs: Path(to_path).mkdir(
+            parents=True
+        )
+        mock_exists.return_value = False
 
         mock_repo_instance = mock_repo_class.return_value
 
@@ -1953,7 +1955,10 @@ class TestGitDagBundle:
     ):
         """Test that a GitCommandError during submodule update is raised as a RuntimeError."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
-        mock_exists.return_value = True
+        mock_repo_class.clone_from.side_effect = lambda url, to_path, **kwargs: Path(to_path).mkdir(
+            parents=True
+        )
+        mock_exists.return_value = False
 
         mock_repo_instance = mock_repo_class.return_value
         mock_repo_instance.commit.return_value = mock.MagicMock()
@@ -1972,7 +1977,7 @@ class TestGitDagBundle:
         with pytest.raises(RuntimeError, match="Error pulling submodule from repository"):
             bundle.initialize()
 
-        mock_rmtree.assert_not_called()
+        mock_rmtree.assert_called_once()
 
     @patch.dict(
         os.environ,
@@ -2088,10 +2093,17 @@ class TestGitDagBundle:
         SSH_CMD = "ssh -i /id_rsa -o StrictHostKeyChecking=no"
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
         mock_githook.return_value.env = {"GIT_SSH_COMMAND": SSH_CMD}
-        mock_exists.return_value = True  # Skips clone
+        mock_repo_class.clone_from.side_effect = lambda url, to_path, **kwargs: Path(to_path).mkdir(
+            parents=True
+        )
+        mock_exists.return_value = False
 
         mock_submodules_repo_instance = mock.MagicMock()
-        mock_repo_class.side_effect = [mock.MagicMock(), mock_submodules_repo_instance]
+        mock_repo_class.side_effect = [
+            mock.MagicMock(),
+            mock_submodules_repo_instance,
+            mock.MagicMock(),
+        ]
         mock_submodules_repo_instance.commit.return_value = mock.MagicMock()
 
         bundle = GitDagBundle(
