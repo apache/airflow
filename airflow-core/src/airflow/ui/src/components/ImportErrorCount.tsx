@@ -17,6 +17,9 @@
  * under the License.
  */
 import { Badge, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly count: number | null;
@@ -29,6 +32,8 @@ type Props = {
  * rather than as a clean bill of health.
  */
 export const ImportErrorCount = ({ count }: Props) => {
+  const { i18n } = useTranslation();
+
   if (count === null) {
     return <Text color="fg.muted">-</Text>;
   }
@@ -37,7 +42,7 @@ export const ImportErrorCount = ({ count }: Props) => {
     <Text color="fg.muted">0</Text>
   ) : (
     <Badge colorPalette="failed" variant="solid">
-      {count}
+      {formatNumber(count, i18n.language)}
     </Badge>
   );
 };

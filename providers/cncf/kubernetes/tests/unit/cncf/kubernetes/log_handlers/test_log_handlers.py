@@ -41,7 +41,7 @@ from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
+from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -143,11 +143,8 @@ class TestFileTaskLogHandler:
             **dagrun_kwargs,
         )
         if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(
-                task=task,
-                run_id=dagrun.run_id,
-                dag_version_id=dagrun.created_dag_version_id,
-            )
+            ti = dagrun.get_task_instance(task.task_id)
+            ti.task = dag.get_task(task.task_id)
         else:
             ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3

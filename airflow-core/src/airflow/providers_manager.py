@@ -33,6 +33,9 @@ from importlib.resources import files as resource_files
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 
+from packaging.utils import canonicalize_name
+from packaging.version import Version
+
 from airflow import DeprecatedImportWarning
 from airflow._shared.module_loading import import_string
 from airflow._shared.providers_discovery import discover_all_providers_from_packages
@@ -40,6 +43,8 @@ from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowP
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from importlib.metadata import Distribution
+
     from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
@@ -51,6 +56,33 @@ RT = TypeVar("RT")
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
 }
+
+BLOCKED_PROVIDER_MIN_VERSIONS = {
+    "apache-airflow-providers-common-ai": "1.0.0",
+}
+
+
+def _is_source_install(dist: Distribution) -> bool:
+    """Whether the distribution was installed from a local directory, editable or not (PEP 610)."""
+    with contextlib.suppress(ValueError):
+        return "dir_info" in json.loads(dist.read_text("direct_url.json") or "{}")
+    return False
+
+
+def provider_incompatibility_reason(dist: Distribution) -> str | None:
+    """Return a reason to skip a provider that cannot run with this Airflow version."""
+    package_name = canonicalize_name(dist.metadata["Name"])
+    minimum_version = BLOCKED_PROVIDER_MIN_VERSIONS.get(package_name)
+    if minimum_version is None or Version(Version(dist.version).base_version) >= Version(minimum_version):
+        return None
+    # A source tree reports the last released version, so version alone can't tell it apart; this
+    # exemption can go as soon as a version > 0.10.0 exists.
+    if _is_source_install(dist):
+        return None
+    return (
+        f"Skipping incompatible provider {package_name} {dist.version}; "
+        f"install {package_name}>={minimum_version} for this version of Airflow."
+    )
 
 
 def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: str):
@@ -521,7 +553,9 @@ class ProvidersManager(LoggingMixin):
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
         # So there is no risk we are going to override package provider accidentally. This can only happen
         # in case of local development
-        discover_all_providers_from_packages(self._provider_dict, self._provider_schema_validator)
+        discover_all_providers_from_packages(
+            self._provider_dict, self._provider_schema_validator, provider_incompatibility_reason
+        )
         self._verify_all_providers_all_compatible()
         self._provider_dict = dict(sorted(self._provider_dict.items()))
 

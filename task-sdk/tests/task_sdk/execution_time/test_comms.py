@@ -67,7 +67,15 @@ class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
 
     @pytest.mark.usefixtures("disable_capturing")
-    def test_recv_StartupDetails(self, socket_pair):
+    @pytest.mark.parametrize(
+        "coordinates",
+        [
+            {},
+            {"region_id": uuid.UUID(int=0), "region_index": -1},
+            {"region_id": uuid.uuid4(), "region_index": 7},
+        ],
+    )
+    def test_recv_StartupDetails(self, socket_pair, coordinates):
         r, w = socket_pair
 
         msg = {
@@ -80,6 +88,8 @@ class TestCommsDecoder:
                 "dag_id": "c",
                 "dag_version_id": uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
                 "pool_slots": 1,
+                "map_index": 3,
+                **coordinates,
                 "queue": "default",
                 "priority_weight": 1,
             },
@@ -119,6 +129,10 @@ class TestCommsDecoder:
         assert isinstance(msg, StartupDetails)
         assert msg.ti.id == uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
         assert msg.ti.task_id == "a"
+        assert msg.ti.region_id == coordinates.get("region_id")
+        assert msg.ti.region_index == coordinates.get("region_index")
+        assert msg.ti.map_index == 3
+        assert ("region_index" in msg.ti.model_fields_set) == ("region_index" in coordinates)
         assert msg.ti.dag_id == "c"
         assert msg.dag_rel_path == "/dev/null"
         assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")

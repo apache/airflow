@@ -61,11 +61,11 @@ extracted := dag.Task(extract) // native Go: runs on a Go worker
 
 staged := dag.Task(amazon.S3ToRedshiftOperator{
     SchemaName: "public", TableName: "events", S3Bucket: "raw", S3Key: "events/{{ ds }}",
-}, airflow.TaskSpec{TaskId: "stage"}).After(extracted) // DSL only: runs on a Python worker
+}, airflow.TaskSpec{TaskID: "stage"}).After(extracted) // DSL only: runs on a Python worker
 
 dag.Task(kubernetes.KubernetesPodOperator{
     Namespace: "airflow", Image: "report:latest", Name: "report",
-}, airflow.TaskSpec{TaskId: "report"}).After(staged)
+}, airflow.TaskSpec{TaskID: "report"}).After(staged)
 ```
 
 `airflow.TriggerDagRun` ([ADR-0008](0008-control-flow-constructs.md)) follows the same concept but it is the hand-written.

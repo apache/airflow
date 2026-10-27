@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -355,6 +356,43 @@ func TestSocketLogHandlerStandardFieldsOverrideAttrs(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
 	assert.Equal(t, "info", entry["level"])
 	assert.Equal(t, "example", entry["logger"])
+	assert.Equal(t, "custom", entry["fields.level"])
+	assert.Equal(t, "custom", entry["fields.logger"])
+}
+
+func TestSocketLogHandlerMovesAttrsClashingWithStandardFields(t *testing.T) {
+	for _, tt := range []struct {
+		key  string
+		val  any
+		want any
+	}{
+		{key: "event", val: "user value", want: "user value"},
+		{key: "timestamp", val: 12345, want: float64(12345)},
+		{key: "level", val: "custom", want: "custom"},
+		{key: "logger", val: "custom", want: "custom"},
+	} {
+		t.Run(tt.key, func(t *testing.T) {
+			var buf bytes.Buffer
+			handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+			logger := slog.New(handler).With(tt.key, tt.val)
+
+			logger.Info("the real message")
+
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+
+			assert.Equal(t, "the real message", entry["event"])
+			assert.Equal(t, "info", entry["level"])
+
+			ts, ok := entry["timestamp"].(string)
+			require.True(t, ok, "timestamp should stay a string, got %T", entry["timestamp"])
+			_, err := time.Parse(time.RFC3339Nano, ts)
+			assert.NoError(t, err, "timestamp should stay RFC3339Nano")
+
+			assert.Equal(t, tt.want, entry["fields."+tt.key])
+			assert.NotEqual(t, tt.want, entry[tt.key], "reserved slot must not keep the attr")
+		})
+	}
 }
 
 // TestSocketLogHandlerStringifiesErrorAttr verifies that an attribute whose

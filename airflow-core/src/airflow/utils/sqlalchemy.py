@@ -24,10 +24,12 @@ import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
+from sqlalchemy import TIMESTAMP, PickleType, String, Uuid, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
@@ -50,6 +52,9 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
+
+    # TODO: use Select[UUID] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[UUID]].
+    UUIDSelect = Select
 
 
 log = logging.getLogger(__name__)
@@ -289,6 +294,60 @@ class UtcDateTime(TypeDecorator):
         if dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
+
+
+_MYSQL_DIALECT_NAMES = ("mysql", "mariadb")
+
+
+class CompactUUID(TypeDecorator):
+    """
+    A UUID that MySQL stores as ``BINARY(16)``; other dialects use SQLAlchemy's :class:`~sqlalchemy.types.Uuid`.
+
+    The default MySQL form, ``CHAR(32)``, takes 128 bytes in an index key under a utf8mb4 collation.
+    Keys that already approach InnoDB's 3072-byte limit, such as those holding several ``StringID`` columns,
+    overflow with it.
+    """
+
+    impl = Uuid
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name in _MYSQL_DIALECT_NAMES:
+            return dialect.type_descriptor(mysql.BINARY(16))
+        return dialect.type_descriptor(Uuid())
+
+    def process_bind_param(self, value, dialect):
+        if value is None or dialect.name not in _MYSQL_DIALECT_NAMES:
+            return value
+        return (UUID(value) if isinstance(value, str) else value).bytes
+
+    def process_result_value(self, value, dialect):
+        if value is None or dialect.name not in _MYSQL_DIALECT_NAMES:
+            return value
+        return UUID(bytes=bytes(value))
+
+
+class compact_uuid_default(ColumnElement):
+    """Server default for a :class:`CompactUUID` column, rendered in the form each dialect stores."""
+
+    inherit_cache = True
+    type = NullType()
+
+    def __init__(self, value: UUID):
+        self.value = value
+
+
+@compiles(compact_uuid_default)
+def _compact_uuid_default(element, compiler, **kw):
+    return compiler.render_literal_value(element.value.hex, String())
+
+
+@compiles(compact_uuid_default, "mysql")
+@compiles(compact_uuid_default, "mariadb")
+def _compact_uuid_default_mysql(element, compiler, **kw):
+    # SQLAlchemy only parenthesizes expression defaults when it knows the server version, which offline SQL
+    # generation (--show-sql-only) does not; MySQL rejects an unparenthesized expression default.
+    return f"(UNHEX({compiler.render_literal_value(element.value.hex, String())}))"
 
 
 class ExtendedJSON(TypeDecorator):
@@ -627,6 +686,9 @@ def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[
             session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
+PROHIBIT_COMMIT_ERROR_MESSAGE = "UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!"
+
+
 class CommitProhibitorGuard:
     """Context manager class that powers prohibit_commit."""
 
@@ -635,11 +697,18 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
+        # before_commit fires for a SAVEPOINT release too, not just session.commit(). A
+        # savepoint release ends neither the outer transaction nor its row locks, so it can't
+        # break the HA locks this guard protects -- skip the check while one is open. This
+        # covers session.commit() and savepoint exits; nothing under this guard commits a
+        # transaction handle directly today, which would bypass this check.
+        if session.in_nested_transaction():
+            return
         if self.expected_commit:
             self.expected_commit = False
             return
-        raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+        raise RuntimeError(PROHIBIT_COMMIT_ERROR_MESSAGE)
 
     def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)
@@ -702,6 +771,22 @@ def is_lock_not_available_error(error: OperationalError):
     if error.orig and "database is locked" in str(error.orig).lower():
         return True
     return False
+
+
+def is_deadlock_error(error: Exception) -> bool:
+    """Check if the Error is a database deadlock."""
+    if not isinstance(error, DBAPIError) or error.orig is None:
+        return False
+    # DB specific error codes:
+    # Postgres: 40P01 (deadlock_detected)
+    # MySQL: 1213, 'Deadlock found when trying to get lock; try restarting transaction'
+    # psycopg2 exposes `pgcode`, psycopg3 exposes `sqlstate`
+    db_err_code = (
+        getattr(error.orig, "pgcode", None)
+        or getattr(error.orig, "sqlstate", None)
+        or (error.orig.args[0] if error.orig.args else None)
+    )
+    return db_err_code in ("40P01", 1213)
 
 
 def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:

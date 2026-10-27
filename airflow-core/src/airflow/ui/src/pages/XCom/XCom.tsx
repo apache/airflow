@@ -27,6 +27,7 @@ import type { XComResponse } from "openapi/requests/types.gen";
 import { RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
@@ -36,6 +37,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -67,7 +69,7 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+}: ColumnsProps): Array<ColumnDef<DataTableFeatures, XComResponse>> => [
   {
     accessorKey: "key",
     header: translate("xcom.columns.key"),
@@ -119,12 +121,19 @@ const getColumns = ({
           cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
             <RouterLink
               fontWeight="bold"
-              to={getTaskInstanceLink({
-                dagId: original.dag_id,
-                dagRunId: original.run_id,
-                mapIndex: original.map_index,
-                taskId: original.task_id,
-              })}
+              to={{
+                pathname: getTaskInstanceLink({
+                  dagId: original.dag_id,
+                  dagRunId: original.run_id,
+                  mapIndex: original.map_index,
+                  taskId: original.task_id,
+                }),
+                search: new URLSearchParams(
+                  original.region_id === undefined
+                    ? {}
+                    : { region_id: original.region_id, region_index: String(original.region_index) },
+                ).toString(),
+              }}
             >
               <TruncatedText text={original.task_display_name} />
             </RouterLink>
@@ -147,6 +156,8 @@ const getColumns = ({
         dagId={original.dag_id}
         mapIndex={original.map_index}
         open={open}
+        regionId={original.region_id}
+        regionIndex={original.region_index}
         runId={original.run_id}
         taskId={original.task_id}
         xcomKey={original.key}
@@ -163,6 +174,7 @@ const getColumns = ({
         <DeleteXComButton xcom={original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -170,6 +182,7 @@ const getColumns = ({
 
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
   const { t: translate } = useTranslation(["browse", "common"]);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
@@ -223,9 +236,11 @@ export const XCom = () => {
   });
 
   const apiParams = {
+    ...coordinates,
     ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,
+    excludeInternalKeys: true,
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,
@@ -246,7 +261,7 @@ export const XCom = () => {
     ...xcomKeyArg,
   };
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
+  const { data, error, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
   const xcomEntries = data?.xcom_entries ?? [];
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
@@ -267,7 +282,6 @@ export const XCom = () => {
         displayMode="table"
         filterActions={<XComFilters />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:xcom.entry"
         onStateChange={setTableURLState}

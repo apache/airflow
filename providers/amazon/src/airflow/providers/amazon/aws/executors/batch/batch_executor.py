@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
     from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
 
 
@@ -101,6 +101,7 @@ class AwsBatchExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     elif AIRFLOW_V_3_3_PLUS:
@@ -154,7 +155,9 @@ class AwsBatchExecutor(BaseExecutor):
         for workload in workload_items:
             if isinstance(workload, workloads.ExecuteTask):
                 task_command = [workload]
-                task_key = workload.ti.key
+                task_key = (
+                    self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
+                )
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
@@ -473,7 +476,7 @@ class AwsBatchExecutor(BaseExecutor):
         )
 
     def _submit_job(
-        self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self, key: BatchJobWorkloadKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> str:
         """
         Override the submit_job_kwargs, and calls the boto3 API submit_job endpoint.
@@ -488,7 +491,7 @@ class AwsBatchExecutor(BaseExecutor):
         return submit_job_response
 
     def _submit_job_kwargs(
-        self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self, key: BatchJobWorkloadKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> dict:
         """
         Override the Airflow command to update the container overrides so kwargs are specific to this workload.
@@ -595,7 +598,9 @@ class AwsBatchExecutor(BaseExecutor):
 
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
-                        airflow_workload_key=ti.key,
+                        airflow_workload_key=self.get_task_key(ti)
+                        if self.supports_task_instance_uuid
+                        else ti.key,
                         airflow_cmd=command,
                         queue=ti.queue,
                         exec_config=ti.executor_config,

@@ -17,13 +17,12 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -33,7 +32,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -48,7 +47,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -163,7 +161,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\""
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -226,7 +224,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "duckdb" = [
-    "apache-airflow-providers-duckdb>=0.1.0"
+    "apache-airflow-providers-duckdb>=0.2.0"
 ]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
@@ -299,6 +297,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "microsoft.winrm" = [
     "apache-airflow-providers-microsoft-winrm>=3.6.1"
+]
+"modal" = [
+    "apache-airflow-providers-modal>=0.1.0"
 ]
 "mongo" = [
     "apache-airflow-providers-mongo>=4.2.2"
@@ -444,7 +445,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -465,7 +466,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-duckdb>=0.1.0",
+    "apache-airflow-providers-duckdb>=0.2.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -490,6 +491,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
     "apache-airflow-providers-microsoft-winrm>=3.6.1",
+    "apache-airflow-providers-modal>=0.1.0",
     "apache-airflow-providers-mongo>=4.2.2",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
@@ -583,7 +585,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.12.13",
+    "uv>=0.13.4",
 ]
 
 [project.urls]
@@ -598,6 +600,13 @@ LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[tool.hatch.build]
+# Prune .gitignore'd directories (node_modules, .venv, ...) during the file walk instead of only
+# filtering their files: an editable build of this root package otherwise descends into
+# ts-sdk/node_modules and crashes with FileNotFoundError when a concurrent `pnpm install`
+# (ts-sdk prek hooks run alongside root ones) swaps the pnpm symlinks under it.
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
@@ -742,6 +751,11 @@ ignore = [
     # in flight silently drops the traceback, while leaving `.exception()` where none is
     # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
     "LOG004", # `.exception()` outside an exception handler; 13 sites
+    # Both became reportable once the baseline moved to Python 3.11. Neither is a mechanical
+    # change: StrEnum alters what ``str()`` and ``format()`` return for serialized enum values,
+    # and ``asyncio.timeout`` means dropping the public ``timeout`` parameter from async APIs.
+    "UP042", # Class inherits from both `str` and `enum.Enum`; 98 sites
+    "ASYNC109", # Async function with a `timeout` parameter; 49 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -1253,6 +1267,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/psrp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/src",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mysql/src",
@@ -1449,7 +1465,7 @@ ci-image = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.11.8"
+required-version = ">=0.13.4"
 no-build-isolation-package = ["sphinx-redoc"]
 # pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
 # llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
@@ -1556,6 +1572,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1617,24 +1634,22 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# Temporary: pydantic-ai-skills 1.2.0 (adds exclude_resources, required by the
-# apache-airflow-providers-common-ai[skills] floor) was published 2026-07-15,
-# inside the "4 days" exclude-newer window. This pins the per-package cutoff just
-# past that release so 1.2.0 resolves while any later release stays quarantined.
-# Remove once the rolling window advances past 2026-07-15.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
 # allows the litellm versions that carry the Python 3.14 security fixes, and it was published
 # 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
-# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
-# per-package cutoff just past that release so it resolves while any later release stays
-# quarantined.
-# Remove once the rolling window advances past 2026-09-18.
-typesafe-sdk = "2026-09-19T00:00:00Z"
+
+# Package managers bypass the cooldown so a fix (e.g. a security or trust-store fix) can be
+# picked up as soon as it is released; keep in sync with `[tool.uv.pip.exclude-newer-package]`
+# and dev/breeze/pyproject.toml.
+pip = false
+uv = false
+
+# certifi 2026.10.19 removes the compromised "emSign ECC Root CA - G3" root. Remove this
+# `exclude-newer-package` after 2026-10-25, when that release has been out for 4 days.
+certifi = "2026-10-21T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1756,6 +1771,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1817,12 +1833,13 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
-typesafe-sdk = "2026-09-19T00:00:00Z"
+# Package managers bypass the cooldown — see `[tool.uv.exclude-newer-package]`.
+pip = false
+uv = false
+# Temporary: see the certifi note in `[tool.uv.exclude-newer-package]`.
+certifi = "2026-10-21T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1927,6 +1944,7 @@ apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-microsoft-winrm = { workspace = true }
+apache-airflow-providers-modal = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -2072,6 +2090,7 @@ members = [
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
     "providers/microsoft/winrm",
+    "providers/modal",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",

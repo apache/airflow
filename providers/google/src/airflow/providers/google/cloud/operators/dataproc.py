@@ -22,7 +22,7 @@ from __future__ import annotations
 import inspect
 import re
 import time
-import warnings
+import uuid
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -62,6 +62,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import StartTriggerArgs
 
@@ -117,6 +118,14 @@ class InstanceFlexibilityPolicy:
     instance_selection_list: list[InstanceSelection]
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="Since passing cluster parameters by keyword in the DataprocCreateClusterOperator is scheduled "
+    "for deletion, there is no longer a need to maintain the 'ClusterGenerator' helper class.",
+    instructions="Please pass 'cluster_config' or 'virtual_cluster_config' directly as "
+    "DataprocCreateClusterOperator arguments.",
+    category=AirflowProviderDeprecationWarning,
+)
 class ClusterGenerator:
     """
     Create a new Dataproc Cluster.
@@ -712,16 +721,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
-        # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
-            warnings.warn(
-                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
-                "Please provide cluster_config object using `cluster_config` parameter. "
-                "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
-                "method to obtain cluster object. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
             # Remove result of apply defaults
             if "params" in kwargs:
                 del kwargs["params"]
@@ -2416,9 +2416,12 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
-    :param batch_id: Required. The ID to use for the batch, which will become the final component
+    :param batch_id: Optional. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
+    :param batch_id_prefix: Optional. Prefix for a batch ID generated on each task attempt, in the form
+        ``<batch_id_prefix>-<8 hex characters>``, so a retried attempt submits a new batch.
+        Mutually exclusive with ``batch_id`` and ``request_id``. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -2451,11 +2454,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         "project_id",
         "batch",
         "batch_id",
+        "batch_id_prefix",
         "region",
         "gcp_conn_id",
         "impersonation_chain",
     )
     operator_extra_links = (DataprocBatchLink(),)
+    _BATCH_ID_SUFFIX_LENGTH = 8
 
     def __init__(
         self,
@@ -2464,6 +2469,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         batch: dict | Batch,
         batch_id: str | None = None,
+        batch_id_prefix: str | None = None,
         request_id: str | None = None,
         num_retries_if_resource_is_not_ready: int = 0,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -2490,6 +2496,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.batch = batch
         self.batch_id = batch_id
+        self.batch_id_prefix = batch_id_prefix
         self.request_id = request_id
         self.num_retries_if_resource_is_not_ready = num_retries_if_resource_is_not_ready
         self.retry = retry
@@ -2511,16 +2518,17 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 "Both asynchronous and deferrable parameters were passed. Please, provide only one."
             )
 
+        requested_batch_id = self._resolve_requested_batch_id()
         batch_id: str = ""
-        if self.batch_id:
-            batch_id = self.batch_id
+        if requested_batch_id:
+            batch_id = requested_batch_id
             self.log.info("Starting batch %s", batch_id)
             # Persist the link earlier so users can observe the progress
             DataprocBatchLink.persist(
                 context=context,
                 project_id=self.project_id,
                 region=self.region,
-                batch_id=self.batch_id,
+                batch_id=batch_id,
             )
         else:
             self.log.info("Starting batch. The batch ID will be generated since it was not provided.")
@@ -2536,7 +2544,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 region=self.region,
                 project_id=self.project_id,
                 batch=self.batch,
-                batch_id=self.batch_id,
+                batch_id=requested_batch_id,
                 request_id=self.request_id,
                 retry=self.retry,
                 timeout=self.timeout,
@@ -2599,12 +2607,32 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             attempt = self.num_retries_if_resource_is_not_ready
             while attempt > 0:
                 attempt -= 1
-                batch, batch_id = self.retry_batch_creation(batch_id)
+                batch, batch_id = self.retry_batch_creation(
+                    previous_batch_id=batch_id,
+                    requested_batch_id=requested_batch_id,
+                )
                 if not self.hook.check_error_for_resource_is_not_ready_msg(batch.state_message):
                     break
 
         self.handle_batch_status(context, batch.state.name, batch_id, batch.state_message)
         return Batch.to_dict(batch)
+
+    def _resolve_requested_batch_id(self) -> str | None:
+        if self.batch_id and self.batch_id_prefix:
+            raise ValueError("batch_id and batch_id_prefix are mutually exclusive")
+        if self.batch_id_prefix and self.request_id:
+            # Dataproc returns the original operation for a repeated request_id, so a retried
+            # attempt would reattach to the previous batch despite its new batch ID.
+            raise ValueError("batch_id_prefix and request_id are mutually exclusive")
+        if self.batch_id:
+            return self.batch_id
+        if self.batch_id_prefix:
+            return self._build_unique_batch_id_from_prefix(self.batch_id_prefix)
+        return None
+
+    @classmethod
+    def _build_unique_batch_id_from_prefix(cls, batch_id_prefix: str) -> str:
+        return f"{batch_id_prefix}-{uuid.uuid4().hex[: cls._BATCH_ID_SUFFIX_LENGTH]}"
 
     @cached_property
     def hook(self) -> DataprocHook:
@@ -2647,8 +2675,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     def retry_batch_creation(
         self,
         previous_batch_id: str,
+        requested_batch_id: str | None = None,
     ):
-        self.log.info("Retrying creation process for batch_id %s", self.batch_id)
+        requested_batch_id = requested_batch_id or self.batch_id
+        self.log.info("Retrying creation process for batch_id %s", previous_batch_id)
         self.log.info("Deleting previous failed Batch")
         self.hook.delete_batch(
             batch_id=previous_batch_id,
@@ -2658,13 +2688,14 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("Starting a new creation for batch_id %s", self.batch_id)
+        self.log.info("Starting a new creation for batch_id %s", requested_batch_id)
+        batch_id = requested_batch_id or previous_batch_id
         try:
             self.operation = self.hook.create_batch(
                 region=self.region,
                 project_id=self.project_id,
                 batch=self.batch,
-                batch_id=self.batch_id,
+                batch_id=requested_batch_id,
                 request_id=self.request_id,
                 retry=self.retry,
                 timeout=self.timeout,
@@ -2672,7 +2703,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             )
         except AlreadyExists:
             self.log.info("Batch with given id already exists.")
-            self.log.info("Attaching to the job %s if it is still running.", self.batch_id)
+            self.log.info("Attaching to the job %s if it is still running.", requested_batch_id)
         else:
             if self.operation and self.operation.metadata:
                 batch_id = self.operation.metadata.batch.split("/")[-1]

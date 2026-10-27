@@ -24,11 +24,14 @@ import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
 import httpx
 import pytest
+import structlog.testing
+import tenacity
 import time_machine
 from httpx import URL
 
@@ -58,7 +61,9 @@ def make_client_w_responses(responses: list[httpx.Response]) -> Client:
     return Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
 
-def make_unread_json_response(status_code: int, payload: dict, **kwargs) -> httpx.Response:
+def make_unread_json_response(
+    status_code: int, payload: Any, content_type: str = "application/json", **kwargs
+) -> httpx.Response:
     """
     Build a JSON response whose body has not been read yet.
 
@@ -68,7 +73,7 @@ def make_unread_json_response(status_code: int, payload: dict, **kwargs) -> http
     """
     return httpx.Response(
         status_code,
-        headers={"content-type": "application/json"},
+        headers={"content-type": content_type},
         content=iter([json.dumps(payload).encode()]),
         **kwargs,
     )
@@ -144,6 +149,62 @@ class TestClient:
             get_json_error(response)
 
         assert err.value.args == (expected_message,)
+
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            pytest.param("application/json; charset=utf-8", id="charset"),
+            pytest.param("application/json;charset=UTF-8", id="charset-no-space"),
+            pytest.param("Application/JSON", id="mixed-case"),
+            pytest.param("application/problem+json", id="problem-json"),
+        ],
+    )
+    def test_error_parsing_json_media_type_variants(self, content_type):
+        response = make_unread_json_response(
+            404,
+            {"detail": "boom"},
+            content_type=content_type,
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        with pytest.raises(ServerResponseError):
+            get_json_error(response)
+
+    def test_error_parsing_media_type_merely_prefixed_with_json(self):
+        response = make_unread_json_response(
+            404,
+            {"detail": "boom"},
+            content_type="application/jsonp",
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        assert get_json_error(response) is None
+
+    def test_error_parsing_undecodable_json_body(self):
+        response = httpx.Response(
+            404,
+            headers={"content-type": "application/json"},
+            content=iter([b"{truncated"]),
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        assert get_json_error(response) is None
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_extra"),
+        [
+            pytest.param(["a", "b"], {"detail": ["a", "b"]}, id="array"),
+            pytest.param("plain message", {"detail": "plain message"}, id="string"),
+        ],
+    )
+    @patch("airflowctl.api.client.log.warning", autospec=True)
+    def test_error_log_accepts_non_object_json_body(self, mock_warning, payload, expected_extra):
+        response = make_unread_json_response(404, payload, request=httpx.Request("GET", "http://error"))
+
+        with pytest.raises(ServerResponseError):
+            get_json_error(response)
+
+        assert mock_warning.call_args.kwargs["extra"] == expected_extra
 
     @pytest.mark.parametrize(
         ("suppress_error_log", "expected_warning_count"),
@@ -303,6 +364,17 @@ class TestCredentials:
             Credentials(client_kind=cli_client).load()
 
         assert not os.path.exists(config_dir)
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_EMPTY_CREDENTIALS"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_empty_or_corrupt_credentials(self, mock_keyring):
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_EMPTY_CREDENTIALS.json"), "w") as f:
+            f.write("")
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No credentials file found"):
+            Credentials(client_kind=cli_client).load()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CONFIG_WITH_EXPLICIT_TOKEN"})
     @patch("airflowctl.api.client.keyring")
@@ -477,6 +549,35 @@ class TestSaveKeyringPatching:
             response = client.get("http://error")
             assert response.status_code == 200
             assert len(responses) == 1
+
+    @patch("airflowctl.api.client.Client.request.retry.wait", tenacity.wait_fixed(2))
+    @patch("airflowctl.api.client.Client.request.retry.sleep", autospec=True)
+    def test_retry_logs_error_and_wait_before_sleep(self, mock_sleep):
+        outcomes: list[httpx.Response | httpx.ConnectError] = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+        ]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, httpx.ConnectError):
+                raise outcome
+            return outcome
+
+        client = Client(base_url="", token="", transport=httpx.MockTransport(handle_request))
+
+        with structlog.testing.capture_logs() as captured_logs:
+            response = client.get("http://error")
+
+        assert response.status_code == 200
+        mock_sleep.assert_called_once_with(2)
+        assert [(entry["log_level"], entry["event"]) for entry in captured_logs] == [
+            (
+                "warning",
+                "Retrying airflowctl.api.client.Client.request in 2 seconds "
+                "as it raised ConnectError: Connection refused.",
+            )
+        ]
 
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):

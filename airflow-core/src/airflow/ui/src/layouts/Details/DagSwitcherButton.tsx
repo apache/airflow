@@ -18,25 +18,20 @@
  */
 import { type ReactNode, useState } from "react";
 
-import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { BsChevronExpand } from "react-icons/bs";
 
-import { IconButton, Popover, Tooltip } from "src/system-components";
+import { useDagServiceGetDagsUi } from "openapi/queries";
 
-import {
-  CUT_PADDING,
-  CrumbDivider,
-  CrumbGroup,
-  CrumbLink,
-  type CrumbShape,
-  crumbButtonStyles,
-  getWedgePadding,
-} from "src/components/Breadcrumb";
-import { SearchDags } from "src/components/SearchDags";
+import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
 
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import type { DagSearchOption } from "src/utils/option";
+
+import { SearchDags } from "./SearchDags";
+import { SEARCH_LIMIT, buildDagOption } from "./searchOptions";
+
+const NO_DAGS: Array<DagSearchOption> = [];
 
 type Props = {
   readonly children: ReactNode;
@@ -45,12 +40,16 @@ type Props = {
 };
 
 /**
- * The Dag level of the breadcrumb: a two-part control whose left half navigates to the Dag and
- * whose right half opens the Dag search, so switching Dags happens where the current one is named.
+ * The Dag level of the breadcrumb, with the Dag search behind its chevron.
+ *
+ * The Dags the panel lists are loaded here rather than inside it: a query that only starts when
+ * the panel opens has nothing to show until it answers.
  */
 export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
+  const { data } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: SEARCH_LIMIT });
+  const dags = data === undefined ? NO_DAGS : data.dags.map(buildDagOption);
 
   useShortcut({
     ...SHORTCUTS.search.searchDags,
@@ -60,44 +59,16 @@ export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   });
 
   return (
-    <Popover.Root
-      lazyMount
-      onOpenChange={(event) => setOpen(event.open)}
+    <CrumbSwitcher
+      label={translate("switchDag")}
+      onOpenChange={setOpen}
       open={open}
-      positioning={{ placement: "bottom-start" }}
-      unmountOnExit
+      search={<SearchDags dags={dags} onClose={() => setOpen(false)} />}
+      shape={shape}
+      testId="switch-dag"
+      to={`/dags/${dagId}`}
     >
-      {/* Anchored to the whole Dag level rather than the chevron: it shares the breadcrumb's start
-          edge and its bottom, so the panel drops clear of the bar and lines up with it. */}
-      <Popover.Anchor asChild>
-        <CrumbGroup shape={shape}>
-          <CrumbLink paddingInlineEnd={CUT_PADDING} to={`/dags/${dagId}`}>
-            {children}
-          </CrumbLink>
-          <CrumbDivider />
-          {/* The tooltip wraps the trigger rather than coming from IconButton's `label`: nesting it
-            inside `asChild` leaves its own trigger ref unset, and it renders away from the button. */}
-          <Tooltip content={translate("switchDag")} disabled={open} portalled>
-            <Popover.Trigger asChild>
-              <IconButton
-                {...crumbButtonStyles}
-                {...getWedgePadding(shape)}
-                alignSelf="stretch"
-                aria-label={translate("switchDag")}
-                data-testid="switch-dag"
-                paddingInlineStart={2}
-              >
-                <BsChevronExpand />
-              </IconButton>
-            </Popover.Trigger>
-          </Tooltip>
-        </CrumbGroup>
-      </Popover.Anchor>
-      <Popover.Content data-testid="switch-dag-popover" width="sm">
-        <Box p={2}>
-          <SearchDags onClose={() => setOpen(false)} />
-        </Box>
-      </Popover.Content>
-    </Popover.Root>
+      {children}
+    </CrumbSwitcher>
   );
 };

@@ -59,14 +59,16 @@ def ci_group(
                 get_console(output=output).print(f"\n{title}\n")
         yield
         return
+    if skip_printing_title:
+        yield
+        return
     setattr(ci_group, "__in_ci_group__", True)
-    if not skip_printing_title:
-        if message_type is not None:
-            console_print(f"::group::[{message_type.value}]{title}[/]")
-        else:
-            console_print(f"::group::{title}")
-        try:
-            yield
-        finally:
-            console_print("::endgroup::")
-            setattr(ci_group, "__in_ci_group__", False)
+    if message_type is not None:
+        console_print(f"::group::[{message_type.value}]{title}[/]")
+    else:
+        console_print(f"::group::{title}")
+    try:
+        yield
+    finally:
+        console_print("::endgroup::")
+        setattr(ci_group, "__in_ci_group__", False)

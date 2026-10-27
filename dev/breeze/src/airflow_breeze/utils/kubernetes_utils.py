@@ -26,7 +26,7 @@ import stat
 import sys
 import tarfile
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import sleep
 from typing import Any, NamedTuple
@@ -379,6 +379,20 @@ def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> di
     return yaml.safe_load(config_path.read_text())
 
 
+# Must match nodePort in scripts/ci/kubernetes/nodeport.yaml.
+FORWARDED_NODE_PORT = 30007
+
+
+def _render_kind_cluster_config(forwarded_port_number: int, k8s_api_server_port: int) -> str:
+    return (
+        (SCRIPTS_CI_KUBERNETES_PATH / "kind-cluster-conf.yaml")
+        .read_text()
+        .replace("{{FORWARDED_NODE_PORT}}", str(FORWARDED_NODE_PORT))
+        .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
+        .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
+    )
+
+
 def set_random_cluster_ports(python: str, kubernetes_version: str, output: Output | None) -> None:
     """
     Creates cluster config file and returns sockets keeping the ports bound.
@@ -390,11 +404,8 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
         f"[info]Random ports: K8S API: {k8s_api_server_port}, API Server: {forwarded_port_number}"
     )
     cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
-    config = (
-        (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
-        .read_text()
-        .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
-        .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
+    config = _render_kind_cluster_config(
+        forwarded_port_number=forwarded_port_number, k8s_api_server_port=k8s_api_server_port
     )
     cluster_conf_path.write_text(config)
     get_console(output=output).print(f"[info]Config created in {cluster_conf_path}:\n")
@@ -402,19 +413,30 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     get_console(output=output).print("\n")
 
 
+def _extract_forwarded_host_port(conf: dict[str, Any]) -> int:
+    for node in conf["nodes"]:
+        for port_mapping in node.get("extraPortMappings", []):
+            if port_mapping["containerPort"] == FORWARDED_NODE_PORT:
+                return port_mapping["hostPort"]
+    raise ValueError(
+        f"No node in the kind cluster config has an extraPortMappings entry for "
+        f"containerPort {FORWARDED_NODE_PORT}. Delete and recreate the cluster."
+    )
+
+
 def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if not conf:
         return 0, 0
     k8s_api_server_port = conf["networking"]["apiServerPort"]
-    api_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
+    api_server_port = _extract_forwarded_host_port(conf)
     return k8s_api_server_port, api_server_port
 
 
 def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
     import requests
 
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
     sleep_seconds = 5
     for attempt in itertools.count(1):
         get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
@@ -437,7 +459,7 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
                 f"[warning]Error when connecting to localhost:{port_number} "
                 f"{response.status_code}: {response.reason}"
             )
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         if current_time - start_time > timedelta(seconds=wait_seconds):
             if wait_seconds > 0:
                 get_console(output=output).print(f"[error]More than {wait_seconds} passed. Exiting.")

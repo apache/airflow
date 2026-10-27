@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
@@ -23,7 +24,8 @@ from functools import cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urlencode, urljoin
+from uuid import UUID
 
 from aiohttp import ClientConnectionError, ClientResponseError, ServerTimeoutError, request
 from retryhttp import retry, wait_retry_after
@@ -94,7 +96,9 @@ def jwt_generator() -> JWTGenerator:
     network_errors=ClientConnectionError,
     timeouts=ServerTimeoutError,
 )
-async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
+async def _make_generic_request(
+    method: str, rest_path: str, data: str | None = None, params: dict[str, str] | None = None
+) -> Any:
     authorization = jwt_generator().generate({"method": rest_path})
     api_url = conf.get("edge", "api_url")
     content_type = {"Content-Type": "application/json"} if data else {}
@@ -104,6 +108,8 @@ async def _make_generic_request(method: str, rest_path: str, data: str | None = 
         "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
+    if params:
+        api_endpoint = f"{api_endpoint}?{urlencode(params)}"
     async with request(method, url=api_endpoint, data=data, headers=headers) as response:
         response.raise_for_status()
         if response.status == HTTPStatus.NO_CONTENT:
@@ -174,13 +180,18 @@ async def jobs_fetch(
     queues: list[str] | None,
     free_concurrency: int,
     team_name: str | None = None,
+    *,
+    supports_task_instance_uuid: bool = False,
 ) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
     result = await _make_generic_request(
         "POST",
         f"jobs/fetch/{quote(hostname)}",
         WorkerQueuesBody(
-            queues=queues, free_concurrency=free_concurrency, team_name=team_name
+            queues=queues,
+            free_concurrency=free_concurrency,
+            team_name=team_name,
+            supports_task_instance_uuid=supports_task_instance_uuid,
         ).model_dump_json(exclude_unset=True),
     )
     if result:
@@ -188,19 +199,23 @@ async def jobs_fetch(
     return None
 
 
-async def jobs_set_state(key: TaskInstanceKey, state: TaskInstanceState) -> None:
+async def jobs_set_state(
+    key: TaskInstanceKey, state: TaskInstanceState, *, task_instance_id: UUID | None = None
+) -> None:
     """Set the state of a job."""
     await _make_generic_request(
         "PATCH",
         f"jobs/state/{key.dag_id}/{key.task_id}/{key.run_id}/{key.try_number}/{key.map_index}/{state}",
+        json.dumps({"task_instance_id": str(task_instance_id)}) if task_instance_id else None,
     )
 
 
-async def logs_logfile_path(task: TaskInstanceKey) -> Path:
+async def logs_logfile_path(task: TaskInstanceKey, *, task_instance_id: UUID | None = None) -> Path:
     """Elaborate the path and filename to expect from task execution."""
     result = await _make_generic_request(
         "GET",
         f"logs/logfile_path/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
+        params={"task_instance_id": str(task_instance_id)} if task_instance_id else None,
     )
     base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
     return Path(base_log_folder, result)
@@ -210,12 +225,14 @@ async def logs_push(
     task: TaskInstanceKey,
     log_chunk_time: datetime,
     log_chunk_data: str,
+    *,
+    task_instance_id: UUID | None = None,
 ) -> None:
     """Push an incremental log chunk from Edge Worker to central site."""
     await _make_generic_request(
         "POST",
         f"logs/push/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
-        PushLogsBody(log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data).model_dump_json(
-            exclude_unset=True
-        ),
+        PushLogsBody(
+            log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data, task_instance_id=task_instance_id
+        ).model_dump_json(exclude_unset=True),
     )

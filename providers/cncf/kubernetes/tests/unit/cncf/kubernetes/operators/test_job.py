@@ -515,6 +515,36 @@ class TestKubernetesJobOperator:
             "hello": "world",
         }
 
+    @patch(HOOK_CLASS)
+    def test_build_job_request_obj_dry_run_skips_live_kube_client(self, hook_mock):
+        """dry_run must not require a live Kubernetes API client (e.g. no kube config available)."""
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        job = k.build_job_request_obj(dry_run=True)
+        assert "airflow_kpo_in_cluster" not in job.spec.template.metadata.labels
+
+        with pytest.raises(RuntimeError, match="kube config not available"):
+            k.build_job_request_obj()
+
+    @patch(HOOK_CLASS)
+    def test_dry_run_method_prints_job_without_live_kube_client(self, hook_mock, capsys):
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        hook_mock.return_value.get_namespace.return_value = "default"
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        k.dry_run()
+
+        assert "kind: Job" in capsys.readouterr().out
+
     def test_task_id_as_name(self):
         k = KubernetesJobOperator(
             task_id=".hi.-_09HI",

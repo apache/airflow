@@ -80,6 +80,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
@@ -128,7 +129,7 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun"],
                 DagModel,
                 {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
             ).dynamic_depends()
@@ -270,9 +271,14 @@ def get_dag_details(
         or 0
     )
 
-    # Add is_favorite and active_runs_count fields to the Dag model
+    latest_dag_version = DagVersion.get_latest_version(
+        dag_id, load_dag_model=True, load_bundle_model=True, session=session
+    )
+
+    # Add is_favorite, active_runs_count and latest_dag_version fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "latest_dag_version", latest_dag_version)
 
     return DAGDetailsResponse.model_validate(dag_model)
 

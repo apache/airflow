@@ -22,7 +22,7 @@ from pathlib import Path
 AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.11"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 os.environ["AIRFLOW_UID"] = str(os.getuid())
@@ -62,6 +62,9 @@ OPENLINEAGE_COMPAT_DB_COMPOSE_PATH = (
 # CI sets this (the same switch the lang-SDK k8s job uses) to build the lang-SDK
 # artifacts with the host toolchain instead of ephemeral toolchain containers.
 LANG_SDK_NATIVE_TOOLCHAIN = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
+# Far from the supervisor's own 30-day config fallback, so the e2e test can tell a
+# propagated value from it.
+LANG_SDK_STATE_STORE_RETENTION_DAYS = 7
 
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
@@ -84,6 +87,11 @@ JAVA_TEST_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-tes
 JAVA_TEST_BUNDLE_DAGS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "src" / "resources" / "dags"
 JAVA_TEST_BUNDLE_LIBS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "build" / "bundle"
 
+# Java native-Dag bundle paths (Dags declared in Java, parsed from the JAR by the
+# Dag processor; its JAR goes into the Dag bundle rather than a coordinator root).
+JAVA_NATIVE_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-native-bundle"
+JAVA_NATIVE_BUNDLE_LIBS_PATH = JAVA_NATIVE_BUNDLE_ROOT_PATH / "build" / "bundle"
+
 # Go SDK E2E test paths
 GO_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
 GO_SDK_DAGS_PATH = GO_SDK_ROOT_PATH / "dags"
@@ -92,6 +100,13 @@ GO_SDK_DAGS_PATH = GO_SDK_ROOT_PATH / "dags"
 GO_SDK_EXAMPLE_BUNDLE_PKG = "./example/bundle"
 # Name of the packed bundle binary (matches the example bundle's package dir name).
 GO_SDK_BUNDLE_NAME = "example_dags"
+# The native-Dag example: Dags declared in Go and parsed from the binary by the Dag processor.
+GO_SDK_NATIVE_BUNDLE_PKG = "./example/native"
+GO_SDK_NATIVE_BUNDLE_NAME = "go_native_dags"
+# The dynamic example: Dags generated from a dags.yaml shipped next to the packed binary.
+GO_SDK_DYNAMIC_BUNDLE_PKG = "./example/dynamic"
+GO_SDK_DYNAMIC_BUNDLE_NAME = "go_dynamic_dags"
+GO_SDK_DYNAMIC_YAML_PATH = GO_SDK_ROOT_PATH / "example" / "dynamic" / "dags.yaml"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"

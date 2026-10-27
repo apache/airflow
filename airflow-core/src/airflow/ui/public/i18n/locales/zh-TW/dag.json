@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "所有映射索引",
   "allRuns": "所有執行",
   "blockingDeps": {
     "dependency": "相依性 (Dependencies)",
@@ -6,6 +7,7 @@
     "title": "相依性 (Dependencies) 阻礙任務排程"
   },
   "calendar": {
+    "backfill": "回填",
     "daily": "每日",
     "hourly": "每小時",
     "legend": {
@@ -34,6 +36,21 @@
       "wednesday": "三"
     }
   },
+  "callbacks": {
+    "callback_one": "回呼",
+    "callback_other": "回呼",
+    "columns": {
+      "alertName": "期限警示",
+      "callback": "回呼",
+      "deadlineTime": "截止時間",
+      "missedBy": "逾期時間",
+      "type": "類型"
+    },
+    "types": {
+      "executor": "同步",
+      "triggerer": "非同步"
+    }
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
@@ -43,8 +60,8 @@
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
-    "count_one": "{{count}} 個期限",
-    "count_other": "{{count}} 個期限",
+    "count_one": "1 個期限",
+    "count_other": "{{count, number}} 個期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均執行時間",
       "DagRunLogicalDateDeadline": "邏輯日期",
@@ -59,13 +76,13 @@
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",
-    "missedCount_one": "{{count}} 個已逾期的期限",
-    "missedCount_other": "{{count}} 個已逾期的期限",
-    "mixedCount": "{{missedCount}} 個已逾期，{{upcomingCount}} 個即將到期",
+    "missedCount_one": "1 個已逾期的期限",
+    "missedCount_other": "{{count, number}} 個已逾期的期限",
+    "mixedCount": "{{missedCount, number}} 個已逾期，{{upcomingCount, number}} 個即將到期",
     "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
-    "upcomingCount_one": "{{count}} 個即將到期的期限",
-    "upcomingCount_other": "{{count}} 個即將到期的期限"
+    "upcomingCount_one": "1 個即將到期的期限",
+    "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
   "grid": {
@@ -95,13 +112,48 @@
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {
-      "matchCount": "{{total}} 中第 {{current}} 筆",
+      "matchCount": "{{total, number}} 中第 {{current, number}} 筆",
       "noMatches": "無符合結果",
       "placeholder": "搜尋日誌..."
     },
     "settings": "日誌設定",
+    "tryNotStarted": "此次嘗試尚未開始。",
+    "viewFailedTry": "檢視第 {{tryNumber}} 次失敗嘗試的日誌",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
+    "viewPreviousTry": "檢視前一次（第 {{tryNumber}} 次）嘗試的日誌",
+    "waitingToRetry": "第 {{tryNumber}} 次嘗試正在等待重試。",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "上限：{{max}}",
+      "iterationsAxis": "迭代次數",
+      "stats": {
+        "capHits": "達到上限",
+        "medianIterations": "迭代次數中位數"
+      },
+      "title": "每次執行的迭代次數"
+    },
+    "iterationLabel": "第 {{index}} 次迭代",
+    "iterations": "迭代次數",
+    "outcome": "結果",
+    "reason": {
+      "cap_reached": "已達迭代上限（{{max}}）",
+      "failed": "於第 {{index}} 次迭代失敗",
+      "iteration_failed": "第 {{index}} 次迭代於 {{taskId}} 失敗",
+      "ran_to_cap": "已執行全部 {{max}} 次允許的迭代",
+      "removed": "已移除",
+      "running": "執行中",
+      "skipped": "已跳過",
+      "stopped_early": "於第 {{index}} 次迭代提前停止"
+    },
+    "rules": {
+      "behaviour": "行為",
+      "boundedFor": "執行固定次數的迭代",
+      "exitCriteria": "結束條件",
+      "maxIterations": "最大迭代次數",
+      "whileUntil": "重複執行直到 {{criteria}}"
+    }
   },
   "notFound": {
     "back": "返回",
@@ -207,19 +259,20 @@
     "auditLog": "稽核日誌",
     "backfills": "回填",
     "calendar": "日曆",
+    "callbacks": "回呼",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
-    "mappedTaskInstances_one": "任務實例 [{{count}}]",
-    "mappedTaskInstances_other": "任務實例 [{{count}}]",
+    "mappedTaskInstances_one": "任務實例 [1]",
+    "mappedTaskInstances_other": "任務實例 [{{count, number}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
     "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
-    "storage": "儲存空間",
     "taskInstances": "任務實例",
     "taskStateStore": "任務儲存區",
     "tasks": "任務",
+    "versions": "版本",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +300,70 @@
       "never": "永不"
     },
     "title": "任務儲存區"
+  },
+  "versions": {
+    "base": "比較起點",
+    "categories": {
+      "asset": "資源",
+      "authorization": "授權",
+      "callback": "回呼",
+      "deadline": "截止期限",
+      "dependency": "相依性",
+      "metadata": "中繼資料",
+      "param": "參數",
+      "provenance": "來源",
+      "schedule": "排程",
+      "task": "任務",
+      "unknown": "未知"
+    },
+    "codeAccess": "檢視值需要有 Dag 程式碼的存取權限",
+    "columns": {
+      "after": "變更後",
+      "before": "變更前",
+      "category": "類別",
+      "impact": "影響",
+      "operation": "操作",
+      "path": "路徑"
+    },
+    "heading": "版本 {{base}} → 版本 {{target}}",
+    "impacts": {
+      "authorization": "授權",
+      "execution": "執行",
+      "metadata": "中繼資料",
+      "provenance": "來源",
+      "unknown": "未知"
+    },
+    "limitReached": {
+      "description": "變更數量已超過「變更數上限」。調高上限即可查看其餘變更。",
+      "descriptionDefault": "變更數量已超過預設上限。將「變更數上限」調高，即可查看其餘變更。",
+      "title": "僅顯示前 {{limit, number}} 項變更"
+    },
+    "maxChanges": "變更數上限",
+    "maxChangesDefault": "預設",
+    "noChanges": "這些版本的狀態相同。",
+    "operations": {
+      "added": "新增",
+      "changed": "變更",
+      "removed": "移除"
+    },
+    "pathOccurrences_one": "1 項變更共用此路徑",
+    "pathOccurrences_other": "{{count, number}} 項變更共用此路徑",
+    "pathOccurrencesAtLeast_one": "至少 1 項變更共用此路徑",
+    "pathOccurrencesAtLeast_other": "至少 {{count, number}} 項變更共用此路徑",
+    "record_one": "記錄",
+    "record_other": "記錄",
+    "schemaChange": "序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
+    "summary_one": "1 項變更",
+    "summary_other": "{{count, number}} 項變更",
+    "summaryAtLeast_one": "至少 1 項變更",
+    "summaryAtLeast_other": "至少 {{count, number}} 項變更",
+    "target": "比較對象",
+    "unavailable": {
+      "description": "無法比較這些版本。原因：",
+      "title": "無法比較",
+      "withoutReason": "無法比較這些版本。"
+    },
+    "valuesHidden": "值已隱藏"
   }
 }
