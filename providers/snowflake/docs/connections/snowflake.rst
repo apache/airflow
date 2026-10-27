@@ -175,6 +175,13 @@ workload runs on (here ``GCP``). No password, key-pair or token is stored; the w
 is the credential. The Snowflake side needs a ``TYPE = SERVICE`` user that trusts the workload's identity
 and is granted a role with access to the target objects.
 
+``SnowflakeSqlApiHook``, ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type call
+Snowflake's REST APIs, which accept the workload's identity token directly instead of a connector session.
+The token is fetched through ``snowflake-connector-python`` and reused until shortly before it expires. A
+connection that also sets a private key uses key-pair authentication for these REST hooks. For ``AWS`` the
+REST APIs need the JWT issued by ``sts:GetWebIdentityToken``, so the workload's IAM role must be allowed to
+call it, and ``snowflake-connector-python>=4.7.1`` is required.
+
 .. code-block:: bash
 
     export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='{
