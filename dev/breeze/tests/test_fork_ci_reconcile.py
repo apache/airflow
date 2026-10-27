@@ -141,11 +141,18 @@ def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=
             id="enabled-no-run",
         ),
         pytest.param(
-            ForkObservation(),
+            ForkObservation(workflow_state="active"),
             _marker("awaiting_push"),
             ForkState.AWAITING_PUSH,
             "pending",
             id="still-awaiting",
+        ),
+        pytest.param(
+            ForkObservation(workflow_state="disabled_inactivity"),
+            None,
+            ForkState.SETUP_REQUIRED,
+            "error",
+            id="workflow-disabled-for-inactivity",
         ),
         pytest.param(
             ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL),
@@ -449,6 +456,37 @@ def test_nudge_on_transition_from_setup_required():
     assert plan.state == ForkState.AWAITING_PUSH
     assert len(plan.new_comments) == 1
     assert "Push this branch again" in plan.new_comments[0]
+
+
+@pytest.mark.parametrize(
+    ("marker", "workflow_state", "expected_reason"),
+    [
+        pytest.param(
+            _marker("awaiting_push"), "disabled_manually", "was disabled in your fork", id="awaiting-push"
+        ),
+        pytest.param(_marker("green"), "disabled_inactivity", "no activity for 60 days", id="green"),
+        pytest.param(_marker("failed"), "missing", "is missing from your fork", id="failed"),
+    ],
+)
+def test_comment_when_workflow_disabled_after_it_worked(marker, workflow_state, expected_reason):
+    plan, _, _ = _classify(_pr(marker=marker), ForkObservation(workflow_state=workflow_state))
+
+    assert plan.state == ForkState.SETUP_REQUIRED
+    assert len(plan.new_comments) == 1
+    assert "Fork CI stopped running" in plan.new_comments[0]
+    assert expected_reason in plan.new_comments[0]
+    assert "gh workflow enable ci-amd.yml -R someone/airflow" in plan.new_comments[0]
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [pytest.param(None, id="first-run"), pytest.param(_marker("setup_required"), id="still-disabled")],
+)
+def test_no_disabled_comment_when_workflow_never_worked(marker):
+    plan, _, _ = _classify(_pr(marker=marker), ForkObservation(workflow_state="disabled_fork"))
+
+    assert plan.state == ForkState.SETUP_REQUIRED
+    assert plan.new_comments == []
 
 
 @pytest.mark.parametrize(
@@ -1499,6 +1537,40 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
     assert "#2" not in text
     client.set_status.assert_called_once()
     assert client.set_status.call_args.args[:3] == (2, "sha2", "error")
+
+
+def test_run_reconcile_rereads_workflow_state_while_awaiting_push(client, tmp_path):
+    marker_comment = {
+        "databaseId": 5,
+        "body": render_marker(_marker("awaiting_push", sha="sha1")),
+        "author": {"login": "github-actions"},
+    }
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(_pr_node(1, comments={"nodes": [marker_comment]})),
+        {"pr0": {"object": None}},
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+
+    def rest_get(path, paginate=False, items_key=None):
+        if path == "repos/someone/my-airflow/actions/workflows/ci-amd.yml":
+            return {"state": "disabled_manually"}
+        raise AssertionError(path)
+
+    client.rest_get.side_effect = rest_get
+
+    run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert client.set_status.call_args.args[:3] == (1, "sha1", "error")
+    assert "Fork CI stopped running" in client.create_comment.call_args.args[1]
 
 
 @pytest.mark.parametrize(
