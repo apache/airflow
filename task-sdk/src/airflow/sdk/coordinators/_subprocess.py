@@ -449,13 +449,14 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         sentry_integration: str = "",
         command: Sequence[str],
         subprocess_schema_version: str | None = None,
+        subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
         # 'self' only exists once the runtime has connected, so the loggers its output is forwarded
         # to are resolved here, for a launch that fails before that.
-        target_loggers = cls._target_loggers(process_log, kwargs.get("subprocess_logs_to_stdout", False))
+        target_loggers = cls._default_target_loggers(process_log, subprocess_logs_to_stdout)
         with _ResourceTracker(timeout=startup_timeout) as tracker:
             with _raise_as_launch_error("The runtime cannot start"):
                 comm_server, logs_server = tracker.track(_start_server(), _start_server())
@@ -499,6 +500,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     start_time=time.monotonic(),
                     stdin=socks[comm_server],
                     subprocess_schema_version=subprocess_schema_version,
+                    subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                     # The supervisor signals the group; must agree with process_group=0 above.
                     new_process_group=True,
                     comm_server=comm_server,
