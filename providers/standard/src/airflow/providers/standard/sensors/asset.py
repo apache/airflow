@@ -19,12 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import (
-    Asset,
-    AssetAlias,
-    BaseSensorOperator,
-    PokeReturnValue,
-)
+from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
@@ -32,7 +27,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.common.compat.sdk import Context
-    from airflow.sdk.definitions.asset import AssetRef
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
 
 
 def _serialize_events(events: list[Any]) -> list[Any]:
@@ -51,36 +46,39 @@ class AssetEventSensor(BaseSensorOperator):
     """
     Wait for asset events matching the given filters to reach an expected count.
 
-    The sensor fetches asset events (by asset or asset alias) matching the supplied filters,
-    optionally applies a ``process_result`` callable to transform, deduplicate or filter them,
-    and succeeds once the resulting number of events satisfies ``expected_count``.
+    The sensor fetches events of an asset, asset reference, or asset alias
+    matching the supplied filters, optionally applies a ``process_result``
+    callable to transform, deduplicate or filter them, and succeeds once the
+    resulting number of events satisfies ``expected_count``.
 
     This sensor requires Apache Airflow 3.4+ because the ``partition_key``,
-    ``partition_key_regexp_pattern`` and ``extra`` asset-event filters are only available there.
+    ``partition_key_regexp_pattern`` and ``extra`` asset-event filters are only
+    available there.
 
-    :param obj: The :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` to wait on.
-        The target is declared as an inlet. As an alternative, pass ``name``/``uri``/``alias_name``
-        directly. These alternatives cannot be combined with ``obj`` or with each other, except
-        for ``name`` and ``uri`` together. Target identifiers are static; event filters can be templated.
-    :param name: The asset name to fetch events for.
-    :param uri: The asset uri to fetch events for.
-    :param alias_name: The asset alias name to fetch events for.
+    :param asset: The :class:`~airflow.sdk.Asset`, :meth:`~airflow.sdk.Asset.ref`,
+        or :class:`~airflow.sdk.AssetAlias` to wait on. It is declared as an
+        inlet. A reference must resolve to an existing asset when the task
+        starts. The target is static; event filters can be templated.
     :param after: Only include events at or after this timestamp.
     :param before: Only include events at or before this timestamp.
     :param ascending: Whether events are returned in ascending timestamp order.
-    :param limit: Positive maximum number of events to fetch, before applying ``process_result``.
+    :param limit: Positive maximum number of events to fetch, before applying
+        ``process_result``.
     :param partition_key: Filter by exact partition key match.
     :param partition_key_regexp_pattern: Filter by partition key regexp pattern.
-    :param extra: Filter by key/value pairs contained in the event ``extra`` field.
-    :param expected_count: The non-negative number of processed events required to succeed.
-        Defaults to one. If ``process_result`` is omitted, ``limit`` must not be smaller.
-    :param count_policy: ``"minimum"`` (the default) waits for at least ``expected_count`` events;
-        ``"exact"`` requires exactly that number. To check for no events, use ``"exact"`` and zero.
-    :param process_result: A callable (or a dotted import path to one) applied to the fetched
-        events before the count check, to transform, deduplicate or filter them. It receives the
-        list of asset events and must return a list. It runs on every poke, so it should be
-        **idempotent / side-effect free**, and its return value must be JSON-serializable to be
-        pushed to XCom.
+    :param extra: Filter by key/value pairs contained in the event ``extra``.
+    :param expected_count: The non-negative number of processed events required
+        to succeed. Defaults to 1. If ``process_result`` is omitted, ``limit``
+        must not be smaller.
+    :param count_policy: ``"minimum"`` (the default) waits for at least
+        ``expected_count`` events; ``"exact"`` requires exactly that number. To
+        check for no events, use ``"exact"`` and zero.
+    :param process_result: A callable (or a dotted import path to one) applied
+        to the fetched events before the count check, to transform, deduplicate
+        or filter them. It receives the list of asset events and must return a
+        list. It runs on every poke, so it should be idempotent and free of
+        side-effects. Its return value must be JSON-serializable to be pushed
+        into XCom.
     """
 
     template_fields: Sequence[str] = (
@@ -94,10 +92,7 @@ class AssetEventSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        obj: Asset | AssetAlias | None = None,
-        name: str | None = None,
-        uri: str | None = None,
-        alias_name: str | None = None,
+        asset: Asset | AssetAlias | AssetRef,
         after: datetime | str | None = None,
         before: datetime | str | None = None,
         ascending: bool = True,
@@ -116,25 +111,6 @@ class AssetEventSensor(BaseSensorOperator):
                 "AssetEventSensor requires Apache Airflow 3.4+ because the asset event filters "
                 "it relies on are only available from 3.4 onwards."
             )
-        if obj is not None and any(value is not None for value in (name, uri, alias_name)):
-            raise ValueError("`obj` cannot be combined with `name`, `uri`, or `alias_name`.")
-        if alias_name is not None and (name is not None or uri is not None):
-            raise ValueError("`alias_name` cannot be combined with `name` or `uri`.")
-        self.obj: Asset | AssetAlias | AssetRef
-        if obj is not None:
-            if not isinstance(obj, (Asset, AssetAlias)):
-                raise TypeError(f"`obj` must be an Asset or AssetAlias, got {type(obj).__name__}")
-            self.obj = obj
-        elif alias_name is not None:
-            self.obj = AssetAlias(alias_name)
-        elif name is not None and uri is not None:
-            self.obj = Asset(name=name, uri=uri)
-        elif name is not None:
-            self.obj = Asset.ref(name=name)
-        elif uri is not None:
-            self.obj = Asset.ref(uri=uri)
-        else:
-            raise ValueError("One of `obj`, `name`, `uri`, or `alias_name` must be provided.")
         if not isinstance(expected_count, int) or isinstance(expected_count, bool):
             raise TypeError("`expected_count` must be an integer.")
         if expected_count < 0:
@@ -150,8 +126,9 @@ class AssetEventSensor(BaseSensorOperator):
             raise ValueError(
                 "`limit` must be at least `expected_count` when `process_result` is not provided."
             )
-        if self.obj not in self.inlets:
-            self.inlets.append(self.obj)
+        self.asset = asset
+        if asset not in self.inlets:
+            self.inlets.append(asset)
 
         self.after = after
         self.before = before
@@ -171,7 +148,7 @@ class AssetEventSensor(BaseSensorOperator):
         return func(events)
 
     def poke(self, context: Context) -> PokeReturnValue:
-        accessor = context["inlet_events"][self.obj]
+        accessor = context["inlet_events"][self.asset]
         if self.after is not None:
             accessor.after(self.after if isinstance(self.after, str) else self.after.isoformat())
         if self.before is not None:

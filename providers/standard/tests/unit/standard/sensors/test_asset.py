@@ -96,85 +96,54 @@ def events_response():
 
 
 class TestInit:
-    def test_requires_a_target(self):
-        with pytest.raises(ValueError, match="obj.*name.*uri.*alias_name"):
-            AssetEventSensor(task_id="s")
-
     @pytest.mark.parametrize("use_alias", [False, True])
     def test_declares_target_as_inlet(self, asset, use_alias):
-        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
-        sensor = AssetEventSensor(task_id="s", obj=obj)
-        assert sensor.obj == obj
-        assert sensor.inlets == [obj]
+        target = AssetAlias(name=ALIAS_NAME) if use_alias else asset
+        sensor = AssetEventSensor(task_id="s", asset=target)
+        assert sensor.asset == target
+        assert sensor.inlets == [target]
 
     @pytest.mark.parametrize("include_target", [False, True])
     def test_preserves_existing_inlets_without_duplicates(self, asset, include_target):
         other_asset = Asset("s3://bucket/other")
         inlets = [other_asset, asset] if include_target else [other_asset]
         original_inlets = inlets.copy()
-        sensor = AssetEventSensor(task_id="s", obj=asset, inlets=inlets)
+        sensor = AssetEventSensor(task_id="s", asset=asset, inlets=inlets)
         assert sensor.inlets == [other_asset, asset]
         assert inlets == original_inlets
-
-    def test_target_rejects_bad_type(self):
-        with pytest.raises(TypeError, match="Asset.*AssetAlias"):
-            AssetEventSensor(task_id="s", obj=object())
-
-    @pytest.mark.parametrize(
-        "target",
-        [
-            {"name": ASSET_NAME},
-            {"uri": ASSET_URI},
-            {"name": ASSET_NAME, "uri": ASSET_URI},
-            {"alias_name": ALIAS_NAME},
-        ],
-    )
-    @pytest.mark.parametrize("use_alias", [False, True])
-    def test_rejects_obj_with_raw_selector(self, asset, target, use_alias):
-        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
-        with pytest.raises(ValueError, match="obj"):
-            AssetEventSensor(task_id="s", obj=obj, **target)
-
-    @pytest.mark.parametrize(
-        "target",
-        [{"name": ASSET_NAME}, {"uri": ASSET_URI}, {"name": ASSET_NAME, "uri": ASSET_URI}],
-    )
-    def test_rejects_alias_with_asset_selector(self, target):
-        with pytest.raises(ValueError, match="alias_name"):
-            AssetEventSensor(task_id="s", alias_name=ALIAS_NAME, **target)
 
     @pytest.mark.parametrize("expected_count", [1.5, "1", True, None])
     def test_rejects_noninteger_expected_count(self, asset, expected_count):
         with pytest.raises(TypeError, match="expected_count"):
-            AssetEventSensor(task_id="s", obj=asset, expected_count=expected_count)
+            AssetEventSensor(task_id="s", asset=asset, expected_count=expected_count)
 
     def test_rejects_negative_expected_count(self, asset):
         with pytest.raises(ValueError, match="expected_count"):
-            AssetEventSensor(task_id="s", obj=asset, expected_count=-1)
+            AssetEventSensor(task_id="s", asset=asset, expected_count=-1)
 
     @pytest.mark.parametrize("limit", [0.5, "1", True])
     def test_rejects_noninteger_limit(self, asset, limit):
         with pytest.raises(TypeError, match="limit"):
-            AssetEventSensor(task_id="s", obj=asset, limit=limit)
+            AssetEventSensor(task_id="s", asset=asset, limit=limit)
 
     @pytest.mark.parametrize("limit", [0, -1])
     def test_rejects_nonpositive_limit(self, asset, limit):
         with pytest.raises(ValueError, match="limit"):
-            AssetEventSensor(task_id="s", obj=asset, limit=limit, expected_count=0)
+            AssetEventSensor(task_id="s", asset=asset, limit=limit, expected_count=0)
 
     def test_rejects_invalid_count_policy(self, asset):
         with pytest.raises(ValueError, match="count_policy"):
-            AssetEventSensor(task_id="s", obj=asset, count_policy="unknown")
+            AssetEventSensor(task_id="s", asset=asset, count_policy="unknown")
 
     @pytest.mark.parametrize("count_policy", ["minimum", "exact"])
     def test_rejects_limit_below_expected_count_without_processing(self, asset, count_policy):
         with pytest.raises(ValueError, match="limit"):
-            AssetEventSensor(task_id="s", obj=asset, limit=1, expected_count=3, count_policy=count_policy)
+            AssetEventSensor(task_id="s", asset=asset, limit=1, expected_count=3, count_policy=count_policy)
 
     def test_requires_airflow_3_4(self, mocker, asset):
         mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
         with pytest.raises(RuntimeError, match="requires Apache Airflow 3.4"):
-            AssetEventSensor(task_id="s", obj=asset)
+            AssetEventSensor(task_id="s", asset=asset)
 
     def test_template_fields(self):
         assert set(AssetEventSensor.template_fields) == {
@@ -188,7 +157,7 @@ class TestInit:
     def test_renders_filters_without_changing_lineage(self, asset):
         sensor = AssetEventSensor(
             task_id="s",
-            obj=asset,
+            asset=asset,
             partition_key="{{ ds }}",
             partition_key_regexp_pattern="{{ params.region }}.*",
             extra={"region": "{{ params.region }}"},
@@ -201,14 +170,14 @@ class TestInit:
         assert sensor.extra == {"region": "us"}
         assert sensor.after == "2024-01-01T00:00:00+00:00"
         assert sensor.before == "2024-01-01T23:59:59+00:00"
-        assert sensor.obj == asset
+        assert sensor.asset == asset
         assert sensor.inlets == [asset]
 
 
 class TestPoke:
     def test_returns_serialized_events(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", obj=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset)
         result = sensor.poke(_get_context(sensor))
         assert isinstance(result, PokeReturnValue)
         assert bool(result) is True
@@ -239,7 +208,7 @@ class TestPoke:
         events = events_response.asset_events[:actual_count]
         mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=events)
         sensor = AssetEventSensor(
-            task_id="s", obj=asset, count_policy=count_policy, expected_count=expected_count
+            task_id="s", asset=asset, count_policy=count_policy, expected_count=expected_count
         )
         result = sensor.poke(_get_context(sensor))
         assert bool(result) is done
@@ -249,10 +218,10 @@ class TestPoke:
     @pytest.mark.parametrize("string_bounds", [False, True])
     def test_forwards_all_filters(self, asset, mock_supervisor_comms, use_alias, string_bounds):
         mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
-        obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
+        target = AssetAlias(name=ALIAS_NAME) if use_alias else asset
         sensor = AssetEventSensor(
             task_id="s",
-            obj=obj,
+            asset=target,
             after=_get_timestamp(1).isoformat() if string_bounds else _get_timestamp(1),
             before=_get_timestamp(9).isoformat() if string_bounds else _get_timestamp(9),
             ascending=False,
@@ -281,9 +250,8 @@ class TestPoke:
     @pytest.mark.parametrize("selector", ["name", "uri"])
     def test_resolves_asset_reference(self, selector, events_response, mock_supervisor_comms):
         target = {"name": ASSET_NAME} if selector == "name" else {"uri": ASSET_URI}
-        sensor = AssetEventSensor(task_id="s", **target)
-        assert sensor.obj == Asset.ref(**target)
-        assert sensor.inlets == [sensor.obj]
+        sensor = AssetEventSensor(task_id="s", asset=Asset.ref(**target))
+        assert sensor.inlets == [Asset.ref(**target)]
         mock_supervisor_comms.send.side_effect = [
             AssetResult(name=ASSET_NAME, uri=ASSET_URI, group="asset", extra={}),
             events_response,
@@ -296,25 +264,9 @@ class TestPoke:
         )
         assert mock_supervisor_comms.send.call_args_list == [call(resolution), call(query)]
 
-    @pytest.mark.parametrize("use_alias", [False, True])
-    def test_raw_target(self, asset, events_response, mock_supervisor_comms, use_alias):
-        target = {"alias_name": ALIAS_NAME} if use_alias else {"name": ASSET_NAME, "uri": ASSET_URI}
-        sensor = AssetEventSensor(task_id="s", **target)
-        expected_obj = AssetAlias(name=ALIAS_NAME) if use_alias else asset
-        assert sensor.obj == expected_obj
-        assert sensor.inlets == [expected_obj]
-        mock_supervisor_comms.send.return_value = events_response
-        assert bool(sensor.poke(_get_context(sensor))) is True
-        query = (
-            GetAssetEventByAssetAlias(alias_name=ALIAS_NAME)
-            if use_alias
-            else GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
-        )
-        mock_supervisor_comms.send.assert_called_once_with(query)
-
     def test_fetches_fresh_events_on_every_poke(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[]), events_response]
-        sensor = AssetEventSensor(task_id="s", obj=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset)
         context = _get_context(sensor)
         assert bool(sensor.poke(context)) is False
         assert bool(sensor.poke(context)) is True
@@ -323,7 +275,7 @@ class TestPoke:
 
     def test_execute_returns_xcom_payload(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", obj=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset)
         result = sensor.execute(_get_context(sensor))
         assert result == [event.model_dump(mode="json") for event in events_response.asset_events]
 
@@ -353,7 +305,7 @@ class TestProcessResult:
         mock_supervisor_comms.send.return_value = events_response
         sensor = AssetEventSensor(
             task_id="s",
-            obj=asset,
+            asset=asset,
             process_result=process_result,
             expected_count=expected_count,
             count_policy="exact",
@@ -371,7 +323,7 @@ class TestProcessResult:
         )
         sensor = AssetEventSensor(
             task_id="s",
-            obj=asset,
+            asset=asset,
             limit=1,
             expected_count=2,
             count_policy="exact",
@@ -390,7 +342,7 @@ class TestProcessResult:
         process_result = mocker.create_autospec(only_us_partitions, side_effect=only_us_partitions)
         sensor = AssetEventSensor(
             task_id="s",
-            obj=asset,
+            asset=asset,
             after=_get_timestamp(3),
             ascending=True,
             limit=1,
@@ -411,7 +363,7 @@ class TestProcessResult:
         mock_supervisor_comms.send.return_value = events_response
         sensor = AssetEventSensor(
             task_id="s",
-            obj=asset,
+            asset=asset,
             process_result=lambda events: [{"partition": event.partition_key} for event in events],
         )
         result = sensor.poke(_get_context(sensor))
@@ -425,6 +377,6 @@ class TestProcessResult:
             raise RuntimeError("process_result exploded")
 
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", obj=asset, process_result=boom)
+        sensor = AssetEventSensor(task_id="s", asset=asset, process_result=boom)
         with pytest.raises(RuntimeError, match="process_result exploded"):
             sensor.poke(_get_context(sensor))

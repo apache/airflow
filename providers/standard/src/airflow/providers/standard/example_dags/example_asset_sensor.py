@@ -53,14 +53,14 @@ with DAG(
     # [START example_asset_event_sensor]
     wait_for_asset_event = AssetEventSensor(
         task_id="wait_for_asset_event",
-        obj=my_asset,
+        asset=my_asset,
     )
     # [END example_asset_event_sensor]
 
     # [START example_asset_event_sensor_filtered]
     wait_for_partition_events = AssetEventSensor(
         task_id="wait_for_partition_events",
-        obj=my_asset,
+        asset=my_asset,
         partition_key="{{ data_interval_start | ds }}",
         expected_count=3,
         count_policy="minimum",
@@ -70,7 +70,7 @@ with DAG(
     # [START example_asset_event_sensor_process_result]
     wait_for_latest_asset_event = AssetEventSensor(
         task_id="wait_for_latest_asset_event",
-        obj=my_asset,
+        asset=my_asset,
         process_result=latest_event_only,
     )
     # [END example_asset_event_sensor_process_result]

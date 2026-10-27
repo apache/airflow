@@ -42,14 +42,11 @@ without changing the Dag's schedule. It reads events through ``context["inlet_ev
 Basic usage
 -----------
 
-Pass an :class:`~airflow.sdk.Asset` or :class:`~airflow.sdk.AssetAlias` as ``obj``, or use the raw
-``name`` / ``uri`` / ``alias_name`` arguments. A name-only or URI-only target is an asset reference
-and must resolve to an existing asset when the task context is created. Target identifiers are
-static so Airflow can record the inlet; use templated event filters to select a run's events.
-By default the sensor succeeds once **at least one** matching event exists.
-
-Choose one target form: ``obj``, ``alias_name``, or ``name`` / ``uri``. The name and URI may be
-supplied together, but other combinations are rejected to avoid silently selecting a different asset.
+Pass an :class:`~airflow.sdk.Asset`, :meth:`~airflow.sdk.Asset.ref`, or
+:class:`~airflow.sdk.AssetAlias` as ``asset``. A reference must resolve to an
+existing asset when the task starts. The target is static so Airflow can record
+the inlet; use templated event filters to select a run's events. By default the
+sensor succeeds once **at least one** matching event exists.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
