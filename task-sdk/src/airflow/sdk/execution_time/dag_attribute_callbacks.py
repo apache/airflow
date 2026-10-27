@@ -237,7 +237,9 @@ def _send_task_email(context: EmailCallbackContext, dag: DAG, log: FilteringBoun
     log.info("Sending %s email", email_type, dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     try:
         error = Exception(context.msg) if context.msg else None
-        _send_error_email_notification(task, runtime_ti, runtime_ti.get_template_context(), error, log)
+        _send_error_email_notification(
+            task, runtime_ti, runtime_ti.get_template_context(), error, log, raise_on_error=True
+        )
     except Exception as e:
         log.exception("Failed to send %s email", email_type, task_id=ti.task_id)
         return [f"{type(e).__name__}: {e}"]

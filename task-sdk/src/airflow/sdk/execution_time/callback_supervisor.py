@@ -684,16 +684,15 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
-            if exit_code == 0:
-                terminal_state = CallbackTerminalState.SUCCESS
+            if process.timed_out:
+                stats.incr("callback.timeouts")
+                terminal_output = (
+                    f"Callback timed out after {process._get_callback_execution_timeout()} seconds"
+                )
+            elif exit_code != 0:
+                terminal_output = f"Callback subprocess exited with code {exit_code}"
             else:
-                if process.timed_out:
-                    stats.incr("callback.timeouts")
-                    terminal_output = (
-                        f"Callback timed out after {process._get_callback_execution_timeout()} seconds"
-                    )
-                else:
-                    terminal_output = f"Callback subprocess exited with code {exit_code}"
+                terminal_state = CallbackTerminalState.SUCCESS
         except Exception as e:
             terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
             raise
@@ -706,6 +705,6 @@ def supervise_callback(
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
 
-    if exit_code != 0:
+    if terminal_state == CallbackTerminalState.FAILED:
         raise RuntimeError(terminal_output)
     return exit_code

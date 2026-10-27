@@ -111,6 +111,50 @@ def mock_executor(set_env_vars) -> AwsLambdaExecutor:
 
 
 class TestAwsLambdaExecutor:
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize("submitted", [False, True], ids=["pending", "submitted"])
+    def test_release_callback_stops_submission_and_tracking(self, mock_executor, submitted, time_machine):
+        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
+        from airflow.models.callback import CallbackKey
+
+        time_machine.move_to("2026-10-27T00:00:00Z", tick=False)
+        callback_key = CallbackKey(str(uuid4()))
+        pending_key, active_key, queued_key = (TaskInstanceUuid(uuid4()) for _ in range(3))
+        command = ["unrelated", "task"]
+        queued_workload = mock.Mock(spec=ExecuteTask)
+        task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[queued_key] = queued_workload
+        mock_executor.execute_async(pending_key, command)
+        mock_executor.running_workloads[str(active_key)] = active_key
+        mock_executor.running.update((callback_key, pending_key, active_key))
+        if submitted:
+            mock_executor.running_workloads[str(callback_key)] = callback_key
+        else:
+            mock_executor.execute_async(callback_key, ["callback", "command"])
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+
+        mock_executor.release_callback(callback_key)
+        mock_executor.release_callback(callback_key)
+
+        assert [task.key for task in mock_executor.pending_workloads] == [pending_key]
+        assert mock_executor.running_workloads == {str(active_key): active_key}
+        assert mock_executor.running == {pending_key, active_key}
+        assert task_queue == {queued_key: queued_workload}
+        assert callback_key not in mock_executor.event_buffer
+
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
+        mock_executor.sync()
+
+        mock_executor.lambda_client.invoke.assert_called_once()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        assert payload["task_key"] == str(pending_key)
+        assert payload["command"] == command
+        assert mock_executor.running_workloads == {str(active_key): active_key, str(pending_key): pending_key}
+        assert callback_key not in mock_executor.event_buffer
+
     @mock.patch(
         "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor.change_state"
     )

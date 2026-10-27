@@ -37,6 +37,8 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.dag_attribute_callbacks import run_dag_attribute_callbacks
 
+from tests_common.test_utils.config import conf_vars
+
 TIMESTAMP = "2026-10-22T12:00:00Z"
 DAG_RUN = DagRun.model_validate(
     {
@@ -255,8 +257,8 @@ class TestTaskCallbacks:
         assert _run(context, dag) == ["ValueError: Task 'removed' was not found in Dag 'test_dag'"]
 
 
-@mock.patch("airflow.sdk.execution_time.task_runner._send_error_email_notification", autospec=True)
 class TestTaskEmails:
+    @mock.patch("airflow.sdk.execution_time.task_runner._send_error_email_notification", autospec=True)
     def test_sends_a_failure_email(self, send_email, dag):
         context = EmailCallbackContext(
             type="EmailCallback", ti=TI, email_type="failure", msg="it broke", ti_context=TI_CONTEXT
@@ -275,6 +277,7 @@ class TestTaskEmails:
             pytest.param("no_callbacks", "failure", id="no-email-configured"),
         ],
     )
+    @mock.patch("airflow.sdk.execution_time.task_runner._send_error_email_notification", autospec=True)
     def test_sends_nothing_the_task_does_not_ask_for(self, send_email, dag, task_id, email_type):
         context = EmailCallbackContext(
             type="EmailCallback",
@@ -286,13 +289,43 @@ class TestTaskEmails:
         assert _run(context, dag) == []
         send_email.assert_not_called()
 
-    def test_a_failed_send_is_returned(self, send_email, dag):
-        send_email.side_effect = OSError("SMTP down")
+    @pytest.mark.parametrize(
+        ("email_backend", "notify_path"),
+        [
+            pytest.param(
+                "airflow.utils.email.send_email_smtp",
+                "airflow.providers.smtp.notifications.smtp.SmtpNotifier.notify",
+                id="smtp",
+            ),
+            pytest.param(
+                "custom.email.backend",
+                "airflow.sdk.execution_time.email_backend._LegacyEmailBackendNotifier.notify",
+                id="custom-backend",
+            ),
+        ],
+    )
+    def test_a_failed_delivery_is_returned(self, dag, mocker, email_backend, notify_path):
+        notify = mocker.patch(notify_path, autospec=True, side_effect=OSError("Email service down"))
         context = EmailCallbackContext(
             type="EmailCallback", ti=TI, email_type="failure", ti_context=TI_CONTEXT
         )
 
-        assert _run(context, dag) == ["OSError: SMTP down"]
+        with conf_vars({("email", "email_backend"): email_backend}):
+            assert _run(context, dag) == ["OSError: Email service down"]
+
+        notify.assert_called_once()
+
+    @conf_vars({("email", "email_backend"): "airflow.utils.email.send_email_smtp"})
+    @mock.patch.dict("sys.modules", {"airflow.providers.smtp.notifications.smtp": None})
+    def test_a_missing_smtp_provider_is_returned(self, dag):
+        context = EmailCallbackContext(
+            type="EmailCallback", ti=TI, email_type="failure", ti_context=TI_CONTEXT
+        )
+
+        (error,) = _run(context, dag)
+
+        assert error.startswith("ModuleNotFoundError:")
+        assert "airflow.providers.smtp.notifications.smtp" in error
 
 
 class TestLoadingTheDag:
