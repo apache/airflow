@@ -184,9 +184,6 @@ class ConfigOption(BaseModel):
     Config option.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | Value, Field(title="Value")]
 
@@ -196,9 +193,6 @@ class ConfigSection(BaseModel):
     Config Section Schema.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: Annotated[str, Field(title="Name")]
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
@@ -342,9 +336,6 @@ class DagRunAssetReference(BaseModel):
     DagRun serializer for asset responses.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
@@ -403,9 +394,6 @@ class DagScheduleAssetReference(BaseModel):
     Dag schedule reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
@@ -795,9 +783,6 @@ class TaskInletAssetReference(BaseModel):
     Task inlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -879,9 +864,6 @@ class TaskOutletAssetReference(BaseModel):
     Task outlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1341,9 +1323,6 @@ class Config(BaseModel):
     List of config sections with their options.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     sections: Annotated[list[ConfigSection], Field(title="Sections")]
 
 
