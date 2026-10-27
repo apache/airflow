@@ -621,7 +621,13 @@ class CloudLoggingTaskHandler(logging.Handler):
         # from ``Handler.close()`` gracefully). Print to stderr as last resort since
         # logging itself may be shutting down.
         try:
-            self.io.transport.flush()
+            # Read the attrs (>=23.2) cached_property slot directly so close() never builds a
+            # transport (and starts its worker thread) during logging.shutdown.
+            try:
+                transport = object.__getattribute__(self.io, "transport")
+            except AttributeError:
+                return
+            transport.flush()
         except Exception as exc:
             print(
                 f"CloudLoggingTaskHandler.close: transport flush failed: {type(exc).__name__}: {exc}",
