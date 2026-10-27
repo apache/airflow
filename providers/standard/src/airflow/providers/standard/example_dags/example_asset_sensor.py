@@ -28,6 +28,7 @@ if not AIRFLOW_V_3_4_PLUS:
 
 import pendulum
 
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.asset import AssetEventSensor
 from airflow.sdk import DAG, Asset
 
@@ -54,6 +55,7 @@ with DAG(
     wait_for_asset_event = AssetEventSensor(
         task_id="wait_for_asset_event",
         asset=my_asset,
+        after="{{ data_interval_end | ts }}",
     )
     # [END example_asset_event_sensor]
 
@@ -75,4 +77,8 @@ with DAG(
     )
     # [END example_asset_event_sensor_process_result]
 
-    [wait_for_asset_event, wait_for_partition_events, wait_for_latest_asset_event]
+    # [START example_asset_event_sensor_mid_run]
+    prepare = EmptyOperator(task_id="prepare")
+    process = EmptyOperator(task_id="process")
+    prepare >> wait_for_partition_events >> process
+    # [END example_asset_event_sensor_mid_run]

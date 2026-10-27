@@ -39,6 +39,30 @@ without changing the Dag's schedule. It reads events through ``context["inlet_ev
     ``partition_key_regexp_pattern`` and ``extra`` filters require
     **Apache Airflow 3.4+**.
 
+When to use a schedule instead
+------------------------------
+
+If the dependency does not need to sit in the middle of a run, a schedule is
+usually a better fit. See
+:doc:`apache-airflow:authoring-and-scheduling/asset-scheduling` for details.
+
+* Schedule the Dag on the asset when the whole run can wait for it.
+* Use ``AssetAndTimeSchedule`` (Airflow 3.4+) when a time-scheduled run needs
+  the asset before it starts.
+* Use a partitioned asset timetable with ``RollupMapper`` to wait for every
+  partition in a window.
+
+Use this sensor when some tasks should run immediately and only later tasks
+depend on the asset. Here, ``prepare`` starts as soon as the run does, and only
+``process`` waits for the partition (``wait_for_partition_events`` is defined
+:ref:`below <howto/sensor:AssetEventSensor:filtering>`):
+
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_asset_event_sensor_mid_run]
+    :end-before: [END example_asset_event_sensor_mid_run]
+
 Basic usage
 -----------
 
@@ -48,25 +72,52 @@ existing asset when the task starts. The target is static so Airflow can record
 the inlet; use templated event filters to select a run's events. By default the
 sensor succeeds once **at least one** matching event exists.
 
+.. warning::
+
+    Without ``after``, ``before`` or a partition filter, the sensor considers
+    the asset's entire event history, so it succeeds immediately if a matching
+    event ever existed. Bound the query, for example by time, as below.
+
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START example_asset_event_sensor]
     :end-before: [END example_asset_event_sensor]
 
+.. note::
+
+    For asset-triggered runs, ``data_interval_end`` is the timestamp of the
+    newest triggering event, and ``after`` is inclusive. If the sensor waits on
+    the same asset that triggered the run, that event satisfies it immediately.
+    Use ``{{ dag_run.start_date | ts }}`` as the bound in that case.
+
+A mapped sensor works, but its asset is only recorded as an inlet in lineage if
+it is also passed through ``partial(inlets=[...])``.
+
+.. _howto/sensor:AssetEventSensor:filtering:
+
 Filtering events and expected count
 -----------------------------------
 
-Events can be narrowed with ``after`` / ``before`` (time range), ``ascending`` / ``limit``
-(ordering and cap), ``partition_key`` / ``partition_key_regexp_pattern`` and ``extra`` (key/value
-pairs contained in the event ``extra`` field). Prefer a partition key for the event's partition
+Events can be narrowed with ``after``, ``before`` (time range), ``ascending``,
+``limit`` (ordering and cap), ``partition_key``,
+``partition_key_regexp_pattern``, and ``extra`` (key/value pairs contained in
+the event ``extra`` field). Prefer a partition key for the event's partition
 identity; ``extra`` can further filter metadata, such as a validation status.
 
-Use ``expected_count`` and ``count_policy`` to control how many processed events are required:
+``partition_key_regexp_pattern`` requires a positive
+:ref:`[api] regexp_query_timeout <apache-airflow:config:api__regexp_query_timeout>`.
+With the default ``0``, regexp filtering is disabled, the query is rejected,
+and the task fails.
 
-* ``count_policy="minimum"`` (the default) succeeds at or above ``expected_count``, which defaults to one.
-* ``count_policy="exact"`` succeeds only at ``expected_count``. Use this policy with zero to check
-  that no matching events exist. An exact count can be missed if several events arrive between pokes.
+Use ``expected_count`` and ``count_policy`` to control how many processed
+events are required:
+
+* ``count_policy="minimum"`` (the default) succeeds at or above
+  ``expected_count``, which defaults to one.
+* ``count_policy="exact"`` succeeds only at ``expected_count``. Use this policy
+  with zero to check that no matching events exist. An exact count can be
+  missed if several events arrive between pokes.
 
 Counts must be non-negative integers, and ``limit`` must be a positive integer
 when supplied. With the *minimum* policy, zero always satisfies the count
