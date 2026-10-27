@@ -35,7 +35,7 @@ class GenAIGeminiCreateBatchJobTrigger(BaseTrigger):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API.
     :param input_source: Required. Source of requests, could be inline requests or file name.
     :param results_folder: Optional. Path to a folder on local machine where file with results will be saved.
     :param create_batch_job_config: Optional. Config for batch job creation.
@@ -51,6 +51,7 @@ class GenAIGeminiCreateBatchJobTrigger(BaseTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param vertexai: Optional. Whether to use Vertex AI instead of the Gemini Developer API.
     """
 
     def __init__(
@@ -59,13 +60,14 @@ class GenAIGeminiCreateBatchJobTrigger(BaseTrigger):
         location: str,
         model: str,
         input_source: list | str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         create_batch_job_config: CreateBatchJobConfig | dict | None = None,
         results_folder: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         retrieve_result: bool = False,
         polling_interval: int = 30,
+        vertexai: bool = False,
     ):
         super().__init__()
 
@@ -80,9 +82,17 @@ class GenAIGeminiCreateBatchJobTrigger(BaseTrigger):
         self.retrieve_result = retrieve_result
         self.polling_interval = polling_interval
         self.results_folder = results_folder
+        self.vertexai = vertexai
 
     def _get_async_hook(self) -> GenAIGeminiAPIAsyncHook:
-        return GenAIGeminiAPIAsyncHook(gemini_api_key=self.gemini_api_key)
+        return GenAIGeminiAPIAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            gemini_api_key=self.gemini_api_key,
+            vertexai=self.vertexai,
+            project_id=self.project_id,
+            location=self.location,
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize class arguments and classpath."""
@@ -100,6 +110,7 @@ class GenAIGeminiCreateBatchJobTrigger(BaseTrigger):
                 "retrieve_result": self.retrieve_result,
                 "polling_interval": self.polling_interval,
                 "results_folder": self.results_folder,
+                "vertexai": self.vertexai,
             },
         )
 

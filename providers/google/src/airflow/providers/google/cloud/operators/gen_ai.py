@@ -459,7 +459,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API.
     :param input_source: Required. Source of requests, could be inline requests or file name.
     :param results_folder: Optional. Path to a folder on local machine where file with results will be saved.
     :param create_batch_job_config: Optional. Config for batch job creation.
@@ -477,6 +477,9 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Optional. Run operator in the deferrable mode.
+    :param vertexai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API. When True,
+        ``gcp_conn_id`` is used for authentication instead of ``gemini_api_key``, ``location`` selects the
+        global, multi-regional or regional endpoint, and ``input_source`` must be a ``gs://`` or ``bq://`` URI.
     """
 
     template_fields: Sequence[str] = (
@@ -497,7 +500,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         location: str,
         model: str,
         input_source: list | str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         create_batch_job_config: CreateBatchJobConfig | dict | None = None,
         results_folder: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -506,6 +509,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         wait_until_complete: bool = False,
         polling_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -523,6 +527,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         self.polling_interval = polling_interval
         self.results_folder = results_folder
         self.deferrable = deferrable
+        self.vertexai = vertexai
 
     def _wait_until_complete(self, job, polling_interval: int = 30):
         try:
@@ -575,6 +580,10 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
+        elif job.dest and job.dest.gcs_uri:
+            results = job.dest.gcs_uri
+        elif job.dest and job.dest.bigquery_uri:
+            results = job.dest.bigquery_uri
 
         return results
 
@@ -584,9 +593,26 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            vertexai=self.vertexai,
+            project_id=self.project_id,
+            location=self.location,
         )
 
+    def _validate_input_source(self) -> None:
+        if not self.vertexai:
+            if not self.gemini_api_key:
+                raise ValueError("gemini_api_key is required when vertexai is False")
+            return
+        if not isinstance(self.input_source, str) or not self.input_source.startswith(("gs://", "bq://")):
+            raise ValueError(
+                "When vertexai is True, input_source must be a Cloud Storage (gs://) or BigQuery (bq://) URI"
+            )
+        if self.results_folder:
+            raise ValueError("results_folder is not supported when vertexai is True")
+
     def execute(self, context: Context):
+        self._validate_input_source()
+
         if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
             raise AirflowException(
                 "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
@@ -611,6 +637,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                     retrieve_result=self.retrieve_result,
                     polling_interval=self.polling_interval,
                     results_folder=self.results_folder,
+                    vertexai=self.vertexai,
                 ),
                 method_name="execute_complete",
             )
