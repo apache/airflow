@@ -521,7 +521,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     is_teardown: bool = False
     returns_dag_result: bool = False
     on_failure_fail_dagrun: bool = False
-
+    on_success_succeed_dagrun: bool = False
     # This is set in __attrs_post_init__ by update_wrapper. Provided here for type hints.
     __wrapped__: Callable[FParams, FReturn] = attr.ib(init=False)
 
@@ -566,6 +566,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+        on_success_succeed_dagrun = self.kwargs.pop(
+            "on_success_succeed_dagrun", self.on_success_succeed_dagrun
+        )
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -576,6 +579,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.on_success_succeed_dagrun = on_success_succeed_dagrun
         if self.returns_dag_result:
             check_dag_result_outside_loop(op)
         op.returns_dag_result = self.returns_dag_result
@@ -660,6 +664,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_setup": self.is_setup,
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
+            "on_success_succeed_dagrun": self.on_success_succeed_dagrun,
         }
         base_signature = inspect.signature(BaseOperator)
         ignore = {
@@ -762,6 +767,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         setattr(result, "is_setup", self.is_setup)
         setattr(result, "is_teardown", self.is_teardown)
         setattr(result, "on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+        setattr(result, "on_success_succeed_dagrun", self.on_success_succeed_dagrun)
         return result
 
 

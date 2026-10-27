@@ -111,6 +111,7 @@ class AbstractOperator(Templater, DAGNode):
     trigger_rule: TriggerRule
     _needs_expansion: bool | None = None
     _on_failure_fail_dagrun = False
+    _on_success_succeed_dagrun = False
     is_setup: bool = False
     is_teardown: bool = False
     returns_dag_result: bool = False
@@ -188,6 +189,15 @@ class AbstractOperator(Templater, DAGNode):
         self._on_failure_fail_dagrun = value
 
     @property
+    def on_success_succeed_dagrun(self):
+        """Whether a successful teardown task can mark the DagRun successful."""
+        return self._on_success_succeed_dagrun
+
+    @on_success_succeed_dagrun.setter
+    def on_success_succeed_dagrun(self, value):
+        self._on_success_succeed_dagrun = value
+
+    @property
     def inherits_from_empty_operator(self):
         """Used to determine if an Operator is inherited from EmptyOperator."""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also
@@ -209,11 +219,14 @@ class AbstractOperator(Templater, DAGNode):
         *,
         setups: BaseOperator | Iterable[BaseOperator] | None = None,
         on_failure_fail_dagrun: bool | None = None,
+        on_success_succeed_dagrun: bool | None = None,
     ):
         self.is_teardown = True
         self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
         if on_failure_fail_dagrun is not None:
             self.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if on_success_succeed_dagrun is not None:
+            self.on_success_succeed_dagrun = on_success_succeed_dagrun
         if setups is not None:
             setups = [setups] if isinstance(setups, DependencyMixin) else setups
             for s in setups:

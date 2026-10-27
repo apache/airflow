@@ -4859,6 +4859,37 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     assert dr.state == DagRunState.FAILED
 
 
+def test_work_task_failure_when_teardown_succeeds_and_on_success_is_false(dag_maker, session):
+    with dag_maker():
+
+        @teardown(
+            on_failure_fail_dagrun=True,
+            on_success_succeed_dagrun=False,
+        )
+        def teardown_task():
+            pass
+
+        @task
+        def work():
+            pass
+
+        work() >> teardown_task()
+
+    dr = dag_maker.create_dagrun()
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    work_ti = dr.get_task_instance(task_id="work")
+    td1.state = TaskInstanceState.SUCCESS
+    work_ti.state = TaskInstanceState.FAILED
+
+    session.merge(td1)
+    session.merge(work_ti)
+    session.flush()
+
+    dr.update_state()
+    session.flush()
+
+    dr = session.scalar(select(DagRun))
+    assert dr.state == DagRunState.FAILED
 def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session):
     with dag_maker():
 
@@ -4903,6 +4934,7 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1"], {"w1"}),  # no teardown
         (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
         (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
+        (["w1 >> t1__"], {"w1", "t1__"}),  # OFFD=True but OSSD=False; work remains in state evaluation
         (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
         (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
         (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown
@@ -4914,6 +4946,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 
     t<num> -- teardown task
     t<num>_ -- teardown task with on_failure_fail_dagrun = True
+    t<num>__ -- teardown task with on_failure_fail_dagrun=True and on_success_succeed_dagrun=False
     s<num> -- setup task
     w<num> -- work task (a.k.a. normal task)
 
@@ -4943,6 +4976,8 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
             factory = setup_task
         elif task_id.startswith("w"):
             factory = work_task
+        elif task_id.endswith("__"):
+            factory = teardown_task.override(on_failure_fail_dagrun=True, on_success_succeed_dagrun=False)
         elif task_id.endswith("_"):
             factory = teardown_task.override(on_failure_fail_dagrun=True)
         else:

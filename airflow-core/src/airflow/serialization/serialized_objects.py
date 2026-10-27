@@ -1222,6 +1222,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
+            elif k == "_on_success_succeed_dagrun":
+                k = "on_success_succeed_dagrun"
             elif k == "weight_rule":
                 k = "_weight_rule"
                 v = _decode_priority_weight_strategy(v)
