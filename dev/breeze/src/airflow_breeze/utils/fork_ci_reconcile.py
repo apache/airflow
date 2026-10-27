@@ -73,6 +73,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     status_description,
     tamper_close_comment,
     ungated_comment,
+    workflow_disabled_comment,
 )
 
 CI_WORKFLOW_FILE = "ci-amd.yml"
@@ -144,7 +145,7 @@ JOB_STATUSES_DEFERRED_NOTE = (
 
 RUNNING_STATUSES = frozenset({"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"})
 FAILED_CONCLUSIONS = frozenset({"FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"})
-SETUP_WORKFLOW_STATES = frozenset({"disabled_fork", "disabled_manually", "missing"})
+SETUP_WORKFLOW_STATES = frozenset({"disabled_fork", "disabled_inactivity", "disabled_manually", "missing"})
 
 
 class ForkState(str, Enum):
@@ -284,18 +285,12 @@ def observe_fork_state(fork: ForkObservation, marker: Marker | None) -> tuple[Fo
             return ForkState.FAILED, None
         return None, f"unexpected fork check suite conclusion {fork.suite_conclusion!r}"
     if fork.workflow_state is None:
-        if marker is not None and marker.state == ForkState.AWAITING_PUSH.value:
-            return ForkState.AWAITING_PUSH, None
         return None, "no fork run and the fork workflow state was not read"
     if fork.workflow_state in SETUP_WORKFLOW_STATES:
         return ForkState.SETUP_REQUIRED, None
     if fork.workflow_state == "active":
         return ForkState.AWAITING_PUSH, None
     return None, f"unexpected fork workflow state {fork.workflow_state!r}"
-
-
-def needs_workflow_state(marker: Marker | None) -> bool:
-    return marker is None or marker.state != ForkState.AWAITING_PUSH.value
 
 
 def has_job_started(job: dict[str, Any]) -> bool:
@@ -587,6 +582,17 @@ def classify(
     # tracked at https://github.com/apache/airflow/issues/74908
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
+    # A new comment, because the edited state comment would not notify the author that fork CI they
+    # had working stopped running. Like the nudge, it is not retried when posting it fails; tracked at
+    # https://github.com/apache/airflow/issues/74908
+    if (
+        marker
+        and marker.state not in (ForkState.SETUP_REQUIRED.value, ForkState.CLOSED.value)
+        and state == ForkState.SETUP_REQUIRED
+    ):
+        plan.new_comments.append(
+            workflow_disabled_comment(fork=pr.head_repo, workflow_state=fork.workflow_state)
+        )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
         plan.state = ForkState.CLOSED
@@ -1501,12 +1507,9 @@ def run_reconcile(
             if pr.head_status_unread:
                 pr = read_head_status(client, repo, pr)
             fork = observations.get(pr.number, ForkObservation())
-            if (
-                pr.head_repo
-                and fork.suite_status is None
-                and fork.error is None
-                and needs_workflow_state(pr.marker)
-            ):
+            # Read on every run, not only until the workflow is first seen enabled: it can be
+            # disabled later, and a pull request waiting for a push would then wait forever.
+            if pr.head_repo and fork.suite_status is None and fork.error is None:
                 fork = ForkObservation(workflow_state=fetch_workflow_state(client, pr.head_repo))
             jobs_reported = None
             if config.job_statuses:
