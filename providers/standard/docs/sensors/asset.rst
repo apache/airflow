@@ -35,9 +35,9 @@ without changing the Dag's schedule. It reads events through ``context["inlet_ev
 
 .. note::
 
-    This sensor requires **Apache Airflow 3.4+**, because the ``partition_key``,
-    ``partition_key_regexp_pattern`` and ``extra`` asset-event filters it relies on are only
-    available in Airflow 3.4 and later.
+    This sensor requires **Apache Airflow 3.2+**. The ``partition_key``,
+    ``partition_key_regexp_pattern`` and ``extra`` filters require
+    **Apache Airflow 3.4+**.
 
 Basic usage
 -----------

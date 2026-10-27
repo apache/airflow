@@ -20,8 +20,15 @@ import contextlib
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_4_PLUS
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseSensorOperator,
+    PokeReturnValue,
+)
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
+
+if not AIRFLOW_V_3_2_PLUS:
+    raise AirflowOptionalProviderFeatureException("AssetEventSensor needs Airflow 3.2+.")
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -53,9 +60,8 @@ class AssetEventSensor(BaseSensorOperator):
     callable to transform, deduplicate or filter them, and succeeds once the
     resulting number of events satisfies ``expected_count``.
 
-    This sensor requires Apache Airflow 3.4+ because the ``partition_key``,
-    ``partition_key_regexp_pattern`` and ``extra`` asset-event filters are only
-    available there.
+    This sensor requires Apache Airflow 3.2+. The ``partition_key``,
+    ``partition_key_regexp_pattern`` and ``extra`` filters require Airflow 3.4+.
 
     :param asset: The :class:`~airflow.sdk.Asset`, :meth:`~airflow.sdk.Asset.ref`,
         or :class:`~airflow.sdk.AssetAlias` to wait on. It is declared as an
@@ -107,12 +113,14 @@ class AssetEventSensor(BaseSensorOperator):
         process_result: Callable[[list[Any]], list[Any]] | str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        if not AIRFLOW_V_3_4_PLUS:
-            raise RuntimeError(
-                "AssetEventSensor requires Apache Airflow 3.4+ because the asset event filters "
-                "it relies on are only available from 3.4 onwards."
+        if not AIRFLOW_V_3_4_PLUS and (
+            partition_key is not None or partition_key_regexp_pattern is not None or extra is not None
+        ):
+            raise AirflowOptionalProviderFeatureException(
+                "AssetEventSensor filters partition_key, partition_key_regexp_pattern and extra "
+                "need Airflow 3.4+."
             )
+        super().__init__(**kwargs)
         if not isinstance(expected_count, int) or isinstance(expected_count, bool):
             raise TypeError("`expected_count` must be an integer.")
         if expected_count < 0:

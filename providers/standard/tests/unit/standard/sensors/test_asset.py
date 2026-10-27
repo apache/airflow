@@ -22,12 +22,18 @@ from unittest.mock import call
 
 import pytest
 
-from airflow.providers.common.compat.sdk import DAG, Asset, AssetAlias, PokeReturnValue
-from airflow.providers.standard.sensors.asset import AssetEventSensor
+from airflow.providers.common.compat.sdk import (
+    DAG,
+    AirflowOptionalProviderFeatureException,
+    Asset,
+    AssetAlias,
+    PokeReturnValue,
+)
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
 
-if AIRFLOW_V_3_4_PLUS:
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.providers.standard.sensors.asset import AssetEventSensor
     from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
     from airflow.sdk.execution_time.comms import (
         AssetEventsResult,
@@ -39,7 +45,8 @@ if AIRFLOW_V_3_4_PLUS:
     )
     from airflow.sdk.execution_time.context import InletEventsAccessors
 
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AssetEventSensor requires Airflow 3.4+")
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="AssetEventSensor requires Airflow 3.2+")
+requires_3_4 = pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Filter requires Airflow 3.4+")
 
 ASSET_NAME = "my_asset"
 ASSET_URI = "s3://bucket/key"
@@ -156,10 +163,19 @@ class TestInit:
         )
         assert sensor.limit == limit
 
-    def test_requires_airflow_3_4(self, mocker, asset):
+    @pytest.mark.parametrize(
+        "filters",
+        [{"partition_key": "a"}, {"partition_key_regexp_pattern": "a.*"}, {"extra": {"k": "v"}}],
+    )
+    def test_partition_and_extra_filters_require_airflow_3_4(self, mocker, asset, filters):
         mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
-        with pytest.raises(RuntimeError, match="requires Apache Airflow 3.4"):
-            AssetEventSensor(task_id="s", asset=asset)
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="need Airflow 3.4"):
+            AssetEventSensor(task_id="s", asset=asset, **filters)
+
+    def test_other_filters_do_not_require_airflow_3_4(self, mocker, asset):
+        mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), limit=1)
+        assert sensor.limit == 1
 
     def test_template_fields(self):
         assert set(AssetEventSensor.template_fields) == {
@@ -170,6 +186,7 @@ class TestInit:
             "before",
         }
 
+    @requires_3_4
     def test_renders_filters_without_changing_lineage(self, asset):
         sensor = AssetEventSensor(
             task_id="s",
@@ -230,6 +247,7 @@ class TestPoke:
         assert bool(result) is done
         assert result.xcom_value == ([event.model_dump(mode="json") for event in events] if done else None)
 
+    @requires_3_4
     @pytest.mark.parametrize("use_alias", [False, True])
     @pytest.mark.parametrize("string_bounds", [False, True])
     def test_forwards_all_filters(self, asset, mock_supervisor_comms, use_alias, string_bounds):
@@ -298,7 +316,7 @@ class TestPoke:
     def test_mapped_task(self, asset, events_response, create_runtime_ti, mock_supervisor_comms):
         with DAG("test_dag"):
             mapped = AssetEventSensor.partial(task_id="s", asset=asset).expand(
-                partition_key=["us|2024-01-01", "us|2024-01-02"]
+                after=[_get_timestamp(1), _get_timestamp(2)]
             )
         ti = create_runtime_ti(task=mapped, map_index=1)
         context = ti.get_template_context()
@@ -306,7 +324,7 @@ class TestPoke:
         mock_supervisor_comms.send.return_value = events_response
         assert bool(ti.task.poke(context)) is True
         mock_supervisor_comms.send.assert_called_with(
-            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, partition_key="us|2024-01-02")
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(2))
         )
 
 
