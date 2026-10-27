@@ -258,9 +258,10 @@ def _report_startup_output(
     Write what a runtime printed before it failed to connect to the task log, one event per line.
 
     The output goes through the forwarder a connected runtime's output goes through, rather than
-    into the error message, so every line keeps its own level and timestamp. The supervisor has not
-    started the task instance yet, so if it then rejects the start because the task was cleared,
-    the log keeps output for a try that never ran.
+    into the error message, so every line keeps its own level and timestamp. The task instance is
+    not started yet when this runs. If the supervisor then finds the task was cleared while it was
+    queued, it stops without reporting a state, and these lines stay in this try's local log file
+    without being uploaded. They never reach another try: the log file is per try.
     """
     for key, soc in drains.items():
         output = drained[soc] + _read_available(soc, drain_size)
