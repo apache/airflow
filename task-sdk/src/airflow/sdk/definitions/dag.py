@@ -222,7 +222,7 @@ def _convert_access_control(access_control):
 
 
 def _convert_allowed_run_types(
-    val: DagRunType | Collection[DagRunType] | None,
+    val: DagRunType | str | Collection[DagRunType | str] | None,
 ) -> frozenset[DagRunType] | None:
     """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
     if val is None:
@@ -553,7 +553,7 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
-    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+    allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = attrs.field(
         default=None, converter=_convert_allowed_run_types
     )
     dag_display_name: str = attrs.field(
@@ -1683,7 +1683,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
-        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
+        allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,
