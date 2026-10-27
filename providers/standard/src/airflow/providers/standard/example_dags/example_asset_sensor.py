@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -29,7 +30,7 @@ if not AIRFLOW_V_3_4_PLUS:
 import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.sensors.asset import AssetEventSensor
+from airflow.providers.standard.sensors.asset import AssetEventSensor, RunStart
 from airflow.sdk import DAG, Asset
 
 my_asset = Asset("s3://bucket/my-file.csv")
@@ -55,7 +56,7 @@ with DAG(
     wait_for_asset_event = AssetEventSensor(
         task_id="wait_for_asset_event",
         asset=my_asset,
-        after="{{ data_interval_end | ts }}",
+        after=RunStart(lookback=timedelta(hours=1)),
     )
     # [END example_asset_event_sensor]
 

@@ -86,13 +86,93 @@ sensor succeeds once **at least one** matching event exists.
 
 .. note::
 
-    For asset-triggered runs, ``data_interval_end`` is the timestamp of the
+    For asset-triggered runs, ``dag_run.run_after`` can be the timestamp of the
     newest triggering event, and ``after`` is inclusive. If the sensor waits on
     the same asset that triggered the run, that event satisfies it immediately.
-    Use ``{{ dag_run.start_date | ts }}`` as the bound in that case.
+    Use ``RunStart()`` to wait for events at or after the actual run start.
 
 A mapped sensor works, but its asset is only recorded as an inlet in lineage if
 it is also passed through ``partial(inlets=[...])``.
+
+Run-relative time bounds
+-----------------------
+
+The ``after`` and ``before`` arguments accept datetime values, ISO strings,
+Jinja templates, and these bound objects from
+``airflow.providers.standard.sensors.asset``:
+
+* ``RunStart()`` uses ``dag_run.start_date``, the actual start of the Dag run.
+* ``LogicalDate()`` uses ``logical_date``.
+* ``DataIntervalStart()`` uses ``data_interval_start``.
+* ``DataIntervalEnd()`` uses ``data_interval_end``.
+
+Each built-in object accepts a non-negative ``lookback`` duration, with zero as the
+default. For example, ``RunStart(lookback=timedelta(hours=1))`` includes events
+from one hour before the Dag run started. The basic example above uses this
+bound, so an event from that hour can satisfy the sensor immediately.
+
+``RunStart`` uses the actual start even for a backfill. Select a logical date
+or data interval explicitly when you need historical bounds. For example:
+
+.. code-block:: python
+
+    from airflow.providers.standard.sensors.asset import (
+        AssetEventSensor,
+        DataIntervalEnd,
+        DataIntervalStart,
+    )
+
+    wait_for_interval_events = AssetEventSensor(
+        task_id="wait_for_interval_events",
+        asset=my_asset,
+        after=DataIntervalStart(),
+        before=DataIntervalEnd(),
+    )
+
+Both bounds are inclusive and filter the asset event's timestamp. An event at
+an interval boundary can therefore match two adjacent intervals. These bounds
+do not filter the event's partition key.
+
+A bound raises ``ValueError`` if its selected timestamp is missing. For example,
+some runs do not have a logical date or data interval. The sensor does not
+substitute another timestamp in that case.
+
+Airflow resolves the objects during template rendering, before polling. Their
+run-relative values stay fixed while the sensor polls and after rescheduling.
+
+Custom resolvers
+~~~~~~~~~~~~~~~~
+
+Pass any object with a ``resolve(context)`` method that returns a datetime or
+ISO string. :class:`~airflow.providers.standard.sensors.asset.AssetEventTimeBound`
+defines this interface. Inheritance is optional. For example:
+
+.. code-block:: python
+
+    from airflow.providers.standard.sensors.asset import AssetEventSensor, AssetEventTimeBound
+
+
+    class ParameterBound(AssetEventTimeBound):
+        def resolve(self, context):
+            return context["params"]["events_after"]
+
+
+    wait_for_custom_events = AssetEventSensor(
+        task_id="wait_for_custom_events",
+        asset=my_asset,
+        after=ParameterBound(),
+        params={"events_after": "2024-01-01T00:00:00+00:00"},
+    )
+
+The same example works with ``class ParameterBound:``. Custom resolvers need
+only ``resolve(context)``. The ``lookback`` argument is a convenience provided
+by the built-in helpers.
+
+Alternatively, pass a template callable that accepts the ``context`` and
+``jinja_env`` keyword arguments and returns a datetime or ISO string. Airflow
+evaluates the callable during template rendering. Custom resolvers and callables
+must return the same bound after rescheduling. A bound based on the current clock
+can move the query window and exclude events that arrived between pokes.
 
 .. _howto/sensor:AssetEventSensor:filtering:
 

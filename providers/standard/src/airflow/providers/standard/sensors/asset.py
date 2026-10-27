@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any, Literal
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, cast
 
 from pydantic import BaseModel
 
@@ -51,6 +52,86 @@ def _serialize_events(events: list[Any]) -> list[Any]:
     return [e.model_dump(mode="json") if isinstance(e, BaseModel) else e for e in events]
 
 
+class AssetEventTimeBound(Protocol):
+    """
+    A time bound that Airflow resolves during template rendering.
+
+    Implement ``resolve(context)`` to return a datetime or ISO string. Custom
+    objects do not need to inherit this protocol.
+    The result must stay fixed across reschedules of the same Dag run.
+    """
+
+    def resolve(self, context: Context) -> datetime | str:
+        """Return the event timestamp bound for this task's runtime context."""
+        ...
+
+
+class _ContextTimeBound(AssetEventTimeBound):
+    _context_key: ClassVar[str]
+
+    def __init__(self, *, lookback: timedelta = timedelta(0)) -> None:
+        if lookback < timedelta(0):
+            raise ValueError("`lookback` must be non-negative.")
+        self.lookback = lookback
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(lookback={self.lookback!r})"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        return cast("datetime | None", context.get(self._context_key))
+
+    def resolve(self, context: Context) -> datetime:
+        """Resolve the bound during template rendering, before the sensor polls."""
+        timestamp = self._get_timestamp(context)
+        if timestamp is None:
+            raise ValueError(f"{type(self).__name__} requires {self._context_key!r} in the task context.")
+        return timestamp - self.lookback
+
+
+class RunStart(_ContextTimeBound):
+    """
+    Bound events by the Dag run's actual start time, including for backfills.
+
+    :param lookback: Non-negative duration to subtract from ``dag_run.start_date``.
+    """
+
+    _context_key = "dag_run.start_date"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        dag_run = context.get("dag_run")
+        return dag_run.start_date if dag_run is not None else None
+
+
+class LogicalDate(_ContextTimeBound):
+    """
+    Bound events by the Dag run's logical date.
+
+    :param lookback: Non-negative duration to subtract from ``logical_date``.
+    """
+
+    _context_key = "logical_date"
+
+
+class DataIntervalStart(_ContextTimeBound):
+    """
+    Bound events by the start of the Dag run's data interval.
+
+    :param lookback: Non-negative duration to subtract from ``data_interval_start``.
+    """
+
+    _context_key = "data_interval_start"
+
+
+class DataIntervalEnd(_ContextTimeBound):
+    """
+    Bound events by the end of the Dag run's data interval.
+
+    :param lookback: Non-negative duration to subtract from ``data_interval_end``.
+    """
+
+    _context_key = "data_interval_end"
+
+
 class AssetEventSensor(BaseSensorOperator):
     """
     Wait for asset events matching the given filters to reach an expected count.
@@ -69,6 +150,11 @@ class AssetEventSensor(BaseSensorOperator):
         starts. The target is static; event filters can be templated.
     :param after: Only include events at or after this timestamp.
     :param before: Only include events at or before this timestamp.
+        Both bounds accept a datetime, ISO string, any object implementing
+        :class:`AssetEventTimeBound`, or a template callable accepting
+        ``context`` and ``jinja_env``. Airflow
+        resolves them before polling. Custom callables must return stable
+        bounds across reschedules.
     :param ascending: Whether events are returned in ascending timestamp order.
     :param limit: Positive maximum number of events to fetch, before applying
         ``process_result``.
@@ -100,8 +186,8 @@ class AssetEventSensor(BaseSensorOperator):
         self,
         *,
         asset: Asset | AssetAlias | AssetRef,
-        after: datetime | str | None = None,
-        before: datetime | str | None = None,
+        after: datetime | str | AssetEventTimeBound | Callable[..., datetime | str] | None = None,
+        before: datetime | str | AssetEventTimeBound | Callable[..., datetime | str] | None = None,
         ascending: bool = True,
         limit: int | None = None,
         partition_key: str | None = None,
@@ -161,11 +247,14 @@ class AssetEventSensor(BaseSensorOperator):
         return InletEventsAccessors([self.asset])[self.asset]
 
     def poke(self, context: Context) -> PokeReturnValue:
+        # Template rendering replaces bound objects and callables before polling.
+        after = cast("datetime | str | None", self.after)
+        before = cast("datetime | str | None", self.before)
         accessor = self._get_accessor(context)
-        if self.after is not None:
-            accessor.after(self.after if isinstance(self.after, str) else self.after.isoformat())
-        if self.before is not None:
-            accessor.before(self.before if isinstance(self.before, str) else self.before.isoformat())
+        if after is not None:
+            accessor.after(after if isinstance(after, str) else after.isoformat())
+        if before is not None:
+            accessor.before(before if isinstance(before, str) else before.isoformat())
         accessor.ascending(self.ascending)
         if self.limit is not None:
             accessor.limit(self.limit)
