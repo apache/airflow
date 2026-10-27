@@ -250,7 +250,7 @@ The triage workflow uses the following labels and states:
 ## Pull requests gated to fork CI
 
 Pull requests labelled `fork ci required` run their CI in the contributor's fork. The scheduled
-fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns four things
+fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns five things
 for them, and the triage skill must treat those pull requests as out of scope for each:
 
 - **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
@@ -261,6 +261,10 @@ for them, and the triage skill must treat those pull requests as out of scope fo
 - **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
   changes CI-defining files, and removes it once the state is anything else. These pull requests
   stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
+- **Closing for changing the gate.** The reconciler closes a pull request that changes the fork
+  CI gate (its code, configuration other than the author's own `[pilot]` entry, the `gate` job
+  of `ci-amd.yml` or the monitor), and reports it on Slack. Add `use project ci` to accept such
+  a change.
 - **Closing after inactivity.** The reconciler closes a pull request whose fork CI has not run for
   `close_after_days`.
 

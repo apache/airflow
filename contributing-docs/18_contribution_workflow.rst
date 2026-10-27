@@ -186,7 +186,10 @@ at 00:00 UTC:
    "your-login" = YYYY-MM-DDT00:00:00Z
 
 Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
-CI. To leave the pilot, open a pull request that removes the line. A pilot entry gates your pull
+CI. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
+the only part of the fork CI gate a pull request using fork CI may change: one that changes the
+gate's code, the rest of its configuration or the ``gate`` job of ``ci-amd.yml`` is closed with an
+explanation. A pilot entry gates your pull
 requests whatever your role, so a committer in the pilot also enables the workflow;
 ``breeze ci audit`` tells you which applies to you. The design is described in
 `Fork CI for external contributors <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
