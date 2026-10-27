@@ -35,6 +35,18 @@ export type HITLResponseParams = {
 export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
   state === "deferred" || state === "awaiting_input";
 
+// Whether an option button is styled as the main action. After a response, the chosen options are. Before one,
+// the options preloaded through the URL are, or else all options alike: the defaults are what a timeout applies,
+// not a recommendation, so styling them as the main action leads users to pick them by mistake.
+export const isHighlightOption = (
+  option: string,
+  hitlDetail: Pick<HITLDetailHistory, "chosen_options" | "response_received">,
+  preloadedHITLOptions: Array<string>,
+): boolean =>
+  hitlDetail.response_received
+    ? Boolean(hitlDetail.chosen_options?.includes(option))
+    : preloadedHITLOptions.length === 0 || preloadedHITLOptions.includes(option);
+
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
   const sourceValues = hitlDetail.response_received ? hitlDetail.chosen_options : hitlDetail.defaults;
