@@ -133,6 +133,23 @@ def mock_estimate():
             "CI definition files",
             id="selective-checks-change",
         ),
+        *(
+            pytest.param(
+                [ChangedFile(path, 1)],
+                _selective_checks(),
+                100,
+                False,
+                f"CI definition files: {path}",
+                id=f"fork-ci-defining-{path}",
+            )
+            for path in (
+                ".pre-commit-config.yaml",
+                "airflow-core/.pre-commit-config.yaml",
+                "Dockerfile.ci",
+                "scripts/docker/entrypoint_ci.sh",
+                "scripts/in_container/run_ci_tests.sh",
+            )
+        ),
         pytest.param(
             CORE_CHANGE,
             _selective_checks(full_tests_needed=True),
