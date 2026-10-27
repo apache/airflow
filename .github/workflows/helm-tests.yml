@@ -142,7 +142,9 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Fetch Git Tags"
-        run: git fetch --tags
+        # From apache/airflow rather than origin: a fork only has the tags that existed when it was
+        # created, so on fork CI origin lacks the helm-chart release tags used below.
+        run: git fetch --tags https://github.com/apache/airflow.git
       - name: "Test helm chart issue generation"
         run: >
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2

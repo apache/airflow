@@ -346,13 +346,14 @@ def _run(
     head_repo="contributor/airflow",
     head_branch="fix",
     created_at="2026-10-22T10:00:00Z",
+    head_repo_id=1,
 ) -> dict:
     return {
         "id": run_id,
         "head_sha": head_sha,
         "head_branch": head_branch,
         "created_at": created_at,
-        "head_repository": {"full_name": head_repo},
+        "head_repository": {"full_name": head_repo, "id": head_repo_id},
     }
 
 
@@ -484,7 +485,9 @@ def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monke
 )
 def test_decide_approval_with_real_selective_checks(paths, approve):
     changed_files = [ChangedFile(path, 10) for path in paths]
-    selective_checks = SelectiveChecks(files=tuple(paths), commit_ref="HEAD", pr_labels=())
+    selective_checks = SelectiveChecks(
+        files=tuple(paths), default_branch="main", commit_ref="HEAD", pr_labels=()
+    )
 
     decision = decide_approval(
         base_branch="main", changed_files=changed_files, selective_checks=selective_checks
@@ -1039,3 +1042,60 @@ def test_process_waiting_runs_approves_gated_runs_started_before_use_fork_ci_was
         process_waiting_runs(api, created_since=CREATED_SINCE)
 
     assert approve_run.call_args_list == [mock.call(2), mock.call(3)]
+
+
+@pytest.mark.parametrize(
+    ("head_repo", "head_repo_id", "stakeholder"),
+    [
+        ("astronomer/airflow", 65323404, "Astronomer"),
+        ("aws-mwaa/upstream-to-airflow", 484591340, "Amazon"),
+        ("VladaZakharova/airflow", 733432432, "Google"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_always_approves_trusted_stakeholder_repositories(
+    mock_decide, head_repo, head_repo_id, stakeholder
+):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [
+        _run(1, "aaa", head_repo=head_repo, head_repo_id=head_repo_id, created_at="2026-10-22T08:30:00Z"),
+        _run(2, "aaa", head_repo=head_repo, head_repo_id=head_repo_id),
+    ]
+    # Several PRs share the head and a run started before the PRs were opened.
+    api.get_open_pull_requests.return_value = [
+        _pr(10, "aaa", head_repo=head_repo, labels=[NEED_WORKFLOW_APPROVAL_LABEL]),
+        _pr(11, "aaa", head_repo=head_repo, labels=[NEED_WORKFLOW_APPROVAL_LABEL]),
+    ]
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    mock_decide.assert_not_called()
+    assert [(r.pr_number, r.run_ids, r.decision.approve) for r in results] == [
+        (10, [1, 2], True),
+        (11, [], True),
+    ]
+    assert stakeholder in results[0].decision.reasons[0]
+    assert api.approve_run.call_args_list == [mock.call(1), mock.call(2)]
+    api.add_label.assert_not_called()
+    assert api.remove_label.call_args_list == [
+        mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL),
+        mock.call(11, NEED_WORKFLOW_APPROVAL_LABEL),
+    ]
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_does_not_trust_a_repository_by_its_name(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
+    api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa", head_repo="astronomer/airflow")]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa", head_repo="astronomer/airflow")]
+    mock_decide.return_value = ApprovalDecision(approve=False, reasons=["too big"])
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    mock_decide.assert_called_once()
+    assert not results[0].decision.approve
+    api.approve_run.assert_not_called()
