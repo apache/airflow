@@ -25,10 +25,10 @@ import { TIMEZONE_KEY } from "src/constants/localStorage";
 import { TimezoneContext, type TimezoneContextType } from "./Context";
 
 const isValidTimezone = (tz: string | undefined): boolean => {
-    if (tz === undefined || tz === "") {
+  if (tz === undefined || tz === "") {
     return false;
   }
-  
+
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
 
