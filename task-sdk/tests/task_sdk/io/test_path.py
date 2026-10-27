@@ -363,18 +363,52 @@ class TestRemotePath:
         assert o.key == key
         assert o.protocol == protocol
 
+    @pytest.mark.parametrize("src_key", ["src", "x/src"])
     @mock.patch.object(_FakeRemoteFileSystem, "mkdir", autospec=True)
-    def test_copy_dir_to_new_remote_dir(self, mock_mkdir, fake_remote_stores):
+    def test_copy_dir_to_new_remote_dir(self, mock_mkdir, src_key, fake_remote_stores):
         bucket = uuid.uuid4().hex
-        src = ObjectStoragePath(f"ffs://{bucket}/src")
+        src = ObjectStoragePath(f"ffs://{bucket}/{src_key}")
         for name in ("a.txt", "b.txt"):
             (src / name).write_text(name)
         dst = ObjectStoragePath(f"ffs2://{bucket}/dst")
 
         src.copy(dst, recursive=True)
 
-        assert (dst / "src" / "a.txt").read_text() == "a.txt"
-        assert (dst / "src" / "b.txt").read_text() == "b.txt"
+        assert (dst / src_key / "a.txt").read_text() == "a.txt"
+        assert (dst / src_key / "b.txt").read_text() == "b.txt"
+
+    @pytest.mark.parametrize(
+        ("src_key", "dst_key"),
+        [
+            ("src", "src"),
+            ("src", "src/archive"),
+            ("", "archive"),
+        ],
+    )
+    def test_move_dir_into_itself_across_conn_ids_raises(self, src_key, dst_key, fake_remote_stores):
+        for conn_id in ("conn_a", "conn_b"):
+            attach(protocol="ffs", conn_id=conn_id, fs=_FakeRemoteFileSystem())
+        bucket = uuid.uuid4().hex
+        src = ObjectStoragePath(f"ffs://conn_a@{bucket}/{src_key}")
+        (src / "a.txt").write_text("a")
+        dst = ObjectStoragePath(f"ffs://conn_b@{bucket}/{dst_key}")
+
+        with pytest.raises(ValueError, match="the destination is the source or inside it"):
+            src.move(dst, recursive=True)
+
+        assert (src / "a.txt").read_text() == "a"
+
+    def test_move_dir_non_recursive_raises(self, fake_remote_stores):
+        bucket = uuid.uuid4().hex
+        src = ObjectStoragePath(f"ffs://{bucket}/src")
+        (src / "a.txt").write_text("a")
+        dst = ObjectStoragePath(f"ffs2://{bucket}/dst")
+
+        with pytest.raises(IsADirectoryError, match="is a directory, set recursive=True to move it"):
+            src.move(dst, recursive=False)
+
+        assert (src / "a.txt").read_text() == "a"
+        assert not dst.exists()
 
 
 class TestLocalPath:
