@@ -50,13 +50,15 @@ to a refresh that is still in progress and does not start a new one once it has 
 failed, or that is no longer in the dataset's refresh history, is started again. Durable execution
 requires Airflow 3.3 or newer.
 
-Two things differ from earlier versions of the provider:
+Two things differ from earlier versions of the provider when the operator is durable:
 
-* The refresh is started by the worker, durable or not, so the workers need network access to
-  ``api.powerbi.com`` too. The triggerer still polls the refresh.
-* A durable refresh is not cancelled when polling it fails, so the retry can reconnect to it.
+* The refresh is started by the worker, so the workers need network access to ``api.powerbi.com`` too.
+  The triggerer still polls the refresh.
+* The refresh is not cancelled when polling it fails, so the retry can reconnect to it.
 
-Set ``durable=False`` to start a new refresh on every try and cancel it when polling fails.
+Set ``durable=False`` to keep the earlier behaviour: the trigger starts the refresh, so only the triggerer
+talks to Power BI, every try starts a new refresh, and it is cancelled when polling fails. Below Airflow
+3.3 the operator behaves as with ``durable=False``.
 
 .. _howto/operator:PowerBIDatasetListOperator:
 
