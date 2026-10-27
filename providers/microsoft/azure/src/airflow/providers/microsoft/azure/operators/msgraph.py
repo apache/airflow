@@ -324,18 +324,19 @@ class MSGraphAsyncOperator(BaseOperator):
 
         A page is kept wrapped in a dict, so a page whose result is ``None`` is told apart from a page
         that is gone, for instance because it expired under ``[state_store] default_retention_days``.
-        A missing page clears the store, so the next try starts again from the first page instead of
-        returning results with a hole in them.
+        A missing page removes the pages and the cursor, so the next try starts again from the first page
+        instead of returning results with a hole in them. So does a page that is not wrapped, which
+        15.3.0 kept before a provider upgrade.
         """
         results: list[Any] = []
         cursor = self.get_cursor(task_state_store)
         for page in range(cursor["pages"] if cursor else 0):
             kept = task_state_store.get(f"{_PAGE_KEY_PREFIX}{page}")
-            if kept is None:
-                task_state_store.clear()
+            if not isinstance(kept, dict) or "result" not in kept:
+                self.remove_pages(task_state_store, cursor)
                 raise MSGraphPageNotInTaskStateStoreError(
-                    f"Page {page + 1} is no longer in the task state store, so the next try starts again "
-                    "from the first page."
+                    f"Page {page + 1} is no longer in the task state store, or was kept by an earlier "
+                    "version of the provider, so the next try starts again from the first page."
                 )
             self.append_result(results=results, result=cast("dict[str, Any]", kept)["result"])
         return results
@@ -369,14 +370,23 @@ class MSGraphAsyncOperator(BaseOperator):
         request again. It goes in before the pages are removed, so a crash in between does not send the
         request again either.
         """
-        if self.method.upper() == "GET":
-            task_state_store.clear()
+        if self.method.upper() != "GET":
+            task_state_store.set(_COMPLETED_KEY, {"result": results})
+        self.remove_pages(task_state_store, self.get_cursor(task_state_store))
+
+    @staticmethod
+    def remove_pages(task_state_store: TaskStateStoreAccessor, cursor: _PaginationCursor | None) -> None:
+        """
+        Delete the pages and the cursor by their keys.
+
+        ``task_state_store.clear()`` would delete every key of the task instance, including keys a
+        ``result_processor`` or a subclass wrote.
+        """
+        if cursor is None:
             return
-        task_state_store.set(_COMPLETED_KEY, {"result": results})
-        if cursor := self.get_cursor(task_state_store):
-            for page in range(cursor["pages"]):
-                task_state_store.delete(f"{_PAGE_KEY_PREFIX}{page}")
-            task_state_store.delete(_CURSOR_KEY)
+        for page in range(cursor["pages"]):
+            task_state_store.delete(f"{_PAGE_KEY_PREFIX}{page}")
+        task_state_store.delete(_CURSOR_KEY)
 
     @classmethod
     def append_result(

@@ -89,7 +89,7 @@ It keeps every processed page and the link to the next one in the
 it stopped at. For a request that is not a ``GET``, it also keeps the result, so a retry returns it instead
 of sending the request again. The pages and the link are removed from the store once the result is
 returned. A page that is no longer in the store, for instance because it expired under
-``[state_store] default_retention_days``, fails the try and clears the store, so the next try starts again
+``[state_store] default_retention_days``, fails the try and removes the pages and the link, so the next try starts again
 from the first page.
 
 Pages are stored as they are, so pages larger than ``[state_store] max_value_storage_bytes`` need a state

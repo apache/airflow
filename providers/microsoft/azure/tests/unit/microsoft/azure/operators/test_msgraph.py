@@ -68,9 +68,6 @@ class TaskStateStore:
     def delete(self, key):
         self.values.pop(key, None)
 
-    def clear(self):
-        self.values.clear()
-
 
 def users_event(name: str) -> dict[str, Any]:
     users = load_json_from_resources(dirname(__file__), "..", "resources", name)
@@ -638,6 +635,7 @@ class TestDurableMSGraphAsyncOperator:
             **{
                 f"{_PAGE_KEY_PREFIX}0": {"result": first_page},
                 _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
@@ -645,19 +643,35 @@ class TestDurableMSGraphAsyncOperator:
         results = operator.execute_complete(context=context, event=users_event("next_users.json"))
 
         assert results == first_page + last_page
-        assert task_state_store.values == {}
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
 
-    def test_page_no_longer_in_the_store_fails_and_clears_the_store(self):
+    def test_page_no_longer_in_the_store_fails_and_removes_the_pages(self):
         operator = users_operator(durable=True)
         task_state_store = TaskStateStore(
             **{
                 f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
                 _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 2},
+                "written_by_the_dag": "kept",
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
 
         with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="Page 2 is no longer"):
+            operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+
+    def test_page_kept_unwrapped_by_an_earlier_version_fails_and_removes_the_pages(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": [{"id": "0"}],
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="earlier version of the provider"):
             operator.execute_complete(context=context, event=users_event("next_users.json"))
 
         assert task_state_store.values == {}
