@@ -409,10 +409,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
         # The shared candidate is kept even without a stability period: it is also what
         # rejects publishers of a different source.
-        if not source_is_confirmed:
-            candidate_is_ready, retry_after = self._get_auto_publish_candidate_readiness(prepared)
-        else:
-            candidate_is_ready, retry_after = True, 0.0
+        candidate_is_ready, retry_after = self._get_auto_publish_candidate_readiness(prepared)
         if not candidate_is_ready:
             if current_ref is None:
                 raise _AutoPublishNotReadyError(
@@ -453,7 +450,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         self._store.prepare_publish_areas()
         with self.acquire_publication_lock():
             self._validate_publish_source_paths(prepared.root)
-            if not source_is_confirmed and not self._is_auto_publish_candidate_still_ready_locked(prepared):
+            if not self._is_auto_publish_candidate_still_ready_locked(prepared):
                 raise BundleManifestSourceChangedError(
                     "Bundle source stability candidate changed before automatic publication"
                 )

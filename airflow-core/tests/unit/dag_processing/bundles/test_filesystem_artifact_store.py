@@ -359,6 +359,43 @@ class TestFilesystemPublication:
         assert get_mode(snapshot / "bin" / "task.sh") == 0o555
         assert get_mode(snapshot / MANIFEST_FILE_NAME) == 0o444
 
+    @mock.patch.object(store_module.os, "fsync", autospec=True, side_effect=store_module.os.fsync)
+    @mock.patch.object(store_module.os, "replace", autospec=True, side_effect=store_module.os.replace)
+    def test_snapshot_final_file_permissions_are_durable_before_commit(
+        self, mock_replace, mock_fsync, store, tmp_path
+    ):
+        source = _write_source(tmp_path / "source")
+        (source / "dags" / "example.py").chmod(0o600)
+        script = source / "task.sh"
+        script.write_text("#!/bin/sh\n")
+        script.chmod(0o700)
+        expected_modes = {"dags/example.py": 0o444, "task.sh": 0o555, MANIFEST_FILE_NAME: 0o444}
+        last_synced_modes: dict[tuple[int, int], int] = {}
+        modes_at_commit: dict[str, int | None] = {}
+        real_fsync = mock_fsync.side_effect
+        real_replace = mock_replace.side_effect
+
+        def record_fsync(fd):
+            file_stat = os.fstat(fd)
+            last_synced_modes[file_stat.st_dev, file_stat.st_ino] = stat.S_IMODE(file_stat.st_mode)
+            real_fsync(fd)
+
+        def record_replace(source_path, destination_path):
+            for relative_path in expected_modes:
+                file_stat = (Path(source_path) / relative_path).stat()
+                modes_at_commit[relative_path] = last_synced_modes.get((file_stat.st_dev, file_stat.st_ino))
+            real_replace(source_path, destination_path)
+
+        mock_fsync.side_effect = record_fsync
+        mock_replace.side_effect = record_replace
+        old_umask = os.umask(0o077)
+        try:
+            _publish(store, source)
+        finally:
+            os.umask(old_umask)
+
+        assert modes_at_commit == expected_modes
+
     def test_prepare_publish_areas_keeps_pre_existing_root_mode(self, store):
         store.root.mkdir(mode=0o750)
 

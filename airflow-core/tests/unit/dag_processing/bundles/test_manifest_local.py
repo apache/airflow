@@ -1635,6 +1635,47 @@ class TestAutomaticPublication:
         assert _read_state(bundle)["first_observed_at"] == 170
         assert bundle.get_current_version().version == confirmed_version
 
+    def test_revert_to_confirmed_source_waits_after_another_replica_publishes(self, tmp_path):
+        source_a = tmp_path / "source-a"
+        source_b = tmp_path / "source-b"
+        source_link = tmp_path / "source"
+        _write_file(source_a, "dags/example.py", "print('source a')")
+        _write_file(source_b, "dags/example.py", "print('source b, longer')")
+        _create_symlink_or_skip(source_a, source_link, target_is_directory=True)
+        first, second = (_make_auto_bundle(tmp_path, source=source_link, stability=30) for _ in range(2))
+
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
+                first.initialize()
+            traveller.move_to(130)
+            first.initialize()
+            version_a = first.get_current_version().version
+
+            _point_symlink(source_link, source_b)
+            traveller.move_to(140)
+            second.refresh()
+            traveller.move_to(170)
+            second.refresh()
+            version_b = second.get_current_version().version
+            assert version_b != version_a
+
+            _point_symlink(source_link, source_a)
+            traveller.move_to(180)
+            first.refresh()
+            assert _read_state(first)["first_observed_at"] == 180
+            assert first.get_current_version().version == version_b
+            assert json.loads(Path(first.manifest_ref_path).read_text())["version"] == version_b
+
+            traveller.move_to(209)
+            first.refresh()
+            assert first.get_current_version().version == version_b
+
+            traveller.move_to(210)
+            first.refresh()
+
+        assert first.get_current_version().version == version_a
+        assert json.loads(Path(first.manifest_ref_path).read_text())["version"] == version_a
+
     def test_delayed_observation_cannot_overwrite_newer_candidate(self, tmp_path):
         source_a = tmp_path / "source-a"
         source_b = tmp_path / "source-b"
@@ -1894,11 +1935,13 @@ class TestAutomaticPublication:
         assert third.get_current_version().version != old_version
         assert (third.path / "dags/example.py").read_text() == "print('new version')"
 
-    def test_candidate_is_rechecked_before_publication(self, tmp_path, changed_source):
+    @pytest.mark.parametrize("confirm_source", [False, True])
+    def test_candidate_is_rechecked_before_publication(self, tmp_path, changed_source, confirm_source):
         _, old_version = changed_source
         first = _make_auto_bundle(tmp_path, stability=30)
         second = _make_auto_bundle(tmp_path, stability=30)
         build_manifest = bundle_module.build_bundle_version_manifest
+        original_ref = json.loads(Path(first.manifest_ref_path).read_text())
 
         def build_manifest_then_replace_candidate(**kwargs):
             result = build_manifest(**kwargs)
@@ -1911,6 +1954,11 @@ class TestAutomaticPublication:
             first.refresh()
 
             traveller.move_to(130)
+            if confirm_source:
+                second.refresh()
+                assert second.get_current_version().version != old_version
+                _write_manifest_ref(second.manifest_ref_path, original_ref)
+
             with mock.patch.object(
                 bundle_module,
                 "build_bundle_version_manifest",

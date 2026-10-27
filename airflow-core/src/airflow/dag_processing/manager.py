@@ -284,8 +284,9 @@ class DagFileProcessorManager(LoggingMixin):
     _bundles_last_refreshed: float = attrs.field(default=0, init=False)
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
-    _bundle_initialization_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
+    _bundle_initialization_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
+    """Monotonic deadlines for retrying initialization of bundles that are not ready."""
 
     _file_parsing_sort_mode: str = attrs.field(
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
@@ -691,9 +692,13 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _claim_priority_files(self, *, session: Session = NEW_SESSION) -> list[DagFileInfo]:
-        """Fetch priority parsing requests from the metadata database."""
+        """Claim priority parsing requests for ready bundles, leaving the rest pending."""
         files: list[DagFileInfo] = []
-        bundles = {b.name: b for b in self._dag_bundles}
+        bundles = {
+            bundle.name: bundle
+            for bundle in self._dag_bundles
+            if not bundle.supports_versioning or bundle.is_initialized
+        }
         requests = session.scalars(
             select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
         )

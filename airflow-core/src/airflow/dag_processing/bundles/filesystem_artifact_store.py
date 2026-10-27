@@ -279,7 +279,6 @@ def _materialize_manifest_snapshot(
             ensure_destination_is_within_root(tmp_path, destination)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
-            fsync_file(destination)
             # Hash the copy inline: this verifies both the copy and the source against
             # the manifest without a second full walk over the materialized tree. The
             # executable bit is part of the content address, so it must be checked here
@@ -298,7 +297,7 @@ def _materialize_manifest_snapshot(
 
         _write_manifest_file(manifest, tmp_path / MANIFEST_FILE_NAME)
         _set_snapshot_permissions(tmp_path)
-        _fsync_tree_directories(tmp_path)
+        fsync_tree(tmp_path)
         os.replace(tmp_path, version_path)
         fsync_directory(versions_dir)
     except Exception:
