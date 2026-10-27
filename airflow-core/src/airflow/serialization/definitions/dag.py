@@ -36,6 +36,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
+    DagRunRolledBackError,
     DagVersionNotFound,
     InvalidPartitionKeyError,
     NodeNotFound,
@@ -835,6 +836,15 @@ class SerializedDAG:
                     deadline_alert_id=alert_id,
                 )
                 stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+
+            # An alert can roll the session back, discarding the pending DagRun. Carrying on would
+            # add Deadlines that violate the dagrun_id foreign key, and returning normally would let
+            # the caller treat the missing run as created.
+            if orm_dagrun not in session:
+                raise DagRunRolledBackError(
+                    f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
+                    "while processing deadline alerts"
+                )
 
     @provide_session
     def set_task_instance_state(
