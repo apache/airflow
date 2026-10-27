@@ -2441,6 +2441,103 @@ class TestAssetStateStoreAccessor:
         backend.clear.assert_not_called()
 
 
+class TestStateStoreMetrics:
+    PATCH = "airflow.sdk._shared.observability.metrics.stats.incr"
+    TI_ID = UUID("01900000-0000-0000-0000-000000000001")
+    SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
+    TAGS = {"dag_id": "dag", "task_id": "task", "operator": "PythonOperator"}
+    ASSET_NAME = "my_asset"
+
+    def task_store(self):
+        return TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE, stats_tags=self.TAGS)
+
+    def asset_store(self):
+        return AssetStateStoreAccessor(name=self.ASSET_NAME, stats_tags=self.TAGS)
+
+    @pytest.mark.parametrize(
+        ("response", "expected"),
+        [
+            pytest.param(TaskStateStoreResult(value="job-001"), "read_found", id="found"),
+            pytest.param(
+                ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}),
+                "read_absent",
+                id="absent",
+            ),
+        ],
+    )
+    def test_task_store_read(self, mock_supervisor_comms, response, expected):
+        mock_supervisor_comms.send.return_value = response
+        with patch(self.PATCH) as incr:
+            self.task_store().get("job_id")
+        incr.assert_called_once_with(f"task_state_store.{expected}", tags=self.TAGS)
+
+    @pytest.mark.parametrize(
+        ("response", "expected"),
+        [
+            pytest.param(AssetStateStoreResult(value="2026-01-01"), "read_found", id="found"),
+            pytest.param(
+                ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"}),
+                "read_absent",
+                id="absent",
+            ),
+        ],
+    )
+    def test_asset_store_read(self, mock_supervisor_comms, response, expected):
+        mock_supervisor_comms.send.return_value = response
+        with patch(self.PATCH) as incr:
+            self.asset_store().get("watermark")
+        incr.assert_called_once_with(f"asset_state_store.{expected}", tags=self.TAGS)
+
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            pytest.param(lambda s: s.set("job_id", "v"), "task_state_store.write", id="write"),
+            pytest.param(lambda s: s.delete("job_id"), "task_state_store.delete", id="delete"),
+            pytest.param(lambda s: s.clear(), "task_state_store.clear", id="clear"),
+        ],
+    )
+    def test_task_store_writes(self, mock_supervisor_comms, call, expected):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        with patch(self.PATCH) as incr:
+            call(self.task_store())
+        incr.assert_called_once_with(expected, tags=self.TAGS)
+
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            pytest.param(lambda s: s.set("watermark", "v"), "asset_state_store.write", id="write"),
+            pytest.param(lambda s: s.delete("watermark"), "asset_state_store.delete", id="delete"),
+        ],
+    )
+    def test_asset_store_writes(self, mock_supervisor_comms, call, expected):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        with patch(self.PATCH) as incr:
+            call(self.asset_store())
+        incr.assert_called_once_with(expected, tags=self.TAGS)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            pytest.param(lambda s: s.aget("job_id"), "task_state_store.read_found", id="read"),
+            pytest.param(lambda s: s.aset("job_id", "v"), "task_state_store.write", id="write"),
+            pytest.param(lambda s: s.adelete("job_id"), "task_state_store.delete", id="delete"),
+            pytest.param(lambda s: s.aclear(), "task_state_store.clear", id="clear"),
+        ],
+    )
+    async def test_task_store_async(self, mock_supervisor_comms, call, expected):
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value="job-001")
+        with patch(self.PATCH) as incr:
+            await call(self.task_store())
+        incr.assert_called_once_with(expected, tags=self.TAGS)
+
+    def test_no_tags_when_not_supplied(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStateStoreResult(value="job-001")
+        with patch(self.PATCH) as incr:
+            TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
+        incr.assert_called_once_with("task_state_store.read_found", tags={})
+
+
 class TestAssetStateStoreAccessors:
     ASSET_NAME = "my_asset"
     ASSET_URI = "s3://bucket/key"

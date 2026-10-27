@@ -88,6 +88,78 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "task_state_store.read_found"
+    description: "Number of times a task read a key from the task state store and found a value.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_state_store.read_absent"
+    description: "Number of times a task read a key from the task state store and found nothing.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_state_store.write"
+    description: "Number of times a task wrote a key to the task state store.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_state_store.delete"
+    description: "Number of times a task deleted a single key from the task state store.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "task_state_store.clear"
+    description: "Number of times a task cleared every key in its task state store scope.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset_state_store.read_found"
+    description: "Number of times a task read a key from the asset state store and found a value.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset_state_store.read_absent"
+    description: "Number of times a task read a key from the asset state store and found nothing.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset_state_store.write"
+    description: "Number of times a task wrote a key to the asset state store.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset_state_store.delete"
+    description: "Number of times a task deleted a single key from the asset state store.
+    Counts each call, so one task may contribute several.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti_failures"
     description: "Overall task instances failures. Metric with dag_id and task_id tagging."
     type: "counter"
