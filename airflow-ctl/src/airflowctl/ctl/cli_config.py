@@ -927,14 +927,9 @@ class CommandFactory:
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
-                # Handle non-dict inputs
-                if not isinstance(dict_obj, dict):
-                    return [dict_obj]
 
                 def is_dict_nested(obj: dict) -> bool:
                     """Check if the object is a nested dictionary."""
-                    if not isinstance(obj, dict) or obj is None:
-                        return False
                     return any(isinstance(i, dict) or isinstance(i, list) for i in obj.values())
 
                 if is_dict_nested(dict_obj):
