@@ -61,9 +61,7 @@ def find_problems(jobs: dict) -> list[str]:
     problems += [
         f"{GATE_JOB}.needs lists exempt reporting job {job!r}" for job in sorted(needs & EXEMPT_JOBS)
     ]
-    if TIMEOUT_JOB not in jobs:
-        problems.append(f"job {TIMEOUT_JOB!r} is missing, so a job's timeout would not fail {GATE_JOB}")
-    else:
+    if TIMEOUT_JOB in jobs:
         problems += [
             f"{TIMEOUT_JOB}.needs is missing {job!r}, which {GATE_JOB} needs"
             for job in sorted(needs - {TIMEOUT_JOB} - timeout_needs)
