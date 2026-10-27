@@ -2447,6 +2447,7 @@ class BigQueryInsertJobOperator(
             raise AirflowException(f"Job failed with state: {job.state}")
 
     def _persist_job_links(self, job: BigQueryJob | UnknownJob, context: Any) -> None:
+        location = job.location or self.location
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
             CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -2477,7 +2478,7 @@ class BigQueryInsertJobOperator(
             job_id_path = convert_job_id(
                 job_id=self.job_id,
                 project_id=self.project_id,
-                location=self.location,
+                location=location,
             )
             warnings.warn(
                 "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
@@ -2490,7 +2491,7 @@ class BigQueryInsertJobOperator(
         persist_kwargs = {
             "context": context,
             "project_id": self.project_id,
-            "location": self.location,
+            "location": location,
             "job_id": self.job_id,
         }
         BigQueryJobDetailLink.persist(**persist_kwargs)
@@ -2530,7 +2531,7 @@ class BigQueryInsertJobOperator(
                     conn_id=self.gcp_conn_id,
                     job_id=self.job_id,
                     project_id=self.project_id,
-                    location=self.location or self.hook.location,  # type: ignore[union-attr]
+                    location=job.location or self.location or self.hook.location,  # type: ignore[union-attr]
                     poll_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
                     cancel_on_kill=self.cancel_on_kill,
@@ -2698,7 +2699,12 @@ class BigQueryInsertJobOperator(
 
     def on_kill(self) -> None:
         if self.hook and self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            location = self.location
+            job: BigQueryJob | UnknownJob | None = getattr(self, "_job", None)
+            # A replacement may be submitting while _job still refers to the previous job.
+            if job is not None and job.job_id == self.job_id:
+                location = job.location or location
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
