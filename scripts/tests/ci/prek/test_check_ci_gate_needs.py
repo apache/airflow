@@ -54,6 +54,29 @@ def test_real_workflow_gate_needs_every_job():
             ["ci-passed.needs lists exempt reporting job 'summarize-warnings'"],
             id="exempt-job-listed",
         ),
+        pytest.param(
+            {
+                "build": {},
+                "test": {},
+                "check-timed-out-jobs": {"needs": ["build"]},
+                "ci-passed": {"needs": ["build", "test", "check-timed-out-jobs"]},
+            },
+            ["check-timed-out-jobs.needs is missing 'test', which ci-passed needs"],
+            id="timeout-check-missing-job",
+        ),
+        pytest.param(
+            {
+                "build": {},
+                "test": {},
+                "check-timed-out-jobs": {"needs": ["build", "test"]},
+                "ci-passed": {"needs": ["build", "check-timed-out-jobs"]},
+            },
+            [
+                "job 'test' is not in ci-passed.needs, so its failure would not stop auto-merge",
+                "check-timed-out-jobs.needs lists 'test', which ci-passed does not need",
+            ],
+            id="timeout-check-extra-job",
+        ),
     ],
 )
 def test_find_problems(jobs, expected):

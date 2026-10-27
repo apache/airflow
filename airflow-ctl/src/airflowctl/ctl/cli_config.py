@@ -196,13 +196,6 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
-
-
 def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     """Parse JSON object argument."""
     if isinstance(val, dict):
@@ -214,6 +207,33 @@ def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
     return parsed
+
+
+def is_iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
+    """Parse an ISO-8601 datetime argument."""
+    if isinstance(val, datetime.datetime):
+        return val
+    try:
+        if val.endswith("Z"):
+            val = val[:-1] + "+00:00"
+        return datetime.datetime.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"invalid datetime value: {val!r}") from e
+
+
+def is_iso_date_type(val: str | datetime.date) -> datetime.date:
+    """
+    Parse an ISO-8601 date string into a datetime.date.
+
+    Used as the argparse ``type=`` callable for datetime.date-typed CLI
+    parameters, mirroring is_iso_datetime_type() above.
+    """
+    if isinstance(val, datetime.date):
+        return val
+    try:
+        return datetime.date.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"Invalid ISO-8601 date: {val!r}") from e
 
 
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
@@ -662,8 +682,8 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.date": datetime.date,
-            "datetime.datetime": datetime.datetime,
+            "datetime.date": is_iso_date_type,
+            "datetime.datetime": is_iso_datetime_type,
             "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
@@ -810,8 +830,6 @@ class CommandFactory:
                         )
 
             args.append(ARG_OUTPUT)
-            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
-            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
             if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
                 args.append(ARG_AUTH_ENVIRONMENT)
 
@@ -920,6 +938,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:

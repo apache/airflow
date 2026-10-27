@@ -4931,11 +4931,22 @@ def _no_runner_variables(monkeypatch):
     monkeypatch.delenv("USE_IN_MEMORY_DOCKER", raising=False)
 
 
-def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
-    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA}
+def _pull_request_context(
+    head_repo: str | None,
+    author_type: str = "User",
+    author_login: str = "someone",
+    head_ref: str = "feature",
+) -> dict[str, Any]:
+    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA, "ref": head_ref}
     return {
         "run_id": 42,
-        "event": {"pull_request": {"number": 7, "head": head, "user": {"type": author_type}}},
+        "event": {
+            "pull_request": {
+                "number": 7,
+                "head": head,
+                "user": {"type": author_type, "login": author_login},
+            }
+        },
     }
 
 
@@ -4977,6 +4988,46 @@ def _pull_request_context(head_repo: str | None, author_type: str = "User") -> d
             CI_AMD_PLATFORM,
             '["ubuntu-22.04"]',
             id="bot PR from an apache/airflow branch uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context(
+                "apache/airflow", "Bot", "github-actions[bot]", "backport-d340be0-v3-4-test"
+            ),
+            (),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="automatic backport PR from an apache/airflow branch uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context(
+                "someone/airflow", "Bot", "github-actions[bot]", "backport-d340be0-v3-4-test"
+            ),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="backport-named bot PR from a fork uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", "Bot", "github-actions[bot]", "ci-upgrade-v3-4-test"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="github-actions bot ci-upgrade PR uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", "Bot", "dependabot[bot]", "backport-d340be0-v3-4-test"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="other bot on a backport branch uses public runners",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,

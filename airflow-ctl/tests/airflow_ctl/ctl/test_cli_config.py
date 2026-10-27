@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 from argparse import BooleanOptionalAction
 from datetime import UTC
@@ -41,6 +42,8 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    is_iso_date_type,
+    is_iso_datetime_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
@@ -434,6 +437,51 @@ class TestCommandFactory:
         """Valid JSON that is not an object raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
+
+    def test_is_iso_datetime_type_returns_datetime_input_unchanged(self):
+        """A datetime.datetime input is returned as-is without re-parsing."""
+
+        value = datetime.datetime(2026, 7, 1, tzinfo=UTC)
+
+        assert is_iso_datetime_type(value) is value
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("2026-07-01", "2026-07-01T00:00:00"),
+            ("2026-07-01T00:00:00", "2026-07-01T00:00:00"),
+            ("2026-07-01T12:34:56+00:00", "2026-07-01T12:34:56+00:00"),
+            ("2026-07-01T12:34:56Z", "2026-07-01T12:34:56+00:00"),
+        ],
+    )
+    def test_is_iso_datetime_type_parses_iso_string(self, value, expected):
+        """An ISO-8601 datetime string (date-only or full) is parsed into a datetime."""
+        assert is_iso_datetime_type(value).isoformat() == expected
+
+    def test_is_iso_datetime_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid datetime value"):
+            is_iso_datetime_type("not-a-date")
+
+    def test_is_iso_datetime_type_accepts_trailing_z(self):
+        """A trailing Z (as emitted by the API) parses on all supported Python versions."""
+        assert is_iso_datetime_type("2026-07-01T12:00:00Z") == datetime.datetime(
+            2026, 7, 1, 12, 0, 0, tzinfo=UTC
+        )
+
+    def test_is_iso_date_type_parses_iso_date(self):
+        """An ISO-8601 date string is parsed into a datetime.date."""
+        assert is_iso_date_type("2026-07-01") == datetime.date(2026, 7, 1)
+
+    def test_is_iso_date_type_returns_date_input_unchanged(self):
+        """A datetime.date input is returned as-is without re-parsing."""
+        d = datetime.date(2026, 7, 1)
+        assert is_iso_date_type(d) is d
+
+    def test_is_iso_date_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="Invalid ISO-8601 date"):
+            is_iso_date_type("not-a-date")
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
@@ -1013,6 +1061,24 @@ class TestCliConfigMethods:
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
 
+    def test_command_factory_wires_iso_parser_to_datetime_params(self):
+        """A generated datetime CLI arg parses an ISO date end to end."""
+        command_factory = CommandFactory()
+        dagrun_list_args = []
+
+        for group in command_factory.group_commands:
+            if group.name != "dagrun":
+                continue
+
+            for sub in group.subcommands:
+                if sub.name == "list":
+                    dagrun_list_args = list(sub.args)
+                    break
+
+        start_date_arg = next(a for a in dagrun_list_args if a.flags == ("--start-date",))
+
+        assert start_date_arg.kwargs["type"]("2026-07-01") == datetime.datetime(2026, 7, 1)
+
     @staticmethod
     def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
         """Run the auto-generated command for ``operations_class.method_name`` and return its call kwargs."""
@@ -1073,6 +1139,19 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
+    def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
+        """An operation that returns nothing is reported as a successful operation row."""
+        mocked_create_defaults.return_value = None
+        args = cli_parser.get_parser().parse_args(["connections", "create-defaults"])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"operation": "create_defaults", "status": "success"}
+        ]
 
     @pytest.mark.parametrize(
         ("output", "parse", "expected"),
