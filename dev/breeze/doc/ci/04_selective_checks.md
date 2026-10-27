@@ -763,8 +763,12 @@ reopen the PR.
 
 The RunsOn value is a label template such as
 `["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]`. Every job
-picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
-or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
+picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`'4+8', '16+32'`,
+`'8+16', '32+64'` or `'32+64', '128+256'`), or, for a single-job reusable workflow, its caller passes
+`format(<runners>, <cpu>, <ram>)`. Each class is a range up to twice its size, so Spot can come from
+the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
+`spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
+the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
@@ -781,8 +785,8 @@ jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test job
 core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
 [`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
 `/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
-r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
-runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+r-family. The jobs ask for 8 to 16 CPUs and 32 to 128 GB (`cpu=8+16/ram=32+128`), as the RAM disk
+is capped at the runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
 on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
 back to disk without a PR.
 
