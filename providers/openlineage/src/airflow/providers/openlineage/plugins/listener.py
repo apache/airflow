@@ -167,15 +167,15 @@ def _get_task_end_date(task_instance: RuntimeTaskInstance | TaskInstance) -> dat
     """
     Return the end date for a terminal event of a task instance that finished in the current process.
 
-    The Airflow 3 task runner sets ``end_date`` and reports that same value to the API server before it
-    notifies listeners, so the event time matches the stored one. In the cases below the time of the
-    notification is used instead, so the event time is later than the stored ``end_date`` by however long
-    the task's state change callbacks took:
+    The Airflow 3 task runner sets ``end_date`` before it notifies listeners and reports that same value as
+    the stored one, so the event time matches it. In the cases below the time of the notification is used
+    instead, so the event time is later than the stored ``end_date`` by however long the task's state change
+    callbacks took:
 
     - Airflow 2, where the event time is kept as it was before ``end_date`` was used.
     - Airflow 3.0.0 to 3.0.4, whose task runner never sets ``end_date`` on the task instance.
-    - A task that raised ``AirflowSkipException``.
-    - A ``TriggerDagRunOperator`` task skipped or failed because the Dag run it triggers already exists.
+    - Before Airflow 3.4.0, a task that raised ``AirflowSkipException``, or a ``TriggerDagRunOperator`` task
+      skipped or failed because the Dag run it triggers already exists.
     """
     if AIRFLOW_V_3_0_PLUS:
         end_date = getattr(task_instance, "end_date", None)
