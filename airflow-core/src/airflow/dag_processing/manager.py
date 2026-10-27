@@ -1801,7 +1801,7 @@ class DagFileProcessorManager(LoggingMixin):
             return False
         if self._num_run < self.max_runs:
             return False
-        return all(stat.run_count >= self.max_runs for stat in self._file_stats.values())
+        return all(stat.run_count >= self.max_runs for stat in self._resolve_stats_by_presence_key().values())
 
     def terminate(self):
         """Stop all running processors."""
