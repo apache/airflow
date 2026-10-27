@@ -213,7 +213,7 @@ providers/google/src/airflow/providers/google/cloud/hooks/cloud_sql.py::31
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_storage_transfer_service.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/compute.py::6
 providers/google/src/airflow/providers/google/cloud/hooks/compute_ssh.py::6
-providers/google/src/airflow/providers/google/cloud/hooks/dataflow.py::13
+providers/google/src/airflow/providers/google/cloud/hooks/dataflow.py::9
 providers/google/src/airflow/providers/google/cloud/hooks/dataform.py::4
 providers/google/src/airflow/providers/google/cloud/hooks/dataplex.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/dataproc.py::5
