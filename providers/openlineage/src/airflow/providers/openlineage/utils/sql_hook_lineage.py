@@ -47,6 +47,7 @@ from airflow.providers.openlineage.sqlparser import (
     SQLParser,
     from_table_meta,
     get_openlineage_facets_with_sql,
+    get_sql_parser_for_hook,
 )
 from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, get_hook_class_name
 from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
@@ -152,6 +153,11 @@ def emit_lineage_from_sql_extras(
             return None
 
     @cache
+    def _get_sql_parser(hook_id: int) -> SQLParser | None:
+        hook, conn_id = _hook_info[hook_id]
+        return get_sql_parser_for_hook(hook, _get_connection(hook_id), conn_id)
+
+    @cache
     def _get_namespace(hook_id: int) -> str | None:
         db_info = _get_database_info(hook_id)
         return SQLParser.create_namespace(db_info) if db_info is not None else None
@@ -174,7 +180,8 @@ def emit_lineage_from_sql_extras(
         # Parse SQL to obtain lineage (inputs, outputs, facets)
         query_lineage: OperatorLineage | None = None
         database_info = _get_database_info(hook_id) if conn_id else None
-        if sql_text and conn_id and database_info is not None:
+        sql_parser = _get_sql_parser(hook_id) if conn_id and database_info is not None else None
+        if sql_text and conn_id and database_info is not None and sql_parser is not None:
             try:
                 query_lineage = get_openlineage_facets_with_sql(
                     hook=hook,
@@ -184,9 +191,10 @@ def emit_lineage_from_sql_extras(
                     use_connection=False,  # Temporary solution before we figure out timeouts for queries
                     connection=_get_connection(hook_id),
                     database_info=database_info,
+                    sql_parser=sql_parser,
                 )
             except Exception as e:
-                log.warning("Failed to parse SQL for query %s: %s", query_count, e)
+                log.warning("Failed to parse SQL for query %s on %s: %s", query_count, conn_id, e)
                 log.debug("OpenLineage failure details:", exc_info=True)
 
         # If parsing SQL failed, just attach SQL text as a facet

@@ -472,6 +472,20 @@ class SQLParser(LoggingMixin):
         return hierarchy
 
 
+def get_sql_parser_for_hook(hook: DbApiHook, connection: Any, conn_id: str) -> SQLParser | None:
+    get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
+    get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
+    if get_dialect is None or get_default_schema is None:
+        log.debug("%s has no database dialect or default schema provided", conn_id)
+        return None
+    try:
+        return SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
+    except Exception as e:
+        log.warning("Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e)
+        log.debug("OpenLineage failure details:", exc_info=True)
+        return None
+
+
 def get_openlineage_facets_with_sql(
     hook: DbApiHook,
     sql: str | list[str],
@@ -481,10 +495,12 @@ def get_openlineage_facets_with_sql(
     *,
     connection: Any | None = None,
     database_info: Any | None = None,
+    sql_parser: SQLParser | None = None,
 ) -> OperatorLineage | None:
-    # Accept pre-fetched connection and database_info to avoid redundant hook.get_connection()
-    # calls when processing multiple SQL extras from the same hook. Each get_connection() call
+    # Accept pre-fetched connection, database_info and sql_parser to avoid redundant lookups
+    # when processing multiple SQL extras from the same hook. Each get_connection() call
     # hits SecretsManager (miss) then the Airflow API server — passing these in avoids that cost.
+    # A failing dialect/default schema lookup is then also reported once per hook, not once per query.
     if connection is None:
         connection = hook.get_connection(conn_id)
 
@@ -501,17 +517,10 @@ def get_openlineage_facets_with_sql(
         log.debug("%s has no database info provided", conn_id)
         return None
 
-    get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
-    get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
-    if get_dialect is None or get_default_schema is None:
-        log.debug("%s has no database dialect or default schema provided", conn_id)
-        return None
-    try:
-        sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
-    except Exception as e:
-        log.warning("Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e)
-        log.debug("OpenLineage failure details:", exc_info=True)
-        return None
+    if sql_parser is None:
+        sql_parser = get_sql_parser_for_hook(hook, connection, conn_id)
+        if sql_parser is None:
+            return None
 
     sqlalchemy_engine = None
     if use_connection:

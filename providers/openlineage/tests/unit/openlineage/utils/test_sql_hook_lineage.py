@@ -77,12 +77,14 @@ class TestEmitLineageFromSqlExtras:
             mock.patch(f"{_MODULE}._get_hook_conn_id", return_value="my_conn") as mock_conn_id,
             mock.patch(f"{_MODULE}.SQLParser.create_namespace") as mock_ns,
             mock.patch(f"{_MODULE}.get_openlineage_facets_with_sql") as mock_facets_fn,
+            mock.patch(f"{_MODULE}.get_sql_parser_for_hook") as mock_get_parser,
             mock.patch(f"{_MODULE}._create_ol_event_pair") as mock_build,
             mock.patch(f"{_MODULE}.get_openlineage_listener") as mock_listener,
         ):
             self.mock_conn_id = mock_conn_id
             self.mock_ns = mock_ns
             self.mock_facets_fn = mock_facets_fn
+            self.mock_get_parser = mock_get_parser
             self.mock_build = mock_build
             self.mock_listener = mock_listener
             mock_build.return_value = (mock.sentinel.start_event, mock.sentinel.end_event)
@@ -234,7 +236,7 @@ class TestEmitLineageFromSqlExtras:
         )
 
         mock_log.warning.assert_called_once()
-        assert mock_log.warning.call_args.args[1:] == (1, self.mock_facets_fn.side_effect)
+        assert mock_log.warning.call_args.args[1:] == (1, "my_conn", self.mock_facets_fn.side_effect)
 
     @mock.patch(f"{_MODULE}.log", autospec=True)
     def test_database_info_failure_is_logged_as_warning_and_event_still_emitted(self, mock_log):
@@ -260,6 +262,34 @@ class TestEmitLineageFromSqlExtras:
         assert call.kwargs["outputs"] == []
         assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT 1")
         assert "externalQuery" not in call.kwargs["run_facets"]
+
+    def test_sql_parser_is_built_once_per_hook(self):
+        hook = mock.MagicMock(spec=DbApiHook)
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql=f"SELECT {i}", hook=hook) for i in range(3)],
+        )
+
+        self.mock_get_parser.assert_called_once()
+        assert self.mock_facets_fn.call_count == 3
+        for call in self.mock_facets_fn.call_args_list:
+            assert call.kwargs["sql_parser"] is self.mock_get_parser.return_value
+
+    def test_sql_parsing_is_skipped_when_sql_parser_is_unavailable(self):
+        self.mock_get_parser.return_value = None
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1"), _make_extra(sql="SELECT 2")],
+        )
+
+        self.mock_facets_fn.assert_not_called()
+        assert self.mock_build.call_count == 2
 
     @mock.patch(f"{_MODULE}.log", autospec=True)
     def test_hook_without_database_info_method_is_not_a_failure(self, mock_log):

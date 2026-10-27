@@ -446,6 +446,25 @@ class TestGetOpenlineageFacetsWithSql:
         assert mock_log.warning.call_args.args[1] == "conn"
         assert str(mock_log.warning.call_args.args[2]) == "broken import"
 
+    def test_prefetched_sql_parser_skips_dialect_lookup(self):
+        hook = MagicMock(spec=DbApiHook)
+        sql_parser = MagicMock(spec=SQLParser)
+
+        result = get_openlineage_facets_with_sql(
+            hook=hook,
+            sql="SELECT 1",
+            conn_id="conn",
+            database=None,
+            use_connection=False,
+            connection=MagicMock(),
+            database_info=DatabaseInfo(scheme="myscheme"),
+            sql_parser=sql_parser,
+        )
+
+        hook.get_openlineage_database_dialect.assert_not_called()
+        sql_parser.generate_openlineage_metadata_from_sql.assert_called_once()
+        assert result is sql_parser.generate_openlineage_metadata_from_sql.return_value
+
     def test_returns_none_when_no_dialect(self):
         hook = MagicMock(spec=["get_connection", "get_openlineage_database_info"])
         hook.get_openlineage_database_info.return_value = DatabaseInfo(scheme="myscheme")
