@@ -910,15 +910,19 @@ class _DependencyDetector:
 
         deps = []
         if isinstance(task, TriggerDagRunOperator):
-            deps.append(
-                DagDependency(
-                    source=task.dag_id,
-                    target=getattr(task, "trigger_dag_id"),
-                    label=task.task_display_name,
-                    dependency_type="trigger",
-                    dependency_id=task.task_id,
+            trigger_dag_id = getattr(task, "trigger_dag_id")
+            # Inside an expanded task group this is a MappedArgument resolved at runtime,
+            # so the target Dag is unknown at serialization time.
+            if isinstance(trigger_dag_id, str):
+                deps.append(
+                    DagDependency(
+                        source=task.dag_id,
+                        target=trigger_dag_id,
+                        label=task.task_display_name,
+                        dependency_type="trigger",
+                        dependency_id=task.task_id,
+                    )
                 )
-            )
         elif (
             isinstance(task, MappedOperator)
             and issubclass(task.operator_class, TriggerDagRunOperator)
@@ -936,29 +940,33 @@ class _DependencyDetector:
                     )
                 )
         elif isinstance(task, ExternalTaskSensor):
-            deps.append(
-                DagDependency(
-                    source=getattr(task, "external_dag_id"),
-                    target=task.dag_id,
-                    label=task.task_display_name,
-                    dependency_type="sensor",
-                    dependency_id=task.task_id,
+            external_dag_id = getattr(task, "external_dag_id")
+            if isinstance(external_dag_id, str):
+                deps.append(
+                    DagDependency(
+                        source=external_dag_id,
+                        target=task.dag_id,
+                        label=task.task_display_name,
+                        dependency_type="sensor",
+                        dependency_id=task.task_id,
+                    )
                 )
-            )
         elif (
             isinstance(task, MappedOperator)
             and issubclass(task.operator_class, ExternalTaskSensor)
             and "external_dag_id" in task.partial_kwargs
         ):
-            deps.append(
-                DagDependency(
-                    source=task.partial_kwargs["external_dag_id"],
-                    target=task.dag_id,
-                    label=task.task_display_name,
-                    dependency_type="sensor",
-                    dependency_id=task.task_id,
+            external_dag_id = task.partial_kwargs["external_dag_id"]
+            if isinstance(external_dag_id, str):
+                deps.append(
+                    DagDependency(
+                        source=external_dag_id,
+                        target=task.dag_id,
+                        label=task.task_display_name,
+                        dependency_type="sensor",
+                        dependency_id=task.task_id,
+                    )
                 )
-            )
 
         for obj in task.outlets or []:
             if isinstance(obj, (Asset, SerializedAsset)):

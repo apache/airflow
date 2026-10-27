@@ -2338,6 +2338,49 @@ class TestStringifiedDAGs:
                 }
             ]
 
+    @pytest.mark.parametrize(
+        ("operator_path", "dag_id_kwarg", "expand_kwarg"),
+        [
+            (
+                "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
+                "trigger_dag_id",
+                "trigger_run_id",
+            ),
+            (
+                "airflow.providers.standard.sensors.external_task.ExternalTaskSensor",
+                "external_dag_id",
+                "external_task_id",
+            ),
+        ],
+    )
+    def test_dag_deps_skip_dag_id_known_only_at_runtime(self, operator_path, dag_id_kwarg, expand_kwarg):
+        """
+        Tests that a Dag id resolved at runtime does not become a dependency.
+
+        This covers both a plain operator inside an expanded task group (the mapped value is set
+        directly on the attribute) and a mapped operator (the mapped value is in ``partial_kwargs``).
+        """
+        module_path, class_name = operator_path.rsplit(".", 1)
+        operator_cls = getattr(importlib.import_module(module_path), class_name)
+        logical_date = datetime(2020, 1, 1)
+
+        @task_group
+        def tg(dag_id: str):
+            operator_cls(task_id="task", **{dag_id_kwarg: dag_id})
+
+        with DAG(dag_id="test_dynamic_task_group", schedule=None, start_date=logical_date) as dag:
+            tg.expand(dag_id=["external_dag_id"])
+
+        assert DagSerialization.to_dict(dag)["dag"]["dag_dependencies"] == []
+
+        with DAG(dag_id="test_dynamic_mapped", schedule=None, start_date=logical_date) as dag:
+            source = BashOperator(task_id="source", bash_command="echo hello")
+            operator_cls.partial(task_id="task", **{dag_id_kwarg: source.output}).expand(
+                **{expand_kwarg: ["one", "two"]}
+            )
+
+        assert DagSerialization.to_dict(dag)["dag"]["dag_dependencies"] == []
+
     def test_task_group_sorted(self):
         """
         Tests serialize_task_group, make sure the list is in order
