@@ -56,8 +56,8 @@ def test_star_import_exposes_deprecated_names():
 
 
 @pytest.mark.db_test
-class TestDeprecatedSendFromServerProcess:
-    """Email sent from a server process, such as a listener in the API server, must find a DB Connection."""
+class TestDeprecatedSendWithDbOnlyConnection:
+    """Which processes find an SMTP Connection that exists only in the metadata database."""
 
     @pytest.fixture(autouse=True)
     def _db_only_connection(self, monkeypatch):
@@ -67,7 +67,7 @@ class TestDeprecatedSendFromServerProcess:
         from tests_common.test_utils.db import clear_db_connections
 
         monkeypatch.delenv("AIRFLOW_CONN_SMTP_DB_ONLY", raising=False)
-        monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
         clear_db_connections(add_default_connections_back=False)
         with create_session() as session:
             session.add(
@@ -76,12 +76,26 @@ class TestDeprecatedSendFromServerProcess:
         yield
         clear_db_connections()
 
+    @pytest.mark.parametrize(
+        ("process_context", "expected_login"),
+        [
+            pytest.param("server", ("db-user", "db-pass"), id="server-process-finds-db-connection"),
+            pytest.param(None, None, id="plain-script-sends-without-login"),
+        ],
+    )
     @mock.patch("smtplib.SMTP", autospec=True)
-    def test_send_mime_email_uses_db_connection(self, mock_smtp):
+    def test_send_mime_email_db_only_connection(
+        self, mock_smtp, monkeypatch, process_context, expected_login
+    ):
+        if process_context:
+            monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", process_context)
         with pytest.warns(DeprecatedImportWarning):
             send_mime_email = email.send_mime_email
 
         send_mime_email("from@example.com", ["to@example.com"], MIMEMultipart(), conn_id="smtp_db_only")
 
-        mock_smtp.return_value.login.assert_called_once_with("db-user", "db-pass")
+        if expected_login:
+            mock_smtp.return_value.login.assert_called_once_with(*expected_login)
+        else:
+            mock_smtp.return_value.login.assert_not_called()
         assert mock_smtp.return_value.sendmail.called
