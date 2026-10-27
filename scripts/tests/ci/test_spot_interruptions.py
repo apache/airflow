@@ -297,9 +297,14 @@ def test_find_comment_ignores_comments_of_others(spot):
 
 SERVER_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Server Error (HTTP 502)\n")
 NOT_FOUND_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Not Found (HTTP 404)\n")
+STREAM_ERROR = subprocess.CalledProcessError(
+    1, ["gh"], stderr="stream error: stream ID 3; CANCEL; received from peer\n"
+)
 
 
-@pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, False)])
+@pytest.mark.parametrize(
+    ("error", "expected_ok"), [(SERVER_ERROR, True), (STREAM_ERROR, True), (NOT_FOUND_ERROR, False)]
+)
 def test_run_pr_comments_carries_on_past_a_failing_run(spot, capsys, error, expected_ok):
     runs = [_run(branch="a"), _run(branch="b")]
 
@@ -329,6 +334,7 @@ def test_run_pr_comments_when_listing_the_runs_fails(spot, error, expected_ok):
     [
         pytest.param(("repos/x",), [SERVER_ERROR, SERVER_ERROR], 3, None, id="retries-server-errors"),
         pytest.param(("repos/x",), [SERVER_ERROR] * 3, 3, SERVER_ERROR, id="gives-up"),
+        pytest.param(("repos/x",), [STREAM_ERROR], 2, None, id="retries-dropped-connections"),
         pytest.param(("repos/x",), [NOT_FOUND_ERROR], 1, NOT_FOUND_ERROR, id="no-retry-on-client-error"),
         pytest.param(("-X", "POST", "repos/x"), [SERVER_ERROR], 1, SERVER_ERROR, id="no-retry-on-post"),
         pytest.param(("-X", "PATCH", "repos/x"), [SERVER_ERROR], 2, None, id="retries-patch"),
