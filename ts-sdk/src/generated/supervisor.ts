@@ -66,6 +66,7 @@ export type Extra2 = {
   [k: string]: JsonValue | null;
 } | null;
 export type Type2 = "AssetResult";
+export type UpdatedAt = string | null;
 export type Type3 = "AssetStateStoreResult";
 export type Assets = AssetResult[];
 export type Type4 = "AssetsByAliasResult";
@@ -774,6 +775,7 @@ export interface AssetResult {
  */
 export interface AssetStateStoreResult {
   value: JsonValue | null;
+  updated_at?: UpdatedAt;
   type?: Type3;
 }
 /**

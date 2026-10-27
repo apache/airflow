@@ -26,16 +26,18 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
+    AssetStateStoreResponse,
     PreviousTIResponse,
     TaskInstance,
     TIRunContext,
     TISuccessStatePayload,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -148,3 +150,22 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
     )
+
+
+class AddUpdatedAtToSupervisorAssetStateStoreResult(VersionChange):
+    """
+    Add the ``updated_at`` field carrying when an asset state store value was last written.
+
+    The supervisor-schema mirror of the execution API's ``AddAssetStateStoreUpdatedAtField``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(AssetStateStoreResponse).field("updated_at").didnt_exist,
+    )
+
+    # The model forbids extra fields, so the field has to leave the body before re-validation.
+    @convert_response_to_previous_version_for(AssetStateStoreResult)  # type: ignore[arg-type]
+    def remove_updated_at(response: ResponseInfo) -> None:
+        response.body.pop("updated_at", None)
