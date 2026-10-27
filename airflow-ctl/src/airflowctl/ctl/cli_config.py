@@ -228,12 +228,12 @@ def is_iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
         raise argparse.ArgumentTypeError(f"invalid datetime value: {val!r}") from e
 
 
-def iso_date_type(val: str | datetime.date) -> datetime.date:
+def is_iso_date_type(val: str | datetime.date) -> datetime.date:
     """
     Parse an ISO-8601 date string into a datetime.date.
 
     Used as the argparse ``type=`` callable for datetime.date-typed CLI
-    parameters, mirroring iso_datetime_type() above.
+    parameters, mirroring is_iso_datetime_type() above.
     """
     if isinstance(val, datetime.date):
         return val
@@ -689,8 +689,8 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.date": iso_date_type,
-            "datetime.datetime": iso_datetime_type,
+            "datetime.date": is_iso_date_type,
+            "datetime.datetime": is_iso_datetime_type,
             "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised

@@ -42,8 +42,8 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
-    iso_date_type,
-    iso_datetime_type,
+    is_iso_date_type,
+    is_iso_datetime_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
@@ -438,12 +438,12 @@ class TestCommandFactory:
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
 
-    def test_iso_datetime_type_returns_datetime_input_unchanged(self):
+    def test_is_iso_datetime_type_returns_datetime_input_unchanged(self):
         """A datetime.datetime input is returned as-is without re-parsing."""
 
         value = datetime.datetime(2026, 7, 1, tzinfo=UTC)
 
-        assert iso_datetime_type(value) is value
+        assert is_iso_datetime_type(value) is value
 
     @pytest.mark.parametrize(
         ("value", "expected"),
@@ -454,34 +454,34 @@ class TestCommandFactory:
             ("2026-07-01T12:34:56Z", "2026-07-01T12:34:56+00:00"),
         ],
     )
-    def test_iso_datetime_type_parses_iso_string(self, value, expected):
+    def test_is_iso_datetime_type_parses_iso_string(self, value, expected):
         """An ISO-8601 datetime string (date-only or full) is parsed into a datetime."""
-        assert iso_datetime_type(value).isoformat() == expected
+        assert is_iso_datetime_type(value).isoformat() == expected
 
-    def test_iso_datetime_type_rejects_invalid_value(self):
+    def test_is_iso_datetime_type_rejects_invalid_value(self):
         """A non-parseable string raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="invalid datetime value"):
-            iso_datetime_type("not-a-date")
+            is_iso_datetime_type("not-a-date")
 
-    def test_iso_datetime_type_accepts_trailing_z(self):
+    def test_is_iso_datetime_type_accepts_trailing_z(self):
         """A trailing Z (as emitted by the API) parses on all supported Python versions."""
-        assert iso_datetime_type("2026-07-01T12:00:00Z") == datetime.datetime(
+        assert is_iso_datetime_type("2026-07-01T12:00:00Z") == datetime.datetime(
             2026, 7, 1, 12, 0, 0, tzinfo=UTC
         )
 
-    def test_iso_date_type_parses_iso_date(self):
+    def test_is_iso_date_type_parses_iso_date(self):
         """An ISO-8601 date string is parsed into a datetime.date."""
-        assert iso_date_type("2026-07-01") == datetime.date(2026, 7, 1)
+        assert is_iso_date_type("2026-07-01") == datetime.date(2026, 7, 1)
 
-    def test_iso_date_type_returns_date_input_unchanged(self):
+    def test_is_iso_date_type_returns_date_input_unchanged(self):
         """A datetime.date input is returned as-is without re-parsing."""
         d = datetime.date(2026, 7, 1)
-        assert iso_date_type(d) is d
+        assert is_iso_date_type(d) is d
 
-    def test_iso_date_type_rejects_invalid_value(self):
+    def test_is_iso_date_type_rejects_invalid_value(self):
         """A non-parseable string raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="Invalid ISO-8601 date"):
-            iso_date_type("not-a-date")
+            is_iso_date_type("not-a-date")
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
