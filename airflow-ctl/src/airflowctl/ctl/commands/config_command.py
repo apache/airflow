@@ -733,20 +733,20 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
     This function scans the Airflow configuration file for parameters that are removed or renamed in
     Airflow 3.0. It provides suggestions for alternative parameters or settings where applicable.
     CLI Arguments:
-        --section: str (optional)
-            The specific section of the configuration to lint.
+        --section: comma separated list (optional)
+            The specific section name(s) of the configuration to lint.
             Example: --section core
 
-        --option: str (optional)
-            The specific option within a section to lint.
+        --option: comma separated list (optional)
+            The specific option name(s) within a section to lint.
             Example: --option check_slas
 
-        --ignore-section: str (optional)
-            A section to ignore during linting.
+        --ignore-section: comma separated list (optional)
+            The section name(s) to ignore during linting.
             Example: --ignore-section webserver
 
-        --ignore-option: str (optional)
-            An option to ignore during linting.
+        --ignore-option: comma separated list (optional)
+            The option name(s) to ignore during linting.
             Example: --ignore-option smtp_user
 
         --verbose: flag (optional)
