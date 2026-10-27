@@ -31,6 +31,7 @@ touch those optional dependencies.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -52,6 +53,10 @@ if TYPE_CHECKING:
 
 # Re-fetch a workload identity token this many seconds before it expires.
 WIF_TOKEN_EXPIRY_BUFFER = 30
+# Audience Snowflake expects in the identity token: its domain for AWS and GCP, and its Entra
+# application for Azure.
+WIF_AUDIENCE = "snowflakecomputing.com"
+WIF_AZURE_RESOURCE = "api://fd3f753b-eed3-462c-b6a7-a4b5bb650aad"
 
 
 @dataclass(frozen=True)
@@ -73,8 +78,10 @@ class SnowflakeRestTokenProvider:
     a connection without a private key that sets ``workload_identity_provider`` uses Workload
     Identity Federation; anything else signs a key-pair JWT. The private key is loaded once and
     kept. The ``JWTGenerator`` is built once and kept, because it renews its own token on the
-    ``token_renewal_delta`` schedule. The workload identity token is cached until shortly before
-    its ``exp`` claim, and not cached when it carries none.
+    ``token_renewal_delta`` schedule. The workload identity token is requested from the cloud
+    with its own client library (``boto3``, ``azure-identity`` or ``google-auth``, imported only
+    for the provider the connection names), cached until shortly before its ``exp`` claim, and
+    not cached when it carries none.
 
     :param hook: The ``SnowflakeHook`` (or subclass) whose connection supplies credentials.
     :param token_life_time: Passed to the ``JWTGenerator`` for the key-pair branch.
@@ -168,48 +175,31 @@ class SnowflakeRestTokenProvider:
         """
         Return a Workload Identity Federation token, fetching a new one when the cached one expires.
 
-        The cloud credential comes from the ``snowflake-connector-python`` attestation helper, so
-        the AWS, Azure, GCP and OIDC flows match what ``SnowflakeHook`` does for the connector.
         The caller must hold ``self._lock``.
         """
         if self._wif_token is not None and time.time() < self._wif_token_expires_at:
             return self._wif_token
 
-        # Imported here: the module is internal to the connector and only exists in versions
-        # that support WIF, which only this branch needs.
-        try:
-            from snowflake.connector.wif_util import AttestationProvider, create_attestation
-        except ImportError as e:
-            raise ValueError(
-                "Workload Identity Federation for Snowflake REST APIs requires "
-                "snowflake-connector-python>=3.17.0."
-            ) from e
-
         provider_name = str(conn_config["workload_identity_provider"]).upper()
-        provider = AttestationProvider.from_string(provider_name)
-        kwargs: dict[str, Any] = {}
-        if provider == AttestationProvider.OIDC:
-            kwargs["token"] = self._get_oidc_token(conn_config)
-        elif provider == AttestationProvider.AWS:
-            # By default the connector returns a signed STS request for its login protocol; the
-            # REST API needs the JWT from sts:GetWebIdentityToken instead.
-            kwargs["aws_use_outbound_token"] = True
-
-        try:
-            attestation = create_attestation(provider, **kwargs)
-        except TypeError as e:
-            if provider != AttestationProvider.AWS:
-                raise
+        if provider_name == "AWS":
+            credential = _fetch_aws_identity_token()
+        elif provider_name == "AZURE":
+            credential = _fetch_azure_identity_token()
+        elif provider_name == "GCP":
+            credential = _fetch_gcp_identity_token()
+        elif provider_name == "OIDC":
+            credential = self._get_oidc_token(conn_config)
+        else:
             raise ValueError(
-                "Workload Identity Federation for Snowflake REST APIs on AWS requires "
-                "snowflake-connector-python>=4.7.1."
-            ) from e
+                f"Unknown workload_identity_provider {provider_name!r}; expected one of "
+                "AWS, AZURE, GCP or OIDC."
+            )
 
         token = SnowflakeRestToken(
-            token=f"WIF.{provider_name}.{attestation.credential}",
+            token=f"WIF.{provider_name}.{credential}",
             token_type="WORKLOAD_IDENTITY_FEDERATION",
         )
-        expires_at = self._get_jwt_expiry(attestation.credential)
+        expires_at = self._get_jwt_expiry(credential)
         self._wif_token = token if expires_at else None
         self._wif_token_expires_at = (expires_at or 0.0) - WIF_TOKEN_EXPIRY_BUFFER
         return token
@@ -242,6 +232,64 @@ class SnowflakeRestTokenProvider:
             "Authorization": f"Bearer {token.token}",
             "X-Snowflake-Authorization-Token-Type": token.token_type,
         }
+
+
+def _fetch_aws_identity_token() -> str:
+    """Return the JWT from ``sts:GetWebIdentityToken`` for the workload's AWS identity."""
+    try:
+        import boto3
+    except ImportError as e:
+        raise ValueError(
+            "Workload Identity Federation with the AWS provider requires the boto3 package."
+        ) from e
+    sts = boto3.client("sts")
+    if not hasattr(sts, "get_web_identity_token"):
+        raise ValueError(
+            "Workload Identity Federation with the AWS provider requires a boto3 version that "
+            "supports sts:GetWebIdentityToken."
+        )
+    response = sts.get_web_identity_token(Audience=[WIF_AUDIENCE], SigningAlgorithm="ES384")
+    return response["WebIdentityToken"]
+
+
+def _fetch_azure_identity_token() -> str:
+    """
+    Return an Entra access token for Snowflake's application, issued to the workload's identity.
+
+    Uses the AKS workload identity when the pod has one (the Azure Workload Identity webhook sets
+    ``AZURE_CLIENT_ID``, ``AZURE_TENANT_ID`` and ``AZURE_FEDERATED_TOKEN_FILE``), and the managed
+    identity otherwise. A user-assigned managed identity is selected with
+    ``MANAGED_IDENTITY_CLIENT_ID``.
+    """
+    try:
+        from azure.identity import ManagedIdentityCredential, WorkloadIdentityCredential
+    except ImportError as e:
+        raise ValueError(
+            "Workload Identity Federation with the AZURE provider requires the azure-identity package."
+        ) from e
+    credential: ManagedIdentityCredential | WorkloadIdentityCredential
+    if all(
+        os.environ.get(name) for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE")
+    ):
+        credential = WorkloadIdentityCredential()
+    else:
+        credential = ManagedIdentityCredential(client_id=os.environ.get("MANAGED_IDENTITY_CLIENT_ID"))
+    try:
+        return credential.get_token(f"{WIF_AZURE_RESOURCE}/.default").token
+    finally:
+        credential.close()
+
+
+def _fetch_gcp_identity_token() -> str:
+    """Return a Google ID token for Snowflake's audience, issued to the workload's service account."""
+    try:
+        from google.auth.transport.requests import Request
+        from google.oauth2 import id_token
+    except ImportError as e:
+        raise ValueError(
+            "Workload Identity Federation with the GCP provider requires the google-auth package."
+        ) from e
+    return id_token.fetch_id_token(Request(), WIF_AUDIENCE)
 
 
 def get_cortex_base_url(conn_config: dict[str, Any]) -> str:
