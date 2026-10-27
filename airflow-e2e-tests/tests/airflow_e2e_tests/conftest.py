@@ -1005,6 +1005,10 @@ def _save_service_logs(compose_instance: DockerCompose):
         if service:
             stdout, _ = compose_instance.get_logs(service)
             (LOGS_FOLDER / f"{service}.log").write_text(stdout)
+    console.print(
+        f"[yellow]Service and task logs are not printed here: find them in {LOGS_FOLDER} "
+        f"(in CI, the `e2e-test-logs-<mode>` artifact, `logs.zip`)"
+    )
 
 
 def pytest_sessionstart(session: pytest.Session):
