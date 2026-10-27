@@ -3648,11 +3648,11 @@ def test_taskinstance_info_af2():
     ti = TaskInstance(
         task=task_obj, run_id="task_instance_run_id", state=TaskInstanceState.RUNNING, map_index=2
     )
+    # Left from the previous try, as end_date is cleared when the next one starts, so it isn't reported
     ti.duration = 12.345
     ti.queued_dttm = some_date
 
     assert dict(TaskInstanceInfo(ti)) == {
-        "duration": 12.345,
         "map_index": 2,
         "rendered_map_index": None,
         "pool": "default_pool",
