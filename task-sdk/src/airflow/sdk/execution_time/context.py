@@ -92,7 +92,6 @@ if TYPE_CHECKING:
 
     from pydantic.types import JsonValue
 
-    from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
@@ -105,7 +104,6 @@ if TYPE_CHECKING:
         ConnectionResult,
         OKResponse,
         ReceiveMsgType,
-        VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -198,16 +196,6 @@ async def _amask_connection_secrets(conn: Connection) -> None:
         await amask_secret(conn.password)
     if conn.extra:
         await amask_secret(conn.extra)
-
-
-def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
-    from airflow.sdk.definitions.variable import Variable
-
-    if deserialize_json:
-        import json
-
-        var_result.value = json.loads(var_result.value)  # type: ignore
-    return Variable(**var_result.model_dump(exclude={"type"}))
 
 
 _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(

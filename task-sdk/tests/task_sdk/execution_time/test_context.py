@@ -45,7 +45,6 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.connection import Connection
-from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
@@ -109,7 +108,6 @@ from airflow.sdk.execution_time.context import (
     _async_get_variable,
     _async_get_variable_keys,
     _async_set_variable,
-    _convert_variable_result_to_variable,
     _get_connection,
     _process_connection_result_conn,
     _wrap_external_ref,
@@ -148,31 +146,6 @@ def test_convert_connection_result_conn():
         password="password",
         port=1234,
         extra='{"extra_key": "extra_value"}',
-    )
-
-
-def test_convert_variable_result_to_variable():
-    """Test that the VariableResult is converted to a Variable object."""
-    var = VariableResult(
-        key="test_key",
-        value="test_value",
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=False)
-    assert var == Variable(
-        key="test_key",
-        value="test_value",
-    )
-
-
-def test_convert_variable_result_to_variable_with_deserialize_json():
-    """Test that the VariableResult is converted to a Variable object with deserialize_json set to True."""
-    var = VariableResult(
-        key="test_key",
-        value='{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=True)
-    assert var == Variable(
-        key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
 
 
