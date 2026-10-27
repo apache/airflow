@@ -1222,19 +1222,24 @@ class TaskInstanceInfo(InfoJsonEncodable):
         # A stored task instance's bundle comes from these, as the worker's does, without a query
         self._dag = dag
         self._dag_run = dag_run
-        # The end date a terminal event is timed with. The duration is computed from it only when the task
-        # instance has no stored duration, as is the case for an Airflow 3 runtime task instance.
+        # The end date a terminal event is timed with, used when the task instance carries none, as a skipped
+        # Airflow 3 runtime task instance doesn't before Airflow 3.4.
         self._end_date = end_date
         super().__init__(obj)
 
-    def _get_duration(self) -> float | None:
+    def _get_end_date(self) -> datetime.datetime | None:
+        if isinstance(end_date := getattr(self.obj, "end_date", None), datetime.datetime):
+            return end_date
+        return self._end_date
+
+    def _get_duration(
+        self, start_date: datetime.datetime | None, end_date: datetime.datetime | None
+    ) -> float | None:
         # The stored duration is what the UI shows, so it wins. A runtime task instance has none -- the API
         # server computes it after the listener ran.
         if (duration := getattr(self.obj, "duration", None)) is not None:
             return duration
-        end_date = self._end_date if self._end_date is not None else getattr(self.obj, "end_date", None)
-        start_date = getattr(self.obj, "start_date", None)
-        if not isinstance(end_date, datetime.datetime) or not isinstance(start_date, datetime.datetime):
+        if start_date is None or end_date is None:
             return None
         try:
             return (end_date - start_date).total_seconds()
@@ -1242,9 +1247,18 @@ class TaskInstanceInfo(InfoJsonEncodable):
             return None
 
     def _extend_fields(self) -> None:
-        if (duration := self._get_duration()) is not None:
-            self.duration = duration
-            self._fields.append("duration")
+        start_date = getattr(self.obj, "start_date", None)
+        if not isinstance(start_date, datetime.datetime):
+            start_date = None
+        end_date = self._get_end_date()
+        for field, field_value in (
+            ("start_date", start_date),
+            ("end_date", end_date),
+            ("duration", self._get_duration(start_date, end_date)),
+        ):
+            if field_value is not None:
+                setattr(self, field, field_value)
+                self._fields.append(field)
         position = self._position
         if position is None:
             # A stored task instance whose task isn't attached can't be placed without its region, and a facet

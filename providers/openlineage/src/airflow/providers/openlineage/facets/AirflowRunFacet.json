@@ -308,6 +308,15 @@
           "type": "string",
           "format": "date-time"
         },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_date": {
+          "description": "Set once the task instance finished: on the COMPLETE and FAIL events.",
+          "type": "string",
+          "format": "date-time"
+        },
         "log_url": {
           "type": "string",
           "format": "uri"

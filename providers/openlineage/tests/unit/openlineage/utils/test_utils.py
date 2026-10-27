@@ -3601,6 +3601,8 @@ def test_taskinstance_info_af3():
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
         "duration": 12.345,
+        "start_date": "2025-01-01T00:00:00+00:00",
+        "end_date": "2025-01-01T00:00:12.345000+00:00",
         "id": str(runtime_ti.id),
         "log_url": runtime_ti.log_url,
         "map_index": 2,
@@ -6159,8 +6161,8 @@ _DURATION_START = datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         pytest.param(
             {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
             _DURATION_START + datetime.timedelta(seconds=9),
-            9.0,
-            id="passed_end_date_wins_over_end_date_of_task_instance",
+            7.0,
+            id="end_date_of_task_instance_wins_over_passed_end_date",
         ),
         pytest.param({"start_date": _DURATION_START}, None, None, id="running_task_instance"),
         pytest.param({}, None, None, id="no_dates"),
@@ -6199,6 +6201,43 @@ def test_task_instance_info_duration(ti_attrs, end_date, expected_duration):
         assert "duration" not in info
     else:
         assert info["duration"] == expected_duration
+
+
+@pytest.mark.parametrize(
+    ("ti_attrs", "end_date", "expected_dates"),
+    [
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            id="end_date_of_task_instance_wins_over_passed_end_date",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": None},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:09+00:00"},
+            id="passed_end_date_when_task_instance_has_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START},
+            None,
+            {"start_date": "2024-06-01T12:00:00+00:00"},
+            id="running_task_instance",
+        ),
+        pytest.param(
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            None,
+            {},
+            id="dates_are_not_datetimes",
+        ),
+    ],
+)
+def test_task_instance_info_dates(ti_attrs, end_date, expected_dates):
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, **ti_attrs)
+
+    info = dict(TaskInstanceInfo(ti, end_date=end_date))
+
+    assert {key: info[key] for key in ("start_date", "end_date") if key in info} == expected_dates
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets", return_value=[])
