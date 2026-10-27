@@ -1,0 +1,142 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag"
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_extract",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_extract",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_full",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_full",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    }
+]

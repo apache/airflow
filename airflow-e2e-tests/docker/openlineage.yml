@@ -41,6 +41,30 @@ x-ol-common-env: &ol-common-env
     [
     {"scope": {"dag_id": "openlineage_policy_conf_locked_dag"}, "locked": true, "controls": {"include_source_code": false}},
     {"scope": {"dag_id": "openlineage_policy_conf_source_code_dag"}, "controls": {"include_source_code": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_extract_off"}, "controls": {"extract_operator_metadata": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_hook_off"}, "controls": {"hook_lineage": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_full_info"}, "controls": {"include_full_task_info": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_emit_off"}, "controls": {"emit": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_task_events_off"}, "controls": {"emit_task_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_task_events_beat_emit"}, "controls": {"emit": false, "emit_task_events": true}},
+    {"scope": {"operator": ".*\\.PolicyConfControlsOperator"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_operator_task"}, "controls": {"hook_lineage": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_extract_overridden"}, "controls": {"extract_operator_metadata": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_hook_overridden"}, "controls": {"hook_lineage": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_emit_overridden"}, "controls": {"emit": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_dag_events_false_dag"}, "controls": {"emit_dag_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_emit_false_dag"}, "controls": {"emit": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_emit_false_dag_events_true_dag"}, "controls": {"emit": false, "emit_dag_events": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_emit_false_task_events_true_dag"}, "controls": {"emit": false, "emit_task_events": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_controls_dag", "task_id": "t_locked_emit"}, "locked": true, "controls": {"emit": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_controls_dag", "task_id": "t_locked_task_events"}, "locked": true, "controls": {"emit_task_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_controls_dag", "task_id": "t_locked_extract"}, "locked": true, "controls": {"extract_operator_metadata": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_controls_dag", "task_id": "t_locked_hook"}, "locked": true, "controls": {"hook_lineage": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_controls_dag", "task_id": "t_locked_full"}, "locked": true, "controls": {"include_full_task_info": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_dag_events_dag"}, "locked": true, "controls": {"emit_dag_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_floor_dag"}, "locked": true, "controls": {"include_source_code": false}},
+    {"scope": {"dag_id": "openlineage_policy_conf_locked_floor_dag", "task_id": "t_floor"}, "controls": {"include_source_code": true}},
+    {"scope": {"dag_id": "openlineage_policy_conf_task_events_false_dag"}, "controls": {"emit_task_events": false}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag"}, "controls": {"exclude_datasets": [".*/conf_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "hook": ".*\\.AuthHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/conf_hook_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "task_id": "t_locked"}, "locked": true, "controls": {"exclude_datasets": [".*/locked_excluded_.*"]}},
@@ -50,16 +74,34 @@ x-ol-common-env: &ol-common-env
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag"}, "controls": {"exclude_datasets": [".*/dag_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.ConfHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/dag_hook_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task"}, "controls": {"exclude_datasets": [".*/task_excluded_.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_hook"}, "controls": {"exclude_datasets": [".*/task_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_hook", "hook": ".*\\.ConfHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/task_hook_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_clear"}, "controls": {"exclude_datasets": []}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.DroppedHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": ".*\\.KeptHook"}, "match_mode": "regex", "controls": {"hook_lineage": true}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_dropped", "hook": ".*\\.TaskDroppedHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
+    {"scope": {"operator": ".*\\.ExcludeDatasetsConfOperator"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/operator_excluded_.*"]}},
+    {"scope": {"operator": ".*\\.ExcludeDatasetsConfOperator", "hook": ".*\\.ConfHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/operator_hook_excluded_.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "hook": "airflow.providers.standard.hooks.filesystem.FSHook"}, "controls": {"exclude_datasets": [".*/fs_hook_excluded_.*"]}},
     {"scope": {"hook": ".*\\.ExcludeDatasetsGlobalHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/hook_excluded_.*"]}},
+    {"scope": {"hook": ".*\\.ExcludeDatasetsGlobalOtherHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/other_hook_excluded_.*"]}},
     {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/operator_excluded_.*"]}},
     {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator", "hook": ".*\\.ExcludeDatasetsGlobalHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/operator_hook_excluded_.*"]}},
-    {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalClearOperator"}, "match_mode": "regex", "controls": {"exclude_datasets": []}}
+    {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalClearOperator"}, "match_mode": "regex", "controls": {"exclude_datasets": []}},
+    {"scope": {"hook": ".*\\.ExcludeDatasetsGlobalDropHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
+    {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator", "hook": ".*\\.ExcludeDatasetsGlobalOpDropHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
+    {"scope": {"operator": ".*\\.ExcludeDatasetsGlobalLockedOperator"}, "match_mode": "regex", "locked": true, "controls": {"exclude_datasets": [".*/operator_locked_.*"]}},
+    {"scope": {"hook": ".*\\.ExcludeDatasetsGlobalLockedHook"}, "match_mode": "regex", "locked": true, "controls": {"exclude_datasets": [".*/hook_locked_.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_locked_dag"}, "locked": true, "controls": {"exclude_datasets": [".*/dag_locked_.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag"}, "controls": {"exclude_datasets": [".*/dag_excluded_.*", ".*sql_excluded.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SqlRuledHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*sql_hook_excluded.*"]}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SqlDroppedHook"}, "match_mode": "regex", "controls": {"hook_lineage": false}},
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SourceHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/hook_scoped_.*"]}}
     ]
   AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
+  # openlineage_policy_exclude_datasets_sources_dag checks that exclusion runs after this cap; no other DAG
+  # reports more than a few assets per hook, so 67 (instead of the default 100) does not affect them.
+  AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR: '67'
   # Both control how quickly the dag-processor picks up dags: REFRESH_INTERVAL is how often it
   # re-scans the folder for new/removed files, MIN_FILE_PROCESS_INTERVAL is how often it re-parses
   # a file it already knows about. Tightened from the 300s/30s defaults so the e2e run doesn't wait

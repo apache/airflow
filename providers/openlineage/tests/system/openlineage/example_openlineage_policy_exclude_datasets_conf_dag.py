@@ -17,16 +17,27 @@
 """
 DAG exercising the OpenLineage ``exclude_datasets`` control in the ``dag_id`` conf tiers.
 
-Hook-reported datasets are attributed to the class of the ``context`` they were registered with, so the
-DAG uses stand-in hooks. Rules use ``match_mode: regex`` because the stand-in classes live in the Dag module.
-Patterns are matched against ``<namespace>/<name>`` of the OpenLineage dataset, and the most specific
-matching rule replaces broader lists: dag + task + hook > dag + task > dag + hook > dag > global.
+The most specific matching rule replaces broader lists: Dag + task + hook, Dag + task, Dag + hook, Dag, then
+operator + hook, operator, hook, global. Hook and operator rules are regexes on the names of the stand-in classes
+below. Every task reports an input and an output per stem, and the expected events check both.
 
-Hook-scoped rules apply only to hook-collected datasets, not to declared inlets. A hook-scoped
-``hook_lineage`` drops (``false``) or keeps (``true``) every dataset the hook reports.
+- ``t_dag``: the Dag list replaces the global list.
+- ``t_dag_hook``: a Dag + hook list replaces the Dag list.
+- ``t_task``: a Dag + task list replaces the Dag + hook and Dag lists.
+- ``t_task_hook``: a Dag + task + hook list replaces the Dag + task list for its hook, a second hook of the task
+  gets the Dag + task list.
+- ``t_task_clear``: a Dag + task ``[]`` clears the Dag list.
+- ``t_task_dropped``, ``t_dropped_hook``: a hook scoped ``hook_lineage: false`` drops the datasets of one hook and
+  not of another, at Dag + task + hook and at Dag + hook.
+- ``t_kept_hook``: ``hook_lineage: true`` keeps all the datasets of a hook, which clears the Dag list for it.
+- ``t_operator_dag``: Dag rules beat operator and operator + hook rules.
+- ``t_exact_hook``: a hook scope with the exact class name of a real hook, which is the default ``match_mode``.
+- ``t_same_dataset``: one dataset reported by two hooks is filtered for each hook.
+- ``t_inlets``: Dag lists filter declared inlets and outlets, a Dag + hook list does not.
+- ``t_all_excluded``: when every hook dataset is excluded, declared inlets and outlets are not used instead.
 
 Required global conf (the first rule is the global rule of ``openlineage_policy_exclude_datasets_global_dag``,
-which every dag-scoped rule here replaces)::
+which the Dag rules here replace)::
 
     [
         {"scope": {}, "controls": {"exclude_datasets": [".*/exclude_datasets_global_.*"]}},
@@ -41,6 +52,10 @@ which every dag-scoped rule here replaces)::
         },
         {
             "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task"},
+            "controls": {"exclude_datasets": [".*/task_excluded_.*"]},
+        },
+        {
+            "scope": {"dag_id": "openlineage_policy_exclude_datasets_conf_dag", "task_id": "t_task_hook"},
             "controls": {"exclude_datasets": [".*/task_excluded_.*"]},
         },
         {
@@ -66,6 +81,32 @@ which every dag-scoped rule here replaces)::
             "match_mode": "regex",
             "controls": {"hook_lineage": true},
         },
+        {
+            "scope": {
+                "dag_id": "openlineage_policy_exclude_datasets_conf_dag",
+                "task_id": "t_task_dropped",
+                "hook": ".*\\.TaskDroppedHook",
+            },
+            "match_mode": "regex",
+            "controls": {"hook_lineage": false},
+        },
+        {
+            "scope": {"operator": ".*\\.ExcludeDatasetsConfOperator"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/operator_excluded_.*"]},
+        },
+        {
+            "scope": {"operator": ".*\\.ExcludeDatasetsConfOperator", "hook": ".*\\.ConfHook"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/operator_hook_excluded_.*"]},
+        },
+        {
+            "scope": {
+                "dag_id": "openlineage_policy_exclude_datasets_conf_dag",
+                "hook": "airflow.providers.standard.hooks.filesystem.FSHook",
+            },
+            "controls": {"exclude_datasets": [".*/fs_hook_excluded_.*"]},
+        },
     ]
 """
 
@@ -76,6 +117,8 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.providers.standard.operators.python import PythonOperator
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
@@ -83,68 +126,97 @@ from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
-class ConfHook:
-    """Stand-in for a hook with hook-scoped exclusion rules."""
-
-
 class QuietHook:
-    """Stand-in for a hook with no hook-scoped rule."""
+    """Hook that no rule is scoped to."""
+
+
+class ConfHook:
+    """Hook with Dag, Dag + task and Dag + task + hook rules."""
 
 
 class DroppedHook:
-    """Stand-in for a hook whose datasets are all dropped by a hook-scoped rule."""
+    """Hook whose datasets a Dag + hook rule with ``hook_lineage: false`` drops."""
 
 
 class KeptHook:
-    """Stand-in for a hook whose datasets are all kept by a hook-scoped rule."""
+    """Hook whose datasets a Dag + hook rule with ``hook_lineage: true`` keeps."""
 
 
-def _register(hook: object, inputs: Sequence[str] = (), outputs: Sequence[str] = ()):
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+class TaskDroppedHook:
+    """Hook whose datasets a Dag + task + hook rule with ``hook_lineage: false`` drops."""
 
+
+class ExcludeDatasetsConfOperator(PythonOperator):
+    """Operator with operator and operator + hook rules, which the Dag rules beat."""
+
+
+def _register_stems(hook: object, stems: Sequence[str]):
     collector = get_hook_lineage_collector()
-    for name in inputs:
-        collector.add_input_asset(context=hook, uri=f"file://host1/{name}")
-    for name in outputs:
-        collector.add_output_asset(context=hook, uri=f"file://host1/{name}")
+    for stem in stems:
+        collector.add_input_asset(context=hook, uri=f"file://host1/{stem}_in.txt")
+        collector.add_output_asset(context=hook, uri=f"file://host1/{stem}_out.txt")
+
+
+def _inlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_in.txt") for stem in stems]
+
+
+def _outlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_out.txt") for stem in stems]
 
 
 def _dag():
-    _register(
-        QuietHook(),
-        inputs=["dag_excluded_in.txt", "exclude_datasets_global_in.txt", "keep_in.txt"],
-        outputs=["dag_excluded_out.txt", "keep_out.txt"],
-    )
+    _register_stems(QuietHook(), ["dag_excluded", "exclude_datasets_global", "keep"])
 
 
 def _dag_hook():
-    _register(ConfHook(), inputs=["dag_hook_excluded_in.txt", "dag_excluded_in.txt", "keep_in.txt"])
+    _register_stems(ConfHook(), ["dag_hook_excluded", "dag_excluded", "keep"])
 
 
 def _task():
-    _register(QuietHook(), inputs=["task_excluded_in.txt", "dag_excluded_in.txt", "keep_in.txt"])
+    _register_stems(ConfHook(), ["task_excluded_a", "dag_hook_excluded", "dag_excluded", "keep"])
 
 
 def _task_hook():
-    _register(ConfHook(), inputs=["task_hook_excluded_in.txt", "dag_hook_excluded_in.txt"])
-    _register(QuietHook(), inputs=["dag_excluded_in.txt", "keep_in.txt"])
+    _register_stems(ConfHook(), ["task_hook_excluded", "task_excluded_a", "dag_hook_excluded", "keep_conf"])
+    _register_stems(QuietHook(), ["task_excluded_b", "dag_excluded", "keep"])
 
 
 def _task_clear():
-    _register(QuietHook(), inputs=["dag_excluded_in.txt", "keep_in.txt"])
+    _register_stems(QuietHook(), ["dag_excluded", "keep"])
+
+
+def _task_dropped():
+    _register_stems(TaskDroppedHook(), ["dropped"])
+    _register_stems(QuietHook(), ["dag_excluded", "keep"])
 
 
 def _dropped_hook():
-    _register(DroppedHook(), inputs=["dropped_in.txt"], outputs=["dropped_out.txt"])
-    _register(QuietHook(), inputs=["keep_in.txt"], outputs=["keep_out.txt"])
+    _register_stems(DroppedHook(), ["dropped"])
+    _register_stems(QuietHook(), ["keep"])
 
 
 def _kept_hook():
-    _register(KeptHook(), inputs=["dag_excluded_in.txt", "keep_in.txt"])
+    _register_stems(KeptHook(), ["dag_excluded", "keep"])
+
+
+def _operator_dag():
+    _register_stems(ConfHook(), ["operator_hook_excluded", "dag_hook_excluded", "keep_conf"])
+    _register_stems(QuietHook(), ["operator_excluded", "dag_excluded", "keep"])
+
+
+def _exact_hook():
+    # The class name is all the policy reads from the hook, so skip the connection FSHook looks up when created.
+    _register_stems(FSHook.__new__(FSHook), ["fs_hook_excluded", "dag_excluded", "keep"])
+
+
+def _same_dataset():
+    _register_stems(ConfHook(), ["dag_hook_excluded"])
+    _register_stems(QuietHook(), ["dag_hook_excluded"])
 
 
 def _all_excluded():
-    _register(QuietHook(), inputs=["dag_excluded_in.txt"])
+    _register_stems(QuietHook(), ["dag_excluded"])
 
 
 def _do_nothing():
@@ -166,20 +238,23 @@ with DAG(
     t_task = PythonOperator(task_id="t_task", python_callable=_task)
     t_task_hook = PythonOperator(task_id="t_task_hook", python_callable=_task_hook)
     t_task_clear = PythonOperator(task_id="t_task_clear", python_callable=_task_clear)
+    t_task_dropped = PythonOperator(task_id="t_task_dropped", python_callable=_task_dropped)
     t_dropped_hook = PythonOperator(task_id="t_dropped_hook", python_callable=_dropped_hook)
     t_kept_hook = PythonOperator(task_id="t_kept_hook", python_callable=_kept_hook)
+    t_operator_dag = ExcludeDatasetsConfOperator(task_id="t_operator_dag", python_callable=_operator_dag)
+    t_exact_hook = PythonOperator(task_id="t_exact_hook", python_callable=_exact_hook)
+    t_same_dataset = PythonOperator(task_id="t_same_dataset", python_callable=_same_dataset)
     t_inlets = PythonOperator(
         task_id="t_inlets",
         python_callable=_do_nothing,
-        inlets=[
-            Asset(uri="file://host1/dag_excluded_in.txt"),
-            Asset(uri="file://host1/dag_hook_excluded_in.txt"),
-        ],
+        inlets=_inlets(["dag_excluded", "dag_hook_excluded", "keep"]),
+        outlets=_outlets(["dag_excluded", "dag_hook_excluded", "keep"]),
     )
     t_all_excluded = PythonOperator(
         task_id="t_all_excluded",
         python_callable=_all_excluded,
-        inlets=[Asset(uri="file://host1/keep_in.txt")],
+        inlets=_inlets(["keep"]),
+        outlets=_outlets(["keep"]),
     )
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
@@ -190,8 +265,12 @@ with DAG(
         >> t_task
         >> t_task_hook
         >> t_task_clear
+        >> t_task_dropped
         >> t_dropped_hook
         >> t_kept_hook
+        >> t_operator_dag
+        >> t_exact_hook
+        >> t_same_dataset
         >> t_inlets
         >> t_all_excluded
         >> check_events

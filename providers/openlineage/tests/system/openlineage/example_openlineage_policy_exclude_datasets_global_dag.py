@@ -17,12 +17,22 @@
 """
 DAG exercising the OpenLineage ``exclude_datasets`` control in the conf tiers that have no ``dag_id``.
 
-Hook-reported datasets are attributed to the class of the ``context`` they were registered with, so the
-DAG uses stand-in hooks. Rules use ``match_mode: regex`` because the stand-in classes live in the Dag module.
-Patterns are matched against ``<namespace>/<name>`` of the OpenLineage dataset, and the most specific
-matching rule replaces broader lists: operator + hook > hook > operator > global here.
+Hook, operator and operator + hook rules are regexes on the names of the stand-in classes below, which nothing
+else uses, so they cannot affect another test. The one global rule matches a dataset name no other test uses.
+Every task reports an input and an output per stem, and the expected events check both.
 
-Every pattern and class name is unique to this Dag, so the rules do not affect other Dags.
+Tasks, and what each shows about the rule tiers (most specific first: operator + hook, operator, hook, global):
+
+- ``t_global``: the global list drops its datasets.
+- ``t_hook``: a hook rule replaces the global list.
+- ``t_operator``: an operator rule replaces the global list.
+- ``t_operator_hook``: an operator + hook rule beats both the operator and the hook rule.
+- ``t_operator_vs_hook``: an operator rule beats a hook rule.
+- ``t_hook_dropped``: a hook rule with ``hook_lineage: false`` drops one hook's datasets, not another's.
+- ``t_operator_hook_dropped``: the same for an operator + hook rule.
+- ``t_operator_inlets``: the operator list filters declared inlets and outlets, the operator + hook rule does not.
+- ``t_clear``: an operator rule with ``[]`` clears the global list.
+- ``t_operator_locked``, ``t_hook_locked``: a locked operator or hook rule ignores an authored list.
 
 Required global conf::
 
@@ -32,6 +42,11 @@ Required global conf::
             "scope": {"hook": ".*\\.ExcludeDatasetsGlobalHook"},
             "match_mode": "regex",
             "controls": {"exclude_datasets": [".*/hook_excluded_.*"]},
+        },
+        {
+            "scope": {"hook": ".*\\.ExcludeDatasetsGlobalOtherHook"},
+            "match_mode": "regex",
+            "controls": {"exclude_datasets": [".*/other_hook_excluded_.*"]},
         },
         {
             "scope": {"operator": ".*\\.ExcludeDatasetsGlobalOperator"},
@@ -51,6 +66,31 @@ Required global conf::
             "match_mode": "regex",
             "controls": {"exclude_datasets": []},
         },
+        {
+            "scope": {"hook": ".*\\.ExcludeDatasetsGlobalDropHook"},
+            "match_mode": "regex",
+            "controls": {"hook_lineage": false},
+        },
+        {
+            "scope": {
+                "operator": ".*\\.ExcludeDatasetsGlobalOperator",
+                "hook": ".*\\.ExcludeDatasetsGlobalOpDropHook",
+            },
+            "match_mode": "regex",
+            "controls": {"hook_lineage": false},
+        },
+        {
+            "scope": {"operator": ".*\\.ExcludeDatasetsGlobalLockedOperator"},
+            "match_mode": "regex",
+            "locked": true,
+            "controls": {"exclude_datasets": [".*/operator_locked_.*"]},
+        },
+        {
+            "scope": {"hook": ".*\\.ExcludeDatasetsGlobalLockedHook"},
+            "match_mode": "regex",
+            "locked": true,
+            "controls": {"exclude_datasets": [".*/hook_locked_.*"]},
+        },
     ]
 """
 
@@ -61,6 +101,8 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.python import PythonOperator
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
@@ -68,68 +110,99 @@ from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
-class ExcludeDatasetsGlobalHook:
-    """Stand-in for a hook with a hook-scoped rule."""
-
-
 class QuietHook:
-    """Stand-in for a hook with no hook-scoped rule."""
+    """Hook that no rule is scoped to."""
+
+
+class ExcludeDatasetsGlobalHook:
+    """Hook with a hook rule and an operator + hook rule."""
+
+
+class ExcludeDatasetsGlobalOtherHook:
+    """Hook with only a hook rule, which is a regex."""
+
+
+class ExcludeDatasetsGlobalDropHook:
+    """Hook whose datasets a hook rule with ``hook_lineage: false`` drops."""
+
+
+class ExcludeDatasetsGlobalOpDropHook:
+    """Hook whose datasets an operator + hook rule with ``hook_lineage: false`` drops."""
+
+
+class ExcludeDatasetsGlobalLockedHook:
+    """Hook with a locked hook rule."""
 
 
 class ExcludeDatasetsGlobalOperator(PythonOperator):
-    """Operator with operator-scoped rules."""
+    """Operator with operator and operator + hook rules."""
 
 
 class ExcludeDatasetsGlobalClearOperator(PythonOperator):
-    """Operator whose operator-scoped rule clears the global list."""
+    """Operator whose operator rule clears the global list."""
 
 
-def _register(hook: object, inputs: Sequence[str] = (), outputs: Sequence[str] = ()):
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+class ExcludeDatasetsGlobalLockedOperator(PythonOperator):
+    """Operator with a locked operator rule."""
 
+
+def _register_stems(hook: object, stems: Sequence[str]):
     collector = get_hook_lineage_collector()
-    for name in inputs:
-        collector.add_input_asset(context=hook, uri=f"file://host1/{name}")
-    for name in outputs:
-        collector.add_output_asset(context=hook, uri=f"file://host1/{name}")
+    for stem in stems:
+        collector.add_input_asset(context=hook, uri=f"file://host1/{stem}_in.txt")
+        collector.add_output_asset(context=hook, uri=f"file://host1/{stem}_out.txt")
+
+
+def _inlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_in.txt") for stem in stems]
+
+
+def _outlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_out.txt") for stem in stems]
 
 
 def _global():
-    _register(
-        QuietHook(),
-        inputs=["exclude_datasets_global_in.txt", "keep_in.txt"],
-        outputs=["exclude_datasets_global_out.txt", "keep_out.txt"],
-    )
+    _register_stems(QuietHook(), ["exclude_datasets_global", "keep"])
 
 
 def _hook():
-    _register(
-        ExcludeDatasetsGlobalHook(),
-        inputs=["hook_excluded_in.txt", "exclude_datasets_global_in.txt", "keep_in.txt"],
-    )
+    _register_stems(ExcludeDatasetsGlobalHook(), ["hook_excluded", "exclude_datasets_global", "keep"])
 
 
 def _operator():
-    _register(
-        QuietHook(),
-        inputs=["operator_excluded_in.txt", "exclude_datasets_global_in.txt", "keep_in.txt"],
-    )
+    _register_stems(QuietHook(), ["operator_excluded", "exclude_datasets_global", "keep"])
 
 
 def _operator_hook():
-    _register(
-        ExcludeDatasetsGlobalHook(),
-        inputs=[
-            "operator_hook_excluded_in.txt",
-            "operator_excluded_in.txt",
-            "hook_excluded_in.txt",
-            "keep_in.txt",
-        ],
+    _register_stems(
+        ExcludeDatasetsGlobalHook(), ["operator_hook_excluded", "operator_excluded", "hook_excluded", "keep"]
     )
 
 
+def _operator_vs_hook():
+    _register_stems(ExcludeDatasetsGlobalOtherHook(), ["operator_excluded", "other_hook_excluded", "keep"])
+
+
+def _hook_dropped():
+    _register_stems(ExcludeDatasetsGlobalDropHook(), ["dropped"])
+    _register_stems(QuietHook(), ["keep"])
+
+
+def _operator_hook_dropped():
+    _register_stems(ExcludeDatasetsGlobalOpDropHook(), ["dropped"])
+    _register_stems(QuietHook(), ["operator_excluded", "keep"])
+
+
 def _clear():
-    _register(QuietHook(), inputs=["exclude_datasets_global_in.txt", "keep_in.txt"])
+    _register_stems(QuietHook(), ["exclude_datasets_global", "keep"])
+
+
+def _operator_locked():
+    _register_stems(QuietHook(), ["operator_locked", "authored_a"])
+
+
+def _hook_locked():
+    _register_stems(ExcludeDatasetsGlobalLockedHook(), ["hook_locked", "authored_a"])
 
 
 def _do_nothing():
@@ -150,20 +223,45 @@ with DAG(
     t_hook = PythonOperator(task_id="t_hook", python_callable=_hook)
     t_operator = ExcludeDatasetsGlobalOperator(task_id="t_operator", python_callable=_operator)
     t_operator_hook = ExcludeDatasetsGlobalOperator(task_id="t_operator_hook", python_callable=_operator_hook)
+    t_operator_vs_hook = ExcludeDatasetsGlobalOperator(
+        task_id="t_operator_vs_hook", python_callable=_operator_vs_hook
+    )
+    t_hook_dropped = PythonOperator(task_id="t_hook_dropped", python_callable=_hook_dropped)
+    t_operator_hook_dropped = ExcludeDatasetsGlobalOperator(
+        task_id="t_operator_hook_dropped", python_callable=_operator_hook_dropped
+    )
     t_operator_inlets = ExcludeDatasetsGlobalOperator(
         task_id="t_operator_inlets",
         python_callable=_do_nothing,
-        inlets=[
-            Asset(uri="file://host1/operator_excluded_in.txt"),
-            Asset(uri="file://host1/operator_hook_excluded_in.txt"),
-            Asset(uri="file://host1/exclude_datasets_global_in.txt"),
-        ],
+        inlets=_inlets(["operator_excluded", "operator_hook_excluded", "exclude_datasets_global"]),
+        outlets=_outlets(["operator_excluded", "operator_hook_excluded", "exclude_datasets_global"]),
     )
     t_clear = ExcludeDatasetsGlobalClearOperator(task_id="t_clear", python_callable=_clear)
+    t_operator_locked = extend_global_openlineage_emission_policy(
+        ExcludeDatasetsGlobalLockedOperator(task_id="t_operator_locked", python_callable=_operator_locked),
+        exclude_datasets=[".*/authored_.*"],
+    )
+    t_hook_locked = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_hook_locked", python_callable=_hook_locked),
+        exclude_datasets=[".*/authored_.*"],
+    )
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
-    t_global >> t_hook >> t_operator >> t_operator_hook >> t_operator_inlets >> t_clear >> check_events
+    (
+        t_global
+        >> t_hook
+        >> t_operator
+        >> t_operator_hook
+        >> t_operator_vs_hook
+        >> t_hook_dropped
+        >> t_operator_hook_dropped
+        >> t_operator_inlets
+        >> t_clear
+        >> t_operator_locked
+        >> t_hook_locked
+        >> check_events
+    )
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

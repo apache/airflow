@@ -17,17 +17,20 @@
 """
 DAG exercising ``exclude_datasets`` authoring overrides via ``extend_global_openlineage_emission_policy``.
 
-Hook-reported datasets are attributed to the class of the ``context`` they were registered with, so the
-DAG uses stand-in hooks. Rules use ``match_mode: regex`` because the stand-in classes live in the Dag module.
+Hook rules are regexes on the names of the stand-in classes below. Every task reports an input and an output per
+stem, and the expected events check both. It checks that an authored list:
 
-It checks that an authored list:
-
-- replaces the conf lists for every dataset of the task, including hook-scoped conf lists
-- can clear the conf list with ``[]``
-- applies to declared inlets
-- can be set for the whole Dag, but only reaches tasks that already exist at the time of the call
+- replaces the conf lists of the task, including a hook scoped one (``t_authored_task``)
+- clears the conf lists when it is ``[]`` (``t_authored_clear``)
+- applies to declared inlets and outlets (``t_authored_inlets``)
+- set for the whole Dag reaches the tasks that exist at the call (``t_authored_dag``), not the ones defined later
+  (``t_after_dag_call``), and a task level list set after it wins (``t_dag_then_task``)
+- is matched against ``<namespace>/<name>`` with ``re.fullmatch``, each of several patterns on its own
+  (``t_identity``, ``t_fullmatch``)
+- does not turn hook lineage back on: with ``hook_lineage=False`` the hook assets are ignored and the declared
+  ones are filtered by conf (``t_hook_lineage_off``)
 - is ignored where a locked conf rule applies, even when a more specific conf rule wins the value
-- is ignored only for the datasets of the hook a locked hook-scoped rule applies to
+  (``t_locked``), and only for the datasets of the hook a locked hook rule applies to (``t_locked_hook``)
 
 Required global conf::
 
@@ -75,6 +78,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.python import PythonOperator
 
@@ -83,58 +87,99 @@ from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
-class AuthHook:
-    """Stand-in for a hook with a hook-scoped conf list."""
-
-
 class QuietHook:
-    """Stand-in for a hook with no hook-scoped rule."""
+    """Hook that no rule is scoped to."""
+
+
+class AuthHook:
+    """Hook with a Dag + hook rule that authoring replaces."""
 
 
 class LockedHook:
-    """Stand-in for a hook with a locked hook-scoped rule."""
+    """Hook with a locked Dag + task + hook rule."""
 
 
-def _register(hook: object, inputs: Sequence[str] = (), outputs: Sequence[str] = ()):
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
+def _register_stems(hook: object, stems: Sequence[str]):
     collector = get_hook_lineage_collector()
-    for name in inputs:
-        collector.add_input_asset(context=hook, uri=f"file://host1/{name}")
-    for name in outputs:
-        collector.add_output_asset(context=hook, uri=f"file://host1/{name}")
+    for stem in stems:
+        collector.add_input_asset(context=hook, uri=f"file://host1/{stem}_in.txt")
+        collector.add_output_asset(context=hook, uri=f"file://host1/{stem}_out.txt")
+
+
+def _register_uris(hook: object, inputs: Sequence[str], outputs: Sequence[str]):
+    collector = get_hook_lineage_collector()
+    for uri in inputs:
+        collector.add_input_asset(context=hook, uri=uri)
+    for uri in outputs:
+        collector.add_output_asset(context=hook, uri=uri)
+
+
+def _inlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_in.txt") for stem in stems]
+
+
+def _outlets(stems: Sequence[str]) -> list[Asset]:
+    return [Asset(uri=f"file://host1/{stem}_out.txt") for stem in stems]
 
 
 def _authored_dag():
-    _register(QuietHook(), inputs=["dag_authored_in.txt", "conf_excluded_in.txt"])
-    _register(AuthHook(), inputs=["conf_hook_excluded_in.txt"], outputs=["dag_authored_out.txt"])
+    _register_stems(QuietHook(), ["dag_authored", "conf_excluded"])
+    _register_stems(AuthHook(), ["conf_hook_excluded"])
+
+
+def _dag_then_task():
+    _register_stems(QuietHook(), ["dag_authored", "task_authored", "conf_excluded"])
 
 
 def _after_dag_call():
-    _register(QuietHook(), inputs=["conf_excluded_in.txt", "dag_authored_in.txt"])
-    _register(AuthHook(), inputs=["conf_hook_excluded_in.txt", "keep_in.txt"])
+    _register_stems(QuietHook(), ["conf_excluded", "dag_authored"])
+    _register_stems(AuthHook(), ["conf_hook_excluded", "keep"])
 
 
 def _authored_task():
-    _register(AuthHook(), inputs=["conf_hook_excluded_in.txt", "authored_in.txt"])
-    _register(QuietHook(), inputs=["conf_excluded_in.txt", "authored_other_in.txt"])
+    _register_stems(AuthHook(), ["conf_hook_excluded", "authored_a"])
+    _register_stems(QuietHook(), ["conf_excluded", "authored_b"])
 
 
 def _authored_clear():
-    _register(QuietHook(), inputs=["conf_excluded_in.txt"])
-    _register(AuthHook(), inputs=["conf_hook_excluded_in.txt"])
+    _register_stems(QuietHook(), ["conf_excluded"])
+    _register_stems(AuthHook(), ["conf_hook_excluded"])
 
 
-def _locked():
-    _register(QuietHook(), inputs=["locked_excluded_in.txt", "authored_in.txt"])
-    _register(
-        AuthHook(), inputs=["specific_excluded_in.txt", "locked_excluded_in.txt", "authored_other_in.txt"]
+def _hook_lineage_off():
+    _register_stems(QuietHook(), ["hook_ignored"])
+
+
+def _fullmatch():
+    _register_stems(QuietHook(), ["authored_partial", "authored_full"])
+
+
+def _identity():
+    _register_uris(
+        QuietHook(),
+        inputs=[
+            "s3://ol-exclude-bucket/staging/part_1.csv",
+            "s3://ol-exclude-bucket/final/part_1.csv",
+            "file://host1/slash_in.txt",
+            "file://host1/keep_in.txt",
+        ],
+        outputs=[
+            "s3://ol-exclude-bucket/staging/part_1_out.csv",
+            "s3://ol-exclude-bucket/final/part_1_out.csv",
+            "file://host1/slash_out.txt",
+            "file://host1/keep_out.txt",
+        ],
     )
 
 
+def _locked():
+    _register_stems(QuietHook(), ["locked_excluded_a", "authored_a"])
+    _register_stems(AuthHook(), ["specific_excluded", "locked_excluded_b", "authored_b"])
+
+
 def _locked_hook():
-    _register(LockedHook(), inputs=["locked_hook_excluded_in.txt", "authored_in.txt"])
-    _register(QuietHook(), inputs=["conf_excluded_in.txt", "authored_other_in.txt"])
+    _register_stems(LockedHook(), ["locked_hook_excluded", "authored_a"])
+    _register_stems(QuietHook(), ["conf_excluded", "authored_b"])
 
 
 def _do_nothing():
@@ -152,8 +197,10 @@ with DAG(
     default_args={"retries": 0},
 ) as dag:
     t_authored_dag = PythonOperator(task_id="t_authored_dag", python_callable=_authored_dag)
-    # Dag-level flags only reach tasks that already exist, so every task below is left out of this call.
+    t_dag_then_task = PythonOperator(task_id="t_dag_then_task", python_callable=_dag_then_task)
+    # Dag-level flags only reach tasks that already exist, so every task defined below is left out of this call.
     extend_global_openlineage_emission_policy(dag, exclude_datasets=[".*/dag_authored_.*"])
+    extend_global_openlineage_emission_policy(t_dag_then_task, exclude_datasets=[".*/task_authored_.*"])
 
     t_after_dag_call = PythonOperator(task_id="t_after_dag_call", python_callable=_after_dag_call)
     t_authored_task = extend_global_openlineage_emission_policy(
@@ -168,12 +215,31 @@ with DAG(
         PythonOperator(
             task_id="t_authored_inlets",
             python_callable=_do_nothing,
-            inlets=[
-                Asset(uri="file://host1/authored_in.txt"),
-                Asset(uri="file://host1/conf_excluded_in.txt"),
-            ],
+            inlets=_inlets(["authored_a", "conf_excluded"]),
+            outlets=_outlets(["authored_a", "conf_excluded"]),
         ),
         exclude_datasets=[".*/authored_.*"],
+    )
+    t_hook_lineage_off = extend_global_openlineage_emission_policy(
+        PythonOperator(
+            task_id="t_hook_lineage_off",
+            python_callable=_hook_lineage_off,
+            inlets=_inlets(["conf_excluded", "keep"]),
+            outlets=_outlets(["conf_excluded", "keep"]),
+        ),
+        hook_lineage=False,
+    )
+    t_fullmatch = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_fullmatch", python_callable=_fullmatch),
+        exclude_datasets=[
+            r"authored_partial_in\.txt",
+            r"authored_partial_out\.txt",
+            ".*/authored_full_.*",
+        ],
+    )
+    t_identity = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_identity", python_callable=_identity),
+        exclude_datasets=["s3://ol-exclude-bucket/staging/part_.*", "file://host1//slash_.*"],
     )
     t_locked = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked", python_callable=_locked),
@@ -188,10 +254,14 @@ with DAG(
     )
     (
         t_authored_dag
+        >> t_dag_then_task
         >> t_after_dag_call
         >> t_authored_task
         >> t_authored_clear
         >> t_authored_inlets
+        >> t_hook_lineage_off
+        >> t_fullmatch
+        >> t_identity
         >> t_locked
         >> t_locked_hook
         >> check_events

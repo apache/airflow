@@ -1,0 +1,297 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_hook_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_hook_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_hook_back_on",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_hook_back_on",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_full_info_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_dag_full_info_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_after_dag_call",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_after_dag_call",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "authored emit_task_events False",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "$absent": "authored emit_task_events False",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "$absent": "authored emit_task_events False",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_events_beat_emit",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_events_beat_emit",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    }
+]

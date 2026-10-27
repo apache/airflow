@@ -51,7 +51,16 @@
                 "name": "/keep_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/exclude_datasets_global_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_hook"
         }
@@ -76,7 +85,16 @@
                 "name": "/keep_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/exclude_datasets_global_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_operator"
         }
@@ -105,9 +123,108 @@
                 "name": "/keep_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/operator_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/hook_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_vs_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/other_hook_excluded_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/other_hook_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_vs_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_hook_dropped"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_hook_dropped"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_hook_dropped"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_hook_dropped"
         }
     },
     {
@@ -122,7 +239,16 @@
                 "name": "/exclude_datasets_global_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/operator_hook_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/exclude_datasets_global_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_inlets"
         }
@@ -139,7 +265,16 @@
                 "name": "/exclude_datasets_global_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/operator_hook_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/exclude_datasets_global_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_inlets"
         }
@@ -164,9 +299,70 @@
                 "name": "/keep_in.txt"
             }
         ],
-        "outputs": [],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/exclude_datasets_global_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_exclude_datasets_global_dag.t_clear"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_locked"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_operator_locked"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_hook_locked"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_global_dag.t_hook_locked"
         }
     }
 ]
