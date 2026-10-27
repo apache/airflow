@@ -333,7 +333,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -508,7 +511,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -683,7 +689,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -873,7 +882,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1057,7 +1069,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1235,7 +1250,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1407,7 +1425,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1568,7 +1589,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1729,7 +1753,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1894,7 +1921,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2059,7 +2089,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2235,7 +2268,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2411,7 +2447,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2586,7 +2625,10 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ is_numeric(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
