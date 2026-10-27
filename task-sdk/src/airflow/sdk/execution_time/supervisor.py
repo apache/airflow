@@ -1090,12 +1090,15 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+    @staticmethod
+    def _target_loggers(
+        process_log: FilteringBoundLogger, subprocess_logs_to_stdout: bool
+    ) -> tuple[FilteringBoundLogger, ...]:
         """Return the loggers that child process output should be forwarded to."""
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        return target_loggers
+        return (process_log, log) if subprocess_logs_to_stdout else (process_log,)
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        return self._target_loggers(self.process_log, self.subprocess_logs_to_stdout)
 
     def _create_log_forwarder(
         self,

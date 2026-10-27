@@ -31,6 +31,7 @@ import contextlib
 import ipaddress
 import itertools
 import json
+import logging
 import os
 import selectors
 import signal
@@ -59,6 +60,7 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     NeverRaised,
     ProcessTracker,
+    forward_to_log,
     signal_process_tree,
 )
 
@@ -87,7 +89,7 @@ _STARTUP_OUTPUT_LIMIT = 16384
 # hold up the failure.
 _STARTUP_DRAIN_BUDGET = 1024 * 1024
 
-_STARTUP_OUTPUT_TRUNCATED = f"[earlier output dropped, last {_STARTUP_OUTPUT_LIMIT} bytes]"
+_STARTUP_OUTPUT_TRUNCATED = f"[earlier output dropped, last {_STARTUP_OUTPUT_LIMIT} bytes]".encode()
 
 
 def _start_server() -> socket.socket:
@@ -247,7 +249,7 @@ def _read_available(soc: socket.socket, drain_size: int) -> bytes:
 
 
 def _report_startup_output(
-    logger: FilteringBoundLogger,
+    target_loggers: tuple[FilteringBoundLogger, ...],
     drains: dict[str, socket.socket],
     drained: dict[socket.socket, bytes],
     drain_size: int,
@@ -255,19 +257,19 @@ def _report_startup_output(
     """
     Write what a runtime printed before it failed to connect to the task log, one event per line.
 
-    The output goes to the log the way a connected runtime's output does, rather than into the error
-    message, so every line keeps its own level and timestamp.
+    The output goes through the forwarder a connected runtime's output goes through, rather than
+    into the error message, so every line keeps its own level and timestamp.
     """
     for key, soc in drains.items():
         output = drained[soc] + _read_available(soc, drain_size)
-        # A connected runtime's stderr is logged as an error and its stdout as info.
-        write = logger.error if key == "stderr" else logger.info
-        name = f"task.{key}"
+        level = logging.ERROR if key == "stderr" else logging.INFO
+        forward = forward_to_log(target_loggers, f"task.{key}", level)
+        next(forward)
         if len(output) > _STARTUP_OUTPUT_LIMIT:
             output = output[-_STARTUP_OUTPUT_LIMIT:]
-            write(_STARTUP_OUTPUT_TRUNCATED, logger=name)
-        for line in output.decode(errors="replace").splitlines():
-            write(line, logger=name)
+            forward.send(_STARTUP_OUTPUT_TRUNCATED)
+        for line in output.splitlines(keepends=True):
+            forward.send(line)
 
 
 @contextlib.contextmanager
@@ -295,7 +297,7 @@ def _accept_connections(
     drains: dict[str, socket.socket],
     proc: subprocess.Popen,
     *,
-    logger: FilteringBoundLogger,
+    target_loggers: tuple[FilteringBoundLogger, ...],
     max_wait: float = 10.0,
     drain_size: int = 4096,
 ) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
@@ -303,7 +305,7 @@ def _accept_connections(
     Block until the subprocess connects to servers, draining stdout/stderr along the way.
 
     :raises TaskLaunchError: when the subprocess exits or *max_wait* elapses before it connects. What
-        the subprocess wrote to the *drains* until then is written to *logger* first.
+        the subprocess wrote to the *drains* until then goes to *target_loggers* first.
     """
     accepted: dict[socket.socket, socket.socket] = {}
     drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
@@ -311,7 +313,7 @@ def _accept_connections(
     def _fail(reason: str) -> NoReturn:
         for s in accepted.values():
             s.close()
-        _report_startup_output(logger, drains, drained, drain_size)
+        _report_startup_output(target_loggers, drains, drained, drain_size)
         raise TaskLaunchError(f"The runtime {reason}")
 
     with selectors.DefaultSelector() as sel:
@@ -448,6 +450,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
+        # 'self' only exists once the runtime has connected, so the loggers its output is forwarded
+        # to are resolved here, for a launch that fails before that.
+        target_loggers = cls._target_loggers(process_log, kwargs.get("subprocess_logs_to_stdout", False))
         with _ResourceTracker(timeout=startup_timeout) as tracker:
             with _raise_as_launch_error("The runtime cannot start"):
                 comm_server, logs_server = tracker.track(_start_server(), _start_server())
@@ -478,7 +483,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     {"comm": comm_server, "logs": logs_server},
                     {"stdout": stdout_r, "stderr": stderr_r},
                     proc,
-                    logger=process_log,
+                    target_loggers=target_loggers,
                     max_wait=startup_timeout,
                 )
                 tracker.track(*socks.values())

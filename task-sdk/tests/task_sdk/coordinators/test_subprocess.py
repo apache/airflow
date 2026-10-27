@@ -147,7 +147,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert server in accepted
             accepted[server].close()
         finally:
@@ -167,7 +167,7 @@ class TestAcceptConnections:
 
         try:
             accepted, drained = _accept_connections(
-                {"comm": comm_server, "logs": logs_server}, {}, mock_proc, logger=log
+                {"comm": comm_server, "logs": logs_server}, {}, mock_proc, target_loggers=(log,)
             )
             assert set(accepted) == {comm_server, logs_server}
             assert drained == {}
@@ -185,7 +185,7 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+            _, drained = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert drained == {}
         finally:
             server.close()
@@ -199,7 +199,9 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc, logger=log)
+            _, drained = _accept_connections(
+                {"comm": server}, {"stdout": drain_r}, mock_proc, target_loggers=(log,)
+            )
             assert drain_r in drained
         finally:
             drain_r.close()
@@ -220,7 +222,9 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc, logger=log)
+            _, drained = _accept_connections(
+                {"comm": server}, {"stdout": drain_r}, mock_proc, target_loggers=(log,)
+            )
             assert drained[drain_r] == b"early output\n"
         finally:
             drain_r.close()
@@ -233,7 +237,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
         try:
             with pytest.raises(TaskLaunchError, match="^The runtime did not connect within 0.05 seconds$"):
-                _accept_connections({"comm": server}, {}, mock_proc, logger=log, max_wait=0.05)
+                _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,), max_wait=0.05)
         finally:
             server.close()
 
@@ -244,7 +248,7 @@ class TestAcceptConnections:
         mock_proc.returncode = 1
         try:
             with pytest.raises(TaskLaunchError, match="^The runtime exited with 1 before connecting$"):
-                _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+                _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
         finally:
             server.close()
 
@@ -260,7 +264,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             accepted[server].sendall(b"hello")
             assert client.recv(5) == b"hello"
             accepted[server].close()
@@ -277,7 +281,7 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             # Key must be the socket object itself, not the string "comm"
             assert server in accepted
             assert "comm" not in accepted
@@ -297,7 +301,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, logger=log)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert mock_child_connection_check.call_count == 2
             assert server in accepted
             accepted[server].close()
@@ -327,7 +331,7 @@ sock.recv(1)
         child_proc = self._start_connector_process(addr, delay=0.05)
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, child_proc, logger=log)
+            accepted, _ = _accept_connections({"comm": server}, {}, child_proc, target_loggers=(log,))
             accepted[server].sendall(b"x")
             accepted[server].close()
             assert child_proc.wait(timeout=5) == 0
