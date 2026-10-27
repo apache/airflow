@@ -1662,13 +1662,11 @@ def test_recorded_runtime_payloads_are_valid(data):
 
 @pytest.mark.parametrize("data", _recorded_payloads())
 def test_recorded_runtime_payloads_mark_their_tasks_as_stubs(data):
-    """ti_run derives arg_bindings only for a stub task, so a Dag defined in a language SDK has to say so."""
+    """ti_run derives arg_bindings only for a stub task, and a language runtime runs every task of a
+    Dag defined in it, a TriggerDagRun one included, so each has to say so."""
     dag = DagSerialization.from_dict(data)
     for task_id, task in dag.task_dict.items():
-        # A Go or Java TriggerDagRun task is the Python operator itself and runs in-process. The
-        # TypeScript runtime implements its own, so that one stays a stub.
-        runs_in_python = task.task_type == "TriggerDagRunOperator"
-        assert task.is_stub is not runs_in_python, task_id
+        assert task.is_stub, task_id
 
 
 def _serialize_native_dag(dag_id: str, fileloc: str, relative_fileloc: str) -> dict:
