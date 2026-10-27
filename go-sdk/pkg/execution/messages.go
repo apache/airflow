@@ -178,13 +178,15 @@ func ifaceStringPtr(v any) *string {
 }
 
 // ifaceTimePtr returns a pointer to the time carried by a nullable date-time
-// field decoded as any, or nil when missing/null. msgpack decodes the
-// supervisor's timestamp extension straight into time.Time.
+// field decoded as any, or nil when missing/null, in UTC. The supervisor's
+// timestamp extension carries no time zone and msgpack decodes it with
+// time.Unix, which returns the worker's local zone.
 func ifaceTimePtr(v any) *time.Time {
 	t, ok := v.(time.Time)
 	if !ok {
 		return nil
 	}
+	t = t.UTC()
 	return &t
 }
 

@@ -85,9 +85,9 @@ type TaskInstance struct {
 }
 
 // DagRun identifies the Dag run the current task instance belongs to and
-// carries its scheduling timestamps. The *time.Time fields are nil when the
-// supervisor did not provide a value (for example, a manually triggered run
-// without a logical date).
+// carries its scheduling timestamps. The *time.Time fields are in UTC, and nil
+// when the supervisor did not provide a value (for example, a manually
+// triggered run without a logical date).
 type DagRun struct {
 	DagID             string
 	RunID             string
