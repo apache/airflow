@@ -1519,8 +1519,6 @@ class InletEventsAccessors(
 
     @functools.cached_property
     def _assets(self) -> dict[AssetUniqueKey, Asset]:
-        # Built on first access since resolving refs requires communicating
-        # with the supervisor.
         assets: dict[AssetUniqueKey, Asset] = {}
         for inlet in self._inlets:
             if isinstance(inlet, Asset):

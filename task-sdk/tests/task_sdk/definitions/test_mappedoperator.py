@@ -820,8 +820,8 @@ def test_mapped_render_template_fields_resolves_partial_ref_inlets_lazily(
     ti.task.render_template_fields(context=context)
     assert get_asset_by_name_calls() == []
 
-    context["inlet_events"][Asset.ref(name="a")]
-    context["inlet_events"][Asset.ref(name="a")]
+    assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
+    assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
     assert get_asset_by_name_calls() == [mock.call(GetAssetByName(name="a"))]
 
 
