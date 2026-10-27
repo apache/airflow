@@ -27,6 +27,7 @@ from airflow_breeze.utils.kubernetes_utils import (
     SCRIPTS_CI_KUBERNETES_PATH,
     _render_kind_cluster_config,
     get_kubernetes_port_numbers,
+    sync_virtualenv,
 )
 
 # Rendered config of a cluster created before the switch to single-node clusters —
@@ -84,3 +85,9 @@ def test_get_kubernetes_port_numbers_raises_when_forwarded_port_mapping_is_missi
 def test_nodeport_service_exposes_forwarded_node_port():
     node_port_service = yaml.safe_load((SCRIPTS_CI_KUBERNETES_PATH / "nodeport.yaml").read_text())
     assert [port["nodePort"] for port in node_port_service["spec"]["ports"]] == [FORWARDED_NODE_PORT]
+
+
+@patch("airflow_breeze.utils.kubernetes_utils.run_command", autospec=True)
+def test_sync_virtualenv_does_not_relock(mock_run_command):
+    sync_virtualenv(force_venv_setup=False)
+    assert mock_run_command.call_args.args[0][:3] == ["uv", "sync", "--frozen"]
