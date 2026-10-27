@@ -135,10 +135,26 @@ class TestInit:
         with pytest.raises(ValueError, match="count_policy"):
             AssetEventSensor(task_id="s", asset=asset, count_policy="unknown")
 
-    @pytest.mark.parametrize("count_policy", ["minimum", "exact"])
-    def test_rejects_limit_below_expected_count_without_processing(self, asset, count_policy):
+    @pytest.mark.parametrize(
+        ("count_policy", "limit", "expected_count"),
+        [("minimum", 1, 3), ("exact", 1, 3), ("exact", 3, 3)],
+    )
+    def test_rejects_insufficient_limit_without_processing(self, asset, count_policy, limit, expected_count):
         with pytest.raises(ValueError, match="limit"):
-            AssetEventSensor(task_id="s", asset=asset, limit=1, expected_count=3, count_policy=count_policy)
+            AssetEventSensor(
+                task_id="s",
+                asset=asset,
+                limit=limit,
+                expected_count=expected_count,
+                count_policy=count_policy,
+            )
+
+    @pytest.mark.parametrize(("count_policy", "limit"), [("minimum", 3), ("exact", 4)])
+    def test_accepts_sufficient_limit_without_processing(self, asset, count_policy, limit):
+        sensor = AssetEventSensor(
+            task_id="s", asset=asset, limit=limit, expected_count=3, count_policy=count_policy
+        )
+        assert sensor.limit == limit
 
     def test_requires_airflow_3_4(self, mocker, asset):
         mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)

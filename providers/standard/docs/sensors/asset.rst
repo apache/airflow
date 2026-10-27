@@ -68,10 +68,13 @@ Use ``expected_count`` and ``count_policy`` to control how many processed events
 * ``count_policy="exact"`` succeeds only at ``expected_count``. Use this policy with zero to check
   that no matching events exist. An exact count can be missed if several events arrive between pokes.
 
-Counts must be non-negative integers, and ``limit`` must be a positive integer when supplied.
-With the minimum policy, zero always satisfies the count condition.
-If no ``process_result`` callback is provided, a ``limit`` below ``expected_count`` is rejected
-at construction instead of waiting until the sensor times out.
+Counts must be non-negative integers, and ``limit`` must be a positive integer
+when supplied. With the *minimum* policy, zero always satisfies the count
+condition.
+
+If a ``process_result`` callback is not provided, the sensor raises *ValueError*
+at construction if ``limit`` is less than ``expected_count`` with the *minimum*
+policy, or not greater than ``expected_count`` with the *exact* policy.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python

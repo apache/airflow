@@ -71,7 +71,7 @@ class AssetEventSensor(BaseSensorOperator):
     :param extra: Filter by key/value pairs contained in the event ``extra``.
     :param expected_count: The non-negative number of processed events required
         to succeed. Defaults to 1. If ``process_result`` is omitted, ``limit``
-        must not be smaller.
+        must not be smaller, or must be greater with the ``"exact"`` policy.
     :param count_policy: ``"minimum"`` (the default) waits for at least
         ``expected_count`` events; ``"exact"`` requires exactly that number. To
         check for no events, use ``"exact"`` and zero.
@@ -124,10 +124,16 @@ class AssetEventSensor(BaseSensorOperator):
                 raise ValueError("`limit` must be positive.")
         if count_policy not in {"minimum", "exact"}:
             raise ValueError(f"`count_policy` must be 'minimum' or 'exact', got {count_policy!r}.")
-        if process_result is None and limit is not None and limit < expected_count:
-            raise ValueError(
-                "`limit` must be at least `expected_count` when `process_result` is not provided."
-            )
+        if process_result is None and limit is not None:
+            if count_policy == "exact" and limit <= expected_count:
+                raise ValueError(
+                    "`limit` must be greater than `expected_count` with the exact count policy, "
+                    "otherwise extra events cannot be detected."
+                )
+            if limit < expected_count:
+                raise ValueError(
+                    "`limit` must be at least `expected_count` when `process_result` is not provided."
+                )
         self.asset = asset
         if asset not in self.inlets:
             self.inlets.append(asset)
