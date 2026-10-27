@@ -238,19 +238,6 @@ def _encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     return importable_string
 
 
-def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
-    """
-    Decode a previously serialized priority weight strategy.
-
-    In this version, we only store the importable string, so we just need to get the class
-    from the dictionary of registered classes and instantiate it with no parameters.
-    """
-    priority_weight_strategy_class = _get_registered_priority_weight_strategy(var)
-    if priority_weight_strategy_class is None:
-        raise _PriorityWeightStrategyNotRegistered(var)
-    return priority_weight_strategy_class()
-
-
 # Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
 # (e.g. a custom KeyError) serializes to a name absent here and won't round-trip --
 # unchanged from before, since builtins never held it either.
@@ -1223,8 +1210,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif k == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
             elif k == "weight_rule":
+                # Decoded by SerializedBaseOperator.weight_rule, so loading a Dag does not need the plugin.
                 k = "_weight_rule"
-                v = _decode_priority_weight_strategy(v)
             elif k == "retry_exponential_backoff":
                 if isinstance(v, bool):
                     v = 2.0 if v else 0
@@ -1878,8 +1865,6 @@ class DagSerialization(BaseSerialization):
                 pass
             elif k == "timetable":
                 k = "_encoded_timetable"
-            elif k == "weight_rule":
-                v = _decode_priority_weight_strategy(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":

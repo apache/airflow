@@ -5240,13 +5240,28 @@ class TestWeightRule:
             return_value=RegisteredPriorityWeightStrategy,
         ) as mock_get_registered_priority_weight_strategy:
             serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+            weight_rule = serop.weight_rule
 
-        assert serop.weight_rule == RegisteredPriorityWeightStrategy()
+        assert weight_rule == RegisteredPriorityWeightStrategy()
         assert mock_get_registered_priority_weight_strategy.mock_calls == [
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
         ]
+
+    def test_unregistered_custom_deserializes_until_read(self):
+        sdkop = BaseOperator(task_id="custom", weight_rule=RegisteredPriorityWeightStrategy())
+        with mock.patch(
+            "airflow.serialization.serialized_objects._get_registered_priority_weight_strategy",
+            return_value=RegisteredPriorityWeightStrategy,
+        ):
+            serialized = OperatorSerialization.serialize(sdkop)
+
+        serop = OperatorSerialization.deserialize(serialized)
+
+        assert serop.task_id == "custom"
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
+            serop.weight_rule
 
     def test_invalid(self):
         op = BaseOperator(task_id="should_fail", weight_rule="no rule")
