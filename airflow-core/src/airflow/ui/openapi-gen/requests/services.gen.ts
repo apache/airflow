@@ -193,7 +193,8 @@ export class AssetService {
      * Set delete_queued_events=true to also remove those references. Asset delete and Dag edit
      * permissions are required, as well as read and edit access to every affected queued Dag.
      * Unauthorized requests return 403 without deleting anything; a dag_id query cannot limit this check.
-     * Deletion also removes dependent Dag-run and alias references.
+     * Partitioned scheduling references follow the same protection and authorization rules.
+     * Deletion also removes dependent Dag-run and alias references and empty pending partitioned runs.
      * The asset, Dags, Dag runs, and alias definitions are preserved.
      * @param data The data for the request.
      * @param data.assetId

@@ -91,17 +91,21 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
+    PartitionedAssetKeyLog,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.utils.helpers import chunks
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Result
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -463,9 +467,30 @@ def delete_asset_events(
     Set delete_queued_events=true to also remove those references. Asset delete and Dag edit
     permissions are required, as well as read and edit access to every affected queued Dag.
     Unauthorized requests return 403 without deleting anything; a dag_id query cannot limit this check.
-    Deletion also removes dependent Dag-run and alias references.
+    Partitioned scheduling references follow the same protection and authorization rules.
+    Deletion also removes dependent Dag-run and alias references and empty pending partitioned runs.
     The asset, Dags, Dag runs, and alias definitions are preserved.
     """
+    _delete_asset_events(
+        asset_id=asset_id,
+        before=cast("datetime", before),
+        permitted_dag_ids=(readable_dags_filter.value or set()) & (editable_dags_filter.value or set()),
+        delete_queued_events=delete_queued_events,
+        session=session,
+    )
+
+
+@retry_db_transaction
+def _delete_asset_events(
+    *,
+    asset_id: int,
+    before: datetime,
+    permitted_dag_ids: set[str],
+    delete_queued_events: bool,
+    session: Session,
+) -> None:
+    # Scheduling locks queues before inserting consumed-event references. If it deadlocks with
+    # our event-first locks, retry the entire validation/deletion against the committed queue state.
     if session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id)) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
@@ -476,30 +501,88 @@ def delete_asset_events(
 
     # Lock the FK parents before checking queues, and delete only this fixed set: events inserted
     # afterwards have not been checked. Queue inserts must wait on these locks (or SQLite's writer lock).
-    event_ids = list(session.scalars(select(AssetEvent.id).where(*eligible_events).with_for_update()))
-    permitted_dag_ids = (readable_dags_filter.value or set()) & (editable_dags_filter.value or set())
+    event_ids = list(
+        session.scalars(
+            select(AssetEvent.id).where(*eligible_events).order_by(AssetEvent.id).with_for_update()
+        )
+    )
+    if not event_ids:
+        return
+
+    # There is no event FK/index on partition logs. Scan once, then delete by primary key;
+    # repeating an event-ID scan per batch would make large retention requests quadratic.
+    selected_event_ids = set(event_ids)
+    partition_log_ids: list[int] = []
+    partition_run_ids: set[int] = set()
+    for log_id, event_id, partition_run_id in session.execute(
+        select(
+            PartitionedAssetKeyLog.id,
+            PartitionedAssetKeyLog.asset_event_id,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id,
+        )
+        .join(AssetEvent, AssetEvent.id == PartitionedAssetKeyLog.asset_event_id)
+        .where(*eligible_events)
+        .with_for_update(of=PartitionedAssetKeyLog)
+    ):
+        if event_id in selected_event_ids:
+            partition_log_ids.append(log_id)
+            partition_run_ids.add(partition_run_id)
+
+    queued_dag_ids: set[str] = set()
     for event_id_batch in chunks(event_ids, _ASSET_EVENT_DELETE_BATCH_SIZE):
         # A locking read also sees queues committed while acquiring event locks on MySQL REPEATABLE READ.
-        queued_dag_ids = set(
+        queued_dag_ids.update(
             session.scalars(
                 select(AssetDagRunQueue.target_dag_id)
                 .where(AssetDagRunQueue.asset_event_id.in_(event_id_batch))
                 .with_for_update()
             )
         )
-        if queued_dag_ids and not delete_queued_events:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Eligible asset events are queued; set delete_queued_events=true to delete them.",
+    # Producers write partition logs with their new event, so the fixed event set is complete.
+    # Lock its runs against scheduling/reuse before deciding which references are still pending.
+    # Producers acquire runs in mapper order; NOWAIT prevents deletion from making a producer
+    # the victim of a lock-order deadlock. A busy run causes the whole transaction to retry.
+    pending_partition_run_ids: set[int] = set()
+    for partition_run_id_batch in chunks(sorted(partition_run_ids), _ASSET_EVENT_DELETE_BATCH_SIZE):
+        partition_runs = session.execute(
+            select(
+                AssetPartitionDagRun.id,
+                AssetPartitionDagRun.target_dag_id,
+                AssetPartitionDagRun.created_dag_run_id,
             )
-        if not queued_dag_ids <= permitted_dag_ids:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Not authorized to delete all affected queued events"
-            )
+            .where(AssetPartitionDagRun.id.in_(partition_run_id_batch))
+            .order_by(AssetPartitionDagRun.id)
+            .with_for_update(nowait=True)
+        )
+        for partition_run_id, dag_id, created_dag_run_id in partition_runs:
+            if created_dag_run_id is None:
+                pending_partition_run_ids.add(partition_run_id)
+                queued_dag_ids.add(dag_id)
+    if queued_dag_ids and not delete_queued_events:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Eligible asset events are queued; set delete_queued_events=true to delete them.",
+        )
+    if not queued_dag_ids <= permitted_dag_ids:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized to delete all affected queued events")
 
     # Bound IN parameters without committing between batches or deleting a permitted subset.
+    for partition_log_id_batch in chunks(partition_log_ids, _ASSET_EVENT_DELETE_BATCH_SIZE):
+        session.execute(
+            delete(PartitionedAssetKeyLog).where(PartitionedAssetKeyLog.id.in_(partition_log_id_batch))
+        )
     for event_id_batch in chunks(event_ids, _ASSET_EVENT_DELETE_BATCH_SIZE):
         session.execute(delete(AssetEvent).where(AssetEvent.id.in_(event_id_batch)))
+    for partition_run_id_batch in chunks(sorted(pending_partition_run_ids), _ASSET_EVENT_DELETE_BATCH_SIZE):
+        session.execute(
+            delete(AssetPartitionDagRun).where(
+                AssetPartitionDagRun.id.in_(partition_run_id_batch),
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+                ~select(PartitionedAssetKeyLog.id)
+                .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id)
+                .exists(),
+            )
+        )
 
 
 @assets_router.post(

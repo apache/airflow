@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import event, exc, func, insert, select
+from sqlalchemy import delete, event, exc, func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import Session
 
@@ -691,7 +691,7 @@ class TestAssetManager:
                 for _ in range(2)
             ]
 
-        assert len(lookups) == (2 if allow_reuse else 0)
+        assert len(lookups) == (3 if allow_reuse else 0)
         expected_count = 1 if allow_reuse else 2
         assert len({apdr.id for apdr in apdrs}) == expected_count
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == expected_count
@@ -738,14 +738,16 @@ class TestAssetManager:
 
             event.listen(settings.engine, "before_cursor_execute", on_execute)
             try:
-                with create_session(scoped=False) as first:
-                    AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
-                    first.flush()
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    with create_session(scoped=False) as first:
+                        AssetManager.register_asset_change(
+                            asset=asset_a, partition_key="day-1", session=first
+                        )
+                        first.flush()
                         second_done = pool.submit(run_second_writer)
+                        second_done.add_done_callback(lambda _: second_writer_inserting_apdr.set())
                         assert second_writer_inserting_apdr.wait(timeout=30)
-                        first.commit()
-                        second_done.result(timeout=30)
+                    second_done.result(timeout=30)
             finally:
                 event.remove(settings.engine, "before_cursor_execute", on_execute)
 
@@ -759,6 +761,95 @@ class TestAssetManager:
                 .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
             )
             assert logged_events == 2
+        finally:
+            _clear_partition_db()
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("pending_row_action", ["deleted", "consumed"])
+    def test_event_registration_waits_for_pending_apdr_removal(self, dag_maker, session, pending_row_action):
+        _clear_partition_db()
+        try:
+            asset = Asset(name="locked-apdr-asset")
+            with dag_maker(
+                dag_id="locked-apdr-consumer",
+                schedule=PartitionedAssetTimetable(
+                    assets=asset, default_partition_mapper=IdentityMapper(), batch_asset_events=True
+                ),
+                serialized=True,
+            ):
+                EmptyOperator(task_id="hi")
+            dag_maker.sync_dagbag_to_db()
+            original_event = AssetManager.register_asset_change(
+                asset=asset, partition_key="day-1", session=session
+            )
+            session.flush()
+            original_event_id = original_event.id
+            original_apdr_id = session.scalars(select(AssetPartitionDagRun.id)).one()
+            created_run_id = dag_maker.create_dagrun().id if pending_row_action == "consumed" else None
+            session.commit()
+
+            test_thread = threading.get_ident()
+            pending_lookup_started = threading.Event()
+
+            def on_execute(conn, cursor, statement, parameters, context, executemany):
+                if (
+                    threading.get_ident() != test_thread
+                    and statement.startswith("SELECT ")
+                    and "FROM asset_partition_dag_run" in statement
+                ):
+                    pending_lookup_started.set()
+
+            def register_next_event():
+                with create_session(scoped=False) as producer:
+                    next_event = AssetManager.register_asset_change(
+                        asset=asset, partition_key="day-1", session=producer
+                    )
+                    return next_event.id
+
+            event.listen(settings.engine, "before_cursor_execute", on_execute)
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    with create_session(scoped=False) as consumer:
+                        original_apdr = consumer.scalar(
+                            select(AssetPartitionDagRun)
+                            .where(AssetPartitionDagRun.id == original_apdr_id)
+                            .with_for_update()
+                        )
+                        registered = pool.submit(register_next_event)
+                        registered.add_done_callback(lambda _: pending_lookup_started.set())
+                        assert pending_lookup_started.wait(timeout=30)
+                        with pytest.raises(concurrent.futures.TimeoutError):
+                            registered.result(timeout=0.5)
+
+                        if pending_row_action == "deleted":
+                            consumer.execute(
+                                delete(PartitionedAssetKeyLog).where(
+                                    PartitionedAssetKeyLog.asset_partition_dag_run_id == original_apdr_id
+                                )
+                            )
+                            consumer.execute(delete(AssetEvent).where(AssetEvent.id == original_event_id))
+                            consumer.delete(original_apdr)
+                        else:
+                            original_apdr.created_dag_run_id = created_run_id
+                    new_event_id = registered.result(timeout=30)
+            finally:
+                event.remove(settings.engine, "before_cursor_execute", on_execute)
+
+            with create_session(scoped=False) as verification:
+                pending = verification.scalars(
+                    select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+                ).all()
+                assert len(pending) == 1
+                assert pending[0].id != original_apdr_id
+                assert (
+                    verification.scalar(
+                        select(PartitionedAssetKeyLog.asset_partition_dag_run_id).where(
+                            PartitionedAssetKeyLog.asset_event_id == new_event_id
+                        )
+                    )
+                    == pending[0].id
+                )
         finally:
             _clear_partition_db()
 

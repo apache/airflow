@@ -776,8 +776,10 @@ class AssetManager(LoggingMixin):
         ``pending_partition_key``, so a Dag that turns batching on keeps accumulating onto
         its most recent pending row.
         """
-        return session.scalar(
-            select(AssetPartitionDagRun)
+        # MySQL can lock a secondary index before the row in a locking lookup by target Dag.
+        # Deleting or consuming the row updates that index after locking its primary key.
+        pending_apdr_id = session.scalar(
+            select(AssetPartitionDagRun.id)
             .where(
                 AssetPartitionDagRun.partition_key == target_key,
                 AssetPartitionDagRun.target_dag_id == target_dag_id,
@@ -785,6 +787,18 @@ class AssetManager(LoggingMixin):
             )
             .order_by(AssetPartitionDagRun.id.desc())
             .limit(1)
+        )
+        if pending_apdr_id is None:
+            return None
+
+        # The key log has no APDR foreign key; hold this row until the new log is flushed.
+        return session.scalar(
+            select(AssetPartitionDagRun)
+            .where(
+                AssetPartitionDagRun.id == pending_apdr_id,
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+            )
+            .with_for_update()
         )
 
     @staticmethod
