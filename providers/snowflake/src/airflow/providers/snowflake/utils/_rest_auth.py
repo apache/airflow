@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Shared Snowflake REST API authentication (OAuth, PAT, key-pair JWT).
+Shared Snowflake REST API authentication (OAuth, PAT, key-pair JWT, workload identity).
 
 Every Snowflake REST caller (the SQL API, Cortex Agents, the Cortex chat-completions
-endpoint used by pydantic-ai) authenticates the same three ways: an OAuth access token,
-a Programmatic Access Token (PAT), or a JWT signed with the connection's private key.
+endpoint used by pydantic-ai) authenticates the same four ways: an OAuth access token,
+a Programmatic Access Token (PAT), a JWT signed with the connection's private key, or a
+Workload Identity Federation (WIF) token issued by the workload's cloud.
 :class:`SnowflakeRestTokenProvider` produces those headers from a :class:`SnowflakeHook`
 so each caller does not need to duplicate the branching or the token caching.
 
@@ -31,10 +32,14 @@ touch those optional dependencies.
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import jwt
 
 from airflow.providers.snowflake.hooks.snowflake import _validate_account_component
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
@@ -43,6 +48,10 @@ if TYPE_CHECKING:
     from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
 
     from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+
+# Re-fetch a workload identity token this many seconds before it expires.
+WIF_TOKEN_EXPIRY_BUFFER = 30
 
 
 @dataclass(frozen=True)
@@ -61,9 +70,11 @@ class SnowflakeRestTokenProvider:
     reads the token ``hook._get_conn_params()`` already resolved (which itself refreshes an
     expiring OAuth or Azure token, so this provider does not cache that branch at all);
     ``authenticator == "programmatic_access_token"`` reads the PAT from the connection password;
-    anything else signs a key-pair JWT. The private key is loaded once and kept. The
-    ``JWTGenerator`` is built once and kept, because it renews its own token on the
-    ``token_renewal_delta`` schedule.
+    a connection without a private key that sets ``workload_identity_provider`` uses Workload
+    Identity Federation; anything else signs a key-pair JWT. The private key is loaded once and
+    kept. The ``JWTGenerator`` is built once and kept, because it renews its own token on the
+    ``token_renewal_delta`` schedule. The workload identity token is cached until shortly before
+    its ``exp`` claim, and not cached when it carries none.
 
     :param hook: The ``SnowflakeHook`` (or subclass) whose connection supplies credentials.
     :param token_life_time: Passed to the ``JWTGenerator`` for the key-pair branch.
@@ -95,6 +106,8 @@ class SnowflakeRestTokenProvider:
         )
         self._private_key: PrivateKeyTypes | None = None
         self._jwt_generator: JWTGenerator | None = None
+        self._wif_token: SnowflakeRestToken | None = None
+        self._wif_token_expires_at: float = 0.0
         self._lock = threading.Lock()
 
     def get_token(self) -> SnowflakeRestToken:
@@ -121,14 +134,11 @@ class SnowflakeRestTokenProvider:
                 self._private_key = self._private_key_loader()
             if self._private_key is None:
                 if conn_config.get("workload_identity_provider"):
-                    raise ValueError(
-                        "Workload identity federation is not supported for Snowflake REST APIs; use "
-                        "OAuth, PAT, or key-pair authentication instead. A connection that also "
-                        "sets a private key uses key-pair authentication."
-                    )
+                    return self._get_workload_identity_token(conn_config)
                 raise ValueError(
                     "Snowflake REST API authentication requires an OAuth access token, a "
-                    "Programmatic Access Token (PAT), or a private key for key-pair JWT auth; "
+                    "Programmatic Access Token (PAT), a private key for key-pair JWT auth, or a "
+                    "workload_identity_provider for Workload Identity Federation; "
                     "none is configured on this connection."
                 )
 
@@ -153,6 +163,77 @@ class SnowflakeRestTokenProvider:
                 )
             token = self._jwt_generator.get_token()
             return SnowflakeRestToken(token=token, token_type="KEYPAIR_JWT")
+
+    def _get_workload_identity_token(self, conn_config: dict[str, Any]) -> SnowflakeRestToken:
+        """
+        Return a Workload Identity Federation token, fetching a new one when the cached one expires.
+
+        The cloud credential comes from the ``snowflake-connector-python`` attestation helper, so
+        the AWS, Azure, GCP and OIDC flows match what ``SnowflakeHook`` does for the connector.
+        The caller must hold ``self._lock``.
+        """
+        if self._wif_token is not None and time.time() < self._wif_token_expires_at:
+            return self._wif_token
+
+        # Imported here: the module is internal to the connector and only exists in versions
+        # that support WIF, which only this branch needs.
+        try:
+            from snowflake.connector.wif_util import AttestationProvider, create_attestation
+        except ImportError as e:
+            raise ValueError(
+                "Workload Identity Federation for Snowflake REST APIs requires "
+                "snowflake-connector-python>=3.17.0."
+            ) from e
+
+        provider_name = str(conn_config["workload_identity_provider"]).upper()
+        provider = AttestationProvider.from_string(provider_name)
+        kwargs: dict[str, Any] = {}
+        if provider == AttestationProvider.OIDC:
+            kwargs["token"] = self._get_oidc_token(conn_config)
+        elif provider == AttestationProvider.AWS:
+            # By default the connector returns a signed STS request for its login protocol; the
+            # REST API needs the JWT from sts:GetWebIdentityToken instead.
+            kwargs["aws_use_outbound_token"] = True
+
+        try:
+            attestation = create_attestation(provider, **kwargs)
+        except TypeError as e:
+            if provider != AttestationProvider.AWS:
+                raise
+            raise ValueError(
+                "Workload Identity Federation for Snowflake REST APIs on AWS requires "
+                "snowflake-connector-python>=4.7.1."
+            ) from e
+
+        token = SnowflakeRestToken(
+            token=f"WIF.{provider_name}.{attestation.credential}",
+            token_type="WORKLOAD_IDENTITY_FEDERATION",
+        )
+        expires_at = self._get_jwt_expiry(attestation.credential)
+        self._wif_token = token if expires_at else None
+        self._wif_token_expires_at = (expires_at or 0.0) - WIF_TOKEN_EXPIRY_BUFFER
+        return token
+
+    @staticmethod
+    def _get_oidc_token(conn_config: dict[str, Any]) -> str:
+        """Return the OIDC ID token from the connection ``token`` or ``token_file_path`` extra."""
+        if token := conn_config.get("token"):
+            return token
+        if token_file_path := conn_config.get("token_file_path"):
+            return Path(token_file_path).read_text().strip()
+        raise ValueError(
+            "Workload Identity Federation with the OIDC provider requires the connection extra "
+            "'token' or 'token_file_path'."
+        )
+
+    @staticmethod
+    def _get_jwt_expiry(credential: str) -> float | None:
+        """Return the ``exp`` claim of ``credential`` without verifying it, or None if it has none."""
+        try:
+            exp = jwt.decode(credential, options={"verify_signature": False}).get("exp")
+        except jwt.PyJWTError:
+            return None
+        return float(exp) if isinstance(exp, int | float) else None
 
     def build_auth_headers(self) -> dict[str, str]:
         """Return the two REST auth headers: ``Authorization`` and the token-type header."""
