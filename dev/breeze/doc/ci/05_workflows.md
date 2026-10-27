@@ -107,8 +107,10 @@ them, for the contributors the repository's approval setting covers. The
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
   branches' own workflows and always wait for a maintainer
-- the PR changes nothing under `.github/`, `dev/breeze/` or `scripts/ci/`, which define the workflows
-  and choose the runners
+- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`,
+  `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`, a top-level `Dockerfile*`, a
+  `.pre-commit-config.yaml` in any directory),
+  which define the workflows, what their jobs run and the runners they use
 - the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
   `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
   run from `main`'s tree and do not know it)
@@ -121,11 +123,9 @@ them, for the contributors the repository's approval setting covers. The
 
 A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
 project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
-gate: its runs are approved whatever its size, cost or dependency changes, unless it changes a file
-the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`, `scripts/ci/`,
-`scripts/docker/`, `scripts/in_container/`, `Dockerfile*`, `.pre-commit-config.yaml`). Such a PR gets
-the `need workflow approval` label and one comment telling the author that the CI change needs a
-maintainer; see
+gate: its runs are approved whatever its size, cost or dependency changes, unless it changes one of
+those CI-defining files. Such a PR gets the `need workflow approval` label and one comment telling
+the author that the CI change needs a maintainer; see
 [Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
 
 Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
