@@ -1401,7 +1401,6 @@ export const $Config = {
             title: 'Sections'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['sections'],
     title: 'Config',
@@ -1436,7 +1435,6 @@ export const $ConfigOption = {
             title: 'Value'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['key', 'value'],
     title: 'ConfigOption',
@@ -1457,7 +1455,6 @@ export const $ConfigSection = {
             title: 'Options'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['name', 'options'],
     title: 'ConfigSection',
@@ -3284,7 +3281,6 @@ export const $DagRunAssetReference = {
             title: 'Partition Key'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
     title: 'DagRunAssetReference',
@@ -3333,7 +3329,6 @@ export const $DagScheduleAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
@@ -5278,7 +5273,6 @@ export const $TaskInletAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskInletAssetReference',
@@ -6274,7 +6268,6 @@ export const $TaskOutletAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskOutletAssetReference',

@@ -9923,7 +9923,6 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
-      additionalProperties: false
       type: object
       required:
       - sections
@@ -9944,7 +9943,6 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
-      additionalProperties: false
       type: object
       required:
       - key
@@ -9961,7 +9959,6 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
-      additionalProperties: false
       type: object
       required:
       - name
@@ -11110,7 +11107,6 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
-      additionalProperties: false
       type: object
       required:
       - run_id
@@ -11176,7 +11172,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -12535,7 +12530,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -13149,7 +13143,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
