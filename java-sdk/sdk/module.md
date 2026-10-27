@@ -129,7 +129,7 @@ meaning of each dimension is defined in the
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✓ | 3.4.0 | 1.0.0 | Client.getTaskStateStore() get/set/delete/clear |
-| capability: `asset-state-store` | MAY | ✗ | – | – | no task-facing asset state-store API yet |
+| capability: `asset-state-store` | MAY | ✓ | 3.4.0 | 1.0.0 | Client.getAssetStateStore(), by asset name or URI |
 | capability: `asset-event-emit` | MAY | ✗ | – | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
 | capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
