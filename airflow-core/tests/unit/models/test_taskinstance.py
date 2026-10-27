@@ -5085,7 +5085,7 @@ def test_refresh_from_task_copies_is_stub(is_stub):
     [pytest.param(task.stub, True, id="stub"), pytest.param(task, False, id="regular")],
 )
 def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
-    """The scheduler writes the flag when it creates the rows, not only when it refreshes one."""
+    """A scheduled row carries the flag, whichever of the two write paths filled it in."""
     with dag_maker("test_scheduled_is_stub", serialized=True):
 
         @decorator
@@ -5096,6 +5096,30 @@ def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
     (ti,) = dag_maker.create_dagrun().get_task_instances()
 
     assert ti.is_stub is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_is_stub"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.is_stub = is_stub
+    dag_run = mock.MagicMock()
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["is_stub"] is is_stub
 
 
 @pytest.mark.db_test

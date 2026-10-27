@@ -383,8 +383,9 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        # Only a lang-SDK (foreign-runtime) task needs its definition here. ti.is_stub is the row's
-        # copy of the serialized flag, so a regular task starts without loading the serialized Dag.
+        # Avoid loading the serialized Dag on the normal Python task path: only a lang-SDK
+        # (foreign-runtime) task needs its definition here, and ti.is_stub carries the row's own copy
+        # of the serialized flag.
         serialized_task = get_task(dag_bag, ti, session=session) if ti.is_stub else None
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg

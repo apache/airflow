@@ -1142,7 +1142,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Denormalized from the task so ti_run can tell a stub (foreign-runtime) task from a regular one
-    # without loading the serialized Dag. Null on rows written before the column existed.
+    # without loading the serialized Dag. Null on rows written before the column existed. A row moved
+    # to a new Dag version without being refreshed from its task keeps the value it was created with,
+    # which fails closed: a task that has become a stub loses its arg_bindings rather than running wrong.
     is_stub: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
