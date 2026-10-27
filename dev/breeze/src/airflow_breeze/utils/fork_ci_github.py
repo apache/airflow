@@ -33,8 +33,11 @@ from airflow_breeze.utils.fork_ci_messages import STATUS_CONTEXT
 RATE_LIMIT_MARKERS = ("rate limit", "secondary rate", "abuse detection")
 MAX_ATTEMPTS = 4
 # GitHub answers with these while overloaded, and GraphQL searches that take too long end in HTTP 504;
-# the same call usually succeeds shortly after.
-SERVER_ERROR = re.compile(r"\bHTTP 5\d\d\b")
+# the same call usually succeeds shortly after. A connection dropped mid-request is as transient, and as
+# unclear about whether the request took effect.
+SERVER_ERROR = re.compile(r"\bHTTP 5\d\d\b|connection reset by peer|unexpected EOF")
+# Network failures before the request reached GitHub, so repeating it is safe for any call.
+CONNECTION_ERROR = re.compile(r"TLS handshake timeout|dial tcp")
 SERVER_ERROR_WAIT_SECONDS = 10
 # A hung `gh` would otherwise hold the job until its timeout-minutes.
 GH_TIMEOUT_SECONDS = 120
@@ -64,7 +67,8 @@ class GitHubClient:
             graphql`` exits non-zero when some fields of the response errored, with the data GitHub
             could resolve still on stdout.
         :param retry_server_errors: repeat a call that failed with a server error. Off for a call that
-            may have taken effect anyway and must not be repeated, such as creating a comment.
+            may have taken effect anyway and must not be repeated, such as creating a comment. A call
+            that failed to connect is repeated either way.
         """
         payload = json.dumps(body) if body is not None else None
         rate_limited = False
@@ -84,10 +88,21 @@ class GitHubClient:
             if result.returncode == 0:
                 return json.loads(result.stdout) if result.stdout.strip() else None
             rate_limited = any(marker in result.stderr.lower() for marker in RATE_LIMIT_MARKERS)
-            if rate_limited or (retry_server_errors and SERVER_ERROR.search(result.stderr)):
+            connection_error = bool(CONNECTION_ERROR.search(result.stderr))
+            if (
+                rate_limited
+                or connection_error
+                or (retry_server_errors and SERVER_ERROR.search(result.stderr))
+            ):
                 if attempt == MAX_ATTEMPTS - 1:
                     break
-                reason = "rate limit" if rate_limited else "server error"
+                reason = (
+                    "rate limit"
+                    if rate_limited
+                    else "connection error"
+                    if connection_error
+                    else "server error"
+                )
                 wait = (30 if rate_limited else SERVER_ERROR_WAIT_SECONDS) * 2**attempt
                 console_print(f"[warning]GitHub {reason}, retrying in {wait}s[/]")
                 time.sleep(wait)
