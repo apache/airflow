@@ -1,0 +1,586 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_runtime_outlets"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_runtime_outlets"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_collector_cap"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_06_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_07_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_08_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_09_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_10_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_11_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_12_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_13_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_14_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_15_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_16_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_17_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_18_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_19_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_20_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_21_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_22_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_23_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_24_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_25_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_26_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_27_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_28_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_29_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_30_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_31_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_32_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_33_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_34_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_35_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_36_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_37_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_38_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_39_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_40_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_41_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_42_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_43_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_44_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_45_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_46_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_47_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_48_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_49_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_50_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_51_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_52_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_53_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_54_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_55_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_56_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_57_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_58_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_59_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_60_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_61_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_62_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_63_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_64_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_65_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_66_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_67_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_68_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_69_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_70_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_06_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_07_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_08_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_09_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_10_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_11_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_12_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_13_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_14_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_15_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_16_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_17_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_18_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_19_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_20_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_21_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_22_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_23_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_24_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_25_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_26_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_27_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_28_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_29_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_30_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_31_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_32_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_33_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_34_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_35_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_36_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_37_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_38_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_39_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_40_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_41_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_42_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_43_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_44_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_45_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_46_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_47_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_48_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_49_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_50_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_51_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_52_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_53_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_54_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_55_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_56_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_57_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_58_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_59_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_60_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_61_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_62_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_63_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_64_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_65_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_66_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_67_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_68_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_69_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/cap_keep_70_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_collector_cap"
+        }
+    }
+]
