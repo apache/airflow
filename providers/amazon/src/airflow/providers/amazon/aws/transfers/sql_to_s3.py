@@ -36,6 +36,7 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
+    import jinja2
     import pandas as pd
     import polars as pl
 
@@ -189,8 +190,8 @@ class SqlToS3Operator(BaseOperator):
                 "can not be both specified. Please choose one."
             )
 
-        if self.page_size and (self.max_rows_per_file or self.groupby_kwargs):
-            raise AirflowException(
+        if self.page_size is not None and (self.max_rows_per_file or self.groupby_kwargs):
+            raise ValueError(
                 "SqlToS3Operator argument page_size can not be combined with "
                 "max_rows_per_file or groupby_kwargs: every page is already written as a file of its own."
             )
@@ -268,33 +269,53 @@ class SqlToS3Operator(BaseOperator):
         """Format the paginated SQL statement using the current format."""
         return self.paginated_sql_statement_clause.format(self.query, self.page_size, offset)
 
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+        # A templated page_size renders as a string; the paging decision needs the number.
+        if self.page_size is not None:
+            self.page_size = int(self.page_size)
+            if self.page_size < 0:
+                raise ValueError(f"SqlToS3Operator argument page_size can not be negative: {self.page_size}")
+
     def execute(self, context: Context) -> None:
         self._ensure_parquet_engine()
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        pages = (
+            self._pages(sql_hook)
+            if self.page_size
+            else self._partition_dataframe(df=self._read_dataframe(sql_hook, self.query))
+        )
+        for suffix, df in pages:
+            self._upload_dataframe(s3_conn, df, suffix)
 
-        if self.page_size:
-            self.page_size = int(self.page_size)
-            offset = 0
-            page = 0
-            while True:
-                paginated_sql = self.get_paginated_sql(offset)
-                self.log.info("Executing: \n %s", paginated_sql)
-                df = self._read_dataframe(sql_hook, paginated_sql)
-                # The first page is always written, so the key exists even for an empty result;
-                # a later empty page only tells that the previous one was the last.
-                if page == 0 or len(df):
-                    self._upload_dataframe(s3_conn, df, str(page))
-                if len(df) < self.page_size:
-                    self.log.info("Last page read; ending transfer after %d page(s).", page + 1)
-                    break
-                offset += self.page_size
-                page += 1
-            return
+    def _pages(self, sql_hook: DbApiHook) -> Iterable[tuple[str, pd.DataFrame | pl.DataFrame]]:
+        """
+        Read the query one page at a time, each page keyed by its number.
 
-        data_df = self._read_dataframe(sql_hook, self.query)
-        for group_name, df in self._partition_dataframe(df=data_df):
-            self._upload_dataframe(s3_conn, df, group_name)
+        The first page is always yielded, so the key exists even for an empty result; a later empty
+        page only tells that the previous one was the last. A page is released before the next is read.
+        """
+        if TYPE_CHECKING:
+            assert self.page_size is not None  # execute() pages only when page_size is set
+        offset = 0
+        page = 0
+        while True:
+            paginated_sql = self.get_paginated_sql(offset)
+            self.log.info("Executing: \n %s", paginated_sql)
+            df = self._read_dataframe(sql_hook, paginated_sql)
+            if page == 0 or len(df):
+                yield str(page), df
+            if len(df) < self.page_size:
+                self.log.info("Last page read; ending transfer after %d page(s).", page + 1)
+                return
+            del df
+            offset += self.page_size
+            page += 1
 
     def _read_dataframe(self, sql_hook: DbApiHook, sql: str) -> pd.DataFrame | pl.DataFrame:
         """Run *sql* through the hook's DataFrame API and apply the pandas dtype fixes."""
@@ -305,17 +326,15 @@ class SqlToS3Operator(BaseOperator):
             self._fix_dtypes(df, self.file_format)  # type: ignore[arg-type]
         return df
 
-    def _upload_dataframe(self, s3_conn: S3Hook, df: pd.DataFrame | pl.DataFrame, group_name: str) -> None:
-        """Write *df* in the configured file format and upload it as ``<key>_<group_name>``."""
+    def _upload_dataframe(self, s3_conn: S3Hook, df: pd.DataFrame | pl.DataFrame, suffix: str) -> None:
+        """Write *df* in the configured file format and upload it as ``<key>_<suffix>``."""
         file_options = FILE_OPTIONS_MAP[self.file_format]
         write_function = file_options.polars_function if self.df_type == "polars" else file_options.function
         buf = io.BytesIO()
         self.log.info("Writing data to in-memory buffer")
         clean_key = self._strip_suffixes(self.s3_key)
         object_key = (
-            f"{clean_key}_{group_name}{file_options.suffix}"
-            if group_name
-            else f"{clean_key}{file_options.suffix}"
+            f"{clean_key}_{suffix}{file_options.suffix}" if suffix else f"{clean_key}{file_options.suffix}"
         )
 
         if self.file_format != FILE_FORMAT.PARQUET and self.df_kwargs.get("compression") == "gzip":

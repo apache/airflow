@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PANDAS_3_PLUS = Version(pd.__version__).major >= 3
 
@@ -504,7 +505,7 @@ class TestSqlToS3Operator:
     def test_execute_with_page_size_writes_one_file_per_page(self, mock_s3_hook):
         """Paged like GenericTransfer: one query per page, one file per page, stop on a short page."""
         pages = [pd.DataFrame({"a": [1, 2]}), pd.DataFrame({"a": [3, 4]}), pd.DataFrame({"a": [5]})]
-        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook = mock.Mock(return_value=mock.Mock(spec=DbApiHook))
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.side_effect = pages
         uploaded: dict[str, bytes] = {}
@@ -553,7 +554,7 @@ class TestSqlToS3Operator:
     )
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_with_page_size_empty_pages(self, mock_s3_hook, pages, expected_keys):
-        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook = mock.Mock(return_value=mock.Mock(spec=DbApiHook))
         mock_dbapi_hook.return_value.get_df.side_effect = pages
 
         op = SqlToS3Operator(
@@ -576,7 +577,7 @@ class TestSqlToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_with_page_size_uses_the_pagination_clause(self, mock_s3_hook):
         """The clause is formatted with the query, the page size and the offset, as GenericTransfer does."""
-        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook = mock.Mock(return_value=mock.Mock(spec=DbApiHook))
         mock_dbapi_hook.return_value.get_df.side_effect = [pd.DataFrame({"a": [1]})]
 
         op = SqlToS3Operator(
@@ -591,6 +592,7 @@ class TestSqlToS3Operator:
             dag=None,
         )
         op._get_hook = mock_dbapi_hook
+        op.render_template_fields({})
         op.execute(None)
 
         mock_dbapi_hook.return_value.get_df.assert_called_once_with(
@@ -605,7 +607,7 @@ class TestSqlToS3Operator:
         ],
     )
     def test_page_size_excludes_the_other_ways_to_split_the_output(self, kwargs):
-        with pytest.raises(AirflowException, match="page_size can not be combined"):
+        with pytest.raises(ValueError, match="page_size can not be combined"):
             SqlToS3Operator(
                 query="query",
                 s3_bucket="bucket",
@@ -615,6 +617,44 @@ class TestSqlToS3Operator:
                 page_size=10,
                 **kwargs,
             )
+
+    @pytest.mark.parametrize(
+        ("page_size", "expected"),
+        [
+            pytest.param("0", 0, id="rendered-zero-means-unpaged"),
+            pytest.param(3, 3, id="int-stays"),
+            pytest.param(None, None, id="unset-stays"),
+        ],
+    )
+    def test_render_template_fields_converts_page_size(self, page_size, expected):
+        """A templated page_size renders as a string; "0" must mean unpaged, not an endless loop."""
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            page_size=page_size,
+            dag=None,
+        )
+
+        op.render_template_fields({})
+
+        assert op.page_size == expected
+
+    def test_render_template_fields_rejects_a_negative_page_size(self):
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            page_size="-1",
+            dag=None,
+        )
+
+        with pytest.raises(ValueError, match="page_size can not be negative"):
+            op.render_template_fields({})
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params(self, mock_get_conn):
