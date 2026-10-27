@@ -164,6 +164,7 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-duckdb <https://airflow.apache.org/docs/apache-airflow-providers-duckdb>`_                      ``duckdb``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
@@ -190,6 +191,7 @@ Extra                 Dependencies
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``google``            ``apache-airflow-providers-google``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
+``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
 ====================  ====================================================
 
 Downloading official packages

@@ -229,6 +229,14 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/powerbi.rst
     tags: [azure]
+  # DuckDB itself is not an Azure service: the generic hook, operator and ``duckdb`` connection type
+  # live in the ``duckdb`` provider. What lives here is only the Azure-specific part, brokering Azure
+  # credentials into a DuckDB session configured by its own connection type
+  - integration-name: DuckDB on Azure
+    external-doc-url: https://duckdb.org/docs/stable/core_extensions/azure
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/duckdb.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Analysis Services
@@ -355,6 +363,9 @@ hooks:
   - integration-name: Microsoft Power BI
     python-modules:
       - airflow.providers.microsoft.azure.hooks.powerbi
+  - integration-name: DuckDB on Azure
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.duckdb
 
 bundles:
   - integration-name: Microsoft Azure Blob Storage
@@ -1078,6 +1089,26 @@ connection-types:
         label: Tenant ID
         schema:
           type: ["string", "null"]
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.duckdb.AzureDuckDBHook
+    hook-name: "DuckDB on Azure"
+    connection-type: duckdb_azure
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - password
+        - port
+        - schema
+      relabeling:
+        host: Database path
+      placeholders:
+        host: /tmp/analytics.duckdb (leave empty for an in-memory database)
+        extra: |
+          {
+            "azure_conn_id": "adls_default",
+            "credential_strategy": "config",
+            "memory_limit": "2GB",
+            "threads": 4
+          }
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend

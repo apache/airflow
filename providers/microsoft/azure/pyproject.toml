@@ -127,6 +127,11 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]
+# DuckDB support is opt-in: the duckdb wheel is around 20MB and irrelevant to most users of this
+# provider, so it must never become a hard dependency here.
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.1.0"
+]
 
 [dependency-groups]
 dev = [
@@ -136,6 +141,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
+    "apache-airflow-providers-duckdb",
     "apache-airflow-providers-google",
     "apache-airflow-providers-openlineage",
     "apache-airflow-providers-oracle",
