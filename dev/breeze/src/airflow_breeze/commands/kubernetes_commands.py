@@ -2035,7 +2035,7 @@ def _run_tests(
             f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
         )
         return 1, f"Tests {kubectl_cluster_name}"
-    pytest_cmd = ["uv", "run", "pytest"]
+    pytest_cmd = ["uv", "run", "--frozen", "pytest"]
     the_tests: list[str] = ["tests"]
     ordered_unique_args = dict.fromkeys(chain(pytest_cmd, the_tests, test_args))
     command_to_run = " ".join(quote(arg) for arg in ordered_unique_args)

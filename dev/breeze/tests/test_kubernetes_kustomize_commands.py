@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
+from airflow_breeze.commands import kubernetes_kustomize_commands
 from airflow_breeze.commands.kubernetes_kustomize_commands import (
     ALLOWED_OVERLAY_IMAGES,
     _discover_overlay_images,
@@ -76,3 +79,20 @@ class TestFindDisallowedOverlayImages:
     )
     def test_flags_images_not_on_allow_list(self, images, expected):
         assert _find_disallowed_overlay_images(images) == expected
+
+
+@mock.patch.object(kubernetes_kustomize_commands, "run_command", autospec=True)
+@mock.patch.object(kubernetes_kustomize_commands, "get_k8s_env", autospec=True, return_value={})
+def test_run_overlay_pytest_does_not_relock(mock_get_k8s_env, mock_run_command):
+    mock_run_command.return_value = mock.Mock(returncode=0)
+
+    kubernetes_kustomize_commands._run_overlay_pytest(
+        overlay_name="kerberos",
+        namespace="airflow",
+        release_name="airflow",
+        python="3.11",
+        kubernetes_version="v1.31.12",
+        executor="LocalExecutor",
+    )
+
+    assert mock_run_command.call_args.args[0][:4] == ["uv", "run", "--frozen", "pytest"]

@@ -125,3 +125,20 @@ def test_commands_pass_the_github_repository_from_the_environment(
     assert result.exit_code == 0, result.output
     mock_helper.assert_called_once()
     assert mock_helper.call_args.kwargs["github_repository"] == FORK_REPOSITORY
+
+
+@mock.patch.object(kubernetes_commands, "run_command", autospec=True)
+@mock.patch.object(kubernetes_commands, "get_kubectl_cluster_name", autospec=True, return_value="airflow")
+@mock.patch.object(kubernetes_commands, "get_k8s_env", autospec=True, return_value={"SHELL": "/bin/bash"})
+def test_run_tests_does_not_relock(mock_get_k8s_env, mock_get_cluster_name, mock_run_command):
+    mock_run_command.return_value = mock.Mock(returncode=0)
+
+    kubernetes_commands._run_tests(
+        python="3.11",
+        kubernetes_version="v1.31.12",
+        output=None,
+        executor="LocalExecutor",
+        test_args=[],
+    )
+
+    assert mock_run_command.call_args.args[0][-1].startswith("uv run --frozen pytest ")

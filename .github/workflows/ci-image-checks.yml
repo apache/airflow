@@ -162,6 +162,17 @@ jobs:
           PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+      - name: "Fail if static checks modified tracked files"
+        # prek does not report files that a nested-project hook modifies outside its own project
+        # (e.g. `breeze k8s setup-env` relocking uv.lock), so check the tree independently.
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Static checks passed but modified tracked files. Commit the changes below."
+            git diff --stat
+            git diff | head -n 500 || true
+            exit 1
+          fi
       - name: "Show prek log on failure"
         run: cat ~/.cache/prek/prek.log || true
         if: failure()
