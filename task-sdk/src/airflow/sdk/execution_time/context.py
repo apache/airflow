@@ -1088,6 +1088,10 @@ class AssetStateStoreAccessors:
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
     ``set``, ``delete``, ``clear``, and their async counterparts ``aget``, ``aset``,
     ``adelete``, ``aclear``) can be called directly without subscripting.
+
+    Alias inlets are resolved to their concrete assets through the supervisor on
+    first access. This is a blocking call, even if the first access is from an
+    async method.
     """
 
     _inlets: list
