@@ -243,14 +243,14 @@ class BaseOperations:
 
         def safe_validate(content: bytes) -> BaseModel:
             try:
-                return data_model.model_validate_json(content)  # type: ignore[union-attr]
+                return data_model.model_validate_json(content)
             except ValidationError:
                 raw = fill_missing_fields(json.loads(content), data_model)
-                return data_model.model_validate(raw)  # type: ignore[union-attr]
+                return data_model.model_validate(raw)
 
         self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
-        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        total_entries = first_pass.total_entries
         if total_entries < limit:
             return first_pass
         found_key = None
