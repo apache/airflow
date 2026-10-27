@@ -73,9 +73,7 @@ To publish an update for a specific asset partition, yield ``AssetTriggerEvent``
 
     yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
 
-Airflow uses this key for partition-aware scheduling. Putting ``partition_key`` inside the payload only adds
-metadata and does not assign a native partition. Ordinary ``TriggerEvent`` instances continue to publish
-unpartitioned events.
+Airflow uses this key for partition-aware scheduling.
 
 See :ref:`asset-partitions` for configuring downstream consumers.
 
