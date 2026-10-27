@@ -2348,9 +2348,11 @@ class SelectiveChecks:
         the PR's own workflow files and breeze, so a fork can request a RunsOn label directly -
         that restriction has to be enforced by the RunsOn stack and the repository's Actions
         settings, not here. Routed there: pushes, schedules and dispatches, and PRs from
-        apache/airflow branches except bots' (e.g. Dependabot's). A fork PR goes there while it
-        carries the ``use self-hosted runners`` label, a committer has approved its head commit and
-        no committer's request for changes is outstanding.
+        apache/airflow branches except bots' (e.g. Dependabot's and the ``ci-upgrade-*`` PRs),
+        except the backport PRs that ``cherry_picker`` opens as ``github-actions[bot]`` from
+        ``backport-*`` branches; a committer's merge or a dispatch by a user with write access started
+        those. A fork PR goes there while it carries the ``use self-hosted runners`` label, a
+        committer has approved its head commit and no committer's request for changes is outstanding.
         The repository variable ``USE_PUBLIC_RUNNERS=true`` moves every run back to public runners.
         """
         if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
@@ -2370,9 +2372,12 @@ class SelectiveChecks:
         pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
         # The PR author, not github.actor: a committer rebasing a Dependabot PR becomes the actor.
         # The branch too: anyone can open their own PR from a Dependabot branch.
-        if (pull_request.get("user") or {}).get("type") == "Bot" or (
-            pull_request.get("head", {}).get("ref", "").startswith("dependabot/")
-        ):
+        user = pull_request.get("user") or {}
+        head_ref = pull_request.get("head", {}).get("ref", "")
+        is_automatic_backport = user.get("login") == "github-actions[bot]" and head_ref.startswith(
+            "backport-"
+        )
+        if not is_automatic_backport and (user.get("type") == "Bot" or head_ref.startswith("dependabot/")):
             return False
         # A PR from a deleted fork has no head repo.
         head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
