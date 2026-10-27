@@ -55,7 +55,6 @@ def generate_dag_with_latest_run_query(
     if dag_ids is not None:
         query = query.where(DagModel.dag_id.in_(dag_ids or set()))
 
-    # Also filter the subquery for finding latest runs
     latest_run = aliased(DagRun, name="latest_run")
     latest_run_id = (
         select(latest_run.id)
@@ -64,6 +63,8 @@ def generate_dag_with_latest_run_query(
         .limit(1)
         .scalar_subquery()
     )
+
+    # Also filter the subquery for finding latest runs
     max_run_id_query_stmt = select(DagModel.dag_id, latest_run_id.label("max_dag_run_id"))
     if dag_ids is not None:
         max_run_id_query_stmt = max_run_id_query_stmt.where(DagModel.dag_id.in_(dag_ids or set()))
