@@ -1,0 +1,240 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_trigger_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_ok_child__notrigger"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_ok_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the run ended the other way",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_ok_child__notrigger"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_ok_child__notrigger.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo ok"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_ok_child__notrigger.run"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_fail_child__notrigger"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_fail_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the run ended the other way",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_fail_child__notrigger"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_fail_child__notrigger.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 1;"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_fail_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_ok_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_ok_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_ok_child__notrigger"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_ok_child__notrigger.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo ok"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_ok_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_fail_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_fail_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the Dag run events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_fail_child__notrigger"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_fail_child__notrigger.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 1;"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_off_fail_child__notrigger.run"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the run ended the other way",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_ok_child__notrigger.run"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the run ended the other way",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger.run"
+        }
+    },
+    {
+        "$absent": "the child rule silences the task events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger.run"
+        }
+    }
+]
