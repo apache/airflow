@@ -173,11 +173,11 @@ class SerializedDAG:
         if (encoded := self._encoded_timetable) is not None:
             try:
                 self._timetable = decode_timetable(encoded)
+                self._encoded_timetable = None
             except TimetableNotRegistered:
                 raise
             except Exception as err:
                 raise DeserializationError(self.dag_id) from err
-            self._encoded_timetable = None
         return self._timetable
 
     @timetable.setter
