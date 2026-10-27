@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+.. note::
+
+    In multi-team mode, a team's ``AwsEksExecutor`` now reads ``[aws_eks_executor]`` from the team's
+    section and no longer falls back to the global one. Set ``cluster_name`` for each team, and
+    ``region_name`` and ``conn_id`` too if the team needs them.
+
 9.39.0
 ......
 

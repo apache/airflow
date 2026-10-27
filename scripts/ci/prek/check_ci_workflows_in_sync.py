@@ -229,7 +229,6 @@ AMD_ONLY_GATE_BLOCK = """  gate:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
-          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         # A base branch with neither gate file predates the gate (the pull request adding it,
         # or a release branch cut before it) and keeps running project CI. With only one of
         # them present, the missing file fails the job instead of opening the gate.
