@@ -289,6 +289,13 @@ class TestS3RemoteLogIO:
         assert rec.levelno == logging.ERROR
         assert rec.exc_info is not None
 
+    @staticmethod
+    def _expected_messages(*locations: str) -> list[str]:
+        """Source messages as ``stream()`` and ``read()`` format them, which differs on Airflow 2."""
+        if AIRFLOW_V_3_0_PLUS:
+            return list(locations)
+        return ["Found logs in s3:", *(f"  * {location}" for location in locations)]
+
     def test_stream_returns_no_streams_when_there_are_no_logs(self):
         messages, log_streams = self.subject.stream("1.log", self.ti)
 
@@ -306,7 +313,7 @@ class TestS3RemoteLogIO:
 
         messages, log_streams = self.subject.stream("1.log", self.ti)
 
-        assert messages == [self.remote_log_location]
+        assert messages == self._expected_messages(self.remote_log_location)
         assert list(log_streams[0]) == ["Log line", "Line 2"]
 
     def test_stream_sorts_the_keys_of_the_task_instance(self):
@@ -315,7 +322,9 @@ class TestS3RemoteLogIO:
 
         messages, log_streams = self.subject.stream("1.log", self.ti)
 
-        assert messages == [self.remote_log_location, self.remote_log_location + ".trigger.log"]
+        assert messages == self._expected_messages(
+            self.remote_log_location, self.remote_log_location + ".trigger.log"
+        )
         assert [list(log_stream) for log_stream in log_streams] == [["Line 1"], ["Line 3"]]
 
     def test_stream_does_not_fetch_the_object_until_it_is_consumed(self):
@@ -335,7 +344,7 @@ class TestS3RemoteLogIO:
             messages, logs = self.subject.read("1.log", self.ti)
 
         s3_read.assert_not_called()
-        assert messages == [self.remote_log_location]
+        assert messages == self._expected_messages(self.remote_log_location)
         assert logs == ["Log line\nLine 2\n"]
 
     def test_stream_keeps_multibyte_characters_intact_across_chunks(self):
