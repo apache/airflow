@@ -1434,12 +1434,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.job_template = job_template
         return job_template
 
-    def _generate_job_template(self) -> str:
-        if self.job_template:
-            job = self.job_template.build()
-            return job["job"]
-        raise AirflowException("Create a job template before")
-
     def execute(self, context: Context):
         if self.job_template:
             self.job = self.job_template.build()
