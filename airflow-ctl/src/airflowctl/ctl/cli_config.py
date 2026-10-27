@@ -694,8 +694,6 @@ class CommandFactory:
                         )
 
             args.append(ARG_OUTPUT)
-            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
-            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
             if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
                 args.append(ARG_AUTH_ENVIRONMENT)
 
