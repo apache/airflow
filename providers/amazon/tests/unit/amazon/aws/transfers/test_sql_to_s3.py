@@ -500,6 +500,122 @@ class TestSqlToS3Operator:
             )
         )
 
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_with_page_size_writes_one_file_per_page(self, mock_s3_hook):
+        """Paged like GenericTransfer: one query per page, one file per page, stop on a short page."""
+        pages = [pd.DataFrame({"a": [1, 2]}), pd.DataFrame({"a": [3, 4]}), pd.DataFrame({"a": [5]})]
+        mock_dbapi_hook = mock.Mock()
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.side_effect = pages
+        uploaded: dict[str, bytes] = {}
+        # Read the buffer at upload time: the operator's text wrapper closes it once the upload is done.
+        mock_s3_hook.return_value.load_file_obj.side_effect = lambda file_obj, key, **kwargs: uploaded.update(
+            {key: file_obj.getvalue()}
+        )
+
+        op = SqlToS3Operator(
+            query="SELECT * FROM t",
+            s3_bucket="bucket",
+            s3_key="key.csv",
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            replace=True,
+            df_kwargs={"index": False},
+            page_size=2,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        assert [call.kwargs["sql"] for call in get_df_mock.call_args_list] == [
+            "SELECT * FROM t LIMIT 2 OFFSET 0",
+            "SELECT * FROM t LIMIT 2 OFFSET 2",
+            "SELECT * FROM t LIMIT 2 OFFSET 4",
+        ]
+        uploads = mock_s3_hook.return_value.load_file_obj.call_args_list
+        assert list(uploaded) == ["key_0.csv", "key_1.csv", "key_2.csv"]
+        assert all(call.kwargs["replace"] is True for call in uploads)
+        assert uploaded["key_2.csv"] == b"a\n5\n"
+
+    @pytest.mark.parametrize(
+        ("pages", "expected_keys"),
+        [
+            pytest.param(
+                [pd.DataFrame({"a": [1, 2]}), pd.DataFrame({"a": [3, 4]}), pd.DataFrame({"a": []})],
+                ["key_0.csv", "key_1.csv"],
+                id="exact-multiple-ends-with-an-empty-page",
+            ),
+            pytest.param(
+                [pd.DataFrame({"a": []})], ["key_0.csv"], id="empty-result-still-writes-the-first-page"
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_with_page_size_empty_pages(self, mock_s3_hook, pages, expected_keys):
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.side_effect = pages
+
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            page_size=2,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        assert mock_dbapi_hook.return_value.get_df.call_count == len(pages)
+        uploads = mock_s3_hook.return_value.load_file_obj.call_args_list
+        assert [call.kwargs["key"] for call in uploads] == expected_keys
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_with_page_size_uses_the_pagination_clause(self, mock_s3_hook):
+        """The clause is formatted with the query, the page size and the offset, as GenericTransfer does."""
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.side_effect = [pd.DataFrame({"a": [1]})]
+
+        op = SqlToS3Operator(
+            query="SELECT * FROM t",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            page_size="3",
+            paginated_sql_statement_clause="{0} OFFSET {2} ROWS FETCH NEXT {1} ROWS ONLY",
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        mock_dbapi_hook.return_value.get_df.assert_called_once_with(
+            sql="SELECT * FROM t OFFSET 0 ROWS FETCH NEXT 3 ROWS ONLY", parameters=None, df_type="pandas"
+        )
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"max_rows_per_file": 10}, id="max_rows_per_file"),
+            pytest.param({"groupby_kwargs": {"by": "a"}}, id="groupby_kwargs"),
+        ],
+    )
+    def test_page_size_excludes_the_other_ways_to_split_the_output(self, kwargs):
+        with pytest.raises(AirflowException, match="page_size can not be combined"):
+            SqlToS3Operator(
+                query="query",
+                s3_bucket="bucket",
+                s3_key="key",
+                sql_conn_id="mysql_conn_id",
+                task_id="task_id",
+                page_size=10,
+                **kwargs,
+            )
+
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id="postgres_test", conn_type="postgres")
