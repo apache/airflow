@@ -112,6 +112,7 @@ class TestDataFusionToolsetArgsValidation:
         ("tool_name", "valid_args"),
         [
             ("get_schema", {"table_name": "sales_data"}),
+            ("get_schema", {"table_name": "sales_data", "name_contains": "am"}),
             ("query", {"sql": "SELECT 1"}),
         ],
     )
@@ -169,12 +170,58 @@ class TestDataFusionToolsetGetSchema:
                 tool=MagicMock(spec=ToolsetTool),
             )
         )
-        columns = json.loads(result)
-        assert columns == [
-            {"name": "id", "type": "Int64"},
+        data = json.loads(result)
+        assert data == {
+            "columns": [
+                {"name": "id", "type": "Int64"},
+                {"name": "amount", "type": "Float64"},
+                {"name": "name", "type": "Utf8"},
+            ],
+            "column_count": 3,
+        }
+
+    def test_name_contains_filters_the_columns(self):
+        """``name_contains`` threads from the tool call through to the bounded result."""
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine(
+            schema_fields=[("id", "Int64"), ("amount", "Float64"), ("item_name", "Utf8")]
+        )
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data", "name_contains": "am"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        data = json.loads(result)
+        assert data["columns"] == [
             {"name": "amount", "type": "Float64"},
-            {"name": "name", "type": "Utf8"},
+            {"name": "item_name", "type": "Utf8"},
         ]
+        assert data["name_contains"] == "am"
+        assert data["total_columns"] == 3
+
+    @patch("airflow.providers.common.ai.toolsets.datafusion.build_schema_result", return_value="{}")
+    def test_get_schema_forwards_the_toolsets_bounds(self, mock_build):
+        """The toolset's own max_columns/max_result_bytes reach build_schema_result, not defaults."""
+        ts = DataFusionToolset([_make_mock_datasource_config()], max_columns=7, max_result_bytes=123)
+        ts._engine = _make_mock_engine()
+
+        asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data", "name_contains": "id"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        kwargs = mock_build.call_args.kwargs
+        assert kwargs["max_columns"] == 7
+        assert kwargs["max_result_bytes"] == 123
+        assert kwargs["name_contains"] == "id"
 
 
 class TestDataFusionToolsetQuery:

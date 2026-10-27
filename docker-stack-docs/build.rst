@@ -215,7 +215,7 @@ In the simplest case building your image consists of those steps:
 
 1) Create your own ``Dockerfile`` (name it ``Dockerfile``) where you add:
 
-* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.10``
+* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.11``
 
 * additional steps that should be executed in your image (typically in the form of ``RUN <command>``)
 
@@ -320,9 +320,9 @@ Naming conventions for the images:
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 | Default        | 3.13                     | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
-| Latest         | 3.10,3.11,3.12,3.13,3.14 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
+| Latest         | 3.11,3.12,3.13,3.14      | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
-| Specific       | 3.10,3.11,3.12,3.13,3.14 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
+| Specific       | 3.11,3.12,3.13,3.14      | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
@@ -736,7 +736,7 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.10`` with latest PyPI-released Airflow,
+The following example builds the production image for the default Python version with latest PyPI-released Airflow,
 with default set of Airflow extras and dependencies. The latest PyPI-released Airflow constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
@@ -744,7 +744,7 @@ with default set of Airflow extras and dependencies. The latest PyPI-released Ai
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.10`` with default extras from ``2.3.0`` Airflow
+The following example builds the production image for the default Python version with default extras from ``2.3.0`` Airflow
 package. The ``2.3.0`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
@@ -752,7 +752,7 @@ package. The ``2.3.0`` constraints are used automatically.
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.10`` with additional Airflow extras
+The following example builds the production image for the default Python version with additional Airflow extras
 (``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
@@ -779,7 +779,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example builds the production image in version ``3.10`` with additional Airflow extras from
+The following example builds the production image for the default Python version with additional Airflow extras from
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
@@ -884,26 +884,136 @@ vetted by the security teams. It is also the most complex way of building the im
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
 
+.. _image-hardened-base:
+
+Properties of the hardened base image
+.....................................
+
+Since Airflow 3.4.0 the images are built on the Debian 13 "trixie" ``-dev`` variant of the
+`Docker Hardened Image <https://dhi.io>`_ for Python (``dhi.io/python``, mirrored to
+``ghcr.io/apache/airflow/base/python``) instead of compiling Python on ``debian:bookworm-slim``. Docker
+publishes the definitions these images are built from in the
+`docker-hardened-images/catalog <https://github.com/docker-hardened-images/catalog>`_ repository
+(``package/python`` for the Python build, ``image/python`` for the image). The differences from the
+previous images that can matter when you extend or run the image are:
+
+* **Python is patched.** Docker applies its own patches on top of the upstream CPython release
+  (``package/python/patch`` in the catalog). One of them makes ``pkgutil.get_data()`` reject resource
+  paths that are absolute or contain ``..`` (CVE-2026-3479) - upstream CPython only documents that
+  restriction and does not enforce it. Libraries that load bundled data through ``../`` paths fail with
+  ``ValueError: resource must be a relative path with no parent directory components``; for example
+  ``moto`` before 5.2.2.
+* **Threads get a 1 MiB stack.** The hardened Python is compiled with
+  ``-DTHREAD_STACK_SIZE=0x100000``, while the previous images used the ``glibc`` default (the 8 MiB
+  ``ulimit -s``). On Python 3.12 and 3.13 the interpreter's C recursion guard is a fixed depth that
+  assumes the larger stack, so deeply nested data - for example a JSON body parsed in a web server worker
+  thread - can crash the process instead of raising ``RecursionError``. The image restores the 8 MiB
+  default for threads started by Python with a ``airflow-thread-stack-size.pth`` file in the base
+  Python's ``site-packages``; delete that file if you need the smaller stacks.
+* **Python is built without profile-guided optimization.** The previous images were built with
+  ``--enable-optimizations`` and ``--with-lto``; the hardened Python uses only ``--with-lto``, so CPU-bound Python code
+  can run measurably slower.
+* **Python lives under** ``/usr``. The Debian 13 hardened images install Python as Debian packages
+  (``python-3.13``, ``libpython-3.13``, ...), so it is ``/usr/bin/python3`` with the standard library in
+  ``/usr/lib/python3.13`` (the Debian 12 ones used ``/opt/python``). ``/usr/python`` and the
+  ``/usr/local/bin`` links point to it, so the paths used before keep working. The standard library ships without ``.pyc`` files, so the build
+  compiles it into the image.
+* **The OS is minimal.** The base ships no compiler, ``curl``, ``wget``, ``git``, ``gzip``, ``which`` or
+  ``ldconfig``, no ``dash`` (``/bin/sh`` is ``bash``) and a stripped ``/etc`` - for example without
+  ``/etc/shells`` or the PAM ``common-*`` files. The build restores what Airflow and the Debian packages
+  it installs need; a custom image that relied on something else being present has to install it.
+* **Packages also come from Docker's Debian repository.** Next to Debian's own repositories, the Debian 13
+  images configure ``http://dhi.io/deb/debian/main`` (``/etc/apt/sources.list.d/dhi.sources``, signed with
+  ``/usr/share/keyrings/dhi-deb-main.gpg``), which serves Docker's rebuilds of Debian packages. Their
+  versions carry a ``+dhi<N>`` suffix, so apt prefers them over Debian's builds - in the image and in
+  images extending it. The repository can be used anonymously: unlike pulling the ``dhi.io`` images,
+  installing packages from it needs no ``docker login`` or any other credentials.
+* **Installing apt packages can pull in a second Python.** The Debian 13 images register their own Python
+  with ``dpkg`` (``python-3.12``, ``libpython-3.12``, ...), and Docker's package repository serves the
+  other Python versions as packages too. A Debian package that depends on ``python3`` - directly or, as
+  ``libenchant-2-dev`` does, through its build tools - therefore makes apt install another hardened Python
+  version (for example ``python-3.13`` into a Python 3.12 image), and on the Debian 12 images it pulls in
+  Debian's own ``python3``. The second interpreter does not replace the image's Python, but it can take
+  over ``/usr/bin/python3`` and its headers, and C extensions built afterwards then compile against the
+  wrong Python. The image build fails when this happens, but a custom image that installs extra apt
+  packages is not checked. Check what ``apt-get install --simulate`` would install before adding packages
+  that might depend on ``python3``, and prefer the runtime library packages over their ``-dev`` variants.
+* **The image's Python packages are held.** On the Debian 13 images, Debian's own ``python3`` packages
+  conflict with the image's ``python-3.X`` packages, so a package that apt can only satisfy with them -
+  for example NodeSource's ``nodejs`` - would make apt remove the image's Python without asking. The
+  image marks its Python packages with ``apt-mark hold``, so apt reports the ``python3`` conflict and the
+  installation fails instead. Install that software some other way - for Node.js, copy the ``node`` binary
+  from the official ``node`` image - rather than releasing the hold.
+* **C extensions are compiled more strictly.** The Debian 13 images come with GCC 14, which turns
+  incompatible pointer types, integer conversions and implicit function declarations into errors, and the
+  hardened Python passes ``-Werror=implicit-function-declaration`` on to every C extension it builds. Old
+  source distributions that compiled with warnings before - for example ``xmlsec`` 1.3.14 or ``ibm-db``
+  3.2.0 - fail to build. Prefer versions with wheels or newer releases; if you have to build such a
+  package, setting ``CFLAGS="-Wno-error=incompatible-pointer-types -Wno-error=int-conversion
+  -Wno-error=implicit-function-declaration"`` for the installation turns the errors back into warnings.
+* **apt does not refresh the shared library cache.** The base images ship ``libc-bin`` without its
+  ``dpkg`` trigger, so installing a shared library does not run ``ldconfig``, and anything that looks
+  libraries up through the cache - such as ``ctypes.util.find_library()`` - does not find it. The image
+  adds ``/etc/apt/apt.conf.d/99airflow-ldconfig``, which runs ``ldconfig`` after every ``dpkg`` run,
+  including those of images extending it.
+* **Some OS files are modified.** ``/etc/os-release`` identifies the system as "Docker Hardened Images
+  (Debian)", and ``/etc/debian_version`` differs from the Debian package's copy, so an ``apt-get upgrade``
+  that touches ``base-files`` would stop at ``dpkg``'s interactive configuration-file prompt. The image
+  ships ``/etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles`` (``force-confdef`` and ``force-confold``), so
+  ``dpkg`` keeps the image's copy of a configuration file without asking - also in images that extend
+  it. A package upgrade therefore does not replace a configuration file that differs from the
+  package's version.
+* **The tags are rebuilt in place.** Docker republishes the same tags as CVEs are fixed, and Airflow
+  refreshes its mirror weekly, so rebuilding an image from the same ``BASE_IMAGE`` tag can pick up a newer
+  base. The weekly mirror also copies the newest Python patch release Docker publishes, and Airflow's
+  regular dependency upgrade moves the pinned patch level to it, so the images follow Docker's releases
+  rather than python.org's.
+
+.. _image-legacy-flavor:
+
+Debian trixie and the legacy image flavor
+.........................................
+
+Together with the hardened base, the default images moved from Debian 12 "bookworm" to Debian 13
+"trixie". Besides the newer system libraries, this shows up in two places when you extend the image:
+
+* Several library packages were renamed in trixie's 64-bit ``time_t`` transition - for example
+  ``libssl3`` is ``libssl3t64`` and ``libldap-2.5-0`` is ``libldap2`` - so ``RUNTIME_APT_DEPS`` or
+  ``ADDITIONAL_RUNTIME_APT_DEPS`` that name the bookworm packages have to be updated.
+* The MySQL-compatible client comes from MariaDB 11.8, the first MariaDB LTS published for trixie. The
+  ``mysql`` named commands are provided by ``mariadb-client-compat``.
+
+For the 3.4.x line Airflow also publishes ``legacy`` images, built as before 3.4.0: Python downloaded
+from python.org, verified with its sigstore signature and compiled from sources on ``debian:bookworm-slim``.
+They are deprecated and will be removed in Airflow 3.5.0. You can build one with the
+``AIRFLOW_IMAGE_FLAVOR`` build argument:
+
+.. code-block:: bash
+
+    docker build . \
+      --build-arg AIRFLOW_IMAGE_FLAVOR="legacy" \
+      --build-arg BASE_IMAGE="debian:bookworm-slim" \
+      --tag my-image:my-tag
+
+The flavor an image was built with is recorded in its ``org.apache.airflow.image.flavor`` label.
+
 .. _image-build-fips:
 
 Build images in FIPS-compliant environments
 ...........................................
 
-If you are building images in a FIPS-compliant environment, you might encounter issues with the default
-build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
-building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
-during compilation, and MD5 is blocked in FIPS mode.
-
-In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
-and set it to ``false``.
+Airflow images are based on the `Docker Hardened Images <https://dhi.io>`_ for Python, and Docker
+publishes FIPS-validated variants of those images. Those variants are only available with a paid
+Docker subscription, so they cannot be the default, but you can point the build at one with the
+``BASE_IMAGE`` build argument.
 
 .. code-block:: bash
 
-    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+    docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian13-fips-dev" --tag my-image:my-tag
 
 .. note::
 
-   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   While building on a FIPS-validated base image is necessary for FIPS compliance, it is not sufficient
    to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
    (for example usage of non-FIPS compliant algorithms in the software installed in the image).
    You should verify the compliance of the image yourself.

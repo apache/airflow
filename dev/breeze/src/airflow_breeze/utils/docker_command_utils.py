@@ -24,6 +24,7 @@ import os
 import platform
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import time
@@ -41,6 +42,8 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
     create_pycache_volume_if_needed,
+    get_host_id,
+    get_isolated_worktree_path,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
@@ -64,6 +67,7 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
+from airflow_breeze.utils import worktree_watcher
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.environment_check import check_uv_version
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
@@ -645,6 +649,49 @@ def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: 
         if projects:
             action = "Would clean up" if get_dry_run() else "Cleaned up"
             console_print(f"[info]{action} projects from deleted worktrees: {projects}[/]")
+        start_worktree_watcher_if_needed()
+
+
+WORKTREE_WATCHER_LOCK_FILE = "worktree-watcher.lock"
+
+
+def start_worktree_watcher_if_needed() -> None:
+    """
+    Start the detached watcher that removes this worktree's Docker resources once it is deleted.
+
+    It runs on the host rather than in CI, where checkouts are not removed while their containers run.
+    """
+    worktree = get_isolated_worktree_path()
+    if worktree is None or get_dry_run() or os.environ.get("CI") == "true":
+        return
+    lock_file = worktree / ".build" / WORKTREE_WATCHER_LOCK_FILE
+    try:
+        if worktree_watcher.is_watcher_running(lock_file):
+            return
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-I",
+                worktree_watcher.__file__,
+                "--worktree",
+                str(worktree),
+                "--host",
+                get_host_id(),
+                "--lock-file",
+                str(lock_file),
+            ],
+            # Keep the watcher out of the worktree it watches, and detached from this terminal session.
+            cwd="/",
+            stdin=DEVNULL,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as error:
+        console_print(
+            f"[warning]Cannot start the worktree watcher: {error}. "
+            "Resources of this worktree will be removed by the next Breeze command after it is deleted.[/]"
+        )
 
 
 def get_docker_syntax_version() -> str:
@@ -817,7 +864,7 @@ def remove_stale_worktree_containers() -> None:
             "--filter",
             "label=org.apache.airflow.breeze=true",
             "--format",
-            '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}',
+            '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}\t{{.Label "org.apache.airflow.breeze.host"}}',
         ],
         capture_output=True,
         text=True,
@@ -827,10 +874,20 @@ def remove_stale_worktree_containers() -> None:
         console_print("[error]Unable to discover containers belonging to deleted worktrees.[/]")
         return
     for line in result.stdout.splitlines():
-        container_id, _, worktree = line.partition("\t")
-        if _worktree_is_missing(worktree):
+        container_id, worktree, host = (line.split("\t") + ["", ""])[:3]
+        # `docker ps` prints "<no value>" for containers created before the host label existed.
+        if _belongs_to_deleted_worktree(worktree, "" if host == "<no value>" else host):
             console_print(f"Removing container {container_id} for deleted worktree {worktree}")
             run_command(["docker", "rm", "--force", "--volumes", container_id], check=False)
+
+
+def _belongs_to_deleted_worktree(worktree: str, host: str) -> bool:
+    # Another host's paths cannot be checked here. Resources created before the host label existed
+    # have no host and keep the local-path check.
+    # Resources created when the host id could not be stored carry the host name instead.
+    if host and host not in (get_host_id(), socket.gethostname()):
+        return False
+    return _worktree_is_missing(worktree)
 
 
 def _worktree_is_missing(worktree: str) -> bool:
@@ -838,9 +895,7 @@ def _worktree_is_missing(worktree: str) -> bool:
     if not path.is_absolute():
         return False
     try:
-        path.stat()
-    except FileNotFoundError:
-        return True
+        return worktree_watcher.is_worktree_missing(path)
     except OSError as error:
         console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping its resources.[/]")
     return False
@@ -1055,7 +1110,10 @@ def bring_compose_projects_down(
             else:
                 worktree = labels.get("org.apache.airflow.breeze.worktree", "")
                 selected = breeze_owned and (
-                    (not stale_only and worktree in ("", current_worktree)) or _worktree_is_missing(worktree)
+                    (not stale_only and worktree in ("", current_worktree))
+                    or _belongs_to_deleted_worktree(
+                        worktree, labels.get("org.apache.airflow.breeze.host", "")
+                    )
                 )
                 if not stale_only and legacy:
                     selected = True
@@ -1064,18 +1122,28 @@ def bring_compose_projects_down(
                 projects.add(project)
 
     if targets["container"]:
-        result = run_command(
-            ["docker", "container", "stop", *targets["container"]],
-            check=not stale_only,
-            capture_output=stale_only,
-        )
-        failed |= result.returncode != 0
+        # A `breeze shell` or `breeze start-airflow` container can exit later than `docker container stop`
+        # waits for, and it removes itself once it exits. So the exit is awaited separately, and only the
+        # containers that are still there afterwards are removed.
+        console_print("[info]Stopping Breeze containers, this can take a while.[/]")
+        for action in ("stop", "wait"):
+            run_command(
+                ["docker", "container", action, *targets["container"]], check=False, capture_output=True
+            )
+        remaining, discovery_failed = _get_compose_resources("container", stale_only=stale_only)
+        failed |= discovery_failed
+        remaining_ids = {identifier for identifier, _ in remaining}
+        targets["container"] = [
+            identifier for identifier in targets["container"] if identifier in remaining_ids
+        ]
     for kind, identifiers in targets.items():
         if not identifiers:
             continue
         cmd = ["docker", kind, "rm"]
-        if kind == "container" and not preserve_volumes:
-            cmd.append("--volumes")
+        if kind == "container":
+            cmd.append("--force")
+            if not preserve_volumes:
+                cmd.append("--volumes")
         result = run_command(
             [*cmd, *identifiers],
             check=not stale_only,
@@ -1088,6 +1156,23 @@ def bring_compose_projects_down(
         )
         return []
     return sorted(projects)
+
+
+def find_other_worktree_projects(current_worktree: str) -> dict[str, list[str]]:
+    """Map other existing worktrees to the Compose projects that still have containers or volumes."""
+    found: dict[str, set[str]] = {}
+    for kind in ("container", "volume"):
+        resources, _ = _get_compose_resources(kind, stale_only=True)
+        for _, labels in resources:
+            worktree = labels.get("org.apache.airflow.breeze.worktree", "")
+            if (
+                labels.get("org.apache.airflow.breeze") != "true"
+                or worktree in ("", current_worktree)
+                or _belongs_to_deleted_worktree(worktree, labels.get("org.apache.airflow.breeze.host", ""))
+            ):
+                continue
+            found.setdefault(worktree, set()).add(labels["com.docker.compose.project"])
+    return {worktree: sorted(projects) for worktree, projects in sorted(found.items())}
 
 
 def execute_command_in_shell(

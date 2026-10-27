@@ -21,7 +21,7 @@ from __future__ import annotations
 import lzma
 import os
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -44,7 +44,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
 if TYPE_CHECKING:
@@ -113,11 +113,6 @@ class ObjectStorageToolset(AirflowToolset):
     """
     Give an agent read-only access to the files under one object-storage path.
 
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
-
     Exposes three tools, ``list_files``, ``get_file_info`` and ``read_file``, rooted at
     ``path``, which is any location Airflow's
     :class:`~airflow.sdk.ObjectStoragePath` can open: ``s3://``, ``gs://``, ``abfs://``,
@@ -147,6 +142,10 @@ class ObjectStorageToolset(AirflowToolset):
         ``reports_read_file``. Set this when one agent has another toolset with the same tool
         names, such as a second ``ObjectStorageToolset`` or a ``SandboxToolset``, whose
         ``read_file`` would collide, since duplicate tool names are rejected.
+    :param max_retries: How many times the model may correct a call with invalid arguments
+        before the run fails. A failed read goes back to the model without using it.
+        ``None`` (the default) uses the agent's tool retry budget, its ``retries``, as
+        pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -162,7 +161,9 @@ class ObjectStorageToolset(AirflowToolset):
         max_read_bytes: int = 10 * 1024 * 1024,
         max_output_bytes: int = 50 * 1024,
         tool_prefix: str = "",
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
         for name, value in (
             ("max_files", max_files),
             ("max_read_bytes", max_read_bytes),
@@ -188,6 +189,7 @@ class ObjectStorageToolset(AirflowToolset):
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
             name = self._tool_name(base)
@@ -199,15 +201,16 @@ class ObjectStorageToolset(AirflowToolset):
                     parameters_json_schema=schema,
                     **return_schema_kwargs({"type": "string"}),
                 ),
-                max_retries=1,
+                max_retries=max_retries,
                 args_validator=build_args_validator(schema),
             )
         return tools
 
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> str:
@@ -371,7 +374,7 @@ def _as_iso(modified: Any) -> str | None:
     if isinstance(modified, datetime):
         return modified.isoformat()
     if isinstance(modified, (int, float)) and modified > 0:
-        return datetime.fromtimestamp(modified, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(modified, tz=UTC).isoformat()
     return None
 
 

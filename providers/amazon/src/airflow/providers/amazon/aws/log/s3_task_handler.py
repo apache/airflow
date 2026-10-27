@@ -211,7 +211,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                     return False
         return True
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
         if not log_streams:
             return messages, None
@@ -220,7 +220,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         # The newline is added back per line so that the string is byte-identical to the object.
         return messages, ["".join(f"{line}\n" for line in log_stream) for log_stream in log_streams]
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         messages: list[str] = []
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, relative_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)

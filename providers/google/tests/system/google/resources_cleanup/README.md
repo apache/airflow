@@ -111,6 +111,14 @@ Example configuration:
 -   To clean up only resources that are old enough:
     `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --asset-type dataproc --min-age-days 3`
 
+-   To clean up Cloud Data Fusion DNS peerings and instances:
+    `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --asset-type datafusion`
+
+    Cloud Data Fusion cleanup processes DNS peerings before their parent
+    instances. Instance deletion does not use the API's `force` option, so an
+    instance with remaining nested resources is left in place instead of
+    bypassing resource protection or minimum-age filtering.
+
 -   To skip a service group during deletion, for example Composer:
     `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --skip-asset-type composer`
 

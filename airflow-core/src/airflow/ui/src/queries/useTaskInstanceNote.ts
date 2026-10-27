@@ -42,7 +42,7 @@ export const useTaskInstanceNote = (taskInstance: TaskInstanceResponse) => {
           dagId: taskInstance.dag_id,
           dagRunId: taskInstance.dag_run_id,
           mapIndex: taskInstance.map_index,
-          requestBody: { note },
+          requestBody: { note, region_id: taskInstance.region_id, region_index: taskInstance.region_index },
           taskId: taskInstance.task_id,
         },
         options,

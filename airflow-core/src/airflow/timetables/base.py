@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
@@ -30,6 +28,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
+    from airflow.models.asset import AssetEvent
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.partition_mappers import PartitionMapper
@@ -230,11 +229,42 @@ class Timetable(Protocol):
     asset_condition: SerializedAssetBase = _NullAsset()
     """The asset condition that triggers a DAG using this timetable."""
 
+    batch_asset_events: bool = False
+    """Whether queued asset events are consumed together in one Dag run."""
+
+    def group_asset_events(
+        self, events: list[AssetEvent], triggered_date: DateTime
+    ) -> Iterable[tuple[DateTime, list[AssetEvent]]]:
+        """Yield a run time and its consumed events for each asset-triggered run."""
+        if not events:
+            return
+        if self.batch_asset_events:
+            yield triggered_date, events
+        else:
+            for event in events:
+                yield timezone.coerce_datetime(event.timestamp), [event]
+
     partitioned: bool = False
     """Whether this timetable considers asset partitions.
 
     This is *True* for timetables that switch scheduling to use partitions
     instead of the traditional logic based on logical dates and data intervals.
+    """
+
+    asset_triggered: bool = False
+    """Whether this timetable creates runs triggered by asset events.
+
+    This is *True* for timetables that materialize an asset-triggered DagRun as
+    soon as their asset condition is satisfied, independently of a time
+    schedule.
+    """
+
+    asset_gated: bool = False
+    """Whether this timetable's scheduled runs are gated on an asset condition.
+
+    This is *True* for timetables whose time-based runs are only created once
+    their asset condition is satisfied. Manual and backfill runs are unaffected.
+    A timetable that enables this must define a non-null ``asset_condition``.
     """
 
     partitioned_at_runtime: bool = False

@@ -532,6 +532,23 @@ class TestKiotaRequestAdapterHook:
             await hook.assert_allowed_host("https://other.example/v1.0/users")
 
     @pytest.mark.asyncio
+    async def test_get_async_conn_reads_the_extra_with_get_async_extra_dejson(self):
+        """The extra comes from the async compat helper, which masks its secrets off the sync Task SDK path."""
+        with (
+            patch_hook(),
+            patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.get_async_extra_dejson",
+                new_callable=AsyncMock,
+                side_effect=lambda connection: json.loads(connection.extra),
+            ) as mock_get_async_extra_dejson,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_async_extra")
+            await hook.get_async_conn()
+
+        mock_get_async_extra_dejson.assert_awaited_once()
+        assert mock_get_async_extra_dejson.await_args.args[0].conn_id == "msgraph_async_extra"
+
+    @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
         with patch_hook(
@@ -624,8 +641,8 @@ class TestKiotaRequestAdapterHook:
             .issuer_name(name)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1))
             .sign(private_key, hashes.SHA256())
         )
         pem = private_key.private_bytes(
@@ -809,6 +826,35 @@ class TestKiotaRequestAdapterHook:
             await hook.close()
 
             assert hook.conn_id not in hook.cached_request_adapters
+
+    def test_run_sync_returns_result_and_closes_cached_adapter(self):
+        """run_sync closes the adapter before asyncio.run tears down the loop it is bound to."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            async def request():
+                return "response"
+
+            assert hook.run_sync(request()) == "response"
+            adapter._http_client.aclose.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_run_sync_refuses_a_running_event_loop(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request = AsyncMock(return_value="response")
+            coroutine = request()
+
+            with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
+                hook.run_sync(coroutine)
+
+            assert coroutine.cr_frame is None
 
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
         """An unset allowed_hosts/authority must yield []."""

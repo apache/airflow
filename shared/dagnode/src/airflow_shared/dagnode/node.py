@@ -17,19 +17,14 @@
 
 from __future__ import annotations
 
+from collections import deque
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import structlog
 
 if TYPE_CHECKING:
-    import sys
-    from collections.abc import Collection, Iterable
-
-    # Replicate `airflow.typing_compat.Self` to avoid illegal imports
-    if sys.version_info >= (3, 11):
-        from typing import Self
-    else:
-        from typing_extensions import Self
+    from collections.abc import Collection, Iterable, Iterator
+    from typing import Self
 
     from ..logging.types import Logger
 
@@ -65,6 +60,7 @@ class TaskGroupProtocol(Protocol):
 Dag = TypeVar("Dag", bound=DagProtocol)
 Task = TypeVar("Task", bound=TaskProtocol)
 TaskGroup = TypeVar("TaskGroup", bound=TaskGroupProtocol)
+Node = TypeVar("Node")
 
 
 class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
@@ -299,5 +295,114 @@ class TaskGroupMixin:
             (gid for gid in self.upstream_group_ids if gid is not None),
             (t for root in self.get_roots() for t in root.upstream_task_ids),
         )
+
+    @staticmethod
+    def _compute_pass_order(projected: list[tuple[int, ...]]) -> list[int]:
+        """
+        Order child indices by (pass number, insertion index).
+
+        pass(X) is the earliest pass at which a greedy sweep in insertion order would emit X:
+        ``max over deps d of (pass(d) if idx(d) < idx(X) else pass(d) + 1)``. A dep declared
+        before X can be emitted in the same pass; a dep declared after X forces X into the next
+        pass. Computed via Kahn's traversal in O(V + E).
+
+        :param projected: for each child, the indices of the siblings it depends on
+        :return: the ordered indices, leaving out every child on or downstream of a cycle
+        """
+        n = len(projected)
+        in_degree = [len(deps) for deps in projected]
+        successors: list[list[int]] = [[] for _ in range(n)]
+        for i, deps in enumerate(projected):
+            for d in deps:
+                successors[d].append(i)
+
+        pass_of = [0] * n
+        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
+        processed: list[int] = []
+        while queue:
+            i = queue.popleft()
+            my_pass = 1
+            for d in projected[i]:
+                d_pass = pass_of[d]
+                if d < i:
+                    if d_pass > my_pass:
+                        my_pass = d_pass
+                elif d_pass + 1 > my_pass:
+                    my_pass = d_pass + 1
+            pass_of[i] = my_pass
+            processed.append(i)
+            for s in successors[i]:
+                in_degree[s] -= 1
+                if in_degree[s] == 0:
+                    queue.append(s)
+
+        return sorted(processed, key=lambda i: (pass_of[i], i))
+
+    def _sort_cyclic_projection(self, nodes: list[Node], projected: list[tuple[int, ...]]) -> list[Node]:
+        """
+        Order children whose projection has a cycle, ordering the siblings on each cycle as one unit.
+
+        ``DAG.check_cycle`` rejects task-level cycles, but a task with no upstream inside its own
+        group counts as a root of that group, so edges routed through tasks outside the group can
+        still make siblings depend on each other. ``partial_subset`` can also create such a cycle
+        by dropping a task's in-group upstream. Grid and Graph must still render these Dags.
+
+        Each unit is placed by its first child and follows the same pass ordering as the acyclic
+        path; a unit's children keep insertion order.
+        """
+        component_of = self._find_projection_components(projected)
+        count = max(component_of) + 1
+        members: list[list[int]] = [[] for _ in range(count)]
+        component_deps: list[set[int]] = [set() for _ in range(count)]
+        for i, deps in enumerate(projected):
+            c = component_of[i]
+            members[c].append(i)
+            component_deps[c].update(component_of[d] for d in deps if component_of[d] != c)
+        component_order = self._compute_pass_order([tuple(deps) for deps in component_deps])
+        return [nodes[i] for c in component_order for i in members[c]]
+
+    @staticmethod
+    def _find_projection_components(projected: list[tuple[int, ...]]) -> list[int]:
+        """Return each child's strongly connected component, numbered in order of its first child."""
+        n = len(projected)
+        successors: list[list[int]] = [[] for _ in range(n)]
+        for i, deps in enumerate(projected):
+            for d in deps:
+                successors[d].append(i)
+
+        # Kosaraju: finish order along successors, then collect components along dependencies.
+        visited = bytearray(n)
+        finish_order: list[int] = []
+        for start in range(n):
+            if visited[start]:
+                continue
+            visited[start] = 1
+            stack: list[tuple[int, Iterator[int]]] = [(start, iter(successors[start]))]
+            while stack:
+                node, remaining = stack[-1]
+                for s in remaining:
+                    if not visited[s]:
+                        visited[s] = 1
+                        stack.append((s, iter(successors[s])))
+                        break
+                else:
+                    stack.pop()
+                    finish_order.append(node)
+
+        root_of = [-1] * n
+        for start in reversed(finish_order):
+            if root_of[start] != -1:
+                continue
+            root_of[start] = start
+            to_visit = [start]
+            while to_visit:
+                node = to_visit.pop()
+                for d in projected[node]:
+                    if root_of[d] == -1:
+                        root_of[d] = start
+                        to_visit.append(d)
+
+        numbering: dict[int, int] = {}
+        return [numbering.setdefault(root, len(numbering)) for root in root_of]
 
     # TODO: Move more duplicated logic between Core and SDK task group types.

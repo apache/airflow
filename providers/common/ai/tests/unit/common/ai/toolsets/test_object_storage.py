@@ -32,7 +32,13 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
-from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
+else:
+    from airflow.io.store import _STORE_CACHE, ObjectStore  # type: ignore[no-redef]
 
 
 @pytest.fixture

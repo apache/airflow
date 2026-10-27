@@ -76,7 +76,6 @@
   "dagRun_one": "Dag 実行",
   "dagRun_other": "Dag 実行",
   "dagRunId": "Dag 実行 ID",
-  "dagWarnings": "Dag 実行警告/エラー",
   "defaultToGraphView": "グラフ表示を既定にします",
   "defaultToGridView": "グリッド表示を既定にします",
   "diff": "差分",
@@ -292,7 +291,7 @@
     "bulkDelete": {
       "error": "{{resourceName}} の一括削除が失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} が削除済。 キー: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} が削除済。 キー: {{keys}}",
         "title": "{{resourceName}} 一括削除リクエストが送信済"
       }
     },
@@ -313,7 +312,7 @@
     "import": {
       "error": "{{resourceName}} のインポートに失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} のインポートが成功しました",
+        "description": "{{count, number}} {{resourceName}} のインポートが成功しました",
         "title": "{{resourceName}} インポートリクエスト送信済み"
       }
     },

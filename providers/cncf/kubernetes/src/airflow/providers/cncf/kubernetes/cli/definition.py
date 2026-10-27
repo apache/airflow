@@ -29,7 +29,6 @@ from airflow.cli.cli_config import (
     positive_int,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse
@@ -54,8 +53,10 @@ else:
 # CLI Args
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default=conf.get("kubernetes_executor", "namespace"),
-    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
+    help=(
+        "Kubernetes Namespace. Default value is `[kubernetes_executor] namespace` in configuration, "
+        "the team's one with --team."
+    ),
 )
 
 ARG_MIN_PENDING_MINUTES = Arg(
@@ -84,6 +85,24 @@ ARG_TEAM = Arg(
     help="Team name for multi-team configuration. When set, team-specific config overrides are applied.",
 )
 
+ARG_EXECUTOR = Arg(
+    ("--executor",),
+    default=None,
+    help=(
+        "With --team, the team's executor whose pods to clean up, by alias, module path or class name. "
+        "Default is the team's default executor."
+    ),
+)
+
+ARG_ALLOW_SHARED_NAMESPACE = Arg(
+    ("--allow-shared-namespace",),
+    action="store_true",
+    help=(
+        "With --team, clean up even if another team's or a global KubernetesExecutor uses the same "
+        "namespace, such as on another cluster."
+    ),
+)
+
 # CLI Commands
 KUBERNETES_COMMANDS = (
     ActionCommand(
@@ -94,7 +113,15 @@ KUBERNETES_COMMANDS = (
             "in evicted/failed/succeeded/pending states"
         ),
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_MIN_COMPLETED_MINUTES, ARG_VERBOSE),
+        args=(
+            ARG_NAMESPACE,
+            ARG_MIN_PENDING_MINUTES,
+            ARG_MIN_COMPLETED_MINUTES,
+            ARG_TEAM,
+            ARG_EXECUTOR,
+            ARG_ALLOW_SHARED_NAMESPACE,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="generate-dag-yaml",

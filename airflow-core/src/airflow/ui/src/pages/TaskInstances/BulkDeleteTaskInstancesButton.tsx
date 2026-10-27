@@ -29,6 +29,7 @@ import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
 
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -36,7 +37,7 @@ type Props = {
 };
 
 const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkTaskInstances({
     deselectKeys,
@@ -76,6 +77,9 @@ const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: 
                     action: "delete" as const,
                     action_on_non_existence: "skip",
                     entities: selectedTaskInstances.map((ti) => ({
+                      ...(ti.region_id === undefined
+                        ? {}
+                        : { region_id: ti.region_id, region_index: ti.region_index }),
                       dag_id: ti.dag_id,
                       dag_run_id: ti.dag_run_id,
                       map_index: ti.map_index,
@@ -111,7 +115,7 @@ const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: 
                     <Text fontSize="sm" fontWeight="semibold">
                       {translate("runId")}: {runId}{" "}
                       <Text as="span" color="fg.subtle" fontWeight="normal">
-                        ({tis.length})
+                        ({formatNumber(tis.length, i18n.language)})
                       </Text>
                     </Text>
                   </Accordion.ItemTrigger>

@@ -32,7 +32,7 @@ list; there is no auto-discovery.
     toolset = HookToolset(
         http_hook,
         allowed_methods=["run"],
-        tool_name_prefix="http_",
+        tool_prefix="http",
     )
 
 For each listed method, the introspection engine:
@@ -85,12 +85,6 @@ the ID from values the Dag controls, not from ``params`` or ``dag_run.conf`` (se
 Fix arguments the model must not choose
 ---------------------------------------
 
-.. note::
-
-    Experimental: ``pinned_arguments`` can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
-
 Exposing a method lets the model pick every argument it takes. When some of them are
 the Dag author's decision, such as which bucket a storage hook reads, pin them:
 
@@ -107,8 +101,9 @@ the Dag author's decision, such as which bucket a storage hook reads, pin them:
     )
 
 A pinned argument is left out of the schema the model sees and passed to every allowed
-method. If the model supplies it anyway, the call is refused and the model is told the
-argument is fixed.
+method. If the model supplies it anyway, the call is refused while its arguments are
+validated, before an approval gate or the hook sees it. When the rest of the call is
+valid, the model is told the argument is fixed (see :ref:`hook-toolset-restricted`).
 
 A pin binds one parameter name, so every allowed method has to take it by that name.
 When one does not, the toolset raises ``ValueError`` when it is created: a method that
@@ -123,16 +118,97 @@ Pinned values are passed as written: they are not rendered as templates, and the
 part of what ``AgentOperator(durable=True)`` fingerprints, so change one only between Dag
 runs, not between the tries of one.
 
+.. _hook-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+``allowed_methods`` decides which hook methods become tools, and ``pinned_arguments``
+decides which of their arguments the model cannot set. This agent can list and read
+one bucket through ``S3Hook``, and nothing else:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_hook_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_hook_restricted]
+    :end-before: [END howto_toolset_hook_restricted]
+
+The model is offered two tools: ``s3_read_key``, which takes only ``key``, and
+``s3_list_keys``, whose parameters include ``prefix`` but not ``bucket_name``. Run
+against an S3 endpoint that also holds an ``acme-payroll`` bucket, a call that names
+that bucket was refused before it reached S3, with this message to the model:
+
+.. code-block:: text
+
+    bucket_name is fixed for this tool: call it again without it.
+
+    Fix the errors and try again.
+
+A call to a method that is not listed, such as ``s3_delete_objects``, got
+``Unknown tool name: 's3_delete_objects'. Available tools: 's3_list_keys',
+'s3_read_key'``. The model can correct both kinds of call and carry on.
+
+An exception from the hook is different: it fails the run, and the task with it.
+Reading a key that does not exist ended the run with ``ClientError: An error occurred
+(404) when calling the HeadObject operation: Not Found``.
+
+The pin fixes the bucket and leaves every key in it to the model. Give
+``aws_reports_reader`` credentials that can read only that bucket, so the connection
+holds the same limit if a method you expose later reaches another bucket some other
+way.
+
 Parameters
 ----------
 
 - ``hook``: An instantiated Airflow Hook. Its connection ID is templated.
 - ``allowed_methods``: Method names to expose as tools. Required. Methods
   are validated with ``hasattr`` + ``callable`` at instantiation time.
-- ``tool_name_prefix``: Optional prefix prepended to each tool name
-  (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore
+  (e.g. ``"s3"`` produces ``"s3_list_keys"``). Must be a valid Python identifier.
+  ``tool_name_prefix`` is deprecated and concatenated as given (``"s3_"`` produces
+  ``"s3_list_keys"``); passing both raises ``ValueError`` unless ``tool_name_prefix``
+  equals ``"<tool_prefix>_"``.
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
+- ``max_retries``: How many times the model may correct a call with invalid arguments,
+  or one that supplies a pinned argument. Default ``None``, the agent's ``retries``. See
+  :ref:`toolset-retry-budget`.
+
+.. _hook-toolset-binary-data:
+
+Binary data
+-----------
+
+JSON has no binary type, so ``bytes`` travels between the model and the hook as
+base64. A parameter typed ``bytes`` or ``bytes | None``, such as ``bytes_data`` of
+``S3Hook.load_bytes``, is offered to the model as a string whose description asks
+for base64, and the value is decoded before the method is called. A value that is
+not valid base64 is refused while the call's arguments are validated, before an
+approval gate or the hook sees it, and the model is asked to correct the call.
+Decoding cannot tell every plain word from base64, though: ``test`` decodes, to
+other bytes. A parameter that also accepts text, such as ``bytes | str``, receives
+the string the model sent.
+
+A method that returns ``bytes``, such as ``GCSHook.download``, gives the model the
+text when the bytes are valid UTF-8, and ``{"base64": "..."}`` when they are not.
+The value of ``base64`` can be passed to a ``bytes`` parameter as it is; text has
+to be encoded by the model first. ``bytes`` nested in a returned list or dict are
+rendered as UTF-8 text, with any byte that does not decode replaced.
+
+.. _hook-toolset-datetimes:
+
+Dates and times
+---------------
+
+JSON has no date type either. A parameter typed ``datetime`` or ``datetime | None``,
+such as ``from_datetime`` of ``S3Hook.list_keys``, is offered to the model as a string
+in ``date-time`` format whose description asks for ISO 8601 with a UTC offset, and the
+value is parsed into a timezone-aware ``datetime`` before the method is called. A value
+with no offset, such as ``2026-09-01T00:00:00``, or one that does not parse, is refused
+while the call's arguments are validated, and the model is asked to correct the call.
+The toolset does not assume a timezone for it, because hooks disagree on one:
+``S3Hook.list_keys`` and ``GCSHook.list_by_timespan`` raise ``TypeError`` for a naive
+value, while ``GCSHook.is_updated_after`` treats it as UTC. A ``datetime`` nested in
+another type, such as ``list[datetime]``, is not converted.
 
 When to choose it
 -----------------
@@ -150,13 +226,17 @@ reflection-based adapter, so the work is choosing the method list.
   ``read_key`` is exposed, the agent picks the key within the pinned bucket; the
   :ref:`defense-layer table <toolset-defense-layers>` states this outright. Choose
   methods whose worst case you accept, not methods you intend to constrain later.
+  To expose a method that changes something and have a person approve the call
+  first, wrap the toolset with ``.approval_required()``. On Airflow 3.3 a task
+  instance can pause for approval only once per Dag run; see :doc:`../tool_approval`.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
   and each hook method runs in a worker thread, one blocking hook call at a time
   in the task process, so a slow call holds up every other tool the model emitted
   in that step, not only this toolset's. This is not specific to ``HookToolset``;
   see :ref:`toolset-call-barriers`.
 - It returns exactly one shape. Every result goes through ``serialize_for_llm``
-  and comes back as a JSON-encoded string; there is no structured error type and
+  and comes back as a string, JSON-encoded unless it was text (see
+  :ref:`hook-toolset-binary-data`); there is no structured error type and
   no ``ModelRetry`` wrapper, so a hook exception fails the agent run, and the
   task with it, instead of giving the model something it can correct.
   ``SQLToolset``, by contrast, hands the database's own error back as a retry.
@@ -173,7 +253,7 @@ reflection-based adapter, so the work is choosing the method list.
     HookToolset(
         s3_hook,
         allowed_methods=["list_keys", "read_key"],
-        tool_name_prefix="s3_",
+        tool_prefix="s3",
     )
 
 **Credentials and where it runs.** The hook instance is yours, so the credential

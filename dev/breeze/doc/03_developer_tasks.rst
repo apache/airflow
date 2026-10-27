@@ -34,12 +34,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
-For example, you can choose to run Python 3.10 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.11 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --python 3.11 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -57,9 +57,9 @@ with ``--builder``. For example:
 
 .. code-block:: bash
 
-    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.11 --backend mysql --mysql-version 8.0
     # or:
-    breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.11 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -251,18 +251,8 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
 Results of the build can be found in the ``generated/_build`` folder.
 
-The documentation build consists of three steps:
-
-* verifying consistency of indexes
-* building documentation
-* spell checking
-
-You can choose only one stage of the two by providing ``--spellcheck-only`` or ``--docs-only`` after
-extra ``--`` flag.
-
-.. code-block:: bash
-
-    breeze build-docs --spellcheck-only
+Spelling is checked while the documentation is built, so a single build reports both build and
+spelling errors.
 
 This process can take some time, so in order to make it shorter you can filter by package, using package
 short ``provider id`` (might be multiple of them).
@@ -315,6 +305,62 @@ If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be
 
 Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
 as the short hand operator.
+
+Finding out what CI will run for your change
+--------------------------------------------
+
+``breeze verify`` reads the files changed against the target branch (the merge-base of
+``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
+and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
+is a usage error such as a base ref git cannot resolve.
+
+By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
+if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
+``main`` your branch has merged would count every merged-in commit as your change. Without such a
+remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
+the branch has merged commits the base does not have, for example after GitHub's "Update branch"
+when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+
+.. code-block:: bash
+
+     breeze verify
+     breeze verify --json
+     breeze verify --full
+     breeze verify --base-ref main
+
+Each row says what kind of check it is, whether it runs on the host or needs Docker and the
+CI image (``breeze``), and the exact command. When there is no command to list, a single line
+says so instead of an empty table. Jobs CI runs on every PR regardless of the change
+(breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
+check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
+Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
+so run it as usual. The exception is the ``mypy-providers`` and ``migration-round-trip`` hooks,
+which CI runs but a default ``prek install`` does not (they are ``pre-push`` or ``manual`` stage
+hooks). When the change triggers them, ``breeze verify`` prints the
+``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
+lists them under ``manual_prek_hooks``.
+Use ``--json`` for machine-readable output with the same fields.
+
+When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
+The default list leaves that expansion out and only shows what the changed files match themselves,
+with a note that CI will run more. ``--full`` lists everything CI runs for the default matrix cell
+(default Python, sqlite), apart from static checks.
+
+Even ``--full`` is not the full CI matrix. Other Python versions, Postgres and MySQL,
+lowest-dependency runs, Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM
+runners only run in CI. Two more caveats. Selective checks compare ``pyproject.toml`` contents
+between ``HEAD`` and ``HEAD^`` only, so dependency changes that are uncommitted or in earlier
+commits of your branch are not detected as such (test selection is unaffected, only the
+dependency-bump checks are). Packaging steps CI runs around some tests (building and
+twine-checking the Task SDK and airflow-ctl wheels, regenerating the Python API client from its
+own repository) are not listed.
+
+These are all available flags of ``verify`` command:
+
+.. image:: ./images/output_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_verify.svg
+  :width: 100%
+  :alt: Breeze verify
 
 Running static checks
 ---------------------
@@ -431,7 +477,7 @@ When you are starting Airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql start-airflow
+    breeze --python 3.11 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -444,7 +490,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.10 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.11 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install
@@ -472,13 +518,13 @@ To start Airflow with an integration, use the following command:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration <integration_name>
+    breeze --python 3.11 --backend postgres --integration <integration_name>
 
 For example, to run Airflow with Kafka:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration kafka
+    breeze --python 3.11 --backend postgres --integration kafka
 
 Check the available integrations by running:
 
@@ -718,14 +764,28 @@ After returning to the host shell, stop the remaining Docker Compose services:
 
    breeze down
 
-In a linked Git worktree, Breeze defaults to the project name ``breeze-<worktree directory name>``.
-The directory name is lowercased, and characters other than letters, digits, underscores, and
-hyphens are replaced with hyphens. The main checkout defaults to ``breeze``. Use ``--project-name``
-to override this default; worktrees with the same normalized directory name share a default project name.
+In a linked Git worktree, Breeze defaults to the project name
+``breeze-<worktree directory name>-<path hash>``. The directory name is lowercased, and characters
+other than letters, digits, underscores, and hyphens are replaced with hyphens. The six-character hash
+of the worktree's absolute path keeps same-named worktrees in different locations or clones apart.
+The main checkout defaults to ``breeze``. Use ``--project-name`` to override this default.
 
-Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
-This includes running containers and leftover named volumes, even when no containers remain.
-Help and commands that do not use Docker do not trigger cleanup.
+Worktree isolation is enabled by default. ``breeze setup config --no-worktree-isolation`` turns it off
+for every worktree of the checkout: worktrees then share the ``breeze`` project with the main checkout,
+and their resources are not removed when a worktree is deleted. The setting is stored in the main
+checkout's ``.build`` directory. The ``BREEZE_WORKTREE_ISOLATION`` environment variable (``true`` or
+``false``) overrides it.
+
+Breeze removes the Docker resources of a deleted worktree in two ways:
+
+* The first Docker-backed Breeze command in an isolated worktree starts a small detached watcher
+  process. It checks the worktree directory every 30 seconds and, once the directory is gone, removes
+  the worktree's containers, volumes, and networks. The watcher exits after an hour without any of
+  the worktree's containers running; the next Docker-backed Breeze command in the worktree starts it
+  again. It is not started in CI or with ``--dry-run``.
+* Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
+  This includes running containers and leftover named volumes, even when no containers remain.
+  Help and commands that do not use Docker do not trigger cleanup.
 
 Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
 aborting the command. Remaining resources are retried on the next Docker-backed command.
@@ -733,9 +793,11 @@ Explicit ``breeze down`` reports Docker failures as errors.
 
 ``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
 and for projects belonging to the current checkout.
-It also removes Breeze-owned resources whose absolute worktree path no longer exists,
-including running containers. Paths are checked on the machine running Breeze, so this
-stale-worktree detection assumes a local Docker daemon.
+It also removes Breeze-owned resources of deleted worktrees - those whose ``.git`` link to the main
+repository is gone - including running containers. Resources record an id of the machine that created
+them (stored in ``~/.config/breeze/host-id``), and a worktree is only checked for resources created on the machine running Breeze, so a
+Docker daemon shared between machines does not lose another machine's resources. Afterwards it lists
+other worktrees that still have Breeze containers or volumes.
 
 Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
 ownership label. Projects predating the Breeze labels are included when their name is ``breeze``

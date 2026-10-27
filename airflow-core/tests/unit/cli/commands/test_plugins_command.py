@@ -78,6 +78,38 @@ class TestPluginsCommand:
             stdout = temp_stdout.getvalue()
         assert loader(stdout) == []
 
+    def test_dumps_the_validated_ui_actions(self):
+        """`airflow plugins` reports the actions that survived validation, not what was declared."""
+
+        class ActionsPlugin(AirflowPlugin):
+            name = "cli_actions_plugin"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Runbook",
+                    "destination": "dag",
+                    "href": "https://example.com/{DAG_ID}",
+                },
+                # Dropped at load: the plugin is still reported, without this action.
+                {"action_type": "link", "name": "Broken", "destination": "nowhere"},
+            ]
+
+        with mock_plugin_manager(plugins=[ActionsPlugin()]):
+            with redirect_stdout(io.StringIO()) as temp_stdout:
+                plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+                stdout = temp_stdout.getvalue()
+
+        plugin = next(entry for entry in json.loads(stdout) if entry["name"] == "cli_actions_plugin")
+
+        assert plugin["ui_actions"] == [
+            {
+                "action_type": "link",
+                "name": "Runbook",
+                "destination": "dag",
+                "href": "https://example.com/{DAG_ID}",
+            }
+        ]
+
     @pytest.mark.skipif(not flask_appbuilder_installed, reason="Flask AppBuilder is not installed")
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugin(self):
@@ -118,8 +150,8 @@ class TestPluginsCommand:
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
                         "applies_to": {
-                            "dag_tags": ["ml", "production"],
-                            "dag_ids": ["example_dag"],
+                            "dag.tags.name": ["ml", "production"],
+                            "dag.dag_id": ["example_dag"],
                         },
                     },
                 ],
@@ -146,6 +178,7 @@ class TestPluginsCommand:
                     "<tests_common.test_utils.mock_operators.GithubLink object>",
                 ],
                 "timetables": ["unit.plugins.test_plugin.CustomCronDataIntervalTimetable"],
+                "ui_actions": [],
                 "operator_extra_links": [
                     "<tests_common.test_utils.mock_operators.GoogleLink object>",
                     "<tests_common.test_utils.mock_operators.AirflowLink2 object>",

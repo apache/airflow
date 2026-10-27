@@ -18,9 +18,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any, Self
 
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
@@ -113,12 +111,12 @@ class MCPToolset(AirflowToolset):
             self._server = hook.get_conn()
         return self._server
 
-    async def _server_once_resolved(self) -> Any:
+    async def _resolve_server(self) -> Any:
         # Resolving the connection talks to the supervisor, so it takes the blocking-call lock.
         return self._server if self._server is not None else await self.run_blocking(self._get_server)
 
     async def __aenter__(self) -> Self:
-        await (await self._server_once_resolved()).__aenter__()
+        await (await self._resolve_server()).__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> bool | None:
@@ -127,16 +125,17 @@ class MCPToolset(AirflowToolset):
         return None
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        return await (await self._server_once_resolved()).get_tools(ctx)
+        return await (await self._resolve_server()).get_tools(ctx)
 
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await (await self._server_once_resolved()).call_tool(name, tool_args, ctx, tool)
+        return await (await self._resolve_server()).call_tool(name, tool_args, ctx, tool)
 
     def airflow_tools(self) -> list[AirflowTool]:
         """

@@ -17,7 +17,7 @@
 """
 Give Airflow tools to a `Google ADK <https://google.github.io/adk-docs/>`__ agent.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations

@@ -40,6 +40,7 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0012](0012-lang-sdk-parse-protocol.md): Lang-SDK parse protocol — task handler messages and coordinator verbs.
 - [ADR-0013](0013-persisted-task-handler-bindings.md): persisted task-handler bindings — resolving Lang-SDK artifacts at parse time.
 - [ADR-0014](0014-bundle-metadata-and-cache-digest.md): bundle metadata — dropping the Dag inventory, adding a cache digest.
+- [ADR-0015](0015-per-dag-source-in-bundle-artifact.md): per-Dag source in the bundle artifact — de-duplicated by path, with an entrypoint fallback.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr). Java-SDK-only interface-design decisions —
