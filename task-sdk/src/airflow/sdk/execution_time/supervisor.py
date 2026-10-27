@@ -1090,12 +1090,21 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
+    @staticmethod
+    def _default_target_loggers(
+        process_log: FilteringBoundLogger, subprocess_logs_to_stdout: bool
+    ) -> tuple[FilteringBoundLogger, ...]:
+        """
+        Return the loggers child process output is forwarded to, before any subclass has its say.
+
+        Call this only where there is no instance yet. Everything else goes through
+        :meth:`_get_target_loggers`, which a subclass can override.
+        """
+        return (process_log, log) if subprocess_logs_to_stdout else (process_log,)
+
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         """Return the loggers that child process output should be forwarded to."""
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        return target_loggers
+        return self._default_target_loggers(self.process_log, self.subprocess_logs_to_stdout)
 
     def _create_log_forwarder(
         self,
