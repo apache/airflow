@@ -27,6 +27,9 @@ A PR whose CI runs in the contributor's fork (AIP-120) is decided by one rule in
 CI run only executes the fork CI gate, so it is approved whatever its size, unless it changes files
 that define CI, in which case it waits for a maintainer and the author gets a comment saying why.
 
+The runs of PRs from the repositories of trusted stakeholders (Amazon, Google, Astronomer) are
+always approved.
+
 Only API metadata and git objects of the PR are read. The PR's code is never checked out or run:
 selective checks come from the trusted ``main`` checkout and only see the list of changed files
 and the PR's ``pyproject.toml`` contents through ``git show``.
@@ -125,6 +128,17 @@ TEST_SELECTION_LABELS = frozenset(
     }
 )
 
+# Repositories of stakeholders that maintain large parts of Airflow, with the stakeholder's display
+# name. Only people with write access to such a repository can push the commits of its PRs, so their
+# runs are always approved, whatever the PR changes or targets. Keyed by repository id rather than
+# name: after a rename or deletion someone else could register the name. Find the id with
+# ``gh api repos/<owner>/<repo> --jq .id``.
+TRUSTED_STAKEHOLDER_REPOSITORIES: dict[int, tuple[str, str]] = {
+    65323404: ("astronomer/airflow", "Astronomer"),
+    484591340: ("aws-mwaa/upstream-to-airflow", "Amazon"),
+    733432432: ("VladaZakharova/airflow", "Google"),
+}
+
 # Read from the trusted main checkout, which is also the base branch whose gate job decides the
 # PRs that are approved automatically.
 FORK_CI_GATE_CONFIG_PATH = AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"
@@ -184,6 +198,20 @@ def is_gated_to_fork_ci(*, pr: dict[str, Any], github_repository: str, config: G
         labels=tuple(label["name"] for label in pr.get("labels", [])),
     )
     return decide(event, config).reason in GATED_REASONS
+
+
+def find_trusted_stakeholder(run: dict[str, Any]) -> str | None:
+    repository_id = (run.get("head_repository") or {}).get("id")
+    trusted = TRUSTED_STAKEHOLDER_REPOSITORIES.get(repository_id) if isinstance(repository_id, int) else None
+    return trusted[1] if trusted else None
+
+
+def decide_trusted_approval(*, stakeholder: str) -> ApprovalDecision:
+    return ApprovalDecision(
+        approve=True,
+        reasons=[f"it comes from a repository of {stakeholder}, a trusted stakeholder"],
+        decision_labels=frozenset(),
+    )
 
 
 def find_fork_ci_definition_files(files: list[str]) -> list[str]:
@@ -570,11 +598,17 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 f"leaving runs {run_ids} alone[/]"
             )
             continue
+        # The runs of a group share their head repository.
+        stakeholder = find_trusted_stakeholder(head_runs[0])
+        # Approving a run again fails, and the PRs that share a trusted head share its runs.
+        approved_run_ids: set[int] = set()
         for pr in matching_prs:
             failed = False
             decision: ApprovalDecision | None = None
             try:
-                if len(matching_prs) > 1:
+                if stakeholder is not None:
+                    decision = decide_trusted_approval(stakeholder=stakeholder)
+                elif len(matching_prs) > 1:
                     # The runs cannot be told apart by PR, so one PR's decision must not approve them all.
                     decision = ApprovalDecision(
                         approve=False, reasons=["its head commit is the head of several open PRs"]
@@ -582,7 +616,8 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 else:
                     decision = decide_for_pull_request(api=api, pr=pr)
                 pr_run_ids = run_ids
-                if decision.approve:
+                # A trusted repository's runs do not depend on the base branch or labels they started with.
+                if decision.approve and stakeholder is None:
                     pr_run_ids = find_runs_started_for_current_pr(
                         api=api, pr=pr, runs=head_runs, decision_labels=decision.decision_labels
                     )
@@ -596,7 +631,11 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                             estimate=decision.estimate,
                         )
                         pr_run_ids = run_ids
+                if decision.approve:
+                    pr_run_ids = [run_id for run_id in pr_run_ids if run_id not in approved_run_ids]
                 apply_decision(api=api, pr=pr, run_ids=pr_run_ids, decision=decision)
+                if decision.approve:
+                    approved_run_ids.update(pr_run_ids)
             except (requests.RequestException, subprocess.CalledProcessError) as e:
                 # One failing PR must not stop the others; the failure is reported through ``failed``.
                 failed = True

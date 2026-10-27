@@ -147,15 +147,17 @@ Set up your checkout and fork once:
 2. If fork CI applies to you, enable the ``Tests (AMD)`` workflow in your fork: today that means
    you joined the pilot or a maintainer labelled your pull request ``use fork ci``; once fork CI is
    switched on for everyone, it means you are not a committer, a collaborator or a member of an
-   exempted organisation. GitHub disables workflows in new forks. Otherwise keep it disabled, so
-   your pushes do not run CI twice:
+   exempted organisation. GitHub disables workflows in new forks. Sync your fork's ``main`` with
+   ``apache/airflow`` first, so it has the current version of the workflow:
 
    .. code-block:: bash
 
+      gh repo sync <you>/airflow --branch main
       gh workflow enable ci-amd.yml -R <you>/airflow
 
-   If the workflow is missing, your fork's ``main`` is older than it; sync it first with
-   ``gh repo sync <you>/airflow --branch main``.
+   Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
+   your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
+   monitor comments on your pull requests with the commands to turn it back on.
 
 3. Check everything at once. ``breeze ci audit`` prints one row per check and the command that fixes
    anything missing; ``--fix`` runs those commands after asking:
@@ -184,7 +186,10 @@ at 00:00 UTC:
    "your-login" = YYYY-MM-DDT00:00:00Z
 
 Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
-CI. To leave the pilot, open a pull request that removes the line. A pilot entry gates your pull
+CI. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
+the only part of the fork CI gate a pull request using fork CI may change: one that changes the
+gate's code, the rest of its configuration or the ``gate`` job of ``ci-amd.yml`` is closed with an
+explanation. A pilot entry gates your pull
 requests whatever your role, so a committer in the pilot also enables the workflow;
 ``breeze ci audit`` tells you which applies to you. The design is described in
 `Fork CI for external contributors <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
