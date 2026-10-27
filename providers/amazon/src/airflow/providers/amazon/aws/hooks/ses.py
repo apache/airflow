@@ -18,11 +18,85 @@
 
 from __future__ import annotations
 
+import os
+import re
 from collections.abc import Iterable
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.email import build_mime_message
+
+
+def _get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
+    """
+    Return a list of email addresses; a string may separate them with ``,`` or ``;``.
+
+    Copied from ``airflow.providers.smtp.utils.emailer.get_email_address_list``.
+    """
+    if isinstance(addresses, str):
+        return re.split(r"\s*[,;]\s*", addresses)
+    if isinstance(addresses, Iterable):
+        if not all(isinstance(item, str) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+    raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+
+
+def _build_mime_message(
+    mail_from: str | None,
+    to: str | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    custom_headers: dict[str, Any] | None = None,
+) -> tuple[MIMEMultipart, list[str]]:
+    """
+    Build the MIME message and return it with the full list of recipients, including CC and BCC.
+
+    Copied from ``airflow.providers.smtp.utils.emailer.build_mime_message``.
+    """
+    to = _get_email_address_list(to)
+
+    msg = MIMEMultipart(mime_subtype)
+    msg["Subject"] = subject
+    if mail_from:
+        msg["From"] = mail_from
+    msg["To"] = ", ".join(to)
+    recipients = to
+    if cc:
+        cc = _get_email_address_list(cc)
+        msg["CC"] = ", ".join(cc)
+        recipients += cc
+
+    if bcc:
+        # don't add bcc in header
+        bcc = _get_email_address_list(bcc)
+        recipients += bcc
+
+    msg["Date"] = formatdate(localtime=True)
+    mime_text = MIMEText(html_content, "html", mime_charset)
+    msg.attach(mime_text)
+
+    for fname in files or []:
+        basename = os.path.basename(fname)
+        with open(fname, "rb") as file:
+            part = MIMEApplication(file.read(), Name=basename)
+            part.add_header("Content-Disposition", "attachment", filename=basename)
+            part["Content-ID"] = f"<{basename}>"
+            msg.attach(part)
+
+    if custom_headers:
+        for header_key, header_value in custom_headers.items():
+            msg[header_key] = header_value
+
+    return msg, recipients
 
 
 class SesHook(AwsBaseHook):
@@ -96,7 +170,7 @@ class SesHook(AwsBaseHook):
         """
         custom_headers = self._build_headers(custom_headers, reply_to, return_path)
 
-        message, recipients = build_mime_message(
+        message, recipients = _build_mime_message(
             mail_from=mail_from,
             to=to,
             subject=subject,
@@ -153,7 +227,7 @@ class SesHook(AwsBaseHook):
         """
         custom_headers = self._build_headers(custom_headers, reply_to, return_path)
 
-        message, recipients = build_mime_message(
+        message, recipients = _build_mime_message(
             mail_from=mail_from,
             to=to,
             subject=subject,

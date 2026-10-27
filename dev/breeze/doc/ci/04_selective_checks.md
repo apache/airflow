@@ -748,8 +748,11 @@ RunsOn (see below). The `runner-type` output is decided as follows, first match 
    also still be on the PR: a re-run reuses the labels of its original event, so they are checked
    against the PR's current ones. If the PR or its reviews cannot be read, the label is ignored as well.
 7. PRs with the `non committer build` label use public runners.
-8. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
-   they carry code nobody has reviewed yet.
+8. PRs opened by a bot (Dependabot, the `ci-upgrade-*` PRs and the like), or from a `dependabot/` branch,
+   use public runners: they carry code nobody has reviewed yet. The exception is a backport PR: one
+   authored by `github-actions[bot]` (matched on the exact login) from a `backport-*` branch (the name
+   `cherry_picker` gives it) of `apache/airflow`. A committer's merge started it, or a user with write
+   access dispatched it for a commit they chose. It continues with rule 9; the same PR from a fork does not.
 9. PRs from a branch of `apache/airflow` use RunsOn; PRs from forks use public runners.
 
 Labels are read from the event that started the run, and the CI workflows do not run on `labeled`. After
