@@ -34,10 +34,10 @@ _MIGRATION_PATH = (
     / "airflow"
     / "migrations"
     / "versions"
-    / "0150_3_5_0_add_dagrun_id_to_callback.py"
+    / "0151_3_5_0_add_dagrun_id_to_callback.py"
 )
 
-_spec = importlib.util.spec_from_file_location("migration_0150", _MIGRATION_PATH)
+_spec = importlib.util.spec_from_file_location("migration_0151", _MIGRATION_PATH)
 assert _spec is not None
 _migration = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
