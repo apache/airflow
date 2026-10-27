@@ -332,7 +332,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_1.id.with.dots.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_1.id.with.dots.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -512,7 +515,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_1.id.with.dots.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -691,7 +696,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_2.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_2.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -885,7 +893,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_2.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1072,7 +1082,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_3.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_3.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1255,7 +1268,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_3.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1431,7 +1446,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_4.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_4.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1597,7 +1615,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=task_4.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1762,7 +1782,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.task_5.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.task_5.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1932,7 +1955,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.task_5.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2101,7 +2126,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.task_6.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.task_6.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2283,7 +2311,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.task_6.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2464,7 +2494,10 @@
                         "try_number": "{{ result is number }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.section_3.task_7.*\") }}"
+                        "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.section_3.task_7.*\") }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2644,7 +2677,9 @@
                         "log_url": "{{ regex_match(result, \"^http[s]?:\\/\\/.*\\/dags\\/openlineage_base_complex_dag\\/grid\\?dag_run_id=.*?\\&task_id=section_1.section_2.section_3.task_7.*\") }}",
                         "pool": "{{ result is string }}",
                         "queued_dttm": "{{ is_datetime(result) }}",
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}"
                     },
                     "task": {
                         "depends_on_past": false,
