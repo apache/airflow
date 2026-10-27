@@ -41,6 +41,8 @@ from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
+
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
 NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
@@ -54,16 +56,25 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
 }
 
 
+def _get_original_route(route) -> APIRoute:
+    """Return the ``APIRoute`` itself; custom attributes are not forwarded by FastAPI's route contexts."""
+    return getattr(route, "original_route", route)
+
+
+def _get_api_routes() -> dict[str, APIRoute]:
+    return {
+        f"{method} {route.path}": route
+        for route in iter_api_routes(execution_api_router.routes)
+        for method in route.methods or ()
+    }
+
+
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
-    policy_map: dict[str, set[str]] = {}
-    for route in execution_api_router.routes:
-        if isinstance(route, APIRoute):
-            allowed_tokens = set(getattr(route, "allowed_token_types", {"execution"}))
-            if route.methods:
-                for method in route.methods:
-                    policy_map[f"{method} {route.path}"] = allowed_tokens
-    return policy_map
+    return {
+        key: set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
+        for key, route in _get_api_routes().items()
+    }
 
 
 class TestTokenScopeBoundaries:
