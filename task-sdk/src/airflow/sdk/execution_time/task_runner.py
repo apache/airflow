@@ -145,6 +145,7 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     _get_worker_state_store_backend,
     build_asset_context,
+    build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -338,7 +339,7 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
-            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
+            state_store_stats_tags = build_state_store_stats_tags(self)
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,

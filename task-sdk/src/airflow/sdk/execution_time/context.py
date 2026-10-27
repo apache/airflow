@@ -109,7 +109,7 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -1658,6 +1658,18 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def build_state_store_stats_tags(ti: RuntimeTaskInstanceProtocol) -> dict[str, str]:
+    """
+    Build tags for metrics emitted by a task instance's state store accessors.
+
+    These are the task instance's stats tags plus the operator name, attached to
+    ``task_state_store.*`` and ``asset_state_store.*`` metrics.
+
+    :meta private:
+    """
+    return {**ti.stats_tags, "operator": ti.task.task_type}
+
+
 def build_asset_context(inlets: list, outlets: list, *, stats_tags: dict[str, str]) -> Context:
     """
     Build template context entries derived from a task's inlets and outlets.
@@ -1704,7 +1716,7 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
         build_asset_context(
             task.inlets,
             task.outlets,
-            stats_tags={**ti.stats_tags, "operator": task.task_type},
+            stats_tags=build_state_store_stats_tags(ti),
         )
     )
 
