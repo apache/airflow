@@ -73,6 +73,7 @@ EXCLUDED_COMMANDS = {
 }
 
 SUBGROUPS = {
+    "assets": {"state-store"},
     "taskinstances": {"state-store"},
 }
 NESTED_PREFIXES = {f"{group} {subgroup}" for group, subgroups in SUBGROUPS.items() for subgroup in subgroups}
