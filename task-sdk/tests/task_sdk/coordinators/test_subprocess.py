@@ -1737,8 +1737,10 @@ class _NativeStubCoordinator(_StubSubprocessCoordinator):
 
 @attrs.define(kw_only=True)
 class _BrokenNativeCoordinator(_NativeStubCoordinator):
+    error: Exception
+
     def _build_dag_file_command(self, *, what, path):
-        raise ValueError("no Main-Class")
+        raise self.error
 
 
 @attrs.define(kw_only=True)
@@ -1989,17 +1991,34 @@ class TestExecuteTaskNativeDagFile:
         assert coordinator.recorded_dag_files == []
 
     @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
-    def test_fails_with_a_retry_when_the_dag_file_cannot_run(self, mock_client):
-        coordinator = _BrokenNativeCoordinator(command=["/runtime"])
+    @pytest.mark.parametrize(
+        ("error", "retryable"),
+        [
+            pytest.param(ValueError("no Main-Class"), True, id="cannot-run"),
+            pytest.param(RuntimeError("no Main-Class"), False, id="coordinator-bug"),
+        ],
+    )
+    def test_fails_when_the_dag_file_cannot_run(self, mock_client, error, retryable):
+        coordinator = _BrokenNativeCoordinator(command=["/runtime"], error=error)
 
         with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
             self._execute(coordinator, mock_client)
 
-        assert raised.value.retryable is True
+        assert raised.value.retryable is retryable
         assert str(raised.value) == (
             "Dag file 'sub/dag.native' in Dag bundle 'dags' at version 'v9' cannot run: no Main-Class"
         )
-        assert isinstance(raised.value.__cause__, ValueError)
+        assert raised.value.__cause__ is error
+
+    @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
+    def test_keeps_the_launch_error_of_the_dag_file_command(self, mock_client):
+        error = TaskLaunchError("wrong runtime", retryable=False)
+        coordinator = _BrokenNativeCoordinator(command=["/runtime"], error=error)
+
+        with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
+            self._execute(coordinator, mock_client)
+
+        assert raised.value is error
 
     @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
     def test_fails_without_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):

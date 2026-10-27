@@ -880,12 +880,10 @@ class SubprocessCoordinator(BaseCoordinator):
             raise TaskLaunchError(
                 f"Dag file {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}"
             )
-        try:
+        with _raise_as_launch_error(
+            f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run"
+        ):
             command, schema_version = self._build_dag_file_command(what=what, path=bundle.path / rel_path)
-        except Exception as e:
-            raise TaskLaunchError(
-                f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run: {e}"
-            ) from e
         return command, schema_version
 
     def execute_task(
