@@ -1428,6 +1428,12 @@ class _BrokenCoordinator(_StubSubprocessCoordinator):
         raise RuntimeError("coordinator bug")
 
 
+def _connect_without_output(servers, drains, proc, **kwargs):
+    """Stand in for _accept_connections when the runtime connects without writing anything."""
+    accepted = {server: MagicMock(spec=socket.socket) for server in servers.values()}
+    return accepted, {soc: b"" for soc in drains.values()}
+
+
 class TestExecuteTaskLaunchFailure:
     """A task whose runtime cannot be launched fails with TaskLaunchError, so the supervisor reports it."""
 
@@ -1530,12 +1536,23 @@ class TestExecuteTaskLaunchFailure:
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
-    def test_fails_with_a_retry_when_the_runtime_cannot_be_executed(self, mock_client):
-        coordinator = _StubSubprocessCoordinator(command=["/nonexistent/runtime"])
+    @pytest.mark.parametrize(
+        ("executable", "expected"),
+        [
+            pytest.param(False, "No such file or directory", id="missing"),
+            pytest.param(True, "Permission denied", id="not-executable"),
+        ],
+    )
+    def test_fails_with_a_retry_when_the_runtime_cannot_be_executed(
+        self, mock_client, tmp_path, executable, expected
+    ):
+        runtime = tmp_path / "runtime"
+        if executable:
+            runtime.write_text("#!/bin/sh\n")
+            runtime.chmod(0o644)
+        coordinator = _StubSubprocessCoordinator(command=[str(runtime)])
 
-        with pytest.raises(
-            TaskLaunchError, match=r"^The runtime cannot start: .*'/nonexistent/runtime'$"
-        ) as raised:
+        with pytest.raises(TaskLaunchError) as raised:
             coordinator.execute_task(
                 what=_make_ti(),
                 dag_rel_path="dag.py",
@@ -1544,8 +1561,12 @@ class TestExecuteTaskLaunchFailure:
                 subprocess_logs_to_stdout=False,
             )
 
+        message = str(raised.value)
+        assert message == f"The runtime cannot start: {raised.value.__cause__}"
+        assert expected in message
+        assert str(runtime) in message
         assert raised.value.retryable is True
-        assert isinstance(raised.value.__cause__, FileNotFoundError)
+        assert isinstance(raised.value.__cause__, OSError)
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
@@ -1588,12 +1609,6 @@ class TestExecuteTaskLaunchFailure:
                 client=mock_client,
                 subprocess_logs_to_stdout=False,
             )
-
-
-def _connect_without_output(servers, drains, proc, **kwargs):
-    """Stand in for _accept_connections when the runtime connects without writing anything."""
-    accepted = {server: MagicMock(spec=socket.socket) for server in servers.values()}
-    return accepted, {soc: b"" for soc in drains.values()}
 
 
 class TestExecuteTaskBundleWiring:
