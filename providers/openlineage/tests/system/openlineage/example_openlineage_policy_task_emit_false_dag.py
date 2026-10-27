@@ -17,7 +17,8 @@
 """
 DAG exercising the OpenLineage emission policy authoring API.
 
-Per-task ``emit=False`` silences task events only.
+Per-task ``emit=False`` silences task events only, and the Dag run START event reports the task as not emitting
+in ``emits_ol_events``.
 """
 
 from __future__ import annotations

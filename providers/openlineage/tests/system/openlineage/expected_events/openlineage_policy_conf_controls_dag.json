@@ -2,7 +2,40 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_conf_controls_dag"
+            "name": "openlineage_policy_conf_controls_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_default": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_task_events_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_task_events_beat_emit": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_exact_operator": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_skipped_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_skipped_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -196,6 +229,27 @@
         "eventType": "FAIL",
         "job": {
             "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_dataset_lineage emits nothing",
+        "eventType": "RUNNING",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_query_lineage emits nothing",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off.manual_query.1"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_query_lineage emits nothing",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off.manual_query.1"
         }
     },
     {
@@ -421,6 +475,247 @@
                 "sourceCode": {
                     "language": "python",
                     "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.grp.t_grouped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.grp.t_grouped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_regex_task",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_regex_task",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_conflict",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_conflict",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "exit 99"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_skipped_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 99"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "exit 99"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_skipped_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 99"
                 }
             }
         }

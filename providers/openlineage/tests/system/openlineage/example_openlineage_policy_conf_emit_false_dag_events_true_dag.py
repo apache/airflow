@@ -19,6 +19,7 @@ DAG exercising the OpenLineage emission policy in a Dag scoped conf rule.
 
 In a Dag rule, ``emit_dag_events: true`` beats ``emit: false`` for the Dag run events, which stay, and the task events are silenced.
 The task registers hook lineage, so its events carry the datasets and the source code.
+The Dag run START event reports in ``emits_ol_events`` that the task does not emit.
 
 Required global conf::
 

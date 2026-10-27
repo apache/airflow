@@ -23,6 +23,11 @@ DAG exercising the emission policy authoring API for the controls the other auth
 - a Dag level ``hook_lineage=False`` and ``include_full_task_info=True`` reach the tasks that exist at the call
   (``t_dag_hook_off``, ``t_dag_full_info``) and a task level call after it wins (``t_dag_hook_back_on``,
   ``t_dag_full_info_off``), while a task defined later does not inherit them (``t_after_dag_call``)
+- a task level call made before the Dag level call is overwritten by it (``t_task_then_dag``)
+- the API takes the ``XComArg`` of a TaskFlow task (``t_taskflow``) and a mapped operator, whose instances get
+  the flags (``t_mapped``)
+
+The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler reads the authored flags.
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import task
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -40,7 +46,7 @@ from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
-def _register_hook_lineage():
+def _register_hook_lineage(*_):
     collector = get_hook_lineage_collector()
     collector.add_input_asset(context=None, uri="file://host1/in.txt")
     collector.add_output_asset(context=None, uri="file://host1/out.txt")
@@ -60,6 +66,10 @@ with DAG(
     t_dag_full_info = BashOperator(task_id="t_dag_full_info", bash_command="echo full_info")
     t_dag_hook_back_on = PythonOperator(task_id="t_dag_hook_back_on", python_callable=_register_hook_lineage)
     t_dag_full_info_off = BashOperator(task_id="t_dag_full_info_off", bash_command="echo full_info")
+    t_task_then_dag = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_task_then_dag", python_callable=_register_hook_lineage),
+        hook_lineage=True,
+    )
     # Dag-level flags only reach tasks that already exist, so the tasks defined below are left out of this call.
     extend_global_openlineage_emission_policy(dag, hook_lineage=False, include_full_task_info=True)
     extend_global_openlineage_emission_policy(t_dag_hook_back_on, hook_lineage=True)
@@ -79,6 +89,18 @@ with DAG(
         BashOperator(task_id="t_task_full_info", bash_command="echo full_info"),
         include_full_task_info=True,
     )
+
+    @task(task_id="t_taskflow")
+    def t_taskflow_fn():
+        _register_hook_lineage()
+
+    t_taskflow = extend_global_openlineage_emission_policy(t_taskflow_fn(), hook_lineage=False)
+    t_mapped = extend_global_openlineage_emission_policy(
+        PythonOperator.partial(task_id="t_mapped", python_callable=_register_hook_lineage).expand(
+            op_args=[[1]]
+        ),
+        hook_lineage=False,
+    )
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
@@ -87,10 +109,13 @@ with DAG(
         >> t_dag_full_info
         >> t_dag_hook_back_on
         >> t_dag_full_info_off
+        >> t_task_then_dag
         >> t_after_dag_call
         >> t_task_events_off
         >> t_task_events_beat_emit
         >> t_task_full_info
+        >> t_taskflow
+        >> t_mapped
         >> check_events
     )
 

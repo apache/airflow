@@ -2,7 +2,22 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_conf_locked_controls_dag"
+            "name": "openlineage_policy_conf_locked_controls_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_locked_emit": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_locked_task_events": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_locked_extract": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {

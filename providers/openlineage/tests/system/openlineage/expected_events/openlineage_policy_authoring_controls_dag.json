@@ -2,7 +2,25 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_authoring_controls_dag"
+            "name": "openlineage_policy_authoring_controls_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_dag_hook_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_events_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_task_events_beat_emit": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_taskflow": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -151,6 +169,34 @@
                 "sourceCode": {
                     "language": "bash",
                     "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_then_dag",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_task_then_dag",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
                 }
             }
         }
@@ -290,6 +336,74 @@
                 "sourceCode": {
                     "language": "bash",
                     "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_taskflow"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_taskflow"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_authoring_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
                 }
             }
         }

@@ -25,6 +25,8 @@ Each task has a locked rule, and authoring tries to give the control the opposit
 - ``t_locked_hook``: ``hook_lineage: false``, authored ``True``
 - ``t_locked_full``: ``include_full_task_info: true``, authored ``False``
 
+The Dag run START event also reports the locked tasks as not emitting in ``emits_ol_events``.
+
 Required global conf::
 
     [
