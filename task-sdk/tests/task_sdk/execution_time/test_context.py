@@ -1092,6 +1092,7 @@ class TestInletEventAccessor:
     )
     def test__get_item__with_bounds(self, sample_inlet_evnets_accessor, mock_supervisor_comms, bound):
         mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[])]
+        expected = datetime(2024, 1, 1, tzinfo=UTC)
 
         list(sample_inlet_evnets_accessor[TEST_ASSET].after(bound).before(bound))
 
@@ -1099,8 +1100,8 @@ class TestInletEventAccessor:
             GetAssetEventByAsset(
                 name="test_uri",
                 uri="test://test/",
-                after=datetime(2024, 1, 1, tzinfo=UTC),
-                before=datetime(2024, 1, 1, tzinfo=UTC),
+                after=expected,
+                before=expected,
                 limit=None,
                 ascending=True,
             )
