@@ -78,6 +78,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     DagParseSource,
 )
+from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource, RequestedWorkSource
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -377,6 +378,10 @@ class DagFileProcessorManager(LoggingMixin):
     Bundle credentials and parse-time requests then go through it, on behalf of the bundle they are for.
     """
 
+    work_source: RequestedWorkSource = attrs.field(
+        default=attrs.Factory(lambda self: self._create_requested_work_source(), takes_self=True)
+    )
+
     _api_server: InProcessExecutionAPI | None = attrs.field(init=False, default=None)
     """In-process API server, created only when there is no :attr:`api_client`."""
 
@@ -424,6 +429,11 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_names=self.bundle_names_to_parse,
             bundle_context=self.api_client.use_bundle,
         )
+
+    def _create_requested_work_source(self) -> RequestedWorkSource:
+        if self.api_client is not None:
+            return RequestedWorkSource()
+        return DatabaseRequestedWorkSource(self._claim_priority_files, self._fetch_callbacks_from_db)
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
@@ -788,14 +798,17 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
     def claim_priority_files(self) -> list[DagFileInfo]:
-        """
-        Fetch and claim files requested for priority parsing.
-
-        Default implementation reads from the metadata DB; override to source requests from an API.
-        """
-        if self.api_client is not None:
-            return []
-        return self._claim_priority_files()
+        """Fetch and claim files requested for priority parsing."""
+        active_attempts = {process.id for process in self._processors.values()}
+        active_attempts.update(pending.body.attempt_id for pending in self._pending_publications.values())
+        return self.work_source.claim_priority_files(
+            self._dag_bundles,
+            capacity=self._parallelism,
+            unavailable_bundles=self._bundles_needing_refresh
+            | {bundle.name for bundle in self._dag_bundles if not bundle.is_initialized},
+            active_attempts=active_attempts,
+            inventory_sequence=self._dispatch_sequence + 1,
+        )
 
     def request_bundle_refresh(self, bundle_names: str | Iterable[str]) -> None:
         """
@@ -847,14 +860,8 @@ class DagFileProcessorManager(LoggingMixin):
         return files
 
     def fetch_callbacks(self) -> list[CallbackRequest]:
-        """
-        Fetch and claim callbacks for this manager's bundles.
-
-        Default implementation reads from the metadata DB; override to source callbacks from an API.
-        """
-        if self.api_client is not None:
-            return []
-        return self._fetch_callbacks_from_db()
+        """Fetch and claim callbacks for this manager's bundles."""
+        return self.work_source.fetch_callbacks(self._dag_bundles, limit=self.max_callbacks_per_loop)
 
     @provide_session
     @retry_db_transaction
