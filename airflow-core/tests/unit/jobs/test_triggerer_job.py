@@ -1260,9 +1260,16 @@ async def test_create_triggers_asset_state_store_shared_by_several_assets(
     await runner.create_triggers()
     state_store = injected_instances[0].asset_state_store
 
-    stored = {"asset_a": "etag-a", "asset_b": "etag-b"}
-    mock_supervisor_comms.send.side_effect = lambda msg: AssetStateStoreResult(value=stored[msg.name])
-    assert state_store.get("etag") == "etag-a"
+    stored = {
+        "asset_a": AssetStateStoreResult(
+            value="etag-stale", updated_at=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+        ),
+        "asset_b": AssetStateStoreResult(
+            value="etag-b", updated_at=datetime.datetime(2026, 1, 2, tzinfo=datetime.UTC)
+        ),
+    }
+    mock_supervisor_comms.send.side_effect = lambda msg: stored[msg.name]
+    assert state_store.get("etag") == "etag-b"
 
     mock_supervisor_comms.send.reset_mock(side_effect=True)
     state_store.set("etag", "etag-2")
@@ -1294,13 +1301,16 @@ class TestTriggerSupervisorAssetStateStore:
         supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=7)
 
     def test_get_by_name_wraps_response_and_replies(self, supervisor):
-        supervisor.client.asset_state_store.get.return_value = AssetStateStoreResponse(value="2026-01-01")
+        updated_at = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+        supervisor.client.asset_state_store.get.return_value = AssetStateStoreResponse(
+            value="2026-01-01", updated_at=updated_at
+        )
 
         self._handle(supervisor, GetAssetStateStoreByName(name="asset_a", key="watermark"))
 
         supervisor.client.asset_state_store.get.assert_called_once_with(key="watermark", name="asset_a")
         supervisor.send_msg.assert_called_once_with(
-            AssetStateStoreResult(value="2026-01-01"), request_id=7, error=None
+            AssetStateStoreResult(value="2026-01-01", updated_at=updated_at), request_id=7, error=None
         )
 
     def test_get_by_uri_wraps_response_and_replies(self, supervisor):

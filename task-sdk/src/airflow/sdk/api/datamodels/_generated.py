@@ -813,6 +813,7 @@ class AssetStateStoreResponse(BaseModel):
         extra="forbid",
     )
     value: JsonValue | None
+    updated_at: Annotated[AwareDatetime | None, Field(title="Updated At")] = None
 
 
 class ConnectionTestResultBody(BaseModel):

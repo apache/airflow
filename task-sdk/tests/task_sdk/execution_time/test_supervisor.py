@@ -3985,9 +3985,15 @@ REQUEST_TEST_CASES = [
             method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
-            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(
+                value="2026-04-30T00:00:00Z", updated_at=datetime(2026, 4, 30, tzinfo=UTC)
+            ),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
+        expected_body={
+            "value": "2026-04-30T00:00:00Z",
+            "updated_at": datetime(2026, 4, 30, tzinfo=UTC),
+            "type": "AssetStateStoreResult",
+        },
     ),
     RequestTestCase(
         message=GetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
@@ -3998,7 +4004,7 @@ REQUEST_TEST_CASES = [
             kwargs={"uri": "s3://bucket/key"},
             response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "updated_at": None, "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
         message=SetAssetStateStoreByName(

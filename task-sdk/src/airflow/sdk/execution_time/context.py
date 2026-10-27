@@ -1153,7 +1153,7 @@ class TriggerAssetStateStoreAccessors(AssetStateStoreAccessors):
 
     Watchers with the same trigger classpath and kwargs share one trigger, and every event it
     yields goes to all of its assets, so the trigger has one position to keep no matter how many
-    assets it serves. Writes go to every asset; reads return the first asset holding the key.
+    assets it serves. Writes go to every asset; reads return the most recently written copy.
     ``clear`` is not spread across assets, because it would also wipe keys that tasks wrote, so
     it still needs exactly one asset.
     """
@@ -1165,19 +1165,35 @@ class TriggerAssetStateStoreAccessors(AssetStateStoreAccessors):
         ]
 
     def get(self, key: str, default: JsonValue = None) -> JsonValue:
-        """Return the value from the first asset holding ``key``, or ``default`` if none does."""
-        for accessor in self._accessors():
-            # set() rejects None, so None here means the asset does not hold the key.
-            if (value := accessor.get(key)) is not None:
-                return value
-        return default
+        """Return the most recently written value of ``key`` across the assets, or ``default`` if none holds it."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        reads = [(a, SUPERVISOR_COMMS.send(a._build_get_message(key))) for a in self._accessors()]
+        return self._extract_newest(reads, key, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
         """Async version of `get` that awaits instead of blocking the event loop."""
-        for accessor in self._accessors():
-            if (value := await accessor.aget(key)) is not None:
-                return value
-        return default
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        reads = [(a, await SUPERVISOR_COMMS.asend(a._build_get_message(key))) for a in self._accessors()]
+        return self._extract_newest(reads, key, default)
+
+    @staticmethod
+    def _extract_newest(
+        reads: list[tuple[AssetStateStoreAccessor, Any]], key: str, default: JsonValue
+    ) -> JsonValue:
+        found = []
+        for accessor, resp in reads:
+            if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STORE_NOT_FOUND:
+                raise AirflowRuntimeError(resp)
+            if isinstance(resp, AssetStateStoreResult):
+                found.append((accessor, resp))
+        if not found:
+            return default
+        # An asset that leaves the trigger and rejoins keeps a stale copy, so the newest copy wins.
+        # max() keeps the first of equal keys: ties, and backends without write times, use asset order.
+        accessor, resp = max(found, key=lambda read: read[1].updated_at or datetime.min.replace(tzinfo=UTC))
+        return accessor._extract_get_response(resp, key, default)
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write the value for ``key`` to every asset the trigger watches."""

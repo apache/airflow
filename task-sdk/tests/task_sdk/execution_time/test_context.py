@@ -2646,6 +2646,8 @@ class TestTriggerAssetStateStoreAccessors:
     A1 = Asset(name="asset_one", uri="s3://bucket/one")
     A2 = Asset(name="asset_two", uri="s3://bucket/two")
     NOT_FOUND = ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND)
+    OLDER = datetime(2026, 1, 1, tzinfo=UTC)
+    NEWER = datetime(2026, 1, 2, tzinfo=UTC)
 
     def test_single_asset(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="etag-1")
@@ -2662,25 +2664,46 @@ class TestTriggerAssetStateStoreAccessors:
         ]
 
     @pytest.mark.parametrize(
-        ("stored", "expected", "read"),
+        ("stored", "expected"),
         [
             pytest.param(
-                {"asset_one": "etag-one", "asset_two": "etag-two"}, "etag-one", ["asset_one"], id="first-wins"
+                {"asset_one": ("etag-stale", OLDER), "asset_two": ("etag-new", NEWER)},
+                "etag-new",
+                id="stale-first-loses",
             ),
-            pytest.param({"asset_two": "etag-two"}, "etag-two", ["asset_one", "asset_two"], id="first-empty"),
-            pytest.param({}, "seed", ["asset_one", "asset_two"], id="none-hold-key"),
+            pytest.param(
+                {"asset_one": ("etag-one", NEWER), "asset_two": ("etag-two", NEWER)},
+                "etag-one",
+                id="tie-uses-name-order",
+            ),
+            pytest.param(
+                {"asset_one": ("etag-one", None), "asset_two": ("etag-two", None)},
+                "etag-one",
+                id="no-write-times-use-name-order",
+            ),
+            pytest.param({"asset_two": ("etag-two", NEWER)}, "etag-two", id="first-empty"),
+            pytest.param({}, "seed", id="none-hold-key"),
         ],
     )
-    def test_get_multiple_assets(self, mock_supervisor_comms, stored, expected, read):
+    def test_get_multiple_assets(self, mock_supervisor_comms, stored, expected):
         mock_supervisor_comms.send.side_effect = lambda msg: (
-            AssetStateStoreResult(value=stored[msg.name]) if msg.name in stored else self.NOT_FOUND
+            AssetStateStoreResult(value=stored[msg.name][0], updated_at=stored[msg.name][1])
+            if msg.name in stored
+            else self.NOT_FOUND
         )
 
-        # Assets passed out of order: reads still start from the first by name.
+        # Assets passed out of order: ties still resolve to the first by name.
         assert TriggerAssetStateStoreAccessors([self.A2, self.A1]).get("etag", "seed") == expected
         assert mock_supervisor_comms.send.call_args_list == [
-            mock.call(GetAssetStateStoreByName(name=name, key="etag")) for name in read
+            mock.call(GetAssetStateStoreByName(name=name, key="etag")) for name in ["asset_one", "asset_two"]
         ]
+
+    def test_get_multiple_assets_raises_on_error(self, mock_supervisor_comms):
+        error = ErrorResponse(error=ErrorType.API_SERVER_ERROR)
+        mock_supervisor_comms.send.side_effect = [AssetStateStoreResult(value="etag-one"), error]
+
+        with pytest.raises(AirflowRuntimeError):
+            TriggerAssetStateStoreAccessors([self.A1, self.A2]).get("etag")
 
     def test_set_delete_multiple_assets(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
@@ -2704,8 +2727,8 @@ class TestTriggerAssetStateStoreAccessors:
     async def test_async_multiple_assets(self, mock_supervisor_comms):
         store = TriggerAssetStateStoreAccessors([self.A1, self.A2])
         mock_supervisor_comms.asend.side_effect = [
-            self.NOT_FOUND,
-            AssetStateStoreResult(value="etag-two"),
+            AssetStateStoreResult(value="etag-stale", updated_at=self.OLDER),
+            AssetStateStoreResult(value="etag-two", updated_at=self.NEWER),
             *[OKResponse(ok=True)] * 4,
         ]
 
