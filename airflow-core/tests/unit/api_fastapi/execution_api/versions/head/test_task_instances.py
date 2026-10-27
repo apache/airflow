@@ -1109,6 +1109,49 @@ class TestTIRunState:
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
 
+    def test_ti_run_does_not_load_the_dag_for_a_regular_task(self, client, dag_maker, mocker):
+        """The row rules the task out, so starting it reads no serialized Dag -- the point of the column."""
+        with dag_maker("test_regular_task_arg_bindings", serialized=True):
+
+            @task
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        assert ti.is_stub is False
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        get_dag = mocker.patch.object(DBDagBag, "get_dag", autospec=True)
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+        get_dag.assert_not_called()
+
+    def test_ti_run_treats_an_unset_is_stub_as_a_regular_task(self, client, dag_maker):
+        """A row written before the column existed carries null and keeps its pre-upgrade behavior."""
+        with dag_maker("test_unset_is_stub", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.get(TaskInstance, ti.id).is_stub = None
+        dag_maker.session.commit()
+        assert dag_maker.session.scalar(select(TaskInstance.is_stub).where(TaskInstance.id == ti.id)) is None
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
         autospec=True,
@@ -1160,7 +1203,9 @@ class TestTIRunState:
             pytest.param(
                 task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
             ),
-            pytest.param(task(execution_timeout=timedelta(seconds=10)), 10.0, id="python-task"),
+            # A Python task's timeout stays with the task runner, which sends it to the supervisor,
+            # so the server resolves one only for a task whose definition it loads anyway.
+            pytest.param(task(execution_timeout=timedelta(seconds=10)), None, id="python-task"),
         ],
     )
     def test_ti_run_returns_execution_timeout(self, client, dag_maker, decorator, expected):
@@ -2108,6 +2153,8 @@ class TestTIRunState:
             dag_id=str(uuid4()),
         )
         ti.queued_dttm = queued_at
+        # The route reads a serialized spec only for a stub task, which is what fails below.
+        ti.is_stub = True
         session.commit()
 
         with mock.patch(
