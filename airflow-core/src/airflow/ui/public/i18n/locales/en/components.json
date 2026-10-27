@@ -99,6 +99,8 @@
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
     "validationErrorDuration": "Invalid ISO 8601 duration format",
+    "validationErrorMaximum": "Value must be less than or equal to {{maximum}}.",
+    "validationErrorMinimum": "Value must be greater than or equal to {{minimum}}.",
     "validationErrorRequired": "This field is required"
   },
   "graph": {

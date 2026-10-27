@@ -434,4 +434,55 @@ describe("TriggerDAGForm", () => {
     );
     expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
   });
+
+  it("blocks the trigger when a param value is outside the range of its schema", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramsDict: {
+        hold_seconds: {
+          description: "Hold seconds",
+          schema: {
+            maximum: 600,
+            minimum: 1,
+            title: "Hold seconds",
+            type: "integer",
+          },
+          value: 180,
+        },
+      },
+    });
+    const onSubmitTrigger = vi.fn();
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_bounded_param"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const holdSecondsInput = await waitFor(() => {
+      const input = container.querySelector<HTMLInputElement>('input[name="element_hold_seconds"]');
+
+      if (input === null) {
+        throw new Error("Expected the hold_seconds input to be rendered");
+      }
+
+      return input;
+    });
+
+    fireEvent.focus(holdSecondsInput);
+    fireEvent.input(holdSecondsInput, { target: { value: "6666" } });
+
+    await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorMaximum")).toBeInTheDocument());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+  });
 });
