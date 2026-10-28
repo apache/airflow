@@ -671,7 +671,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                            | false                                    |      |
 | has-migrations                                          | Whether the PR has migrations ("true"/"false")                                                          | false                                    |      |
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
-| helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
+| helm-test-packages                                      | List of helm packages to test as JSON array (`["All"]` on RunsOn: one job runs them all)              | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
 | in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
@@ -771,7 +771,11 @@ the larger instance types too; xdist follows the host's CPUs, so a larger runner
 Jobs using `--run-in-parallel` (the DB, lowest-dependencies and special tests) run one serial pytest per
 test type instead, so they never use more CPUs than they have test types, and jobs running a single pytest
 (integration and system tests) use one. The size classes follow that: the xdist jobs and every job
-running provider tests in parallel take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller.
+running provider tests in parallel take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller:
+a job running one process (an end-to-end test against one Airflow stack, a Gradle test run) takes
+`'8+16', '32+64'`, and a job with a minute or two of work takes `'4+8', '16+32'`. On RunsOn the Helm unit
+tests run all their packages in one job per Kubernetes version, since each package takes about a minute
+under xdist against two to three minutes of preparing the image.
 On RunsOn `providers-test-types-list-as-strings-in-json` lists each provider as its own test type, in
 one job, instead of the long-running providers plus one group of all the others, so the job is not left
 waiting on that group. The Non-DB xdist jobs read `providers-xdist-test-types-list-as-strings-in-json`
@@ -791,7 +795,8 @@ the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
-* The EC2 cost summary of each job.
+* The EC2 cost summary of each job, with charts of the job's CPU and memory use (`metrics: cpu,memory` of
+  `runs-on/action`), the measurements to size a job's runner class by.
 * The docker address pools (`scripts/ci/configure_docker_address_pools.sh`). Every test type of a parallel
   run is a docker compose project with a network of its own, and Docker's default pools fit about 30
   networks, fewer than a RunsOn runner runs test types at once; the script splits the same range into

@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
+    all_helm_test_packages,
     get_airflow_version,
     get_provider_split_test_types,
 )
@@ -2386,6 +2387,24 @@ def test_individual_providers_split_the_longest_running_providers_on_runs_on():
     assert {"Providers[amazon:hooks]", "Providers[amazon:operators]", "Providers[amazon:other]"} <= set(
         test_types
     )
+
+
+@pytest.mark.parametrize(
+    ("github_event", "github_context_dict", "expected_packages"),
+    [
+        pytest.param(GithubEvents.PULL_REQUEST, {}, all_helm_test_packages(), id="public runners"),
+        pytest.param(GithubEvents.PUSH, {"run_id": 42}, ["All"], id="RunsOn runners"),
+    ],
+)
+def test_helm_test_packages_follow_runners(
+    github_event: GithubEvents, github_context_dict: dict[str, Any], expected_packages: list[str]
+):
+    selective_checks = SelectiveChecks(
+        github_event=github_event,
+        github_repository="apache/airflow",
+        github_context_dict=github_context_dict,
+    )
+    assert json.loads(selective_checks.helm_test_packages) == expected_packages
 
 
 def test_excluded_providers():
