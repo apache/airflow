@@ -499,7 +499,15 @@ class TestOtelMetrics:
         airflow_conf_port,
         expected_endpoint,
         expected_exporter_module,
+        monkeypatch,
     ):
+        # Clear any ambient OTEL_* vars so the case only sees its own provided_env_vars.
+        # CI runners (e.g. RunsOn) export OTEL_EXPORTER_OTLP_ENDPOINT, which otherwise wins
+        # over the Airflow config host/port and makes the config-priority cases fail.
+        for name in list(os.environ):
+            if name.startswith("OTEL_"):
+                monkeypatch.delenv(name, raising=False)
+
         with env_vars(provided_env_vars):
             otel_env_config = load_metrics_env_config()
 
