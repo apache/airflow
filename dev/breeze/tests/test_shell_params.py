@@ -29,7 +29,7 @@ from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.common_options import option_project_name
-from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER
+from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CONTAINER, GroupOfTests
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
@@ -425,3 +425,16 @@ def test_sphinx_airflow_theme_is_mounted_only_when_a_path_is_given(theme_path: s
     )
     # Compose interpolates the bind source from this variable, so it must be exported together with the file.
     assert shell_params.env_variables_for_docker_commands["SPHINX_AIRFLOW_THEME_PATH"] == theme_path
+
+
+def test_clone_with_test_runs_only_its_own_test_type():
+    shell_params = ShellParams(
+        test_group=GroupOfTests.PROVIDERS,
+        parallel_test_types_list=["Providers[amazon:hooks]", "Providers[amazon:other]"],
+    )
+
+    clone = shell_params.clone_with_test(test_type="Providers[amazon:hooks]")
+
+    assert clone.test_type == "Providers[amazon:hooks]"
+    assert clone.parallel_test_types_list == []
+    assert shell_params.parallel_test_types_list == ["Providers[amazon:hooks]", "Providers[amazon:other]"]

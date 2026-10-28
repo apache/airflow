@@ -264,6 +264,8 @@ class ShellParams:
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
+        # The clone runs this one test type: kept, the list would make it select every test type's folders.
+        new_params.parallel_test_types_list = []
         return new_params
 
     @cached_property
