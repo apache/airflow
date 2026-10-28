@@ -17,22 +17,32 @@
 """
 Cross-Dag clear propagation.
 
-An operator that returns an :class:`ExternalClearTarget` from
-:meth:`~airflow.sdk.BaseOperator.get_external_clear_target` asks Airflow to also clear that task, and
-everything downstream of it, whenever this task is cleared with its downstream tasks. The target is
-resolved on the worker after templates render, so the API server can follow it without running user code.
+An operator that defines ``get_external_clear_target(context)`` returning an :class:`ExternalClearTarget`
+asks Airflow to also clear that task, and everything downstream of it, whenever this task is cleared with
+its downstream tasks. The task runner calls the method after a successful run, once templates have rendered,
+and records the result so the API server can follow it without running user code.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-__all__ = ["EXTERNAL_CLEAR_TARGET_XCOM_KEY", "ExternalClearTarget"]
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
+
+__all__ = ["EXTERNAL_CLEAR_TARGET_XCOM_KEY", "ExternalClearTarget", "SupportsExternalClearTarget"]
 
 EXTERNAL_CLEAR_TARGET_XCOM_KEY = "_external_clear_target"
 """XCom key the task runner records a resolved :class:`ExternalClearTarget` under."""
+
+
+@runtime_checkable
+class SupportsExternalClearTarget(Protocol):
+    """An operator that names a task in another Dag to clear along with itself."""
+
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget: ...
 
 
 @dataclass(frozen=True)
