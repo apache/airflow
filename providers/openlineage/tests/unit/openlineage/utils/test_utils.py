@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import enum
 import pathlib
+import pickle
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
@@ -2615,11 +2616,11 @@ def test_daginfo_timetable_summary():
     # timetable is enough to get summary
     dag.timetable = NullTimetable()
     dag.timetable_summary = None
-    assert DagInfo(dag).timetable_summary == "None"
+    assert DagInfo(dag)["timetable_summary"] == "None"
 
     # but if summary is present, it's preferred
     dag.timetable_summary = "explicit_summary"
-    assert DagInfo(dag).timetable_summary == "explicit_summary"
+    assert DagInfo(dag)["timetable_summary"] == "explicit_summary"
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
@@ -4640,6 +4641,49 @@ def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
 
     assert info["map_index"] is None
     assert "loop" not in info
+
+
+def _get_info_json_encodable_subclasses(cls: type[InfoJsonEncodable] = InfoJsonEncodable):
+    for subclass in cls.__subclasses__():
+        yield subclass
+        yield from _get_info_json_encodable_subclasses(subclass)
+
+
+@pytest.mark.db_test
+def test_info_json_encodables_of_stored_objects_pickle_to_their_items_only(dag_maker):
+    """
+    The scheduler and API server send facets to a process pool, while what they are built from may not pickle.
+
+    A serialized Dag with a mapped operator doesn't, so no encodable may keep it or any other built-from object.
+    """
+    asset = Asset("s3://bucket/key")
+    with dag_maker(serialized=True):
+        with TaskGroup("group"):
+            plain = EmptyOperator(task_id="plain", inlets=[asset], outlets=[asset])
+        plain >> PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+    run = dag_maker.create_dagrun()
+    stored = next(ti for ti in run.task_instances if ti.task_id == "group.plain")
+    dag = stored.task.dag
+
+    infos = [
+        DagInfo(dag),
+        DagRunInfo(run),
+        TaskInstanceInfo(stored, dag=dag, dag_run=run),
+        AssetInfo(asset),
+        TaskInfo(stored.task, runtime_assets=[(asset, None)]),
+        TaskInfoComplete(stored.task),
+        TaskInfo(dag.get_task("mapped")),
+        TaskInfoComplete(dag.get_task("mapped")),
+        TaskGroupInfo(stored.task.task_group),
+    ]
+
+    # A new encodable must be added here too
+    assert {type(info) for info in infos} == set(_get_info_json_encodable_subclasses())
+    for info in infos:
+        assert vars(info) == {}
+        unpickled = pickle.loads(pickle.dumps(info))
+        assert type(unpickled) is type(info)
+        assert unpickled == info
 
 
 def test_task_instance_info_uses_the_position_it_is_given():

@@ -891,7 +891,9 @@ class InfoJsonEncodable(dict):
             self,
             **{field: InfoJsonEncodable._cast_basic_types(getattr(self, field)) for field in self._fields},
         )
-        del self.obj
+        # Drop the build-time attributes, keeping the dict items set above. Attributes may hold live Airflow
+        # objects that can't be pickled for the listener's process pool, which would drop the event.
+        self.__dict__.clear()
 
     @staticmethod
     def _cast_basic_types(value):
@@ -951,6 +953,10 @@ class InfoJsonEncodable(dict):
                     "nor is defined as an attrs class."
                 )
             for field, val in obj_fields.items():
+                # Keys that aren't identifiers are set by libraries rather than being attributes, e.g. the
+                # unpicklable ``__wire|<class>|<method>`` caches of ``methodtools.lru_cache``.
+                if not field.isidentifier():
+                    continue
                 if field not in self._fields and field not in self.excludes and field not in self.renames:
                     setattr(self, field, val)
                     self._fields.append(field)
@@ -1491,20 +1497,12 @@ class TaskInfo(InfoJsonEncodable):
     def __init__(self, obj, runtime_assets: list[tuple[Asset, AssetAlias | None]] | None = None):
         self._runtime_assets = runtime_assets  # Will not be included in final dict, not in self._fields.
         super().__init__(obj)
-        # ``inlets`` / ``outlets`` are a Python repr string that consumers cannot reliably parse
-        # (``extra`` can hold quotes, ``Decimal``, ``True``, ...). Expose them as real lists too.
-        # Set after ``super().__init__`` so ``_cast_basic_types`` does not turn them into strings.
-        for field in ("inlets", "outlets"):
-            if hasattr(self, field):
-                self[f"{field}_list"] = _convert_to_json_safe_list(getattr(self, field), field)
 
     def _extend_fields(self) -> None:
-        if not self._runtime_assets:
-            return
-        if not hasattr(self, "outlets"):  # Should never happen, just in case
+        if self._runtime_assets and not hasattr(self, "outlets"):  # Should never happen, just in case
             self.outlets = []
             self._fields.append("outlets")
-        for asset, alias in self._runtime_assets:
+        for asset, alias in self._runtime_assets or ():
             # Append runtime-resolved outlets (alias resolutions + dynamic asset events).
             # Inlets are not touched - Airflow has no dynamic inlets.
             self.outlets.append(
@@ -1512,6 +1510,12 @@ class TaskInfo(InfoJsonEncodable):
                 if alias is None
                 else AssetInfo(asset, asset_type="asset_event_from_alias", source_alias=alias.name)
             )
+        # ``inlets`` / ``outlets`` are a Python repr string that consumers cannot reliably parse
+        # (``extra`` can hold quotes, ``Decimal``, ``True``, ...). Expose them as real lists too.
+        # Set as items rather than fields so ``_cast_basic_types`` does not turn them into strings.
+        for field in ("inlets", "outlets"):
+            if hasattr(self, field):
+                self[f"{field}_list"] = _convert_to_json_safe_list(getattr(self, field), field)
 
 
 class TaskInfoComplete(TaskInfo):
@@ -1522,6 +1526,7 @@ class TaskInfoComplete(TaskInfo):
         "_BaseOperator__instantiated",
         "_BaseOperator__init_kwargs",  # Causes recursion error on AF3, nothing useful there
         "_dag",
+        "dag",  # A stored operator's Dag, e.g. in the scheduler, which can't be pickled
         "_hook",
         "_log",
         "_outlets",
