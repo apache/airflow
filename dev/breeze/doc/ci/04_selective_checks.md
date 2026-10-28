@@ -691,7 +691,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
-| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers (one per provider on RunsOn)                | Providers Providers\[-google\]           | *    |
+| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
+| providers-split-test-types-list-as-strings-in-json      | Provider test types for the jobs running them in parallel in the CI image (one per provider on RunsOn)  | Providers Providers\[-google\]           | *    |
 | providers-xdist-test-types-list-as-strings-in-json      | Which test types the Non-DB (xdist) provider tests run, with no provider split out                      | Providers                                | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
@@ -776,10 +777,13 @@ a job running one process (an end-to-end test against one Airflow stack, a Gradl
 `'8+16', '32+64'`, and a job with a minute or two of work takes `'4+8', '16+32'`. On RunsOn the Helm unit
 tests run all their packages in one job per Kubernetes version, since each package takes about a minute
 under xdist against two to three minutes of preparing the image.
-On RunsOn `providers-test-types-list-as-strings-in-json` lists each provider as its own test type, in
-one job, instead of the long-running providers plus one group of all the others, so the job is not left
-waiting on that group. The Non-DB xdist jobs read `providers-xdist-test-types-list-as-strings-in-json`
-instead, which never splits the providers: xdist runs them all in one pytest anyway.
+On RunsOn `providers-split-test-types-list-as-strings-in-json`, which the provider jobs running in the CI
+image read, lists each provider as its own test type, in one job, instead of the long-running providers
+plus one group of all the others, so the job is not left waiting on that group. The provider
+compatibility tests keep the grouped `providers-test-types-list-as-strings-in-json`, because each of their
+test types installs an Airflow version first. The Non-DB xdist jobs read
+`providers-xdist-test-types-list-as-strings-in-json` instead, which never splits the providers: xdist runs
+them all in one pytest anyway.
 The matrix slices follow it too. On public runners the core test types are split into
 `NUMBER_OF_CORE_SLICES` (2) jobs, to keep the Non-DB xdist collection inside the runner's memory, and
 the individually listed providers into `NUMBER_OF_LOW_DEP_SLICES` (5). On RunsOn the core test types
@@ -797,10 +801,11 @@ gated on `runner.environment == 'self-hosted'`:
 
 * The EC2 cost summary of each job, with charts of the job's CPU and memory use (`metrics: cpu,memory` of
   `runs-on/action`), the measurements to size a job's runner class by.
-* The docker address pools (`scripts/ci/configure_docker_address_pools.sh`). Every test type of a parallel
-  run is a docker compose project with a network of its own, and Docker's default pools fit about 30
-  networks, fewer than a RunsOn runner runs test types at once; the script splits the same range into
-  `/24` subnets.
+* The runner settings for parallel tests (`scripts/ci/configure_runner_for_parallel_tests.sh`). Every test
+  type of a parallel run is a docker compose project with a network and a database of its own. Docker's
+  default address pools fit about 30 networks, fewer than a RunsOn runner runs test types at once, so the
+  script splits the same range into `/24` subnets; and it raises `fs.aio-max-nr`, which a few dozen MySQL
+  servers exhaust.
 * The image stashes (`.github/actions/stash-restore` / `stash-save`). On RunsOn the image tarballs go to
   the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
   Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by

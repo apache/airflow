@@ -319,6 +319,8 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-split-test-types-list-as-strings-in-json }}
       providers-xdist-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -810,7 +812,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -869,7 +871,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -931,7 +933,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -1022,6 +1024,8 @@ jobs:
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}

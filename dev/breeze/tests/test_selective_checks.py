@@ -2345,8 +2345,19 @@ def test_providers_test_types_follow_runners(
         github_repository="apache/airflow",
         github_context_dict=github_context_dict,
     )
-    slices = json.loads(selective_checks.providers_test_types_list_as_strings_in_json)
-    assert [s["test_types"].split() for s in slices] == [expected_test_types]
+    split_slices = json.loads(selective_checks.providers_split_test_types_list_as_strings_in_json)
+    assert [s["test_types"].split() for s in split_slices] == [expected_test_types]
+    # The compatibility tests install an Airflow version per test type, so they always get the groups
+    grouped_slices = json.loads(selective_checks.providers_test_types_list_as_strings_in_json)
+    assert [s["test_types"].split() for s in grouped_slices] == [
+        [
+            "Providers[-amazon,celery,google,standard]",
+            "Providers[amazon]",
+            "Providers[celery]",
+            "Providers[google]",
+            "Providers[standard]",
+        ]
+    ]
 
 
 @pytest.mark.parametrize(

@@ -1957,13 +1957,24 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return "[]"
         current_test_types = self._get_providers_test_types_for_branch()
-        if current_test_types and self._is_on_runs_on:
-            # One serial pytest per provider keeps the 32 CPUs of a RunsOn runner busy; grouped
-            # providers would leave the job waiting on the large "all other providers" group.
-            return json.dumps(_get_test_list_as_json([sorted(self._get_individual_providers_list())]))
         self._extract_long_provider_tests(current_test_types)
         self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
+
+    @cached_property
+    def providers_split_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the jobs running them in parallel in the CI image.
+
+        On RunsOn every provider (and every part of a split provider) is a test type of its own, in one
+        job: one serial pytest per provider keeps the 32 CPUs of the runner busy, where grouped providers
+        would leave the job waiting on the large "all other providers" group. The compatibility tests keep
+        the grouped list, as each of their test types installs an Airflow version first.
+        """
+        if not self.run_unit_tests:
+            return "[]"
+        if self._is_on_runs_on and self._get_providers_test_types_for_branch():
+            return json.dumps(_get_test_list_as_json([sorted(self._get_individual_providers_list())]))
+        return self.providers_test_types_list_as_strings_in_json
 
     @cached_property
     def providers_xdist_test_types_list_as_strings_in_json(self) -> str:
