@@ -206,7 +206,7 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
   };
 };
 
-export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
+export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail | HITLDetailHistory) => {
   const {
     chosen_options: chosenOptions,
     options,

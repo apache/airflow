@@ -184,6 +184,22 @@ describe("HITLResponseForm – pending-state enablement", () => {
   });
 });
 
+describe("HITLResponseForm – the outcome of a received response", () => {
+  it.each([
+    { chosen: "Approve", expected: "state.approvalReceived" },
+    { chosen: "Reject", expected: "state.rejectionReceived" },
+  ])("labels an approval task answered with $chosen as $expected", ({ chosen, expected }) => {
+    renderForm(["Approve", "Reject"], {
+      chosen_options: [chosen],
+      responded_at: "2026-10-14T01:00:00.000000Z",
+      response_received: true,
+      task_instance: { ...MOCK_TASK_INSTANCE, state: "success" },
+    });
+
+    expect(screen.getByTestId("state-badge")).toHaveTextContent(expected);
+  });
+});
+
 describe("HITLResponseForm – the answer names the request it was given for", () => {
   it("sends the created_at of the request the form was loaded for", () => {
     updateHITLResponse.mockClear();

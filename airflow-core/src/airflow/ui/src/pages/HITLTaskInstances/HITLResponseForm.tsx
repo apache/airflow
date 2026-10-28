@@ -26,12 +26,19 @@ import { useSearchParams } from "react-router-dom";
 import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 
 import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
-import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData, isHITLPending } from "src/utils/hitl";
+import {
+  getHITLParamsDict,
+  getHITLFormData,
+  getHITLState,
+  getPreloadHITLFormData,
+  isHITLPending,
+} from "src/utils/hitl";
 
 type HITLResponseFormProps = {
   readonly hitlDetail: {
@@ -120,13 +127,18 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   return (
     <Box mt={4}>
       {hitlDetail.response_received ? (
-        <Text color="fg.muted" fontSize="sm">
-          {translate("response.received")}
-          <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
-          {hitlDetail.responded_by_user
-            ? ` ${translate("common:table.from").toLowerCase()} ${hitlDetail.responded_by_user.name}`
-            : undefined}
-        </Text>
+        <HStack gap={2} wrap="wrap">
+          <StateBadge state={hitlDetail.task_instance.state}>
+            {getHITLState(translate, hitlDetail)}
+          </StateBadge>
+          <Text color="fg.muted" fontSize="sm">
+            {translate("response.received")}
+            <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
+            {hitlDetail.responded_by_user
+              ? ` ${translate("common:table.from").toLowerCase()} ${hitlDetail.responded_by_user.name}`
+              : undefined}
+          </Text>
+        </HStack>
       ) : undefined}
       <Box mb={4} mt={4} overflow="visible">
         <FlexibleForm
