@@ -404,7 +404,13 @@ def ti_run(
                     },
                 )
 
-        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+        if (
+            execution_timeout := get_execution_timeout(
+                serialized_task,
+                start_date=ti.start_date,
+                resuming=bool(ti.next_method),
+            )
+        ) is not None:
             context.execution_timeout = execution_timeout
 
         # Only set if they are non-null

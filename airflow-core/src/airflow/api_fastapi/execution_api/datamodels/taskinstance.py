@@ -558,9 +558,11 @@ class TIRunContext(BaseModel):
 
     execution_timeout: float | None = None
     """
-    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
+    Seconds the supervisor may let this attempt run before enforcing ``execution_timeout``.
 
-    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
+    Taken from the task's serialized Dag. When the task resumes from deferral this is the
+    time still left, the configured timeout minus the time since the original start, clamped
+    at 0 when that timeout has already elapsed. ``None`` when no timeout is set.
     """
 
     multi_team: bool = False

@@ -18,7 +18,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from airflow._shared.timezones import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -67,13 +70,25 @@ def get_arg_bindings(task: SerializedOperator | None) -> list | None:
     return task.arg_bindings
 
 
-def get_execution_timeout(task: SerializedOperator | None) -> float | None:
+def get_execution_timeout(
+    task: SerializedOperator | None,
+    *,
+    start_date: datetime | None = None,
+    resuming: bool = False,
+) -> float | None:
     """
-    Return the ``execution_timeout`` of *task* in seconds.
+    Return how many seconds of ``execution_timeout`` this run may still use.
 
     Like the Python task runner, a zero timeout means no timeout, and a negative one has
     already elapsed.
+
+    When the task is resuming from deferral, the clock started at ``start_date``. Return
+    the time still left, clamped at 0, so every SDK enforces the original limit.
     """
     if task is None or not task.execution_timeout:
         return None
-    return max(task.execution_timeout.total_seconds(), 0.0)
+    timeout_seconds = task.execution_timeout.total_seconds()
+    if resuming and start_date is not None:
+        elapsed = (timezone.utcnow() - start_date).total_seconds()
+        timeout_seconds -= max(elapsed, 0.0)
+    return max(timeout_seconds, 0.0)
