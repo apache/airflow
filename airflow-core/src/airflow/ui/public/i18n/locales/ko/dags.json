@@ -129,6 +129,7 @@
     "dagRuns": "$t(common:dagRun_one) 검색",
     "dags": "Dag 검색",
     "hotkey": "+K",
+    "mapIndexes": "$t(common:mapIndex) 검색",
     "tasks": "태스크 검색"
   },
   "sort": {
