@@ -177,10 +177,6 @@ class SmtpHook(BaseHook):
                     if attempt == self.smtp_retry_limit:
                         raise AirflowException("Unable to connect to smtp server")
                 else:
-                    if self.smtp_starttls:
-                        await async_client.starttls(tls_context=self._build_ssl_context())
-                        await async_client.ehlo()
-
                     # choose auth
                     if self.auth_type == "oauth2":
                         if not self._access_token:
@@ -226,6 +222,8 @@ class SmtpHook(BaseHook):
         if is_async:
             kwargs["hostname"] = self.host
             kwargs["use_tls"] = self.use_ssl
+            # aiosmtplib's connect() performs the STARTTLS upgrade with tls_context, so aget_conn
+            # must not call starttls() again: a second upgrade fails with "Connection already using TLS".
             kwargs["start_tls"] = self.smtp_starttls if not self.use_ssl else None
             kwargs["tls_context"] = self._build_ssl_context()
         else:

@@ -106,10 +106,35 @@ Authentication related methods
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 * ``get_url_logout``: Return the URL the user is redirected to when logging out. This is an optional method,
   this redirection is usually needed to invalidate resources when logging out, such as a session.
+* ``get_cli_login_methods``: Return the login methods offered to command-line clients such as ``airflowctl``.
+  This is an optional method; by default, no method is advertised. See :ref:`auth-manager-cli-login`.
 * ``serialize_user``: Serialize a user instance to a dict. This dict is the actual content of the JWT token.
   It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
   This is the same dict returned by ``serialize_user``.
+
+.. _auth-manager-cli-login:
+
+Login from command-line clients
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before logging in, command-line clients such as ``airflowctl`` read ``GET /api/v2/auth/cli/metadata``, an
+unauthenticated route that returns ``get_cli_login_methods``. It uses RFC 8414 field names, except that endpoints
+are absolute paths, resolved against the API server URL. They include the path of ``[api] base_url``, if any.
+An empty ``grant_types_supported`` means no CLI login is offered.
+
+Each advertised grant must follow the contract below, so that clients work with any auth manager. A successful call
+to ``token_endpoint`` returns ``201`` with ``{"access_token": ...}``, valid for ``[api_auth] jwt_cli_expiration_time``.
+
+* ``password``: the client sends ``username`` and ``password``. This is the default when ``grant_type`` is omitted.
+* ``authorization_code``: the browser opens ``authorization_endpoint`` with ``redirect_uri`` (``http`` loopback
+  only), ``state`` and a required ``S256`` ``code_challenge``. The client then sends ``code``, ``code_verifier`` and
+  ``redirect_uri``.
+* ``urn:ietf:params:oauth:grant-type:device_code``: ``device_authorization_endpoint`` returns the RFC 8628 fields.
+  The client polls with ``device_code``, and gets ``400`` with ``authorization_pending`` or ``slow_down`` until the
+  user approves.
+* ``refresh_token``: the client sends the current CLI token as ``token``. Expired or revoked tokens are refused,
+  and the new token never expires later than the old one.
 
 Authorization related methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

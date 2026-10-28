@@ -8225,7 +8225,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosmtplib", specifier = ">=0.1.6" },
+    { name = "aiosmtplib", specifier = ">=5.1.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
 ]

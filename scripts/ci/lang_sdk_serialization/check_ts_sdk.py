@@ -23,9 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "ci" / "prek"))
-
-from common_prek_utils import AIRFLOW_ROOT_PATH, run_command
+AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 # The features of test_dags.yaml that tests/conformance/serialize_typescript.ts can build. A Dag that
 # requires another feature is left out until the builder gets it.
@@ -38,9 +36,10 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 if __name__ == "__main__":
-    run_command(
+    subprocess.run(
         ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
         cwd=AIRFLOW_ROOT_PATH / "ts-sdk",
+        check=True,
     )
     compare = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "lang_sdk_serialization" / "compare.py"
     serializer = ["pnpm", "--dir", "ts-sdk", "exec", "tsx", "tests/conformance/serialize_typescript.ts"]
