@@ -28,6 +28,7 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import UUID, uuid4
 
+import attrs
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
@@ -4721,7 +4722,7 @@ def test_task_info_complete_keeps_only_json_native_values_of_operator_attributes
 
     info = TaskInfoComplete(operator)
 
-    assert info["custom"] == {"when": "2026-01-02 00:00:00", "lock": str(operator.custom["lock"])}
+    assert info["custom"] == {"when": "2026-01-02 00:00:00", "lock": "<<non-serializable: lock>>"}
     pickle.dumps(info)
 
 
@@ -6168,6 +6169,16 @@ class _DatasetName(str, enum.Enum):
     SYNC = "user_sync"
 
 
+class _Color(enum.Enum):
+    RED = 1
+
+
+@attrs.define
+class _Creds:
+    user: str
+    password: str
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -6182,6 +6193,14 @@ class _DatasetName(str, enum.Enum):
         ),
         pytest.param(
             [{"nested": {"items": ["a", None, 1.0]}}], [{"nested": {"items": ["a", None, 1.0]}}], id="nested"
+        ),
+        pytest.param([{"c": _Color.RED}], [{"c": 1}], id="enum_uses_value"),
+        pytest.param([{"s": {"a"}}], [{"s": ["a"]}], id="set"),
+        pytest.param(
+            [{"creds": _Creds("u", "p")}], [{"creds": {"user": "u", "password": "p"}}], id="attrs_as_dict"
+        ),
+        pytest.param(
+            [{"lock": threading.Lock()}], [{"lock": "<<non-serializable: lock>>"}], id="other_object"
         ),
     ],
 )

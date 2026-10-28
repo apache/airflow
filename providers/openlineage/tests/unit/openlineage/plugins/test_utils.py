@@ -20,6 +20,7 @@ import datetime
 import json
 import uuid
 from json import JSONEncoder
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -33,8 +34,10 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     DagInfo,
+    DagRunInfo,
     InfoJsonEncodable,
     OpenLineageRedactor,
+    TaskInfoComplete,
     _get_all_packages_installed,
     _is_name_redactable,
     get_airflow_debug_facet,
@@ -301,6 +304,31 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact({"password": "passwd"}) == {"password": "***"}
     redacted_nested = redactor.redact(NestedMixined("passwd", NestedMixined("passwd", None)))
     assert redacted_nested == NestedMixined("***", NestedMixined("passwd", None))
+
+
+@pytest.mark.enable_redact
+def test_redact_masks_items_of_info_json_encodables():
+    sm = SecretsMasker()
+    if AIRFLOW_V_3_1_PLUS:
+        sm.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    sm.add_mask("s3cr3tvalue")
+    redactor = OpenLineageRedactor.from_masker(sm)
+
+    @define
+    class Creds:
+        user: str
+        password: str
+
+    task = BashOperator(task_id="t", bash_command="curl -u user:s3cr3tvalue x")
+    task.creds = Creds(user="u", password="unregistered")
+    dag_run = SimpleNamespace(
+        dag_id="d", run_id="r", conf={"password": "unregistered", "cmd": "x s3cr3tvalue"}
+    )
+
+    redacted_task = redactor.redact(TaskInfoComplete(task))
+    assert redacted_task["bash_command"] == "curl -u user:*** x"
+    assert redacted_task["creds"] == {"user": "u", "password": "***"}
+    assert redactor.redact(DagRunInfo(dag_run))["conf"] == {"password": "***", "cmd": "x ***"}
 
 
 def test_get_fully_qualified_class_name():

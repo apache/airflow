@@ -22,6 +22,8 @@ import json
 import logging
 from collections.abc import Callable, Collection, Mapping
 from contextlib import suppress
+from decimal import Decimal
+from enum import Enum
 from functools import wraps
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
@@ -2548,7 +2550,9 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                if is_json_serializable(item) and hasattr(item, "__dict__"):
+                # Dicts go to the base masker, which walks their items; the attributes of a dict
+                # subclass (e.g. InfoJsonEncodable) aren't what gets emitted.
+                if is_json_serializable(item) and hasattr(item, "__dict__") and not isinstance(item, dict):
                     for dict_key, subval in item.__dict__.items():
                         if type(subval).__name__ == "Proxy":
                             return "<<non-redactable: Proxy>>"
@@ -2570,14 +2574,29 @@ class OpenLineageRedactor(SecretsMasker):
         return item
 
 
+def _get_json_native_form(value: Any) -> Any:
+    # Attrs objects become dicts so the redactor can still mask fields by their names, e.g. ``password``.
+    # Other objects are not cast with ``str()``, as their ``repr`` may show such fields unmasked.
+    if attrs.has(type(value)):
+        return attrs.asdict(value, recurse=False)
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (set, frozenset)):
+        return list(value)
+    if isinstance(value, (datetime.date, datetime.time, datetime.timedelta, Decimal, UUID)):
+        return str(value)
+    return f"<<non-serializable: {type(value).__qualname__}>>"
+
+
 def _convert_to_json_safe(value: Any, name: str) -> Any:
     """
     Return ``value`` with only JSON-native types.
 
-    Non-serializable values are cast with ``str()``; dict keys JSON can't encode (e.g. tuples) are dropped.
+    Non-serializable values are converted with ``_get_json_native_form``; dict keys JSON can't encode
+    (e.g. tuples) are dropped.
     """
     try:
-        return json.loads(json.dumps(value, default=str, skipkeys=True))
+        return json.loads(json.dumps(value, default=_get_json_native_form, skipkeys=True))
     except (TypeError, ValueError) as e:
         log.warning("Unable to convert `%s` to JSON-native types: %s", name, e)
         return None
