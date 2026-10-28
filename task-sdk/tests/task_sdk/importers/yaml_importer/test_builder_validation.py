@@ -50,7 +50,7 @@ def _clean_handlers():
 def mock_bundle(tmp_path):
     bundle_dir = tmp_path / "bundle"
     bundle_dir.mkdir(parents=True, exist_ok=True)
-    return SimpleNamespace(name="test_bundle", path=bundle_dir)
+    return SimpleNamespace(name="test_bundle", version=None, path=bundle_dir)
 
 
 def _build(mock_bundle, tasks: str):

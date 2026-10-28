@@ -27,6 +27,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskArgBinding,
     XComArgBinding,
 )
+from airflow.sdk.coordinators.python import PythonCoordinator
 from airflow.sdk.execution_time.task_runner import _TaskRunner
 
 
@@ -60,12 +61,15 @@ def _fake_ti(*, arg_bindings, xcom_values=None, queue="default"):
 
 
 def _run(ti):
-    # A stub ti always routes through the public entry to the handler path; context is unused there.
     return _TaskRunner.run(ti, mock.MagicMock(), mock.MagicMock())
 
 
 def _patch_coordinator(monkeypatch, handler):
-    coordinator = SimpleNamespace(resolve_handler=lambda dag_id, task_id, bundle: handler)
+    class _Coordinator(PythonCoordinator):
+        def resolve_handler(self, dag_id, task_id, *, bundle):
+            return handler
+
+    coordinator = _Coordinator()
     manager = SimpleNamespace(for_queue=lambda queue: coordinator)
     monkeypatch.setattr("airflow.sdk.execution_time.coordinator.get_coordinator_manager", lambda: manager)
 
