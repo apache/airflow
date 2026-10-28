@@ -164,7 +164,9 @@ workflow follows the `Tests (AMD)` runs of fork PRs instead: when one reaches `i
 the label of the open PRs whose head is that commit. This covers runs a maintainer approves by hand
 as well as automatic approvals, without listing the waiting runs. A PR pushed again after the run
 started keeps its label, because its newer runs may wait. The job checks out nothing, and the
-contributor-chosen head branch reaches its script only through the environment.
+contributor-chosen head branch reaches its script only through the environment. A maintainer can
+approve the runs after the approval workflow listed them and before it writes the label and status,
+so after writing either it checks the runs again and clears both if none still waits.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must

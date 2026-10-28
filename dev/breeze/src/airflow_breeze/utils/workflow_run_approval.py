@@ -423,18 +423,18 @@ class GitHubApi:
 
     def get_approval_status(self, sha: str) -> dict[str, Any] | None:
         """The latest ``Workflow approval`` status of the commit."""
+        # Paginated: the fork CI reconciler posts a status per job, so a commit can have many contexts.
+        statuses = self._get_paginated(f"commits/{sha}/status?per_page=100", item_key="statuses")
+        return next((status for status in statuses if status["context"] == APPROVAL_STATUS_CONTEXT), None)
+
+    def is_run_waiting_for_approval(self, run_id: int) -> bool:
         response = self._session.get(
-            f"{GITHUB_API_URL}/repos/{self.github_repository}/commits/{sha}/status", timeout=60
+            f"{GITHUB_API_URL}/repos/{self.github_repository}/actions/runs/{run_id}", timeout=60
         )
         response.raise_for_status()
-        return next(
-            (
-                status
-                for status in response.json()["statuses"]
-                if status["context"] == APPROVAL_STATUS_CONTEXT
-            ),
-            None,
-        )
+        run = response.json()
+        # A run waiting for approval is reported as completed with the action_required conclusion.
+        return "action_required" in (run.get("status"), run.get("conclusion"))
 
     def set_approval_status(self, sha: str, state: str, description: str) -> None:
         if self.report_only:
@@ -791,16 +791,18 @@ def build_status_description(prefix: str, reasons: list[str]) -> str:
     return description
 
 
-def update_approval_status(api: GitHubApi, *, sha: str, state: str, description: str) -> None:
+def update_approval_status(api: GitHubApi, *, sha: str, state: str, description: str) -> bool:
     """
-    Set the commit's ``Workflow approval`` status unless it already has this one.
+    Set the commit's ``Workflow approval`` status unless it already has this one; return whether it did.
 
     Every tick decides again on the runs of the last 24 hours, and repeating the same status would
     only spend the API's stricter write limit.
     """
     current = api.get_approval_status(sha)
-    if current is None or (current["state"], current["description"]) != (state, description):
-        api.set_approval_status(sha, state, description)
+    if current is not None and (current["state"], current["description"]) == (state, description):
+        return False
+    api.set_approval_status(sha, state, description)
+    return True
 
 
 def has_need_workflow_approval_label(pr: dict[str, Any]) -> bool:
@@ -826,12 +828,22 @@ def apply_decision(
     console_print(f"[warning]PR #{pr_number} needs a maintainer: {escape('; '.join(decision.reasons))}[/]")
     if not has_label:
         api.add_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
-    update_approval_status(
+    status_changed = update_approval_status(
         api,
         sha=pr["head"]["sha"],
         state="pending",
         description=build_status_description("Waits for a maintainer", decision.reasons),
     )
+    # A maintainer may have approved the runs since they were listed, and the run that started may
+    # already have cleared the label and status that were just written. An approval after this check
+    # starts its run after the writes, so mark-workflow-runs-approved.yml clears them.
+    if (not has_label or status_changed) and not any(
+        api.is_run_waiting_for_approval(run_id) for run_id in run_ids
+    ):
+        console_print(f"[info]PR #{pr_number}: its runs were approved meanwhile[/]")
+        api.set_approval_status(pr["head"]["sha"], "success", "Workflow runs approved")
+        api.remove_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
+        return
     # Once per PR: every later push would otherwise repeat it while the change stays.
     if decision.comment is not None and not api.has_bot_comment(pr_number, CI_CHANGE_MARKER):
         api.create_comment(pr_number, decision.comment)

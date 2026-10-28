@@ -63,7 +63,8 @@ jobs:
           label="need workflow approval"
           # The sha is put into jq filters below.
           [[ "${HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo "Unexpected head sha: ${HEAD_SHA}"; exit 1; }
-          state=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" \
+          # Paginated: the fork CI reconciler posts a status per job, so a commit can have many contexts.
+          state=$(gh api --paginate "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100" \
             --jq ".statuses[] | select(.context == \"${context}\") | .state")
           if [[ "${state}" == "pending" ]]; then
             gh api -X POST "repos/${REPO}/statuses/${HEAD_SHA}" \
