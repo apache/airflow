@@ -2808,10 +2808,27 @@ class TestBaseDagFileProcessorProcess:
 class TestMultiTeamCallbackMetrics:
     """Tests for team_name tag on dag.callback_exceptions in multi-team mode."""
 
-    @conf_vars({("core", "multi_team"): "true"})
-    @patch("airflow.dag_processing.processor.DagModel.get_team_name", return_value="team_alpha")
-    @patch("airflow.dag_processing.processor.stats.incr")
-    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency):
+    @pytest.mark.parametrize("api_mode", [False, True], ids=["database", "api"])
+    @conf_vars(
+        {
+            ("core", "multi_team"): "true",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [
+                    {
+                        "name": "testing",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {},
+                        "team_name": "configured_team",
+                    }
+                ]
+            ),
+        }
+    )
+    @patch(
+        "airflow.dag_processing.processor.DagModel.get_team_name", autospec=True, return_value="team_alpha"
+    )
+    @patch("airflow.dag_processing.processor.stats.incr", autospec=True)
+    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency, api_mode):
         def failing_callback(context):
             raise RuntimeError("boom")
 
@@ -2836,11 +2853,20 @@ class TestMultiTeamCallbackMetrics:
         )
 
         log = structlog.get_logger()
-        _execute_dag_callbacks(dagbag, request, log)
+        if api_mode:
+            mock_get_team_name.side_effect = AssertionError("API mode must not query the metadata database")
+        with conf_vars(
+            {("dag_processor", "execution_api_token_file"): "/run/processor.jwt" if api_mode else ""}
+        ):
+            _execute_dag_callbacks(dagbag, request, log)
 
+        if api_mode:
+            mock_get_team_name.assert_not_called()
+        else:
+            mock_get_team_name.assert_called_once_with("test_dag")
         mock_incr.assert_called_once_with(
             "dag.callback_exceptions",
-            tags={"dag_id": "test_dag", "team_name": "team_alpha"},
+            tags={"dag_id": "test_dag", "team_name": "configured_team" if api_mode else "team_alpha"},
         )
 
     @conf_vars({("core", "multi_team"): "false"})

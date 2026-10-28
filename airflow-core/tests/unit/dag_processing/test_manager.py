@@ -7926,6 +7926,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     for name in ("oversized", "ready"):
         bundle = _make_bundle(tmp_path)
         bundle.name = name
+        bundle.refresh_interval = 300
         manager._dag_bundles.append(bundle)
     (tmp_path / "a.py").touch()
     rejected_work, ready_work = [
@@ -8226,6 +8227,10 @@ def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, p
         manager._publish_pending_results()
     else:
         manager._kill_timed_out_processors()
+        assert manager._pending_publications[file].body.attempt_id == old.id
+        assert manager._pending_publications[file].is_rejection_report
+        assert not get_api_work_source(manager)._pending_work_acks
+        manager._publish_pending_results()
     assert not get_api_work_source(manager)._pending_work_acks
     assert (work.id, work.claim_id) in get_api_work_source(manager)._priority_claims
     assert file in manager._file_queue
@@ -8493,47 +8498,94 @@ def test_api_team_lookup_failure_is_retried_without_stopping_the_processor():
     assert manager._get_team_names({"testing"}) == {"testing": "team_a"}
 
 
-@pytest.mark.parametrize(
-    ("outcome", "acknowledged"),
-    [("no_result", True), ("build_failed", True), ("callback_only", False)],
+@pytest.mark.parametrize("outcome", ["no_result", "build_failed", "callback_only"])
+@mock.patch.object(
+    DagFileProcessorManager, "_build_parse_result", autospec=True, side_effect=ValueError("invalid result")
 )
-def test_parse_without_publication_acknowledges_priority_claims(outcome, acknowledged):
+def test_parse_outcome_controls_priority_claim_acknowledgment(build_parse_result, outcome):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
+    # A failure within stale_dag_threshold of the last publication is held back instead of reported.
+    manager._file_stats[file] = DagFileStat(
+        last_finish_time=timezone.utcnow() - timedelta(seconds=manager.stale_dag_threshold + 1)
+    )
     proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
     proc.id = get_api_work_source(manager)._priority_claims[work.id, work.claim_id].attempt_id
     proc.start_time = time.monotonic()
     proc.had_callbacks = outcome == "callback_only"
+    proc.api_request_error = None
     proc.parse_source = DagParseSource()
+    proc.dispatch_sequence = 1
     proc.parsing_result = (
         DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "build_failed" else None
     )
 
-    with mock.patch.object(manager, "_build_parse_result", side_effect=ValueError("invalid result")):
-        manager.handle_parsing_result(file, proc)
+    manager.handle_parsing_result(file, proc)
 
-    assert get_api_work_source(manager)._pending_work_acks == ([("priority", work)] if acknowledged else [])
-    assert bool(get_api_work_source(manager)._priority_claims) is not acknowledged
+    source = get_api_work_source(manager)
+    assert source._pending_work_acks == ([("priority", work)] if outcome == "build_failed" else [])
+    assert bool(source._priority_claims) is (outcome != "build_failed")
+    client.publish_parse_result.assert_not_called()
+    if outcome == "no_result":
+        pending = manager._pending_publications[file]
+        assert pending.is_rejection_report
+        assert pending.body.attempt_id == proc.id
+        assert pending.body.dispatch_sequence == proc.dispatch_sequence
+        manager._publish_pending_results()
+        client.publish_parse_result.assert_called_once_with(pending.body)
+        assert not manager._pending_publications
+        assert source._pending_work_acks == [("priority", work)]
+        assert not source._priority_claims
+    else:
+        assert not manager._pending_publications
+    if outcome == "build_failed":
+        build_parse_result.assert_called_once_with(manager, file, proc, mock.ANY)
+    else:
+        build_parse_result.assert_not_called()
 
 
 @pytest.mark.parametrize("had_callbacks", [False, True])
-def test_timed_out_parse_acknowledges_priority_claims(had_callbacks):
+def test_timed_out_parse_retains_priority_claim_until_publication(had_callbacks):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=1)
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
+    # A failure within stale_dag_threshold of the last publication is held back instead of reported.
+    manager._file_stats[file] = DagFileStat(
+        last_finish_time=timezone.utcnow() - timedelta(seconds=manager.stale_dag_threshold + 1)
+    )
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
     processor.id = get_api_work_source(manager)._priority_claims[work.id, work.claim_id].attempt_id
     processor.start_time = time.monotonic() - 5
     processor.had_callbacks = had_callbacks
+    processor.api_request_error = None
+    processor.parse_source = DagParseSource()
+    processor.dispatch_sequence = 1
     manager._processors[file] = processor
 
     manager._kill_timed_out_processors()
 
     processor.kill.assert_called_once_with(signal.SIGKILL)
-    assert get_api_work_source(manager)._pending_work_acks == ([] if had_callbacks else [("priority", work)])
+    processor.close.assert_called_once_with()
+    assert not manager._processors
+    source = get_api_work_source(manager)
+    assert not source._pending_work_acks
+    assert source._priority_claims[work.id, work.claim_id].attempt_id == processor.id
+    client.publish_parse_result.assert_not_called()
+    if had_callbacks:
+        assert not manager._pending_publications
+    else:
+        pending = manager._pending_publications[file]
+        assert pending.is_rejection_report
+        assert pending.body.attempt_id == processor.id
+        assert pending.body.dispatch_sequence == processor.dispatch_sequence
+        manager._publish_pending_results()
+        client.publish_parse_result.assert_called_once_with(pending.body)
+        assert not manager._pending_publications
+        assert source._pending_work_acks == [("priority", work)]
+        assert not source._priority_claims
 
 
 @pytest.mark.parametrize("recovers", [False, True], ids=["dropped", "recovered"])
