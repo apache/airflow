@@ -22,12 +22,13 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import delete, exists, select, tuple_
 
 from airflow._shared.timezones import timezone
-from airflow.configuration import conf
+from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
+from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
@@ -37,25 +38,32 @@ log = logging.getLogger(__name__)
 
 
 def cleanup_processor_metadata(batch_size: int = 500) -> None:
-    """Commit each bounded batch; a later interval picks up remaining rows."""
-    with create_session() as session:
-        inactive = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
-        query = (
-            select(DagModel)
-            .where(
-                DagModel.is_stale.is_(False),
-                DagModel.bundle_name.in_(inactive),
+    """Drain inactive Dags and retired checkpoints, committing each bounded batch."""
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    timeout = get_job_heartbeat_timeout()
+    while True:
+        with create_session() as session:
+            inactive = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
+            query = (
+                select(DagModel)
+                .where(
+                    DagModel.is_stale.is_(False),
+                    DagModel.bundle_name.in_(inactive),
+                )
+                .order_by(DagModel.dag_id)
+                .limit(batch_size)
             )
-            .order_by(DagModel.dag_id)
-            .limit(batch_size)
-        )
-        for dag in session.scalars(with_row_locks(query, session=session, skip_locked=True)):
-            log.info(
-                "Deactivating Dag %s. Its bundle %s is no longer active.",
-                dag.dag_id,
-                dag.bundle_name,
-            )
-            dag.is_stale = True
+            dags = session.scalars(with_row_locks(query, session=session, skip_locked=True)).all()
+            for dag in dags:
+                log.info(
+                    "Deactivating Dag %s. Its bundle %s is no longer active.",
+                    dag.dag_id,
+                    dag.bundle_name,
+                )
+                dag.is_stale = True
+        if len(dags) < batch_size:
+            break
     with create_session() as session:
         warning_query = (
             select(DagWarning.dag_id, DagWarning.warning_type)
@@ -75,7 +83,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                 delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
             )
     with create_session() as session:
-        cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "job_heartbeat_timeout"))
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout)
         job_query = (
             select(Job)
             .where(
@@ -90,5 +98,40 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             .limit(batch_size)
         )
         for job in session.scalars(with_row_locks(job_query, session=session, skip_locked=True)):
+            log.warning(
+                "Expiring Dag processor Job and releasing its claimed work",
+                extra={
+                    "job_id": job.id,
+                    "hostname": job.hostname,
+                    "latest_heartbeat": job.latest_heartbeat,
+                    "job_heartbeat_timeout": timeout,
+                },
+            )
             job.state = JobState.FAILED
             job.end_date = timezone.utcnow()
+    # Visit already-ended Jobs too: retirement may have committed before cleanup was interrupted.
+    checkpoint_batch_size = min(batch_size, 499)
+    while True:
+        with create_session() as session:
+            checkpoint_query = (
+                select(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key)
+                .where(
+                    exists().where(
+                        Job.id == DagParseCheckpoint.job_id,
+                        Job.end_date.is_not(None),
+                    )
+                )
+                .order_by(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key)
+                .limit(checkpoint_batch_size)
+            )
+            checkpoint_keys = session.execute(
+                with_row_locks(checkpoint_query, session=session, skip_locked=True)
+            ).all()
+            if checkpoint_keys:
+                session.execute(
+                    delete(DagParseCheckpoint).where(
+                        tuple_(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key).in_(checkpoint_keys)
+                    )
+                )
+        if len(checkpoint_keys) < checkpoint_batch_size:
+            break
