@@ -112,10 +112,11 @@ class AwsEcsExecutor(BaseExecutor):
 
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = frozenset(
-            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
         )
     elif AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
+        supports_connection_test: bool = True
 
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
@@ -194,6 +195,17 @@ class AwsEcsExecutor(BaseExecutor):
                 else:
                     del self.queued_callbacks[key]
                 self.execute_async(key=key, command=command, queue=None)
+                self.running.add(key)
+
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.TestConnection):
+                command = [workload]
+                key = workload.key
+
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.TEST_CONNECTION][key]
+                else:
+                    del self.queued_connection_tests[key]  # type: ignore[attr-defined]
+                self.execute_async(key=key, command=command, queue=workload.queue)
                 self.running.add(key)
 
             else:
@@ -553,7 +565,8 @@ class AwsEcsExecutor(BaseExecutor):
             from airflow.executors import workloads
 
             if isinstance(command[0], workloads.ExecuteTask) or (
-                AIRFLOW_V_3_3_PLUS and isinstance(command[0], workloads.ExecuteCallback)
+                AIRFLOW_V_3_3_PLUS
+                and isinstance(command[0], (workloads.ExecuteCallback, workloads.TestConnection))
             ):
                 command = self._serialize_workload_to_command(command[0])
             else:

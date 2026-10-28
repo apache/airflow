@@ -2174,6 +2174,58 @@ class TestEcsExecutorCallbackSupport:
         assert collection.key_to_arn[callback_key] == ARN2
 
 
+class TestEcsExecutorConnectionTestSupport:
+    @pytest.fixture
+    def connection_test_workload(self):
+        from airflow.executors.workloads import TestConnection
+
+        return TestConnection(
+            connection_test_id=uuid4(),
+            connection_id="test_conn",
+            timeout=60,
+            queue="ct-queue",
+            token="test_token",
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    def test_declares_connection_test_support(self, mock_executor):
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            assert WorkloadType.TEST_CONNECTION in mock_executor.supported_workload_types
+        else:
+            assert mock_executor.supports_connection_test is True
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    def test_process_connection_test_workload(self, mock_executor, connection_test_workload):
+        key = connection_test_workload.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            queued = mock_executor.executor_queues[WorkloadType.TEST_CONNECTION]
+        else:
+            queued = mock_executor.queued_connection_tests
+
+        mock_executor.queue_workload(connection_test_workload, session=None)
+        assert queued[key] is connection_test_workload
+
+        mock_executor._process_workloads([connection_test_workload])
+
+        assert key not in queued
+        assert key in mock_executor.running
+        assert len(mock_executor.pending_workloads) == 1
+        pending = mock_executor.pending_workloads[0]
+        assert pending.key == key
+        assert pending.queue == "ct-queue"
+        assert pending.command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            connection_test_workload.model_dump_json(),
+        ]
+
+
 @pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires executor UUID capability")
 class TestTaskIdentity:
     @pytest.mark.parametrize(("native", "modern_queue"), [(True, True), (False, True), (False, False)])
