@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Benchmarks"
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches: ["main"]
+  pull_request:
+    paths:
+      - "task-sdk/src/airflow/sdk/execution_time/**"
+      - "task-sdk/benchmarks/**"
+      # A dependency bump (msgspec frames every request) changes what is measured.
+      - "task-sdk/pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/benchmarks.yml"
+  # Lets CodSpeed run the benchmarks on older commits to build its baseline.
+  workflow_dispatch:
+permissions:
+  # All other permissions are set to none by default
+  contents: read
+concurrency:
+  # A group per commit on main, so none of its runs is cancelled or left pending behind a newer one:
+  # CodSpeed compares each PR with the run of its base commit.
+  group: benchmarks-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+
+  task-sdk:
+    name: "Task SDK micro-benchmarks"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # OpenID Connect authentication with CodSpeed, no token secret needed.
+      id-token: write
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version-file: uv.lock
+
+      - name: "Install the benchmark dependencies"
+        run: uv sync --frozen --project task-sdk --group benchmarks
+
+      # Simulation mode counts CPU instructions instead of timing, so results do not depend on
+      # how busy the shared runner is; CodSpeed compares them with the base branch on each PR.
+      - name: "Run the benchmarks"
+        uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea  # v5.2.1
+        with:
+          mode: simulation
+          run: uv run --frozen --project task-sdk --group benchmarks pytest task-sdk/benchmarks --codspeed
