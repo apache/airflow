@@ -21,6 +21,7 @@
     "received": "Antwort empfangen um ",
     "respond": "Antworten",
     "responded_by_user_name": "Beantwortet von (Benutzername)",
+    "selectAtLeastOne": "Bitte mindestens eine Option wählen",
     "success": "{{taskId}} Interaktion erfolgreich",
     "title": "Erforderliche Interaktion - {{taskId}}"
   },

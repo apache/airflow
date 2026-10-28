@@ -242,6 +242,55 @@ is the PMC private list — see the
 ``private@airflow.apache.org``. That document also covers the further steps the project may
 take when the same behaviour persists across PRs.
 
+CI workflow runs of external contributors
+-----------------------------------------
+
+GitHub does not start the CI workflows of a PR from a fork until a maintainer approves them,
+for the contributors that the repository's approval setting covers. To keep you from waiting
+for a maintainer on every push, a scheduled workflow checks the waiting runs every 15 minutes
+and approves them automatically when all of these hold:
+
+* The PR targets ``main``. PRs to release branches, such as ``v3-4-test``, always wait for a
+  maintainer.
+* The PR does not change files that define CI: anything under ``.github/``, ``dev/breeze/``,
+  ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a top-level ``Dockerfile*``,
+  or a ``.pre-commit-config.yaml`` in any directory. Those files define the CI workflows, what
+  their jobs run and the runners they use.
+* The change does not need the full set of tests, does not change dependencies (``pyproject.toml``,
+  lock files, ``package.json``, ``go.mod``, Gradle build files) and does not add a new provider.
+* The CI jobs your change selects are estimated to take at most 310 job-minutes, about a quarter of
+  a full CI run. Changes to documentation, to the UI, to the Helm chart, to the language SDKs, to
+  one area of Airflow core or to a small provider usually stay under it. Changes to large providers
+  such as Amazon or Google, to several providers, or to the Task SDK (which runs the tests of all
+  providers) usually do not.
+* The PR changes at most 100 lines of source code. Tests (including end-to-end tests),
+  documentation, newsfragments, translations and lock files are not counted, so a fix with
+  thorough tests still qualifies. Larger changes are usually new features, and a maintainer looks
+  at them first.
+
+If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
+``apache/airflow`` only checks that, so none of the rules above apply. Its runs are approved
+automatically unless the PR changes files that define CI: anything under ``.github/``,
+``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a top-level
+``Dockerfile*``, or a ``.pre-commit-config.yaml`` in any directory. Then the runs wait for a maintainer and a comment on the PR explains
+why. CI in your fork runs either way.
+
+The runs of PRs opened from the repositories of trusted stakeholders (``astronomer/airflow``,
+``aws-mwaa/upstream-to-airflow`` and ``VladaZakharova/airflow``) are always approved, so none of
+the rules above apply to them.
+
+Each new push is checked again, because approval applies to one commit. Only runs started in the
+last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
+qualify, it gets the ``need workflow approval`` label and a maintainer approves the runs after
+looking at the change. The pending ``Workflow approval`` status in the PR's checks says why the
+runs wait. That can take a while, so please do not ping maintainers about it; it is not a judgement
+of your PR. Once the runs are approved, by a maintainer or automatically for a later commit, the
+label is removed and the status turns green.
+
+Maintainers can see each decision, the CI jobs selective checks expect to run and their estimated
+time in the summary of the ``Auto approve workflow runs`` workflow. The rules are described in
+more detail in `CI workflows <../dev/breeze/doc/ci/05_workflows.md>`__.
+
 Gen-AI Assisted contributions
 -----------------------------
 

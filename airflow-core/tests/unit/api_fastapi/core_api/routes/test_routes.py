@@ -21,6 +21,8 @@ from fastapi.openapi.utils import get_openapi
 
 from airflow.api_fastapi.core_api.routes.public import authenticated_router, public_router
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
+
 # Set of paths that are allowed to be accessible without authentication
 NO_AUTH_PATHS = {
     "/api/v2/auth/login",
@@ -35,16 +37,16 @@ def test_no_auth_routes():
     Verify that only the routes with NO_AUTH_PATHS are excluded from the `authenticated_router`. This
     test ensures that a router is not added to the non-authenticated router by mistake.
     """
-    paths_in_public_router = {route.path for route in public_router.routes}
+    paths_in_public_router = {route.path for route in iter_api_routes(public_router.routes)}
     paths_in_authenticated_router = {
-        f"{public_router.prefix}{route.path}" for route in authenticated_router.routes
+        f"{public_router.prefix}{route.path}" for route in iter_api_routes(authenticated_router.routes)
     }
     assert paths_in_public_router - paths_in_authenticated_router == NO_AUTH_PATHS
 
 
 def test_routes_with_responses():
     """Verify that each route in `public_router` has appropriate responses configured."""
-    for route in public_router.routes:
+    for route in iter_api_routes(public_router.routes):
         if route.path in NO_AUTH_PATHS:
             # Routes in NO_AUTH_PATHS should not have 401 or 403 response codes
             assert 401 not in route.responses, f"Route {route.path} should not require auth (401)"

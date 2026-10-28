@@ -28,6 +28,7 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "set-milestone",
         "fork-ci-reconcile",
         "audit",
+        "approve-workflow-runs",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -137,6 +138,22 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Audit flags",
             "options": [
                 "--fix",
+            ],
+        },
+    ],
+    "breeze ci approve-workflow-runs": [
+        {
+            "name": "Approval flags",
+            "options": [
+                "--max-run-age-hours",
+                "--report-only",
+            ],
+        },
+        {
+            "name": "GitHub parameters",
+            "options": [
+                "--github-token",
+                "--github-repository",
             ],
         },
     ],

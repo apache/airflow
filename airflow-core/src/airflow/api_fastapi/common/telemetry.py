@@ -14,18 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import os
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+    from fastapi.telemetry import TelemetryConfig
 
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+def _exclude_every_request(scope: MutableMapping[str, Any]) -> bool:
+    return True
+
+
+# Airflow controls request tracing itself (``[execution_api] otel_trace_propagation``, query
+# string redaction), so FastAPI's native OpenTelemetry must stay out of the way. Excluding every
+# request, rather than turning the signals off, also keeps the FastAPI apps mounted underneath
+# (auth managers, plugins) from tracing it.
+NATIVE_TELEMETRY_DISABLED: TelemetryConfig = {
+    "exclude": _exclude_every_request,
+    "auto_configure": False,
+}

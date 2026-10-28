@@ -383,28 +383,14 @@ def _outputs(env: dict[str, str]) -> list[str]:
 
 @mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
 @pytest.mark.parametrize(
-    ("returncode", "stdout", "event_labels", "expected"),
+    ("stdout", "expected"),
     [
-        pytest.param(0, "[]\n", "[]", ["project-ci=false", "reason=external"], id="external"),
-        pytest.param(
-            0, '["use project ci"]\n', "[]", ["project-ci=true", "reason=label_project_ci"], id="labelled"
-        ),
-        pytest.param(1, "", "[]", ["project-ci=false", "reason=external"], id="gh-fails-stays-gated"),
-        pytest.param(
-            0, "not json", "[]", ["project-ci=false", "reason=external"], id="bad-output-stays-gated"
-        ),
-        pytest.param(
-            1,
-            "",
-            '["use project ci"]',
-            ["project-ci=true", "reason=label_project_ci"],
-            id="gh-fails-uses-event-labels",
-        ),
+        pytest.param("[]\n", ["project-ci=false", "reason=external"], id="external"),
+        pytest.param('["use project ci"]\n', ["project-ci=true", "reason=label_project_ci"], id="labelled"),
     ],
 )
-def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels, expected):
-    mock_run.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
-    gate_env["PR_EVENT_LABELS"] = event_labels
+def test_main_pull_request(mock_run, gate_env, stdout, expected):
+    mock_run.return_value = subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
 
     assert main(gate_env) == 0
 
@@ -412,15 +398,24 @@ def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels,
     assert mock_run.call_args_list[0].args[0][:3] == ["gh", "api", "repos/apache/airflow/pulls/1"]
 
 
-@mock.patch(
-    "airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True, side_effect=FileNotFoundError("gh")
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "side_effect"),
+    [
+        pytest.param(1, "", None, id="gh-fails"),
+        pytest.param(0, "not json", None, id="bad-output"),
+        pytest.param(0, "", FileNotFoundError("gh"), id="no-gh"),
+    ],
 )
-def test_main_without_gh_uses_the_event_labels(mock_run, gate_env):
-    gate_env["PR_EVENT_LABELS"] = '["use project ci"]'
+def test_main_pull_request_fails_when_labels_cannot_be_read(
+    mock_run, gate_env, returncode, stdout, side_effect
+):
+    mock_run.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
+    mock_run.side_effect = side_effect
 
-    main(gate_env)
+    assert main(gate_env) == 1
 
-    assert _outputs(gate_env) == ["project-ci=true", "reason=label_project_ci"]
+    assert not Path(gate_env["GITHUB_OUTPUT"]).exists()
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)

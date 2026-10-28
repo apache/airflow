@@ -22,6 +22,11 @@ to CI in the contributor's fork. See dev/breeze/doc/ci/08_fork_ci_for_external_c
 
 The gate job in ``ci-amd.yml`` runs this file with the runner's ``python3`` from a sparse
 checkout, without installing breeze, so it must only import from the standard library.
+
+This file is part of the fork CI gate. A pull request whose CI runs in the contributor's fork
+must not change it, because the change would decide where its own CI runs: the fork CI
+monitor closes such a pull request with a comment explaining why. See "Gate protection" in
+the document above.
 """
 
 from __future__ import annotations
@@ -209,6 +214,10 @@ class Decision:
     reason: Reason
 
 
+class LabelsUnavailableError(RuntimeError):
+    """The current labels of a pull request could not be read."""
+
+
 def _is_canonical_branch(ref: str) -> bool:
     branch = ref.removeprefix("refs/heads/")
     return any(pattern.match(branch) for pattern in CANONICAL_PUSH_BRANCH_PATTERNS)
@@ -295,10 +304,12 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
     if event_name == "pull_request":
         fetched = fetch_pull_request_labels(repository, env.get("PR_NUMBER", ""))
         if fetched is None:
-            # Never fail open: anyone able to exhaust the shared token quota would otherwise switch
-            # the gate off for every pull request. The event's labels miss only labels added since.
-            print("Falling back to the labels of the triggering event", file=sys.stderr)
-            fetched = tuple(json.loads(env.get("PR_EVENT_LABELS") or "[]"))
+            # Neither project CI nor the event's labels: the workflow-run approver approves runs
+            # started before `use fork ci` was added, which the event's labels would send to project
+            # CI, and anyone able to exhaust the shared token quota could force that path.
+            raise LabelsUnavailableError(
+                f"Could not read the labels of pull request #{env.get('PR_NUMBER', '')}; re-run the job"
+            )
         labels = fetched
     event = GateEvent(
         event_name=event_name,
@@ -316,7 +327,11 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
 
 def main(env: Mapping[str, str] | None = None) -> int:
     env = os.environ if env is None else env
-    decision = evaluate_from_env(env)
+    try:
+        decision = evaluate_from_env(env)
+    except LabelsUnavailableError as e:
+        print(e, file=sys.stderr)
+        return 1
     project_ci = "true" if decision.run else "false"
     print(f"project-ci={project_ci} reason={decision.reason.value}")
     _write_line("GITHUB_OUTPUT", f"project-ci={project_ci}", env)

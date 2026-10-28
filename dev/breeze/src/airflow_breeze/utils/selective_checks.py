@@ -25,8 +25,9 @@ import re
 import sys
 import tomllib
 from collections import defaultdict
+from collections.abc import Callable
 from enum import Enum, auto
-from functools import cached_property
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -55,7 +56,9 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE,
     RUNS_ON_AMD_RUNNER_TEMPLATE,
+    RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE,
     RUNS_ON_ARM_RUNNER_TEMPLATE,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
@@ -305,12 +308,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/sql/.*",
         ],
         FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
-            # Only add files that affect the compat setup and do NOT already trigger the full matrix
-            # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
-            # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
+            # run_openlineage_e2e_compat_tests ignores full_tests_needed. A file that drives the compat setup
+            # belongs here even when it also forces the full matrix, as the compat workflow does.
+            r"^\.github/workflows/openlineage-e2e-compat-tests\.yml$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+            r"^airflow-e2e-tests/docker/openlineage-compat-db\.yml$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
             # API documentation entry points and Markdown do not affect runtime e2e tests.
@@ -896,6 +900,56 @@ def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[
     ]
 
 
+# The release branches of a single component (the Helm chart, airflow-ctl) only ever get backports of that
+# component, so CI there runs that component's tests, whatever changed, and nothing else. Per branch prefix,
+# the outputs decorated with `_scoped_to_component_branch` that run: True forces one on, None leaves it to
+# its usual computation, and an output missing from the table is off. Static checks still run, and docs
+# too where the CI image is built. The PROD image is built for those tests alone:
+# `run_generic_prod_image_tests` stays off.
+COMPONENT_BRANCH_OUTPUTS: dict[str, dict[str, bool | None]] = {
+    "chart": {
+        "run_helm_tests": True,
+        "run_kubernetes_tests": True,
+        "run_kustomize_overlays_tests": None,
+        # Helm unit tests run in the CI image; Kubernetes tests deploy the PROD image.
+        "ci_image_build": True,
+        "prod_image_build": True,
+    },
+    # The airflow-ctl tests run in a local virtualenv, so no image is built: static checks run on the host
+    # and the integration tests, which need the PROD image, do not run.
+    "airflow-ctl": {
+        "run_airflow_ctl_tests": True,
+    },
+}
+# The documentation built on a component's branch, when documentation changed. Docs build in the CI image,
+# so a component without an image builds none.
+COMPONENT_BRANCH_DOCS = {"chart": "helm-chart"}
+# The release branches of each component, as in the pull_request branch filters of ci-amd.yml. A feature
+# branch named after a component, say chart/fix-ingress, is not one of them.
+COMPONENT_BRANCH_PATTERNS = {
+    "chart": re.compile(r"^chart/v\d+-\d+x-(test|stable)$"),
+    "airflow-ctl": re.compile(r"^airflow-ctl/v\d+-\d+-(test|stable)$"),
+}
+
+
+def _scoped_to_component_branch(func: Callable[[SelectiveChecks], bool]) -> Callable[[SelectiveChecks], bool]:
+    """Restrict an output deciding whether a test job runs to the component of a component branch."""
+
+    @wraps(func)
+    def wrapper(self: SelectiveChecks) -> bool:
+        component = self._component_branch
+        if component is None:
+            return func(self)
+        outputs = COMPONENT_BRANCH_OUTPUTS[component]
+        if func.__name__ not in outputs:
+            return False
+        forced = outputs[func.__name__]
+        return func(self) if forced is None else forced
+
+    wrapper.scoped_to_component_branch = True  # type: ignore[attr-defined]
+    return wrapper
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {
         "_files",
@@ -997,6 +1051,26 @@ class SelectiveChecks:
     @cached_property
     def latest_versions_only(self) -> bool:
         return LATEST_VERSIONS_ONLY_LABEL in self._pr_labels
+
+    @cached_property
+    def _target_branch(self) -> str:
+        """The branch a pull request targets, or the branch a push or a dispatched run is on."""
+        return self._github_context_dict.get("base_ref") or self._github_context_dict.get("ref_name") or ""
+
+    @cached_property
+    def _component_branch(self) -> str | None:
+        """The component in COMPONENT_BRANCH_OUTPUTS whose release branch the run targets, if any."""
+        # A push in a fork is selected against apache/airflow's main, whatever its branch is called.
+        if self._fork_push:
+            return None
+        return next(
+            (
+                component
+                for component, pattern in COMPONENT_BRANCH_PATTERNS.items()
+                if pattern.match(self._target_branch)
+            ),
+            None,
+        )
 
     @cached_property
     def default_python_version(self) -> str:
@@ -1256,6 +1330,7 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    @_scoped_to_component_branch
     def run_mypy_providers(self) -> bool:
         # Non-provider mypy checks run as part of regular static checks (prek hooks).
         # Only provider mypy needs a separate CI job (requires the CI Docker image with breeze).
@@ -1281,14 +1356,17 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_api_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ol_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.ASSET_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -1297,10 +1375,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ui_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ui_e2e_tests(self) -> bool:
         # E2E tests should not be triggered by derived full_tests_needed (push events,
         # env file changes, large PRs, etc.) - only by explicit label or actual file changes.
@@ -1331,55 +1411,64 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    @_scoped_to_component_branch
     def run_remote_logging_s3_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_S3_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_remote_logging_elasticsearch_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_remote_logging_opensearch_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_OPENSEARCH_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_event_driven_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_java_sdk_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_E2E_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_go_sdk_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_E2E_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_compat_tests(self) -> bool:
-        # Costly older-Airflow matrix. Like run_ui_e2e_tests it is not triggered by *derived*
-        # full_tests_needed (pushes, env changes, large PRs) — only by canary, an explicit label, or
-        # an actual change to a file that drives the compat setup but does not itself force the full
-        # matrix: the shared e2e harness (conftest / constants) or the compat Dockerfile. The compat
-        # workflow already forces full_tests_needed via ENVIRONMENT_FILES.
+        # The older-Airflow matrix is costly. Like run_ui_e2e_tests, this check ignores full_tests_needed.
+        # Many changes that do not touch the compat setup also set full_tests_needed, for example changes to
+        # environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+        # this matrix, and the next canary run tests that change.
         if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             return True
-        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
+        return bool(self._matching_files(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES, CI_FILE_GROUP_MATCHES))
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ts_sdk_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_E2E_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1389,16 +1478,19 @@ class SelectiveChecks:
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_task_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_task_sdk_integration_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES) or self._should_be_run(
             FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES
         )
 
     @cached_property
+    @_scoped_to_component_branch
     def run_agent_framework_tests(self) -> bool:
         # Providers are released from main only, as for skip_providers_tests.
         if self._default_branch != "main":
@@ -1406,26 +1498,32 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.AGENT_FRAMEWORK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_java_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ts_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_airflow_ctl_integration_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
             FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
@@ -1436,6 +1534,7 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.SCRIPTS_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_kubernetes_tests(self) -> bool:
         if AREA_KUBERNETES_TESTS_LABEL in self._pr_labels:
             console_print(
@@ -1447,13 +1546,17 @@ class SelectiveChecks:
 
     @cached_property
     def docs_build(self) -> bool:
+        if self._component_branch is not None and self._component_branch not in COMPONENT_BRANCH_DOCS:
+            return False
         return self._should_be_run(FileGroupForCi.DOC_FILES)
 
     @cached_property
+    @_scoped_to_component_branch
     def run_helm_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
 
     @cached_property
+    @_scoped_to_component_branch
     def run_kustomize_overlays_tests(self) -> bool:
         """Gate for the kustomize-overlays smoke test CI job.
 
@@ -1467,6 +1570,7 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES) and self._default_branch == "main"
 
     @cached_property
+    @_scoped_to_component_branch
     def run_unit_tests(self) -> bool:
         def _only_new_ui_files() -> bool:
             all_source_files = set(
@@ -1504,6 +1608,7 @@ class SelectiveChecks:
         return len(self._files) > 0 and set(self._files) <= text_non_doc_files
 
     @cached_property
+    @_scoped_to_component_branch
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
@@ -1523,6 +1628,21 @@ class SelectiveChecks:
         )
 
     @cached_property
+    @_scoped_to_component_branch
+    def run_generic_basic_tests(self) -> bool:
+        """The basic tests of Airflow itself that run for every change: the standalone Airflow and the
+        shared distributions."""
+        return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_generic_prod_image_tests(self) -> bool:
+        """The tests of the PROD image itself, run whenever it is built: Docker Compose, the image-building
+        examples and the basic end-to-end tests."""
+        return self.prod_image_build
+
+    @cached_property
+    @_scoped_to_component_branch
     def prod_image_build(self) -> bool:
         if AREA_E2E_TESTS_LABEL in self._pr_labels:
             console_print(
@@ -1919,6 +2039,9 @@ class SelectiveChecks:
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
+        # The dependency upgrade summary runs in the CI image.
+        if not self.ci_image_build:
+            return False
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
@@ -1940,6 +2063,8 @@ class SelectiveChecks:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
+        if self._component_branch is not None:
+            return COMPONENT_BRANCH_DOCS[self._component_branch]
         if self._default_branch != "main":
             return "apache-airflow docker-stack"
         if self.full_tests_needed:
@@ -2016,10 +2141,11 @@ class SelectiveChecks:
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
-            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
-            # depend on that (intermittently failing) download.
+            # ktlint and spotless run the java-sdk Gradle wrapper, which downloads the Gradle
+            # distribution on a cold cache. Skip both hooks when no java-sdk files changed, so
+            # unrelated PRs do not depend on a download that fails intermittently.
             prek_hooks_to_skip.add("ktlint")
+            prek_hooks_to_skip.add("spotless")
             # Rewriting the verification metadata resolves the entire Java SDK dependency graph
             # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that resolution.
@@ -2029,6 +2155,11 @@ class SelectiveChecks:
             # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
             # harness changed. Those last do not force full_tests_needed, so they need their own group.
             prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped together
+            # with the conformance check, not with ktlint, because JAVA_SDK_CONFORMANCE_FILES
+            # includes airflow-core's schema.json. A PR that changes only schema.json can leave
+            # the Java SDK's copy of the schema out of date, and this hook detects the outdated copy.
+            prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
             # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema
@@ -2099,7 +2230,7 @@ class SelectiveChecks:
 
     @cached_property
     def skip_providers_tests(self) -> bool:
-        if self._default_branch != "main":
+        if self._default_branch != "main" or self._component_branch is not None:
             return True
         if self.full_tests_needed:
             return False
@@ -2197,6 +2328,25 @@ class SelectiveChecks:
         )
         return json.dumps([template.format(run_id=run_id)])
 
+    @cached_property
+    def in_memory_runner_type(self) -> str:
+        """Runner labels like ``runner_type``, with docker on a RAM disk when the run is on RunsOn.
+
+        The repository variable ``USE_IN_MEMORY_DOCKER=false`` keeps docker on disk.
+        """
+        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
+        if (
+            self.runner_type in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
+            or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false"
+        ):
+            return self.runner_type
+        template = (
+            RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE
+            if self._platform == CI_ARM_PLATFORM
+            else RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE
+        )
+        return json.dumps([template.format(run_id=self._github_context_dict["run_id"])])
+
     def _use_runs_on_runners(self) -> bool:
         """Whether this run should use the self-hosted RunsOn runners.
 
@@ -2204,9 +2354,11 @@ class SelectiveChecks:
         the PR's own workflow files and breeze, so a fork can request a RunsOn label directly -
         that restriction has to be enforced by the RunsOn stack and the repository's Actions
         settings, not here. Routed there: pushes, schedules and dispatches, and PRs from
-        apache/airflow branches except bots' (e.g. Dependabot's). A fork PR goes there while it
-        carries the ``use self-hosted runners`` label, a committer has approved its head commit and
-        no committer's request for changes is outstanding.
+        apache/airflow branches except bots' (e.g. Dependabot's and the ``ci-upgrade-*`` PRs),
+        except the backport PRs that ``cherry_picker`` opens as ``github-actions[bot]`` from
+        ``backport-*`` branches; a committer's merge or a dispatch by a user with write access started
+        those. A fork PR goes there while it carries the ``use self-hosted runners`` label, a
+        committer has approved its head commit and no committer's request for changes is outstanding.
         The repository variable ``USE_PUBLIC_RUNNERS=true`` moves every run back to public runners.
         """
         if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
@@ -2226,9 +2378,12 @@ class SelectiveChecks:
         pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
         # The PR author, not github.actor: a committer rebasing a Dependabot PR becomes the actor.
         # The branch too: anyone can open their own PR from a Dependabot branch.
-        if (pull_request.get("user") or {}).get("type") == "Bot" or (
-            pull_request.get("head", {}).get("ref", "").startswith("dependabot/")
-        ):
+        user = pull_request.get("user") or {}
+        head_ref = pull_request.get("head", {}).get("ref", "")
+        is_automatic_backport = user.get("login") == "github-actions[bot]" and head_ref.startswith(
+            "backport-"
+        )
+        if not is_automatic_backport and (user.get("type") == "Bot" or head_ref.startswith("dependabot/")):
             return False
         # A PR from a deleted fork has no head repo.
         head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
@@ -2296,6 +2451,7 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
 

@@ -25,12 +25,16 @@ from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
     BEHIND_WARNING_COMMITS,
+    CI_CHANGE_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
+    MAX_LISTED_CI_FILES,
     Marker,
+    ci_change_approval_comment,
+    gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
@@ -39,6 +43,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
     state_comment,
     tamper_close_comment,
+    ungated_comment,
+    workflow_disabled_comment,
 )
 
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
@@ -50,6 +56,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-behind"),
         pytest.param(replace(MARKER, behind=12), id="behind"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
 def test_marker_round_trip(marker):
@@ -111,6 +118,11 @@ def test_parse_marker_malformed(body):
         pytest.param(nudge_comment(fork="u/airflow"), id="nudge"),
         pytest.param(inactivity_close_comment(days=7, fork="u/airflow"), id="inactivity"),
         pytest.param(tamper_close_comment(run_url="https://x"), id="tamper"),
+        pytest.param(
+            workflow_disabled_comment(fork="u/airflow", workflow_state="disabled_manually"), id="disabled"
+        ),
+        pytest.param(gate_modified_close_comment(change="it changes `x`"), id="gate-modified"),
+        pytest.param(ungated_comment(MARKER, base_ref="v2-10-test"), id="ungated"),
     ],
 )
 def test_every_comment_ends_with_footer(text):
@@ -122,9 +134,11 @@ def test_every_comment_ends_with_footer(text):
     [
         pytest.param(state_comment(Marker("setup_required", "a", MARKER.since), fork="u/fork", run_url=None)),
         pytest.param(inactivity_close_comment(days=7, fork="u/fork")),
+        pytest.param(workflow_disabled_comment(fork="u/fork", workflow_state="disabled_manually")),
     ],
 )
 def test_setup_texts_give_the_exact_command(text):
+    assert "gh repo sync u/fork --branch main" in text
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 
@@ -143,3 +157,18 @@ def test_status_descriptions_fit_github_limit():
 )
 def test_job_status_context(name, expected):
     assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"
+
+
+def test_ci_change_approval_comment_lists_the_files():
+    paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
+    comment = ci_change_approval_comment(
+        ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths]
+    )
+
+    assert comment.startswith(CI_CHANGE_MARKER)
+    assert comment.endswith(FOOTER)
+    assert "- `dev/breeze/?evil?.py`" in comment
+    assert "- `.github/a??@someone.yml`" in comment
+    assert "\n@someone" not in comment
+    assert "- and 4 more" in comment
+    assert f"`{paths[-1]}`" not in comment

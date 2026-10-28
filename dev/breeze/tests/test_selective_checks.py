@@ -48,6 +48,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    COMPONENT_BRANCH_OUTPUTS,
     LONG_RUNNING_TEST_PROVIDERS,
     PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
     SelectiveChecks,
@@ -124,7 +125,7 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity"
@@ -138,7 +139,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
     "mypy-shared-observability,mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
     "mypy-shared-secrets_backend,mypy-shared-secrets_masker,mypy-shared-serialization,"
     "mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-    "mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata"
+    "mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
@@ -149,7 +150,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
@@ -159,7 +160,7 @@ ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
@@ -171,7 +172,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 # API source/test change with NO OpenAPI spec change: the full matrix is no longer
@@ -187,7 +188,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,"
     "mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
@@ -199,7 +200,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
@@ -211,7 +212,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
@@ -224,7 +225,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
@@ -235,7 +236,7 @@ ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
@@ -247,7 +248,7 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
@@ -492,7 +493,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -539,7 +540,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -793,7 +794,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -831,7 +832,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -894,7 +895,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -930,7 +931,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -1279,7 +1280,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -1486,7 +1487,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
@@ -1842,13 +1843,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (".github/workflows/openlineage-e2e-compat-tests.yml",),
             {
-                # The compat workflow matches ENVIRONMENT_FILES, so it forces the full matrix.
-                # The compat therefore runs via full_tests_needed, not via OPENLINEAGE_E2E_COMPAT_FILES.
                 "run-openlineage-e2e-tests": "true",
                 "run-openlineage-e2e-compat-tests": "true",
                 "full-tests-needed": "true",
             },
-            id="Compat workflow change forces the full matrix (compat runs via full_tests_needed)",
+            id="Run OpenLineage e2e compat tests when the compat workflow changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/openlineage-compat-db.yml",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the compat database override changes",
+        ),
+        pytest.param(
+            ("scripts/ci/docker-compose/base.yml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when an environment file forces full tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when the API contract forces full tests",
         ),
         (
             pytest.param(
@@ -1974,7 +1999,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                        "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                     ),
                 },
                 id=("Shared logging change keeps only mypy-shared-logging among the mypy-shared-* hooks"),
@@ -1998,7 +2023,13 @@ def test_expected_output_pull_request_main(
 
 @pytest.mark.parametrize(
     "hook",
-    ["ktlint", "regenerate-java-sdk-verification-metadata", "check-java-sdk-serialization-conformance"],
+    [
+        "ktlint",
+        "spotless",
+        "regenerate-java-sdk-verification-metadata",
+        "check-java-sdk-serialization-conformance",
+        "sync-java-sdk-dag-schema",
+    ],
 )
 @pytest.mark.parametrize(
     ("files", "hook_skipped"),
@@ -2023,8 +2054,8 @@ def test_expected_output_pull_request_main(
 def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
     files: tuple[str, ...], hook_skipped: bool, hook: str
 ):
-    # Both hooks run the java-sdk Gradle wrapper and download from it, so they must be skipped
-    # unless java-sdk changed.
+    # These hooks run the java-sdk Gradle wrapper and download through it, so selective checks
+    # must skip them when only unrelated files change.
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2036,6 +2067,7 @@ def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
     assert (hook in skipped_hooks) is hook_skipped
 
 
+@pytest.mark.parametrize("hook", ["check-java-sdk-serialization-conformance", "sync-java-sdk-dag-schema"])
 @pytest.mark.parametrize(
     ("files", "hook_skipped"),
     [
@@ -2061,7 +2093,9 @@ def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
         ),
     ],
 )
-def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str, ...], hook_skipped: bool):
+def test_java_sdk_conformance_hook_runs_for_serializer_changes(
+    files: tuple[str, ...], hook_skipped: bool, hook: str
+):
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2070,7 +2104,20 @@ def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str,
         default_branch="main",
     )
     skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
-    assert ("check-java-sdk-serialization-conformance" in skipped_hooks) is hook_skipped
+    assert (hook in skipped_hooks) is hook_skipped
+
+
+def test_spotless_skipped_when_only_airflow_serializer_changes():
+    # Changing serialized_objects.py runs the conformance check and the Dag schema sync, but
+    # spotless only formats java-sdk/ files, so it is skipped.
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/serialization/serialized_objects.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    assert "spotless" in get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
 
 
 @pytest.mark.parametrize(
@@ -2895,6 +2942,7 @@ def test_expected_output_pull_request_v2_7(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy-providers": "true",
                 "run-ui-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
             },
             id="All tests run on push if core file changed",
         ),
@@ -3036,7 +3084,7 @@ def test_expected_output_fork_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -3077,7 +3125,7 @@ def test_expected_output_fork_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                 ),
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -3123,7 +3171,7 @@ def test_expected_output_fork_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+                    "regenerate-java-sdk-verification-metadata,spotless,sync-java-sdk-dag-schema,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
                 ),
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -4909,23 +4957,49 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
         assert provider not in LONG_RUNNING_TEST_PROVIDERS
 
 
-RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]'
-RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
+RUNS_ON_AMD = (
+    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co'
+    '/cpu={0}/ram={1}"]'
+)
+RUNS_ON_ARM = (
+    '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+)
+RUNS_ON_AMD_IN_MEMORY = (
+    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i'
+    "/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
+RUNS_ON_ARM_IN_MEMORY = (
+    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
+    '/cpu={0}/ram={1}/extras=tmpfs"]'
+)
 
 
 HEAD_SHA = "a" * 40
 
 
 @pytest.fixture(autouse=True)
-def _no_use_public_runners_variable(monkeypatch):
+def _no_runner_variables(monkeypatch):
     monkeypatch.delenv("USE_PUBLIC_RUNNERS", raising=False)
+    monkeypatch.delenv("USE_IN_MEMORY_DOCKER", raising=False)
 
 
-def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
-    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA}
+def _pull_request_context(
+    head_repo: str | None,
+    author_type: str = "User",
+    author_login: str = "someone",
+    head_ref: str = "feature",
+) -> dict[str, Any]:
+    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA, "ref": head_ref}
     return {
         "run_id": 42,
-        "event": {"pull_request": {"number": 7, "head": head, "user": {"type": author_type}}},
+        "event": {
+            "pull_request": {
+                "number": 7,
+                "head": head,
+                "user": {"type": author_type, "login": author_login},
+            }
+        },
     }
 
 
@@ -4967,6 +5041,46 @@ def _pull_request_context(head_repo: str | None, author_type: str = "User") -> d
             CI_AMD_PLATFORM,
             '["ubuntu-22.04"]',
             id="bot PR from an apache/airflow branch uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context(
+                "apache/airflow", "Bot", "github-actions[bot]", "backport-d340be0-v3-4-test"
+            ),
+            (),
+            CI_AMD_PLATFORM,
+            RUNS_ON_AMD,
+            id="automatic backport PR from an apache/airflow branch uses RunsOn",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context(
+                "someone/airflow", "Bot", "github-actions[bot]", "backport-d340be0-v3-4-test"
+            ),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="backport-named bot PR from a fork uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", "Bot", "github-actions[bot]", "ci-upgrade-v3-4-test"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="github-actions bot ci-upgrade PR uses public runners",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow", "Bot", "dependabot[bot]", "backport-d340be0-v3-4-test"),
+            (),
+            CI_AMD_PLATFORM,
+            '["ubuntu-22.04"]',
+            id="other bot on a backport branch uses public runners",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
@@ -5122,6 +5236,133 @@ def test_runner_type(
         platform=platform,
     )
     assert selective_checks.runner_type == expected
+
+
+@pytest.mark.parametrize(
+    ("github_event", "github_repository", "github_context_dict", "pr_labels", "platform", "env", "expected"),
+    [
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            RUNS_ON_ARM_IN_MEMORY,
+            id="ARM RunsOn run gets docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "true"},
+            RUNS_ON_AMD_IN_MEMORY,
+            id="true keeps docker in RAM",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "False"},
+            RUNS_ON_AMD,
+            id="false keeps docker on disk",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {"USE_IN_MEMORY_DOCKER": "false"},
+            RUNS_ON_ARM,
+            id="false keeps docker on disk on ARM",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("someone/airflow"),
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="fork PR stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {"run_id": 42},
+            (),
+            CI_AMD_PLATFORM,
+            {"USE_PUBLIC_RUNNERS": "true"},
+            '["ubuntu-22.04"]',
+            id="public runners variable wins",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "apache/airflow",
+            _pull_request_context("apache/airflow"),
+            ("use public runners",),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="public runners label wins",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            "apache/airflow",
+            {},
+            (),
+            CI_AMD_PLATFORM,
+            {},
+            '["ubuntu-22.04"]',
+            id="no run id stays on public runners",
+        ),
+        pytest.param(
+            GithubEvents.SCHEDULE,
+            "someone/airflow",
+            {"run_id": 42},
+            (),
+            CI_ARM_PLATFORM,
+            {},
+            '["ubuntu-22.04-arm"]',
+            id="fork repository stays on public ARM runners",
+        ),
+    ],
+)
+def test_in_memory_runner_type(
+    monkeypatch,
+    github_event: GithubEvents,
+    github_repository: str,
+    github_context_dict: dict[str, Any],
+    pr_labels: tuple[str, ...],
+    platform: str,
+    env: dict[str, str],
+    expected: str,
+):
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    selective_checks = SelectiveChecks(
+        github_event=github_event,
+        github_repository=github_repository,
+        github_context_dict=github_context_dict,
+        pr_labels=pr_labels,
+        platform=platform,
+    )
+    assert selective_checks.in_memory_runner_type == expected
 
 
 @pytest.mark.parametrize(
@@ -5316,3 +5557,156 @@ def test_self_hosted_label_ignored_when_reviews_cannot_be_read(
         pr_labels=("use self-hosted runners",),
     )
     assert selective_checks.runner_type == expected
+
+
+# The outputs that stay as computed on the branch of a single component: they are general checks rather
+# than another component's tests. Any other new `run_*` output must be scoped, so that it does not run there.
+GENERAL_CHECKS = {
+    "run_breeze_integration_tests",
+    "run_javascript_scans",
+    "run_python_scans",
+    "run_scripts_tests",
+    "run_system_tests",  # follows run_unit_tests
+}
+
+
+def test_every_test_output_is_scoped_to_component_branches():
+    names = [
+        name for name in dir(SelectiveChecks) if name.startswith("run_") or name.endswith("_image_build")
+    ]
+    unscoped = [
+        name
+        for name in names
+        if name not in GENERAL_CHECKS
+        and not getattr(getattr(SelectiveChecks, name).func, "scoped_to_component_branch", False)
+    ]
+    assert unscoped == []
+    for outputs in COMPONENT_BRANCH_OUTPUTS.values():
+        assert set(outputs) <= set(names)
+
+
+def _component_branch_checks(context: dict, files: tuple[str, ...]) -> SelectiveChecks:
+    # Component branches are cut from main, whatever the default branch of the checkout running the test.
+    return SelectiveChecks(
+        files=files,
+        default_branch="main",
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST if "base_ref" in context else GithubEvents.PUSH,
+        github_context_dict=context,
+    )
+
+
+@pytest.mark.parametrize(
+    ("context", "expected_on", "expected_docs"),
+    [
+        pytest.param(
+            {"base_ref": "chart/v1-2x-test"},
+            {"run_helm_tests", "run_kubernetes_tests", "ci_image_build", "prod_image_build"},
+            "helm-chart",
+            id="pull-request-to-chart-branch",
+        ),
+        pytest.param(
+            {"ref_name": "chart/v1-2x-test"},
+            # A push runs in full, so the kustomize overlays, selected as usual, run too.
+            {
+                "run_helm_tests",
+                "run_kubernetes_tests",
+                "run_kustomize_overlays_tests",
+                "ci_image_build",
+                "prod_image_build",
+            },
+            "helm-chart",
+            id="push-to-chart-branch",
+        ),
+        pytest.param(
+            {"base_ref": "airflow-ctl/v0-1-test"},
+            {"run_airflow_ctl_tests"},
+            None,
+            id="pull-request-to-airflow-ctl-branch",
+        ),
+    ],
+)
+def test_component_branch_runs_only_its_component(context, expected_on, expected_docs):
+    # A change that would run nearly everything on main.
+    checks = _component_branch_checks(
+        context, ("airflow-core/src/airflow/models/dag.py", "airflow-core/docs/index.rst")
+    )
+    scoped = {
+        name
+        for name in dir(SelectiveChecks)
+        if (name.startswith("run_") or name.endswith("_image_build")) and name not in GENERAL_CHECKS
+    }
+
+    assert {name for name in scoped if getattr(checks, name)} == expected_on
+    assert checks.skip_providers_tests is True
+    assert checks.has_migrations is False
+    assert checks.docs_list_as_string == expected_docs
+    assert checks.docs_build is (expected_docs is not None)
+    assert checks.basic_checks_only is ("ci_image_build" not in expected_on)
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-test"}, True, id="chart-branch-builds-the-image"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-test"}, False, id="airflow-ctl-branch-has-no-image"),
+    ],
+)
+def test_component_branch_upgrades_dependencies_only_with_the_ci_image(context, expected):
+    checks = _component_branch_checks(context, ("airflow-ctl/pyproject.toml", "chart/pyproject.toml"))
+
+    assert checks.upgrade_to_newer_dependencies is expected
+
+
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        pytest.param(("chart/kustomize-overlays/base/kustomization.yaml",), True, id="overlay-changed"),
+        pytest.param(("chart/values.yaml",), False, id="overlay-unchanged"),
+    ],
+)
+def test_chart_branch_keeps_the_kustomize_overlay_selection(files, expected):
+    checks = _component_branch_checks({"base_ref": "chart/v1-2x-test"}, files)
+
+    assert checks.run_kustomize_overlays_tests is expected
+
+
+@pytest.mark.parametrize(
+    ("context", "fork_push", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-stable"}, False, "chart", id="chart-stable-branch"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-stable"}, False, "airflow-ctl", id="airflow-ctl-stable"),
+        pytest.param({"base_ref": "v3-4-test"}, False, None, id="airflow-release-branch"),
+        pytest.param({"base_ref": "main"}, False, None, id="main"),
+        # A feature branch named after a component is not its release branch.
+        pytest.param({"ref_name": "chart/fix-ingress"}, False, None, id="chart-feature-branch"),
+        # A fork push is selected against main, whatever its branch is called.
+        pytest.param({"ref_name": "chart/v1-2x-test"}, True, None, id="fork-push"),
+    ],
+)
+def test_component_branch_detection(context, fork_push, expected):
+    checks = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH if fork_push else GithubEvents.PULL_REQUEST,
+        github_context_dict=context,
+        fork_push=fork_push,
+    )
+
+    assert checks._component_branch == expected
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "main"}, True, id="main"),
+        # The PROD image is built there for the Kubernetes tests alone.
+        pytest.param({"base_ref": "chart/v1-2x-test"}, False, id="chart-branch"),
+    ],
+)
+def test_generic_tests_run_outside_component_branches(context, expected):
+    checks = _component_branch_checks(context, ("kubernetes-tests/tests/kubernetes_tests/test_base.py",))
+
+    assert checks.prod_image_build is True
+    assert checks.run_generic_prod_image_tests is expected
+    assert checks.run_generic_basic_tests is expected

@@ -196,13 +196,6 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
-
-
 def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     """Parse JSON object argument."""
     if isinstance(val, dict):
@@ -214,6 +207,33 @@ def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
     return parsed
+
+
+def is_iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
+    """Parse an ISO-8601 datetime argument."""
+    if isinstance(val, datetime.datetime):
+        return val
+    try:
+        if val.endswith("Z"):
+            val = val[:-1] + "+00:00"
+        return datetime.datetime.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"invalid datetime value: {val!r}") from e
+
+
+def is_iso_date_type(val: str | datetime.date) -> datetime.date:
+    """
+    Parse an ISO-8601 date string into a datetime.date.
+
+    Used as the argparse ``type=`` callable for datetime.date-typed CLI
+    parameters, mirroring is_iso_datetime_type() above.
+    """
+    if isinstance(val, datetime.date):
+        return val
+    try:
+        return datetime.date.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"Invalid ISO-8601 date: {val!r}") from e
 
 
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
@@ -397,27 +417,27 @@ ARG_JOB_ALLOW_MULTIPLE = Arg(
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
-    type=str,
+    type=string_list_type,
     dest="section",
-    help="The section of the configuration",
+    help="The section name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_OPTION = Arg(
     flags=("--option",),
-    type=str,
+    type=string_list_type,
     dest="option",
-    help="The option of the configuration",
+    help="The option name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_IGNORE_SECTION = Arg(
     flags=("--ignore-section",),
-    type=str,
+    type=string_list_type,
     dest="ignore_section",
-    help="The configuration section being ignored",
+    help="The configuration section name(s) being ignored, comma separated",
 )
 ARG_CONFIG_IGNORE_OPTION = Arg(
     flags=("--ignore-option",),
-    type=str,
+    type=string_list_type,
     dest="ignore_option",
-    help="The configuration option being ignored",
+    help="The configuration option name(s) being ignored, comma separated",
 )
 ARG_CONFIG_VERBOSE = Arg(
     flags=(
@@ -492,7 +512,7 @@ class CommandFactory:
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
-    commands_map: dict[str, list[ActionCommand]]
+    commands_map: dict[str, list[CLICommand]]
     group_commands_list: list[CLICommand]
     auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
@@ -539,6 +559,12 @@ class CommandFactory:
         self.excluded_output_keys = [
             "total_entries",
         ]
+        # Lookup for building nested subcommands. Each entry is the shared method suffix
+        # (hyphenated into the subcommand name).
+        # e.g. list_state_store -> "taskinstances state-store list".
+        self.subgroups: dict[str, set[str]] = {
+            "TaskInstancesOperations": {"state_store"},
+        }
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -656,8 +682,8 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.date": datetime.date,
-            "datetime.datetime": datetime.datetime,
+            "datetime.date": is_iso_date_type,
+            "datetime.datetime": is_iso_datetime_type,
             "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
@@ -703,6 +729,13 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
+        """Find the subgroup suffix an operation belongs to, if one exists."""
+        for suffix in self.subgroups.get(operation_group_name, set()):
+            if operation_name.endswith(f"_{suffix}"):
+                return suffix
+        return None
 
     def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
         """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
@@ -797,8 +830,6 @@ class CommandFactory:
                         )
 
             args.append(ARG_OUTPUT)
-            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
-            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
             if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
                 args.append(ARG_AUTH_ENVIRONMENT)
 
@@ -907,6 +938,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
@@ -954,6 +988,7 @@ class CommandFactory:
 
     def _create_group_commands_from_operation(self):
         """Create GroupCommand from Operation Methods."""
+        subgroup_commands_map: dict[tuple[str, str], list[ActionCommand]] = {}
         for operation in self.operations:
             operation_name = operation["name"]
             operation_group_name = operation["parent"].name
@@ -962,12 +997,34 @@ class CommandFactory:
             )
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
+            subgroup_suffix = self._find_subgroup_suffix(
+                operation_group_name=operation_group_name, operation_name=operation_name
+            )
+            command_name = (
+                operation_name.removesuffix(f"_{subgroup_suffix}") if subgroup_suffix else operation_name
+            )
+            action_command = ActionCommand(
+                name=command_name.replace("_", "-"),
+                help=help_text,
+                func=self.func_map[(operation_name, operation_group_name)],
+                args=self.args_map[(operation_name, operation_group_name)],
+            )
+            if subgroup_suffix:
+                subgroup_commands_map.setdefault((operation_group_name, subgroup_suffix), []).append(
+                    action_command
+                )
+            else:
+                self.commands_map[operation_group_name].append(action_command)
+
+        for (operation_group_name, subgroup_suffix), action_commands in subgroup_commands_map.items():
+            subgroup_name = subgroup_suffix.replace("_", "-")
             self.commands_map[operation_group_name].append(
-                ActionCommand(
-                    name=operation["name"].replace("_", "-"),
-                    help=help_text,
-                    func=self.func_map[(operation_name, operation_group_name)],
-                    args=self.args_map[(operation_name, operation_group_name)],
+                GroupCommand(
+                    name=subgroup_name,
+                    help=self.help_texts.get(operation_group_name.replace("Operations", "").lower(), {}).get(
+                        subgroup_name
+                    ),
+                    subcommands=action_commands,
                 )
             )
 

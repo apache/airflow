@@ -85,7 +85,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -148,7 +148,7 @@ jobs:
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
-          --include-not-ready-providers --distribution-format wheel
+          --include-not-ready-providers --distribution-format wheel --github-repository apache/airflow
         if: inputs.generate-pypi-constraints == 'true' && inputs.pypi-providers-only != 'true'
       - name: "Prepare airflow distributions"
         shell: bash
