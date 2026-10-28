@@ -1051,6 +1051,25 @@ class TestDBCleanup:
         assert "count(" not in compiled_query
         session.execute.assert_not_called()
 
+    @patch("airflow.utils.db_cleanup.reflect_tables", autospec=True)
+    def test_do_delete_reflects_direct_source_once_across_batches(self, reflect_tables_mock):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "sqlite"
+        session.scalars.return_value.one.side_effect = [True, True, False]
+        metadata, source_table, _, query = _build_do_delete_test_objects()
+        reflect_tables_mock.return_value = metadata
+
+        _do_delete(
+            query=query,
+            orm_model=source_table,
+            skip_archive=True,
+            session=session,
+            batch_size=100,
+        )
+
+        reflect_tables_mock.assert_called_once_with(["dag_version"], session)
+        assert session.commit.call_count == 2
+
     def test_do_delete_directly_rolls_back_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"

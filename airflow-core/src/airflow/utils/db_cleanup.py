@@ -491,6 +491,7 @@ def _do_delete(
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
     source_table_name = _format_table_name(orm_model.schema, orm_model.name)
+    direct_source_table: Table | None = None
     attempt_archives: dict[str, Table] = {}
     attempt_archive_suffix = uuid4().hex[:16]
 
@@ -509,9 +510,12 @@ def _do_delete(
 
         if skip_archive:
             try:
+                if direct_source_table is None:
+                    metadata = reflect_tables([source_table_name], session)
+                    direct_source_table = metadata.tables[source_table_name]
                 _delete_directly(
                     limited_query=limited_query,
-                    source_table_name=source_table_name,
+                    source_table=direct_source_table,
                     session=session,
                     dialect_name=dialect_name,
                 )
@@ -520,6 +524,8 @@ def _do_delete(
                 with suppress(Exception):
                     session.rollback()
                 raise
+            # The direct DELETE embeds limited_query, so skip_if_referenced is re-evaluated in
+            # that statement. The short-delete warning below is only needed after an archive copy.
             continue
 
         # using bulk delete
@@ -625,12 +631,10 @@ def _do_delete(
 def _delete_directly(
     *,
     limited_query: Select,
-    source_table_name: str,
+    source_table: Table,
     session: Session,
     dialect_name: str,
 ) -> None:
-    metadata = reflect_tables([source_table_name], session)
-    source_table = metadata.tables[source_table_name]
     pk_cols = list(source_table.primary_key.columns)
     pk_query = limited_query.with_only_columns(
         *[literal_column(f"{_BASE_TABLE_ALIAS}.{col.name}").label(col.name) for col in pk_cols]
