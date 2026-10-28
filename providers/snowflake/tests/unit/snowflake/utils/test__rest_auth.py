@@ -26,7 +26,7 @@ import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils._rest_auth import (
     SnowflakeRestToken,
@@ -411,20 +411,24 @@ class TestWifDestinations:
             fetch.assert_not_called()
 
     @pytest.mark.parametrize(
-        "host",
+        "conn_config",
         [
-            "a.snowflakecomputing.com",
-            "A.snowflakecomputing.cn.",
-            "a.snowflakecomputing.mil",
-            "private.example",
-            "a.private.example",
+            {"host": "a.snowflakecomputing.com"},
+            {"host": "A.snowflakecomputing.cn."},
+            {"host": "a.snowflakecomputing.mil"},
+            {"host": "private.example"},
+            {"host": "a.private.example"},
+            {"host": "myorg-my_account.snowflakecomputing.com"},
+            {"account": "myorg-my_account"},
+            {"account": "_my_account_"},
+            {"account": "_"},
         ],
     )
     @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True, return_value="id-token")
-    def test_allowed_destinations(self, fetch, host, monkeypatch):
+    def test_allowed_destinations(self, fetch, conn_config, monkeypatch):
         monkeypatch.setenv("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", " private.example,other.example ")
         hook = mock.create_autospec(SnowflakeHook, instance=True)
-        hook._get_conn_params.return_value = {**CONN_PARAMS_WIF, "host": host}
+        hook._get_conn_params.return_value = {**CONN_PARAMS_WIF, **conn_config}
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
         assert provider.get_token().token == "WIF.GCP.id-token"
 
@@ -531,17 +535,25 @@ class TestFetchIdentityTokens:
             _fetch_aws_identity_token()
 
     @pytest.mark.parametrize(
-        ("fetch", "module", "package"),
+        ("fetch", "module", "installation"),
         [
-            pytest.param(_fetch_aws_identity_token, "boto3", "boto3", id="aws"),
-            pytest.param(_fetch_azure_identity_token, "azure.identity", "azure-identity", id="azure"),
-            pytest.param(_fetch_gcp_identity_token, "google.auth.compute_engine", "google-auth", id="gcp"),
+            pytest.param(_fetch_aws_identity_token, "boto3", "Install boto3.", id="aws"),
+            pytest.param(
+                _fetch_azure_identity_token,
+                "azure.identity",
+                "Install apache-airflow-providers-snowflake[microsoft.azure].",
+                id="azure",
+            ),
+            pytest.param(
+                _fetch_gcp_identity_token, "google.auth.compute_engine", "Install google-auth.", id="gcp"
+            ),
         ],
     )
-    def test_missing_cloud_library_raises(self, fetch, module, package):
+    def test_missing_cloud_library_raises(self, fetch, module, installation):
         with mock.patch.dict(sys.modules, {module: None}):
-            with pytest.raises(AirflowOptionalProviderFeatureException, match=package):
+            with pytest.raises(AirflowOptionalProviderFeatureException) as exc:
                 fetch()
+        assert installation in str(exc.value)
 
     @pytest.mark.parametrize("workload", [False, True])
     @pytest.mark.parametrize("fails", [False, True])

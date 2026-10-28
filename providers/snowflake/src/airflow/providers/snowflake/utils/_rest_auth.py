@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any
 
 import jwt
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import _validate_account_component
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -248,7 +248,7 @@ def _validate_wif_host(conn_config: dict[str, Any]) -> None:
         for entry in os.environ.get("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", "").split(",")
         if entry.strip()
     )
-    dns_name = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*"
+    dns_name = r"[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?(?:\.[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?)*"
     if (
         len(host) <= 253
         and re.fullmatch(dns_name, host)
@@ -269,8 +269,7 @@ def _fetch_aws_identity_token() -> str:
         from botocore.utils import InstanceMetadataRegionFetcher
     except ImportError as e:
         raise AirflowOptionalProviderFeatureException(
-            "Workload Identity Federation with the AWS provider requires boto3. "
-            "Install apache-airflow-providers-snowflake[amazon]."
+            "Workload Identity Federation with the AWS provider requires boto3. Install boto3."
         ) from e
     region = (
         os.environ.get("AWS_REGION")
@@ -330,8 +329,7 @@ def _fetch_gcp_identity_token() -> str:
         from google.auth.transport.requests import Request
     except ImportError as e:
         raise AirflowOptionalProviderFeatureException(
-            "Workload Identity Federation with the GCP provider requires google-auth. "
-            "Install apache-airflow-providers-snowflake[google]."
+            "Workload Identity Federation with the GCP provider requires google-auth. Install google-auth."
         ) from e
     request = Request()
     credential = IDTokenCredentials(request, WIF_AUDIENCE, use_metadata_identity_endpoint=True)
