@@ -650,9 +650,6 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
         for group_folder in group_folders:
             all_test_prefixes.append(group_folder)
     folders = [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]
-    # A companion type's paths are nested in its parent type's folder, which ignores them. When both
-    # types run in this pytest call, the nested paths and the ignores are dropped, so the tests are
-    # collected once; otherwise the ignores are kept, so the companion type's slice does not run them too.
     ignores = [
         arg for arg in args if arg.startswith("--ignore=") and arg.removeprefix("--ignore=") not in folders
     ]

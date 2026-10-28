@@ -385,9 +385,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     OTHER = "Other"
 
 
-# DB tests run each test type serially in its own container, so a single heavy type is the long pole
-# of its CI job. The heaviest folders are carved out of their parent type into companion types that
-# are always selected together with it, so they can run in parallel.
 CORE_TEST_TYPE_COMPANIONS: dict[str, tuple[str, ...]] = {
     SelectiveCoreTestType.API.value: (SelectiveCoreTestType.PUBLIC_API.value,),
     SelectiveCoreTestType.CLI.value: (SelectiveCoreTestType.CLI_TASK.value,),

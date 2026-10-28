@@ -49,7 +49,6 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 # What ci_minutes_estimate.py models: jobs on GitHub's public AMD runners, default versions only.
 # Self-hosted (RunsOn) runs and all-versions runs take different times and would skew the medians.
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
-# CORE_COMPANION_TEST_TYPES of airflow_breeze.global_constants, which this standalone script cannot import.
 CORE_COMPANION_TEST_TYPES = {"CLITask", "Models", "ModelsTI", "PublicAPI"}
 
 # Job-name patterns for each job group of ci_minutes_estimate.py; the first match wins.
