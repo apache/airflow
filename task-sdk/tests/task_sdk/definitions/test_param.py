@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from types import SimpleNamespace
 from typing import Literal
 
 import pytest
 
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict, process_params
 from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -388,3 +389,21 @@ class TestParamsDict:
                 "key2": Param("value", source="task"),
             }
         )
+
+
+class TestProcessParams:
+    def test_dagrun_conf_does_not_mutate_dag_or_task_params(self):
+        dag = SimpleNamespace(params=ParamsDict({"dag_param": Param(1, type="integer")}))
+        task = SimpleNamespace(params=ParamsDict({"task_param": Param("a", type="string")}))
+
+        dagrun_conf = {"dag_param": 2, "task_param": "b"}
+        assert process_params(dag, task, dagrun_conf, suppress_exception=False) == dagrun_conf
+
+        # The run's conf must not leak into the Dag's or the task's own params...
+        assert dag.params.dump() == {"dag_param": 1}
+        assert task.params.dump() == {"task_param": "a"}
+        # ...nor into a later run of the same objects that has no conf.
+        assert process_params(dag, task, None, suppress_exception=False) == {
+            "dag_param": 1,
+            "task_param": "a",
+        }
