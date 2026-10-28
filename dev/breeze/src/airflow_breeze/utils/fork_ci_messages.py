@@ -20,6 +20,10 @@ Texts the fork CI reconciler posts on pull requests (AIP-120).
 All wording lives here so it can be reviewed in one place. Texts must say that CI is free for the
 contributor and finite for the project, must not characterise the recipient, and must give the
 exact command to run.
+
+Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+this file is closed by the fork CI monitor. See "Gate protection" in
+dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
 """
 
 from __future__ import annotations
@@ -80,6 +84,9 @@ class Marker:
     behind: int | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
+    # Set only by a reconciler that ran the gate protection check for this head commit, so a
+    # marker written before that check existed, or while it did not apply, never counts as one.
+    gate_checked: bool = False
 
 
 def render_marker(marker: Marker) -> str:
@@ -88,6 +95,8 @@ def render_marker(marker: Marker) -> str:
         data["behind"] = marker.behind
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
+    if marker.gate_checked:
+        data["gate_checked"] = True
     return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
 
 
@@ -104,6 +113,7 @@ def parse_marker(body: str) -> Marker | None:
             since=datetime.fromisoformat(data["since"]),
             behind=data.get("behind"),
             jobs=data.get("jobs"),
+            gate_checked=data.get("gate_checked") is True,
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         raise ValueError(f"Malformed fork CI marker: {match.group(0)!r}") from e
@@ -116,11 +126,12 @@ def fork_actions_url(fork: str) -> str:
 def _setup_instructions(fork: str) -> str:
     return (
         "To get CI for this pull request:\n\n"
-        "1. Enable the workflow in your fork (once per fork):\n\n"
+        "1. Sync your fork's `main` with apache/airflow, so that it has the current version of the "
+        "workflow:\n\n"
+        f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
+        "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
-        "   If your fork's `main` is older than the workflow, sync it first with "
-        f"`gh repo sync {fork} --branch main`.\n"
-        "2. Push your branch again. Every push then runs CI in your fork.\n\n"
+        "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
         f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
     )
@@ -144,6 +155,7 @@ _STATE_TEXTS = {
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
     "the contributor's fork; see the comment below.",
+    "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
 
 
@@ -180,6 +192,20 @@ def released_comment(marker: Marker) -> str:
     )
 
 
+def gate_modified_close_comment(*, change: str | None) -> str:
+    return (
+        f"Closing this pull request because it changes the fork CI gate{f': {change}' if change else ''}.\n\n"
+        "The gate decides whether a pull request runs its CI in apache/airflow or in the contributor's "
+        "fork. It is made of the `gate` job of `.github/workflows/ci-amd.yml`, "
+        "`dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`, `.github/fork-ci-gate.toml` and the fork CI "
+        "monitor, and a pull request whose CI runs in a fork must not change it, because the change would "
+        "decide where its own CI runs. The one exception is adding, changing or removing your own `[pilot]` "
+        "entry in `.github/fork-ci-gate.toml`.\n\n"
+        "If the change is wanted, a maintainer can reopen the pull request and add the `use project ci` "
+        "label." + FOOTER
+    )
+
+
 def ungated_comment(marker: Marker, *, base_ref: str) -> str:
     return (
         f"{render_marker(marker)}\n\n"
@@ -192,6 +218,23 @@ def nudge_comment(*, fork: str) -> str:
     return (
         f"The `Tests (AMD)` workflow is now enabled in {fork}. Push this branch again to start CI "
         "for this pull request; the workflow only runs for pushes made after it was enabled." + FOOTER
+    )
+
+
+_DISABLED_REASONS = {
+    "disabled_manually": "was disabled in your fork, from its Actions tab or with `gh workflow disable`",
+    "disabled_inactivity": "was disabled by GitHub because your fork had no activity for 60 days",
+    "disabled_fork": "is disabled in your fork",
+    "missing": "is missing from your fork, for example because its `main` was reset to an older commit",
+}
+
+
+def workflow_disabled_comment(*, fork: str, workflow_state: str | None) -> str:
+    reason = _DISABLED_REASONS.get(workflow_state or "missing", "is not enabled in your fork")
+    return (
+        f"**Fork CI stopped running.** The `Tests (AMD)` workflow {reason}, so pushes to this "
+        "branch no longer run CI, and this pull request stays a draft until they do.\n\n"
+        f"{_setup_instructions(fork)}" + FOOTER
     )
 
 
@@ -251,6 +294,7 @@ _STATUS_DESCRIPTIONS = {
     "gate_bypassed": "Project CI ran for a gated pull request - see Details",
     "released": "Project CI in use (label `use project ci`) - see the checks",
     "ungated": "Project CI in use (base branch without fork CI) - see the checks",
+    "gate_modified": "Pull request changes the fork CI gate - see the comment",
 }
 
 # (commit status state, description) of a fork job, by its status and conclusion. A queued job is
@@ -290,6 +334,7 @@ STATUS_STATES = {
     "gate_bypassed": "error",
     "released": "success",
     "ungated": "success",
+    "gate_modified": "error",
 }
 
 

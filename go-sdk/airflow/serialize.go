@@ -424,9 +424,6 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 		// Python writes template_fields for every operator. A Go task has no template fields, so the list
 		// is empty.
 		data["template_fields"] = []string{}
-		// is_stub makes the API server send the task its arguments from _arg_bindings when the
-		// task runs, as it does for a @task.stub task of a Python Dag.
-		data["is_stub"] = true
 		if len(task.inputs) > 0 {
 			data["_arg_bindings"] = serializeArgBindings(task.inputs)
 		}
@@ -437,7 +434,11 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 			data["_can_skip_downstream"] = true
 		}
 	}
-	// A task from TriggerDagRun takes the queue of the Dag too, because the Go runtime runs it.
+	// The Go runtime runs every task of a Go Dag, a task from TriggerDagRun included, so every one of
+	// them is a stub. is_stub makes the API server send the task its arguments from _arg_bindings when
+	// the task runs, as it does for a @task.stub task of a Python Dag.
+	data["is_stub"] = true
+	// The worker picks a runtime by queue, so a task from TriggerDagRun takes the queue of the Dag too.
 	if spec.Queue == "" {
 		spec.Queue = d.spec.Queue
 	}
