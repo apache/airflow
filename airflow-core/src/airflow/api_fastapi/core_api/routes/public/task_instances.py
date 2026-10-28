@@ -25,9 +25,11 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.cursors import (
     apply_cursor_filter,
     encode_cursor,
@@ -129,10 +131,12 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     patch_region_selection,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException, DagNotFound, TaskNotFound
 from airflow.models import DagRun
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import lock_dag_runs
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.external_clear import ExternalClearDepthExceeded, find_external_clear_task_instances
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import (
     LOOP_GATE_OPERATOR,
@@ -1027,6 +1031,52 @@ def get_mapped_task_instance_try_details(
     )
 
 
+def _editable_task_instances(tis: list[TI], *, user: BaseUser, session: Session) -> list[TI]:
+    """Drop the task instances of Dags the user may not clear; the route only checked the path Dag."""
+    dag_ids = list({ti.dag_id for ti in tis})
+    dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+    auth_manager = get_auth_manager()
+    editable = {
+        dag_id
+        for dag_id in dag_ids
+        if auth_manager.is_authorized_dag(
+            method="PUT",
+            access_entity=DagAccessEntity.TASK_INSTANCE,
+            details=DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
+            user=user,
+        )
+    }
+    return [ti for ti in tis if ti.dag_id in editable]
+
+
+def _clear_dependent_task_instances(
+    tis: list[TI],
+    *,
+    body: ClearTaskInstancesBody,
+    dag_run_state: DagRunState | Literal[False],
+    session: Session,
+) -> list[TI]:
+    """Clear task instances in other Dags, each under its own Dag's ``rerun_with_latest_version``."""
+    lock_dag_runs(session, {(ti.dag_id, ti.run_id) for ti in tis}, refresh=True)
+    by_dag: dict[str, list[TI]] = defaultdict(list)
+    for ti in session.scalars(
+        select(TI).where(TI.id.in_([ti.id for ti in tis])).execution_options(populate_existing=True)
+    ):
+        by_dag[ti.dag_id].append(ti)
+    whole_task = not body.only_failed and not body.only_running
+    cleared: list[TI] = []
+    for dag_id, dag_tis in by_dag.items():
+        cleared += clear_task_instances(
+            dag_tis,
+            session,
+            dag_run_state,
+            run_on_latest_version=resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session),
+            prevent_running_task=body.prevent_running_task,
+            whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in dag_tis} if whole_task else (),
+        )
+    return cleared
+
+
 @task_instances_router.post(
     "/clearTaskInstances",
     responses=create_openapi_http_exception_doc(
@@ -1269,6 +1319,27 @@ def post_clear_task_instances(
             .execution_options(populate_existing=True)
         ).all()
 
+    include_dependent_dags = (
+        body.include_downstream if body.include_dependent_dags is None else body.include_dependent_dags
+    )
+    dependent_tis: list[TI] = []
+    if include_dependent_dags and task_instances:
+        try:
+            dependent_tis = find_external_clear_task_instances(
+                task_instances,
+                dag_bag=dag_bag,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                session=session,
+            )
+        except ExternalClearDepthExceeded as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+        except DagNotFound as e:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+        dependent_tis = _editable_task_instances(dependent_tis, user=user, session=session)
+    if dry_run:
+        task_instances = [*task_instances, *dependent_tis]
+
     if not dry_run:
         whole_task_keys = {
             (ti.dag_id, ti.run_id, ti.task_id)
@@ -1307,6 +1378,16 @@ def post_clear_task_instances(
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
                 )
+            if dependent_tis:
+                task_instances = [
+                    *task_instances,
+                    *_clear_dependent_task_instances(
+                        dependent_tis,
+                        body=body,
+                        dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+                        session=session,
+                    ),
+                ]
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
         except ValueError as e:

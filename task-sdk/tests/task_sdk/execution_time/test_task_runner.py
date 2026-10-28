@@ -61,6 +61,7 @@ from airflow.sdk import (
     BaseOperator,
     BaseOperatorLink,
     Connection,
+    ExternalClearTarget,
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
@@ -87,6 +88,7 @@ from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
+from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.retry_policy import (
     ExceptionRetryPolicy,
@@ -4952,6 +4954,87 @@ def _recording_email_backend(
     than imported because the Task SDK must not depend on ``airflow-core``.
     """
     raise AssertionError("should be patched in the test")
+
+
+class _ClearTargetOperator(BaseOperator):
+    """Points a clear at ``child.wait`` on the rendered ``target_date``."""
+
+    template_fields = ("target_date",)
+
+    def __init__(self, *, target_date: str, **kwargs):
+        super().__init__(**kwargs)
+        self.target_date = target_date
+
+    def execute(self, context):
+        pass
+
+    def get_external_clear_target(self, context):
+        return ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=datetime.fromisoformat(self.target_date)
+        )
+
+
+class TestExternalClearTarget:
+    def test_records_target_resolved_from_rendered_templates(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(
+            task_id="mark", target_date="{{ logical_date.replace(hour=0).isoformat() }}"
+        )
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        with mock.patch.object(XCom, "_set_xcom_in_db", autospec=True) as mock_set_in_db:
+            state, _, _ = run(
+                runtime_ti,
+                context=runtime_ti.get_template_context(),
+                log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+            )
+
+        assert state == TaskInstanceState.SUCCESS
+        mock_set_in_db.assert_called_once_with(
+            key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+            value={
+                "dag_id": "child",
+                "task_id": "wait",
+                "logical_date": "2026-10-01T00:00:00+00:00",
+                "recursion_depth": 10,
+            },
+            dag_id=runtime_ti.dag_id,
+            task_id=runtime_ti.task_id,
+            run_id=runtime_ti.run_id,
+            map_index=runtime_ti.map_index,
+        )
+
+    def test_operator_without_target_records_nothing(self, create_runtime_ti, mock_supervisor_comms):
+        class PlainOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(task=PlainOperator(task_id="plain"))
+
+        with mock.patch.object(XCom, "_set_xcom_in_db", autospec=True) as mock_set_in_db:
+            state, _, _ = run(
+                runtime_ti,
+                context=runtime_ti.get_template_context(),
+                log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+            )
+
+        assert state == TaskInstanceState.SUCCESS
+        mock_set_in_db.assert_not_called()
+
+    def test_target_that_cannot_be_resolved_fails_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(task_id="mark", target_date="{{ params.get('missing', '') }}")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch.object(XCom, "_set_xcom_in_db", autospec=True) as mock_set_in_db:
+            state, msg, error = run(
+                runtime_ti,
+                context=runtime_ti.get_template_context(),
+                log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+            )
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(msg, TaskState)
+        assert isinstance(error, ValueError)
+        mock_set_in_db.assert_not_called()
 
 
 class TestEmailNotifications:
