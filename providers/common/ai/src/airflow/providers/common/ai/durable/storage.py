@@ -105,6 +105,9 @@ class DurableStorage:
         except FileNotFoundError:
             self._cache = {}
             return self._cache
+        except UnicodeDecodeError:
+            # Bytes that are not text cannot hold a journal; treat them like any other invalid file.
+            text = ""
         except Exception:
             log.warning(
                 "Durable: could not read the journal file; this attempt runs without it "
