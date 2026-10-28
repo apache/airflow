@@ -147,9 +147,11 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
+    GO_SDK_CONFORMANCE_FILES = auto()
     JAVA_SDK_FILES = auto()
     JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
@@ -215,6 +217,15 @@ LANG_SDK_NATIVE_DAG_PARSING_FILES = (
     r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
     r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
     r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
+# What every language SDK's serialization conformance check compares the SDK against: Airflow's
+# serializer and schema, and the shared harness. They do not force full_tests_needed, so each SDK's
+# conformance group lists them next to the SDK's own files.
+LANG_SDK_CONFORMANCE_SHARED_FILES = (
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^airflow-core/src/airflow/serialization/schema\.json$",
+    r"^scripts/ci/lang_sdk_serialization/.*",
 )
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
@@ -308,12 +319,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/sql/.*",
         ],
         FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
-            # Only add files that affect the compat setup and do NOT already trigger the full matrix
-            # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
-            # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
+            # run_openlineage_e2e_compat_tests ignores full_tests_needed. A file that drives the compat setup
+            # belongs here even when it also forces the full matrix, as the compat workflow does.
+            r"^\.github/workflows/openlineage-e2e-compat-tests\.yml$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+            r"^airflow-e2e-tests/docker/openlineage-compat-db\.yml$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
             # API documentation entry points and Markdown do not affect runtime e2e tests.
@@ -537,6 +549,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # everything else (go.mod, go.sum, build config) must trigger the unit tests.
             r"^go-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.GO_SDK_CONFORMANCE_FILES: [
+            # The Go SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^go-sdk/(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
+        ],
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
@@ -545,9 +563,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # The Java SDK, plus what its serialization conformance check compares it against:
             # Airflow's serializer and schema, and the shared harness.
             r"^java-sdk/(?!.*\.md$).*",
-            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
-            r"^airflow-core/src/airflow/serialization/schema\.json$",
-            r"^scripts/ci/lang_sdk_serialization/.*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
@@ -566,6 +582,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
             # docs toolchain's own package, with its own tests that vitest does not run.
             r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_CONFORMANCE_FILES: [
+            # The TS SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -695,13 +717,6 @@ def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_re
     for file in files:
         if any(re.match(regexp, file) for regexp in matching_regexps):
             matched_files.append(file)
-
-
-def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
-    for file in files:
-        if any(re.match(regexp, file) for regexp in exclude_regexps):
-            if file in matched_files:
-                matched_files.remove(file)
 
 
 @clearable_cache
@@ -1453,14 +1468,13 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_openlineage_e2e_compat_tests(self) -> bool:
-        # Costly older-Airflow matrix. Like run_ui_e2e_tests it is not triggered by *derived*
-        # full_tests_needed (pushes, env changes, large PRs) — only by canary, an explicit label, or
-        # an actual change to a file that drives the compat setup but does not itself force the full
-        # matrix: the shared e2e harness (conftest / constants) or the compat Dockerfile. The compat
-        # workflow already forces full_tests_needed via ENVIRONMENT_FILES.
+        # The older-Airflow matrix is costly. Like run_ui_e2e_tests, this check ignores full_tests_needed.
+        # Many changes that do not touch the compat setup also set full_tests_needed, for example changes to
+        # environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+        # this matrix, and the next canary run tests that change.
         if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             return True
-        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
+        return bool(self._matching_files(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES, CI_FILE_GROUP_MATCHES))
 
     @cached_property
     @_scoped_to_component_branch
@@ -1516,6 +1530,19 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
+
+    @cached_property
+    def lang_sdk_conformance_sdks(self) -> str:
+        """JSON list of the language SDKs whose serialization conformance check runs, as the matrix of its job."""
+        # No component branch runs it, as for the outputs scoped with _scoped_to_component_branch.
+        if self._component_branch is not None:
+            return json.dumps([])
+        groups = {
+            "go": FileGroupForCi.GO_SDK_CONFORMANCE_FILES,
+            "java": FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES,
+            "ts": FileGroupForCi.TS_SDK_CONFORMANCE_FILES,
+        }
+        return json.dumps([sdk for sdk, group in groups.items() if self._should_be_run(group)])
 
     @cached_property
     @_scoped_to_component_branch
@@ -2141,19 +2168,21 @@ class SelectiveChecks:
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
-            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
-            # depend on that (intermittently failing) download.
+            # ktlint and spotless run the java-sdk Gradle wrapper, which downloads the Gradle
+            # distribution on a cold cache. Skip both hooks when no java-sdk files changed, so
+            # unrelated PRs do not depend on a download that fails intermittently.
             prek_hooks_to_skip.add("ktlint")
+            prek_hooks_to_skip.add("spotless")
             # Rewriting the verification metadata resolves the entire Java SDK dependency graph
             # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
-            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
-            # harness changed. Those last do not force full_tests_needed, so they need their own group.
-            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped with
+            # JAVA_SDK_CONFORMANCE_FILES, not with ktlint, because that group includes airflow-core's
+            # schema.json. A PR that changes only schema.json can leave the Java SDK's copy of the
+            # schema out of date, and this hook detects the outdated copy.
+            prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
             # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema

@@ -169,6 +169,12 @@
   "toggleTableView": "테이블 보기 표시",
   "triggerDag": {
     "button": "트리거",
+    "dagStartEndDate": {
+      "both": "Dag 시작일: {{startDate}}, 종료일: {{endDate}}",
+      "end": "Dag 종료일: {{endDate}}",
+      "noTaskWillRun": "실행될 태스크가 없습니다.",
+      "start": "Dag 시작일: {{startDate}}"
+    },
     "dataInterval": "데이터 구간",
     "dataIntervalAuto": "논리적 날짜와 시간표에서 자동 추론",
     "dataIntervalManual": "수동 지정",
@@ -179,6 +185,8 @@
     "loadingFailed": "Dag 정보를 로드하지 못했습니다. 다시 시도해주세요.",
     "manualRunDenied": "이 Dag는 수동으로 실행할 수 없습니다.",
     "partitionKeyHelp": "선택 사항 - 파티션된 Dag에만 적용됩니다.",
+    "recentConfig": "최근 구성",
+    "recentConfigPlaceholder": "최근 구성 선택",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
     "selectDescription": "이 Dag를 단일 실행 트리거",
     "selectLabel": "단일 실행",

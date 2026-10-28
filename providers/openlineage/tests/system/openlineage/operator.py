@@ -43,6 +43,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Marks every log line describing why event validation failed. The OpenLineage e2e tests (task_logs.py) print
+# only these lines of a failed check, keep the tag in sync with them.
+VALIDATION_ERROR_TAG = "[OL_VALIDATION_ERROR]"
+
+
+def log_validation_error(msg: str, *args: Any) -> None:
+    log.error("%s %s", VALIDATION_ERROR_TAG, msg % args if args else msg)
+
 
 def any(result: Any) -> Any:
     return result
@@ -155,13 +163,15 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
     if isinstance(expected, dict):
         # Only keys present in expected are checked — extra keys in the actual event are ignored.
         if not isinstance(result, dict):
-            log.error("Path `%s`: expected a dict but got `%s` (%s)", path_str, result, type(result).__name__)
+            log_validation_error(
+                "Path `%s`: expected a dict but got `%s` (%s)", path_str, result, type(result).__name__
+            )
             return False
         for k, v in expected.items():
             # null sentinel: assert the key must NOT appear in the actual event.
             if v is None:
                 if k in result:
-                    log.error(
+                    log_validation_error(
                         "Path `%s`: key `%s` must be absent but got `%s` (%s)",
                         path_str,
                         k,
@@ -190,7 +200,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
 
             # At this point v is a plain template (dict, list, or scalar) with no sentinels.
             if k not in result:
-                log.error("Path `%s`: key `%s` not found in received event", path_str, k)
+                log_validation_error("Path `%s`: key `%s` not found in received event", path_str, k)
                 return False
             if not match(v, result[k], env, path + [k]):
                 return False
@@ -198,10 +208,14 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
         # Lists must match exactly in length and order. Each element is compared recursively,
         # so nested sentinels (null, $optional) work inside list items too.
         if not isinstance(result, list):
-            log.error("Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__)
+            log_validation_error(
+                "Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__
+            )
             return False
         if len(expected) != len(result):
-            log.error("Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result))
+            log_validation_error(
+                "Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result)
+            )
             return False
         for i, x in enumerate(expected):
             if not match(x, result[i], env, path + [i]):
@@ -215,11 +229,11 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             try:
                 rendered = env.from_string(expected).render(result=result)
             except (ValueError, TemplateError) as e:
-                log.error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
+                log_validation_error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
                 return False
             if str(rendered).lower() == "true" or rendered == result:
                 return True
-            log.error(
+            log_validation_error(
                 "Path `%s`: template `%s` rendered to `%s` but expected `true` or actual value `%s` (%s)",
                 path_str,
                 expected,
@@ -230,7 +244,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             return False
         # Plain string: exact equality check.
         if expected != result:
-            log.error(
+            log_validation_error(
                 "Path `%s`: expected `%s` (str) but got `%s` (%s)",
                 path_str,
                 expected,
@@ -240,7 +254,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             return False
     elif expected != result:
         # Scalar (int, bool, float, …): exact equality check.
-        log.error(
+        log_validation_error(
             "Path `%s`: expected `%s` (%s) but got `%s` (%s)",
             path_str,
             expected,

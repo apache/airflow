@@ -159,17 +159,17 @@ dag.Task(load, airflow.Inputs(transformed, airflow.Literal("s3://bucket/out")))
 
 A literal must be JSON that decodes into its parameter type, and it adds no edge to the Dag.
 
-The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
+The serialization conformance check builds the Dags of
 [`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)
 twice: with this SDK, and with Python and Airflow's own serializer. It loads the Go output with
-Airflow's deserializer and compares the two serializations field by field. Run it from the
-repository root:
+Airflow's deserializer and compares the two serializations field by field. CI runs it in the
+`Lang SDK serialization conformance` job. Run it from the repository root (it needs `go` and `uv`):
 
 ```bash
-prek run check-go-sdk-serialization-conformance --all-files
+python3 scripts/ci/lang_sdk_serialization/check_go_sdk.py
 ```
 
-The hook runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
+The check runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
 have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixtures/go_native.json)
 holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
 `TestSerializeConformanceDags` says how to rewrite it.

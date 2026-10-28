@@ -45,7 +45,6 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.connection import Connection
-from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
@@ -109,7 +108,6 @@ from airflow.sdk.execution_time.context import (
     _async_get_variable,
     _async_get_variable_keys,
     _async_set_variable,
-    _convert_variable_result_to_variable,
     _get_connection,
     _process_connection_result_conn,
     _wrap_external_ref,
@@ -148,31 +146,6 @@ def test_convert_connection_result_conn():
         password="password",
         port=1234,
         extra='{"extra_key": "extra_value"}',
-    )
-
-
-def test_convert_variable_result_to_variable():
-    """Test that the VariableResult is converted to a Variable object."""
-    var = VariableResult(
-        key="test_key",
-        value="test_value",
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=False)
-    assert var == Variable(
-        key="test_key",
-        value="test_value",
-    )
-
-
-def test_convert_variable_result_to_variable_with_deserialize_json():
-    """Test that the VariableResult is converted to a Variable object with deserialize_json set to True."""
-    var = VariableResult(
-        key="test_key",
-        value='{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=True)
-    assert var == Variable(
-        key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
 
 
@@ -1082,6 +1055,47 @@ class TestInletEventAccessor:
         assert calls[5][0][0] == GetAssetEventByAsset(
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
+
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param("2024-01-01T00:00:00Z", id="str"),
+            pytest.param(datetime(2024, 1, 1, tzinfo=UTC), id="datetime"),
+        ],
+    )
+    def test__get_item__with_bounds(self, sample_inlet_evnets_accessor, mock_supervisor_comms, bound):
+        mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[])]
+        expected = datetime(2024, 1, 1, tzinfo=UTC)
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].after(bound).before(bound))
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name="test_uri",
+                uri="test://test/",
+                after=expected,
+                before=expected,
+                limit=None,
+                ascending=True,
+            )
+        )
+
+    @pytest.mark.parametrize("method", ["after", "before"])
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param(datetime(2024, 1, 1), id="naive-datetime"),
+            pytest.param("2024-01-01T00:00:00", id="naive-str"),
+            pytest.param("not a timestamp", id="malformed-str"),
+        ],
+    )
+    def test_invalid_bound_raises_on_call(
+        self, sample_inlet_evnets_accessor, mock_supervisor_comms, method, bound
+    ):
+        accessor = sample_inlet_evnets_accessor[TEST_ASSET]
+        with pytest.raises(ValidationError):
+            getattr(accessor, method)(bound)
+        mock_supervisor_comms.send.assert_not_called()
 
     def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
         asset_event_resp = AssetEventResult(

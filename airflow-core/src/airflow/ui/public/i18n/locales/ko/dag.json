@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "모든 맵 인덱스",
   "allRuns": "모든 실행",
   "blockingDeps": {
     "dependency": "종속성",
@@ -35,6 +36,21 @@
       "wednesday": "수"
     }
   },
+  "callbacks": {
+    "callback_one": "콜백",
+    "callback_other": "콜백",
+    "columns": {
+      "alertName": "데드라인 알림",
+      "callback": "콜백",
+      "deadlineTime": "데드라인 시각",
+      "missedBy": "초과 시간",
+      "type": "유형"
+    },
+    "types": {
+      "executor": "동기",
+      "triggerer": "비동기"
+    }
+  },
   "code": {
     "bundleUrl": "번들 URL",
     "noCode": "코드를 찾을 수 없습니다.",
@@ -67,17 +83,6 @@
     "upcoming": "예정",
     "upcomingCount_one": "예정된 데드라인 {{count, number}}건",
     "upcomingCount_other": "예정된 데드라인 {{count, number}}건"
-  },
-  "execution": {
-    "clearSelected": "선택한 실행 항목 지우기",
-    "empty": "이 실행에 실행 항목이 없습니다.",
-    "iteration": "{{node}} · 반복 {{index}}",
-    "mapped_one": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
-    "mapped_other": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
-    "page": "실행 항목 {{total, number}}개 중 {{start, number}}–{{end, number}}개 표시",
-    "runTasks": "태스크 실행",
-    "select": "{{task}} 선택",
-    "title": "실행 항목"
   },
   "extraLinks": "추가 링크",
   "grid": {
@@ -120,11 +125,6 @@
     "warning": "경고"
   },
   "loop": {
-    "filter": {
-      "all": "모든 반복",
-      "invocation": "호출",
-      "label": "반복"
-    },
     "history": {
       "capLabel": "제한: {{max}}",
       "iterationsAxis": "반복 횟수",
@@ -134,7 +134,7 @@
       },
       "title": "실행별 반복 횟수"
     },
-    "iteration": "반복 {{index}}",
+    "iterationLabel": "반복 {{index}}",
     "iterations": "반복",
     "outcome": "결과",
     "reason": {
@@ -259,6 +259,7 @@
     "auditLog": "감사 로그",
     "backfills": "백필",
     "calendar": "캘린더",
+    "callbacks": "콜백",
     "code": "코드",
     "details": "세부 정보",
     "logs": "로그",
@@ -332,6 +333,11 @@
       "provenance": "출처",
       "unknown": "알 수 없음"
     },
+    "limitReached": {
+      "description": "변경이 최대 변경 수 제한보다 많습니다. 나머지를 보려면 제한을 늘리세요.",
+      "descriptionDefault": "변경이 기본 제한보다 많습니다. 나머지를 보려면 최대 변경 수를 더 높게 설정하세요.",
+      "title": "처음 {{limit, number}}개 변경만 표시 중"
+    },
     "maxChanges": "최대 변경 수",
     "maxChangesDefault": "기본값",
     "noChanges": "두 버전에 저장된 상태가 같습니다.",
@@ -342,9 +348,12 @@
     },
     "record_one": "레코드",
     "record_other": "레코드",
+    "schemaChange": "직렬화 스키마 {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "두 버전을 선택하면 그 사이에 변경된 내용을 볼 수 있습니다.",
     "summary_one": "변경 {{count, number}}개",
     "summary_other": "변경 {{count, number}}개",
+    "summaryAtLeast_one": "변경 {{count, number}}개 이상",
+    "summaryAtLeast_other": "변경 {{count, number}}개 이상",
     "target": "비교 대상",
     "unavailable": {
       "description": "두 버전을 비교할 수 없습니다. 이유:",

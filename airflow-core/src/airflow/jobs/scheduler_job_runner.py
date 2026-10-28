@@ -415,7 +415,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not serdag:
                 return None
             serdag.load_op_links = False
-            return serdag.dag
+            dag = serdag.dag
+
+            # Vivify lazily loaded things now
+            _ = dag.timetable
+            for task in dag.tasks:
+                _ = task.weight_rule
+
+            return dag
         except Exception:
             self.log.exception("Failed to deserialize DAG '%s'", dag_id)
             return None

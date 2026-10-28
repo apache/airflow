@@ -272,6 +272,9 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`frameworks/openai_agents`)
      - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
        its tool and runner APIs between minor releases.
+   * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
+     - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
+       into an error result the adapter has to work around.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)

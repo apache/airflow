@@ -525,6 +525,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
   `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
   files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
+* `Lang SDK serialization conformance` (the `tests-lang-sdk-conformance` job, which serializes the Dags
+  of `scripts/ci/lang_sdk_serialization/test_dags.yaml` with an SDK and with Airflow and compares the
+  two) runs for each SDK listed in the `lang-sdk-conformance-sdks` output: `go` when `Go SDK
+  conformance files` change, `java` when `Java SDK conformance files` change and `ts` when `TS SDK
+  conformance files` change. Each group is the SDK's own files (as in `Go SDK files`, `Java SDK files`
+  and `TS SDK files`) plus what the check compares the SDK against: Airflow's serializer
+  (`serialized_objects.py`), `airflow-core/src/airflow/serialization/schema.json` and the shared
+  harness under `scripts/ci/lang_sdk_serialization/`. None of those three forces `full_tests_needed`,
+  so a change to any of them runs the check for every SDK. The list is empty on a component branch.
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
   Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
@@ -547,13 +556,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `PROD Image building`.
 * `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
   current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
-  they do NOT run on every OpenLineage PR: on `canary` runs, when the `full tests needed` label is
-  explicitly set, or when a file that drives the compat setup but does not itself force the full
-  matrix changes — the shared e2e harness
-  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`) or the compat Dockerfile
-  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`). The compat workflow
-  (`.github/workflows/openlineage-e2e-compat-tests.yml`) matches `ENVIRONMENT_FILES` and so already
-  forces the full matrix — the same rationale as `run-ui-e2e-tests`.
+  they do NOT run on every OpenLineage PR. They run on `canary` runs, when the `full tests needed`
+  label is explicitly set, or when a file that drives the compat setup changes. These files are
+  the compat workflow (`.github/workflows/openlineage-e2e-compat-tests.yml`), the compat Dockerfile
+  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`), the compat database override
+  (`airflow-e2e-tests/docker/openlineage-compat-db.yml`) and the shared e2e harness
+  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`). Like
+  `run-ui-e2e-tests`, `run-openlineage-e2e-compat-tests` ignores `full_tests_needed`. Many changes
+  that do not touch the compat setup also turn on `full_tests_needed`, for example changes to
+  environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+  the compat tests, and the next `canary` run tests that change.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
@@ -607,17 +619,25 @@ when some files are not changed. Those are the rules implemented:
     type errors (see #68919)
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
-  * if no `Java SDK files` changed - `ktlint` and
-    `regenerate-java-sdk-verification-metadata` checks are skipped (both run the java-sdk
-    Gradle wrapper, which downloads the Gradle distribution, and the latter additionally
-    resolves the whole Java SDK dependency graph from Maven Central, so we avoid those
-    downloads on PRs that do not touch `java-sdk/`)
-  * if no `Java SDK conformance files` changed - `check-java-sdk-serialization-conformance`
-    is skipped (it compiles the Java SDK with Gradle and resolves its dependencies from Maven
-    Central). The group is wider than `Java SDK files`: it also covers Airflow's serializer
-    (`serialized_objects.py`), `schema.json` and the shared harness under
-    `scripts/ci/lang_sdk_serialization/`, because the check compares the SDK against those and
-    none of them forces `full_tests_needed`
+  * if no `Java SDK files` (`java-sdk/`, excluding `.md`) changed - `ktlint`, `spotless` and
+    `regenerate-java-sdk-verification-metadata` checks are skipped. All three run the java-sdk
+    Gradle wrapper, and `regenerate-java-sdk-verification-metadata` also resolves the whole Java
+    SDK dependency graph from Maven Central
+  * if no `Java SDK conformance files` changed - `sync-java-sdk-dag-schema` is skipped (it runs the
+    `:sdk:syncDagSchema` Gradle task). The group is wider than `Java SDK files`: it also covers
+    Airflow's serializer, `airflow-core/src/airflow/serialization/schema.json` and the shared
+    harness under `scripts/ci/lang_sdk_serialization/` (see `Lang SDK serialization conformance`
+    above). Because airflow-core's `schema.json` is in the group, `sync-java-sdk-dag-schema` still
+    runs on a PR that changes only that file. Such a change is what leaves the Java SDK's copy in
+    `java-sdk/sdk/schema/dag-schema.json` out of date
+  * whichever of the four Java SDK hooks above runs first in a job pays for Gradle's cold
+    start, which includes downloading the Gradle distribution. A PR skips the cold start only
+    when it changes none of the `Java SDK conformance files`
+  * neither Java SDK group includes `.pre-commit-config.yaml` or CI setup files. A PR that
+    changes only the definition of one of the five hooks therefore does not run the hooks in
+    its own CI. The same holds for a PR whose only change is CI setup that does not force
+    `full_tests_needed`, for example a composite action under `.github/actions/`. The scheduled
+    canary runs skip none of the five hooks, so they still check such a change
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
     skipped (it regenerates and diffs the generated ts-sdk file from the vendored schema). A
     change to the supervisor wire schema on the Python side is not deferred to a follow-up PR:
@@ -683,6 +703,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.11-v1.25.2 3.12-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
 | kubernetes-versions-list-as-string                      | All Kubernetes versions to use for tests as space-separated string                                      | v1.25.2                                  | *    |
+| lang-sdk-conformance-sdks                               | Language SDKs whose serialization conformance check runs, as JSON array                                 | \["go", "java", "ts"\]                   |      |
 | latest-versions-only                                    | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones.               | false                                    |      |
 | mypy-checks                                             | List of folders to be considered for mypy checks                                                        | \["airflow_aux", "airflow_core"\]        |      |
 | mysql-exclude                                           | Which versions of MySQL to exclude for tests as JSON array                                              | []                                       |      |
@@ -762,9 +783,13 @@ approval `use self-hosted runners` needs, so for that label approve the head com
 reopen the PR.
 
 The RunsOn value is a label template such as
-`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
-picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
-or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
+`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]`. Every job
+picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`'4+8', '16+32'`,
+`'8+16', '32+64'` or `'32+64', '128+256'`), or, for a single-job reusable workflow, its caller passes
+`format(<runners>, <cpu>, <ram>)`. Each class is a range up to twice its size, so Spot can come from
+the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
+`spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
+the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
@@ -781,8 +806,8 @@ jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test job
 core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
 [`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
 `/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
-r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
-runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+r-family. The jobs ask for 8 to 16 CPUs and 32 to 128 GB (`cpu=8+16/ram=32+128`), as the RAM disk
+is capped at the runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
 on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
 back to disk without a PR.
 
