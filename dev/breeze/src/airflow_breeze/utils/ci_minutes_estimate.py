@@ -61,8 +61,7 @@ MYPY_PROVIDERS_ESTIMATE = (8, 8)
 AIRFLOW_CTL_ESTIMATE = (1, 1)
 
 # Core tests: about 38 job-minutes for the first test type and 61 for each further one, up to
-# the cost of all core test types. Companion test types are not counted: they only split the tests
-# of their parent type, so runs before and after a split stay comparable.
+# the cost of all core test types.
 CORE_FIRST_TEST_TYPE_MINUTES = 38
 CORE_EXTRA_TEST_TYPE_MINUTES = 61
 CORE_ALL_TEST_TYPES_MINUTES = 222
