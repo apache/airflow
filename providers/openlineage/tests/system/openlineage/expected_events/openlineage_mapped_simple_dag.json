@@ -8,7 +8,11 @@
                         "mapped": "{{ result == true }}"
                     },
                     "taskInstance": {
-                        "map_index": 1
+                        "map_index": 1,
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}"
                     }
                 }
             }
@@ -26,7 +30,11 @@
                         "mapped": "{{ result == true }}"
                     },
                     "taskInstance": {
-                        "map_index": 1
+                        "map_index": 1,
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}"
                     }
                 }
             }

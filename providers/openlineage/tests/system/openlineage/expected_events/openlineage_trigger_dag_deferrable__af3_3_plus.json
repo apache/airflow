@@ -282,6 +282,13 @@
                 "airflow": {
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -332,6 +339,13 @@
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
                         "trigger_run_id": "{{ result.startswith('manual__202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -498,13 +512,13 @@
                     "taskGroups": {},
                     "taskTree": {},
                     "tasks": {
-                        "do_nothing_task": {
+                        "check_macros": {
                             "downstream_task_ids": [],
                             "emits_ol_events": "{{ result == true }}",
                             "is_setup": false,
                             "is_teardown": false,
-                            "operator": "airflow.providers.standard.operators.bash.BashOperator",
-                            "ui_label": "do_nothing_task"
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_label": "check_macros"
                         }
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
@@ -526,10 +540,10 @@
                 "airflowState": {
                     "dagRunState": "success",
                     "tasksState": {
-                        "do_nothing_task": "success"
+                        "check_macros": "success"
                     },
                     "tasksDuration": {
-                        "do_nothing_task": "{{ result is number }}"
+                        "check_macros": "{{ result is number }}"
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
@@ -685,11 +699,20 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
         "job": {
-            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.do_nothing_task"
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.check_macros"
         }
     },
     {
@@ -729,11 +752,20 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
         "job": {
-            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.do_nothing_task"
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.check_macros"
         }
     },
     {
@@ -744,6 +776,13 @@
                     "task": {
                         "deferrable": "{{ result == true }}",
                         "trigger_dag_id": "openlineage_trigger_dag_deferrable_child__notrigger"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -795,6 +834,13 @@
                         "deferrable": "{{ result == true }}",
                         "trigger_dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
                         "trigger_run_id": "{{ result.startswith('manual__') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {

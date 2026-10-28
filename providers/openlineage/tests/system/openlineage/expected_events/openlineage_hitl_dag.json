@@ -45,6 +45,13 @@
                             ],
                             "serialized_params": null
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -84,6 +91,13 @@
                             "responded_at": "{{ is_datetime(result) }}",
                             "responded_by_user": null
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -119,6 +133,13 @@
                             "ignore_downstream_trigger_rules": false,
                             "fail_on_reject": false
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -161,6 +182,13 @@
                             "responded_by_user": null,
                             "approved": true
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -198,6 +226,13 @@
                                 "Another task": "path_b_task"
                             }
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -244,6 +279,13 @@
                                 "path_a_task"
                             ]
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -256,12 +298,38 @@
         "eventType": "START",
         "job": {
             "name": "openlineage_hitl_dag.path_a_task"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_hitl_dag.path_a_task"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
@@ -296,6 +364,13 @@
                                 }
                             }
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -342,6 +417,13 @@
                             "responded_at": "{{ is_datetime(result) }}",
                             "responded_by_user": null
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }

@@ -40,7 +40,9 @@
                         "dag_bundle_version": "{{ result is string }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running"
                     },
                     "dag": {
                         "dag_id": "openlineage_sensor_reschedule_dag"
@@ -92,7 +94,9 @@
                         "dag_bundle_version": "{{ result is string }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success"
                     },
                     "dag": {
                         "dag_id": "openlineage_sensor_reschedule_dag"

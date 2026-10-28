@@ -23,6 +23,15 @@
                             "loop_group": null,
                             "is_mapped": false,
                             "parse_time_mapped_count": null
+                        },
+                        "after_failure": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0,
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null
                         }
                     }
                 }
@@ -157,5 +166,26 @@
             "name": "openlineage_task_states_dag.fail_without_retry"
         },
         "$absent": "the task fails without a retry"
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
     }
 ]

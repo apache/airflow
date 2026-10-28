@@ -1,0 +1,3062 @@
+[
+    {"eventType": "START", "job": {"name": "openlineage_task_loop_state_dag"}},
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": true}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": {"stop": true}
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": {"stop": true}
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "trajectory": 3,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 1}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 2}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 3}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 1}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 2}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_clears__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 3}}}}
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger"
+                    }
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "Dag Run's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "task_failure"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.fail_second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.fail_second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "failed",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure of the second iteration"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.fail_second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.fail_second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "up_for_retry",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure of the first try of one map index"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "region_index": 0,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.failing.mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": true}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.rescheduled"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.rescheduled"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.rescheduled"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger.waiting.rescheduled"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_endings__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "task_failure"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.after"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.after"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": false}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {"stop": true}
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.__loop_gate"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.work"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_task_loop_state_dag_task_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 1}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 1}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.check"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "reason": "check returned 1",
+                                "stop": false
+                            }
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "reason": "check returned 2",
+                                "stop": true
+                            }
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "reason": "check returned 1",
+                                "stop": false
+                            }
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": {
+                                "reason": "check returned 2",
+                                "stop": true
+                            }
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_until__notrigger.poll.ready"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null,
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 2,
+                            "forked_from_region_id": "{{ is_uuid(result) }}",
+                            "resumes_from_index": 2,
+                            "decision": null
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_task_loop_state_dag_until__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.__loop_gate"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.__loop_gate"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.__loop_gate"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.after"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.after"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.after"},
+        "$absent": "the loop ends on the task marked as failed"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.__loop_gate"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.after"},
+        "$absent": "the Dag run is marked while the first iteration runs"
+    }
+]

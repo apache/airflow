@@ -1,0 +1,1192 @@
+[
+    {"eventType": "START", "job": {"name": "openlineage_manual_state_dag"}},
+    {
+        "$since": "3.4",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "Dag Run's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "$since": "3.4",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_plain"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_plain"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.wait_deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.wait_deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "$since": "3.4",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_mapped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_plain"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_plain"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.wait_deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.4",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.wait_deferred"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {
+                        "name": "openlineage_manual_state_dag_dag_run_success__notrigger"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_downstream_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_upstream_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "task_failure"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_failed_to_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_failed_to_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "failed",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure, marked as success afterwards"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_failed_to_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_success_to_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_success_to_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_success_to_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.group_failed.after_in_group"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.group_failed.sleep_in_group"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.group_failed.sleep_in_group"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_downstream_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_downstream_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.2",
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_skipped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.2",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_skipped"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_upstream_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_upstream_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_awaiting_input_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "TaskInstance's state was manually set to `failed`."}
+            }
+        }
+    },
+    {
+        "$since": "3.1",
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_awaiting_input_failed"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_deferred_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_deferred_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_rescheduled_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_rescheduled_success"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_skipped"},
+        "$absent": "upstream skipped, never runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_skipped"},
+        "$absent": "upstream skipped, never runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_skipped"},
+        "$absent": "upstream skipped, never runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_mapped_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_mapped_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_mapped_failed"},
+        "$absent": "upstream failed, never runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_plain"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.after_mapped"},
+        "$absent": "the Dag run is marked before it runs"
+    }
+]
