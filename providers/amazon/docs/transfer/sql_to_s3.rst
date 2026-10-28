@@ -67,6 +67,25 @@ Example usage:
     :start-after: [START howto_transfer_sql_to_s3_with_groupby_param]
     :end-before: [END howto_transfer_sql_to_s3_with_groupby_param]
 
+Paging
+------
+
+A result that does not fit in memory is read in pages with the ``page_size`` param, the way
+``GenericTransfer`` pages a source: one query per page through ``paginated_sql_statement_clause``
+(``"{} LIMIT {} OFFSET {}"`` by default, formatted with the query, the page size and the offset), one file
+per page (``<key>_0``, ``<key>_1``, ...), and only one page in memory at a time. The transfer stops at the
+first page that comes back short. On most databases the query needs an ``ORDER BY`` for the pages to be
+stable; a hook that serves pages itself, such as one streaming a single result, needs none.
+``page_size`` cannot be combined with ``max_rows_per_file`` or ``groupby_kwargs``.
+
+Example usage:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sql_to_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_transfer_sql_to_s3_with_page_size]
+    :end-before: [END howto_transfer_sql_to_s3_with_page_size]
+
 Reference
 ---------
 

@@ -431,7 +431,7 @@ def test_mapping_revision_only_changes_selected_expansion(dag_maker, session):
     regional = TaskInstance(task, version, run_id=dr.run_id, map_index=3, region_id=uuid4())
     session.add_all([ordinary, regional])
     session.flush()
-    added = dr._revise_map_indexes_if_mapped(regional, session=session)
+    added, _ = dr._revise_map_indexes_if_mapped(regional, session=session)
     assert [(ti.region_id, ti.region_index) for ti in added] == [
         (regional.region_id, 0),
         (regional.region_id, 1),

@@ -248,7 +248,7 @@ func layoutSources(
 		if int64(region.Len()) > bundlefooter.MaxRegionSize {
 			return sourceLayout{}, nil, fmt.Errorf(
 				"source region too large after embedding %s (max %d bytes)",
-				p, int64(bundlefooter.MaxRegionSize),
+				p, bundlefooter.MaxRegionSize,
 			)
 		}
 	}
