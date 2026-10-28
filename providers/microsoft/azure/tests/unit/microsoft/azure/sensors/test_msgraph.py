@@ -171,7 +171,7 @@ class TestMSGraphSensor:
         for template_field in MSGraphSensor.template_fields:
             getattr(sensor, template_field)
 
-    def test_execute_defers_with_timeout_and_anchor(self):
+    def test_execute_defers_with_timeout_and_started_at(self):
         sensor = _sensor()
 
         with _at(0), pytest.raises(TaskDeferred) as exc:
@@ -183,7 +183,7 @@ class TestMSGraphSensor:
         assert exc.value.timeout == timedelta(seconds=100)
         assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
 
-    def test_execute_complete_redefers_with_capped_sleep_and_anchor(self):
+    def test_execute_complete_redefers_with_capped_sleep_and_started_at(self):
         sensor = _sensor()
 
         with _at(10), pytest.raises(TaskDeferred) as exc:
@@ -192,7 +192,7 @@ class TestMSGraphSensor:
         assert isinstance(exc.value.trigger, TimeDeltaTrigger)
         assert exc.value.trigger.moment == T0 + timedelta(seconds=40)
         assert exc.value.method_name == "retry_execute"
-        assert exc.value.timeout is None
+        assert exc.value.timeout == timedelta(seconds=120)
         assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
 
     @pytest.mark.parametrize("elapsed", [10, 40, 70])
@@ -214,6 +214,7 @@ class TestMSGraphSensor:
             sensor.execute_complete(context={}, event=NOT_DONE, sensor_started_at=T0.timestamp())
 
         assert exc.value.trigger.moment == T0 + timedelta(seconds=100)
+        assert exc.value.timeout == timedelta(seconds=40)
 
     @pytest.mark.parametrize("elapsed", [100, 150])
     def test_past_deadline_raises_sensor_timeout(self, elapsed):
@@ -267,7 +268,7 @@ class TestMSGraphSensor:
                 "execute_complete", {"event": NOT_DONE, "sensor_started_at": T0.timestamp()}, {}
             )
 
-    def test_missing_anchor_falls_back_to_now(self):
+    def test_missing_started_at_falls_back_to_now(self):
         sensor = _sensor()
 
         with _at(500), pytest.raises(TaskDeferred) as exc:
@@ -282,7 +283,7 @@ class TestMSGraphSensor:
         assert exc.value.trigger.moment == T0 + timedelta(seconds=530)
         assert exc.value.kwargs == {"sensor_started_at": (T0 + timedelta(seconds=500)).timestamp()}
 
-    def test_future_anchor_clamped(self):
+    def test_future_started_at_clamped(self):
         sensor = _sensor()
 
         with _at(0), pytest.raises(TaskDeferred) as exc:
@@ -291,19 +292,3 @@ class TestMSGraphSensor:
             )
 
         assert exc.value.timeout == timedelta(seconds=100)
-
-    def test_timeout_attribute_none_never_times_out(self):
-        sensor = _sensor()
-        sensor.timeout = None
-        ten_years = timedelta(days=3650).total_seconds()
-
-        with _at(ten_years), pytest.raises(TaskDeferred) as exc:
-            sensor.execute_complete(context={}, event=NOT_DONE, sensor_started_at=T0.timestamp())
-
-        assert exc.value.trigger.moment == T0 + timedelta(seconds=ten_years + 30)
-        assert exc.value.timeout is None
-
-        with _at(ten_years), pytest.raises(TaskDeferred) as exc:
-            sensor.retry_execute(context={}, event=T0, sensor_started_at=T0.timestamp())
-
-        assert exc.value.timeout is None

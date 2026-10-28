@@ -116,13 +116,11 @@ class MSGraphSensor(BaseSensorOperator):
         self._defer_request(timezone.utcnow().timestamp(), self.timeout)
 
     def retry_execute(self, context: Context, sensor_started_at: float | None = None, **kwargs) -> Any:
-        started_at = self._anchor(sensor_started_at)
-        remaining = self._remaining_timeout(started_at)
-        if remaining is not None:
-            remaining = max(remaining, self.retry_delay.total_seconds())
+        started_at = self._started_at(sensor_started_at)
+        remaining = max(self._remaining_timeout(started_at), self.retry_delay.total_seconds())
         self._defer_request(started_at, remaining)
 
-    def _defer_request(self, started_at: float, remaining: float | None) -> None:
+    def _defer_request(self, started_at: float, remaining: float) -> None:
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -141,16 +139,14 @@ class MSGraphSensor(BaseSensorOperator):
             ),
             method_name=self.execute_complete.__name__,
             kwargs={"sensor_started_at": started_at},
-            timeout=timedelta(seconds=remaining) if remaining is not None else None,
+            timeout=timedelta(seconds=remaining),
         )
 
     @staticmethod
-    def _anchor(sensor_started_at: float | None) -> float:
+    def _started_at(sensor_started_at: float | None) -> float:
         return sensor_started_at if sensor_started_at is not None else timezone.utcnow().timestamp()
 
-    def _remaining_timeout(self, started_at: float) -> float | None:
-        if self.timeout is None:
-            return None
+    def _remaining_timeout(self, started_at: float) -> float:
         return self.timeout - max(timezone.utcnow().timestamp() - started_at, 0)
 
     def execute_complete(
@@ -202,22 +198,18 @@ class MSGraphSensor(BaseSensorOperator):
 
                     return result
 
-                started_at = self._anchor(sensor_started_at)
+                started_at = self._started_at(sensor_started_at)
                 remaining = self._remaining_timeout(started_at)
-                if remaining is not None and remaining <= 0:
+                if remaining <= 0:
                     raise AirflowSensorTimeout(
                         f"Sensor has timed out; run duration of {self.timeout - remaining} seconds "
                         f"exceeds the specified timeout of {self.timeout}."
                     )
-                delay = (
-                    self.retry_delay
-                    if remaining is None
-                    else min(self.retry_delay, timedelta(seconds=remaining))
-                )
                 self.defer(
-                    trigger=TimeDeltaTrigger(delay),
+                    trigger=TimeDeltaTrigger(min(self.retry_delay, timedelta(seconds=remaining))),
                     method_name=self.retry_execute.__name__,
                     kwargs={"sensor_started_at": started_at},
+                    timeout=timedelta(seconds=remaining) + self.retry_delay,
                 )
 
         return None
