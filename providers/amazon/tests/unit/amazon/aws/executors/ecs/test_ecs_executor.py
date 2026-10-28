@@ -1544,6 +1544,28 @@ class TestRunTaskConcurrency:
             ):
                 AwsEcsExecutor()
 
+    @pytest.mark.parametrize(
+        ("concurrency", "connection_config", "expected_pool_size"),
+        [
+            pytest.param("16", {}, 17, id="one-per-thread-and-for-the-scheduler-thread"),
+            pytest.param("0", {}, 33, id="no-limit-sized-by-parallelism"),
+            pytest.param("16", {"max_pool_connections": 50}, 50, id="larger-connection-setting-kept"),
+        ],
+    )
+    def test_client_has_a_connection_for_each_thread(
+        self, set_env_vars, monkeypatch, concurrency, connection_config, expected_pool_size
+    ):
+        config_kwargs = {"connect_timeout": 7, **connection_config}
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_AWS_DEFAULT",
+            json.dumps({"conn_type": "aws", "extra": {"config_kwargs": config_kwargs}}),
+        )
+        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): concurrency}):
+            executor = AwsEcsExecutor(parallelism=32)
+
+        assert executor.ecs.meta.config.max_pool_connections == expected_pool_size
+        assert executor.ecs.meta.config.connect_timeout == 7
+
 
 class TestRunTaskThrottling:
     @pytest.mark.parametrize("concurrency", ["1", "2"])

@@ -33,6 +33,7 @@ from datetime import timedelta
 from functools import partial
 from typing import TYPE_CHECKING, TypeAlias
 
+from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -148,18 +149,6 @@ class AwsEcsExecutor(BaseExecutor):
         self.container_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
         self.attempts_since_last_successful_connection = 0
 
-        self.load_ecs_connection(check_connection=False)
-        self.IS_BOTO_CONNECTION_HEALTHY = False
-
-        self.run_task_kwargs = self._load_run_kwargs()
-
-        # Maximum number of retries to run an ECS task.
-        self.max_run_task_attempts = self.conf.get(
-            CONFIG_GROUP_NAME,
-            AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
-            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
-        )
-
         self.run_task_concurrency = self.conf.getint(
             CONFIG_GROUP_NAME,
             AllEcsConfigKeys.RUN_TASK_CONCURRENCY,
@@ -173,12 +162,26 @@ class AwsEcsExecutor(BaseExecutor):
         # With a concurrency of 1, RunTask calls are made one by one in the scheduler loop. With 0, there is
         # no limit: the executor never has more than ``parallelism`` workloads to launch at once, and the
         # pool only starts the threads that the calls in flight need.
+        self._run_task_threads = 0
         self._run_task_pool: ThreadPoolExecutor | None = None
         if self.run_task_concurrency != 1:
+            self._run_task_threads = self.run_task_concurrency or self.parallelism
             self._run_task_pool = ThreadPoolExecutor(
-                max_workers=self.run_task_concurrency or self.parallelism, thread_name_prefix="ecs-run-task"
+                max_workers=self._run_task_threads, thread_name_prefix="ecs-run-task"
             )
         self._run_task_futures: dict[Future, EcsQueuedTask] = {}
+
+        self.load_ecs_connection(check_connection=False)
+        self.IS_BOTO_CONNECTION_HEALTHY = False
+
+        self.run_task_kwargs = self._load_run_kwargs()
+
+        # Maximum number of retries to run an ECS task.
+        self.max_run_task_attempts = self.conf.get(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
+        )
 
     if not AIRFLOW_V_3_1_PLUS:
 
@@ -296,7 +299,15 @@ class AwsEcsExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
         region_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        hook = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        # Each RunTask thread, and the scheduler thread, needs a connection of its own: past the client's pool
+        # size (10 by default), the extra connections are closed with a warning when a burst of calls is over,
+        # and the next burst opens them again.
+        config = hook.config
+        connections = self._run_task_threads + 1
+        if config.max_pool_connections < connections:
+            config = config.merge(Config(max_pool_connections=connections))
+        self.ecs = hook.get_client_type(region_name=hook.region_name, config=config)
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
 
