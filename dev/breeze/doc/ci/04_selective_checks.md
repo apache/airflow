@@ -547,13 +547,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `PROD Image building`.
 * `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
   current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
-  they do NOT run on every OpenLineage PR: on `canary` runs, when the `full tests needed` label is
-  explicitly set, or when a file that drives the compat setup but does not itself force the full
-  matrix changes — the shared e2e harness
-  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`) or the compat Dockerfile
-  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`). The compat workflow
-  (`.github/workflows/openlineage-e2e-compat-tests.yml`) matches `ENVIRONMENT_FILES` and so already
-  forces the full matrix — the same rationale as `run-ui-e2e-tests`.
+  they do NOT run on every OpenLineage PR. They run on `canary` runs, when the `full tests needed`
+  label is explicitly set, or when a file that drives the compat setup changes. These files are
+  the compat workflow (`.github/workflows/openlineage-e2e-compat-tests.yml`), the compat Dockerfile
+  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`), the compat database override
+  (`airflow-e2e-tests/docker/openlineage-compat-db.yml`) and the shared e2e harness
+  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`). Like
+  `run-ui-e2e-tests`, `run-openlineage-e2e-compat-tests` ignores `full_tests_needed`. Many changes
+  that do not touch the compat setup also turn on `full_tests_needed`, for example changes to
+  environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+  the compat tests, and the next `canary` run tests that change.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
