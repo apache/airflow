@@ -48,7 +48,7 @@ from airflow.dag_processing.api_client import (
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.jobs.job import Job
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
@@ -279,14 +279,15 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             relative_fileloc="dag.py",
             parse_duration=0.1,
             serialized_dags=[],
-            source_codes={},
+            source_codes=[],
+            dag_source_indexes={},
         )
         with pytest.raises(httpx2.ReadError):
             processor.publish_parse_result(body)
         processor.heartbeat()
         receipt = processor.publish_parse_result(body)
         assert receipt.attempt_id == body.attempt_id
-        assert session.scalar(select(DagParseCheckpoint)).attempt_id == body.attempt_id
+        assert session.scalar(select(DagProcessorPublicationReceipt)).attempt_id == body.attempt_id
         assert processor.publish_parse_result(body) == receipt
         processor.complete_job(TerminalJobState.SUCCESS)
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
