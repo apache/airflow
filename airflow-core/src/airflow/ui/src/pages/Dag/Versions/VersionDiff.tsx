@@ -19,7 +19,6 @@
 import { Badge, Box, Heading, Text } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { LuInfo } from "react-icons/lu";
 
 import type { DagVersionDiffChangeResponse, DagVersionDiffResponse } from "openapi/requests/types.gen";
 
@@ -65,10 +64,18 @@ const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
   },
 ];
 
-const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): ChangeColumns => [
+const buildColumns = (
+  translate: TFunction<"dag">,
+  valuesShown: boolean,
+  truncated: boolean,
+): ChangeColumns => [
   {
     accessorKey: "path",
-    cell: ({ row }) => <PathText path={row.original.path} />,
+    // Only a redacted record that merged changes sharing a public path counts more than one, so
+    // the count rides on the path it qualifies instead of a column that is almost always 1.
+    cell: ({ row }) => (
+      <PathText occurrences={row.original.occurrence_count} path={row.original.path} truncated={truncated} />
+    ),
     enableSorting: false,
     header: translate("versions.columns.path"),
   },
@@ -100,11 +107,6 @@ const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): Change
     enableSorting: false,
     header: translate("versions.columns.impact"),
   },
-  {
-    accessorKey: "occurrence_count",
-    enableSorting: false,
-    header: translate("versions.columns.occurrences"),
-  },
   ...(valuesShown ? buildValueColumns(translate) : []),
 ];
 
@@ -119,7 +121,7 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
 
   return (
     <DataTable
-      columns={buildColumns(translate, valuesShown)}
+      columns={buildColumns(translate, valuesShown, diff.truncated)}
       data={diff.changes}
       // The summary heads the table's own header row, so the comparison, what it leaves out and
       // the control over its columns read as one line rather than three stacked ones.
@@ -148,23 +150,14 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
       hideRowCountHeading
       modelName="dag:versions.record"
       noRowsMessage={translate("versions.noChanges")}
+      // The hover says what grants values, since the viewer cannot grant it here: the server
+      // decides from the caller's access to Dag code.
       presentationActions={
-        <>
-          {/* The hover says what grants values, since the viewer cannot grant it here: the server
-                decides from the caller's access to Dag code. */}
-          {valuesShown ? undefined : (
-            <Tooltip content={translate("versions.codeAccess")} portalled>
-              <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
-            </Tooltip>
-          )}
-          {/* Above the table rather than below it: a long diff would otherwise push the caveat
-                off-screen exactly when it matters most. */}
-          <Tooltip content={translate("versions.observedStateBoundary")} portalled>
-            <Box aria-label={translate("versions.aboutThisComparison")} as="button" color="fg.muted" p={1}>
-              <LuInfo />
-            </Box>
+        valuesShown ? undefined : (
+          <Tooltip content={translate("versions.codeAccess")} portalled>
+            <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
           </Tooltip>
-        </>
+        )
       }
       total={diff.changes.length}
     />

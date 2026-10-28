@@ -302,7 +302,6 @@
     "title": "태스크 상태 저장소"
   },
   "versions": {
-    "aboutThisComparison": "이 비교에 대한 정보",
     "base": "비교 기준",
     "categories": {
       "asset": "에셋",
@@ -323,7 +322,6 @@
       "before": "변경 전",
       "category": "분류",
       "impact": "영향",
-      "occurrences": "발생 횟수",
       "operation": "변경 유형",
       "path": "경로"
     },
@@ -343,7 +341,6 @@
     "maxChanges": "최대 변경 수",
     "maxChangesDefault": "기본값",
     "noChanges": "두 버전에 저장된 상태가 같습니다.",
-    "observedStateBoundary": "버전 생성 시점의 기록이 아니라 현재 저장된 상태를 비교합니다. 이전 버전은 소스 비교를 지원하지 않으므로, 소스를 비교하려면 코드 탭을 사용하세요.",
     "operations": {
       "added": "추가됨",
       "changed": "변경됨",

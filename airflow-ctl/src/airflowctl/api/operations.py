@@ -75,6 +75,10 @@ from airflowctl.api.datamodels.generated import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskStateStoreBody,
+    TaskStateStoreCollectionResponse,
+    TaskStateStorePatchBody,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -106,6 +110,21 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
     return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
 
 
+def _has_json_body(response: httpx.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Kept in sync with airflow.sdk.api.client._has_json_body.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
+def _parse_json_or_str(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except (ValueError, TypeError):
+        return value
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -115,16 +134,22 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.status_code < 400:
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         # httpx runs response event hooks before it reads the body, so the body has to be
         # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
         response.read()
 
+        try:
+            detail = response.json()
+        except ValueError:
+            # A JSON content-type does not guarantee a JSON body; leave it to raise_for_status().
+            return None
+
         error_kind = "Client" if response.status_code < 500 else "Server"
         return cls(
-            message=f"{error_kind} error message: {response.json()}",
+            message=f"{error_kind} error message: {detail}",
             request=response.request,
             response=response,
         )
@@ -218,14 +243,14 @@ class BaseOperations:
 
         def safe_validate(content: bytes) -> BaseModel:
             try:
-                return data_model.model_validate_json(content)  # type: ignore[union-attr]
+                return data_model.model_validate_json(content)
             except ValidationError:
                 raw = fill_missing_fields(json.loads(content), data_model)
-                return data_model.model_validate(raw)  # type: ignore[union-attr]
+                return data_model.model_validate(raw)
 
         self.response = self.client.get(path, params={**shared_params, "offset": offset})
         first_pass = safe_validate(self.response.content)
-        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        total_entries = first_pass.total_entries
         if total_entries < limit:
             return first_pass
         found_key = None
@@ -341,10 +366,7 @@ class AssetsOperations(BaseOperations):
 
     def set_state_store(self, asset_id: str, key: str, value: str) -> str | ServerResponseError:
         """Set an asset state store value. Creates or overwrites the key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
         self.client.put(
             f"assets/{asset_id}/state-store/{key}",
             json=AssetStateStoreBody(value=parsed_value).model_dump(mode="json"),
@@ -759,6 +781,87 @@ class TaskInstancesOperations(BaseOperations):
             data_model=TaskInstanceCollectionResponse,
         )
 
+    def list_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskStateStoreCollectionResponse | ServerResponseError:
+        """List all state store entries for a task instance."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
+            data_model=TaskStateStoreCollectionResponse,
+            params=_build_query_params(map_index=map_index),
+        )
+
+    def get_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> TaskStateStoreResponse | ServerResponseError:
+        """Get a single task state store entry."""
+        self.response = self.client.get(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return TaskStateStoreResponse.model_validate_json(self.response.content)
+
+    def set_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Set a task state store value. Creates or overwrites the key."""
+        parsed_value = _parse_json_or_str(value)
+        self.client.put(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            json=TaskStateStoreBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def update_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Update the value of an existing task state store key."""
+        parsed_value = _parse_json_or_str(value)
+        self.client.patch(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            json=TaskStateStorePatchBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def delete_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> str | ServerResponseError:
+        """Delete a single task state store key."""
+        self.client.delete(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def clear_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        all_map_indices: bool = False,
+    ) -> str | ServerResponseError:
+        """Delete all task state store keys for a task instance."""
+        self.client.delete(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
+            params=_build_query_params(map_index=map_index, all_map_indices=all_map_indices or None),
+        )
+        return task_id
+
 
 class TasksOperations(BaseOperations):
     """Tasks operations."""
@@ -871,10 +974,7 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Add an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"key": key, "value": parsed_value}
         if map_index is not None:
@@ -896,10 +996,7 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Edit an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"value": parsed_value}
         if map_index is not None:

@@ -24,20 +24,10 @@ import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
-import { getSafeExternalUrl } from "src/utils/links";
+import { getLinkTarget, getSafeExternalUrl } from "src/utils/links";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
-};
-
-const getTarget = (url: string) => {
-  try {
-    return new URL(url, globalThis.location.origin).origin === globalThis.location.origin
-      ? "_self"
-      : "_blank";
-  } catch {
-    return "_blank";
-  }
 };
 
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
@@ -78,7 +68,7 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
             return undefined;
           }
 
-          const target = getTarget(safeUrl);
+          const target = getLinkTarget(safeUrl);
 
           return (
             <Button asChild key={key} variant="surface">
