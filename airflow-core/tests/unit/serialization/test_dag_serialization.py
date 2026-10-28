@@ -3139,6 +3139,38 @@ def test_operator_expand_serde():
     assert op.partial_kwargs["executor_config"] == {"dict": {"sub": "value"}}
 
 
+def test_partial_subset_prunes_ids_of_excluded_tasks_and_groups():
+    """Ids of the tasks and groups left out of a subset must not survive in it."""
+    with DAG("partial_subset_pruning", schedule=None) as dag:
+        with TaskGroup("group_a"):
+            first = BaseOperator(task_id="first")
+            second = BaseOperator(task_id="second")
+            first >> second
+        with TaskGroup("group_b"):
+            third = BaseOperator(task_id="third")
+            fourth = BaseOperator(task_id="fourth")
+            third >> fourth
+        second >> third
+
+    serialized = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    subset = serialized.partial_subset(task_ids="third", include_downstream=True, include_upstream=False)
+
+    assert subset.partial
+    assert set(subset.task_dict) == {"group_b.third", "group_b.fourth"}
+    # "group_a.second" is upstream of "group_b.third" in the original DAG, and it did not make the cut.
+    assert subset.task_dict["group_b.third"].upstream_task_ids == set()
+    assert subset.task_dict["group_b.third"].downstream_task_ids == {"group_b.fourth"}
+
+    subset_groups = subset.task_group.get_task_group_dict()
+    subset_group_ids = set(subset_groups)
+    assert "group_a" not in subset_group_ids
+    for group in subset_groups.values():
+        assert group.upstream_task_ids <= set(subset.task_dict)
+        assert group.downstream_task_ids <= set(subset.task_dict)
+        assert group.upstream_group_ids <= subset_group_ids
+        assert group.downstream_group_ids <= subset_group_ids
+
+
 def test_operator_expand_xcomarg_serde():
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
