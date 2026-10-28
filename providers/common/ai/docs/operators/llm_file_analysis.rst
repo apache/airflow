@@ -205,4 +205,4 @@ and request count at INFO level. See :ref:`AgentOperator logging <howto/operator
 for details on the log format.
 
 Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
-XCom, on a failed run too. See :ref:`run join key <howto/observability:run-xcoms>`.
+XCom, on a failed run too. See :doc:`../observability`.

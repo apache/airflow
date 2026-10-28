@@ -187,4 +187,4 @@ logged (truncated to 500 characters). See :ref:`AgentOperator logging <howto/ope
 for details on the log format.
 
 Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
-XCom, on a failed run too. See :ref:`run join key <howto/observability:run-xcoms>`.
+XCom, on a failed run too. See :doc:`../observability`.

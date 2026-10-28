@@ -63,9 +63,7 @@ How it works
   attempts share one trace and appear as repeated task-run spans on it,
   distinguished by ``try number``. Only a manual clear or rerun regenerates the
   context and starts a new trace.
-* .. _howto/observability:run-xcoms:
-
-  **Run join key.** For an ``AgentOperator`` run or a run of ``LLMOperator`` or one of
+* **Run join key.** For an ``AgentOperator`` run or a run of ``LLMOperator`` or one of
   its subclasses (and their decorator equivalents), the task-instance id
   (unique per attempt, since Airflow regenerates it on each retry) is passed to
   pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
