@@ -919,7 +919,7 @@ class TestOpenAIResponseOperatorStructuredOutput:
             )
 
     @pytest.mark.parametrize(
-        ("response_kwargs", "expected_error"),
+        ("response_fields", "expected_error"),
         [
             pytest.param(
                 {"refusal": "I cannot help with that request."},
@@ -937,13 +937,13 @@ class TestOpenAIResponseOperatorStructuredOutput:
             ),
         ],
     )
-    def test_rejected_response_still_records_id_and_usage(self, response_kwargs, expected_error):
+    def test_rejected_response_still_records_id_and_usage(self, response_fields, expected_error):
         # The API call behind a rejected response was still billed, so its id and token usage
         # are pushed before the status and the structured output are checked.
         operator, hook = self._operator()
         usage = _build_usage()
         hook.parse_response.return_value = _build_parsed_response(
-            response_id="resp_rejected", usage=usage, **response_kwargs
+            response_id="resp_rejected", usage=usage, **response_fields
         )
         context = _build_execute_context()
 
