@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+from abc import abstractmethod
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, cast
 
@@ -67,69 +68,97 @@ class AssetEventTimeBound(Protocol):
 
 
 class _ContextTimeBound(AssetEventTimeBound):
-    _context_key: ClassVar[str]
+    _label: ClassVar[str]
 
-    def __init__(self, *, lookback: timedelta = timedelta(0)) -> None:
-        if lookback < timedelta(0):
-            raise ValueError("`lookback` must be non-negative.")
-        self.lookback = lookback
+    def __init__(self, *, offset: timedelta = timedelta(0)) -> None:
+        self.offset = offset
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(lookback={self.lookback!r})"
+        return f"{type(self).__name__}(offset={self.offset!r})"
 
-    def _get_timestamp(self, context: Context) -> datetime | None:
-        return cast("datetime | None", context.get(self._context_key))
+    def serialize(self) -> dict[str, str | float]:
+        """Return the bound configuration for serialized task metadata."""
+        return {"anchor": self._label, "offset_seconds": self.offset.total_seconds()}
+
+    @abstractmethod
+    def _get_timestamp(self, context: Context) -> datetime | None: ...
 
     def resolve(self, context: Context) -> datetime:
         """Resolve the bound during template rendering, before the sensor polls."""
         timestamp = self._get_timestamp(context)
         if timestamp is None:
-            raise ValueError(f"{type(self).__name__} requires {self._context_key!r} in the task context.")
-        return timestamp - self.lookback
+            raise ValueError(f"{type(self).__name__} requires {self._label!r} in the task context.")
+        return timestamp + self.offset
 
 
 class RunStart(_ContextTimeBound):
     """
     Bound events by the Dag run's actual start time, including for backfills.
 
-    :param lookback: Non-negative duration to subtract from ``dag_run.start_date``.
+    :param offset: Signed duration to add to ``dag_run.start_date``.
     """
 
-    _context_key = "dag_run.start_date"
+    _label = "dag_run.start_date"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         dag_run = context.get("dag_run")
         return dag_run.start_date if dag_run is not None else None
 
 
+class RunAfter(_ContextTimeBound):
+    """
+    Bound events by the Dag run's earliest allowed start time.
+
+    This timestamp stays fixed when tasks are cleared. With ``after``, an event
+    at this timestamp is included, even if it triggered the run.
+
+    :param offset: Signed duration to add to ``dag_run.run_after``.
+    """
+
+    _label = "dag_run.run_after"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        dag_run = context.get("dag_run")
+        return dag_run.run_after if dag_run is not None else None
+
+
 class LogicalDate(_ContextTimeBound):
     """
     Bound events by the Dag run's logical date.
 
-    :param lookback: Non-negative duration to subtract from ``logical_date``.
+    :param offset: Signed duration to add to ``logical_date``.
     """
 
-    _context_key = "logical_date"
+    _label = "logical_date"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        return context.get("logical_date")
 
 
 class DataIntervalStart(_ContextTimeBound):
     """
     Bound events by the start of the Dag run's data interval.
 
-    :param lookback: Non-negative duration to subtract from ``data_interval_start``.
+    :param offset: Signed duration to add to ``data_interval_start``.
     """
 
-    _context_key = "data_interval_start"
+    _label = "data_interval_start"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        return context.get("data_interval_start")
 
 
 class DataIntervalEnd(_ContextTimeBound):
     """
     Bound events by the end of the Dag run's data interval.
 
-    :param lookback: Non-negative duration to subtract from ``data_interval_end``.
+    :param offset: Signed duration to add to ``data_interval_end``.
     """
 
-    _context_key = "data_interval_end"
+    _label = "data_interval_end"
+
+    def _get_timestamp(self, context: Context) -> datetime | None:
+        return context.get("data_interval_end")
 
 
 class AssetEventSensor(BaseSensorOperator):
@@ -140,6 +169,9 @@ class AssetEventSensor(BaseSensorOperator):
     matching the supplied filters, optionally applies a ``process_result``
     callable to transform, deduplicate or filter them, and succeeds once the
     resulting number of events satisfies ``expected_count``.
+
+    At least one of ``after``, ``before``, ``partition_key``,
+    ``partition_key_regexp_pattern``, or non-empty ``extra`` is required.
 
     This sensor requires Apache Airflow 3.2+. The ``partition_key``,
     ``partition_key_regexp_pattern`` and ``extra`` filters require Airflow 3.4+.
@@ -236,10 +268,24 @@ class AssetEventSensor(BaseSensorOperator):
         self.expected_count = expected_count
         self.count_policy = count_policy
         self.process_result = process_result
+        self._validate_filters()
+
+    def _validate_filters(self) -> None:
+        if (
+            self.after is None
+            and self.before is None
+            and self.partition_key is None
+            and self.partition_key_regexp_pattern is None
+            and not self.extra
+        ):
+            raise ValueError(
+                "AssetEventSensor requires at least one filter: after, before, partition_key, "
+                "partition_key_regexp_pattern, or non-empty extra."
+            )
 
     def _get_accessor(self, context: Context) -> InletEventsAccessor:
         # The mapped operator's inlets don't include the asset added in init.
-        # TODO: Remove this once the min Airflow refreshes after unmapping.
+        # Remove when the minimum Airflow includes https://github.com/apache/airflow/pull/75751.
         with contextlib.suppress(KeyError):
             return context["inlet_events"][self.asset]
         from airflow.sdk.execution_time.context import InletEventsAccessors
@@ -247,6 +293,7 @@ class AssetEventSensor(BaseSensorOperator):
         return InletEventsAccessors([self.asset])[self.asset]
 
     def poke(self, context: Context) -> PokeReturnValue:
+        self._validate_filters()
         # Template rendering replaces bound objects and callables before polling.
         after = cast("datetime | str | None", self.after)
         before = cast("datetime | str | None", self.before)

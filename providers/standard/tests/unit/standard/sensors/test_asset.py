@@ -37,7 +37,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V
 if AIRFLOW_V_3_2_PLUS:
     from airflow.exceptions import AirflowRescheduleException
     from airflow.providers.standard.sensors import asset as asset_sensor
-    from airflow.providers.standard.sensors.asset import AssetEventSensor, AssetEventTimeBound, RunStart
+    from airflow.providers.standard.sensors.asset import AssetEventSensor, AssetEventTimeBound
     from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
     from airflow.sdk.execution_time.comms import (
         AssetEventsResult,
@@ -50,7 +50,7 @@ if AIRFLOW_V_3_2_PLUS:
     )
     from airflow.sdk.execution_time.context import InletEventsAccessors
 
-    from tests_common.test_utils.compat import OperatorSerialization
+    from tests_common.test_utils.compat import DagSerialization, OperatorSerialization
 
     class _ParameterBound:
         def resolve(self, context):
@@ -59,6 +59,16 @@ if AIRFLOW_V_3_2_PLUS:
     class _InheritedParameterBound(AssetEventTimeBound):
         def resolve(self, context):
             return context["params"]["events_after"]
+
+    class _MappedParameterBound:
+        def __init__(self, name):
+            self.name = name
+
+        def __repr__(self):
+            return f"_MappedParameterBound(name={self.name!r})"
+
+        def resolve(self, context):
+            return context["params"][self.name]
 
 
 pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="AssetEventSensor requires Airflow 3.2+")
@@ -121,6 +131,7 @@ def events_response():
 @pytest.fixture(
     params=[
         ("RunStart", "dag_run.start_date", 8),
+        ("RunAfter", "dag_run.run_after", 7),
         ("LogicalDate", "logical_date", 1),
         ("DataIntervalStart", "data_interval_start", 2),
         ("DataIntervalEnd", "data_interval_end", 3),
@@ -135,7 +146,7 @@ def time_bound_case(request):
 @pytest.fixture
 def time_bound_context():
     return {
-        "dag_run": SimpleNamespace(start_date=_get_timestamp(8)),
+        "dag_run": SimpleNamespace(start_date=_get_timestamp(8), run_after=_get_timestamp(7)),
         "logical_date": _get_timestamp(1),
         "data_interval_start": _get_timestamp(2),
         "data_interval_end": _get_timestamp(3),
@@ -143,10 +154,46 @@ def time_bound_context():
 
 
 class TestInit:
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"after": None, "before": None},
+            {"limit": 1},
+            {"ascending": False},
+            {"process_result": only_us_partitions},
+            {"expected_count": 0, "count_policy": "exact"},
+            pytest.param({"extra": {}}, marks=requires_3_4),
+        ],
+        ids=["none", "null-bounds", "limit", "order", "processing", "count", "empty-extra"],
+    )
+    def test_requires_query_filter(self, asset, kwargs):
+        with pytest.raises(ValueError, match="requires at least one filter"):
+            AssetEventSensor(task_id="s", asset=asset, **kwargs)
+
+    @pytest.mark.parametrize(
+        "filters",
+        [
+            {"after": _get_timestamp(1)},
+            {"before": _get_timestamp(2)},
+            pytest.param({"partition_key": "a"}, marks=requires_3_4),
+            pytest.param({"partition_key_regexp_pattern": "a.*"}, marks=requires_3_4),
+            pytest.param({"extra": {"region": "us"}}, marks=requires_3_4),
+        ],
+        ids=["after", "before", "partition", "partition-regexp", "extra"],
+    )
+    def test_accepts_each_query_filter_alone(self, asset, mock_supervisor_comms, filters):
+        sensor = AssetEventSensor(task_id="s", asset=asset, **filters)
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
+        sensor.poke(_get_context(sensor))
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **filters)
+        )
+
     @pytest.mark.parametrize("use_alias", [False, True])
     def test_declares_target_as_inlet(self, asset, use_alias):
         target = AssetAlias(name=ALIAS_NAME) if use_alias else asset
-        sensor = AssetEventSensor(task_id="s", asset=target)
+        sensor = AssetEventSensor(task_id="s", asset=target, after=_get_timestamp(1))
         assert sensor.asset == target
         assert sensor.inlets == [target]
 
@@ -155,22 +202,22 @@ class TestInit:
         other_asset = Asset("s3://bucket/other")
         inlets = [other_asset, asset] if include_target else [other_asset]
         original_inlets = inlets.copy()
-        sensor = AssetEventSensor(task_id="s", asset=asset, inlets=inlets)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), inlets=inlets)
         assert sensor.inlets == [other_asset, asset]
         assert inlets == original_inlets
 
     def test_rejects_negative_expected_count(self, asset):
         with pytest.raises(ValueError, match="expected_count"):
-            AssetEventSensor(task_id="s", asset=asset, expected_count=-1)
+            AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), expected_count=-1)
 
     @pytest.mark.parametrize("limit", [0, -1])
     def test_rejects_nonpositive_limit(self, asset, limit):
         with pytest.raises(ValueError, match="limit"):
-            AssetEventSensor(task_id="s", asset=asset, limit=limit, expected_count=0)
+            AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), limit=limit, expected_count=0)
 
     def test_rejects_invalid_count_policy(self, asset):
         with pytest.raises(ValueError, match="count_policy"):
-            AssetEventSensor(task_id="s", asset=asset, count_policy="unknown")
+            AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), count_policy="unknown")
 
     @pytest.mark.parametrize(
         ("count_policy", "limit", "expected_count"),
@@ -181,6 +228,7 @@ class TestInit:
             AssetEventSensor(
                 task_id="s",
                 asset=asset,
+                after=_get_timestamp(1),
                 limit=limit,
                 expected_count=expected_count,
                 count_policy=count_policy,
@@ -189,7 +237,12 @@ class TestInit:
     @pytest.mark.parametrize(("count_policy", "limit"), [("minimum", 3), ("exact", 4)])
     def test_accepts_sufficient_limit_without_processing(self, asset, count_policy, limit):
         sensor = AssetEventSensor(
-            task_id="s", asset=asset, limit=limit, expected_count=3, count_policy=count_policy
+            task_id="s",
+            asset=asset,
+            after=_get_timestamp(1),
+            limit=limit,
+            expected_count=3,
+            count_policy=count_policy,
         )
         assert sensor.limit == limit
 
@@ -238,14 +291,15 @@ class TestInit:
 
 
 class TestTimeBounds:
+    @pytest.mark.parametrize("field", ["after", "before"])
     @pytest.mark.parametrize("inherit_protocol", [False, True], ids=["plain", "subclass"])
     @pytest.mark.parametrize("as_string", [False, True], ids=["datetime", "iso"])
     def test_custom_resolver_needs_only_resolve(
-        self, asset, events_response, mock_supervisor_comms, inherit_protocol, as_string
+        self, asset, events_response, mock_supervisor_comms, field, inherit_protocol, as_string
     ):
         bound = _InheritedParameterBound() if inherit_protocol else _ParameterBound()
         timestamp = _get_timestamp(8)
-        sensor = AssetEventSensor(task_id="s", asset=asset, after=bound)
+        sensor = AssetEventSensor(task_id="s", asset=asset, **{field: bound})
         context = {
             **_get_context(sensor),
             "params": {"events_after": timestamp.isoformat() if as_string else timestamp},
@@ -254,7 +308,7 @@ class TestTimeBounds:
         mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[]), events_response]
         assert not sensor.poke(context)
         assert sensor.poke(context)
-        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=timestamp)
+        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **{field: timestamp})
         assert mock_supervisor_comms.send.call_args_list == [call(query), call(query)]
 
     def test_custom_resolver_serialization_is_optional(self, asset):
@@ -264,20 +318,18 @@ class TestTimeBounds:
         assert isinstance(encoded["after"], str)
         assert "_ParameterBound" in encoded["after"]
 
-    @pytest.mark.parametrize("lookback", [timedelta(0), timedelta(hours=1, microseconds=7)])
-    def test_resolves_selected_timestamp(self, time_bound_case, time_bound_context, lookback):
+    @pytest.mark.parametrize(
+        "offset", [timedelta(0), -timedelta(hours=1, microseconds=7), timedelta(hours=1, microseconds=7)]
+    )
+    def test_resolves_selected_timestamp(self, time_bound_case, time_bound_context, offset):
         bound_type, _, timestamp = time_bound_case
-        assert bound_type(lookback=lookback).resolve(time_bound_context) == timestamp - lookback
-
-    def test_rejects_negative_lookback(self):
-        with pytest.raises(ValueError, match="lookback.*non-negative"):
-            RunStart(lookback=timedelta(microseconds=-1))
+        assert bound_type(offset=offset).resolve(time_bound_context) == timestamp + offset
 
     @pytest.mark.parametrize("missing", [False, True], ids=["none", "absent"])
     def test_rejects_missing_timestamp(self, time_bound_case, time_bound_context, missing):
         bound_type, anchor, _ = time_bound_case
-        if anchor == "dag_run.start_date":
-            time_bound_context["dag_run"].start_date = None
+        if anchor.startswith("dag_run."):
+            setattr(time_bound_context["dag_run"], anchor.removeprefix("dag_run."), None)
             if missing:
                 del time_bound_context["dag_run"]
         elif missing:
@@ -287,40 +339,51 @@ class TestTimeBounds:
         with pytest.raises(ValueError, match=rf"{bound_type.__name__} requires"):
             bound_type().resolve(time_bound_context)
 
-    def test_displays_bound_configuration_in_serialized_task(self, asset, time_bound_case):
-        bound_type, _, _ = time_bound_case
+    @pytest.mark.parametrize("offset", [-timedelta(hours=1, microseconds=7), timedelta(hours=2)])
+    def test_displays_bound_configuration_in_serialized_task(self, asset, time_bound_case, offset):
+        bound_type, anchor, _ = time_bound_case
+        bound = bound_type(offset=offset)
+        metadata = {"anchor": anchor, "offset_seconds": offset.total_seconds()}
+        assert json.loads(json.dumps(bound.serialize())) == metadata
         with DAG("test_bounds_serialization"):
-            first = AssetEventSensor(
-                task_id="first", asset=asset, after=bound_type(lookback=timedelta(hours=1))
-            )
-            second = AssetEventSensor(
-                task_id="second", asset=asset, after=bound_type(lookback=timedelta(hours=2))
-            )
-        first_encoded = json.loads(json.dumps(OperatorSerialization.serialize_operator(first)))
-        second_encoded = json.loads(json.dumps(OperatorSerialization.serialize_operator(second)))
-        assert first_encoded["after"] == f"{bound_type.__name__}(lookback=datetime.timedelta(seconds=3600))"
-        assert second_encoded["after"] == f"{bound_type.__name__}(lookback=datetime.timedelta(seconds=7200))"
+            sensor = AssetEventSensor(task_id="s", asset=asset, after=bound)
+        encoded = json.loads(json.dumps(OperatorSerialization.serialize_operator(sensor)))
+        assert encoded["after"] in (metadata, repr(bound))
 
     @pytest.mark.parametrize("field", ["after", "before"])
     def test_renders_and_queries_bound(
         self, asset, time_bound_case, time_bound_context, field, mock_supervisor_comms
     ):
         bound_type, _, timestamp = time_bound_case
-        lookback = timedelta(hours=1)
-        bound = bound_type(lookback=lookback)
+        offset = -timedelta(hours=1)
+        bound = bound_type(offset=offset)
         sensor = AssetEventSensor(task_id="s", asset=asset, **{field: bound})
         context = {**time_bound_context, **_get_context(sensor)}
         sensor.render_template_fields(context)
         mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
         sensor.poke(context)
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **{field: timestamp - lookback})
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **{field: timestamp + offset})
         )
-        assert bound.lookback == lookback
+        assert bound.offset == offset
 
+    @pytest.mark.parametrize("offset", [timedelta(0), timedelta(microseconds=1)])
+    def test_run_after_preserves_explicit_offset_in_query(
+        self, asset, time_bound_context, mock_supervisor_comms, offset
+    ):
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=asset_sensor.RunAfter(offset=offset))
+        context = {**time_bound_context, **_get_context(sensor)}
+        sensor.render_template_fields(context)
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
+        sensor.poke(context)
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(7) + offset)
+        )
+
+    @pytest.mark.parametrize("field", ["after", "before"])
     @pytest.mark.parametrize("as_string", [False, True])
     def test_custom_callable_resolves_before_polling(
-        self, asset, events_response, mock_supervisor_comms, mocker, as_string
+        self, asset, events_response, mock_supervisor_comms, mocker, field, as_string
     ):
         timestamp = _get_timestamp(8)
 
@@ -328,21 +391,29 @@ class TestTimeBounds:
             return timestamp.isoformat() if as_string else timestamp
 
         get_bound_spy = mocker.create_autospec(get_bound, side_effect=get_bound)
-        sensor = AssetEventSensor(task_id="s", asset=asset, after=get_bound_spy)
+        sensor = AssetEventSensor(task_id="s", asset=asset, **{field: get_bound_spy})
         context = _get_context(sensor)
         sensor.render_template_fields(context)
         mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[]), events_response]
         assert not sensor.poke(context)
         assert sensor.poke(context)
         get_bound_spy.assert_called_once()
-        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=timestamp)
+        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, **{field: timestamp})
         assert mock_supervisor_comms.send.call_args_list == [call(query), call(query)]
 
     @pytest.mark.parametrize("mapped_bound", [False, True], ids=["partial", "expand"])
+    @pytest.mark.parametrize(("bound_name", "anchor_day"), [("RunStart", 8), ("RunAfter", 7)])
     def test_mapped_sensor(
-        self, asset, events_response, create_runtime_ti, mock_supervisor_comms, mapped_bound
+        self,
+        asset,
+        events_response,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        mapped_bound,
+        bound_name,
+        anchor_day,
     ):
-        bound = RunStart(lookback=timedelta(hours=1))
+        bound = getattr(asset_sensor, bound_name)(offset=-timedelta(hours=1))
         with DAG("test_mapped_bounds"):
             if mapped_bound:
                 mapped = AssetEventSensor.partial(task_id="s", asset=asset).expand(after=[bound, bound])
@@ -350,6 +421,7 @@ class TestTimeBounds:
                 mapped = AssetEventSensor.partial(task_id="s", asset=asset, after=bound).expand(limit=[1, 2])
         ti = create_runtime_ti(task=mapped, map_index=1, start_date=_get_timestamp(8), logical_date=None)
         context = ti.get_template_context()
+        context["dag_run"].run_after = _get_timestamp(7)
         ti.render_templates(context=context)
         mock_supervisor_comms.send.return_value = events_response
         assert ti.task.poke(context)
@@ -357,7 +429,7 @@ class TestTimeBounds:
             GetAssetEventByAsset(
                 name=ASSET_NAME,
                 uri=ASSET_URI,
-                after=_get_timestamp(8) - timedelta(hours=1),
+                after=_get_timestamp(anchor_day) - timedelta(hours=1),
                 limit=None if mapped_bound else 2,
             )
         )
@@ -366,7 +438,7 @@ class TestTimeBounds:
     def test_mapped_custom_resolver(
         self, asset, events_response, create_runtime_ti, mock_supervisor_comms, mapped_bound
     ):
-        bound = _ParameterBound()
+        bound = _MappedParameterBound("events_after")
         timestamp = _get_timestamp(8)
         with DAG("test_mapped_custom_bound"):
             if mapped_bound:
@@ -394,29 +466,75 @@ class TestTimeBounds:
             )
         )
 
+    @pytest.mark.parametrize("mapped_bound", [False, True], ids=["partial", "expand"])
+    @pytest.mark.parametrize(
+        "bound_name",
+        ["RunStart", "RunAfter", "LogicalDate", "DataIntervalStart", "DataIntervalEnd", "custom"],
+    )
+    def test_mapped_bound_serialization_is_stable(self, asset, mapped_bound, bound_name):
+        def build_dag(configuration):
+            if bound_name == "custom":
+                bound = _MappedParameterBound(f"events_after_{configuration}")
+            else:
+                bound = getattr(asset_sensor, bound_name)(offset=timedelta(seconds=configuration))
+            with DAG("test_mapped_bound_serialization") as dag:
+                if mapped_bound:
+                    AssetEventSensor.partial(task_id="s", asset=asset).expand(after=[bound])
+                else:
+                    AssetEventSensor.partial(task_id="s", asset=asset, after=bound).expand(limit=[1])
+            return dag
+
+        first, second, changed = build_dag(1), build_dag(1), build_dag(2)
+        first_encoded = json.loads(json.dumps(DagSerialization.to_dict(first)))
+        assert first_encoded == json.loads(json.dumps(DagSerialization.to_dict(second)))
+        assert first_encoded != json.loads(json.dumps(DagSerialization.to_dict(changed)))
+
+    def test_cleared_run_changes_only_start_time_bound(self, asset, time_bound_case, time_bound_context):
+        bound_type, anchor, timestamp = time_bound_case
+        first = AssetEventSensor(task_id="s", asset=asset, after=bound_type())
+        first.render_template_fields(time_bound_context)
+        time_bound_context["dag_run"].start_date = _get_timestamp(9)
+        cleared = AssetEventSensor(task_id="s", asset=asset, after=bound_type())
+        cleared.render_template_fields(time_bound_context)
+        assert first.after == timestamp
+        assert cleared.after == (_get_timestamp(9) if anchor == "dag_run.start_date" else timestamp)
+
+    @pytest.mark.parametrize(("bound_name", "anchor_day"), [("RunStart", 8), ("RunAfter", 7)])
     def test_reconstructed_sensor_keeps_bound_after_rescheduling(
-        self, asset, events_response, create_runtime_ti, mock_supervisor_comms, time_machine
+        self,
+        asset,
+        events_response,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        time_machine,
+        bound_name,
+        anchor_day,
     ):
         time_machine.move_to(_get_timestamp(10), tick=False)
-        first = AssetEventSensor(task_id="s", asset=asset, after=RunStart(), mode="reschedule")
-        ti = create_runtime_ti(task=first, start_date=_get_timestamp(8))
+        bound_type = getattr(asset_sensor, bound_name)
+        first = AssetEventSensor(task_id="s", asset=asset, after=bound_type(), mode="reschedule")
+        ti = create_runtime_ti(task=first, start_date=_get_timestamp(8), logical_date=None)
         context = ti.get_template_context()
+        context["dag_run"].run_after = _get_timestamp(7)
         ti.render_templates(context=context)
         mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
         with pytest.raises(AirflowRescheduleException):
             ti.task.execute(context)
 
         time_machine.shift(timedelta(hours=1))
-        resumed = AssetEventSensor(task_id="s", asset=asset, after=RunStart(), mode="reschedule")
-        resumed_ti = create_runtime_ti(task=resumed, start_date=_get_timestamp(8), task_reschedule_count=1)
+        resumed = AssetEventSensor(task_id="s", asset=asset, after=bound_type(), mode="reschedule")
+        resumed_ti = create_runtime_ti(
+            task=resumed, start_date=_get_timestamp(8), logical_date=None, task_reschedule_count=1
+        )
         resumed_context = resumed_ti.get_template_context()
+        resumed_context["dag_run"].run_after = _get_timestamp(7)
         resumed_ti.render_templates(context=resumed_context)
         mock_supervisor_comms.send.side_effect = [
             TaskRescheduleStartDate(start_date=_get_timestamp(10)),
             events_response,
         ]
         assert resumed_ti.task.execute(resumed_context)
-        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(8))
+        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(anchor_day))
         assert [c for c in mock_supervisor_comms.send.call_args_list if c == call(query)] == [
             call(query),
             call(query),
@@ -424,15 +542,40 @@ class TestTimeBounds:
 
 
 class TestPoke:
+    @pytest.mark.parametrize(
+        ("field", "rendered_value"),
+        [
+            ("after", None),
+            ("before", None),
+            pytest.param("partition_key", None, marks=requires_3_4),
+            pytest.param("partition_key_regexp_pattern", None, marks=requires_3_4),
+            pytest.param("extra", None, marks=requires_3_4),
+            pytest.param("extra", {}, marks=requires_3_4),
+        ],
+        ids=["after", "before", "partition", "partition-regexp", "null-extra", "empty-extra"],
+    )
+    def test_rejects_missing_filters_after_rendering(
+        self, asset, mock_supervisor_comms, field, rendered_value
+    ):
+        def get_filter(*, context, jinja_env):
+            return rendered_value
+
+        sensor = AssetEventSensor(task_id="s", asset=asset, **{field: get_filter})
+        context = _get_context(sensor)
+        sensor.render_template_fields(context)
+        with pytest.raises(ValueError, match="requires at least one filter"):
+            sensor.poke(context)
+        mock_supervisor_comms.send.assert_not_called()
+
     def test_returns_serialized_events(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", asset=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1))
         result = sensor.poke(_get_context(sensor))
         assert isinstance(result, PokeReturnValue)
         assert bool(result) is True
         assert result.xcom_value == [event.model_dump(mode="json") for event in events_response.asset_events]
         mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(1))
         )
 
     @pytest.mark.parametrize(
@@ -457,7 +600,11 @@ class TestPoke:
         events = events_response.asset_events[:actual_count]
         mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=events)
         sensor = AssetEventSensor(
-            task_id="s", asset=asset, count_policy=count_policy, expected_count=expected_count
+            task_id="s",
+            asset=asset,
+            after=_get_timestamp(1),
+            count_policy=count_policy,
+            expected_count=expected_count,
         )
         result = sensor.poke(_get_context(sensor))
         assert bool(result) is done
@@ -500,7 +647,7 @@ class TestPoke:
     @pytest.mark.parametrize("selector", ["name", "uri"])
     def test_resolves_asset_reference(self, selector, events_response, mock_supervisor_comms):
         target = {"name": ASSET_NAME} if selector == "name" else {"uri": ASSET_URI}
-        sensor = AssetEventSensor(task_id="s", asset=Asset.ref(**target))
+        sensor = AssetEventSensor(task_id="s", asset=Asset.ref(**target), after=_get_timestamp(1))
         assert sensor.inlets == [Asset.ref(**target)]
         mock_supervisor_comms.send.side_effect = [
             AssetResult(name=ASSET_NAME, uri=ASSET_URI, group="asset", extra={}),
@@ -511,21 +658,22 @@ class TestPoke:
         query = GetAssetEventByAsset(
             name=ASSET_NAME if selector == "name" else None,
             uri=ASSET_URI if selector == "uri" else None,
+            after=_get_timestamp(1),
         )
         assert mock_supervisor_comms.send.call_args_list == [call(resolution), call(query)]
 
     def test_fetches_fresh_events_on_every_poke(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[]), events_response]
-        sensor = AssetEventSensor(task_id="s", asset=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1))
         context = _get_context(sensor)
         assert bool(sensor.poke(context)) is False
         assert bool(sensor.poke(context)) is True
-        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI)
+        query = GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(1))
         assert mock_supervisor_comms.send.call_args_list == [call(query), call(query)]
 
     def test_execute_returns_xcom_payload(self, asset, events_response, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", asset=asset)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1))
         result = sensor.execute(_get_context(sensor))
         assert result == [event.model_dump(mode="json") for event in events_response.asset_events]
 
@@ -569,6 +717,7 @@ class TestProcessResult:
         sensor = AssetEventSensor(
             task_id="s",
             asset=asset,
+            after=_get_timestamp(1),
             process_result=process_result,
             expected_count=expected_count,
             count_policy="exact",
@@ -587,6 +736,7 @@ class TestProcessResult:
         sensor = AssetEventSensor(
             task_id="s",
             asset=asset,
+            after=_get_timestamp(1),
             limit=1,
             expected_count=2,
             count_policy="exact",
@@ -627,6 +777,7 @@ class TestProcessResult:
         sensor = AssetEventSensor(
             task_id="s",
             asset=asset,
+            after=_get_timestamp(1),
             process_result=lambda events: [{"partition": event.partition_key} for event in events],
         )
         result = sensor.poke(_get_context(sensor))
@@ -640,6 +791,6 @@ class TestProcessResult:
             raise RuntimeError("process_result exploded")
 
         mock_supervisor_comms.send.return_value = events_response
-        sensor = AssetEventSensor(task_id="s", asset=asset, process_result=boom)
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), process_result=boom)
         with pytest.raises(RuntimeError, match="process_result exploded"):
             sensor.poke(_get_context(sensor))

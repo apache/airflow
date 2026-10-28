@@ -72,24 +72,22 @@ existing asset when the task starts. The target is static so Airflow can record
 the inlet; use templated event filters to select a run's events. By default the
 sensor succeeds once **at least one** matching event exists.
 
-.. warning::
+Supply at least one query filter: ``after``, ``before``, ``partition_key``,
+``partition_key_regexp_pattern``, or a non-empty ``extra`` dictionary. The sensor
+raises ``ValueError`` at construction if no filter is supplied. It checks again
+after template rendering, before querying events. An empty ``extra={}`` does
+not count as a filter.
 
-    Without ``after``, ``before`` or a partition filter, the sensor considers
-    the asset's entire event history, so it succeeds immediately if a matching
-    event ever existed. Bound the query, for example by time, as below.
+Time bounds are optional when another query filter is supplied. Ordering,
+``limit``, and ``process_result`` do not replace query filters.
+
+This daily example waits for events at or after the data interval ends:
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START example_asset_event_sensor]
     :end-before: [END example_asset_event_sensor]
-
-.. note::
-
-    For asset-triggered runs, ``dag_run.run_after`` can be the timestamp of the
-    newest triggering event, and ``after`` is inclusive. If the sensor waits on
-    the same asset that triggered the run, that event satisfies it immediately.
-    Use ``RunStart()`` to wait for events at or after the actual run start.
 
 A mapped sensor works, but its asset is only recorded as an inlet in lineage if
 it is also passed through ``partial(inlets=[...])``.
@@ -101,18 +99,59 @@ The ``after`` and ``before`` arguments accept datetime values, ISO strings,
 Jinja templates, and these bound objects from
 ``airflow.providers.standard.sensors.asset``:
 
-* ``RunStart()`` uses ``dag_run.start_date``, the actual start of the Dag run.
-* ``LogicalDate()`` uses ``logical_date``.
-* ``DataIntervalStart()`` uses ``data_interval_start``.
-* ``DataIntervalEnd()`` uses ``data_interval_end``.
+.. list-table:: Choosing a time bound
+    :header-rows: 1
+    :widths: 20 25 25 30
 
-Each built-in object accepts a non-negative ``lookback`` duration, with zero as the
-default. For example, ``RunStart(lookback=timedelta(hours=1))`` includes events
-from one hour before the Dag run started. The basic example above uses this
-bound, so an event from that hour can satisfy the sensor immediately.
+    * - Bound
+      - Available on
+      - When tasks are cleared
+      - Watch out for
+    * - ``RunStart()``
+      - All runs, including asset-triggered runs and backfills.
+      - A finished run gets a new start time when it starts again. Clearing tasks
+        in a queued or running run preserves the existing start time.
+      - Uses ``dag_run.start_date``, the actual start even for a backfill.
+        With ``after``, a negative offset can include events from an earlier execution.
+    * - ``RunAfter()``
+      - All runs, including asset-triggered runs and backfills.
+      - Stays fixed for the same run.
+      - Uses ``dag_run.run_after``. For some asset timetables, this equals a
+        triggering event's timestamp. Since ``after`` is inclusive, that event
+        can satisfy the sensor immediately.
+    * - ``LogicalDate()``
+      - Runs with a logical date, including manual runs that supply one.
+        Asset-triggered runs have none.
+      - Stays fixed for the same run.
+      - Its meaning depends on the timetable or the value supplied for a manual
+        run. It does not necessarily represent when execution started.
+    * - ``DataIntervalStart()`` / ``DataIntervalEnd()``
+      - Runs with a data interval. Availability depends on the timetable and
+        run type. Asset-triggered runs have none.
+      - Stay fixed for the same run.
+      - Use the interval represented by the run for historical work.
+        ``CronTriggerTimetable`` defaults to a zero-length interval, so both
+        bounds are equal.
 
-``RunStart`` uses the actual start even for a backfill. Select a logical date
-or data interval explicitly when you need historical bounds. For example:
+Use ``after=RunStart()`` when clearing a finished run should wait for new data.
+Use ``after=RunAfter()`` to keep the same time boundary when an asset-triggered
+run is cleared. Runs with logical dates or data intervals can also use those
+fixed bounds. An open-ended query can still include new events that arrive
+later, so fixed bounds do not freeze the result set.
+
+Each built-in object accepts a signed ``offset`` duration, with zero as the
+default. A negative offset moves the bound earlier. A positive offset moves it
+later. For example, ``after=DataIntervalEnd(offset=-timedelta(hours=1))`` includes
+events from one hour before the interval ends onward.
+``before=DataIntervalEnd(offset=timedelta(hours=1))`` includes events up to one
+hour after the interval ends. Import ``timedelta`` from ``datetime`` to use these
+examples.
+
+To exclude events exactly at ``dag_run.run_after``, use
+``after=RunAfter(offset=timedelta(microseconds=1))``. Later events can still match,
+including events seen during an earlier execution of the run.
+
+For example, use both interval bounds to select a historical window:
 
 .. code-block:: python
 
@@ -133,9 +172,13 @@ Both bounds are inclusive and filter the asset event's timestamp. An event at
 an interval boundary can therefore match two adjacent intervals. These bounds
 do not filter the event's partition key.
 
-A bound raises ``ValueError`` if its selected timestamp is missing. For example,
-some runs do not have a logical date or data interval. The sensor does not
-substitute another timestamp in that case.
+To create a nonzero window with ``CronTriggerTimetable``, use an offset or
+configure the timetable's ``interval``.
+
+A bound raises ``ValueError`` if its selected timestamp is missing; it does not
+substitute another timestamp. Manual runs can have a data interval when a logical
+date is supplied. Use ``after=RunStart()`` to wait for events at or after the actual
+start of an asset-triggered run.
 
 Airflow resolves the objects during template rendering, before polling. Their
 run-relative values stay fixed while the sensor polls and after rescheduling.
@@ -145,7 +188,14 @@ Custom resolvers
 
 Pass any object with a ``resolve(context)`` method that returns a datetime or
 ISO string. :class:`~airflow.providers.standard.sensors.asset.AssetEventTimeBound`
-defines this interface. Inheritance is optional. For example:
+defines this interface. Inheritance is optional.
+
+For stable Dag serialization, give custom objects a deterministic ``__repr__``
+that includes their configuration. Airflow currently uses this representation
+for ``partial`` and ``expand`` arguments. Older versions, including Airflow 3.2.0,
+also use it for unmapped template fields. The default object representation
+contains a memory address and can create a new Dag version on each parse.
+This example includes the parameter name in its representation:
 
 .. code-block:: python
 
@@ -153,22 +203,28 @@ defines this interface. Inheritance is optional. For example:
 
 
     class ParameterBound(AssetEventTimeBound):
+        def __init__(self, name):
+            self.name = name
+
+        def __repr__(self):
+            return f"ParameterBound(name={self.name!r})"
+
         def resolve(self, context):
-            return context["params"]["events_after"]
+            return context["params"][self.name]
 
 
-    wait_for_custom_events = AssetEventSensor(
+    wait_for_custom_events = AssetEventSensor.partial(
         task_id="wait_for_custom_events",
         asset=my_asset,
-        after=ParameterBound(),
+        inlets=[my_asset],
+        after=ParameterBound("events_after"),
         params={"events_after": "2024-01-01T00:00:00+00:00"},
-    )
+    ).expand(limit=[1, 2])
 
-The same example works with ``class ParameterBound:``. Custom resolvers need
-only ``resolve(context)``. The ``lookback`` argument is a convenience provided
-by the built-in helpers.
+Custom resolvers do not need ``serialize`` or ``deserialize`` methods. The
+``offset`` argument is a convenience provided by the built-in helpers.
 
-Alternatively, pass a template callable that accepts the ``context`` and
+Alternatively, Airflow 3.2+ supports a template callable that accepts the ``context`` and
 ``jinja_env`` keyword arguments and returns a datetime or ISO string. Airflow
 evaluates the callable during template rendering. Custom resolvers and callables
 must return the same bound after rescheduling. A bound based on the current clock
@@ -179,11 +235,12 @@ can move the query window and exclude events that arrived between pokes.
 Filtering events and expected count
 -----------------------------------
 
-Events can be narrowed with ``after``, ``before`` (time range), ``ascending``,
-``limit`` (ordering and cap), ``partition_key``,
-``partition_key_regexp_pattern``, and ``extra`` (key/value pairs contained in
+Filter events with ``after``, ``before`` (time range), ``partition_key``,
+``partition_key_regexp_pattern``, or ``extra`` (key/value pairs contained in
 the event ``extra`` field). Prefer a partition key for the event's partition
 identity; ``extra`` can further filter metadata, such as a validation status.
+Use ``ascending`` to set the order and ``limit`` to cap the number of matching
+events returned.
 
 ``partition_key_regexp_pattern`` requires a positive
 :ref:`[api] regexp_query_timeout <apache-airflow:config:api__regexp_query_timeout>`.
@@ -229,6 +286,10 @@ With ascending order and a limit, each poke returns the same oldest matching eve
 events remain in the query range. If the callback rejects them, newer acceptable events beyond
 the limit are never inspected. Prefer query filters such as ``partition_key``, ``extra`` and time
 bounds where possible. For a check of recent events, use ``ascending=False`` with a suitable limit.
+
+The example below keeps the latest event at or after the data interval ends.
+If no post-processing is needed, use ``ascending=False, limit=1`` with the query
+filter to fetch only its latest matching event.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_asset_sensor.py
     :language: python
