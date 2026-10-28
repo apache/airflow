@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import pickle
 import re
 import sys
 from collections.abc import Callable
@@ -62,6 +63,20 @@ class FakeRemoteLogIO:
     @classmethod
     def from_config(cls):
         return cls()
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    ["airflow.providers_manager", "airflow._shared.providers_discovery.providers_discovery"],
+)
+def test_lazy_cache_shared_implementation_preserves_pickle_paths(module_name):
+    assert LazyDictWithCache is provider_discovery_module.LazyDictWithCache
+    assert LazyDictWithCache.__module__ == "airflow._shared.providers_discovery.providers_discovery"
+    resolved_class = pickle.loads(f"c{module_name}\nLazyDictWithCache\n.".encode())
+    assert resolved_class is LazyDictWithCache
+
+    restored = pickle.loads(pickle.dumps(LazyDictWithCache({"value": 42})))
+    assert type(restored) is LazyDictWithCache
 
 
 def test_cleanup_providers_manager(cleanup_providers_manager):

@@ -38,7 +38,10 @@ from packaging.version import Version
 
 from airflow import DeprecatedImportWarning
 from airflow._shared.module_loading import import_string
-from airflow._shared.providers_discovery import discover_all_providers_from_packages
+from airflow._shared.providers_discovery import (
+    LazyDictWithCache as LazyDictWithCache,
+    discover_all_providers_from_packages,
+)
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -118,52 +121,6 @@ if TYPE_CHECKING:
     from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
-
-
-class LazyDictWithCache(MutableMapping):
-    """
-    Lazy-loaded cached dictionary.
-
-    Dictionary, which in case you set callable, executes the passed callable with `key` attribute
-    at first use - and returns and caches the result.
-    """
-
-    __slots__ = ["_resolved", "_raw_dict"]
-
-    def __init__(self, *args, **kw):
-        self._resolved = set()
-        self._raw_dict = dict(*args, **kw)
-
-    def __setitem__(self, key, value):
-        self._raw_dict.__setitem__(key, value)
-
-    def __getitem__(self, key):
-        value = self._raw_dict.__getitem__(key)
-        if key not in self._resolved and callable(value):
-            # exchange callable with result of calling it -- but only once! allow resolver to return a
-            # callable itself
-            value = value()
-            self._resolved.add(key)
-            self._raw_dict.__setitem__(key, value)
-        return value
-
-    def __delitem__(self, key):
-        with contextlib.suppress(KeyError):
-            self._resolved.remove(key)
-        self._raw_dict.__delitem__(key)
-
-    def __iter__(self):
-        return iter(self._raw_dict)
-
-    def __len__(self):
-        return len(self._raw_dict)
-
-    def __contains__(self, key):
-        return key in self._raw_dict
-
-    def clear(self):
-        self._resolved.clear()
-        self._raw_dict.clear()
 
 
 def _read_schema_from_resources_or_local_file(filename: str) -> dict:
