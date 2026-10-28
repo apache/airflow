@@ -28,13 +28,34 @@ import tempfile
 import warnings
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
+from functools import cache
 from typing import Any
 from urllib.parse import unquote
+
+from git import Git
+from git.exc import GitError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
+
+
+@cache
+def _is_proactive_auth_supported() -> bool:
+    """Check once per process whether the installed git knows ``http.proactiveAuth`` (git 2.46+)."""
+    try:
+        version = Git().version_info
+    except (GitError, ValueError):
+        version = ()
+    if version >= (2, 46):
+        return True
+    log.warning(
+        "git %s does not support http.proactiveAuth (added in git 2.46). The access token will only "
+        "be sent when the server asks for it, so public repositories are fetched anonymously.",
+        ".".join(map(str, version)) or "of unknown version",
+    )
+    return False
 
 
 @contextlib.contextmanager
@@ -80,7 +101,8 @@ class GitHook(BaseHook):
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
 
     Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
-    and needs git version 2.31 or higher.
+    and needs git version 2.31 or higher. Over https with git 2.46 or higher the token is sent on
+    the first request (``http.proactiveAuth``), so public repositories are fetched authenticated.
     """
 
     conn_name_attr = "git_conn_id"
@@ -344,6 +366,13 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
             }
+            # A public repository answers anonymous requests, so git never gets the 401 that makes
+            # it send the token, and the fetch counts against the server's anonymous rate limit.
+            # Scoped to the repository url, and never over plain http.
+            if str(self.repo_url).startswith("https://") and _is_proactive_auth_supported():
+                values["GIT_CONFIG_COUNT"] = str(index + 3)
+                values[f"GIT_CONFIG_KEY_{index + 2}"] = f"http.{self.repo_url}.proactiveAuth"
+                values[f"GIT_CONFIG_VALUE_{index + 2}"] = "basic"
             # ``self.env`` alone is not enough: callers only forward it on the initial clone,
             # so fetches would run without the credential and hang on the terminal prompt.
             envs = (os.environ, self.env)
