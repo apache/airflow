@@ -183,7 +183,11 @@ class DagProcessorAPIClient(Client):
             try:
                 self._exchange_parse_token(context, retry=False, timeout=self._get_bounded_timeout())
             except (httpx2.HTTPError, ValueError) as error:
-                if isinstance(error, httpx2.HTTPStatusError) and error.response.status_code < 500:
+                if (
+                    isinstance(error, httpx2.HTTPStatusError)
+                    and error.response.status_code < 500
+                    and error.response.status_code not in (408, 429)
+                ):
                     raise
                 context.renew_at = monotonic() + 30
                 log.warning(

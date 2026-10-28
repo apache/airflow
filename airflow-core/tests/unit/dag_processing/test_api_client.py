@@ -895,7 +895,13 @@ def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clo
 
 @pytest.mark.parametrize(
     "failure",
-    [httpx2.ReadError("unavailable"), httpx2.Response(503), httpx2.Response(200, json={"token": "invalid"})],
+    [
+        httpx2.ReadError("unavailable"),
+        httpx2.Response(408),
+        httpx2.Response(429),
+        httpx2.Response(503),
+        httpx2.Response(200, json={"token": "invalid"}),
+    ],
 )
 @pytest.mark.parametrize("recovers_at_expiry", [False, True])
 def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
