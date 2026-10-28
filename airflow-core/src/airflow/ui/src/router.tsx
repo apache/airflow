@@ -29,23 +29,9 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { ErrorPage } from "src/pages/Error";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+import { loadRouteModule } from "src/utils/routeModule";
 
 import { client } from "./queryClient";
-
-const ROUTE_MODULE_RELOAD_KEY = "airflow-route-module-reload-attempted";
-
-export const loadRouteModule = async <Module,>(factory: () => Promise<Module>) => {
-  try {
-    return await factory();
-  } catch (error) {
-    if (globalThis.sessionStorage.getItem(ROUTE_MODULE_RELOAD_KEY) === null) {
-      globalThis.sessionStorage.setItem(ROUTE_MODULE_RELOAD_KEY, "true");
-      globalThis.location.reload();
-    }
-
-    throw error;
-  }
-};
 
 const lazyRoute =
   <Module,>(factory: () => Promise<Module>, name: keyof Module) =>

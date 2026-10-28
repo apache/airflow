@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import i18n from "src/i18n/config";
 import { BaseWrapper } from "src/utils/Wrapper";
+import { loadRouteModule } from "src/utils/routeModule";
 
 import commonLocale from "../../public/i18n/locales/en/common.json";
 import { ErrorPage } from "./Error";
@@ -50,18 +51,42 @@ const renderErrorPage = () =>
 beforeEach(() => {
   navigate.mockClear();
   useRouteError.mockReset();
+  globalThis.sessionStorage.clear();
   i18n.addResourceBundle("en", "common", commonLocale, true, true);
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  globalThis.sessionStorage.clear();
+});
 
 describe("ErrorPage", () => {
-  it("reloads the page after a route error", () => {
+  it("offers a manual reload after a route error", () => {
     const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
 
     useRouteError.mockReturnValue(new Error("Route module unavailable"));
     renderErrorPage();
+
+    expect(reload).not.toHaveBeenCalled();
+
     fireEvent.click(screen.getByRole("button", { name: "Reload page" }));
+
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("reloads the committed route only once after route module loading fails", async () => {
+    const error = new Error("Route module unavailable");
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
+
+    useRouteError.mockReturnValue(error);
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+    const firstRender = renderErrorPage();
+
+    expect(reload).toHaveBeenCalledOnce();
+
+    firstRender.unmount();
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+    renderErrorPage();
 
     expect(reload).toHaveBeenCalledOnce();
   });
