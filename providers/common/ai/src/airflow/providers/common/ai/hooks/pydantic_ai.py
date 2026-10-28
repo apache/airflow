@@ -20,14 +20,21 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
+
+# An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
+# land in the task log as ERROR lines.
+pydantic_ai.BANNER_ENABLED = False
 
 OutputT = TypeVar("OutputT")
 
@@ -39,6 +46,8 @@ _UNSET: Any = object()
 FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
@@ -86,12 +95,25 @@ def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
     return bool(_PROVIDER_SLUG_RE.match(prefix))
 
 
+def _get_registered_hooks() -> MutableMapping[str, Any]:
+    """Return the connection-type-to-``HookInfo`` registry that ``Connection.get_hook`` dispatches through."""
+    # Airflow 3.2+ resolves hooks through the task runtime's manager; earlier versions,
+    # Airflow 2 included, go through ``ProvidersManager``. Both expose the same ``hooks`` mapping.
+    try:
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+    except ImportError:
+        from airflow.providers_manager import ProvidersManager
+
+        return ProvidersManager().hooks
+    return ProvidersManagerTaskRuntime().hooks
+
+
 class PydanticAIHook(BaseHook):
     """
     Hook for LLM access via pydantic-ai.
 
     Covers providers that use a standard ``api_key`` + optional ``base_url``
-    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, …).
+    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, GitHub Copilot, …).
 
     For cloud providers with non-standard auth use the dedicated subclasses:
     :class:`PydanticAIAzureHook`, :class:`PydanticAIBedrockHook`,
@@ -157,6 +179,39 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        conn = cls.get_connection(conn_id)
+        hooks = _get_registered_hooks()
+        # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
+        # imported so far: operators call this on the base class, and a subclass from another
+        # provider (e.g. Snowflake's ``pydanticai_snowflake``) is only imported on lookup.
+        # A missing or unregistered type is left to ``conn.get_hook``, whose error explains a
+        # URI that parsed with no type, or the '-'/'_' spelling a renamed type needs.
+        hook_info = hooks.get(conn.conn_type) if conn.conn_type else None
+        # ``generic`` and ``email`` are registered with ``hook_class_name=None``; that is not a
+        # Pydantic AI hook either.
+        if hook_info is not None and (
+            hook_info.hook_class_name is None
+            or not issubclass(import_string(hook_info.hook_class_name), PydanticAIHook)
+        ):
+            expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
+            raise ValueError(
+                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+            )
+        return conn.get_hook(hook_params=hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -396,13 +451,12 @@ class PydanticAIHook(BaseHook):
             def _provider_factory(pname: str) -> Any:
                 try:
                     return infer_provider_class(pname)(**_kwargs)
-                except TypeError:
-                    self.log.warning(
-                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                        pname,
-                        list(_kwargs),
-                    )
-                    return infer_provider(pname)
+                except TypeError as e:
+                    raise ValueError(
+                        f"Could not build provider '{pname}' from the fields on connection "
+                        f"'{self.llm_conn_id}' (fields passed: {', '.join(_kwargs)}): {e}. "
+                        "Not falling back to environment-variable auth, which would authenticate as a different identity."
+                    ) from e
 
             return infer_model(model_name, provider_factory=_provider_factory)
 
@@ -562,6 +616,12 @@ class PydanticAIHook(BaseHook):
         GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
 
+        What each tool returns or raises while it runs passes through Airflow's secret
+        masker before the model sees it, whichever toolset or capability supplied the
+        tool: the agent gets a
+        :class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` after
+        any ``capabilities`` passed in.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
             Required when *spec_file* is not given. When *spec_file* is given,
@@ -583,6 +643,9 @@ class PydanticAIHook(BaseHook):
         # it after construction so a caller that passes its own ``instrument``
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        # Last, so it is the innermost capability; see MaskingCapability.
+        agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)
@@ -614,11 +677,10 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        A provider class that cannot be built from the connection's fields is reported as a failure
+        naming the provider, the fields passed and the provider's ``TypeError`` text.
+
+        Does NOT make an LLM API call — that would be expensive and fail for
         reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
@@ -627,9 +689,9 @@ class PydanticAIHook(BaseHook):
         """
         try:
             self.get_conn()
-            return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
+        return True, "Model resolved successfully."
 
 
 class PydanticAIAzureHook(PydanticAIHook):
@@ -784,7 +846,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
     1. ``service_account_info`` (JSON object) in ``extra``
        — loaded into a ``google.auth.credentials.Credentials``
-       object and passed as ``credentials`` to ``GoogleProvider``.
+       object and passed as ``credentials`` to ``GoogleCloudProvider``.
     2. ``api_key`` in ``extra`` — for Generative Language API (non-Vertex) or
        Vertex API-key auth.
     3. Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
@@ -816,8 +878,11 @@ class PydanticAIVertexHook(PydanticAIHook):
     above), so its presence alone cannot tell the two platforms apart; guessing
     would risk silently authenticating against the wrong endpoint. To use the
     Generative Language API, set an explicit ``google:``-prefixed model id (on
-    the hook or the connection's ``model`` extra) -- that spelling already
-    works today.
+    the hook or the connection's ``model`` extra). ``GoogleProvider`` accepts only
+    ``api_key`` and ``base_url`` (without a key it reads ``GOOGLE_API_KEY``), so on
+    this connection type that spelling must not set Vertex-only fields
+    (``project``, ``location``, ``service_account_info``): they are rejected
+    (fail closed).
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.5-flash"``. A
@@ -855,7 +920,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         sa_info = extra.get("service_account_info")
         kwargs: dict[str, Any] = {}
 
-        # Direct GoogleProvider scalar kwargs.
+        # Scalar kwargs: GoogleCloudProvider takes all four; GoogleProvider only api_key/base_url.
         for _key in ("api_key", "project", "location", "base_url"):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
@@ -863,11 +928,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
-        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # catch: it logs a warning and falls back to env-var auth rather than raising --
-        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
-        # the field for backward compatibility but never forward it: which API is used is
-        # now controlled by the model prefix.
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would turn
+        # into a ValueError rejecting the whole connection. Accept the field for backward
+        # compatibility but never forward it: which API is used is now controlled by the
+        # model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "

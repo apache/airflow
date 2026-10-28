@@ -28,6 +28,8 @@ from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
+
 
 class TestSageMakerNotebookOperator:
     def test_init(self):
@@ -200,9 +202,10 @@ class TestSageMakerNotebookOperator:
         mock_hook_instance.start_notebook_execution.assert_called_once_with()
         mock_hook_instance.wait_for_execution_completion.assert_called_once_with("123456", {})
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
     @patch.object(SageMakerNotebookOperator, "defer")
-    def test_execute_with_deferrable(self, mock_defer, mock_notebook_hook):
+    def test_execute_with_deferrable(self, mock_defer, mock_notebook_hook, wait_for_completion):
         mock_hook_instance = mock_notebook_hook.return_value
         mock_hook_instance.start_notebook_execution.return_value = {
             "execution_id": "123456",
@@ -213,10 +216,12 @@ class TestSageMakerNotebookOperator:
             task_id="test_id",
             input_config={"input_path": "test_input_path"},
             output_config={"output_format": "ipynb"},
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        operator.execute({})
+        with expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion):
+            operator.execute({})
 
         mock_hook_instance.start_notebook_execution.assert_called_once_with()
         mock_defer.assert_called_once()

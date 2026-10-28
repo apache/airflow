@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``15.2.0``
+Release: ``15.3.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.3.0/>`_.
 
 Installation
 ------------
@@ -45,27 +45,28 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-azure``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ===================
+==========================================  =====================
 PIP package                                 Version required
-==========================================  ===================
+==========================================  =====================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``adlfs``                                   ``>=2023.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
+``adlfs``                                   ``>=2026.5.0``
 ``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
-``azure-datalake-store``                    ``>=0.0.45,<1``
+``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
-``azure-keyvault-secrets``                  ``>=4.10.0``
+``azure-keyvault-secrets``                  ``>=4.11.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
+``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
 ``azure-storage-blob``                      ``>=12.28.0``
 ``azure-mgmt-storage``                      ``>=24.0.1``
 ``azure-storage-file-share``                ``>=12.24.0``
@@ -80,13 +81,13 @@ PIP package                                 Version required
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
-``microsoft-kiota-http``                    ``>=1.9.4,<2.0.0``
+``microsoft-kiota-http``                    ``<1.13.0,>=1.9.4``
 ``microsoft-kiota-serialization-json``      ``>=1.9.4``
 ``microsoft-kiota-serialization-text``      ``>=1.9.4``
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-==========================================  ===================
+==========================================  =====================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -127,4 +128,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.3.0/changelog.html>`_.

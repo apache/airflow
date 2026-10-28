@@ -19,28 +19,20 @@
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, HStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { LuFileWarning } from "react-icons/lu";
 import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagRunServiceGetDagRuns,
-  useDagServiceGetDag,
-  useDagWarningServiceListDagWarnings,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
-import BackfillBanner from "src/components/Banner/BackfillBanner";
-import DrainingBanner from "src/components/Banner/DrainingBanner";
-import { DAGWarningsModal } from "src/components/DAGWarningsModal";
+import { DagStatusChip } from "src/components/DagStatusChip";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -49,8 +41,9 @@ import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
+import { useDagRunsLimit } from "src/hooks/useDagRunsLimit";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { useAutoRefresh } from "src/utils";
+import { useAutoRefresh, useContainerWidth } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -59,6 +52,7 @@ import { Grid } from "./Grid";
 import { useGridCrosshairHover } from "./Grid/useGridCrosshairHover";
 import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
+import { getEffectiveLimit } from "./runLimitConfig";
 
 // Shared scroll container for the grid + gantt in the combined view.
 const SharedScrollBox = ({
@@ -95,7 +89,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
-    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
   });
   // Only asked while the Dag can still be drained; the answer decides whether
   // pausing needs to offer the drain choice at all.
@@ -104,7 +98,11 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     undefined,
     { enabled: dag?.scheduling_state === "active" },
   );
+  const { limit: storedLimit, setLimit } = useDagRunsLimit(dagId);
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const panelButtonsRef = useRef<HTMLDivElement>(null);
+  const panelButtonsWidth = useContainerWidth(panelButtonsRef);
+  const limit = getEffectiveLimit(storedLimit, panelButtonsWidth, dagView === "gantt");
   const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
@@ -141,7 +139,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   };
 
   // --- Read state from URL ---
-  const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
   const runAfterGte = searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? undefined;
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
@@ -150,7 +147,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
-  const setLimit = (value: number) => setParam(SearchParamsKeys.LIMIT, String(value));
   // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
   // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
   const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
@@ -220,8 +216,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   };
 
   const { fitView, getZoom } = useReactFlow();
-  const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
-  const { onClose, onOpen, open } = useDisclosure();
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const { i18n } = useTranslation();
   const direction = i18n.dir();
@@ -236,7 +230,13 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     <GroupsProvider dagId={dagId}>
       <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
         <HStack justifyContent="space-between" mb={3} mx={-3} px={3}>
-          <DagBreadcrumb />
+          <HStack gap={2}>
+            {/* Ahead of the trail rather than inside a level: these speak for the Dag as a whole,
+              and a level is too tight to hold them without crowding what it names. Highest
+              severity first, and together so one glance covers every problem with the Dag. */}
+            <DagStatusChip dagId={dagId} error={error} />
+            <DagBreadcrumb />
+          </HStack>
           <Flex gap={2}>
             {dag === undefined ? undefined : (
               <>
@@ -256,7 +256,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   allowedRunTypes={dag.allowed_run_types}
                   dagDisplayName={dag.dag_display_name}
                   dagId={dag.dag_id}
-                  isPaused={dag.is_paused}
                   variant="outline"
                   withText
                 />
@@ -265,8 +264,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           </Flex>
         </HStack>
         <Toaster />
-        <DrainingBanner dagId={dagId} />
-        <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (
             <IconButton
@@ -313,8 +310,16 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 overflow="hidden"
                 position="relative"
               >
-                <Box left={0} p={2} position={dagView === "graph" ? "absolute" : undefined} right={0} top={0}>
+                <Box
+                  left={0}
+                  p={2}
+                  position={dagView === "graph" ? "absolute" : undefined}
+                  ref={panelButtonsRef}
+                  right={0}
+                  top={0}
+                >
                   <PanelButtons
+                    containerWidth={panelButtonsWidth}
                     dagView={dagView}
                     limit={limit}
                     panelGroupRef={panelGroupRef}
@@ -438,28 +443,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     position="relative"
                   >
                     {children}
-                    {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                      <>
-                        <IconButton
-                          colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
-                          margin="2"
-                          marginBottom="-1"
-                          onClick={onOpen}
-                          rounded="full"
-                          variant="solid"
-                        >
-                          <LuFileWarning />
-                        </IconButton>
-
-                        <DAGWarningsModal
-                          error={error}
-                          onClose={onClose}
-                          open={open}
-                          warnings={warningData?.dag_warnings}
-                        />
-                      </>
-                    ) : undefined}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                     <NavTabs tabs={tabs} />
                     <Box flexGrow={1} overflow="auto" pb={3} px={2}>

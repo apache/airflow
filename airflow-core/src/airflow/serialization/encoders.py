@@ -26,6 +26,7 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
+from airflow._shared.serialization import CLASSNAME, DATA, VERSION
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.partition_mappers.wait_policy import WaitPolicy as CoreWaitPolicy
 from airflow.partition_mappers.window import Window as CoreWindow
@@ -34,6 +35,7 @@ from airflow.sdk import (
     Asset,
     AssetAlias,
     AssetAll,
+    AssetAndTimeSchedule,
     AssetAny,
     AssetOrTimeSchedule,
     ChainMapper,
@@ -255,8 +257,73 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
         "name": d.name,
         "reference": encode_deadline_reference(d.reference),
         "interval": serialize(d.interval),
-        "callback": serialize(d.callback),
+        "callback": (
+            _encode_decoded_deadline_callback(d.callback)
+            if isinstance(d, SerializedDeadlineAlert)
+            else serialize(d.callback)
+        ),
     }
+
+
+def _encode_decoded_deadline_callback(callback: Any) -> dict[str, Any]:
+    """
+    Re-encode the callback of a decoded deadline alert.
+
+    A decoded alert keeps the callback ``kwargs`` encoded (see
+    ``airflow.serialization.decoders._decode_deadline_callback``), so they are written back
+    as they are rather than serialized a second time.
+    """
+    return {
+        CLASSNAME: qualname(callback),
+        VERSION: getattr(type(callback), "__version__", 0),
+        DATA: {
+            field: encode_stored_callback_kwargs(value) if field == "kwargs" else value
+            for field, value in callback.serialize().items()
+        },
+    }
+
+
+def encode_stored_callback_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+    """
+    Serialize the stored kwargs of a callback, keeping values that are already serde-encoded.
+
+    Deadline callback kwargs travel in their encoded form from the serialized Dag to the
+    component that runs the callback, and only that component decodes them. Kwargs stored by
+    earlier versions in decoded form are serialized here, so the result is fully encoded either
+    way. This is only for the kwargs of the callback definition; values provided at runtime,
+    such as the callback ``context``, are serialized by :func:`encode_queued_callback_kwargs`.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    def _encode(value: Any) -> Any:
+        if isinstance(value, dict):
+            if CLASSNAME in value:
+                return value
+            return {str(k): _encode(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_encode(v) for v in value]
+        return serialize(value)
+
+    return {str(k): _encode(v) for k, v in kwargs.items()}
+
+
+def encode_queued_callback_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+    """
+    Serialize the kwargs of a queued callback: its stored kwargs plus the runtime ``context``.
+
+    Only the stored kwargs keep their encoded form. The ``context`` is provided at runtime and
+    is serialized strictly with serde, as any other value.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    encoded = encode_stored_callback_kwargs({k: v for k, v in kwargs.items() if k != "context"})
+    if "context" in kwargs:
+        encoded["context"] = serialize(kwargs["context"])
+    return encoded
 
 
 _BUILTIN_DEADLINE_MODULES = (
@@ -323,6 +390,7 @@ class _Serializer:
     """Serialization logic."""
 
     BUILTIN_TIMETABLES: dict[type, str] = {
+        AssetAndTimeSchedule: "airflow.timetables.assets.AssetAndTimeSchedule",
         AssetOrTimeSchedule: "airflow.timetables.assets.AssetOrTimeSchedule",
         AssetTriggeredTimetable: "airflow.timetables.simple.AssetTriggeredTimetable",
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
@@ -369,7 +437,10 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: AssetTriggeredTimetable) -> dict[str, Any]:
-        return {"asset_condition": encode_asset_like(timetable.asset_condition)}
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "batch_asset_events": timetable.batch_asset_events,
+        }
 
     @serialize_timetable.register
     def _(self, timetable: EventsTimetable) -> dict[str, Any]:
@@ -426,10 +497,18 @@ class _Serializer:
         }
 
     @serialize_timetable.register
+    def _(self, timetable: AssetAndTimeSchedule) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "timetable": encode_timetable(timetable.timetable),
+        }
+
+    @serialize_timetable.register
     def _(self, timetable: AssetOrTimeSchedule) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
             "timetable": encode_timetable(timetable.timetable),
+            "batch_asset_events": timetable.batch_asset_events,
         }
 
     @serialize_timetable.register
@@ -440,6 +519,7 @@ class _Serializer:
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
+            "batch_asset_events": timetable.batch_asset_events,
             "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
             "partition_mapper_config": [
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))

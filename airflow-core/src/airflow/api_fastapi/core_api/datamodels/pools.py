@@ -17,10 +17,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Annotated
 
-from pydantic import BeforeValidator, Field, model_validator
+from pydantic import BeforeValidator, Field, StringConstraints, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.configuration import conf
@@ -71,7 +71,9 @@ class PoolResponse(BasePool):
 class PoolCollectionResponse(BaseModel):
     """Pool Collection serializer for responses."""
 
-    pools: Iterable[PoolResponse]
+    # Not Iterable: pydantic validates Iterable items lazily during serialization, which would
+    # run the slot queries of each pool on the event loop.
+    pools: list[PoolResponse]
     total_entries: int
 
 
@@ -96,7 +98,9 @@ class PoolPatchBody(StrictBaseModel):
 class PoolBody(BasePool, StrictBaseModel):
     """Pool serializer for post bodies."""
 
-    pool: str = Field(alias="name", max_length=256)
+    # pattern (not strip_whitespace) so the name is stored exactly as sent, and `\S` rather
+    # than a stricter charset because `/{pool_name:path}` deliberately lets names contain slashes.
+    pool: Annotated[str, StringConstraints(pattern=r"\S", max_length=256)] = Field(alias="name")
     description: str | None = None
     include_deferred: bool = False
     team_name: str | None = Field(max_length=50, default=None)

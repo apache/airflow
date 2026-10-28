@@ -80,7 +80,7 @@ script calling `git` via `subprocess` works.
 
    ```bash
    breeze start-airflow --mount-sources remove --use-distributions-from-dist \
-     --use-airflow-version wheel --python 3.10 --backend postgres --load-default-connections
+     --use-airflow-version wheel --python 3.11 --backend postgres --load-default-connections
    ```
 
 4. Show the user a table of the tasks and what each log should contain, plus any

@@ -96,11 +96,7 @@ export const useLogGroups = ({
     const isGroupAncestryExpanded = (groupId: number): boolean => {
       const parentId = groupParentMap.get(groupId);
 
-      if (parentId === undefined) {
-        return true;
-      }
-
-      return expandedGroups.has(parentId) && isGroupAncestryExpanded(parentId);
+      return parentId === undefined || (expandedGroups.has(parentId) && isGroupAncestryExpanded(parentId));
     };
 
     const isEntryVisible = (entry: ParsedLogEntry): boolean => {
@@ -108,11 +104,9 @@ export const useLogGroups = ({
         return true;
       }
 
-      if (entry.group.type === "header") {
-        return isGroupAncestryExpanded(entry.group.id);
-      }
-
-      return expandedGroups.has(entry.group.id) && isGroupAncestryExpanded(entry.group.id);
+      return entry.group.type === "header"
+        ? isGroupAncestryExpanded(entry.group.id)
+        : expandedGroups.has(entry.group.id) && isGroupAncestryExpanded(entry.group.id);
     };
 
     const items: Array<VisibleItem> = [];

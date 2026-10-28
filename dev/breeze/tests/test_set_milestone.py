@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -202,21 +202,13 @@ class TestShouldSkipMilestoneTagging:
 
     def test_skip_when_backport_unlabeled_with_no_replacement(self):
         # Events show backport removal, no backport on PR now → skip (check 2).
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _should_skip_milestone_tagging(["kind:bug"], events=events)
 
     def test_no_skip_when_backport_replaced(self):
         # Events show backport-to-v3-1 removal but v3-2 remains on the PR → no skip.
         # The caller's regular evaluation will pick up the new label.
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert not _should_skip_milestone_tagging(["backport-to-v3-2-test", "kind:bug"], events=events)
 
     def test_no_skip_when_no_removal_event(self):
@@ -224,20 +216,14 @@ class TestShouldSkipMilestoneTagging:
         assert not _should_skip_milestone_tagging(["backport-to-v3-1-test", "kind:bug"], events=[])
 
     def test_no_skip_when_unrelated_label_removed(self):
-        events = [
-            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
-        ]
+        events = [_unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert not _should_skip_milestone_tagging(["kind:bug"], events=events)
 
     def test_events_check_takes_precedence_over_static_labels(self):
         # Both check 2 (events) and check 3 (static label) would fire here;
         # the function returns True on the first one — events — and never logs
         # the static-label reason.
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _should_skip_milestone_tagging(["area:CI"], events=events)
 
     def test_events_none_disables_events_check(self):
@@ -251,10 +237,8 @@ class TestGetRemovedBackportLabelsFromEvents:
 
     def test_returns_all_unlabel_events_for_backports(self):
         events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            ),
-            _unlabel_event("backport-to-v3-2-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=timezone.utc)),
+            _unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC)),
+            _unlabel_event("backport-to-v3-2-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=UTC)),
         ]
         assert _get_removed_backport_labels_from_events(events) == {
             "backport-to-v3-1-test",
@@ -262,9 +246,7 @@ class TestGetRemovedBackportLabelsFromEvents:
         }
 
     def test_ignores_unrelated_label_unlabel_events(self):
-        events = [
-            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
-        ]
+        events = [_unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _get_removed_backport_labels_from_events(events) == set()
 
     def test_ignores_non_unlabeled_events(self):
@@ -733,7 +715,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-2-test",
                 "shahar1",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=UTC),
             ),
         ]
         mock_get_client.return_value = mock_gh
@@ -785,7 +767,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-2-test",
                 "testuser",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=UTC),
             ),
         ]
         mock_get_client.return_value = mock_gh
@@ -834,7 +816,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-1-test",
                 "testuser",
-                datetime(2026, 5, 23, 20, 30, 0, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 30, 0, tzinfo=UTC),
             ),
         ]
         mock_milestone = MagicMock()

@@ -20,17 +20,19 @@
 from __future__ import annotations
 
 import os
+import selectors
+import warnings
 from base64 import decodebytes
 from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
-from select import select
 from typing import Any
 
 import paramiko
 from paramiko.config import SSH_PORT
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.ssh.tunnel import AsyncSSHTunnel, SSHTunnel
@@ -92,6 +94,9 @@ class SSHHook(BaseHook):
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
     :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
+    :param no_host_key_check: Set to ``True`` to skip host key verification. Overrides the
+        connection's ``no_host_key_check`` extra. Defaults to ``None``, meaning the value is
+        taken from the connection, or ``False`` when the connection does not set it.
     :param conn_retry_attempts: number of times to attempt the initial SSH connection before
         giving up (default 3). Raising this helps when many tasks target the same SSH server at
         once and some connections are transiently refused (e.g. ``sshd`` ``MaxStartups`` throttling).
@@ -146,6 +151,7 @@ class SSHHook(BaseHook):
         auth_timeout: int | None = None,
         host_proxy_cmd: str | None = None,
         conn_retry_attempts: int = 3,
+        no_host_key_check: bool | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -167,10 +173,19 @@ class SSHHook(BaseHook):
 
         # Default values, overridable from Connection
         self.compress = True
-        self.no_host_key_check = True
+        self.no_host_key_check = False
         self.allow_host_key_change = False
         self.host_key = None
         self.look_for_keys = True
+
+        # Captured before parsing the connection extras, which rebind the `no_host_key_check`
+        # name below. Without a separate binding the caller's value is silently discarded
+        # whenever the connection has extras that do not mention host key checking.
+        constructor_no_host_key_check = no_host_key_check
+
+        # Parsing a `host_key` extra forces `self.no_host_key_check` to False, so what the
+        # connection actually asked for is kept here and re-applied once parsing is done.
+        extra_no_host_key_check: bool | None = None
 
         # Placeholder for future cached connection
         self.client: paramiko.SSHClient | None = None
@@ -213,12 +228,18 @@ class SSHHook(BaseHook):
                 host_key = extra_options.get("host_key")
                 no_host_key_check = extra_options.get("no_host_key_check")
 
-                if no_host_key_check is not None:
-                    no_host_key_check = str(no_host_key_check).lower() == "true"
-                    if host_key is not None and no_host_key_check:
-                        raise ValueError("Must check host key when provided")
+                if no_host_key_check is None and "ignore_hostkey_verification" in extra_options:
+                    warnings.warn(
+                        "The `ignore_hostkey_verification` connection extra is deprecated; "
+                        "use `no_host_key_check` instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    no_host_key_check = extra_options["ignore_hostkey_verification"]
 
-                    self.no_host_key_check = no_host_key_check
+                if no_host_key_check is not None:
+                    extra_no_host_key_check = str(no_host_key_check).lower() == "true"
+                    self.no_host_key_check = extra_no_host_key_check
 
                 if (
                     "allow_host_key_change" in extra_options
@@ -261,6 +282,21 @@ class SSHHook(BaseHook):
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
+
+        # An explicit constructor argument wins over the connection extra and the default.
+        # Without this there is no way to opt out of host key verification when the hook is
+        # built directly rather than from a Connection.
+        if constructor_no_host_key_check is not None:
+            self.no_host_key_check = constructor_no_host_key_check
+        elif extra_no_host_key_check is not None:
+            self.no_host_key_check = extra_no_host_key_check
+
+        # Validated on the effective value rather than on the extras alone, so that an explicit
+        # constructor argument can resolve a connection that sets both `host_key` and
+        # `no_host_key_check`, and so that skipping the check while a host key is configured is
+        # rejected whichever source asked for it.
+        if self.host_key is not None and self.no_host_key_check:
+            raise ValueError("Must check host key when provided")
 
         if self.cmd_timeout is NOTSET:
             self.cmd_timeout = CMD_TIMEOUT
@@ -501,36 +537,42 @@ class SSHHook(BaseHook):
 
         timedout = False
 
-        # read from both stdout and stderr
-        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], cmd_timeout)
-            if cmd_timeout is not None:
-                timedout = not readq
-            for recv in readq:
-                if recv.recv_ready():
-                    output = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
-                        self.log.info(line)
-                if recv.recv_stderr_ready():
-                    output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
-                        self.log.warning(line)
-            if (
-                stdout.channel.exit_status_ready()
-                and not stderr.channel.recv_stderr_ready()
-                and not stdout.channel.recv_ready()
-            ) or timedout:
-                stdout.channel.shutdown_read()
-                try:
-                    stdout.channel.close()
-                except Exception:
-                    # there is a race that when shutdown_read has been called and when
-                    # you try to close the connection, the socket is already closed
-                    # We should ignore such errors (but we should log them with warning)
-                    self.log.warning("Ignoring exception on close", exc_info=True)
-                break
+        # select.select() rejects descriptors numbered FD_SETSIZE (1024) or above, which a task
+        # process can reach; DefaultSelector uses epoll/kqueue/poll where available.
+        with selectors.DefaultSelector() as selector:
+            selector.register(channel, selectors.EVENT_READ, data=channel)
+
+            # read from both stdout and stderr
+            while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+                events = selector.select(cmd_timeout)
+                if cmd_timeout is not None:
+                    timedout = not events
+                for key, _ in events:
+                    recv = key.data
+                    if recv.recv_ready():
+                        output = stdout.channel.recv(len(recv.in_buffer))
+                        agg_stdout += output
+                        for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                            self.log.info(line)
+                    if recv.recv_stderr_ready():
+                        output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                        agg_stderr += output
+                        for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                            self.log.warning(line)
+                if (
+                    stdout.channel.exit_status_ready()
+                    and not stderr.channel.recv_stderr_ready()
+                    and not stdout.channel.recv_ready()
+                ) or timedout:
+                    stdout.channel.shutdown_read()
+                    try:
+                        stdout.channel.close()
+                    except Exception:
+                        # there is a race that when shutdown_read has been called and when
+                        # you try to close the connection, the socket is already closed
+                        # We should ignore such errors (but we should log them with warning)
+                        self.log.warning("Ignoring exception on close", exc_info=True)
+                    break
 
         stdout.close()
         stderr.close()
@@ -619,7 +661,15 @@ class SSHHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else True
+        if nhkc_raw is None and "ignore_hostkey_verification" in extra_options:
+            warnings.warn(
+                "The `ignore_hostkey_verification` connection extra is deprecated; "
+                "use `no_host_key_check` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            nhkc_raw = extra_options["ignore_hostkey_verification"]
+        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")
@@ -637,7 +687,16 @@ class SSHHookAsync(BaseHook):
                 )
             if len(host_key_parts) >= 2:
                 host_key = " ".join(host_key_parts[:2])
-            self.known_hosts = f"{conn.host} {host_key}".encode()
+            else:
+                # A bare key is RSA, as on the sync hook; asyncssh needs the type spelled out.
+                host_key = f"ssh-rsa {host_key}"
+            self.known_hosts = f"{self.host or conn.host} {host_key}".encode()
+
+    def _should_use_known_hosts(self) -> bool:
+        """Leave a missing default file unset so AsyncSSH reports an untrusted host."""
+        if self.known_hosts == os.path.expanduser(self.default_known_hosts):
+            return os.path.isfile(self.known_hosts)
+        return True
 
     async def _get_conn(self):
         """
@@ -669,7 +728,7 @@ class SSHHookAsync(BaseHook):
         if self.known_hosts:
             if isinstance(self.known_hosts, str) and self.known_hosts.lower() == "none":
                 conn_config["known_hosts"] = None
-            else:
+            elif self._should_use_known_hosts():
                 conn_config["known_hosts"] = self.known_hosts
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)

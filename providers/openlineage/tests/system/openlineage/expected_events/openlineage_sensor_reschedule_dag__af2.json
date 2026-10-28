@@ -1,0 +1,121 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_sensor_reschedule_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "wait": {
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "trigger_rule": "all_success",
+                            "depends_on_past": false,
+                            "retries": 0
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_sensor_reschedule_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    },
+                    "task": {
+                        "task_id": "wait",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "loop": null,
+                        "task_group": null
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_sensor_reschedule_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_sensor_reschedule_dag.wait"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "id": null,
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": null,
+                        "dag_bundle_name": null,
+                        "dag_bundle_version": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_sensor_reschedule_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    },
+                    "task": {
+                        "task_id": "wait",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "loop": null,
+                        "task_group": null
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_sensor_reschedule_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_sensor_reschedule_dag.wait"
+        }
+    }
+]

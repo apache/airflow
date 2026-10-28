@@ -1341,7 +1341,9 @@ class TestSparkKubernetesOperator:
         context = create_context(op)
 
         mock_file = mock_open(read_data='{"a": "b"}')
-        mocker.patch("builtins.open", mock_file)
+        # Patch only the module that reads the kube config: a builtins.open patch would also feed this
+        # data to any module first imported during execute(), such as the metrics registry.
+        mocker.patch("airflow.providers.cncf.kubernetes.operators.pod.open", mock_file, create=True)
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context)

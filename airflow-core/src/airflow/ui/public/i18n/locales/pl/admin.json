@@ -28,10 +28,10 @@
     "connection_one": "Połączenie",
     "connection_other": "Połączenia",
     "delete": {
-      "deleteConnection_few": "Usuń {{count}} połączenia",
-      "deleteConnection_many": "Usuń {{count}} połączeń",
+      "deleteConnection_few": "Usuń {{count, number}} połączenia",
+      "deleteConnection_many": "Usuń {{count, number}} połączeń",
       "deleteConnection_one": "Usuń 1 połączenie",
-      "deleteConnection_other": "Usuń {{count}} połączenia",
+      "deleteConnection_other": "Usuń {{count, number}} połączenia",
       "firstConfirmMessage_few": "Zamierzasz usunąć następujące połączenia:",
       "firstConfirmMessage_many": "Zamierzasz usunąć następujące połączenia:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następujące połączenie:",
@@ -42,8 +42,8 @@
     "form": {
       "connectionIdRequired": "Identyfikator połączenia jest wymagany",
       "connectionIdRequirement": "Identyfikator połączenia nie może zawierać wyłącznie spacji",
+      "connectionTypeFields": "Pola typu {{connectionType}}",
       "connectionTypeRequired": "Typ połączenia jest wymagany",
-      "extraFields": "Dodatkowe pola",
       "extraFieldsJson": "Dodatkowe pola JSON",
       "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
       "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
@@ -170,10 +170,10 @@
       "isEncrypted": "Zaszyfrowana"
     },
     "delete": {
-      "deleteVariable_few": "Usuń {{count}} zmienne",
-      "deleteVariable_many": "Usuń {{count}} zmiennych",
+      "deleteVariable_few": "Usuń {{count, number}} zmienne",
+      "deleteVariable_many": "Usuń {{count, number}} zmiennych",
       "deleteVariable_one": "Usuń 1 zmienną",
-      "deleteVariable_other": "Usuń {{count}} zmienne",
+      "deleteVariable_other": "Usuń {{count, number}} zmienne",
       "firstConfirmMessage_few": "Zamierzasz usunąć następujące zmienne:",
       "firstConfirmMessage_many": "Zamierzasz usunąć następujące zmienne:",
       "firstConfirmMessage_one": "Zamierzasz usunąć następującą zmienną:",

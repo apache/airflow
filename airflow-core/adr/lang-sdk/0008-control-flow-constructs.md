@@ -30,7 +30,8 @@ Proposed.
 2. **A branch selects a task, not a string.** A case is the task reference the SDK already handed back, and the value on the wire is that task's task_id, so the compiler checks the candidate exists and no label has to be kept in step with it.
 3. **No default case.** `BranchPythonOperator` has none to serialize, and a one-sided `If` whose condition is false follows nothing at all.
    A decider returning a ref that is not one of the declared cases is a run-time error the SDK raises, a narrower check than `skip_all_except`, which only rejects a task_id missing from the whole Dag.
-4. **Triggering a Dag run is an ordinary DSL task**, it is pure DSL purpose instead of a new runtime.
+4. **Triggering a Dag run is an ordinary task that the SDK's own runtime runs.** It has no handler.
+   The runtime sends the `TriggerDagRun` request itself and follows `TriggerDagRunOperator` for every option it offers, including `wait_for_completion` and `deferrable`.
 5. **Grouping keeps Python's semantics**: a scope offering the same task and nesting methods as the Dag, prefixing each task_id with the group id (`prefix_group_id`),
    and can be ordered against a task or another group, as `group1 >> group2` does in Python.
 
@@ -89,7 +90,12 @@ That operator defaults to skipping every task in its downstream closure and igno
   a single-ref return cannot express that, and no Lang SDK offers it for now.
   An author needing several paths together puts them behind one task, or gates each with its own condition.
   This limitation is accepted rather than open.
-- **No Lang SDK needs a deferral mechanism for now** to offer `deferrable` or `wait_for_completion`, because the trigger task runs in Python.
+- **Each Lang SDK runtime implements the trigger task**, so a native Dag needs no Python worker.
+  `deferrable` needs no trigger written in that language: the runtime defers to the standard provider's `DagStateTrigger`, which runs in the Python triggerer, and the task keeps its queue, so it resumes in the same runtime with `next_method` set.
+- **The runtime reads the config the trigger task needs from its environment**, since it cannot read `airflow.cfg`.
+  It reads `AIRFLOW__API__BASE_URL`, `AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE` and `AIRFLOW__TRIGGERER__QUEUES_ENABLED`, and an unset one takes Python's fallback.
+  The coordinator exports them from Airflow's config (#73842).
+- **The trigger's arguments are not Jinja-rendered**, because no Python code runs the task. A value is sent as the author wrote it.
 - **Nothing extra reaches the Dag JSON**, which carries no branch-candidate field at all. A ref is a task_id by the time the decision is sent, so each SDK stores its cases and nothing else.
 - **A group edge needs one base type per SDK** that both a task and a group satisfy, since either can sit at the end of an edge.
   Python already has it: `TaskGroup(TaskGroupMixin, DAGNode)` (`task-sdk/src/airflow/sdk/definitions/taskgroup.py:96`) and every operator inherit `DependencyMixin` (`.../definitions/_internal/mixins.py:35`), where `set_upstream` and `set_downstream` live.

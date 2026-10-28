@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from airflow_breeze.commands.ui_commands import (
     LocaleFiles,
     LocaleKeySet,
@@ -27,6 +29,7 @@ from airflow_breeze.commands.ui_commands import (
     flatten_keys,
     get_locale_files,
     get_plural_base,
+    natural_sort_key,
 )
 
 
@@ -80,6 +83,13 @@ class TestPluralHandling:
         assert "warning_other" in expanded
         assert "warning_few" in expanded
         assert "warning_many" in expanded
+
+    @pytest.mark.parametrize("placeholder", ["{{count}}", "{{count, number}}", "{{ count , number }}"])
+    def test_expand_plural_keys_expands_single_en_form_with_count_placeholder(self, placeholder):
+        keys = {"warning_other"}
+        en_key_to_value = {"warning_other": f"{placeholder} Warnings"}
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
+        assert expanded == {"warning_one", "warning_few", "warning_many", "warning_other"}
 
     def test_expand_plural_keys_expands_when_en_has_multiple_plural_forms(self):
         # Even without {{count}} in EN values, plural selection is still active when
@@ -420,7 +430,7 @@ class TestRemoveUnusedTranslations:
 
 class TestNaturalSorting:
     def test_natural_sort_matches_eslint(self, tmp_path):
-        """Test that keys are sorted like eslint-plugin-jsonc with natural: true (case-insensitive with case-sensitive tiebreaker)."""
+        """Test that keys are sorted like eslint-plugin-jsonc with natural: true."""
         from airflow_breeze.commands.ui_commands import add_missing_translations
 
         en_dir = tmp_path / "en"
@@ -455,14 +465,27 @@ class TestNaturalSorting:
             )
             add_missing_translations("de", {"test.json": summary})
 
-            # Check that keys are sorted using natural sort (case-insensitive with case-sensitive tiebreaker)
+            # Check that keys are sorted like eslint-plugin-jsonc with natural: true
             de_data_updated = json.loads((de_dir / "test.json").read_text())
             keys = list(de_data_updated.keys())
 
-            # Expected order matches eslint-plugin-jsonc with natural: true:
-            # - "apple" < "asset_few" < "assetEvent_few" (case-insensitive: apple < asset < assetevent)
-            # - "parseDuration" < "parsedAt" (case-insensitive equal at "parse", then D < d at position 5)
-            # - "Zebra" at the end (case-insensitive: z comes last)
-            assert keys == ["apple", "asset_few", "assetEvent_few", "parseDuration", "parsedAt", "Zebra"]
+            # natural-compare sorts uppercase before lowercase, so "Zebra" comes first.
+            assert keys == ["Zebra", "apple", "asset_few", "assetEvent_few", "parseDuration", "parsedAt"]
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
+
+    @pytest.mark.parametrize(
+        ("keys", "expected"),
+        [
+            # Real key pairs from the UI locales where a case-insensitive sort
+            # disagrees with natural-compare's case-sensitive ordering.
+            (["logicalDate", "logLevel"], ["logLevel", "logicalDate"]),
+            (["selected", "selectLanguage"], ["selectLanguage", "selected"]),
+            (["modes", "modeTooltip"], ["modeTooltip", "modes"]),
+            (["sortedAscending", "sortMultiColumnHint"], ["sortMultiColumnHint", "sortedAscending"]),
+            # Digit runs sort numerically, except runs starting with "0".
+            (["a2", "a10", "a02"], ["a02", "a2", "a10"]),
+        ],
+    )
+    def test_natural_sort_key_matches_eslint(self, keys, expected):
+        assert sorted(keys, key=natural_sort_key) == expected

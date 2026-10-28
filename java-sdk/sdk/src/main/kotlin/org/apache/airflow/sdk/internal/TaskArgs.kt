@@ -19,10 +19,12 @@
 
 package org.apache.airflow.sdk.internal
 
+import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.MissingXComException
 import org.apache.airflow.sdk.execution.ArgBinding
+import java.lang.reflect.Type
 
 /**
  * @suppress
@@ -46,6 +48,8 @@ class TaskArgs private constructor(
   private val context: Context,
   private val client: Client,
   private val arguments: List<ArgBinding>,
+  private val wired: List<Arg<*>>?,
+  private val wiredValues: List<Any?>,
 ) {
   companion object {
     /**
@@ -71,6 +75,16 @@ class TaskArgs private constructor(
       client: Client,
       declared: Int,
     ): TaskArgs {
+      ArgValues.wiredInputs(context)?.let { wired ->
+        // Positional binding is strict in both directions: a parameter has no
+        // name to fall back on, so a count that does not match cannot be
+        // resolved and the run fails here rather than mid-task.
+        check(wired.size == declared) {
+          "Task '${context.ti.taskId}' declares $declared data parameter(s) " +
+            "but the Dag wired ${wired.size} argument(s)"
+        }
+        return TaskArgs(context, client, emptyList(), wired, ArgValues.resolveWiredAll(wired, client))
+      }
       val bound = client.argBindings
       val arguments = if (bound.size == declared) bound else bound.filterNot { it.fromDefault }
       check(arguments.size == declared) {
@@ -83,7 +97,7 @@ class TaskArgs private constructor(
         "Task '${context.ti.taskId}' declares $declared data parameter(s) " +
           "but the stub call bound ${bound.size} argument(s)$defaults"
       }
-      return TaskArgs(context, client, arguments)
+      return TaskArgs(context, client, arguments, null, emptyList())
     }
   }
 
@@ -96,7 +110,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: Class<T>,
-  ): T? = type.cast(ArgValues.valueAt(client, arguments[position], type))
+  ): T? = type.cast(valueAt(position, type))
 
   /**
    * Resolves the argument bound at [position] into the generic [type], passing
@@ -108,7 +122,7 @@ class TaskArgs private constructor(
   fun <T : Any> get(
     position: Int,
     type: TypeRef<T>,
-  ): T? = ArgValues.valueAt(client, arguments[position], type.type) as T?
+  ): T? = valueAt(position, type.type) as T?
 
   /**
    * Resolves the argument bound at [position] into [type], which must not be
@@ -136,7 +150,23 @@ class TaskArgs private constructor(
     type: TypeRef<T>,
   ): T = get(position, type) ?: throw missingAt(position)
 
-  // The stub signature's own parameter name is the clearest label for a failure
-  // here: it is what the Dag author has to change.
-  private fun missingAt(at: Int) = ArgValues.missing(arguments[at], context.ti.taskId)
+  private fun valueAt(
+    position: Int,
+    type: Type,
+  ): Any? =
+    if (wired != null) {
+      ArgValues.decodeWired(wiredValues[position], type)
+    } else {
+      ArgValues.valueAt(client, arguments[position], type)
+    }
+
+  // A bound argument is labelled with the stub signature's own parameter name,
+  // which is what the Dag author has to change. A wired one has no such name,
+  // so it is labelled by the position it feeds.
+  private fun missingAt(at: Int): MissingXComException =
+    if (wired != null) {
+      ArgValues.missingWired(wired[at], "#$at")
+    } else {
+      ArgValues.missing(arguments[at], context.ti.taskId)
+    }
 }

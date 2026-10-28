@@ -34,12 +34,12 @@ def _config(
         latest_constraints_file=latest,
         current_constraints_file=current,
         constraints_dir=constraints_dir if constraints_dir is not None else latest.parent,
-        python="3.10",
+        python="3.11",
         allow_pre_releases=allow_pre_releases,
     )
 
 
-def _file(*, yanked: bool = False, requires_python: str | None = ">=3.10") -> dict:
+def _file(*, yanked: bool = False, requires_python: str | None = ">=3.11") -> dict:
     return {"yanked": yanked, "requires_python": requires_python}
 
 
@@ -215,14 +215,14 @@ class TestFindNewestVersionInPypi:
     def test_picks_the_newest_installable_version(self, monkeypatch, releases, allow_pre_releases, expected):
         monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({"releases": releases}))
 
-        newest = m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.10", allow_pre_releases)
+        newest = m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.11", allow_pre_releases)
 
         assert newest == expected
 
     def test_unpublished_distribution_is_unpinned(self, monkeypatch):
         monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({}, status_code=404))
 
-        assert m.find_newest_version_in_pypi("apache-airflow-providers-brand-new", "3.10", True) is None
+        assert m.find_newest_version_in_pypi("apache-airflow-providers-brand-new", "3.11", True) is None
 
 
 class TestBuildPinnedProviderRequirements:
@@ -247,7 +247,7 @@ class TestBuildPinnedProviderRequirements:
             m, "find_newest_version_in_pypi", lambda dist, python_version, allow_pre_releases: newest[dist]
         )
 
-        assert m.build_pinned_provider_requirements("3.10", True) == [
+        assert m.build_pinned_provider_requirements("3.11", True) == [
             "apache-airflow-providers-amazon==9.0.0rc1",
             "apache-airflow-providers-cncf-kubernetes==10.20.0",
         ]
@@ -272,3 +272,72 @@ class TestBuildPinnedProviderRequirements:
 
         assert seen_for_distributions == ["3.14"]
         assert seen_for_lookup == [("3.14", False)]
+
+
+class TestDownloadLatestConstraintFile:
+    @staticmethod
+    def _download_config(tmp_path: Path, mode: str = "constraints-source-providers") -> SimpleNamespace:
+        return SimpleNamespace(
+            latest_constraints_file=tmp_path / "original.txt",
+            airflow_constraints_mode=mode,
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="constraints-main",
+            python="3.15",
+        )
+
+    @staticmethod
+    def _response(status_code: int = 200, text: str = "", payload: list | None = None) -> SimpleNamespace:
+        def raise_for_status():
+            if status_code >= 400:
+                raise RuntimeError(f"HTTP {status_code}")
+
+        return SimpleNamespace(
+            status_code=status_code,
+            text=text,
+            json=lambda: payload or [],
+            raise_for_status=raise_for_status,
+        )
+
+    def test_writes_the_downloaded_file(self, tmp_path, monkeypatch):
+        config = self._download_config(tmp_path)
+        monkeypatch.setattr(m.requests, "get", lambda *args, **kwargs: self._response(text="a==1\n"))
+
+        m.download_latest_constraint_file(config)
+
+        assert config.latest_constraints_file.read_text() == "a==1\n"
+
+    def test_missing_file_for_a_new_python_bootstraps_an_empty_baseline(self, tmp_path, monkeypatch):
+        config = self._download_config(tmp_path)
+        listing = [
+            {"name": "constraints-source-providers-3.14.txt"},
+            {"name": "constraints-3.15.txt"},
+            {"name": "README.md"},
+        ]
+        responses = iter([self._response(404), self._response(payload=listing)])
+        monkeypatch.setattr(m.requests, "get", lambda *args, **kwargs: next(responses))
+
+        m.download_latest_constraint_file(config)
+
+        assert config.latest_constraints_file.read_text() == ""
+
+    def test_missing_file_is_an_error_when_no_other_python_has_one(self, tmp_path, monkeypatch):
+        config = self._download_config(tmp_path)
+        listing = [
+            {"name": "constraints-3.14.txt"},
+            {"name": "constraints-no-providers-3.14.txt"},
+            {"name": "constraints-source-providers-3.15.txt"},
+        ]
+        responses = iter([self._response(404), self._response(payload=listing)])
+        monkeypatch.setattr(m.requests, "get", lambda *args, **kwargs: next(responses))
+
+        with pytest.raises(RuntimeError, match="HTTP 404"):
+            m.download_latest_constraint_file(config)
+
+        assert not config.latest_constraints_file.exists()
+
+    def test_other_http_errors_are_not_treated_as_a_first_publication(self, tmp_path, monkeypatch):
+        config = self._download_config(tmp_path)
+        monkeypatch.setattr(m.requests, "get", lambda *args, **kwargs: self._response(500))
+
+        with pytest.raises(RuntimeError, match="HTTP 500"):
+            m.download_latest_constraint_file(config)

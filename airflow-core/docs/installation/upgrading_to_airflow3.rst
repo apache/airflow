@@ -348,7 +348,7 @@ Please consider checking the following things after upgrading your Airflow insta
 .. _breaking-changes:
 
 Breaking Changes
-================
+----------------
 
 Some capabilities which were deprecated in Airflow 2.x are not available in Airflow 3.
 These include:
@@ -411,7 +411,7 @@ These include:
 .. _data-interval-manual-triggering:
 
 Manual Dag Runs and ``logical_date``
-====================================
+------------------------------------
 
 For scheduled runs, ``logical_date`` and ``data_interval`` are both derived from
 the Dag's timetable.
@@ -430,14 +430,14 @@ This matters most for Dags that:
   manual run date
 
 Migration guidance
-------------------
+^^^^^^^^^^^^^^^^^^
 
 If your Dag logic needs the user-specified date for a manual run, use
 ``logical_date`` explicitly.
 
 .. code-block:: python
 
-   from airflow.decorators import get_current_context, task
+   from airflow.sdk import get_current_context, task
 
 
    @task
