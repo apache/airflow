@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.external_clear import ExternalClearTarget
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -1677,6 +1678,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         It is passed the execution context and any results returned by the operator.
         """
+
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget | None:
+        """
+        Return a task in another Dag to clear whenever this task is cleared with its downstream tasks.
+
+        Called on the worker after a successful run, with template fields already rendered. Airflow
+        records the result and follows it when this task instance is cleared later. Return ``None``
+        (the default) to clear nothing outside this Dag.
+        """
+        return None
 
     def defer(
         self,

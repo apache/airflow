@@ -23,6 +23,8 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
+import pendulum
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
 from airflow.providers.common.compat.sdk import (
@@ -59,6 +61,11 @@ if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
     from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+
+try:
+    from airflow.sdk import ExternalClearTarget
+except ImportError:  # Airflow without cross-Dag clear targets
+    ExternalClearTarget = None  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -680,6 +687,9 @@ class ExternalTaskMarker(EmptyOperator):
 
     ui_color = "#4db7db"
     operator_extra_links = [ExternalDagLink()]
+    # Where Airflow can follow a recorded clear target, the marker runs on a worker so that its templates
+    # render there and the resolved target gets recorded, instead of being marked successful unrun.
+    inherits_from_empty_operator = ExternalClearTarget is None
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: ClassVar[frozenset[str] | None] = None
@@ -711,6 +721,21 @@ class ExternalTaskMarker(EmptyOperator):
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
+
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget:
+        error = f"logical_date must render to a date and time, got {self.logical_date!r}"
+        try:
+            logical_date = pendulum.parse(self.logical_date)
+        except ValueError as e:
+            raise ValueError(error) from e
+        if not isinstance(logical_date, datetime.datetime):
+            raise ValueError(f"{error} ({type(logical_date).__name__})")
+        return ExternalClearTarget(
+            dag_id=self.external_dag_id,
+            task_id=self.external_task_id,
+            logical_date=logical_date,
+            recursion_depth=self.recursion_depth,
+        )
 
     @classmethod
     def get_serialized_fields(cls):
