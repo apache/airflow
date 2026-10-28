@@ -30,7 +30,9 @@ Several endpoints exist to create tokens depending on the authentication method 
 If a user or service needs to interact with the Airflow public API, they can create a token using their credentials.
 
 - ``/auth/token``: Create token using username and password, client credentials, or a Keycloak-issued JWT assertion, with a ``[config][api_auth]jwt_expiration_time`` expiration time.
-- ``/auth/token/cli``: Create token for Airflow CLI using username and password with a ``[config][api_auth]jwt_cli_expiration_time`` expiration time.
+- ``/auth/token/cli``: Create token for command-line clients such as ``airflowctl`` with a ``[config][api_auth]jwt_cli_expiration_time`` expiration time.
+  It accepts username and password, a refresh of a CLI token, and, when enabled, the browser login described in
+  :ref:`keycloak-cli-browser-login`.
 
 
 Example
@@ -135,3 +137,40 @@ token for subsequent public API calls:
 
     curl -s "${ENDPOINT_URL}/api/v2/dags" \
         -H "Authorization: Bearer ${AIRFLOW_TOKEN}"
+
+
+.. _keycloak-cli-browser-login:
+
+Command-line clients
+''''''''''''''''''''
+
+Command-line clients read which login methods are offered from ``GET /api/v2/auth/cli/metadata``, then call
+``/auth/token/cli``. Besides username and password, two grants are available.
+
+**Refresh.** The CLI token embeds the Keycloak access token, which usually expires within minutes. A client can
+exchange its current CLI token for one with fresh Keycloak tokens:
+
+.. code-block:: bash
+
+    curl -X 'POST' \
+        "${ENDPOINT_URL}/auth/token/cli" \
+        -H 'Content-Type: application/json' \
+        -d '{"grant_type": "refresh_token", "token": "<current CLI token>"}'
+
+The new token expires at the same time as the current one, so refreshing never extends a CLI session. Expired and
+revoked tokens cannot be refreshed.
+
+**Browser login.** With ``[keycloak_auth_manager] cli_authorization_code_enabled = True``, users log in through
+Keycloak in their browser, with the authorization code flow and PKCE:
+
+1. The client listens on ``http://127.0.0.1:<port>/callback`` (or ``[::1]``) and opens ``/auth/login/cli`` with
+   ``redirect_uri``, ``state``, ``code_challenge`` and ``code_challenge_method=S256``.
+2. Keycloak authenticates the user and redirects the browser to the client with ``code`` and ``state``.
+3. The client sends ``grant_type=authorization_code``, ``code``, ``code_verifier`` and ``redirect_uri`` to
+   ``/auth/token/cli``.
+
+Airflow requires the ``S256`` challenge and refuses redirect URIs that are not loopback callbacks. Do not turn on
+PKCE on the Keycloak client itself, because the web login does not use it.
+
+In the Keycloak client, add ``http://127.0.0.1/callback`` and ``http://[::1]/callback`` to the valid redirect URIs.
+Keycloak ignores the port of loopback redirect URIs, as RFC 8252 requires, so the client can listen on any port.

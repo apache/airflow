@@ -103,7 +103,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.18.0``
-``python-keycloak``                         ``>=5.0.0``
+``python-keycloak``                         ``>=6.0.0``
 ==========================================  ==================
 
 Downloading official packages
