@@ -301,10 +301,11 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     # narrows or widens the cooldown for this specific package — honour it so the
     # script picks the same version `uv lock` would resolve against the override.
     cooldown_hours = _MANUAL_COOLDOWN_OVERRIDES.get(package_name.lower())
+    bypass_cooldown = LATEST_PACKAGE_MANAGERS and package_name.lower() in ("pip", "uv")
     # Skip versions released within the cooldown period
     latest_version = ""
     for version in reversed(sorted_versions):
-        if not _is_version_within_cooldown(releases, str(version), cooldown_hours):
+        if bypass_cooldown or not _is_version_within_cooldown(releases, str(version), cooldown_hours):
             latest_version = str(version)
             break
     if not latest_version:
@@ -772,6 +773,10 @@ UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
+LATEST_PACKAGE_MANAGERS: bool = (
+    os.environ.get("LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+    or os.environ.get("UPGRADE_LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+)
 
 # Read from global_constants.py rather than repeating the list here. A hard-coded copy silently
 # stops upgrading the versions it does not know about: 3.14 was added to Airflow in March 2026 and

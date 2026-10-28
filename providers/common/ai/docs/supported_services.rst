@@ -47,7 +47,7 @@ Toolsets
    * - :doc:`DataFusionToolset <toolsets/datafusion>`
      - Object storage (S3, GCS, Azure Blob Storage, local filesystem, Apache Iceberg) via
        Apache DataFusion
-   * - :doc:`LoggingToolset <toolsets/logging>`
+   * - :doc:`ToolLoggingCapability <toolsets/logging>`
      - Airflow task logs
    * - :doc:`MCPToolset <toolsets/mcp>`
      - Any MCP server (user-supplied endpoint)

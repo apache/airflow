@@ -115,6 +115,11 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+    # Import paths of the factories building a subclass's own sync and async clients, called with
+    # ``team_name``. They take precedence over [kubernetes_executor] client_factory and
+    # async_client_factory, which stay free for a KubernetesExecutor running alongside.
+    client_factory: str | None = None
+    async_client_factory: str | None = None
     supports_multi_team: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
@@ -277,16 +282,24 @@ class KubernetesExecutor(BaseExecutor):
         )
         from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
 
-        if (
-            self.kube_config.async_pod_creation
-            and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
-            and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
-        ):
-            raise AirflowConfigException(
-                "In the [kubernetes_executor] Airflow config, async_client_factory is required "
-                "when client_factory is set and async_pod_creation is enabled."
-            )
-        self.kube_client = _get_executor_kube_client(team_name=self.team_name)
+        if self.kube_config.async_pod_creation:
+            if self.client_factory and not self.async_client_factory:
+                raise AirflowConfigException(
+                    f"{type(self).__name__} sets client_factory but not async_client_factory, "
+                    "which is required when async_pod_creation is enabled."
+                )
+            if (
+                not self.client_factory
+                and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
+                and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
+            ):
+                raise AirflowConfigException(
+                    "In the [kubernetes_executor] Airflow config, async_client_factory is required "
+                    "when client_factory is set and async_pod_creation is enabled."
+                )
+        self.kube_client = _get_executor_kube_client(
+            team_name=self.team_name, executor_client_factory=self.client_factory
+        )
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,
             result_queue=self.result_queue,
@@ -294,6 +307,8 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
             team_name=self.team_name,
             supports_task_instance_uuid=self.supports_task_instance_uuid,
+            client_factory=self.client_factory,
+            async_client_factory=self.async_client_factory,
         )
 
     def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
@@ -1045,7 +1060,9 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
-            client = _get_executor_kube_client(team_name=self.team_name)
+            client = _get_executor_kube_client(
+                team_name=self.team_name, executor_client_factory=self.client_factory
+            )
 
             hostname_desc = f" {ti.hostname}" if ti.hostname else ""
             messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")

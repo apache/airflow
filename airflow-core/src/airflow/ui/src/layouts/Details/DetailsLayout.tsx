@@ -19,27 +19,20 @@
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, HStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { LuFileWarning } from "react-icons/lu";
 import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagRunServiceGetDagRuns,
-  useDagServiceGetDag,
-  useDagWarningServiceListDagWarnings,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
-import { countDagWarnings, DAGWarningsModal } from "src/components/DAGWarningsModal";
-import { DagDeactivatedChip } from "src/components/DagDeactivatedChip";
+import { DagStatusChip } from "src/components/DagStatusChip";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -50,7 +43,7 @@ import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptio
 import { GroupsProvider } from "src/context/groups";
 import { useDagRunsLimit } from "src/hooks/useDagRunsLimit";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { formatNumber, useAutoRefresh, useContainerWidth } from "src/utils";
+import { useAutoRefresh, useContainerWidth } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -223,8 +216,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   };
 
   const { fitView, getZoom } = useReactFlow();
-  const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
-  const { onClose, onOpen, open } = useDisclosure();
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const { i18n } = useTranslation();
   const direction = i18n.dir();
@@ -240,9 +231,10 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
       <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
         <HStack justifyContent="space-between" mb={3} mx={-3} px={3}>
           <HStack gap={2}>
-            {/* Ahead of the trail rather than inside a level: it speaks for the Dag as a whole,
-              and a level is too tight to hold it without crowding what it names. */}
-            <DagDeactivatedChip />
+            {/* Ahead of the trail rather than inside a level: these speak for the Dag as a whole,
+              and a level is too tight to hold them without crowding what it names. Highest
+              severity first, and together so one glance covers every problem with the Dag. */}
+            <DagStatusChip dagId={dagId} error={error} />
             <DagBreadcrumb />
           </HStack>
           <Flex gap={2}>
@@ -451,28 +443,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     position="relative"
                   >
                     {children}
-                    {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                      <>
-                        <IconButton
-                          colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${formatNumber(countDagWarnings(warningData?.total_entries, error), i18n.language)})`}
-                          margin="2"
-                          marginBottom="-1"
-                          onClick={onOpen}
-                          rounded="full"
-                          variant="solid"
-                        >
-                          <LuFileWarning />
-                        </IconButton>
-
-                        <DAGWarningsModal
-                          error={error}
-                          onClose={onClose}
-                          open={open}
-                          warnings={warningData?.dag_warnings}
-                        />
-                      </>
-                    ) : undefined}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                     <NavTabs tabs={tabs} />
                     <Box flexGrow={1} overflow="auto" pb={3} px={2}>

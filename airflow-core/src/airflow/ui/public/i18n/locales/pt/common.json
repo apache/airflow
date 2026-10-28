@@ -91,7 +91,6 @@
   "dagRun_other": "Execuções do Dag",
   "dagRun_zero": "Nenhuma execução do Dag",
   "dagRunId": "ID da Execução do Dag",
-  "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
   "delete": "Excluir",

@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# apache/infrastructure-actions/stash/save on GitHub-hosted runners. On RunsOn the tarball goes
+# to the stack's S3 cache bucket under its sha256 and only the digest is saved as an ASF stash
+# artifact. See stash-restore for why.
+name: 'Save stash'
+description: 'Save a stash to GitHub artifacts, or to S3 on RunsOn runners.'
+inputs:
+  key:
+    description: 'Stash key.'
+    required: true
+  path:
+    description: 'File, directory or glob to stash.'
+    required: true
+  if-no-files-found:
+    description: "'error' fails when path matches nothing, 'warn' or 'ignore' do not."
+    required: false
+    default: 'warn'
+  retention-days:
+    description: >
+      Days the stash (on RunsOn: its digest) is kept. On RunsOn the stack's
+      S3CacheExpirationInDays lifecycle rule expires the tarball itself.
+    required: false
+    default: '5'
+  compression-level:
+    description: "Zlib compression level (0-9). On RunsOn, '0' stores the tarball uncompressed."
+    required: false
+    default: '6'
+runs:
+  using: 'composite'
+  steps:
+    - name: "Save stash to GitHub artifacts"
+      if: runner.environment != 'self-hosted'
+      uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+      with:
+        key: ${{ inputs.key }}
+        path: ${{ inputs.path }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+        retention-days: ${{ inputs.retention-days }}
+        compression-level: ${{ inputs.compression-level }}
+    - name: "Save stash to S3"
+      id: s3
+      if: runner.environment == 'self-hosted'
+      shell: bash
+      env:
+        STASH_KEY: ${{ inputs.key }}
+        STASH_PATH: ${{ inputs.path }}
+        DIGEST_DIR: ${{ runner.temp }}/stash-digest-save/${{ inputs.key }}
+        IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found }}
+        COMPRESSION_LEVEL: ${{ inputs.compression-level }}
+      run: |
+        set -euo pipefail
+        bucket="${RUNS_ON_S3_BUCKET_CACHE:?not running on a RunsOn runner}"
+        export AWS_DEFAULT_REGION="${RUNS_ON_AWS_REGION:?not running on a RunsOn runner}"
+        shopt -s nullglob
+        # shellcheck disable=SC2206
+        candidates=( ${STASH_PATH} )
+        existing=()
+        for p in "${candidates[@]}"; do
+          if [[ -e "${p}" ]]; then
+            existing+=("${p}")
+          fi
+        done
+        if [[ ${#existing[@]} -eq 0 ]]; then
+          if [[ "${IF_NO_FILES_FOUND}" == "error" ]]; then
+            echo "::error::No files found for path '${STASH_PATH}'"
+            exit 1
+          fi
+          if [[ "${IF_NO_FILES_FOUND}" == "warn" ]]; then
+            echo "::warning::No files found for path '${STASH_PATH}', skipping save"
+          fi
+          exit 0
+        fi
+        # The tarball is streamed to S3 while being hashed: a multi-GB image never touches the
+        # runner's disk. Its key is only known at the end, so it lands under a temporary key and
+        # is copied server-side to its digest key.
+        prefix="s3://${bucket}/cache/airflow-stash"
+        upload="${prefix}/uploads/$(cat /proc/sys/kernel/random/uuid).tar"
+        digest_fifo="${RUNNER_TEMP}/stash-save-$$.fifo"
+        digest_file="${RUNNER_TEMP}/stash-save-$$.sha256"
+        trap 'rm -f "${digest_fifo}" "${digest_file}"' EXIT
+        mkfifo "${digest_fifo}"
+        sha256sum < "${digest_fifo}" | cut -d ' ' -f 1 > "${digest_file}" &
+        digest_pid=$!
+        compression=()
+        if [[ "${COMPRESSION_LEVEL}" != "0" ]]; then
+          compression=(-z)
+        fi
+        tar -cP "${compression[@]}" -f - "${existing[@]}" \
+          | tee "${digest_fifo}" \
+          | aws s3 cp --only-show-errors - "${upload}"
+        wait "${digest_pid}"
+        digest="$(cat "${digest_file}")"
+        if [[ ! "${digest}" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Could not hash the stash '${STASH_KEY}'"
+          exit 1
+        fi
+        object="${prefix}/sha256/${digest}.tar"
+        aws s3 cp --only-show-errors --copy-props none "${upload}" "${object}"
+        # Leaving the upload behind only costs storage until the bucket's lifecycle rule expires it.
+        aws s3 rm --only-show-errors "${upload}" || echo "::warning::Could not remove ${upload}"
+        mkdir -p "${DIGEST_DIR}"
+        echo "${digest}" > "${DIGEST_DIR}/sha256"
+        echo "saved=true" >> "${GITHUB_OUTPUT}"
+        echo "Saved ${existing[*]} to ${object}"
+    - name: "Save stash digest to GitHub artifacts"
+      if: runner.environment == 'self-hosted' && steps.s3.outputs.saved == 'true'
+      uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+      with:
+        key: ${{ inputs.key }}-s3
+        path: ${{ runner.temp }}/stash-digest-save/${{ inputs.key }}
+        if-no-files-found: error
+        retention-days: ${{ inputs.retention-days }}

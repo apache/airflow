@@ -119,6 +119,7 @@ jobs:
       "eladkal",
       "ephraimbuddy",
       "hussein-awala",
+      "jason810496",
       "jedcunningham",
       "jscheffl",
       "kaxil",
@@ -388,7 +389,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} ${DOCS_ONLY} ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@f1a487181effd0b216892001abdfb524442bb24d  # save/v1.0.1
+        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'

@@ -93,6 +93,7 @@ from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes, Encoding
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -1215,8 +1216,11 @@ class TestStringifiedDAGs:
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-        with pytest.raises(ValueError, match=message):
-            DagSerialization.from_dict(serialized)
+        dag = DagSerialization.from_dict(serialized)
+
+        assert dag.dag_id == "simple_dag"
+        with pytest.raises(TimetableNotRegistered, match=message):
+            dag.timetable
 
     @pytest.mark.parametrize(
         ("val", "expected"),
@@ -5236,13 +5240,28 @@ class TestWeightRule:
             return_value=RegisteredPriorityWeightStrategy,
         ) as mock_get_registered_priority_weight_strategy:
             serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+            weight_rule = serop.weight_rule
 
-        assert serop.weight_rule == RegisteredPriorityWeightStrategy()
+        assert weight_rule == RegisteredPriorityWeightStrategy()
         assert mock_get_registered_priority_weight_strategy.mock_calls == [
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
         ]
+
+    def test_unregistered_custom_deserializes_until_read(self):
+        sdkop = BaseOperator(task_id="custom", weight_rule=RegisteredPriorityWeightStrategy())
+        with mock.patch(
+            "airflow.serialization.serialized_objects._get_registered_priority_weight_strategy",
+            return_value=RegisteredPriorityWeightStrategy,
+        ):
+            serialized = OperatorSerialization.serialize(sdkop)
+
+        serop = OperatorSerialization.deserialize(serialized)
+
+        assert serop.task_id == "custom"
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
+            serop.weight_rule
 
     def test_invalid(self):
         op = BaseOperator(task_id="should_fail", weight_rule="no rule")
@@ -5465,6 +5484,24 @@ class TestFillConfigDefaults:
         DagSerialization.fill_config_defaults(data)
 
         assert data == before
+
+    @conf_vars({("core", "default_task_execution_timeout"): "300"})
+    def test_fills_the_default_execution_timeout_of_tasks_from_the_config(self):
+        with DAG(dag_id="native_dag", schedule=None) as dag:
+            BaseOperator(task_id="unset")
+            BaseOperator(task_id="set", execution_timeout=timedelta(seconds=60))
+            MockOperator.partial(task_id="mapped").expand(arg1=[1, 2])
+        data = DagSerialization.to_dict(dag)
+        data.pop("client_defaults", None)
+
+        DagSerialization.fill_config_defaults(data)
+
+        tasks = DagSerialization.from_dict(data).task_dict
+        assert {task_id: task.execution_timeout for task_id, task in tasks.items()} == {
+            "unset": timedelta(seconds=300),
+            "set": timedelta(seconds=60),
+            "mapped": timedelta(seconds=300),
+        }
 
     def test_leaves_a_payload_without_a_dag_to_validation(self):
         data = {"__version": 3}

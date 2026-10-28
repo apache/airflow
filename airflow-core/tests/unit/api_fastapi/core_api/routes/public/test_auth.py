@@ -367,7 +367,7 @@ class TestLogoutTokenRevocation:
         # The refresh middleware is stubbed out so that only the logout route can clear the cookie.
         with (
             patch(
-                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware._refresh_user",
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware.refresh_user",
                 new=AsyncMock(return_value=(None, None)),
             ),
             patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
@@ -389,7 +389,7 @@ class TestLogoutTokenRevocation:
         logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
         with (
             patch(
-                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware._refresh_user",
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware.refresh_user",
                 new=AsyncMock(return_value=(None, None)),
             ),
             patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
