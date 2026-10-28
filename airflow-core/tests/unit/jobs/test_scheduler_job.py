@@ -1192,9 +1192,15 @@ class TestSchedulerJob:
         [
             pytest.param("make", "Failed to queue callback: ValueError", id="workload-not-built"),
             pytest.param("flush", "Failed to queue callback: IntegrityError", id="rejected-at-flush"),
+            pytest.param(
+                "missing-dag-run-id", "Failed to queue callback: missing dag_run_id", id="missing-dag-run-id"
+            ),
+            pytest.param(
+                "missing-dag-run", "Failed to queue callback: Dag run -1 not found", id="missing-dag-run"
+            ),
         ],
     )
-    def test_enqueue_executor_callbacks_fails_only_rejected_callback(
+    def test_enqueue_executor_callbacks_fails_only_invalid_callback(
         self, dag_maker, session, rejected_at, expected_output
     ):
         def test_callback():
@@ -1217,6 +1223,10 @@ class TestSchedulerJob:
             callback.data["dag_id"] = dag_run.dag_id
             callbacks.append(callback)
         rejected_callback, accepted_callback = callbacks
+        if rejected_at == "missing-dag-run-id":
+            del rejected_callback.data["dag_run_id"]
+        elif rejected_at == "missing-dag-run":
+            rejected_callback.data["dag_run_id"] = -1
         session.add_all([*callbacks, Variable(key="duplicate", val="x")])
         session.flush()
 

@@ -1360,9 +1360,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
                     self.log.error(
                         "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
-                        "This indicates a bug in callback creation. Skipping callback.",
+                        "This indicates a bug in callback creation. Marking callback as failed.",
                         callback.id,
                     )
+                    self._fail_executor_callback(callback, "missing dag_run_id", session=session)
                     continue
 
                 dag_run_id = callback.data["dag_run_id"]
@@ -1370,10 +1371,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 if dag_run is None:
                     self.log.warning(
-                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted. "
+                        "Marking callback as failed.",
                         dag_run_id,
                         callback.id,
                     )
+                    self._fail_executor_callback(callback, f"Dag run {dag_run_id} not found", session=session)
                     continue
 
                 # A savepoint so that a callback the executor cannot store (e.g. a DB write rejected at
@@ -1397,9 +1400,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         executor.executor_queues[workload.type].pop(key, None)
                         executor.running.discard(key)
                     self.log.exception("Failed to queue callback %s to %s", callback.id, executor)
-                    callback.state = CallbackState.FAILED
-                    callback.output = f"Failed to queue callback: {type(e).__name__}"
-                    session.add(callback)
+                    self._fail_executor_callback(callback, type(e).__name__, session=session)
+
+    @staticmethod
+    def _fail_executor_callback(callback: ExecutorCallback, reason: str, *, session: Session) -> None:
+        callback.state = CallbackState.FAILED
+        callback.output = f"Failed to queue callback: {reason}"
+        session.add(callback)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
