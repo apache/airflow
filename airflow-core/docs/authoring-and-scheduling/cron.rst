@@ -68,3 +68,51 @@ For example, you can create a Dag schedule to run at 12AM on the first Monday of
 
 Your Dag will be instantiated for each schedule along with a corresponding
 Dag Run entry in the database backend.
+
+.. _cron-when-runs-fire:
+
+When does a cron schedule fire?
+'''''''''''''''''''''''''''''''
+A cron expression only says *what times a run is scheduled for*. The timetable that
+interprets the expression decides *when the run is actually created* and which
+``logical_date`` it gets. This differs between Airflow 2 and Airflow 3, so a bare cron
+string alone does not tell you when your Dag runs.
+
+.. list-table::
+   :header-rows: 1
+
+   * - ``[scheduler] create_cron_data_intervals``
+     - Timetable
+     - ``logical_date``
+     - Run is created
+   * - ``False`` (Airflow 3 default)
+     - :ref:`CronTriggerTimetable`
+     - the cron time itself
+     - at the cron time
+   * - ``True`` (Airflow 2.x default)
+     - :ref:`CronDataIntervalTimetable`
+     - the start of the data interval
+     - at the end of the data interval, one cron period later
+
+For example, with ``schedule="0 0 * * *"``, ``CronTriggerTimetable`` creates a run at
+midnight on February 1st whose ``logical_date`` is February 1st. At that same moment
+``CronDataIntervalTimetable`` instead closes the data interval that began at midnight on
+January 31st, so the run it creates has a ``logical_date`` of January 31st.
+
+To pin the behaviour for one Dag regardless of the configuration value, pass a timetable
+instance instead of a bare cron string:
+
+.. code-block:: python
+
+    from airflow.timetables.interval import CronDataIntervalTimetable
+
+    dag = DAG(
+        "pinned_data_interval_example",
+        schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
+    )
+
+.. seealso::
+
+    - :ref:`config:scheduler__create_cron_data_intervals` for the configuration option
+    - :ref:`timetables_run_id_logical_date` for a worked comparison of the two timetables
+    - :doc:`../core-concepts/dag-run` for the definition of ``logical_date``
