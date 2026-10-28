@@ -614,6 +614,23 @@ class TestGitDagBundle:
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_fetches_new_tracking_ref_before_checkout(self, mock_githook, git_repo):
+        """A newly pushed tag is available when a bundle is re-created for it."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        repo.create_tag("new-tag")
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="new-tag")
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == repo.head.commit.hexsha
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_tag_force_pushed_to_unrelated_commit(self, mock_githook, git_repo):
         """Ensure that refresh follows a tag moved to an unrelated commit."""
         repo_path, repo = git_repo
@@ -1035,8 +1052,9 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        # 1 in _clone_bare_repo_if_required, 1 in refresh() for bare repo, 1 in refresh() for working repo
-        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 3
+        # 1 in _clone_bare_repo_if_required, 1 before checkout, 1 in refresh() for bare repo,
+        # 1 in refresh() for working repo
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 4
         mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
