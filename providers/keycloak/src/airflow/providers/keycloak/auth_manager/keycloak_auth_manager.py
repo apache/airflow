@@ -51,10 +51,17 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
+
+try:
+    from airflow.api_fastapi.common.types import CliLoginMethods
+except ImportError:
+    # Airflow versions without CLI login discovery never call ``get_cli_login_methods``.
+    CliLoginMethods = None  # type: ignore[assignment,misc]
 from airflow.cli.cli_config import CLICommand
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY,
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
@@ -233,6 +240,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        methods = CliLoginMethods(
+            grant_types_supported=["password", "refresh_token"],
+            token_endpoint=f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+        )
+        if conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False):
+            methods.grant_types_supported.append("authorization_code")
+            methods.code_challenge_methods_supported = ["S256"]
+            methods.authorization_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli"
+        return methods
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser | None) -> KeycloakAuthManagerUser | None:
         # According to RFC6749 section 4.4.3, a refresh token should not be included when using

@@ -143,3 +143,71 @@ class TestTokenRouter:
 
         assert response.status_code == 422
         mock_create_client_credentials_token.assert_not_called()
+
+    @conf_vars({("api_auth", "jwt_cli_expiration_time"): "10"})
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.refresh_cli_token")
+    def test_create_token_cli_refresh_grant(self, mock_refresh_cli_token, client):
+        mock_refresh_cli_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli",
+            json={"grant_type": "refresh_token", "token": "old"},
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_refresh_cli_token.assert_called_once_with("old")
+
+    @conf_vars({("api_auth", "jwt_cli_expiration_time"): "10"})
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_from_authorization_code")
+    def test_create_token_cli_authorization_code_grant(self, mock_create_token, client):
+        mock_create_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli",
+            json={
+                "grant_type": "authorization_code",
+                "code": "code",
+                "code_verifier": "v" * 43,
+                "redirect_uri": "http://127.0.0.1:53682/callback",
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_create_token.assert_called_once_with(
+            "code", "v" * 43, "http://127.0.0.1:53682/callback", expiration_time_in_seconds=10
+        )
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param(
+                {"grant_type": "client_credentials", "client_id": "id", "client_secret": "secret"},
+                id="client-credentials",
+            ),
+            pytest.param(
+                {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": "assertion"},
+                id="jwt-bearer",
+            ),
+            pytest.param(
+                {
+                    "grant_type": "authorization_code",
+                    "code": "code",
+                    "redirect_uri": "http://127.0.0.1:53682/callback",
+                },
+                id="missing-code-verifier",
+            ),
+            pytest.param(
+                {
+                    "grant_type": "authorization_code",
+                    "code": "code",
+                    "code_verifier": "short",
+                    "redirect_uri": "http://127.0.0.1:53682/callback",
+                },
+                id="short-code-verifier",
+            ),
+        ],
+    )
+    def test_create_token_cli_rejects_body(self, client, body):
+        response = client.post(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli", json=body)
+
+        assert response.status_code == 422

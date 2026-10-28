@@ -20,10 +20,10 @@ from __future__ import annotations
 import json
 import logging
 import secrets
-from typing import cast
+from typing import Annotated, cast
 from urllib.parse import quote, urljoin
 
-from fastapi import Request  # noqa: TC002
+from fastapi import HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
@@ -50,6 +50,7 @@ except ImportError:
 
 
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
@@ -58,6 +59,10 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_REFRESH_TOKEN,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
+from airflow.providers.keycloak.auth_manager.services.token import (
+    is_cli_authorization_code_enabled,
+    is_cli_loopback_redirect_uri,
+)
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
@@ -94,6 +99,48 @@ def login(request: Request) -> RedirectResponse:
         COOKIE_NAME_OAUTH_STATE, state, max_age=300, path=cookie_path, httponly=True, secure=secure
     )
     return response
+
+
+@login_router.get(
+    "/login/cli",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+)
+def login_cli(
+    redirect_uri: str,
+    state: Annotated[str, Query(min_length=1, max_length=512)],
+    # An S256 challenge is 43 base64url characters. ``auth_url`` does not encode its parameters,
+    # so nothing else may reach it.
+    code_challenge: Annotated[str, Query(pattern=r"^[A-Za-z0-9_-]{43}$")],
+    code_challenge_method: str,
+) -> RedirectResponse:
+    """
+    Start the browser login of a command-line client.
+
+    Keycloak redirects straight back to the client's loopback ``redirect_uri``, and the client
+    exchanges the code at ``/token/cli``. PKCE is required here rather than on the Keycloak
+    client, because requiring it there would break the web login, which does not use it.
+    """
+    if not is_cli_authorization_code_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Browser login is not enabled for command-line clients",
+        )
+    if not is_cli_loopback_redirect_uri(redirect_uri):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect_uri")
+    if code_challenge_method != "S256":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="code_challenge_method must be S256"
+        )
+
+    client = KeycloakAuthManager.get_keycloak_client()
+    auth_url = client.auth_url(
+        redirect_uri=redirect_uri,
+        scope="openid",
+        state=quote(state, safe=""),
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+    )
+    return RedirectResponse(auth_url)
 
 
 @login_router.get("/login_callback")

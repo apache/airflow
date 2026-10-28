@@ -26,6 +26,8 @@ from airflow.providers.keycloak.auth_manager.services.token import (
     create_client_credentials_token,
     create_jwt_federated_token,
     create_token_for,
+    create_token_from_authorization_code,
+    refresh_cli_token,
 )
 
 
@@ -82,6 +84,36 @@ class TokenJwtFederatedBody(StrictBaseModel):
         )
 
 
+class TokenRefreshBody(StrictBaseModel):
+    """Refresh grant serializer for post bodies; ``token`` is the current CLI token."""
+
+    grant_type: Literal["refresh_token"]
+    token: str = Field()
+
+    def create_token(self, expiration_time_in_seconds: int) -> str:
+        """Create token from a CLI token that is still valid, keeping its expiry."""
+        return refresh_cli_token(self.token)
+
+
+class TokenAuthorizationCodeBody(StrictBaseModel):
+    """Authorization code grant serializer for post bodies, used by the browser login of CLI clients."""
+
+    grant_type: Literal["authorization_code"]
+    code: str = Field()
+    # RFC 7636 section 4.1 length bounds.
+    code_verifier: str = Field(min_length=43, max_length=128)
+    redirect_uri: str = Field()
+
+    def create_token(self, expiration_time_in_seconds: int) -> str:
+        """Create token from an authorization code and its PKCE verifier."""
+        return create_token_from_authorization_code(
+            self.code,
+            self.code_verifier,
+            self.redirect_uri,
+            expiration_time_in_seconds=expiration_time_in_seconds,
+        )
+
+
 TokenUnion = Annotated[
     TokenPasswordBody | TokenClientCredentialsBody | TokenJwtFederatedBody,
     Field(discriminator="grant_type"),
@@ -90,6 +122,24 @@ TokenUnion = Annotated[
 
 class TokenBody(RootModel[TokenUnion]):
     """Token request body."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_grant_type(cls, data):
+        """Add default grant_type for discrimination."""
+        if "grant_type" not in data:
+            data["grant_type"] = "password"
+        return data
+
+
+TokenCliUnion = Annotated[
+    TokenPasswordBody | TokenRefreshBody | TokenAuthorizationCodeBody,
+    Field(discriminator="grant_type"),
+]
+
+
+class TokenCliBody(RootModel[TokenCliUnion]):
+    """Token request body for command-line clients."""
 
     @model_validator(mode="before")
     @classmethod
