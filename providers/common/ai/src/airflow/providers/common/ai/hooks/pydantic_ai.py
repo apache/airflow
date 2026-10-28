@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
+import contextvars
+import functools
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -26,6 +30,7 @@ from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
+from typing_extensions import ParamSpec
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
@@ -37,6 +42,8 @@ from airflow.providers.common.compat.sdk import BaseHook
 pydantic_ai.BANNER_ENABLED = False
 
 OutputT = TypeVar("OutputT")
+P = ParamSpec("P")
+R = TypeVar("R")
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -46,7 +53,7 @@ _UNSET: Any = object()
 FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
 
 if TYPE_CHECKING:
-    from collections.abc import MutableMapping
+    from collections.abc import Callable, MutableMapping
 
     from pydantic_ai.models import KnownModelName, Model
 
@@ -93,6 +100,20 @@ def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
     warning even if it was meant as a typo'd provider name.
     """
     return bool(_PROVIDER_SLUG_RE.match(prefix))
+
+
+# The async methods run their blocking lookups here, never on asyncio's default executor:
+# ``asend()`` reads its reply on that executor while it holds the comms lock, so blocking
+# lookups that fill it leave nothing to run the read and the task hangs. One worker also
+# serializes this process's hook lookups on Airflow 3.0 and 3.1, where the channel to the
+# supervisor has no lock of its own.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="pydantic-ai-hook")
+
+
+async def _run_off_loop(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
+    """Run ``fn`` on the hook's own worker thread, with the caller's context variables (task logging binds them)."""
+    call = functools.partial(contextvars.copy_context().run, fn, *args, **kwargs)
+    return await asyncio.get_running_loop().run_in_executor(_executor, call)
 
 
 def _get_registered_hooks() -> MutableMapping[str, Any]:
@@ -211,7 +232,27 @@ class PydanticAIHook(BaseHook):
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
                 "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
             )
-        return conn.get_hook(hook_params=hook_params)
+        # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
+        # this same connection its first ``get_conn`` would make.
+        hook = conn.get_hook(hook_params=hook_params)
+        hook._seed_connection(conn)
+        return hook
+
+    @classmethod
+    async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``, for use inside an async task.
+
+        The async counterpart of :meth:`get_hook`, with the same connection type check and
+        the connection already cached on the hook. ``get_connection`` sends to the supervisor
+        synchronously, which blocks the event loop while another async call is in flight (from
+        Airflow 3.3.1 it raises ``DeadlockImminentError`` instead), but only waits its turn from
+        any other thread, so the lookup runs on the hook's own worker thread.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        return await _run_off_loop(cls.get_hook, conn_id, hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -261,19 +302,23 @@ class PydanticAIHook(BaseHook):
     def _get_conn_and_extra(self) -> tuple[Connection, dict[str, Any]]:
         """Return this hook's connection and its deserialized extra, fetching at most once."""
         if self._conn is None:
-            self._conn = self.get_connection(self.llm_conn_id)
-            self._conn_extra_dejson = self._conn.extra_dejson
+            # Published together, once both are in hand: a reader never sees the connection
+            # next to the empty default extra, whether ``extra_dejson`` is still masking in
+            # another thread (``get_conn()`` called from two threads on one hook) or raised.
+            conn = self.get_connection(self.llm_conn_id)
+            extra = conn.extra_dejson
+            self._conn, self._conn_extra_dejson = conn, extra
         return self._conn, self._conn_extra_dejson
 
     def _seed_connection(self, conn: Connection) -> None:
         """
-        Prime this hook's connection cache with an already-fetched ``Connection``.
+        Prime this hook's connection cache with a ``Connection`` the caller already fetched.
 
-        Used by :meth:`_resolve_fallback_models`, which must call ``conn.get_hook()`` to
-        dispatch a fallback's hook class from its ``conn_type`` and so already holds the
-        ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
-        would fetch that same connection a second time the first time it runs, doubling the
-        Execution API round trips a fallback chain costs.
+        A caller that dispatches the hook class from ``conn.get_hook()`` holds the
+        ``Connection`` it built the hook from: :meth:`get_hook` for the hook it returns,
+        :meth:`_resolve_fallback_models` for each fallback. Without this,
+        :meth:`_get_conn_and_extra` would fetch that same connection a second time the first
+        time it runs.
         """
         self._conn = conn
         self._conn_extra_dejson = conn.extra_dejson
@@ -322,6 +367,22 @@ class PydanticAIHook(BaseHook):
             FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
         )
         return self._model
+
+    async def aget_conn(self) -> Model:
+        """
+        Return the configured pydantic-ai ``Model``, for use inside an async task.
+
+        The same model as :meth:`get_conn`, fallback chain included. Resolving it reads
+        connections with ``get_connection`` and ``extra_dejson``, and a subclass's
+        :meth:`_get_provider_kwargs` may read more (Snowflake's builds a ``SnowflakeHook``);
+        each of those sends to the supervisor synchronously, which blocks the event loop while
+        another async call is in flight (from Airflow 3.3.1 it raises ``DeadlockImminentError``
+        instead), but only waits its turn from any other thread, so the resolution runs on the
+        hook's own worker thread.
+        """
+        if self._model is not None:
+            return self._model
+        return await _run_off_loop(self.get_conn)
 
     def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """
@@ -672,6 +733,60 @@ class PydanticAIHook(BaseHook):
             if settings is not None:
                 agent.instrument = settings
         return agent
+
+    @overload
+    async def acreate_agent(
+        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(self, *, instructions: str, **agent_kwargs) -> Agent[object, str]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, str]: ...
+
+    async def acreate_agent(
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
+    ) -> Agent[object, Any]:
+        """
+        Create a pydantic-ai Agent configured with this hook's model, for use inside an async task.
+
+        The async counterpart of :meth:`create_agent`, with the same parameters, built on the
+        hook's own worker thread for the reason given in :meth:`aget_conn`. Run the agent with
+        ``await agent.run(...)``.
+        """
+        if spec_file is not None:
+            build = functools.partial(
+                self.create_agent, output_type, spec_file=spec_file, instructions=instructions, **agent_kwargs
+            )
+        elif instructions is None:
+            raise ValueError("instructions is required when spec_file is not provided.")
+        else:
+            build = functools.partial(
+                self.create_agent, output_type, instructions=instructions, **agent_kwargs
+            )
+        return await _run_off_loop(build)
 
     def test_connection(self) -> tuple[bool, str]:
         """

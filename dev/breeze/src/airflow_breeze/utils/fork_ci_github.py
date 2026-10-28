@@ -14,7 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""GitHub access for the fork CI reconciler (AIP-120); the only module of it that calls ``gh``."""
+"""
+GitHub access for the fork CI reconciler (AIP-120); the only module of it that calls ``gh``.
+
+Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+this file is closed by the fork CI monitor. See "Gate protection" in
+dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+"""
 
 from __future__ import annotations
 

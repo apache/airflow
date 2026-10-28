@@ -47,8 +47,10 @@ def get_expected_event_file_path(dag_id: str) -> str:
     1. A file named `{dag_id}__af{major_version}_{minor_version}.json`
         (e.g., `example_dag__af2_10.json` for Airflow 2.10.x)
     2. A file named `{dag_id}__af{major_version}_{N}_plus.json` where N <= current minor version
-        (e.g., `example_dag__af3_3_plus.json` matches Airflow 3.3, 3.4, 3.5, …)
-        When multiple such files exist, the one with the highest N wins.
+        (e.g., `example_dag__af3_3_plus.json` matches Airflow 3.3, 3.4, 3.5, …), or
+        `{dag_id}__af{major_version}_{N}_{P}_plus.json` for a patch release
+        (e.g., `example_dag__af3_2_2_plus.json` matches Airflow 3.2.2, 3.2.3, 3.3.0, …)
+        When multiple such files exist, the one with the highest version wins.
     3. A file named `{dag_id}__af{major_version}.json`
         (e.g., `example_dag__af3.json` for any Airflow 3.x version)
     4. A generic file named `{dag_id}.json` without version suffix
@@ -76,17 +78,17 @@ def get_expected_event_file_path(dag_id: str) -> str:
     if os.path.exists(exact_minor):
         return exact_minor
 
-    # 2. Minimum-version files: {dag_id}__af{major}_{N}_plus.json where N <= current minor
+    # 2. Minimum-version files: {dag_id}__af{major}_{N}[_{P}]_plus.json where N[.P] <= current minor[.micro]
     plus_candidates = []
     for f in base_path.glob(f"{dag_id}__af{AIRFLOW_VERSION.major}_*_plus.json"):
         m = re.fullmatch(
-            rf"{re.escape(dag_id)}__af{AIRFLOW_VERSION.major}_(\d+)_plus\.json",
+            rf"{re.escape(dag_id)}__af{AIRFLOW_VERSION.major}_(\d+)(?:_(\d+))?_plus\.json",
             f.name,
         )
         if m:
-            file_minor = int(m.group(1))
-            if file_minor <= AIRFLOW_VERSION.minor:
-                plus_candidates.append((file_minor, str(f)))
+            file_version = (int(m.group(1)), int(m.group(2) or 0))
+            if file_version <= (AIRFLOW_VERSION.minor, AIRFLOW_VERSION.micro):
+                plus_candidates.append((file_version, str(f)))
     if plus_candidates:
         plus_candidates.sort(key=lambda x: x[0], reverse=True)
         return plus_candidates[0][1]
@@ -103,6 +105,6 @@ def get_expected_event_file_path(dag_id: str) -> str:
         f"Could not locate expected event files for dag_id {dag_id} "
         f"(Airflow {AIRFLOW_VERSION.major}.{AIRFLOW_VERSION.minor}). "
         f"Checked: {dag_id}__af{AIRFLOW_VERSION.major}_{AIRFLOW_VERSION.minor}.json, "
-        f"{dag_id}__af{AIRFLOW_VERSION.major}_N_plus.json (N<={AIRFLOW_VERSION.minor}), "
+        f"{dag_id}__af{AIRFLOW_VERSION.major}_N[_P]_plus.json (N[.P]<={AIRFLOW_VERSION.minor}.{AIRFLOW_VERSION.micro}), "
         f"{dag_id}__af{AIRFLOW_VERSION.major}.json, {dag_id}.json"
     )

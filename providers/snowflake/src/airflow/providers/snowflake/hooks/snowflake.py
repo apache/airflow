@@ -489,8 +489,9 @@ class SnowflakeHook(DbApiHook):
         """
         static_config = self._get_static_conn_params
         conn_config: dict[str, Any] = dict(static_config)
-        # The connector merges the server's session parameters, AUTOCOMMIT among them, into the dict it is
-        # given; a copy keeps them out of the dicts that _has_autocommit_session_parameter() reads.
+        # snowflake-connector-python < 5 merges the server's session parameters, AUTOCOMMIT among them, into
+        # the dict it is given, and _has_autocommit_session_parameter() reads that dict, hence the copy.
+        # Connector 5 leaves the dict alone, so the copy can go once the minimum version is 5.
         if isinstance(conn_config.get("session_parameters"), dict):
             conn_config["session_parameters"] = dict(conn_config["session_parameters"])
 
