@@ -5191,6 +5191,83 @@ class TestEmailNotifications:
         mock_smtp_notifier.assert_not_called()
         log.exception.assert_called()
 
+    def test_default_from_email_for_smtp_notifier(self, create_runtime_ti, mock_supervisor_comms):
+        """When ``[email] from_email`` is not configured, SmtpNotifier falls back to 'airflow@airflow'."""
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="default_from_email_smtp_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): None}):
+            with mock.patch(
+                "airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True
+            ) as mock_smtp_hook_cls:
+                mock_smtp_hook = mock_smtp_hook_cls.return_value.__enter__.return_value
+                mock_smtp_hook.from_email = None
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                mock_smtp_hook.send_email_smtp.assert_called_once()
+                assert mock_smtp_hook.send_email_smtp.call_args.kwargs["from_email"] == "airflow@airflow"
+
+    def test_default_from_email_is_none_for_custom_backend(self, create_runtime_ti, mock_supervisor_comms):
+        """When ``[email] from_email`` is not configured, custom email_backend receives from_email=None."""
+        sent_messages: list[dict[str, Any]] = []
+
+        def _custom_backend_with_own_default(to, subject, html_content, **kwargs):
+            sent_messages.append(
+                {
+                    "to": to,
+                    "raw_from_email": kwargs.get("from_email"),
+                    "resolved_from_email": kwargs.get("from_email") or "verified@example.com",
+                }
+            )
+
+        backend = mock.create_autospec(_recording_email_backend, side_effect=_custom_backend_with_own_default)
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="default_from_email_custom_backend_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "email_backend"): f"{__name__}._recording_email_backend",
+                ("email", "from_email"): None,
+            }
+        ):
+            with mock.patch(f"{__name__}._recording_email_backend", backend):
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                backend.assert_called_once()
+                assert sent_messages == [
+                    {
+                        "to": ["test@example.com"],
+                        "raw_from_email": None,
+                        "resolved_from_email": "verified@example.com",
+                    }
+                ]
+
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
         """Test that secrets registered with mask_secret() are redacted in rendered template fields."""
