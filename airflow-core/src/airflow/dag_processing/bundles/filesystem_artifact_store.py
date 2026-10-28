@@ -14,21 +14,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Shared-filesystem artifact store for manifest-backed Dag bundles, and its filesystem helpers."""
+"""Shared-filesystem artifact store for manifest-backed Dag bundles."""
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import shutil
 import stat
 import tempfile
+import time
 from contextlib import contextmanager, suppress
-from fcntl import LOCK_EX, LOCK_UN, flock
+from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.dag_processing.bundles._filesystem import (
+    ensure_destination_is_within_root,
+    fsync_directory,
+    fsync_file,
+    fsync_tree_directories,
+    get_path_mode,
+    get_temp_snapshot_prefix,
+    raise_walk_error,
+    read_json_file,
+    remove_bundle_tree_forcefully,
+    remove_orphaned_temp_snapshots,
+)
 from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
     BundleManifestNotFoundError,
@@ -36,19 +48,22 @@ from airflow.dag_processing.bundles.artifact_store import (
 )
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
-    SHA256_VERSION_PREFIX,
     BundleManifestError,
     BundleManifestSourceChangedError,
+    _raise_source_access_error,
     compute_file_sha256,
-    is_sha256_hex,
     serialize_bundle_version_manifest,
     validate_bundle_relative_path,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
 log = logging.getLogger(__name__)
+
+DEFAULT_PUBLICATION_LOCK_TIMEOUT = 600.0
+_LOCK_POLL_INTERVAL = 1.0
+_LOCK_WAIT_LOG_INTERVAL = 30.0
 
 
 class FilesystemArtifactStore(ArtifactStore):
@@ -60,81 +75,140 @@ class FilesystemArtifactStore(ArtifactStore):
 
     Publishers need write access to the publication directories and read/write access to
     the lock file. For different OS users, provision these with a shared publisher group.
+
+    Publishers on different hosts serialize through ``flock`` on the lock file, so the
+    filesystem must enforce ``flock`` across hosts: NFSv4 does, NFSv3 only with the lock
+    manager (lockd) running, and FUSE or object-store mounts often accept ``flock`` without
+    enforcing it, which leaves concurrent publishers unserialized.
+
+    Airflow never deletes published snapshots: a Dag run can request any version it pinned,
+    for example on a retry, rerun or callback. Snapshots are read-only and may be owned by
+    the publisher's OS user, so to prune one that no run can still request, remove it as
+    that user after adding the owner write bit (``chmod -R u+w``).
+
+    :param lock_timeout: Seconds to wait for another publisher to release the lock before
+        failing. The lock is held while a whole snapshot is materialized, so allow for the
+        largest bundle on the slowest shared filesystem.
     """
 
-    def __init__(self, *, bundle_name: str, published_root: Path, cache_root: Path) -> None:
+    def __init__(
+        self,
+        *,
+        bundle_name: str,
+        published_root: Path,
+        lock_timeout: float = DEFAULT_PUBLICATION_LOCK_TIMEOUT,
+    ) -> None:
         self.bundle_name = bundle_name
-        if paths_overlap(published_root, cache_root):
-            raise ValueError(
-                "published_root must not overlap Airflow's bundle cache. Configure separate "
-                "authoritative publication and dag_bundle_storage_path locations."
-            )
         self._root = published_root
         self._ref_path = published_root / "refs" / bundle_name / "latest.json"
         self._snapshots_root = published_root / "versions" / bundle_name
-        self.lock_path = published_root / "_locks" / f"{bundle_name}.lock"
+        self._lock_path = published_root / "_locks" / f"{bundle_name}.lock"
+        self._lock_timeout = lock_timeout
 
     @property
-    def root(self) -> Path:
-        return self._root
+    def root(self) -> str:
+        return str(self._root)
 
     @property
-    def ref_path(self) -> Path:
-        return self._ref_path
+    def ref_path(self) -> str:
+        return str(self._ref_path)
 
     @property
-    def snapshots_root(self) -> Path:
-        return self._snapshots_root
+    def snapshots_root(self) -> str:
+        return str(self._snapshots_root)
 
-    def snapshot_path(self, version: str) -> Path:
-        return self._snapshots_root / version
+    def snapshot_path(self, version: str) -> str:
+        return str(self._snapshots_root / version)
 
-    def read_ref(self, *, missing_message: str, invalid_message: str) -> dict[str, Any]:
+    def read_ref(self) -> dict[str, Any]:
         return read_json_file(
-            self._ref_path, missing_message=missing_message, invalid_message=invalid_message
+            self._ref_path,
+            missing_message=f"Bundle '{self.bundle_name}' has no release reference at {self._ref_path}",
+            invalid_message=(
+                f"Bundle '{self.bundle_name}' release reference {self._ref_path} is not a JSON object"
+            ),
         )
 
     def write_ref(self, payload: dict[str, Any]) -> None:
-        _write_json_atomically(self._ref_path, payload)
+        with _raise_storage_error(f"write release reference {self._ref_path}"):
+            _write_json_atomically(self._ref_path, payload)
 
     @contextmanager
     def publication_guard(self):
         """Serialize publishers through a lock stored with the authoritative snapshots."""
-        _ensure_public_dir(self.lock_path.parent)
-        # Linux NFS implements flock with fcntl locks, which require a writable
-        # descriptor for an exclusive lock.
-        try:
-            fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR, 0o664)
-        except PermissionError as e:
-            raise BundleManifestError(
-                f"Cannot open publication lock {self.lock_path}: publishers need read/write "
-                "access. Set its group to a shared publisher group and grant group read/write "
-                "access (chmod 0664), and ensure the lock directory is writable."
-            ) from e
+        with _raise_storage_error(f"open publication lock {self._lock_path}"):
+            _ensure_public_dir(self._lock_path.parent)
+            # Linux NFS implements flock with fcntl locks, which require a writable
+            # descriptor for an exclusive lock.
+            try:
+                fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o664)
+            except PermissionError as e:
+                raise BundleManifestError(
+                    f"Cannot open publication lock {self._lock_path}: publishers need read/write "
+                    "access. Set its group to a shared publisher group and grant group read/write "
+                    "access (chmod 0664), and ensure the lock directory is writable."
+                ) from e
         with os.fdopen(fd, "r+b") as lock_file:
             # os.open masks the mode with the umask; repair it whenever this publisher
             # owns the file so other members of the publisher group can acquire it.
-            with suppress(OSError):
-                os.fchmod(fd, stat.S_IMODE(os.fstat(fd).st_mode) | 0o664)
-            flock(lock_file, LOCK_EX)
+            with _raise_storage_error(f"set permissions on publication lock {self._lock_path}"):
+                try:
+                    os.fchmod(fd, stat.S_IMODE(os.fstat(fd).st_mode) | 0o664)
+                except OSError:
+                    if os.fstat(fd).st_uid == os.geteuid():
+                        raise
+            self._acquire_publication_lock(lock_file)
+            # Unlock explicitly, not only through close(): a forked child sharing this open
+            # file description would keep holding the lock after this process closes it.
             try:
+                with _raise_storage_error(f"remove leftovers of failed publications under {self._root}"):
+                    self._remove_publish_leftovers()
                 yield
-            finally:
+            except BaseException:
+                try:
+                    flock(lock_file, LOCK_UN)
+                except OSError:
+                    # The publication's own error tells callers how to recover; keep it.
+                    log.warning("Cannot release publication lock %s", self._lock_path, exc_info=True)
+                raise
+            with _raise_storage_error(f"release publication lock {self._lock_path}"):
                 flock(lock_file, LOCK_UN)
 
-    def prepare_publish_areas(self) -> None:
-        _ensure_public_dir(self._snapshots_root)
-        _ensure_public_dir(self._ref_path.parent)
+    def _acquire_publication_lock(self, lock_file) -> None:
+        deadline = time.monotonic() + self._lock_timeout
+        next_log_time = time.monotonic()
+        while True:
+            try:
+                flock(lock_file, LOCK_EX | LOCK_NB)
+            except BlockingIOError:
+                pass
+            except OSError as e:
+                raise BundleManifestError(
+                    f"Cannot lock publication lock {self._lock_path}: {e}. The filesystem under "
+                    "published_root must support flock across hosts; NFSv3 needs lockd."
+                ) from e
+            else:
+                return
+            now = time.monotonic()
+            if now >= deadline:
+                raise BundleManifestError(
+                    f"Timed out after {self._lock_timeout:g}s waiting for publication lock "
+                    f"{self._lock_path}; another publisher still holds it."
+                )
+            if now >= next_log_time:
+                log.info("Waiting for publication lock %s held by another publisher", self._lock_path)
+                next_log_time = now + _LOCK_WAIT_LOG_INTERVAL
+            time.sleep(min(_LOCK_POLL_INTERVAL, deadline - now))
 
-    def validate_source_paths(self, source_path: Path, *, cache_versions_dir: Path) -> None:
-        _validate_publish_paths(
-            source_path=source_path,
-            published_root=self._root,
-            versions_dir=cache_versions_dir,
-        )
+    def prepare_publish_areas(self) -> None:
+        with _raise_storage_error(f"create publication directories under {self._root}"):
+            _ensure_public_dir(self._snapshots_root)
+            _ensure_public_dir(self._ref_path.parent)
 
     def snapshot_exists(self, version: str) -> bool:
-        return (self._snapshots_root / version).is_dir()
+        with _raise_storage_error(f"check published snapshot {self._snapshots_root / version}"):
+            mode = get_path_mode(self._snapshots_root / version)
+            return mode is not None and stat.S_ISDIR(mode)
 
     def fetch_snapshot(
         self,
@@ -144,96 +218,72 @@ class FilesystemArtifactStore(ArtifactStore):
         structural_validator: Callable[[Path], None],
     ) -> None:
         published_version_path = self._snapshots_root / version
-        if not published_version_path.is_dir():
-            raise BundleManifestNotFoundError(
-                f"Bundle '{self.bundle_name}' version '{version}' is not published at "
-                f"{published_version_path}. Publish or restore the immutable snapshot before "
-                "running pinned work."
+        with _raise_storage_error(f"fetch published snapshot {published_version_path}"):
+            published_mode = get_path_mode(published_version_path)
+            if published_mode is None or not stat.S_ISDIR(published_mode):
+                raise BundleManifestNotFoundError(
+                    f"Bundle '{self.bundle_name}' version '{version}' is not published at "
+                    f"{published_version_path}. Publish or restore the immutable snapshot before "
+                    "running pinned work."
+                )
+            if destination.exists() and any(destination.iterdir()):
+                raise ValueError(f"Snapshot fetch destination {destination} must be absent or empty")
+            structural_validator(published_version_path)
+            shutil.copytree(
+                published_version_path, destination, copy_function=shutil.copy2, dirs_exist_ok=True
             )
-        structural_validator(published_version_path)
-        shutil.copytree(published_version_path, destination, copy_function=shutil.copy2, dirs_exist_ok=True)
 
     def publish_snapshot(
         self,
-        version: str,
         *,
         manifest: dict[str, Any],
         source_root: Path,
         validate_existing: Callable[[Path], None],
     ) -> bool:
-        version_path = self._snapshots_root / version
-        if version_path.exists():
-            if not version_path.is_dir():
-                raise FileExistsError(f"Bundle snapshot path exists but is not a directory: {version_path}")
-            validate_existing(version_path)
-            return False
-        _materialize_manifest_snapshot(
-            source_path=source_root,
-            manifest=manifest,
-            versions_dir=self._snapshots_root,
-            version_path=version_path,
-        )
-        return True
+        version_path = self._snapshots_root / manifest["version"]
+        with _raise_storage_error(f"publish snapshot {version_path}"):
+            version_mode = get_path_mode(version_path)
+            if version_mode is None:
+                created = _materialize_manifest_snapshot(
+                    source_path=source_root,
+                    manifest=manifest,
+                    versions_dir=self._snapshots_root,
+                    version_path=version_path,
+                )
+            elif not stat.S_ISDIR(version_mode):
+                raise BundleManifestError(
+                    f"Bundle snapshot path exists but is not a directory: {version_path}"
+                )
+            else:
+                created = False
+            if not created:
+                validate_existing(version_path)
+            # An earlier attempt may have committed the snapshot and failed before this sync.
+            fsync_directory(self._snapshots_root)
+            return created
 
-    def sweep_publish_temps(self) -> None:
+    def _remove_publish_leftovers(self) -> None:
         remove_orphaned_temp_snapshots(self._snapshots_root)
         _remove_orphaned_atomic_temp_files(self._ref_path)
 
 
-def read_json_file(path: Path, *, missing_message: str, invalid_message: str) -> dict[str, Any]:
-    """Read a JSON object from a published document, raising ``missing_message`` if it is absent."""
+@contextmanager
+def _raise_storage_error(action: str) -> Iterator[None]:
+    """
+    Re-raise an ``OSError`` from published-artifact storage as a bundle error.
+
+    A missing artifact becomes ``BundleManifestNotFoundError``; any other failure is a
+    ``BundleManifestError``, never ``BundleManifestSourceChangedError``, which publishers
+    treat as a benign concurrent edit of the source and retry quietly.
+    """
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        yield
+    except BundleManifestError:
+        raise
     except FileNotFoundError as e:
-        raise BundleManifestNotFoundError(missing_message) from e
-    except (UnicodeDecodeError, json.JSONDecodeError) as e:
-        raise BundleManifestError(invalid_message) from e
-
-    if not isinstance(payload, dict):
-        raise BundleManifestError(invalid_message)
-    return payload
-
-
-def ensure_destination_is_within_root(root: Path, destination: Path) -> None:
-    try:
-        destination.resolve().relative_to(root.resolve())
-    except ValueError:
-        raise BundleManifestError(
-            f"Bundle manifest path {destination} resolves outside snapshot root {root}"
-        ) from None
-
-
-def _make_tree_writable(path: Path) -> None:
-    directories: list[Path] = []
-    for dirpath, _, filenames in os.walk(path):
-        directory = Path(dirpath)
-        directories.append(directory)
-        for filename in filenames:
-            child = directory / filename
-            if child.is_symlink():
-                continue
-            try:
-                child.chmod(stat.S_IMODE(child.stat().st_mode) | 0o200)
-            except OSError:
-                continue
-
-    for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
-        try:
-            directory.chmod(stat.S_IMODE(directory.stat().st_mode) | 0o700)
-        except OSError:
-            continue
-
-
-def remove_bundle_tree_forcefully(path: Path) -> None:
-    """Remove a bundle tree, adding write permissions first when a read-only snapshot blocks removal."""
-    if path.is_symlink() or not path.is_dir():
-        path.unlink(missing_ok=True)
-        return
-    try:
-        shutil.rmtree(path)
-    except OSError:
-        _make_tree_writable(path)
-        shutil.rmtree(path)
+        raise BundleManifestNotFoundError(f"Cannot {action}: {e}") from e
+    except OSError as e:
+        raise BundleManifestError(f"Cannot {action}: {e}") from e
 
 
 def _materialize_manifest_snapshot(
@@ -242,7 +292,8 @@ def _materialize_manifest_snapshot(
     manifest: dict[str, Any],
     versions_dir: Path,
     version_path: Path,
-) -> None:
+) -> bool:
+    """Commit the snapshot; return False if the rename failed but the version exists and needs validation."""
     version = manifest["version"]
     tmp_path = Path(
         tempfile.mkdtemp(
@@ -257,13 +308,19 @@ def _materialize_manifest_snapshot(
             destination = tmp_path / relative_path
             ensure_destination_is_within_root(tmp_path, destination)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
-            fsync_file(destination)
-            # Hash the copy inline: this verifies both the copy and the source against
-            # the manifest without a second full walk over the materialized tree. The
-            # executable bit is part of the content address, so it must be checked here
-            # too -- failing after os.replace would leave a published snapshot whose modes
-            # contradict its own manifest, permanently blocking that content version.
+            try:
+                # Not copy2: copystat would carry over source ACLs and extended attributes,
+                # which the read-only chmod before commit does not clear.
+                shutil.copy(source, destination)
+            except OSError as e:
+                # Fast-copy failures name both files and can come from either side, so only
+                # an error naming the source alone is attributed to it.
+                if e.filename == os.fspath(source) and e.filename2 is None:
+                    _raise_source_access_error(
+                        e, subject=f"file {file_info['path']!r}", phase="materializing the snapshot"
+                    )
+                raise
+            # Executable bit is part of the content address; verify before commit.
             destination_sha256, destination_size = compute_file_sha256(destination)
             destination_executable = bool(stat.S_IMODE(destination.stat().st_mode) & 0o111)
             if (
@@ -277,51 +334,25 @@ def _materialize_manifest_snapshot(
 
         _write_manifest_file(manifest, tmp_path / MANIFEST_FILE_NAME)
         _set_snapshot_permissions(tmp_path)
-        _fsync_tree_directories(tmp_path)
-        os.replace(tmp_path, version_path)
-        fsync_directory(versions_dir)
+        fsync_tree_directories(tmp_path)
+        try:
+            os.replace(tmp_path, version_path)
+        except OSError:
+            # Renaming onto another publisher's committed tree fails with a
+            # platform-specific errno, and NFS can report failure after the rename
+            # completed, so check for the result instead.
+            if not version_path.is_dir():
+                raise
+        else:
+            return True
     except Exception:
         # Best effort only: a cleanup failure must not mask the original error.
         with suppress(OSError):
             remove_bundle_tree_forcefully(tmp_path)
         raise
-
-
-def get_temp_snapshot_prefix(version: str) -> str:
-    return f".{version}."
-
-
-def remove_orphaned_temp_snapshots(versions_dir: Path) -> None:
-    if not versions_dir.exists():
-        return
-
-    removed_orphans = False
-    for path in versions_dir.iterdir():
-        if not _is_temp_snapshot_dir(path):
-            continue
-        try:
-            remove_bundle_tree_forcefully(path)
-        except OSError:
-            # One undeletable orphan (e.g. owned by another OS user) must not block
-            # materialization of valid versions.
-            log.warning("Could not remove orphaned temp snapshot %s", path, exc_info=True)
-            continue
-        removed_orphans = True
-
-    if removed_orphans:
-        fsync_directory(versions_dir)
-
-
-def _is_temp_snapshot_dir(path: Path) -> bool:
-    if path.is_symlink() or not path.is_dir():
-        return False
-
-    name = path.name
-    if not name.startswith(f".{SHA256_VERSION_PREFIX}"):
-        return False
-
-    digest, separator, suffix = name.removeprefix(f".{SHA256_VERSION_PREFIX}").partition(".")
-    return separator == "." and bool(suffix) and is_sha256_hex(digest)
+    with suppress(OSError):
+        remove_bundle_tree_forcefully(tmp_path)
+    return False
 
 
 def _remove_orphaned_atomic_temp_files(destination_path: Path) -> None:
@@ -342,6 +373,8 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
         dir=destination_path.parent,
     )
     tmp_path = Path(tmp_name)
+    version = payload.get("version")
+    ref_version = version if isinstance(version, str) else None
     try:
         with os.fdopen(fd, "wb") as file:
             file.write(serialize_bundle_version_manifest(payload))
@@ -349,17 +382,26 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
             # mkstemp creates the file owner-only; consumers can run as a different OS user.
             os.fchmod(file.fileno(), 0o644)
             os.fsync(file.fileno())
-        os.replace(tmp_path, destination_path)
+        try:
+            os.replace(tmp_path, destination_path)
+        except OSError as replace_error:
+            # NFS can report failure after completing the rename. The temporary file
+            # still existing is the only proof the reference was not replaced.
+            try:
+                tmp_path.lstat()
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                raise BundleManifestRefDurabilityError(
+                    ref_path=str(destination_path), version=ref_version
+                ) from e
+            else:
+                raise replace_error
         try:
             fsync_directory(destination_path.parent)
         except OSError as e:
-            version = payload.get("version")
-            raise BundleManifestRefDurabilityError(
-                ref_path=destination_path, version=version if isinstance(version, str) else None
-            ) from e
+            raise BundleManifestRefDurabilityError(ref_path=str(destination_path), version=ref_version) from e
     except Exception:
-        # missing_ok: an exists()/unlink() pair could itself raise here (e.g. an external
-        # tmp sweeper won the race) and mask the original publish error.
         with suppress(OSError):
             tmp_path.unlink(missing_ok=True)
         raise
@@ -384,84 +426,47 @@ def _ensure_public_dir(path: Path) -> None:
     if current.parent != current:
         fsync_directory(current.parent)
     for created in reversed(missing):
-        created.mkdir(exist_ok=True)
-        # A concurrent publisher may have created (and own) the directory; it applies
-        # the same permissions itself.
-        with suppress(OSError):
+        try:
+            created.mkdir()
+        except FileExistsError:
+            mode = get_path_mode(created)
+            if mode is None or not stat.S_ISDIR(mode):
+                raise
+            created_here = False
+        else:
+            created_here = True
+        try:
             created.chmod(0o755)
+        except OSError:
+            if created_here:
+                # Retries preserve pre-existing permissions, so undo incomplete creation.
+                try:
+                    created.rmdir()
+                    fsync_directory(created.parent)
+                except OSError:
+                    log.warning(
+                        "Could not clean up publication directory %s after failed permission setup; "
+                        "inspect its permissions before retrying",
+                        created,
+                        exc_info=True,
+                    )
+                raise
+            # Another publisher may own the directory and apply its permissions itself.
+            if created.stat().st_uid == os.geteuid():
+                raise
         fsync_directory(created)
         fsync_directory(created.parent)
 
 
-def _validate_publish_paths(
-    *,
-    source_path: Path,
-    published_root: Path,
-    versions_dir: Path,
-) -> None:
-    if _is_same_or_nested_path(published_root, source_path):
-        raise ValueError(
-            "published_root must not be inside source_path. Keep published snapshots "
-            "outside the Dag source tree before publishing a manifest bundle."
-        )
-
-    if _is_same_or_nested_path(source_path, published_root):
-        raise ValueError(
-            "source_path must not be inside published_root. Keep the Dag source tree "
-            "outside the published snapshots before publishing a manifest bundle."
-        )
-
-    if paths_overlap(source_path, versions_dir):
-        raise ValueError(
-            "source_path and versions_dir must not overlap. Keep Airflow's bundle cache outside "
-            "the Dag source tree before publishing a manifest bundle."
-        )
-
-
-def _is_same_or_nested_path(path: Path, root: Path) -> bool:
-    absolute_path = Path(os.path.abspath(path))
-    absolute_root = Path(os.path.abspath(root))
-    return absolute_path.is_relative_to(absolute_root) or path.resolve(strict=False).is_relative_to(
-        root.resolve(strict=False)
-    )
-
-
-def paths_overlap(first: Path, second: Path) -> bool:
-    return _is_same_or_nested_path(first, second) or _is_same_or_nested_path(second, first)
-
-
-def fsync_file(path: Path) -> None:
-    with path.open("rb") as file:
-        os.fsync(file.fileno())
-
-
-def fsync_directory(path: Path) -> None:
-    flags = getattr(os, "O_DIRECTORY", 0)
-    fd = os.open(path, os.O_RDONLY | flags)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
-def _fsync_tree_directories(root: Path) -> None:
-    directories = [Path(dirpath) for dirpath, _, _ in os.walk(root)]
-    for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
-        fsync_directory(directory)
-
-
 def _write_manifest_file(manifest: dict[str, Any], manifest_file: Path) -> None:
-    with manifest_file.open("wb") as file:
-        file.write(serialize_bundle_version_manifest(manifest))
-        file.flush()
-        os.fsync(file.fileno())
+    manifest_file.write_bytes(serialize_bundle_version_manifest(manifest))
 
 
 def _set_snapshot_permissions(snapshot_path: Path) -> None:
     # Snapshots must be read-only and world-readable: the publisher and the Airflow
     # components reading published_root may run as different OS users.
     directories: list[Path] = []
-    for dirpath, _, filenames in os.walk(snapshot_path):
+    for dirpath, _, filenames in os.walk(snapshot_path, onerror=raise_walk_error):
         directories.append(Path(dirpath))
         for filename in filenames:
             path = Path(dirpath) / filename
@@ -469,5 +474,7 @@ def _set_snapshot_permissions(snapshot_path: Path) -> None:
                 continue
             executable = stat.S_IMODE(path.stat().st_mode) & 0o111
             path.chmod(0o555 if executable else 0o444)
+            # One sync after chmod makes the data and the final mode durable together.
+            fsync_file(path)
     for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
         directory.chmod(0o555)
