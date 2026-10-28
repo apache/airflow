@@ -16,50 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
-
 import { usePoolServiceDeletePool, usePoolServiceGetPoolsKey } from "openapi/queries";
 
-import { toaster } from "src/system-components";
+import { useDeleteFeedback } from "./useDeleteFeedback";
 
-import { createErrorToaster } from "src/utils";
-
-export const useDeletePool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
-  const queryClient = useQueryClient();
-  const { t: translate } = useTranslation(["common", "admin"]);
-
-  const onError = (error: unknown) => {
-    createErrorToaster(
-      error,
-      {
-        params: { resourceName: translate("admin:pools.pool_one") },
-        titleKey: "toaster.delete.error",
-      },
-      translate,
-    );
-  };
-
-  const onSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: [usePoolServiceGetPoolsKey],
-    });
-
-    toaster.create({
-      description: translate("toaster.delete.success.description", {
-        resourceName: translate("admin:pools.pool_one"),
-      }),
-      title: translate("toaster.delete.success.title", {
-        resourceName: translate("admin:pools.pool_one"),
-      }),
-      type: "success",
-    });
-
-    onSuccessConfirm();
-  };
-
-  return usePoolServiceDeletePool({
-    onError,
-    onSuccess,
-  });
-};
+export const useDeletePool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) =>
+  usePoolServiceDeletePool(
+    useDeleteFeedback({
+      onSuccessConfirm,
+      queryKey: usePoolServiceGetPoolsKey,
+      resourceName: "admin:pools.pool_one",
+    }),
+  );

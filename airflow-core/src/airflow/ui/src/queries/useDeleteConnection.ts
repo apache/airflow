@@ -16,50 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
-
 import { useConnectionServiceDeleteConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
 
-import { toaster } from "src/system-components";
+import { useDeleteFeedback } from "./useDeleteFeedback";
 
-import { createErrorToaster } from "src/utils";
-
-export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
-  const queryClient = useQueryClient();
-  const { t: translate } = useTranslation(["admin", "common"]);
-
-  const onError = (error: unknown) => {
-    createErrorToaster(
-      error,
-      {
-        params: { resourceName: translate("admin:connections.connection_one") },
-        titleKey: "common:toaster.delete.error",
-      },
-      translate,
-    );
-  };
-
-  const onSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: [useConnectionServiceGetConnectionsKey],
-    });
-
-    toaster.create({
-      description: translate("common:toaster.delete.success.description", {
-        resourceName: translate("admin:connections.connection_one"),
-      }),
-      title: translate("common:toaster.delete.success.title", {
-        resourceName: translate("admin:connections.connection_one"),
-      }),
-      type: "success",
-    });
-
-    onSuccessConfirm();
-  };
-
-  return useConnectionServiceDeleteConnection({
-    onError,
-    onSuccess,
-  });
-};
+export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) =>
+  useConnectionServiceDeleteConnection(
+    useDeleteFeedback({
+      onSuccessConfirm,
+      queryKey: useConnectionServiceGetConnectionsKey,
+      resourceName: "admin:connections.connection_one",
+    }),
+  );
