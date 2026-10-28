@@ -100,9 +100,6 @@ type Props = (
       readonly taskInstances: Array<ClearTarget>;
     }
 ) & {
-  // Start with no option checked instead of the user's default ones, so that only the given
-  // task instances are cleared unless more are asked for.
-  readonly ignoreDefaultOptions?: boolean;
   readonly onCleared?: () => void;
   readonly onClose: () => void;
   readonly open: boolean;
@@ -145,7 +142,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
     : "taskInstances" in props
       ? props.taskInstances
       : [props.taskInstance];
-  const ignoreDefaultOptions = props.ignoreDefaultOptions === true;
   const groups: Array<RunGroup> = props.allMapped
     ? [{ dagId: props.dagId, dagRunId: props.dagRunId, targets: [] }]
     : getRunGroups(targets);
@@ -167,8 +163,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
   const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
-  const defaultOptions = ignoreDefaultOptions ? [] : clearTaskInstanceDefaultOptions;
-  const initialOptions = loopMode ? [...defaultOptions, LATER_ITERATIONS] : defaultOptions;
+  const initialOptions = loopMode
+    ? [...clearTaskInstanceDefaultOptions, LATER_ITERATIONS]
+    : clearTaskInstanceDefaultOptions;
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(initialOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");

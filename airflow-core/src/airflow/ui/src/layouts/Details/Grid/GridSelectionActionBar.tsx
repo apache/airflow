@@ -62,7 +62,6 @@ export const GridSelectionActionBar = ({ clearSelection, dagId, deselectCells, s
             <ActionBar.Separator />
             <BulkClearTaskInstancesButton
               clearSelections={clearSelection}
-              ignoreDefaultOptions
               selectedTaskInstances={selectedTaskInstances}
             />
             <BulkMarkTaskInstancesAsButton

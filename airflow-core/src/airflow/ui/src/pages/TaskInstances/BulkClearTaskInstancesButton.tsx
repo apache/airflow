@@ -26,15 +26,10 @@ import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTask
 
 type Props = {
   readonly clearSelections: VoidFunction;
-  readonly ignoreDefaultOptions?: boolean;
   readonly selectedTaskInstances: Array<TaskInstanceResponse>;
 };
 
-const BulkClearTaskInstancesButton = ({
-  clearSelections,
-  ignoreDefaultOptions,
-  selectedTaskInstances,
-}: Props) => {
+const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -45,7 +40,6 @@ const BulkClearTaskInstancesButton = ({
         {translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_other") })}
       </Button>
       <ClearTaskInstanceDialog
-        ignoreDefaultOptions={ignoreDefaultOptions}
         onCleared={clearSelections}
         onClose={onClose}
         open={open}
