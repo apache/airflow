@@ -1803,12 +1803,12 @@ def audit(fix: bool):
 @ci_group.command(
     name="approve-workflow-runs",
     help="Approve the waiting workflow runs of external contributors' PRs whose changes are safe "
-    "to run without a maintainer's look, and label the others 'need workflow approval'. "
-    "Used by the auto-approve-workflow-runs workflow.",
+    "to run without a maintainer's look, and label the others 'need workflow approval' with a "
+    "'Workflow approval' commit status saying why. Used by the auto-approve-workflow-runs workflow.",
 )
 @click.option(
     "--github-token",
-    help="GitHub token able to approve workflow runs and label PRs.",
+    help="GitHub token able to approve workflow runs, label PRs and set commit statuses.",
     envvar="GITHUB_TOKEN",
     required=True,
 )
@@ -1823,7 +1823,7 @@ def audit(fix: bool):
 @click.option(
     "--report-only",
     is_flag=True,
-    help="Only report the decisions and estimates, without approving runs or changing labels.",
+    help="Only report the decisions and estimates, without approving runs or changing labels or statuses.",
     envvar="REPORT_ONLY",
 )
 @option_github_repository
