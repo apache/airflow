@@ -284,10 +284,42 @@ before polling begins, and a retry reconnects to that pod instead of submitting 
   conflicts with the flag and a ``ValueError`` will be raised at task start.
 * The Airflow worker must be able to reach the Kubernetes API server and have permission to
   read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
-* Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
-  containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
-  advance to ``Succeeded`` until all sidecars exit. In that case the poll loop will wait
-  indefinitely — set ``execution_timeout`` as a hard bound.
+* Set ``durable=True`` (the default) to enable crash recovery: the driver pod name is
+  persisted to task state before polling begins, so a worker crash and retry reconnects to the
+  existing pod instead of submitting a fresh one. Set ``durable=False`` to always
+  submit a fresh driver on retry.
+
+**Sidecar containers and driver container identification**
+
+Completion is detected from the driver container's own exit code rather than from
+``pod.status.phase`` alone as long as the driver container can be identified. By default
+the driver container is identified by name, preferring a container with ``driver`` in
+its name, then one with ``spark`` in its name, falling back to the pod's only container if there
+is just one. If this heuristic doesn't match your setup, set ``kubernetes_driver_container_name`` to
+the exact container name:
+
+.. code-block:: python
+
+   run_spark = SparkSubmitOperator(
+       task_id="run_spark",
+       application="local:///opt/spark/examples/jars/spark-examples.jar",
+       conn_id="spark_k8s",
+       deploy_mode="cluster",
+       track_driver_via_k8s_api=True,
+       kubernetes_driver_container_name="spark-kubernetes-driver",
+   )
+
+If ``kubernetes_driver_container_name`` doesn't match any container on the pod, the task fails
+immediately with a ``ValueError`` rather than silently falling back to the heuristic.
+
+If the pod phase reports ``Failed`` but the driver container itself exited 0 (for example, a
+sidecar crashed after the driver finished), the operator logs a warning and still treats the task
+as succeeded.
+
+If the driver container could not be identified, ``pod.status.phase`` will be used to track
+completion. This matters if your driver pods have sidecar containers: the pod
+phase may not advance to ``Succeeded`` until every container exits. To avoid indefinite
+waits, set ``execution_timeout`` as a hard bound.
 
 Set ``durable=False`` to always submit a fresh driver on retry.
 
