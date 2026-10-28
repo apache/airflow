@@ -105,7 +105,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/google/tests/unit/google/cloud/utils/test_bigquery.py",
             "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
-            "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
         ]
         # Deliberately untested: link modules whose tests would only assert constants.
