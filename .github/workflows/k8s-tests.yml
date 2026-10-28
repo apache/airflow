@@ -62,7 +62,7 @@ jobs:
   tests-kubernetes:
     timeout-minutes: 60
     name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -149,7 +149,7 @@ jobs:
   tests-kubernetes-lang-sdk:
     timeout-minutes: 60
     name: "K8S Lang-SDK:${{ inputs.lang-sdk-kubernetes-combo }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}

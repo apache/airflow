@@ -124,7 +124,7 @@ jobs:
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
@@ -162,6 +162,17 @@ jobs:
           PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+      - name: "Fail if static checks modified tracked files"
+        # prek does not report files that a nested-project hook modifies outside its own project
+        # (e.g. `breeze k8s setup-env` relocking uv.lock), so check the tree independently.
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Static checks passed but modified tracked files. Commit the changes below."
+            git diff --stat
+            git diff | head -n 500 || true
+            exit 1
+          fi
       - name: "Show prek log on failure"
         run: cat ~/.cache/prek/prek.log || true
         if: failure()
@@ -181,7 +192,7 @@ jobs:
   build-docs:
     timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     if: inputs.docs-build == 'true'
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -340,7 +351,7 @@ jobs:
       id-token: write
       contents: read
     needs: build-docs
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -472,7 +483,7 @@ jobs:
   test-python-api-client:
     timeout-minutes: 60
     name: "Test Python API client"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     if: inputs.run-api-codegen == 'true'
     env:
       BACKEND: "postgres"

@@ -1,0 +1,13 @@
+Default async MySQL driver changed from aiomysql to asyncmy
+
+When ``[database] sql_alchemy_conn_async`` is not set, Airflow now derives a
+``mysql+asyncmy://`` metadata database URL when asyncmy is installed. The MySQL
+provider installs asyncmy by default. If asyncmy is absent, core keeps deriving
+a ``mysql+aiomysql://`` URL, preserving compatibility with older provider releases.
+
+The provider retains aiomysql as a default dependency for older supported core
+releases that cannot select asyncmy. An explicit ``sql_alchemy_conn_async`` is
+never rewritten. To keep using aiomysql, install
+``apache-airflow-providers-mysql[aiomysql]`` and configure a
+``mysql+aiomysql://`` async URL. Review driver-specific
+``sql_alchemy_connect_args_async`` values when switching drivers.

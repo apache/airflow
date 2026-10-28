@@ -120,7 +120,7 @@ from airflow.models.xcom import build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, is_deadlock_error
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
@@ -197,6 +197,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.is_stub,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -382,7 +383,10 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        serialized_task = get_task(dag_bag, ti, session=session)
+        # Avoid loading the serialized Dag on the normal Python task path: only a lang-SDK
+        # (foreign-runtime) task needs its definition here, and ti.is_stub carries the row's own copy
+        # of the serialized flag.
+        serialized_task = get_task(dag_bag, ti, session=session) if ti.is_stub else None
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
@@ -404,6 +408,9 @@ def ti_run(
                     },
                 )
 
+        # Resolved here for a lang-SDK task only, since a regular task no longer loads its
+        # definition. #75387 has a Python task send its own execution_timeout to the supervisor,
+        # which is where the value for that kind of task belongs.
         if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
             context.execution_timeout = execution_timeout
 
@@ -693,8 +700,9 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
-        if loop_gate is not None:
+    except Exception as e:
+        # A deadlock is transient: return a 5xx so the Task SDK client retries instead of failing the TI.
+        if loop_gate is not None or is_deadlock_error(e):
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(

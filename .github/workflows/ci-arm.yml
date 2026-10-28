@@ -486,7 +486,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -527,7 +527,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -649,7 +649,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -678,7 +678,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -707,7 +707,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -737,7 +737,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -766,7 +766,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -797,7 +797,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -828,7 +828,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -858,7 +858,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -945,7 +945,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -975,7 +975,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1087,7 +1087,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1103,7 +1103,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1172,7 +1172,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1208,7 +1208,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '32+64', '128+256') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1240,7 +1240,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1272,7 +1272,7 @@ jobs:
   build-ts-sdk-docs:
     name: "TypeScript SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1309,7 +1309,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 4, 16) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '4+8', '16+32') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1330,7 +1330,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1397,26 +1397,12 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  ci-passed:
-    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
-    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
-    # "CI passed" then would let it merge on no CI, so the job reports under another name and
-    # the fork CI reconciler posts "CI passed" from the fork run instead.
-    # A run with cancelled jobs and no failed one -- usually a duplicate run of the same commit that
-    # concurrency cancelled, such as the two `synchronize` events GitHub sends when a stacked pull
-    # request's base and head are force-pushed together -- reports under another name too, so it
-    # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
-    # missing for that run, which keeps the merge blocked until another run of the commit reports it.
-    # A job cancelled by its timeout gets that name too, since `name` cannot test whether the run
-    # itself was cancelled, but the job still fails.
-    name: >-
-      ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
-      'CI passed (run cancelled)') ||
-      (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
-    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
-    # skipped required check as passed, so this job always runs and fails itself when any job it
-    # needs failed or timed out. Jobs skipped by selective checks count as passed.
-    if: always()
+  check-timed-out-jobs:
+    # A job-level `if` is the only place `cancelled()` tells a cancelled run from a job cancelled by
+    # its timeout: the steps of `ci-passed` start after the cancellation. Its `needs` must match
+    # those of `ci-passed`, so a timeout in any job fails the gate.
+    name: "Check for timed-out CI jobs"
+    if: always() && !cancelled() && contains(needs.*.result, 'cancelled')
     needs:
       - additional-ci-image-checks
       - additional-prod-image-tests
@@ -1457,20 +1443,79 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     runs-on: ["ubuntu-slim"]
     steps:
+      - name: "Fail because a CI job was cancelled without the run being cancelled"
+        run: |
+          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
+          exit 1
+
+  ci-passed:
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead.
+    # A run with cancelled jobs and no failed one -- usually a duplicate run of the same commit that
+    # concurrency cancelled, such as the two `synchronize` events GitHub sends when a stacked pull
+    # request's base and head are force-pushed together -- reports under another name too, so it
+    # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
+    # missing for that run, which keeps the merge blocked until another run of the commit reports it.
+    # A job cancelled by its timeout, while the run is not, makes `check-timed-out-jobs` fail, and
+    # so this job fails.
+    name: >-
+      ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
+      'CI passed (run cancelled)') ||
+      (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
+    # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
+    # skipped required check as passed, so this job always runs and fails itself when any job it
+    # needs failed or timed out. Jobs skipped by selective checks count as passed.
+    if: always()
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-ts-sdk-docs
+      - check-run-needed
+      - check-timed-out-jobs
+      - ci-image-checks
+      - finalize-tests
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
       - name: "Fail if any CI job failed"
         if: contains(needs.*.result, 'failure')
         run: |
           echo "At least one CI job failed."
           exit 1
-      # A job that hits its timeout is cancelled while the run is not, and must fail this check, as
-      # the scheduled canary's Slack report lists only failed jobs.
-      - name: "Fail if a CI job was cancelled without the run being cancelled"
-        if: contains(needs.*.result, 'cancelled') && !cancelled()
-        run: |
-          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
-          exit 1
       - name: "Report that CI jobs were cancelled"
-        if: contains(needs.*.result, 'cancelled') && cancelled()
+        if: contains(needs.*.result, 'cancelled')
         run: |
           echo "At least one CI job was cancelled, so this run does not report CI passed."
           echo 'CI jobs were cancelled: this run does not report `CI passed`.' >> "${GITHUB_STEP_SUMMARY}"
@@ -1483,7 +1528,7 @@ jobs:
     needs:
       - build-info
       - check-run-needed
-      # Waits for the gate job, which is the only failed job when a CI job timed out.
+      # Waits for the gate job, which also fails when a CI job timed out.
       - ci-passed
       - finalize-tests
       - tests-agent-frameworks
@@ -1606,7 +1651,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"

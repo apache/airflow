@@ -70,10 +70,11 @@ class TaskLaunchError(Exception):
     """
     A coordinator cannot launch the runtime of a task.
 
-    A coordinator raises this from :meth:`BaseCoordinator.execute_task` before it starts the runtime.
-    The supervisor then fails the task instance and writes the message to the task log. A *retryable*
-    error leaves the task to retry while it has retries left. One that is not, such as a routing
-    mistake that retrying cannot fix, fails the task at once.
+    A coordinator raises this from :meth:`BaseCoordinator.execute_task` before the task instance is
+    started; the runtime itself may already have been spawned. The supervisor then starts the task
+    instance, fails it, and writes the message to the task log. A *retryable* error leaves the task
+    to retry while it has retries left. One that is not, such as a routing mistake that retrying
+    cannot fix, fails the task at once.
     """
 
     def __init__(self, message: str, *, retryable: bool = True) -> None:
@@ -115,8 +116,9 @@ class BaseCoordinator:
 
         This should execute the task and return a result.
 
-        :raises TaskLaunchError: when the runtime cannot be launched. Raise it before the runtime
-            starts, so the supervisor can fail the task instance with the message in its task log.
+        :raises TaskLaunchError: when the runtime cannot be launched. Raise it only before the task
+            instance is started, so the supervisor can start it, fail it, and put the message in its
+            task log. The runtime itself may already have been spawned.
         """
         raise NotImplementedError
 

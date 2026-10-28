@@ -20,7 +20,7 @@ Simple DAG that triggers another simple DAG.
 It checks:
     - task's trigger_dag_id
     - DAGRun START and COMPLETE events, for the triggered DAG
-    - propagation of OL parent and root info from DAGRun conf
+    - propagation of OL parent and root info, including job types, from DAGRun conf
 """
 
 from __future__ import annotations
@@ -59,6 +59,12 @@ with DAG(
                 "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
                 "rootParentJobNamespace": "prod_analytics",
                 "rootParentJobName": "generate_report_sales_e2e",
+                "parentJobType": {"processingType": "BATCH", "integration": "SPARK", "jobType": "JOB"},
+                "rootParentJobType": {
+                    "processingType": "STREAMING",
+                    "integration": "CUSTOM",
+                    "jobType": "PIPELINE",
+                },
             },
         },
         poke_interval=5,

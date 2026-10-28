@@ -21,11 +21,16 @@ GitHub holds the workflow runs of a fork PR in ``action_required`` until someone
 approves them. This module approves the runs of PRs to ``main`` that do not touch anything that
 defines CI or chooses runners, do not need the full set of tests or a dependency upgrade, and whose
 jobs, as selected by selective checks, are estimated to take a limited number of job-minutes.
-Everything else gets the ``need workflow approval`` label and waits for a maintainer.
+Everything else gets the ``need workflow approval`` label and waits for a maintainer, and a pending
+``Workflow approval`` commit status that tells the author why, without notifying anyone. When the
+runs start, ``mark-workflow-runs-approved.yml`` turns the status green and removes the label.
 
 A PR whose CI runs in the contributor's fork (AIP-120) is decided by one rule instead: its project
 CI run only executes the fork CI gate, so it is approved whatever its size, unless it changes files
 that define CI, in which case it waits for a maintainer and the author gets a comment saying why.
+
+The runs of PRs from the repositories of trusted stakeholders (Amazon, Google, Astronomer) are
+always approved.
 
 Only API metadata and git objects of the PR are read. The PR's code is never checked out or run:
 selective checks come from the trusted ``main`` checkout and only see the list of changed files
@@ -49,8 +54,6 @@ from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, estimate
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.fork_ci_gate import (
     GATED_REASONS,
-    LABEL_USE_FORK_CI,
-    LABEL_USE_PROJECT_CI,
     GateConfig,
     GateEvent,
     decide,
@@ -72,18 +75,22 @@ from airflow_breeze.utils.selective_checks import (
     UPGRADE_TO_NEWER_DEPENDENCIES_LABEL,
 )
 
+# The label and the status context are also used by .github/workflows/mark-workflow-runs-approved.yml.
 NEED_WORKFLOW_APPROVAL_LABEL = "need workflow approval"
+
+APPROVAL_STATUS_CONTEXT = "Workflow approval"
+APPROVAL_STATUS_URL = (
+    "https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst"
+    "#ci-workflow-runs-of-external-contributors"
+)
+# GitHub rejects longer commit status descriptions.
+MAX_STATUS_DESCRIPTION_LENGTH = 140
 
 # Only PRs to main are approved automatically. PRs to release branches (``v3-4-test``,
 # ``airflow-ctl/v0-1-test``, ...) run those branches' own, older workflows and always need a maintainer.
 AUTO_APPROVABLE_BASE_BRANCH = "main"
 
 MAX_ERROR_TEXT_LENGTH = 200
-
-# Changes here can change which runner a job uses (``runs-on:``, ``runner-type`` computed by
-# selective checks, the scripts build-info runs) or what the workflows do, so they always need a
-# maintainer's look.
-CI_DEFINITION_PATH_PREFIXES = (".github/", "dev/breeze/", "scripts/ci/")
 
 # Dependency manifests and lock files. Selective checks only switch to dependency-upgrade mode for
 # pyproject.toml, but a changed lock file or JS / Go / Java manifest also changes what CI installs.
@@ -132,10 +139,16 @@ TEST_SELECTION_LABELS = frozenset(
     }
 )
 
-# Labels that move a PR between project CI and fork CI. The gate reads them when it runs, but falls
-# back to the labels of the run's event when it cannot, so a run started before one changed could
-# still run project CI.
-GATE_OVERRIDE_LABELS = frozenset({LABEL_USE_FORK_CI, LABEL_USE_PROJECT_CI})
+# Repositories of stakeholders that maintain large parts of Airflow, with the stakeholder's display
+# name. Only people with write access to such a repository can push the commits of its PRs, so their
+# runs are always approved, whatever the PR changes or targets. Keyed by repository id rather than
+# name: after a rename or deletion someone else could register the name. Find the id with
+# ``gh api repos/<owner>/<repo> --jq .id``.
+TRUSTED_STAKEHOLDER_REPOSITORIES: dict[int, tuple[str, str]] = {
+    65323404: ("astronomer/airflow", "Astronomer"),
+    484591340: ("aws-mwaa/upstream-to-airflow", "Amazon"),
+    733432432: ("VladaZakharova/airflow", "Google"),
+}
 
 # Read from the trusted main checkout, which is also the base branch whose gate job decides the
 # PRs that are approved automatically.
@@ -161,10 +174,6 @@ class ApprovalDecision:
 
 def count_source_lines(changed_files: list[ChangedFile]) -> int:
     return sum(file.changed_lines for file in changed_files if not NON_SOURCE_FILE_PATTERN.search(file.path))
-
-
-def find_ci_definition_files(files: list[str]) -> list[str]:
-    return [file for file in files if file.startswith(CI_DEFINITION_PATH_PREFIXES)]
 
 
 def find_dependency_files(files: list[str]) -> list[str]:
@@ -202,6 +211,20 @@ def is_gated_to_fork_ci(*, pr: dict[str, Any], github_repository: str, config: G
     return decide(event, config).reason in GATED_REASONS
 
 
+def find_trusted_stakeholder(run: dict[str, Any]) -> str | None:
+    repository_id = (run.get("head_repository") or {}).get("id")
+    trusted = TRUSTED_STAKEHOLDER_REPOSITORIES.get(repository_id) if isinstance(repository_id, int) else None
+    return trusted[1] if trusted else None
+
+
+def decide_trusted_approval(*, stakeholder: str) -> ApprovalDecision:
+    return ApprovalDecision(
+        approve=True,
+        reasons=[f"it comes from a repository of {stakeholder}, a trusted stakeholder"],
+        decision_labels=frozenset(),
+    )
+
+
 def find_fork_ci_definition_files(files: list[str]) -> list[str]:
     """The files the fork CI reconciler counts as defining CI, so both decide alike."""
     return [file for file in files if changes_ci_definition([file], file_count=1)]
@@ -225,7 +248,9 @@ def decide_gated_approval(*, changed_files: list[ChangedFile]) -> ApprovalDecisi
     return ApprovalDecision(
         approve=True,
         reasons=["its CI runs in the contributor's fork, so its project CI run only executes the gate"],
-        decision_labels=GATE_OVERRIDE_LABELS,
+        # The gate reads `use fork ci` and `use project ci` when the run starts and fails when it
+        # cannot, so runs started before one of them changed are approved too.
+        decision_labels=frozenset(),
     )
 
 
@@ -253,7 +278,10 @@ def decide_approval(
             estimate=estimate,
         )
     paths = [file.path for file in changed_files]
-    ci_files = find_ci_definition_files(paths)
+    # CI definition files can change which runner a job uses (``runs-on:``, ``runner-type``
+    # computed by selective checks, the scripts build-info runs) or what the jobs run, so they
+    # always need a maintainer's look.
+    ci_files = find_fork_ci_definition_files(paths)
     if ci_files:
         return ApprovalDecision(
             approve=False,
@@ -389,6 +417,39 @@ class GitHubApi:
         response = self._session.post(
             f"{GITHUB_API_URL}/repos/{self.github_repository}/issues/{pr_number}/comments",
             json={"body": body},
+            timeout=60,
+        )
+        response.raise_for_status()
+
+    def get_approval_status(self, sha: str) -> dict[str, Any] | None:
+        """The latest ``Workflow approval`` status of the commit."""
+        # Paginated: the fork CI reconciler posts a status per job, so a commit can have many contexts.
+        statuses = self._get_paginated(f"commits/{sha}/status?per_page=100", item_key="statuses")
+        return next((status for status in statuses if status["context"] == APPROVAL_STATUS_CONTEXT), None)
+
+    def is_run_waiting_for_approval(self, run_id: int) -> bool:
+        response = self._session.get(
+            f"{GITHUB_API_URL}/repos/{self.github_repository}/actions/runs/{run_id}", timeout=60
+        )
+        response.raise_for_status()
+        run = response.json()
+        # A run waiting for approval is reported as completed with the action_required conclusion.
+        return "action_required" in (run.get("status"), run.get("conclusion"))
+
+    def set_approval_status(self, sha: str, state: str, description: str) -> None:
+        if self.report_only:
+            console_print(
+                f"[info]Report only: would set status {state} on {sha[:10]}: {escape(description)}[/]"
+            )
+            return
+        response = self._session.post(
+            f"{GITHUB_API_URL}/repos/{self.github_repository}/statuses/{sha}",
+            json={
+                "state": state,
+                "target_url": APPROVAL_STATUS_URL,
+                "description": description,
+                "context": APPROVAL_STATUS_CONTEXT,
+            },
             timeout=60,
         )
         response.raise_for_status()
@@ -581,11 +642,17 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 f"leaving runs {run_ids} alone[/]"
             )
             continue
+        # The runs of a group share their head repository.
+        stakeholder = find_trusted_stakeholder(head_runs[0])
+        # Approving a run again fails, and the PRs that share a trusted head share its runs.
+        approved_run_ids: set[int] = set()
         for pr in matching_prs:
             failed = False
             decision: ApprovalDecision | None = None
             try:
-                if len(matching_prs) > 1:
+                if stakeholder is not None:
+                    decision = decide_trusted_approval(stakeholder=stakeholder)
+                elif len(matching_prs) > 1:
                     # The runs cannot be told apart by PR, so one PR's decision must not approve them all.
                     decision = ApprovalDecision(
                         approve=False, reasons=["its head commit is the head of several open PRs"]
@@ -593,7 +660,8 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 else:
                     decision = decide_for_pull_request(api=api, pr=pr)
                 pr_run_ids = run_ids
-                if decision.approve:
+                # A trusted repository's runs do not depend on the base branch or labels they started with.
+                if decision.approve and stakeholder is None:
                     pr_run_ids = find_runs_started_for_current_pr(
                         api=api, pr=pr, runs=head_runs, decision_labels=decision.decision_labels
                     )
@@ -607,7 +675,11 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                             estimate=decision.estimate,
                         )
                         pr_run_ids = run_ids
+                if decision.approve:
+                    pr_run_ids = [run_id for run_id in pr_run_ids if run_id not in approved_run_ids]
                 apply_decision(api=api, pr=pr, run_ids=pr_run_ids, decision=decision)
+                if decision.approve:
+                    approved_run_ids.update(pr_run_ids)
             except (requests.RequestException, subprocess.CalledProcessError) as e:
                 # One failing PR must not stop the others; the failure is reported through ``failed``.
                 failed = True
@@ -615,8 +687,18 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 pr_run_ids = run_ids
                 # Without the label a PR that keeps failing drops out of the query window unnoticed.
                 try:
-                    if not has_need_workflow_approval_label(pr):
+                    has_label = has_need_workflow_approval_label(pr)
+                    if not has_label:
                         api.add_label(pr["number"], NEED_WORKFLOW_APPROVAL_LABEL)
+                    # The error itself is only in the job summary: it can show the workflow's internals.
+                    status_changed = update_approval_status(
+                        api,
+                        sha=head_sha,
+                        state="pending",
+                        description="Waits for a maintainer: the automatic check failed",
+                    )
+                    if not has_label or status_changed:
+                        clear_if_runs_were_approved(api, pr=pr, run_ids=pr_run_ids)
                 except requests.RequestException as label_error:
                     console_print(
                         f"[warning]PR #{pr['number']}: adding the label failed: {escape(str(label_error))}[/]"
@@ -655,7 +737,7 @@ def find_runs_started_for_current_pr(
     :param decision_labels: the labels the decision depends on. It is made from the current labels,
         while a run can act on those of its event: with ``full tests needed`` removed, or
         ``default versions only`` added to a run of all versions, the estimate is smaller than the
-        run, and without ``use fork ci`` in its event a run can fall back to project CI.
+        run.
     """
     started_after = parse_github_time(pr["created_at"])
     changes = [
@@ -705,6 +787,43 @@ def build_failure_reason(error: Exception) -> str:
     return f"{reason}: {text}" if text else reason
 
 
+def build_status_description(prefix: str, reasons: list[str]) -> str:
+    description = f"{prefix}: {'; '.join(reasons)}"
+    if len(description) > MAX_STATUS_DESCRIPTION_LENGTH:
+        description = f"{description[: MAX_STATUS_DESCRIPTION_LENGTH - len('...')]}..."
+    return description
+
+
+def update_approval_status(api: GitHubApi, *, sha: str, state: str, description: str) -> bool:
+    """
+    Set the commit's ``Workflow approval`` status unless it already has this one; return whether it did.
+
+    Every tick decides again on the runs of the last 24 hours, and repeating the same status would
+    only spend the API's stricter write limit.
+    """
+    current = api.get_approval_status(sha)
+    if current is not None and (current["state"], current["description"]) == (state, description):
+        return False
+    api.set_approval_status(sha, state, description)
+    return True
+
+
+def clear_if_runs_were_approved(api: GitHubApi, *, pr: dict[str, Any], run_ids: list[int]) -> bool:
+    """
+    Undo the label and pending status just written if no run waits any more; return whether it did.
+
+    A maintainer may have approved the runs since they were listed, and the run that started may
+    already have cleared the label and status that were just written. An approval after this check
+    starts its run after the writes, so mark-workflow-runs-approved.yml clears them.
+    """
+    if any(api.is_run_waiting_for_approval(run_id) for run_id in run_ids):
+        return False
+    console_print(f"[info]PR #{pr['number']}: its runs were approved meanwhile[/]")
+    api.set_approval_status(pr["head"]["sha"], "success", "Workflow runs approved")
+    api.remove_label(pr["number"], NEED_WORKFLOW_APPROVAL_LABEL)
+    return True
+
+
 def has_need_workflow_approval_label(pr: dict[str, Any]) -> bool:
     return any(label["name"] == NEED_WORKFLOW_APPROVAL_LABEL for label in pr.get("labels", []))
 
@@ -728,6 +847,14 @@ def apply_decision(
     console_print(f"[warning]PR #{pr_number} needs a maintainer: {escape('; '.join(decision.reasons))}[/]")
     if not has_label:
         api.add_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
+    status_changed = update_approval_status(
+        api,
+        sha=pr["head"]["sha"],
+        state="pending",
+        description=build_status_description("Waits for a maintainer", decision.reasons),
+    )
+    if (not has_label or status_changed) and clear_if_runs_were_approved(api, pr=pr, run_ids=run_ids):
+        return
     # Once per PR: every later push would otherwise repeat it while the change stays.
     if decision.comment is not None and not api.has_bot_comment(pr_number, CI_CHANGE_MARKER):
         api.create_comment(pr_number, decision.comment)

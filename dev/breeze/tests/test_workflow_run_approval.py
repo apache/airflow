@@ -31,10 +31,11 @@ from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
-    GATE_OVERRIDE_LABELS,
+    APPROVAL_STATUS_CONTEXT,
     MAX_AUTO_APPROVED_JOB_MINUTES,
     MAX_AUTO_APPROVED_SOURCE_LINES,
     MAX_ERROR_TEXT_LENGTH,
+    MAX_STATUS_DESCRIPTION_LENGTH,
     NEED_WORKFLOW_APPROVAL_LABEL,
     TEST_SELECTION_LABELS,
     ApprovalDecision,
@@ -44,6 +45,7 @@ from airflow_breeze.utils.workflow_run_approval import (
     apply_decision,
     build_failure_reason,
     build_selective_checks,
+    build_status_description,
     count_source_lines,
     decide_approval,
     decide_for_pull_request,
@@ -133,6 +135,23 @@ def mock_estimate():
             False,
             "CI definition files",
             id="selective-checks-change",
+        ),
+        *(
+            pytest.param(
+                [ChangedFile(path, 1)],
+                _selective_checks(),
+                100,
+                False,
+                f"CI definition files: {path}",
+                id=f"fork-ci-defining-{path}",
+            )
+            for path in (
+                ".pre-commit-config.yaml",
+                "airflow-core/.pre-commit-config.yaml",
+                "Dockerfile.ci",
+                "scripts/docker/entrypoint_ci.sh",
+                "scripts/in_container/run_ci_tests.sh",
+            )
         ),
         pytest.param(
             CORE_CHANGE,
@@ -347,13 +366,14 @@ def _run(
     head_repo="contributor/airflow",
     head_branch="fix",
     created_at="2026-10-22T10:00:00Z",
+    head_repo_id=1,
 ) -> dict:
     return {
         "id": run_id,
         "head_sha": head_sha,
         "head_branch": head_branch,
         "created_at": created_at,
-        "head_repository": {"full_name": head_repo},
+        "head_repository": {"full_name": head_repo, "id": head_repo_id},
     }
 
 
@@ -406,11 +426,19 @@ def test_apply_decision_labels_prs_that_need_a_maintainer(labels, expected_add_l
     assert api.add_label.call_args_list == expected_add_label_calls
 
 
-@pytest.mark.parametrize("method", ["approve_run", "add_label", "remove_label", "create_comment"])
-def test_report_only_api_does_not_change_anything(method):
+@pytest.mark.parametrize(
+    ("method", "args"),
+    [
+        ("approve_run", (1,)),
+        ("add_label", (1, NEED_WORKFLOW_APPROVAL_LABEL)),
+        ("remove_label", (1, NEED_WORKFLOW_APPROVAL_LABEL)),
+        ("create_comment", (1, "text")),
+        ("set_approval_status", ("aaa", "pending", "Waits for a maintainer: big")),
+    ],
+)
+def test_report_only_api_does_not_change_anything(method, args):
     api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=True)
     with mock.patch.object(api, "_session", autospec=True) as session:
-        args = (1,) if method == "approve_run" else (1, NEED_WORKFLOW_APPROVAL_LABEL)
         getattr(api, method)(*args)
 
     assert session.method_calls == []
@@ -485,7 +513,9 @@ def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monke
 )
 def test_decide_approval_with_real_selective_checks(paths, approve):
     changed_files = [ChangedFile(path, 10) for path in paths]
-    selective_checks = SelectiveChecks(files=tuple(paths), commit_ref="HEAD", pr_labels=())
+    selective_checks = SelectiveChecks(
+        files=tuple(paths), default_branch="main", commit_ref="HEAD", pr_labels=()
+    )
 
     decision = decide_approval(
         base_branch="main", changed_files=changed_files, selective_checks=selective_checks
@@ -995,13 +1025,11 @@ def test_get_last_label_change_ignores_other_labels_and_reads_the_timeline_once(
 @mock.patch(f"{MODULE}.load_config", autospec=True, return_value=GATE_ENABLED)
 @mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=CORE_CHANGE)
 @mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
-def test_gated_approval_depends_on_the_gate_override_labels(
-    mock_fetch, mock_get_changed_files, mock_load_config
-):
+def test_gated_approval_depends_on_no_label(mock_fetch, mock_get_changed_files, mock_load_config):
     api = mock.MagicMock(spec=GitHubApi)
     api.github_repository = "apache/airflow"
 
-    assert decide_for_pull_request(api=api, pr=_gated_pr()).decision_labels == GATE_OVERRIDE_LABELS
+    assert decide_for_pull_request(api=api, pr=_gated_pr()).decision_labels == frozenset()
 
 
 @pytest.mark.parametrize("event", ["labeled", "unlabeled"])
@@ -1016,14 +1044,14 @@ def test_get_last_label_change_counts_every_test_selection_label(label, event):
 
 
 @mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
-def test_process_waiting_runs_leaves_gated_runs_started_before_use_fork_ci_was_added(mock_decide):
+def test_process_waiting_runs_approves_gated_runs_started_before_use_fork_ci_was_added(mock_decide):
     api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
     timeline = [
         {"event": "labeled", "created_at": "2026-10-22T10:30:00Z", "label": {"name": "use fork ci"}},
         {"event": "unlabeled", "created_at": "2026-10-22T10:40:00Z", "label": {"name": "full tests needed"}},
     ]
     mock_decide.return_value = ApprovalDecision(
-        approve=True, reasons=["fork CI"], decision_labels=GATE_OVERRIDE_LABELS
+        approve=True, reasons=["fork CI"], decision_labels=frozenset()
     )
     with (
         mock.patch.object(
@@ -1041,4 +1069,242 @@ def test_process_waiting_runs_leaves_gated_runs_started_before_use_fork_ci_was_a
     ):
         process_waiting_runs(api, created_since=CREATED_SINCE)
 
-    assert approve_run.call_args_list == [mock.call(3)]
+    assert approve_run.call_args_list == [mock.call(2), mock.call(3)]
+
+
+@pytest.mark.parametrize(
+    ("head_repo", "head_repo_id", "stakeholder"),
+    [
+        ("astronomer/airflow", 65323404, "Astronomer"),
+        ("aws-mwaa/upstream-to-airflow", 484591340, "Amazon"),
+        ("VladaZakharova/airflow", 733432432, "Google"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_always_approves_trusted_stakeholder_repositories(
+    mock_decide, head_repo, head_repo_id, stakeholder
+):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [
+        _run(1, "aaa", head_repo=head_repo, head_repo_id=head_repo_id, created_at="2026-10-22T08:30:00Z"),
+        _run(2, "aaa", head_repo=head_repo, head_repo_id=head_repo_id),
+    ]
+    # Several PRs share the head and a run started before the PRs were opened.
+    api.get_open_pull_requests.return_value = [
+        _pr(10, "aaa", head_repo=head_repo, labels=[NEED_WORKFLOW_APPROVAL_LABEL]),
+        _pr(11, "aaa", head_repo=head_repo, labels=[NEED_WORKFLOW_APPROVAL_LABEL]),
+    ]
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    mock_decide.assert_not_called()
+    assert [(r.pr_number, r.run_ids, r.decision.approve) for r in results] == [
+        (10, [1, 2], True),
+        (11, [], True),
+    ]
+    assert stakeholder in results[0].decision.reasons[0]
+    assert api.approve_run.call_args_list == [mock.call(1), mock.call(2)]
+    api.add_label.assert_not_called()
+    assert api.remove_label.call_args_list == [
+        mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL),
+        mock.call(11, NEED_WORKFLOW_APPROVAL_LABEL),
+    ]
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_does_not_trust_a_repository_by_its_name(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
+    api.get_runs_waiting_for_approval.return_value = [_run(1, "aaa", head_repo="astronomer/airflow")]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa", head_repo="astronomer/airflow")]
+    mock_decide.return_value = ApprovalDecision(approve=False, reasons=["too big"])
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    mock_decide.assert_called_once()
+    assert not results[0].decision.approve
+    api.approve_run.assert_not_called()
+
+
+def _status(state: str, description: str = "Waits for a maintainer: big") -> dict:
+    return {"context": APPROVAL_STATUS_CONTEXT, "state": state, "description": description}
+
+
+@pytest.mark.parametrize(
+    ("current_status", "expect_set"),
+    [
+        pytest.param(None, True, id="no-status"),
+        pytest.param(_status("pending", "Waits for a maintainer: big"), False, id="same-status"),
+        pytest.param(_status("pending", "Waits for a maintainer: other"), True, id="other-reason"),
+        pytest.param(_status("success", "Approved by a maintainer"), True, id="was-approved"),
+    ],
+)
+def test_apply_decision_sets_the_pending_status_with_the_reason(current_status, expect_set):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = current_status
+
+    apply_decision(
+        api=api, pr=_pr(10, "aaa"), run_ids=[1], decision=ApprovalDecision(approve=False, reasons=["big"])
+    )
+
+    api.get_approval_status.assert_called_once_with("aaa")
+    assert api.set_approval_status.call_args_list == (
+        [mock.call("aaa", "pending", "Waits for a maintainer: big")] if expect_set else []
+    )
+
+
+def test_build_status_description_fits_the_github_limit():
+    reasons = [
+        f"it changes CI definition files: {', '.join(f'.github/workflows/w{i}.yml' for i in range(20))}"
+    ]
+
+    description = build_status_description("Waits for a maintainer", reasons)
+
+    assert len(description) == MAX_STATUS_DESCRIPTION_LENGTH
+    assert description.startswith("Waits for a maintainer: it changes CI definition files: .github/")
+    assert description.endswith("...")
+
+
+def test_build_status_description_keeps_a_short_reason():
+    assert build_status_description("Waits for a maintainer", ["big", "slow"]) == (
+        "Waits for a maintainer: big; slow"
+    )
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_sets_a_generic_pending_status_when_a_pull_request_fails(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa")], [_run(1, "aaa")])
+    api.get_approval_status.return_value = None
+    mock_decide.side_effect = requests.HTTPError("502 Server Error for url: https://internal")
+
+    process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    api.set_approval_status.assert_called_once_with(
+        "aaa", "pending", "Waits for a maintainer: the automatic check failed"
+    )
+
+
+def test_get_approval_status_reads_every_page_of_statuses():
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    approval = _status("pending")
+    first_page = mock.MagicMock(spec=requests.Response)
+    first_page.json.return_value = {
+        "statuses": [{"context": f"job {i}", "state": "success", "description": ""} for i in range(100)]
+    }
+    first_page.links = {"next": {"url": "https://api.github.com/next-page"}}
+    second_page = mock.MagicMock(spec=requests.Response)
+    second_page.json.return_value = {"statuses": [approval]}
+    second_page.links = {}
+    with mock.patch.object(api, "_session", autospec=True) as session:
+        session.get.side_effect = [first_page, second_page]
+        assert api.get_approval_status("aaa") == approval
+
+    assert (
+        session.get.call_args_list[0]
+        .args[0]
+        .endswith("/repos/apache/airflow/commits/aaa/status?per_page=100")
+    )
+
+
+def test_get_approval_status_without_the_context():
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    statuses = [{"context": "CI passed", "state": "success", "description": ""}]
+    with mock.patch.object(api, "_get_paginated", autospec=True, return_value=statuses):
+        assert api.get_approval_status("aaa") is None
+
+
+def test_set_approval_status_posts_the_workflow_approval_context():
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    with mock.patch.object(api, "_session", autospec=True) as session:
+        api.set_approval_status("aaa", "pending", "Waits for a maintainer: big")
+
+    assert session.post.call_args.args[0].endswith("/repos/apache/airflow/statuses/aaa")
+    payload = session.post.call_args.kwargs["json"]
+    assert (payload["context"], payload["state"], payload["description"]) == (
+        APPROVAL_STATUS_CONTEXT,
+        "pending",
+        "Waits for a maintainer: big",
+    )
+    assert payload["target_url"].endswith("#ci-workflow-runs-of-external-contributors")
+
+
+@pytest.mark.parametrize(
+    ("run", "waiting"),
+    [
+        pytest.param({"status": "completed", "conclusion": "action_required"}, True, id="waiting"),
+        pytest.param({"status": "action_required", "conclusion": None}, True, id="waiting-status"),
+        pytest.param({"status": "queued", "conclusion": None}, False, id="approved"),
+        pytest.param({"status": "completed", "conclusion": "success"}, False, id="finished"),
+    ],
+)
+def test_is_run_waiting_for_approval(run, waiting):
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    with mock.patch.object(api, "_session", autospec=True) as session:
+        session.get.return_value.json.return_value = run
+        assert api.is_run_waiting_for_approval(1) is waiting
+
+    assert session.get.call_args.args[0].endswith("/repos/apache/airflow/actions/runs/1")
+
+
+def test_apply_decision_clears_what_it_wrote_when_the_runs_were_approved_meanwhile():
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = None
+    api.is_run_waiting_for_approval.return_value = False
+    decision = ApprovalDecision(approve=False, reasons=["big"], comment="explanation")
+
+    apply_decision(api=api, pr=_pr(10, "aaa"), run_ids=[1, 2], decision=decision)
+
+    assert api.set_approval_status.call_args_list == [
+        mock.call("aaa", "pending", "Waits for a maintainer: big"),
+        mock.call("aaa", "success", "Workflow runs approved"),
+    ]
+    api.add_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+    api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+    api.create_comment.assert_not_called()
+
+
+def test_apply_decision_keeps_what_it_wrote_while_a_run_still_waits():
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = None
+    api.is_run_waiting_for_approval.side_effect = [False, True]
+
+    apply_decision(
+        api=api, pr=_pr(10, "aaa"), run_ids=[1, 2], decision=ApprovalDecision(approve=False, reasons=["big"])
+    )
+
+    assert api.is_run_waiting_for_approval.call_args_list == [mock.call(1), mock.call(2)]
+    api.set_approval_status.assert_called_once_with("aaa", "pending", "Waits for a maintainer: big")
+    api.remove_label.assert_not_called()
+
+
+def test_apply_decision_does_not_recheck_the_runs_when_nothing_was_written():
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = _status("pending", "Waits for a maintainer: big")
+
+    apply_decision(
+        api=api,
+        pr=_pr(10, "aaa", labels=[NEED_WORKFLOW_APPROVAL_LABEL]),
+        run_ids=[1],
+        decision=ApprovalDecision(approve=False, reasons=["big"]),
+    )
+
+    api.is_run_waiting_for_approval.assert_not_called()
+    api.set_approval_status.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_clears_a_failed_pull_request_whose_runs_were_approved_meanwhile(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa")], [_run(1, "aaa")])
+    api.get_approval_status.return_value = None
+    api.is_run_waiting_for_approval.return_value = False
+    mock_decide.side_effect = requests.HTTPError("502 Server Error")
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert results[0].failed
+    api.is_run_waiting_for_approval.assert_called_once_with(1)
+    assert api.set_approval_status.call_args_list[-1] == mock.call("aaa", "success", "Workflow runs approved")
+    api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)

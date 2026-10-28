@@ -19,7 +19,7 @@
 Extend dag_warning for parse-time failures (file scope, no dag FK).
 
 Revision ID: b8f2c1d04e91
-Revises: c71065a1b14f
+Revises: 38c8df3fcb9c
 Create Date: 2026-10-26 00:00:00.000000
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 from airflow.models.base import StringID
 
 revision = "b8f2c1d04e91"
-down_revision = "c71065a1b14f"
+down_revision = "38c8df3fcb9c"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"
