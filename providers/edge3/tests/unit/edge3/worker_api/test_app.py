@@ -20,10 +20,11 @@ import mimetypes
 from unittest import mock
 
 import pytest
-from fastapi.routing import APIRoute
 from starlette.routing import Mount
 
 from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
+
+from tests_common.test_utils.api_fastapi import iter_api_routes
 
 
 @pytest.fixture
@@ -37,7 +38,7 @@ def app():
 
 
 def _api_route_paths(app) -> set[str]:
-    return {route.path for route in app.routes if isinstance(route, APIRoute)}
+    return {route.path for route in iter_api_routes(app.routes)}
 
 
 class TestCreateEdgeWorkerApiApp:

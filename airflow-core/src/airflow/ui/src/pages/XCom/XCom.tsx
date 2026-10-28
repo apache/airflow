@@ -148,7 +148,7 @@ const getColumns = ({
   {
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
-    header: translate("dashboard:timestamp"),
+    header: translate("xcom.columns.timestamp"),
   },
   {
     cell: ({ row: { original } }) => (

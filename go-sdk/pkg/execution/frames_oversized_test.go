@@ -55,7 +55,9 @@ func TestWriteFrameRejectsOversizedPayload(t *testing.T) {
 		t.Skip("requires 64-bit int to construct a slice longer than MaxFrameSize")
 	}
 	var backing byte
-	payload := unsafe.Slice(&backing, uint64(MaxFrameSize)+1)
+	// A variable, not a constant expression, so the file still compiles where int is 32 bits.
+	length := uint64(MaxFrameSize) + 1
+	payload := unsafe.Slice(&backing, length)
 
 	err := writeFrame(&bytes.Buffer{}, payload)
 	require.Error(t, err)

@@ -16,7 +16,7 @@ airflow-core/src/airflow/serialization/definitions/dag.py::1
 airflow-core/src/airflow/serialization/json_schema.py::1
 airflow-core/src/airflow/serialization/serialized_objects.py::2
 airflow-core/src/airflow/ti_deps/deps/valid_state_dep.py::1
-airflow-core/src/airflow/utils/cli.py::4
+airflow-core/src/airflow/utils/cli.py::3
 airflow-core/src/airflow/utils/db.py::1
 airflow-core/src/airflow/utils/db_cleanup.py::1
 airflow-core/src/airflow/utils/db_manager.py::3
@@ -213,7 +213,7 @@ providers/google/src/airflow/providers/google/cloud/hooks/cloud_sql.py::31
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_storage_transfer_service.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/compute.py::6
 providers/google/src/airflow/providers/google/cloud/hooks/compute_ssh.py::6
-providers/google/src/airflow/providers/google/cloud/hooks/dataflow.py::13
+providers/google/src/airflow/providers/google/cloud/hooks/dataflow.py::9
 providers/google/src/airflow/providers/google/cloud/hooks/dataform.py::4
 providers/google/src/airflow/providers/google/cloud/hooks/dataplex.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/dataproc.py::5
@@ -251,7 +251,7 @@ providers/google/src/airflow/providers/google/cloud/operators/compute.py::19
 providers/google/src/airflow/providers/google/cloud/operators/dataflow.py::16
 providers/google/src/airflow/providers/google/cloud/operators/datafusion.py::2
 providers/google/src/airflow/providers/google/cloud/operators/dataplex.py::54
-providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::32
+providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::31
 providers/google/src/airflow/providers/google/cloud/operators/dataproc_metastore.py::2
 providers/google/src/airflow/providers/google/cloud/operators/datastore.py::2
 providers/google/src/airflow/providers/google/cloud/operators/functions.py::6

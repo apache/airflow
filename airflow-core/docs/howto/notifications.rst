@@ -56,6 +56,6 @@ Here's an example of how you can create a Notifier class:
 For a list of community-managed notifiers, see :doc:`apache-airflow-providers:core-extensions/notifications`.
 
 Using Notifiers
-===============
+---------------
 
 For using Notifiers in event-based Dag callbacks, see :doc:`../administration-and-deployment/logging-monitoring/callbacks`.

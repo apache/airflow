@@ -458,10 +458,12 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
 
-        kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.11", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert captured == {
             "go": expected_native,
@@ -494,12 +496,14 @@ class TestSetupLangSdkTestSteps:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
         return recorded
 
     def test_builds_go_java_ts_and_the_runtime_image_by_default(self, recorded):
-        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.10", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert recorded["steps"] == [
             "Build Go bundle",
@@ -511,7 +515,10 @@ class TestSetupLangSdkTestSteps:
 
     def test_skips_the_runtime_image_build_when_an_override_is_given(self, recorded):
         kubernetes_commands._setup_lang_sdk_test(
-            python="3.10", kubernetes_version="v1.35.0", runtime_image="my-runtime:1"
+            python="3.10",
+            kubernetes_version="v1.35.0",
+            github_repository="apache/airflow",
+            runtime_image="my-runtime:1",
         )
 
         assert recorded["steps"] == [
@@ -627,6 +634,7 @@ class TestRunCompleteTestsLangSdkSetupFailure:
             use_standard_naming=False,
             lang_sdk_test=True,
             num_tries=1,
+            github_repository="apache/airflow",
             extra_options=None,
             test_args=[],
             output=None,
