@@ -29,6 +29,11 @@ from airflow.dag_processing.health import check_processor_health, write_processo
 from tests_common.test_utils.config import conf_vars
 
 
+@pytest.fixture(autouse=True)
+def reset_health_write_warnings(monkeypatch):
+    monkeypatch.setattr("airflow.dag_processing.health._next_health_write_warnings", {})
+
+
 @pytest.mark.parametrize(
     ("loop_age", "api_age", "readiness", "healthy"),
     [
@@ -60,6 +65,83 @@ def test_local_health_requires_a_fresh_loop(clock, tmp_path, loop_age, api_age, 
                 match=rf"Processor {field} heartbeat age {age:.1f}s.*health_check_threshold",
             ):
                 check_processor_health(readiness=readiness)
+
+
+@pytest.mark.parametrize("operation", ["mkdir", "write_text", "replace"])
+@mock.patch("airflow.dag_processing.health.Path.replace", autospec=True)
+@mock.patch("airflow.dag_processing.health.Path.write_text", autospec=True)
+@mock.patch("airflow.dag_processing.health.Path.mkdir", autospec=True)
+def test_health_write_failure_is_logged_without_stopping_the_processor(
+    mkdir, write_text, replace, tmp_path, caplog, operation
+):
+    path = tmp_path / "health.json"
+    operations = {"mkdir": mkdir, "write_text": write_text, "replace": replace}
+    operations[operation].side_effect = OSError("Health file is not writable")
+
+    with conf_vars({("dag_processor", "health_check_file"): str(path)}):
+        write_processor_health(0)
+
+        with pytest.raises(SystemExit, match="Dag processor is not healthy: .*health.json"):
+            check_processor_health()
+
+    operations[operation].assert_called_once()
+    assert {
+        "event": "Unable to write [dag_processor] health_check_file",
+        "path": str(path),
+        "error": "Health file is not writable",
+    } in caplog
+
+
+@mock.patch("airflow.dag_processing.health.monotonic", autospec=True)
+@mock.patch("airflow.dag_processing.health.Path.write_text", autospec=True)
+def test_health_write_warnings_are_throttled_without_delaying_writes(write_text, clock, tmp_path, caplog):
+    write_text.side_effect = PermissionError("Health file is not writable")
+    with conf_vars({("dag_processor", "health_check_file"): str(tmp_path / "health.json")}):
+        for tick, should_warn in ((100, True), (101, False), (159, False), (160, True)):
+            clock.return_value = tick
+            caplog.clear()
+            write_processor_health(0)
+            assert ("Unable to write [dag_processor] health_check_file" in caplog) == should_warn
+
+    assert write_text.call_count == 4
+
+
+@mock.patch("airflow.dag_processing.health.monotonic", autospec=True)
+@mock.patch("airflow.dag_processing.health.Path.mkdir", autospec=True)
+def test_health_write_recovery_resets_the_warning_interval(mkdir, clock, tmp_path, caplog):
+    path = tmp_path / "health.json"
+    error = PermissionError("Health file is not writable")
+    mkdir.side_effect = [error, None, error]
+    with conf_vars({("dag_processor", "health_check_file"): str(path)}):
+        clock.return_value = 100
+        write_processor_health(0)
+        assert "Unable to write [dag_processor] health_check_file" in caplog
+
+        caplog.clear()
+        clock.return_value = 101
+        write_processor_health(101)
+        check_processor_health(readiness=True)
+        assert "Unable to write [dag_processor] health_check_file" not in caplog
+
+        clock.return_value = 102
+        write_processor_health(101)
+        assert "Unable to write [dag_processor] health_check_file" in caplog
+
+    assert mkdir.call_count == 3
+
+
+@mock.patch("airflow.dag_processing.health.monotonic", autospec=True, return_value=100)
+@mock.patch("airflow.dag_processing.health.Path.write_text", autospec=True)
+def test_health_write_warnings_are_scoped_to_each_path(write_text, clock, tmp_path, caplog):
+    write_text.side_effect = PermissionError("Health file is not writable")
+    for filename, should_warn in (("first.json", True), ("second.json", True), ("first.json", False)):
+        path = tmp_path / filename
+        caplog.clear()
+        with conf_vars({("dag_processor", "health_check_file"): str(path)}):
+            write_processor_health(0)
+        assert (
+            {"event": "Unable to write [dag_processor] health_check_file", "path": str(path)} in caplog
+        ) == should_warn
 
 
 @pytest.mark.parametrize(

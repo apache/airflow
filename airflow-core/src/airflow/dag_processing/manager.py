@@ -1390,6 +1390,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                     if self.api_client is not None:
                         self._bundle_parse_sources.pop(bundle.name, None)
+                        self._bundles_needing_refresh.add(bundle.name)
                     else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue

@@ -24,23 +24,43 @@ import os
 from pathlib import Path
 from time import monotonic
 
+import structlog
+
 from airflow.configuration import conf
+
+log = structlog.get_logger(__name__)
+
+_HEALTH_WRITE_WARNING_INTERVAL = 60.0
+_next_health_write_warnings: dict[Path, float] = {}
 
 
 def write_processor_health(last_api_heartbeat: float) -> None:
     path = Path(conf.get("dag_processor", "health_check_file"))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}")
-    temporary.write_text(
-        json.dumps(
-            {
-                "pid": os.getpid(),
-                "loop": monotonic(),
-                "api": last_api_heartbeat,
-            }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{os.getpid()}")
+        temporary.write_text(
+            json.dumps(
+                {
+                    "pid": os.getpid(),
+                    "loop": monotonic(),
+                    "api": last_api_heartbeat,
+                }
+            )
         )
-    )
-    temporary.replace(path)
+        temporary.replace(path)
+    except OSError as error:
+        now = monotonic()
+        next_warning = _next_health_write_warnings.get(path)
+        if next_warning is None or now >= next_warning:
+            log.warning(
+                "Unable to write [dag_processor] health_check_file",
+                path=str(path),
+                error=str(error),
+            )
+            _next_health_write_warnings[path] = now + _HEALTH_WRITE_WARNING_INTERVAL
+    else:
+        _next_health_write_warnings.pop(path, None)
 
 
 def check_processor_health(*, readiness: bool = False) -> None:

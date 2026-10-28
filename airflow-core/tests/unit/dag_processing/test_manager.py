@@ -7439,7 +7439,7 @@ def test_callback_constructor_outage_allows_other_work_until_retry_expires(
                 claim_id=uuid7(),
                 bundle_name=bundle.name,
                 relative_fileloc=request.filepath,
-                callback=request.model_dump_json(),
+                callback=request,
             )
         )
     client.claim_work.return_value = work

@@ -3529,9 +3529,9 @@ dag_processor:
         version of a claimed callback before acknowledging it without running it.
         A callback that ran before its acknowledgment was recorded can run again after the Job
         times out or is replaced, repeating its side effects. Callbacks should tolerate repeated execution.
-        The scheduler reads this value to end Jobs and the processor reads it to stop, so set the
-        same value for both; changing it only in the processor's configuration has no effect on
-        when the scheduler ends the Job.
+        The API server validates this value against ``health_check_threshold``, the scheduler reads
+        it to end Jobs, and the processor reads it to stop. Set the same value for all three;
+        changing it only in the processor's configuration has no effect on when the scheduler ends the Job.
       version_added: 3.5.0
       type: integer
       example: ~
