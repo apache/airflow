@@ -42,9 +42,11 @@ failed or its ``execution_timeout`` elapsed), the hook cancels that statement th
 :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, unless ``cancel_on_kill`` is ``False``.
 The default implementation uses the ``cancel()`` extension of the DB-API cursor or connection when the database
 driver provides one, and only takes effect with drivers that handle signals while a statement is running (for
-example ``psycopg``, but not ``psycopg2``). When the driver has no such extension, or the hook runs statements
-without going through ``DbApiHook.run``, a warning is logged and the statement keeps running on the database until
-it completes. Hooks can override ``cancel_query`` to cancel the statement in a database specific way.
+example ``psycopg``). Drivers that block in C until the statement completes, such as ``psycopg2``, ``sqlite3``,
+``mysqlclient`` or ``mysql-connector-python``, do not run the cancellation while the statement is running, so the
+statement keeps running on the database until it completes. The same applies when the driver has no ``cancel()``
+extension, in which case a warning is logged, or when the hook runs statements without going through
+``DbApiHook.run``. Hooks can override ``cancel_query`` to cancel the statement in a database specific way.
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 

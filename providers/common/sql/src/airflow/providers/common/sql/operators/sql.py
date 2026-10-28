@@ -592,7 +592,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         Cancel the SQL statement that is still running when the task instance is killed.
 
         Airflow calls this method from the ``SIGTERM`` handler of the task process, i.e. while ``execute``
-        may still be blocked in the database driver waiting for the statement to finish. Cancellation is
+        may still be waiting in the database driver for the statement to finish (with drivers that return to
+        Python to handle signals during a statement, see ``DbApiHook.cancel_query``). Cancellation is
         delegated to :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, so every
         database hook can use the mechanism its driver offers. It is best effort and never raises. A
         statement interrupted by the ``execution_timeout`` of the task is already cancelled by the hook

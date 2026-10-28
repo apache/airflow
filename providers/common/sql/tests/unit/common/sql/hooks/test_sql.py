@@ -532,10 +532,11 @@ class TestDbApiHookCancelQuery:
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         hook = self._hook_with_cursor(cursor)
 
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             assert hook.cancel_query() is False
 
-        assert "No running SQL statement is tracked by" in caplog.text
+        assert "there is nothing to cancel" in caplog.text
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
         cursor.cancel.assert_not_called()
 
     def test_cancel_through_cursor(self):

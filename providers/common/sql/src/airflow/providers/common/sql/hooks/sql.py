@@ -980,9 +980,11 @@ class DbApiHook(BaseHook):
         ``cursor.cancel()`` is used when the cursor provides it, otherwise ``connection.cancel()`` is used
         when the cursor exposes its connection and the connection provides it (e.g. ``psycopg``,
         ``oracledb`` or ``trino``). This only helps with drivers that return to Python to handle signals
-        while a statement is running: ``psycopg2``, for instance, blocks in ``libpq`` until the statement
-        completes, so the task is only killed after that. Hooks for databases whose driver has no such
-        extension can override this method and cancel the statement in a database specific way, for
+        while a statement is running. Drivers that block in C until the statement completes (e.g.
+        ``psycopg2``, ``sqlite3``, ``mysqlclient`` or ``mysql-connector-python``) never let the signal
+        handlers run during the statement: ``on_kill`` is not called before the task process is killed,
+        and the ``execution_timeout`` is only raised once the statement has returned. Hooks for such
+        databases can override this method and cancel the statement in a database specific way, for
         example by issuing a ``KILL QUERY`` command on a separate connection.
 
         :return: ``True`` if a cancellation request was sent to the database, ``False`` if no running
@@ -990,8 +992,9 @@ class DbApiHook(BaseHook):
         """
         cur = self._running_cursor
         if cur is None:
-            self.log.warning(
-                "No running SQL statement is tracked by %s, there is nothing to cancel.", type(self).__name__
+            # Not a problem: the statement has already completed, or was cancelled when it was interrupted
+            self.log.info(
+                "No SQL statement is running in %s, there is nothing to cancel.", type(self).__name__
             )
             return False
         for name, target in (("cursor", cur), ("connection", getattr(cur, "connection", None))):
