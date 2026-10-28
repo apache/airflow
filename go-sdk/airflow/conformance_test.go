@@ -37,8 +37,8 @@ import (
 // TestSerializeConformanceDags builds the Dags of scripts/ci/lang_sdk_serialization/test_dags.yaml
 // with this SDK, serializes them, and writes them to a JSON file keyed by dag_id.
 // serialize_python.py in the same directory does the same with Airflow's own serializer. compare.py
-// there runs this test as the serializer of the Go SDK for the
-// check-go-sdk-serialization-conformance prek hook, and passes the two paths after -args:
+// there runs this test as the serializer of the Go SDK for check_go_sdk.py, and passes the two
+// paths after -args:
 //
 //	go -C go-sdk test ./airflow -count=1 -run '^TestSerializeConformanceDags$' -args <test_dags.yaml> <output.json>
 //
