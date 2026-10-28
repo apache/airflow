@@ -168,6 +168,14 @@ Tasks page in the core docs for usage and design rationale.
 
 .. autoclass:: airflow.sdk.RetryAction
 
+Clearing Tasks in Other Dags
+----------------------------
+An operator that defines ``get_external_clear_target(context)`` returning an ``ExternalClearTarget``
+has that task, and everything downstream of it, cleared whenever the operator's task is cleared with
+its downstream tasks. ``ExternalTaskMarker`` in the standard provider does this.
+
+.. autoapiclass:: airflow.sdk.ExternalClearTarget
+
 State Enums
 -----------
 .. autoclass:: airflow.sdk.TaskInstanceState
