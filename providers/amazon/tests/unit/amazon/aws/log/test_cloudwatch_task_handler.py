@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 import os
 import textwrap
 import time
 from datetime import UTC, datetime as dt, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import ANY, call
 
@@ -402,6 +404,146 @@ class TestCloudRemoteLogIO:
             assert self.subject.handler.shutting_down is True
 
 
+def _put_events(conn, group, streams):
+    conn.create_log_group(logGroupName=group)
+    for name, message in streams:
+        conn.create_log_stream(logGroupName=group, logStreamName=name)
+        conn.put_log_events(
+            logGroupName=group,
+            logStreamName=name,
+            logEvents=[{"timestamp": int(time.time() * 1000), "message": json.dumps({"event": message})}],
+        )
+
+
+def test_stream_reads_the_trigger_log_streams_of_a_task_log():
+    _put_events(
+        boto3.client("logs", region_name="us-west-2"),
+        "tasks",
+        [
+            ("dag_id=a/attempt=1.log", "from the worker"),
+            ("dag_id=a/attempt=1.log.trigger.3.log", "from triggerer 3"),
+            ("dag_id=a/attempt=1.log.trigger.4.log", "from triggerer 4"),
+            ("dag_id=a/attempt=10.log", "another try"),
+        ],
+    )
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+
+    messages, logs = subject.stream("dag_id=a/attempt=1.log", None)
+
+    assert messages == [
+        f"Reading remote log from Cloudwatch log_group: tasks log_stream: dag_id=a/attempt=1.log{suffix}"
+        for suffix in ("", ".trigger.3.log", ".trigger.4.log")
+    ]
+    assert [json.loads(line)["event"] for stream in logs for line in stream] == [
+        "from the worker",
+        "from triggerer 3",
+        "from triggerer 4",
+    ]
+
+
+def test_stream_skips_the_stream_of_the_triggerer_a_deferred_task_is_read_live_from():
+    _put_events(
+        boto3.client("logs", region_name="us-west-2"),
+        "tasks",
+        [
+            ("dag_id=a/attempt=1.log", "from the worker"),
+            ("dag_id=a/attempt=1.log.trigger.3.log", "an earlier deferral"),
+            ("dag_id=a/attempt=1.log.trigger.4.log", "read live"),
+        ],
+    )
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+    ti = SimpleNamespace(state=State.DEFERRED, triggerer_job=SimpleNamespace(id=4), end_date=None)
+
+    _, logs = subject.stream("dag_id=a/attempt=1.log", ti)
+
+    assert [json.loads(line)["event"] for stream in logs for line in stream] == [
+        "from the worker",
+        "an earlier deferral",
+    ]
+
+
+def test_stream_reads_every_trigger_log_stream_once_the_task_finished():
+    # The task left DEFERRED: no triggerer serves its lines live any more.
+    _put_events(
+        boto3.client("logs", region_name="us-west-2"),
+        "tasks",
+        [
+            ("dag_id=a/attempt=1.log", "from the worker"),
+            ("dag_id=a/attempt=1.log.trigger.4.log", "from triggerer 4"),
+        ],
+    )
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+    ti = SimpleNamespace(state=State.SUCCESS, triggerer_job=SimpleNamespace(id=4), end_date=None)
+
+    _, logs = subject.stream("dag_id=a/attempt=1.log", ti)
+
+    assert [json.loads(line)["event"] for stream in logs for line in stream] == [
+        "from the worker",
+        "from triggerer 4",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        pytest.param("triggers/7/3/", ["job 3, rotated", "job 3"], id="with-streams"),
+        pytest.param("triggers/7/4/", [], id="without-streams"),
+    ],
+)
+def test_stream_of_a_directory_reads_the_streams_under_it(path, expected):
+    _put_events(
+        boto3.client("logs", region_name="us-west-2"),
+        "tasks",
+        [
+            ("triggers/7/3/rotated/trigger.log", "job 3, rotated"),
+            ("triggers/7/3/trigger.log", "job 3"),
+            ("triggers/7/30/trigger.log", "job 30"),
+        ],
+    )
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+
+    _, logs = subject.stream(path, None)
+
+    # Not a "No log stream found" notice for a directory without streams.
+    assert [json.loads(line)["event"] for stream in logs for line in stream] == expected
+
+
+@mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+def test_stream_reads_the_exact_stream_when_listing_fails(mock_list):
+    mock_list.side_effect = ClientError({"Error": {"Code": "ThrottlingException"}}, "DescribeLogStreams")
+    _put_events(boto3.client("logs", region_name="us-west-2"), "tasks", [("dag_id=a/attempt=1.log", "w")])
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+
+    messages, logs = subject.stream("dag_id=a/attempt=1.log", None)
+
+    assert messages[0].startswith("Could not list Cloudwatch log streams under dag_id=a/attempt=1.log: ")
+    assert messages[1:] == [
+        "Reading remote log from Cloudwatch log_group: tasks log_stream: dag_id=a/attempt=1.log"
+    ]
+    assert [json.loads(line)["event"] for stream in logs for line in stream] == ["w"]
+
+
+@mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+def test_stream_of_a_directory_raises_when_listing_fails(mock_list):
+    mock_list.side_effect = ClientError({"Error": {"Code": "AccessDeniedException"}}, "DescribeLogStreams")
+    subject = CloudWatchRemoteLogIO(
+        base_log_folder="/tmp", log_group_arn="arn:aws:logs:us-west-2:11111111:log-group:tasks"
+    )
+
+    with pytest.raises(ClientError, match="AccessDeniedException"):
+        subject.stream("triggers/7/3/", None)
+
+
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
     def clear_db(self):
@@ -561,6 +703,21 @@ class TestCloudwatchTaskHandler:
                     )
                 ]
             ]
+
+    @mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+    def test_read_remote_logs_does_not_list_log_streams(self, mock_list):
+        generate_log_events(
+            self.conn,
+            self.remote_log_group,
+            self.remote_log_stream,
+            [{"timestamp": int(time.time()) * 1000, "message": "First"}],
+        )
+
+        _, logs = self.cloudwatch_task_handler._read_remote_logs(self.ti, self.ti.try_number)
+
+        assert len(logs) == 1
+        assert logs[0].endswith("] First")
+        mock_list.assert_not_called()
 
     @pytest.mark.parametrize(
         ("end_date", "expected_end_time"),
