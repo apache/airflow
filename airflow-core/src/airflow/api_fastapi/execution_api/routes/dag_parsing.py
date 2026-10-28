@@ -198,7 +198,8 @@ def publish_parse_result(
     except (DeserializationError, ValueError, TypeError, KeyError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid serialized Dag") from error
 
-    # A complete accepted import proves absence; an import error only ages out prior definitions.
+    # A failed container gives its member Dags a grace period. _update_import_errors marks Dags
+    # stale immediately when an error names their definition.
     cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "stale_dag_threshold"))
     source_filter = or_(
         DagModel.relative_fileloc == body.relative_fileloc,
@@ -358,13 +359,11 @@ def publish_inventory(
             relative_fileloc, failed_sources
         )
 
-    # Lock only the Dags being deactivated, so the rest of the bundle stays available to the scheduler.
+    # Lock only Dags whose sources were removed, so the rest of the bundle stays available to the scheduler.
     removed = sorted(
         dag_id
         for dag_id, relative_fileloc in session.execute(
-            select(DagModel.dag_id, DagModel.relative_fileloc).where(
-                DagModel.bundle_name == bundle_name, DagModel.is_stale.is_(False)
-            )
+            select(DagModel.dag_id, DagModel.relative_fileloc).where(DagModel.bundle_name == bundle_name)
         )
         if is_removed(relative_fileloc)
     )
@@ -375,7 +374,6 @@ def publish_inventory(
             .where(
                 DagModel.dag_id.in_(removed[start : start + 500]),
                 DagModel.bundle_name == bundle_name,
-                DagModel.is_stale.is_(False),
             )
             .order_by(DagModel.dag_id)
             .with_for_update(key_share=True)
