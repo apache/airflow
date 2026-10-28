@@ -1870,6 +1870,56 @@ class TestGitDagBundle:
         assert files_before == files_after
         assert bundle.get_current_version() == version_before
 
+    @pytest.mark.parametrize("failure_stage", ["configure", "enter"])
+    @pytest.mark.parametrize("expose_refresh_contract", [True, False])
+    @mock.patch.object(GitDagBundle, "_fetch_bare_repo", autospec=True)
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_credential_failure_preserves_source(
+        self, mock_githook, mock_fetch, failure_stage, expose_refresh_contract, monkeypatch
+    ):
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.repo = mock.MagicMock(spec=Repo)
+        error = RuntimeError("Unable to acquire GitHub App credentials")
+        configure = bundle.hook.configure_hook_env
+        if failure_stage == "configure":
+            configure.side_effect = error
+        else:
+            configure.return_value.__enter__.side_effect = error
+
+        supports_contract = DagBundleRefreshError is not None and expose_refresh_contract
+        if not expose_refresh_contract:
+            monkeypatch.delattr(bundle_base, "DagBundleRefreshError", raising=False)
+
+        with pytest.raises(DagBundleRefreshError if supports_contract else RuntimeError) as exc_info:
+            bundle.refresh()
+
+        if supports_contract:
+            assert exc_info.value.source_unchanged is True
+            assert exc_info.value.__cause__ is error
+        else:
+            assert exc_info.value is error
+        mock_fetch.assert_not_called()
+        bundle.repo.remotes.origin.fetch.assert_not_called()
+        bundle.repo.head.reset.assert_not_called()
+
+    @pytest.mark.parametrize("fetch_stage", ["bare", "working_tree"])
+    @mock.patch.object(GitDagBundle, "_fetch_bare_repo", autospec=True)
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_unexpected_fetch_failure_propagates(self, mock_githook, mock_fetch, fetch_stage):
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.repo = mock.MagicMock(spec=Repo)
+        error = RuntimeError("Unexpected fetch failure")
+        fetch = mock_fetch if fetch_stage == "bare" else bundle.repo.remotes.origin.fetch
+        fetch.side_effect = error
+
+        with pytest.raises(RuntimeError) as exc_info:
+            bundle.refresh()
+
+        assert exc_info.value is error
+        bundle.repo.head.reset.assert_not_called()
+
     @pytest.mark.parametrize(
         "mutation_method",
         ["git.refs.head.HEAD.reset", "airflow.providers.git.bundles.git.GitDagBundle._fetch_submodules"],

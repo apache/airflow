@@ -268,6 +268,8 @@ class DagFileProcessorManager(LoggingMixin):
     _bundle_refresh_generations: dict[str, int] = attrs.field(factory=lambda: defaultdict(int), init=False)
     _bundles_waiting_for_refresh: set[str] = attrs.field(factory=set, init=False)
     _bundles_needing_refresh: set[str] = attrs.field(factory=set, init=False)
+    _bundle_refresh_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
+    """Monotonic retry deadlines for failed refreshes that retained a usable source."""
     _bundle_failed_sources: dict[str, frozenset[str]] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
@@ -921,6 +923,10 @@ class DagFileProcessorManager(LoggingMixin):
         for bundle in self._dag_bundles:
             if not periodic_check_due and bundle.name not in urgent_bundles:
                 continue
+            if bundle.name not in urgent_bundles and now_seconds < self._bundle_refresh_retry_at.get(
+                bundle.name, 0
+            ):
+                continue
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
@@ -930,6 +936,7 @@ class DagFileProcessorManager(LoggingMixin):
                     any_refreshed = True
                 except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                    self._bundles_needing_refresh.add(bundle.name)
                     continue
             try:
                 bundle_state = self.get_bundle_state(bundle.name)
@@ -973,6 +980,7 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             self._bundles_waiting_for_refresh.discard(bundle.name)
+            self._bundle_refresh_retry_at.pop(bundle.name, None)
             self.log.info("Refreshing bundle %s", bundle.name)
 
             previous_source = self._bundle_parse_sources.get(bundle.name)
@@ -992,6 +1000,7 @@ class DagFileProcessorManager(LoggingMixin):
                         refresh_generation=self._bundle_refresh_generations[bundle.name],
                     )
                     self._force_refresh_bundles.discard(bundle.name)
+                    self._bundle_refresh_retry_at[bundle.name] = time.monotonic() + bundle.refresh_interval
                     if bundle.name not in self._bundles_needing_refresh:
                         self.log.warning(
                             "Refresh failed without changing the source; continuing to parse bundle",
@@ -1827,8 +1836,15 @@ class DagFileProcessorManager(LoggingMixin):
         Note this method is only called when the file path queue is empty
         """
         file_stats_by_presence_key = self._resolve_stats_by_presence_key()
-        # Deferred files are still part of this queue cycle even while other bundles refill the queue.
-        if self._parsing_start_time is not None and not self._file_queue and not self._files_awaiting_source:
+        # A refresh drain belongs to this cycle; an outage must not suppress other bundles' metrics.
+        pending_refresh_bundles = self._bundles_waiting_for_refresh | (
+            self._force_refresh_bundles - self._bundles_needing_refresh
+        )
+        awaiting_dispatch = any(
+            file.bundle_name in pending_refresh_bundles or self._get_dispatch_source(file) is not None
+            for file in self._files_awaiting_source
+        )
+        if self._parsing_start_time is not None and not self._file_queue and not awaiting_dispatch:
             emit_metrics(
                 parse_time=time.perf_counter() - self._parsing_start_time,
                 dag_file_stats=list(file_stats_by_presence_key.values()),

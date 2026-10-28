@@ -25,7 +25,6 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Allow Dag processing to continue from unchanged Git bundle files after a fetch failure on Airflow 3.4+ (#74789)``
 * ``Back off between GitDagBundle bare clone attempts so a fresh GitHub App token can propagate (#73878)``
 * ``Close the ssh askpass helper in GitHook before ssh executes it (#73427)``
 
