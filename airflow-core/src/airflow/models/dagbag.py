@@ -292,7 +292,7 @@ class CachedDBDagBag(DBDagBag):
 def generate_md5_hash(context):
     bundle_name = context.get_current_parameters()["bundle_name"]
     relative_fileloc = context.get_current_parameters()["relative_fileloc"]
-    return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
+    return DagPriorityParsingRequest.compute_id(bundle_name, relative_fileloc)
 
 
 class DagPriorityParsingRequest(Base):
@@ -315,6 +315,10 @@ class DagPriorityParsingRequest(Base):
         ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
     )
     processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
+    @staticmethod
+    def compute_id(bundle_name: str, relative_fileloc: str) -> str:
+        return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
 
     def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()
