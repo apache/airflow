@@ -741,3 +741,62 @@ class TestCliConfigUpdate:
         output = capsys.readouterr().out
         assert f"'{present_key}'" in output
         assert f"'{absent_key}'" not in output
+
+    @conf_vars(
+        {
+            ("database", "sql_alchemy_conn"): "postgresql://airflow:S3cr3tPassword@db:5432/airflow",
+            ("core", "dags_folder"): "/opt/airflow/dags",
+            ("core", "dataset_manager_kwargs"): '{"password": "LegacyDatasetSecret"}',
+            ("core", "internal_api_secret_key"): "LegacyInternalApiSecret",
+            ("smtp", "smtp_password"): "LegacySmtpSecret",
+        }
+    )
+    def test_update_config_dry_run_masks_sensitive_values(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text("[core]\nexecutor = SequentialExecutor\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(["config", "update"])
+
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert "S3cr3tPassword" not in output
+        assert "LegacyDatasetSecret" not in output
+        assert "LegacyInternalApiSecret" not in output
+        assert "LegacySmtpSecret" not in output
+        assert "< hidden >" in output
+        assert "/opt/airflow/dags" in output, "Non-sensitive values must stay visible in the preview."
+        assert "Use `--show-sensitive` to" in output
+
+    @conf_vars({("database", "sql_alchemy_conn"): "postgresql://airflow:S3cr3tPassword@db:5432/airflow"})
+    def test_update_config_dry_run_show_sensitive_reveals_values(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text("[core]\nexecutor = SequentialExecutor\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(["config", "update", "--show-sensitive"])
+
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert "S3cr3tPassword" in output
+        assert "Use `--show-sensitive` to" not in output
+
+    @conf_vars({("database", "sql_alchemy_conn"): "postgresql://airflow:S3cr3tPassword@db:5432/airflow"})
+    def test_update_config_fix_always_writes_real_values(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text("[core]\nexecutor = SequentialExecutor\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+        monkeypatch.setattr(shutil, "copy2", lambda src, dst: None)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(["config", "update", "--fix"])
+
+        config_command.update_config(args)
+
+        written_cfg = cfg_file.read_text()
+        assert "S3cr3tPassword" in written_cfg, "--fix must write real values to airflow.cfg."
+        assert "< hidden >" not in written_cfg
