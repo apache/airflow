@@ -163,6 +163,25 @@ def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
 
 
+def _get_task_end_date(task_instance: RuntimeTaskInstance | TaskInstance) -> datetime:
+    """
+    Return the end date for a terminal event of a task instance that finished in the current process.
+
+    Airflow 2 and the Airflow 3 task runner set ``end_date`` before they notify listeners, and that value is the
+    stored one, so the event time matches it. In the cases below the time of the notification is used instead,
+    so the event time is later than the stored ``end_date`` by however long the task's state change callbacks
+    took:
+
+    - Airflow 3.0.0 to 3.0.4, whose task runner never sets ``end_date`` on the task instance.
+    - Before Airflow 3.4.0, a task that raised ``AirflowSkipException``, or a ``TriggerDagRunOperator`` task
+      skipped or failed because the Dag run it triggers already exists.
+    """
+    end_date = getattr(task_instance, "end_date", None)
+    if isinstance(end_date, datetime):
+        return end_date
+    return timezone.utcnow()
+
+
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
@@ -395,7 +414,7 @@ class OpenLineageListener:
             self._on_task_instance_success(task_instance, dag, dagrun, task)
 
     def _on_task_instance_success(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -493,6 +512,7 @@ class OpenLineageListener:
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
                         ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -567,7 +587,7 @@ class OpenLineageListener:
         task,
         error: None | str | BaseException = None,
     ) -> None:
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -665,6 +685,7 @@ class OpenLineageListener:
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
                         ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -715,7 +736,7 @@ class OpenLineageListener:
         dagrun,
         task,
     ) -> None:
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -812,6 +833,7 @@ class OpenLineageListener:
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
                         ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },

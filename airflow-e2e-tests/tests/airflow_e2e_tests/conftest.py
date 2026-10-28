@@ -993,20 +993,22 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     except Exception:
         console.print("[red]Failed to start docker compose")
         if _E2ETestState.compose_instance:
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
             _E2ETestState.compose_instance.stop()
         raise
 
 
-def _print_logs(compose_instance: DockerCompose):
-    containers = compose_instance.get_containers()
-    for container in containers:
+def _save_service_logs(compose_instance: DockerCompose):
+    LOGS_FOLDER.mkdir(parents=True, exist_ok=True)
+    for container in compose_instance.get_containers():
         service = container.Service
         if service:
             stdout, _ = compose_instance.get_logs(service)
-            console.print(f"::group:: {service} Logs")
-            console.print(stdout, style="red", soft_wrap=True, markup=False)
-            console.print("::endgroup::")
+            (LOGS_FOLDER / f"{service}.log").write_text(stdout)
+    console.print(
+        f"[yellow]Service and task logs are not printed here: find them in {LOGS_FOLDER} "
+        f"(in CI, the `e2e-test-logs-<mode>` artifact, `logs.zip`)"
+    )
 
 
 def pytest_sessionstart(session: pytest.Session):
@@ -1044,9 +1046,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
         copytree(_E2ETestState.airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     if _E2ETestState.compose_instance:
-        # If any test failures lets print the services logs
+        # If any test failures lets save the services logs next to the uploaded task logs
         if any(r["status"] == "failed" for r in test_results):
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
 

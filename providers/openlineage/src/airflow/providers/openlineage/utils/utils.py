@@ -73,6 +73,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_2_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
     AIRFLOW_V_3_4_PLUS,
@@ -1188,7 +1189,7 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
+    includes = ["log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "dag_version_id": lambda ti: (
@@ -1209,7 +1210,12 @@ class TaskInstanceInfo(InfoJsonEncodable):
         return getattr(ti, "rendered_map_index", None)
 
     def __init__(
-        self, obj, position: TaskInstancePosition | None = None, dag: Any = None, dag_run: Any = None
+        self,
+        obj,
+        position: TaskInstancePosition | None = None,
+        dag: Any = None,
+        dag_run: Any = None,
+        end_date: datetime.datetime | None = None,
     ):
         # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
         # with get_task_instance_position; it is then used as is.
@@ -1217,9 +1223,57 @@ class TaskInstanceInfo(InfoJsonEncodable):
         # A stored task instance's bundle comes from these, as the worker's does, without a query
         self._dag = dag
         self._dag_run = dag_run
+        # The end date a terminal event is timed with, used when the task instance carries none, as a skipped
+        # Airflow 3 runtime task instance doesn't before Airflow 3.4.
+        self._end_date = end_date
         super().__init__(obj)
 
+    def _get_start_date(self) -> datetime.datetime | None:
+        if not isinstance(start_date := getattr(self.obj, "start_date", None), datetime.datetime):
+            return None
+        # Before Airflow 3.2.2 a runtime task instance resumed from deferral starts at the resume time, while the
+        # stored start date stays the original one. Leaving it out keeps a wrong duration out of the facet too.
+        if not AIRFLOW_V_3_2_2_PLUS and self._is_resumed_from_deferral():
+            return None
+        return start_date
+
+    def _is_resumed_from_deferral(self) -> bool:
+        ti_context = getattr(self.obj, "_ti_context_from_server", None)
+        return bool(getattr(ti_context, "next_method", None))
+
+    def _get_end_date(self) -> datetime.datetime | None:
+        if isinstance(end_date := getattr(self.obj, "end_date", None), datetime.datetime):
+            return end_date
+        return self._end_date
+
+    def _get_duration(
+        self, start_date: datetime.datetime | None, end_date: datetime.datetime | None
+    ) -> float | None:
+        # The stored duration is what the UI shows, so it wins. A runtime task instance has none -- the API
+        # server computes it after the listener ran. Airflow 2 keeps the previous try's duration when it clears
+        # end_date for the next try, so the stored duration only counts alongside an end_date.
+        if (duration := getattr(self.obj, "duration", None)) is not None and isinstance(
+            getattr(self.obj, "end_date", None), datetime.datetime
+        ):
+            return duration
+        if start_date is None or end_date is None:
+            return None
+        try:
+            return (end_date - start_date).total_seconds()
+        except TypeError:  # naive and aware datetimes can't be subtracted
+            return None
+
     def _extend_fields(self) -> None:
+        start_date = self._get_start_date()
+        end_date = self._get_end_date()
+        for field, field_value in (
+            ("start_date", start_date),
+            ("end_date", end_date),
+            ("duration", self._get_duration(start_date, end_date)),
+        ):
+            if field_value is not None:
+                setattr(self, field, field_value)
+                self._fields.append(field)
         position = self._position
         if position is None:
             # A stored task instance whose task isn't attached can't be placed without its region, and a facet
@@ -1552,13 +1606,16 @@ def get_airflow_run_facet(
     task_uuid: str,
     include_full_task_info: bool = False,
     ti_position: TaskInstancePosition | None = None,
+    end_date: datetime.datetime | None = None,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
-            taskInstance=TaskInstanceInfo(task_instance, position=ti_position, dag=dag, dag_run=dag_run),
+            taskInstance=TaskInstanceInfo(
+                task_instance, position=ti_position, dag=dag, dag_run=dag_run, end_date=end_date
+            ),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
                 if include_full_task_info
