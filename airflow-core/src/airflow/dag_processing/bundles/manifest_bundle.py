@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import stat
 import tempfile
@@ -29,6 +30,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.dag_processing.bundles._filesystem import (
+    ensure_destination_is_within_root,
+    fsync_directory,
+    fsync_file,
+    fsync_tree,
+    get_temp_snapshot_prefix,
+    raise_walk_error,
+    read_json_file,
+    remove_bundle_tree_forcefully,
+    remove_orphaned_temp_snapshots,
+)
 from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
@@ -38,16 +50,8 @@ from airflow.dag_processing.bundles.base import (
     get_bundle_tracking_file,
 )
 from airflow.dag_processing.bundles.filesystem_artifact_store import (
+    DEFAULT_PUBLICATION_LOCK_TIMEOUT,
     FilesystemArtifactStore,
-    ensure_destination_is_within_root,
-    fsync_directory,
-    fsync_file,
-    fsync_tree,
-    get_temp_snapshot_prefix,
-    read_json_file,
-    remove_bundle_tree_forcefully,
-    remove_orphaned_temp_snapshots,
-    set_cache_tree_permissions,
 )
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
@@ -111,8 +115,8 @@ class BundlePublishResult:
     bundle_name: str
     version: str
     ref_payload: dict[str, Any]
-    version_path: Path | str
-    manifest_ref_path: Path | str
+    version_path: str
+    manifest_ref_path: str
     manifest_sha256: str
     file_count: int
     total_size: int
@@ -137,9 +141,12 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
     pinned version is self-certifying.
 
     :param published_root: Shared filesystem path containing published snapshots and the
-        current release reference.
+        current release reference. Provision this directory on the mounted filesystem before
+        publication; the store creates only its subdirectories.
     :param allow_empty_source: Permit publication of a source tree with no files. Off by
         default so that a failed or incomplete sync cannot remove every Dag from the release.
+    :param publication_lock_timeout: Seconds a publisher waits for another publisher to
+        release the publication lock before failing.
     """
 
     supports_versioning = True
@@ -149,6 +156,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         *,
         published_root: str | None = None,
         allow_empty_source: bool = False,
+        publication_lock_timeout: float = DEFAULT_PUBLICATION_LOCK_TIMEOUT,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -165,40 +173,43 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             raise TypeError(
                 f"Unsupported published_root scheme: {published_root_str!r}. Use a filesystem path."
             )
-        try:
-            self._store: ArtifactStore = FilesystemArtifactStore(
-                bundle_name=self.name,
-                published_root=Path(published_root),
-                cache_root=get_bundle_storage_root_path(),
+        self._published_root_path = Path(published_root)
+        if _paths_overlap(self._published_root_path, get_bundle_storage_root_path()):
+            raise TypeError(
+                "published_root must not overlap Airflow's bundle cache. Configure separate "
+                "authoritative publication and dag_bundle_storage_path locations."
             )
-        except ValueError as e:
-            raise TypeError(str(e)) from e
         if not isinstance(allow_empty_source, bool):
             raise TypeError("allow_empty_source must be a boolean")
+        if (
+            not isinstance(publication_lock_timeout, (int, float))
+            or isinstance(publication_lock_timeout, bool)
+            or not math.isfinite(publication_lock_timeout)
+            or publication_lock_timeout < 0
+        ):
+            raise TypeError("publication_lock_timeout must be a finite, non-negative number of seconds")
+        self._store: ArtifactStore = FilesystemArtifactStore(
+            bundle_name=self.name,
+            published_root=self._published_root_path,
+            lock_timeout=publication_lock_timeout,
+        )
         self.allow_empty_source = allow_empty_source
         self._validated_version_paths: set[tuple[str, str, str]] = set()
         self._current_manifest_ref: BundleManifestRef | None = None
         self._release_version_in_use: weakref.finalize | None = None
 
-    # Path for a filesystem published_root; a store for a remote root may return URL strings.
+    # Opaque artifact store locators, for messages and publish results.
     @property
-    def published_root(self) -> Path | str:
+    def published_root(self) -> str:
         return self._store.root
 
     @property
-    def manifest_ref_path(self) -> Path | str:
+    def manifest_ref_path(self) -> str:
         return self._store.ref_path
 
     @property
-    def published_versions_dir(self) -> Path | str:
+    def published_versions_dir(self) -> str:
         return self._store.snapshots_root
-
-    @property
-    def publication_lock_path(self) -> Path:
-        lock_path = getattr(self._store, "lock_path", None)
-        if lock_path is None:
-            raise AttributeError("this bundle's artifact store has no publication lock file")
-        return lock_path
 
     @abstractmethod
     def _confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
@@ -441,7 +452,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 version=version,
                 manifest_ref=manifest_ref,
             )
-            set_cache_tree_permissions(tmp_path)
+            _set_cache_tree_permissions(tmp_path)
             fsync_tree(tmp_path)
             os.replace(tmp_path, cached_version_path)
             fsync_directory(self.versions_dir)
@@ -519,13 +530,12 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         return self._current_manifest_ref
 
     def _read_current_manifest_ref(self) -> BundleManifestRef:
-        payload = self._store.read_ref(
-            missing_message=(
-                f"Bundle '{self.name}' manifest reference file {self.manifest_ref_path} is missing. "
-                "Publish the bundle or restore the release reference before refreshing this bundle."
-            ),
-            invalid_message=f"Bundle manifest reference is not valid JSON: {self.manifest_ref_path}",
-        )
+        try:
+            payload = self._store.read_ref()
+        except BundleManifestNotFoundError as e:
+            raise BundleManifestNotFoundError(
+                f"{e}. Publish the bundle or restore the release reference before using it."
+            ) from e
         return self._build_manifest_ref_from_payload(payload, source=str(self.manifest_ref_path))
 
     def _build_manifest_ref_from_payload(self, payload: dict[str, Any], source: str) -> BundleManifestRef:
@@ -830,7 +840,11 @@ def publish_prepared_manifest_dag_bundle(
 ) -> BundlePublishResult:
     """Publish one prepared local tree as an immutable manifest-backed snapshot."""
     source_path = prepared_source.root
-    bundle._store.validate_source_paths(source_path, cache_versions_dir=bundle.versions_dir)
+    _validate_publish_source_path(
+        source_path=source_path,
+        published_root=bundle._published_root_path,
+        versions_dir=bundle.versions_dir,
+    )
     if not prepared_source.source_snapshot.files and not bundle.allow_empty_source:
         raise BundleManifestError(
             f"Refusing to explicitly publish empty source tree {source_path} for bundle "
@@ -879,9 +893,7 @@ def _publish_manifest_result(
     manifest_ref = bundle._build_manifest_ref_from_payload(ref_payload, source="publisher")
     version_path = bundle._store.snapshot_path(manifest_result.version)
 
-    bundle._store.sweep_publish_temps()
     created_snapshot = bundle._store.publish_snapshot(
-        manifest_result.version,
         manifest=manifest_result.manifest,
         source_root=prepared_source.root,
         validate_existing=lambda tree: bundle._validate_snapshot_for_ref(manifest_ref, tree),
@@ -901,6 +913,55 @@ def _publish_manifest_result(
         total_size=ref_payload["total_size"],
         created_snapshot=created_snapshot,
     )
+
+
+def _validate_publish_source_path(*, source_path: Path, published_root: Path, versions_dir: Path) -> None:
+    # The store cannot check these: it does not know the local cache, and a source inside
+    # published_root would publish into itself.
+    if _is_same_or_nested_path(published_root, source_path):
+        raise ValueError(
+            "published_root must not be inside source_path. Keep published snapshots "
+            "outside the Dag source tree before publishing a manifest bundle."
+        )
+
+    if _is_same_or_nested_path(source_path, published_root):
+        raise ValueError(
+            "source_path must not be inside published_root. Keep the Dag source tree "
+            "outside the published snapshots before publishing a manifest bundle."
+        )
+
+    if _paths_overlap(source_path, versions_dir):
+        raise ValueError(
+            "source_path and versions_dir must not overlap. Keep Airflow's bundle cache outside "
+            "the Dag source tree before publishing a manifest bundle."
+        )
+
+
+def _is_same_or_nested_path(path: Path, root: Path) -> bool:
+    absolute_path = Path(os.path.abspath(path))
+    absolute_root = Path(os.path.abspath(root))
+    return absolute_path.is_relative_to(absolute_root) or path.resolve(strict=False).is_relative_to(
+        root.resolve(strict=False)
+    )
+
+
+def _paths_overlap(first: Path, second: Path) -> bool:
+    return _is_same_or_nested_path(first, second) or _is_same_or_nested_path(second, first)
+
+
+def _set_cache_tree_permissions(cache_path: Path) -> None:
+    # Cache copies keep files read-only (content drift stays detectable) but leave
+    # directories writable: Airflow's stale-bundle cleanup removes cached versions
+    # with a plain shutil.rmtree, which fails on read-only directories.
+    for dirpath, _, filenames in os.walk(cache_path, onerror=raise_walk_error):
+        directory = Path(dirpath)
+        for filename in filenames:
+            path = directory / filename
+            if path.is_symlink():
+                continue
+            executable = stat.S_IMODE(path.stat().st_mode) & 0o111
+            path.chmod(0o555 if executable else 0o444)
+        directory.chmod(0o755)
 
 
 def _is_cached_bytecode_file(path: Path, source_paths: set[str]) -> bool:

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import errno
 import gc
 import importlib
 import json
@@ -31,16 +32,17 @@ from unittest import mock
 import pytest
 
 from airflow.dag_processing.bundles import (
+    _filesystem as filesystem_module,
     filesystem_artifact_store as store_module,
     manifest_bundle as bundle_module,
 )
+from airflow.dag_processing.bundles._filesystem import remove_bundle_tree_forcefully
 from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     BundleVersion,
     get_bundle_tracking_file,
 )
-from airflow.dag_processing.bundles.filesystem_artifact_store import remove_bundle_tree_forcefully
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
     MANIFEST_SCHEMA_VERSION,
@@ -59,6 +61,16 @@ from airflow.exceptions import AirflowException
 from tests_common.test_utils.config import conf_vars
 
 BUNDLE_NAME = "manifest-local"
+
+
+_real_scandir = os.scandir
+
+
+def _scandir_unless_unlistable(path="."):
+    """List directories, failing for any named ``unlistable`` as an I/O fault would."""
+    if os.path.basename(os.fspath(path)) == "unlistable":
+        raise PermissionError(errno.EACCES, "cannot list directory", os.fspath(path))
+    return _real_scandir(path)
 
 
 def _write_file(root: Path, relative_path: str, content: str) -> Path:
@@ -87,7 +99,9 @@ def _create_symlink_or_skip(target: Path, link: Path, *, target_is_directory: bo
 
 
 def _make_bundle(tmp_path: Path, **kwargs) -> ManifestLocalDagBundle:
-    return ManifestLocalDagBundle(name=BUNDLE_NAME, published_root=str(tmp_path / "published"), **kwargs)
+    published_root = tmp_path / "published"
+    published_root.mkdir(parents=True, exist_ok=True)
+    return ManifestLocalDagBundle(name=BUNDLE_NAME, published_root=str(published_root), **kwargs)
 
 
 def _publish(bundle: ManifestLocalDagBundle, source: Path, *, materialize_snapshot: bool = True):
@@ -150,10 +164,28 @@ class TestConstruction:
     def test_published_root_derives_authoritative_paths(self, tmp_path):
         bundle = _make_bundle(tmp_path)
 
-        assert bundle.published_root == tmp_path / "published"
-        assert bundle.manifest_ref_path == tmp_path / "published/refs/manifest-local/latest.json"
-        assert bundle.published_versions_dir == tmp_path / "published/versions/manifest-local"
-        assert bundle.publication_lock_path == tmp_path / "published/_locks/manifest-local.lock"
+        assert bundle.published_root == str(tmp_path / "published")
+        assert bundle.manifest_ref_path == str(tmp_path / "published/refs/manifest-local/latest.json")
+        assert bundle.published_versions_dir == str(tmp_path / "published/versions/manifest-local")
+
+    @pytest.mark.parametrize("publication_lock_timeout", ["600", True, -1, None, float("nan"), float("inf")])
+    def test_rejects_invalid_publication_lock_timeout(self, tmp_path, publication_lock_timeout):
+        with pytest.raises(TypeError, match="publication_lock_timeout must be a finite, non-negative number"):
+            _make_bundle(tmp_path, publication_lock_timeout=publication_lock_timeout)
+
+    def test_publication_lock_timeout_bounds_the_publisher_wait(self, tmp_path):
+        source = tmp_path / "source"
+        _write_file(source, "dags/example.py", "print('dag')")
+        holder = _make_bundle(tmp_path)
+        bundle = _make_bundle(tmp_path, publication_lock_timeout=0)
+
+        with (
+            holder.acquire_publication_lock(),
+            pytest.raises(BundleManifestError, match="Timed out after 0s waiting for publication lock"),
+        ):
+            publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
+
+        assert not Path(bundle.manifest_ref_path).exists()
 
     @pytest.mark.parametrize("published_root_position", ["inside", "ancestor"])
     def test_rejects_published_root_overlapping_airflow_cache(self, tmp_path, published_root_position):
@@ -315,7 +347,7 @@ class TestConsumer:
         assert (bundle.path / "dags/example.py").read_text() == "print('dag')"
 
     @mock.patch.object(
-        store_module,
+        filesystem_module,
         "remove_bundle_tree_forcefully",
         autospec=True,
         side_effect=PermissionError("operation not permitted"),
@@ -349,8 +381,8 @@ class TestConsumer:
         cached_version_path = bundle.versions_dir / published.version
         marker_path = bundle._get_validation_marker_path(published.version)
         calls: list[tuple[str, Path]] = []
-        real_fsync_file = store_module.fsync_file
-        real_fsync_directory = store_module.fsync_directory
+        real_fsync_file = filesystem_module.fsync_file
+        real_fsync_directory = filesystem_module.fsync_directory
         real_replace = os.replace
 
         def record_fsync_file(path):
@@ -367,7 +399,7 @@ class TestConsumer:
             real_replace(source_path, destination_path)
 
         with (
-            mock.patch.object(store_module, "fsync_file", side_effect=record_fsync_file),
+            mock.patch.object(filesystem_module, "fsync_file", side_effect=record_fsync_file),
             mock.patch.object(bundle_module, "fsync_file", side_effect=record_fsync_file),
             mock.patch.object(bundle_module, "fsync_directory", side_effect=record_fsync_directory),
             mock.patch.object(bundle_module.os, "replace", side_effect=record_replace),
@@ -412,7 +444,7 @@ class TestPinned:
         fresh_pinned_bundle = _make_bundle(tmp_path, version=published.version)
         fresh_pinned_bundle.initialize()
 
-        assert published.version_path.exists()
+        assert Path(published.version_path).exists()
         assert (fresh_pinned_bundle.path / "dags/example.py").read_text() == "print('dag')"
 
     def test_pinned_bundle_rebuilds_corrupt_cache(self, tmp_path):
@@ -429,7 +461,7 @@ class TestPinned:
         fresh_pinned_bundle.initialize()
 
         assert cached_dag.read_text() == "print('dag')"
-        assert (published.version_path / "dags/example.py").read_text() == "print('dag')"
+        assert (Path(published.version_path) / "dags/example.py").read_text() == "print('dag')"
 
     def test_validation_marker_lets_fresh_bundle_skip_hashing(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
@@ -491,7 +523,7 @@ class TestPublish:
 
         published = publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
         snapshot_manifest = json.loads(
-            (published.version_path / MANIFEST_FILE_NAME).read_text(encoding="utf-8")
+            (Path(published.version_path) / MANIFEST_FILE_NAME).read_text(encoding="utf-8")
         )
         bundle.refresh()
 
@@ -510,14 +542,14 @@ class TestPublish:
         assert first.version == second.version
         assert first.created_snapshot is True
         assert second.created_snapshot is False
-        assert json.loads(bundle.manifest_ref_path.read_text()) == second.ref_payload
-        assert not stat.S_IMODE(second.version_path.stat().st_mode) & 0o222
+        assert json.loads(Path(bundle.manifest_ref_path).read_text()) == second.ref_payload
+        assert not stat.S_IMODE(Path(second.version_path).stat().st_mode) & 0o222
         assert not (bundle.versions_dir / second.version).exists()
 
     def test_republish_rejects_damaged_existing_snapshot(self, tmp_path):
         bundle, source, published = _published_bundle(tmp_path)
-        _add_write_bits(published.version_path / "dags/example.py")
-        _write_file(published.version_path, "dags/example.py", "print('drift')")
+        _add_write_bits(Path(published.version_path) / "dags/example.py")
+        _write_file(Path(published.version_path), "dags/example.py", "print('drift')")
 
         with pytest.raises(BundleManifestError, match="does not match local snapshot manifest"):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
@@ -530,13 +562,13 @@ class TestPublish:
         with pytest.raises(BundleManifestError, match="explicitly publish empty source tree"):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
         allowed = _make_bundle(tmp_path, allow_empty_source=True)
         published = publish_manifest_local_dag_bundle(bundle=allowed, source_path=source)
 
         assert published.file_count == 0
-        assert json.loads(allowed.manifest_ref_path.read_text())["version"] == published.version
+        assert json.loads(Path(allowed.manifest_ref_path).read_text())["version"] == published.version
 
     def test_explicit_publish_rejects_pinned_bundle(self, tmp_path):
         bundle = _make_bundle(tmp_path, version=f"sha256-{'a' * 64}")
@@ -564,7 +596,7 @@ class TestPublish:
                 bundle=bundle, source_path=source, expected_current_version=first.version
             )
 
-        assert json.loads(bundle.manifest_ref_path.read_text())["version"] == second.version
+        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == second.version
 
     def test_first_publish_rejects_expected_current_version_with_clear_error(self, tmp_path):
         source = tmp_path / "source"
@@ -576,7 +608,7 @@ class TestPublish:
                 bundle=bundle, source_path=source, expected_current_version=f"sha256-{'0' * 64}"
             )
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
     def test_publish_rejects_invalid_expected_current_version(self, tmp_path):
         source = tmp_path / "source"
@@ -594,8 +626,9 @@ class TestPublish:
         real_materialize = store_module._materialize_manifest_snapshot
 
         def materialize_and_add_file(**kwargs):
-            real_materialize(**kwargs)
+            committed = real_materialize(**kwargs)
             _write_file(source, "dags/added.py", "print('added')")
+            return committed
 
         bundle = _make_bundle(tmp_path)
         with (
@@ -606,7 +639,7 @@ class TestPublish:
         ):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
     def test_publish_rejects_published_root_inside_source(self, tmp_path):
         source = tmp_path / "source"
@@ -616,7 +649,7 @@ class TestPublish:
         with pytest.raises(ValueError, match="published_root must not be inside source_path"):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
     def test_publish_rejects_source_inside_published_root(self, tmp_path):
         published_root = tmp_path / "published"
@@ -627,7 +660,7 @@ class TestPublish:
         with pytest.raises(ValueError, match="source_path must not be inside published_root"):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
     def test_publish_rejects_versions_dir_inside_source(self, tmp_path):
         source = tmp_path / "source"
@@ -640,7 +673,7 @@ class TestPublish:
             with pytest.raises(ValueError, match="source_path and versions_dir must not overlap"):
                 publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
         assert not storage_path.exists()
 
     def test_publish_rejects_source_inside_versions_dir(self, tmp_path):
@@ -652,7 +685,7 @@ class TestPublish:
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
         assert dag_file.exists()
-        assert not bundle.manifest_ref_path.exists()
+        assert not Path(bundle.manifest_ref_path).exists()
 
     def test_publish_fsyncs_versions_dir_before_ref_write(self, tmp_path):
         source = tmp_path / "source"
@@ -676,8 +709,8 @@ class TestPublish:
         ):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
 
-        versions_dir_fsync = ("fsync_directory", bundle.published_versions_dir)
-        ref_write = ("write_json", bundle.manifest_ref_path)
+        versions_dir_fsync = ("fsync_directory", Path(bundle.published_versions_dir))
+        ref_write = ("write_json", Path(bundle.manifest_ref_path))
         assert versions_dir_fsync in calls
         assert ref_write in calls
         assert calls.index(versions_dir_fsync) < calls.index(ref_write)
@@ -687,24 +720,27 @@ class TestValidation:
     def test_refresh_rejects_missing_manifest_ref(self, tmp_path):
         bundle = _make_bundle(tmp_path)
 
-        with pytest.raises(BundleManifestNotFoundError, match="manifest reference file"):
+        with pytest.raises(
+            BundleManifestNotFoundError,
+            match="has no release reference at .*Publish the bundle or restore the release reference",
+        ):
             bundle.refresh()
 
     def test_refresh_rejects_invalid_json_ref(self, tmp_path):
         bundle = _make_bundle(tmp_path)
-        bundle.manifest_ref_path.parent.mkdir(parents=True)
-        bundle.manifest_ref_path.write_text("{not-json")
+        Path(bundle.manifest_ref_path).parent.mkdir(parents=True)
+        Path(bundle.manifest_ref_path).write_text("{not-json")
 
-        with pytest.raises(BundleManifestError, match="not valid JSON"):
+        with pytest.raises(BundleManifestError, match="release reference .* is not a JSON object"):
             bundle.refresh()
 
     @pytest.mark.parametrize("entry_point", ["path", "get_current_version", "refresh", "initialize"])
     def test_entry_points_reject_non_utf8_manifest_ref(self, tmp_path, entry_point):
         bundle = _make_bundle(tmp_path)
-        bundle.manifest_ref_path.parent.mkdir(parents=True)
-        bundle.manifest_ref_path.write_bytes(b"\xff")
+        Path(bundle.manifest_ref_path).parent.mkdir(parents=True)
+        Path(bundle.manifest_ref_path).write_bytes(b"\xff")
 
-        with pytest.raises(BundleManifestError, match="not valid JSON") as excinfo:
+        with pytest.raises(BundleManifestError, match="release reference .* is not a JSON object") as excinfo:
             _call_entry_point(bundle, entry_point)
 
         assert isinstance(excinfo.value.__cause__, UnicodeDecodeError)
@@ -713,7 +749,7 @@ class TestValidation:
     def test_entry_points_raise_airflow_exception_when_ref_missing(self, tmp_path, entry_point):
         bundle = _make_bundle(tmp_path)
 
-        with pytest.raises(BundleManifestError, match="manifest reference file") as excinfo:
+        with pytest.raises(BundleManifestError, match="has no release reference") as excinfo:
             _call_entry_point(bundle, entry_point)
         assert isinstance(excinfo.value, AirflowException)
 
@@ -802,7 +838,7 @@ class TestValidation:
     )
     def test_refresh_rejects_corrupt_snapshot_manifest(self, tmp_path, mutate, match):
         bundle, _, published = _published_bundle(tmp_path)
-        manifest_path = published.version_path / MANIFEST_FILE_NAME
+        manifest_path = Path(published.version_path) / MANIFEST_FILE_NAME
         manifest = json.loads(manifest_path.read_text())
         mutate(manifest)
         _add_write_bits(manifest_path)
@@ -813,7 +849,7 @@ class TestValidation:
 
     def test_refresh_rejects_corrupt_snapshot_manifest_json(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        manifest_path = published.version_path / MANIFEST_FILE_NAME
+        manifest_path = Path(published.version_path) / MANIFEST_FILE_NAME
         _add_write_bits(manifest_path)
         manifest_path.write_text("{not-json")
 
@@ -822,7 +858,7 @@ class TestValidation:
 
     def test_refresh_rejects_missing_snapshot_manifest(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        manifest_path = published.version_path / MANIFEST_FILE_NAME
+        manifest_path = Path(published.version_path) / MANIFEST_FILE_NAME
         _add_write_bits(manifest_path.parent)
         manifest_path.unlink()
 
@@ -831,7 +867,7 @@ class TestValidation:
 
     def test_refresh_rejects_symlinked_snapshot_manifest(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        manifest_path = published.version_path / MANIFEST_FILE_NAME
+        manifest_path = Path(published.version_path) / MANIFEST_FILE_NAME
         real_manifest = tmp_path / "real-manifest.json"
         shutil.copy(manifest_path, real_manifest)
         _add_write_bits(manifest_path.parent)
@@ -853,23 +889,23 @@ class TestValidation:
 
     def test_refresh_rejects_snapshot_file_content_drift(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        _add_write_bits(published.version_path / "dags/example.py")
-        _write_file(published.version_path, "dags/example.py", "print('drift')")
+        _add_write_bits(Path(published.version_path) / "dags/example.py")
+        _write_file(Path(published.version_path), "dags/example.py", "print('drift')")
 
         with pytest.raises(BundleManifestError, match="does not match local snapshot manifest"):
             bundle.refresh()
 
     def test_refresh_rejects_unexpected_snapshot_files(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        _add_write_bits(published.version_path / "dags")
-        _write_file(published.version_path, "dags/unexpected.py", "print('extra')")
+        _add_write_bits(Path(published.version_path) / "dags")
+        _write_file(Path(published.version_path), "dags/unexpected.py", "print('extra')")
 
         with pytest.raises(BundleManifestError, match="files not present in the manifest"):
             bundle.refresh()
 
     def test_refresh_rejects_unexpected_snapshot_file_under_ignored_directory(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        snapshot_dags_dir = published.version_path / "dags"
+        snapshot_dags_dir = Path(published.version_path) / "dags"
         _add_write_bits(snapshot_dags_dir)
         _write_file(snapshot_dags_dir, "__pycache__/unexpected.py", "print('extra')")
 
@@ -880,7 +916,7 @@ class TestValidation:
         bundle, _, published = _published_bundle(tmp_path)
         symlink_target = tmp_path / "outside"
         _write_file(symlink_target, "outside.py", "print('outside')")
-        snapshot_dags_dir = published.version_path / "dags"
+        snapshot_dags_dir = Path(published.version_path) / "dags"
         _add_write_bits(snapshot_dags_dir)
         _create_symlink_or_skip(symlink_target, snapshot_dags_dir / "linked", target_is_directory=True)
 
@@ -891,7 +927,7 @@ class TestValidation:
         bundle, _, published = _published_bundle(tmp_path)
         symlink_target = tmp_path / "outside.py"
         symlink_target.write_text("print('outside')")
-        snapshot_dags_dir = published.version_path / "dags"
+        snapshot_dags_dir = Path(published.version_path) / "dags"
         _add_write_bits(snapshot_dags_dir)
         _create_symlink_or_skip(symlink_target, snapshot_dags_dir / "linked.py")
 
@@ -900,7 +936,7 @@ class TestValidation:
 
     def test_refresh_rejects_non_regular_snapshot_file(self, tmp_path):
         bundle, _, published = _published_bundle(tmp_path)
-        snapshot_dags_dir = published.version_path / "dags"
+        snapshot_dags_dir = Path(published.version_path) / "dags"
         _add_write_bits(snapshot_dags_dir)
         try:
             os.mkfifo(snapshot_dags_dir / "fifo.py")
@@ -938,6 +974,13 @@ class TestValidation:
 
 
 class TestCacheRecovery:
+    @mock.patch.object(bundle_module.os, "scandir", autospec=True, side_effect=_scandir_unless_unlistable)
+    def test_cache_permissions_fail_on_an_unlistable_directory(self, mock_scandir, tmp_path):
+        (tmp_path / "cache" / "unlistable").mkdir(parents=True)
+
+        with pytest.raises(PermissionError, match="cannot list directory"):
+            bundle_module._set_cache_tree_permissions(tmp_path / "cache")
+
     @pytest.mark.parametrize("has_validation_marker", [True, False])
     def test_helper_import_bytecode_does_not_invalidate_cached_snapshot(
         self, tmp_path, monkeypatch, has_validation_marker
@@ -962,7 +1005,7 @@ class TestCacheRecovery:
             sys.modules.pop(helper_name, None)
         cached_bytecode = Path(cache_from_source(str(cached_helper)))
         assert cached_bytecode.exists()
-        remove_bundle_tree_forcefully(published.version_path)
+        remove_bundle_tree_forcefully(Path(published.version_path))
         if not has_validation_marker:
             bundle._get_validation_marker_path(published.version).unlink()
 
@@ -994,12 +1037,12 @@ class TestCacheRecovery:
             bundle.refresh()
             snapshot_path = bundle.path
         else:
-            snapshot_path = published.version_path
+            snapshot_path = Path(published.version_path)
             _add_write_bits(snapshot_path / Path(source_file).parent)
         bytecode_path = _write_file(snapshot_path, bytecode_file, "bytecode")
 
         if location == "cache":
-            remove_bundle_tree_forcefully(published.version_path)
+            remove_bundle_tree_forcefully(Path(published.version_path))
             fresh = _make_bundle(tmp_path, version=published.version)
             fresh.initialize()
             assert (fresh.path / source_file).read_text() == "VALUE = 'helper'\n"
@@ -1165,9 +1208,9 @@ class TestStaleVersionCleanup:
     def test_failed_first_refresh_leaves_no_tracking_file(self, tmp_path, snapshot_failure):
         bundle, _, published = _published_bundle(tmp_path)
         if snapshot_failure == "missing":
-            remove_bundle_tree_forcefully(published.version_path)
+            remove_bundle_tree_forcefully(Path(published.version_path))
         else:
-            published_dag = published.version_path / "dags/example.py"
+            published_dag = Path(published.version_path) / "dags/example.py"
             _add_write_bits(published_dag)
             published_dag.write_text("corrupt")
         tracking_file = get_bundle_tracking_file(bundle_name=bundle.name, version=published.version)
@@ -1190,9 +1233,9 @@ class TestStaleVersionCleanup:
         _write_file(source, "dags/example.py", "print('dag v2')")
         second = _publish(bundle, source)
         if snapshot_failure == "missing":
-            remove_bundle_tree_forcefully(second.version_path)
+            remove_bundle_tree_forcefully(Path(second.version_path))
         else:
-            published_dag = second.version_path / "dags/example.py"
+            published_dag = Path(second.version_path) / "dags/example.py"
             _add_write_bits(published_dag)
             published_dag.write_text("corrupt")
 
@@ -1311,7 +1354,7 @@ class TestStaleVersionCleanup:
 
         assert first_path.is_dir()
         assert not cached_dag.exists()
-        published_dag = first.version_path / "dags/example.py"
+        published_dag = Path(first.version_path) / "dags/example.py"
         assert published_dag.read_text() == "print('dag')"
         assert bundle.get_current_version().version == second.version
         assert (bundle.path / "dags/example.py").read_text() == "print('dag v2')"
