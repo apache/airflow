@@ -691,7 +691,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
-| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
+| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers (one per provider on RunsOn)                | Providers Providers\[-google\]           | *    |
+| providers-xdist-test-types-list-as-strings-in-json      | Which test types the Non-DB (xdist) provider tests run, with no provider split out                      | Providers                                | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
 | python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.11                                     | *    |
@@ -769,8 +770,12 @@ picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`
 the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
 Jobs using `--run-in-parallel` (the DB, lowest-dependencies and special tests) run one serial pytest per
 test type instead, so they never use more CPUs than they have test types, and jobs running a single pytest
-(integration and system tests) use one. The size classes follow that: the xdist jobs and the
-lowest-dependencies provider tests take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller.
+(integration and system tests) use one. The size classes follow that: the xdist jobs and every job
+running provider tests in parallel take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller.
+On RunsOn `providers-test-types-list-as-strings-in-json` lists each provider as its own test type, in
+one job, instead of the long-running providers plus one group of all the others, so the job is not left
+waiting on that group. The Non-DB xdist jobs read `providers-xdist-test-types-list-as-strings-in-json`
+instead, which never splits the providers: xdist runs them all in one pytest anyway.
 The matrix slices follow it too. On public runners the core test types are split into
 `NUMBER_OF_CORE_SLICES` (2) jobs, to keep the Non-DB xdist collection inside the runner's memory, and
 the individually listed providers into `NUMBER_OF_LOW_DEP_SLICES` (5). On RunsOn the core test types

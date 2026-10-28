@@ -2294,6 +2294,65 @@ def test_number_of_test_type_slices_follows_runners(
     assert sum(len(s["test_types"].split()) for s in low_dep_slices) == len(LIST_OF_ALL_PROVIDER_TESTS)
 
 
+@pytest.mark.parametrize(
+    ("github_event", "github_context_dict", "expected_test_types"),
+    [
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            {},
+            [
+                "Providers[-amazon,celery,google,standard]",
+                "Providers[amazon]",
+                "Providers[celery]",
+                "Providers[google]",
+                "Providers[standard]",
+            ],
+            id="public runners group the providers",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            {"run_id": 42},
+            sorted(LIST_OF_ALL_PROVIDER_TESTS),
+            id="RunsOn runners list each provider",
+        ),
+    ],
+)
+def test_providers_test_types_follow_runners(
+    github_event: GithubEvents, github_context_dict: dict[str, Any], expected_test_types: list[str]
+):
+    selective_checks = SelectiveChecks(
+        pr_labels=("full tests needed",),
+        default_branch="main",
+        github_event=github_event,
+        github_repository="apache/airflow",
+        github_context_dict=github_context_dict,
+    )
+    slices = json.loads(selective_checks.providers_test_types_list_as_strings_in_json)
+    assert [s["test_types"].split() for s in slices] == [expected_test_types]
+
+
+@pytest.mark.parametrize(
+    ("platform", "expected_test_types"),
+    [
+        pytest.param(CI_AMD_PLATFORM, "Providers", id="AMD"),
+        pytest.param(CI_ARM_PLATFORM, "Providers[-ibm.db2,ibm.mq]", id="ARM skips platform-excluded"),
+    ],
+)
+def test_providers_xdist_test_types_are_not_split(platform: str, expected_test_types: str):
+    selective_checks = SelectiveChecks(
+        files=("airflow-core/tests/test_example.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        github_repository="apache/airflow",
+        github_context_dict={"run_id": 42},
+        default_branch="main",
+        pr_labels=("full tests needed",),
+        platform=platform,
+    )
+    slices = json.loads(selective_checks.providers_xdist_test_types_list_as_strings_in_json)
+    assert [s["test_types"] for s in slices] == [expected_test_types]
+
+
 def test_excluded_providers():
     stderr = SelectiveChecks(
         files=(),

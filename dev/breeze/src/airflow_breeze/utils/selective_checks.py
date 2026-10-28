@@ -1932,10 +1932,7 @@ class SelectiveChecks:
             if kept:
                 current_test_types.add(f"Providers[{','.join(kept)}]")
 
-    @cached_property
-    def providers_test_types_list_as_strings_in_json(self) -> str:
-        if not self.run_unit_tests:
-            return "[]"
+    def _get_providers_test_types_for_branch(self) -> set[str]:
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
@@ -1947,7 +1944,30 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
+        return current_test_types
+
+    @cached_property
+    def providers_test_types_list_as_strings_in_json(self) -> str:
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
+        if current_test_types and self._is_on_runs_on:
+            # One serial pytest per provider keeps the 32 CPUs of a RunsOn runner busy; grouped
+            # providers would leave the job waiting on the large "all other providers" group.
+            return json.dumps(_get_test_list_as_json([sorted(self._get_individual_providers_list())]))
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
+        return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
+
+    @cached_property
+    def providers_xdist_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the xdist jobs, which run them all in one pytest, so none is split out."""
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
+        if "Providers" in current_test_types and self._platform_excluded_providers:
+            current_test_types.remove("Providers")
+            current_test_types.add(f"Providers[-{','.join(sorted(self._platform_excluded_providers))}]")
         self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 

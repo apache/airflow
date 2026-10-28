@@ -178,7 +178,7 @@ jobs:
     timeout-minutes: 80
     # yamllint disable rule:line-length
     name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     strategy:
       fail-fast: false
       matrix:

@@ -319,6 +319,8 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-xdist-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -797,7 +799,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -856,7 +858,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -916,7 +918,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -990,7 +992,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}

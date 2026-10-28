@@ -123,7 +123,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -173,7 +173,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -224,7 +224,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -276,7 +276,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
