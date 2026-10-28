@@ -20,9 +20,10 @@ import { matchRoutes, type LazyRouteFunction, type RouteObject } from "react-rou
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TabEntity, TaskInstanceTab } from "src/constants/tab";
+import { loadRouteModule, reloadAfterFailedRouteModuleLoad } from "src/utils/routeModule";
 import { getTabPath } from "src/utils/tab";
 
-import { loadRouteModule, routerConfig, taskInstanceRoutes } from "./router";
+import { routerConfig, taskInstanceRoutes } from "./router";
 
 vi.mock("src/pages/DagsList", () => ({ DagsList: () => null }));
 
@@ -104,14 +105,26 @@ describe("lazy routes", () => {
     expect(Component).toBe(DagsList);
   });
 
-  it("reloads only once when route module loading fails repeatedly", async () => {
+  it("defers reloading until the route error page is rendered", async () => {
     const error = new Error("Route module unavailable");
     const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
 
     await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
-    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
 
-    expect(reload).toHaveBeenCalledOnce();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("allows recovery again after a route module loads successfully", async () => {
+    const error = new Error("Route module unavailable");
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
+
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+    reloadAfterFailedRouteModuleLoad();
+    await expect(loadRouteModule(() => Promise.resolve("loaded"))).resolves.toBe("loaded");
+    await expect(loadRouteModule(() => Promise.reject(error))).rejects.toBe(error);
+    reloadAfterFailedRouteModuleLoad();
+
+    expect(reload).toHaveBeenCalledTimes(2);
   });
 });
 
