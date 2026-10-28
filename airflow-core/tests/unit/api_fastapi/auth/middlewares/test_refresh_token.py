@@ -191,6 +191,8 @@ class TestJWTRefreshMiddleware:
         response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "valid_token"}).get("/api/v2/auth/logout")
 
         assert _get_browser_cookies(response) == {(COOKIE_NAME_JWT_TOKEN, "/"): None}
+        # Clients that don't apply Set-Cookie headers in order must not pick up a token minted during logout
+        assert not any("new_token" in header for header in response.headers.get_list("set-cookie"))
 
     @patch(f"{MODULE}.get_cookie_path", autospec=True, return_value="/team-a/")
     def test_root_cookie_cleared_when_route_sets_token(

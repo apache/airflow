@@ -103,10 +103,19 @@ class JWTRefreshMiddleware:
                 response_started = True
                 headers = MutableHeaders(scope=message)
                 route_cookies = headers.getlist("set-cookie")
+                route_set_token = any(
+                    value.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") for value in route_cookies
+                )
                 del headers["set-cookie"]
+                # The route owns the token it sets: never send ours, so a refreshed token can't outlive a logout.
+                cookie_values = (
+                    cleanup_cookies
+                    if route_set_token or not token_cookie
+                    else [token_cookie, *cleanup_cookies]
+                )
                 # Ours go first: for the same cookie name and path the later Set-Cookie wins, so the
                 # cookies set by the route itself take precedence.
-                for value in [*([token_cookie] if token_cookie else []), *cleanup_cookies, *route_cookies]:
+                for value in [*cookie_values, *route_cookies]:
                     headers.append("set-cookie", value)
             await send(message)
 
