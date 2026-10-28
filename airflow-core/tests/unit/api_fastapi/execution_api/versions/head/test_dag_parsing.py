@@ -912,16 +912,23 @@ def clean_assets():
 
 
 @pytest.mark.usefixtures("clean_assets")
-def test_inventory_removes_asset_references_of_removed_dags(client, session, job, body):
+@pytest.mark.parametrize("already_stale", [False, True])
+def test_inventory_removes_asset_references_of_removed_dags(client, session, job, body, already_stale):
     dag = DAG("published", schedule=[Asset(name="key", uri="s3://bucket/key")])
     dag.fileloc = "/worker-only/dags/a.py"
     dag.relative_fileloc = "a.py"
     body["serialized_dags"] = [LazyDeserializedDAG.from_dag(dag).data]
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    if already_stale:
+        body.update(attempt_id=str(uuid7()), dispatch_sequence=2, serialized_dags=[], source_codes={})
+        response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+        assert response.status_code == 200, response.json()
+        session.expire_all()
+        assert session.get(DagModel, "published").is_stale
     assert session.scalars(select(DagScheduleAssetReference.dag_id)).all() == ["published"]
     inventory = {
         "attempt_id": str(uuid7()),
-        "dispatch_sequence": 2,
+        "dispatch_sequence": 3,
         "expected_revision": None,
         "version": "v2",
         "files": [],
