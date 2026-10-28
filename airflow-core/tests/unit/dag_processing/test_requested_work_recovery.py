@@ -38,11 +38,12 @@ from airflow.dag_processing.api_requested_work import DeferredCallback, Priority
 from airflow.dag_processing.bundles.base import BaseDagBundle, DagBundleRefreshError
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.manager import (
+    DagBundleDiscoveryResult,
     DagFileInfo,
     DagFileProcessorManager,
     PendingDagPublication,
 )
-from airflow.dag_processing.processor import DagFileProcessorProcess, DagParseSource
+from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 
 from tests_common.test_utils.config import conf_vars
 from unit.dag_processing.requested_work_helpers import get_api_work_source
@@ -322,6 +323,88 @@ def test_priority_claims_waiting_for_fresh_inventory_keep_the_budget_bounded(api
 
     client.claim_work.assert_called_once_with("priority", [bundle.name], 2)
     assert len(get_api_work_source(manager)._priority_claims) == 2
+
+
+@pytest.mark.parametrize(
+    ("claimed", "settled_by_inventory"),
+    [("archive.zip/good.py", False), (r"archive.zip/bad\member.py", True)],
+    ids=["publishable_member", "dropped_member"],
+)
+@pytest.mark.parametrize("retry_inventory", [False, True])
+@mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True, return_value=100)
+@mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+def test_priority_claims_on_an_archive_with_a_dropped_member_are_settled(
+    create, discover, monotonic, api_manager, claimed, settled_by_inventory, retry_inventory
+):
+    manager, client, bundle = api_manager
+    manager._parallelism = 1
+    manager._num_run = 1
+    archive = DagFileInfo(bundle_name=bundle.name, bundle_path=bundle.path, rel_path=Path("archive.zip"))
+    archive.absolute_path.touch()
+    locations = ["archive.zip/good.py", r"archive.zip/bad\member.py"]
+    discover.return_value = DagBundleDiscoveryResult(
+        files={
+            DagFileInfo(
+                bundle_name=bundle.name,
+                bundle_path=bundle.path,
+                rel_path=archive.rel_path,
+                definition_locs=frozenset(locations),
+            )
+        }
+    )
+    known_files = {bundle.name: {archive}}
+    work = _make_work(bundle.name, claimed)
+    client.claim_work.return_value = [work]
+    manager._queue_requested_files_for_parsing()
+    source = get_api_work_source(manager)
+
+    publish = client.publish_inventory.side_effect
+    if retry_inventory:
+        client.publish_inventory.side_effect = httpx2.ReadTimeout("Lost inventory acknowledgment")
+        manager._refresh_dag_bundles(known_files)
+        source.flush()
+        assert source.has_priority_request(archive)
+        client.acknowledge_work.assert_not_called()
+        client.publish_inventory.side_effect = publish
+        monotonic.return_value = manager._pending_inventories[bundle.name].next_attempt_time
+    manager._refresh_dag_bundles(known_files)
+    source.flush()
+
+    inventory = client.publish_inventory.call_args.args[1]
+    assert inventory.files == ["archive.zip", "archive.zip/good.py"]
+    assert inventory.failed_sources == []
+    if settled_by_inventory:
+        client.acknowledge_work.assert_called_once_with("priority", work)
+    else:
+        client.acknowledge_work.assert_not_called()
+
+    def create_process(_, file, *, source):
+        processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        processor.id = uuid7()
+        processor.pid = 123
+        processor.dispatch_sequence = 1
+        processor.start_time = 99
+        processor.is_ready = True
+        processor.had_callbacks = False
+        processor.api_request_error = None
+        processor.parsing_result = DagFileParsingResult(
+            fileloc=str(file.absolute_path), serialized_dags=[], parsed_definitions=locations
+        )
+        processor.parse_source = source
+        return processor
+
+    create.side_effect = create_process
+    manager._start_new_processes()
+    assert set(manager._processors) == {archive}
+    manager._collect_results()
+    manager._publish_pending_results()
+    source.flush()
+
+    assert client.publish_parse_result.call_args.args[0].parsed_definitions == ["archive.zip/good.py"]
+    client.acknowledge_work.assert_called_once_with("priority", work)
+    assert not source.has_outstanding_work()
+    assert manager.max_runs_reached()
 
 
 @pytest.mark.parametrize("stage", ["running", "publishing", "acknowledging", "stale"])
