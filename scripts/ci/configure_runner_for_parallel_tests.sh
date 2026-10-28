@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Large runners run a test type per CPU, each a docker compose project with its own database container.
+#
 # Every test type of a parallel test run is a docker compose project with a network of its own. Docker's
 # default address pools hand out /16 and /20 subnets, which is about 30 networks per host, so large runners
 # running a test type per CPU fail with "all predefined address pools have been fully subnetted".
@@ -37,4 +39,8 @@ daemon_json.write_text(json.dumps(config, indent=2) + "\n")
 print(daemon_json.read_text())
 EOF
 sudo systemctl restart docker
+
+# Each MySQL server reserves Linux AIO contexts for InnoDB, and the default limit of 65536 runs out with a few
+# dozen of them: "io_setup() failed with EAGAIN".
+sudo sysctl -w fs.aio-max-nr=1048576
 docker info --format '{{.ServerVersion}}' > /dev/null
