@@ -15,7 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Run with Breeze and PostgreSQL; the processor joins an API-only internal network."""
+"""
+Manual Breeze test for a processor on an API-only internal network.
+
+CI's named integration jobs collect this module but skip its tests because they
+have no integration marker. With Docker running, run it from the repository root
+without pytest's ``--integration`` selector::
+
+    breeze run --backend postgres pytest airflow-core/tests/integration/dag_processing/test_api_isolation.py -v
+
+Breeze provides the Docker CLI and mounts its socket, which this test requires.
+"""
 
 from __future__ import annotations
 

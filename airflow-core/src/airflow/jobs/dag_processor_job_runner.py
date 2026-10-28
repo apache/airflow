@@ -28,6 +28,7 @@ from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.configuration import conf
 from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 from airflow.dag_processing.health import write_processor_health
+from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, execute_job, perform_heartbeat
 from airflow.listeners.listener import get_listener_manager
@@ -73,6 +74,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
 
     def run_with_api(self, client: DagProcessorAPIClient) -> int | None:
         """Mirror ``run_job`` metrics and listener ordering while the API owns Job persistence."""
+        get_job_heartbeat_timeout()
         self.processor.api_client = client
         self.processor.work_source = ExecutionAPIWorkSource(client)
         self.job.id = self._register_api_job(client)
@@ -95,7 +97,8 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.exception("Error calling Dag processor shutdown listener")
             self.job.end_date = timezone.utcnow()
             try:
-                client.complete_job(TerminalJobState(self.job.state))
+                if not client.restart_required:
+                    client.complete_job(TerminalJobState(self.job.state))
             except Exception:
                 if not failed:
                     raise
@@ -120,20 +123,39 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 sleep(min(delay, remaining))
                 delay = min(delay * 2, 5.0)
 
+    def _get_heartbeat_delay_message(self) -> str:
+        elapsed = monotonic() - self._last_api_heartbeat
+        timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
+        return (
+            f"Last successful API heartbeat was {elapsed:.1f}s ago "
+            f"([dag_processor] job_heartbeat_timeout={timeout}s)."
+        )
+
     def _heartbeat_api(self, client: DagProcessorAPIClient) -> None:
+        # Client imports stay local: its versioned routes import this runner.
         from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
 
         write_processor_health(self._last_api_heartbeat)
         if client.restart_required:
-            raise DagProcessorRegistrationRetired("The Dag processor registration requires a restart")
+            raise DagProcessorRegistrationRetired(
+                f"The Dag processor registration requires a restart. {self._get_heartbeat_delay_message()}"
+            )
         now = monotonic()
         if now < self._next_api_heartbeat:
             return
         self._next_api_heartbeat = now + self.job.heartrate
         try:
             state = client.heartbeat()
+        except DagProcessorRegistrationRetired as error:
+            raise DagProcessorRegistrationRetired(
+                f"{error}. {self._get_heartbeat_delay_message()}"
+            ) from error
         except httpx2.HTTPError as error:
-            if isinstance(error, httpx2.HTTPStatusError) and error.response.status_code < 500:
+            if (
+                isinstance(error, httpx2.HTTPStatusError)
+                and error.response.status_code < 500
+                and error.response.status_code not in (408, 429)
+            ):
                 raise
             stats.incr("job_heartbeat_failure", 1, 1)
             elapsed = monotonic() - self._last_api_heartbeat
@@ -155,7 +177,9 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             )
             return
         if client.restart_required or state != JobState.RUNNING:
-            raise DagProcessorRegistrationRetired("The API requested a Dag processor restart")
+            raise DagProcessorRegistrationRetired(
+                f"The API requested a Dag processor restart. {self._get_heartbeat_delay_message()}"
+            )
         self._last_api_heartbeat = monotonic()
         self.job.latest_heartbeat = timezone.utcnow()
         self.heartbeat_callback()
