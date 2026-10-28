@@ -225,6 +225,16 @@ def get_callback_ti(ti):
     )
 
 
+def _attempt_states(ti, session):
+    attempts = session.scalars(
+        select(TaskInstance)
+        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.task_id == ti.task_id)
+        .execution_options(include_all_attempts=True)
+        .order_by(TaskInstance.try_number)
+    )
+    return [(attempt.try_number, attempt.state, attempt.working_set) for attempt in attempts]
+
+
 @pytest.fixture(scope="class")
 def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
@@ -1246,6 +1256,84 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    @pytest.mark.parametrize(
+        "callback_kwargs",
+        [
+            pytest.param({"on_failure_callback": lambda context: None}, id="on_failure_callback"),
+            pytest.param({"email": "test@example.com"}, id="email"),
+        ],
+    )
+    def test_process_executor_events_callback_for_running_ti_with_retries_moves_it_to_retry(
+        self, callback_kwargs, dag_maker, session
+    ):
+        """Sending the callback must not close the session and detach the TI before its retry is set up."""
+        with dag_maker(dag_id="executor_event_running_ti_with_retries", fileloc="/test_path1/"):
+            EmptyOperator(task_id="task", retries=1, **callback_kwargs)
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti.state = State.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        session.merge(ti)
+        session.commit()
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, State.FAILED, None),
+            (2, State.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
+
+    def test_process_executor_events_dag_lookup_failure_keeps_session_for_rest_of_batch(
+        self, dag_maker, session
+    ):
+        """A failed Dag lookup must not close the session and detach the rest of the batch."""
+        with dag_maker(dag_id="executor_event_dag_lookup_failure"):
+            EmptyOperator(task_id="first", retries=1)
+            EmptyOperator(task_id="second", retries=1)
+        dr = dag_maker.create_dagrun()
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        for ti in dr.task_instances:
+            ti.state = State.RUNNING
+            ti.try_number = 1
+            ti.queued_by_job_id = scheduler_job.id
+            session.merge(ti)
+            executor.event_buffer[TaskInstanceUuid(ti.id)] = State.SUCCESS, None
+        session.commit()
+        real_get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+        lookup_errors = [AirflowException("Dag lookup failed")]
+
+        def get_dag_for_run(*, dag_run, session):
+            if lookup_errors:
+                raise lookup_errors.pop()
+            return real_get_dag_for_run(dag_run=dag_run, session=session)
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, side_effect=get_dag_for_run
+        ):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        live_states = sorted(
+            session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
+        )
+        assert live_states == [State.SUCCESS, State.UP_FOR_RETRY]
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(
@@ -3541,6 +3629,135 @@ class TestSchedulerJob:
         res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         assert len(res) == 1
         assert res[0].key == ti1b.key
+
+        session.rollback()
+
+    def test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized(
+        self, dag_maker, caplog, session
+    ):
+        bad_dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized-bad"
+        )
+        good_dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized-good"
+        )
+
+        with dag_maker(dag_id=bad_dag_id):
+            bad_task = EmptyOperator(task_id="bad_task", priority_weight=2, max_active_tis_per_dag=1)
+        bad_run_1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        bad_run_2 = dag_maker.create_dagrun_after(bad_run_1, run_type=DagRunType.SCHEDULED)
+
+        with dag_maker(dag_id=good_dag_id):
+            good_task = EmptyOperator(task_id="good_task", priority_weight=1)
+        good_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        bad_running_ti = bad_run_1.get_task_instance(bad_task.task_id, session=session)
+        bad_scheduled_ti = bad_run_2.get_task_instance(bad_task.task_id, session=session)
+        good_scheduled_ti = good_run.get_task_instance(good_task.task_id, session=session)
+        bad_running_ti.state = TaskInstanceState.RUNNING
+        bad_scheduled_ti.state = TaskInstanceState.SCHEDULED
+        good_scheduled_ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_bad_dag(dag_run, session):
+            if dag_run.dag_id == bad_dag_id:
+                raise DeserializationError(bad_dag_id) from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag),
+        ):
+            result = self.job_runner._select_task_instances_to_queue(
+                1, make_pool_stats(), set(), session=session
+            )
+
+        assert [ti.key for ti in result] == [good_scheduled_ti.key]
+        assert bad_scheduled_ti.state == TaskInstanceState.SCHEDULED
+        assert any(bad_dag_id in record.getMessage() for record in caplog.records)
+
+        session.rollback()
+
+    def test_find_executable_task_instances_starves_run_not_whole_dag_on_deserialization_error(
+        self, dag_maker, caplog, session
+    ):
+        """A deserialization failure must starve only the affected Dag run.
+
+        Starving ``(dag_id, task_id)`` would also block the same task in healthy runs of the
+        same Dag, and every task of the broken run would try to load and log the Dag again.
+        """
+        dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_starves_run_not_whole_dag_"
+            "on_deserialization_error"
+        )
+        with dag_maker(dag_id=dag_id):
+            first_task = EmptyOperator(task_id="first_task", priority_weight=2, max_active_tis_per_dag=1)
+            second_task = EmptyOperator(task_id="second_task", priority_weight=1, max_active_tis_per_dag=1)
+
+        older_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        newer_run = dag_maker.create_dagrun_after(older_run, run_type=DagRunType.SCHEDULED)
+
+        for operator in (first_task, second_task):
+            older_run.get_task_instance(operator.task_id, session=session).state = TaskInstanceState.SCHEDULED
+            newer_run.get_task_instance(operator.task_id, session=session).state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_older_run(dag_run, session):
+            if dag_run.run_id == older_run.run_id:
+                raise DeserializationError(dag_id) from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(
+                self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_older_run
+            ),
+        ):
+            result = self.job_runner._select_task_instances_to_queue(
+                1, make_pool_stats(), set(), session=session
+            )
+
+        assert [ti.run_id for ti in result] == [newer_run.run_id]
+        selected_task_id = result[0].task_id
+        session.expire_all()
+        assert (
+            newer_run.get_task_instance(selected_task_id, session=session).state == TaskInstanceState.QUEUED
+        )
+        assert (
+            older_run.get_task_instance(first_task.task_id, session=session).state
+            == TaskInstanceState.SCHEDULED
+        )
+        # The failure is logged once for the starved run, not once per task in that run.
+        assert sum(dag_id in record.getMessage() for record in caplog.records) == 1
+
+        session.rollback()
+
+    def test_find_executable_task_instances_reraises_db_errors_from_dag_load(self, dag_maker, session):
+        """DBAPIError while loading a Dag must propagate for transaction retry handling."""
+        from sqlalchemy.exc import DBAPIError
+
+        with dag_maker(dag_id="db_error_dag_load"):
+            EmptyOperator(task_id="task", max_active_tis_per_dag=1)
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        run.get_task_instance("task", session=session).state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        with patch.object(
+            self.job_runner.scheduler_dag_bag,
+            "get_dag_for_run",
+            side_effect=DBAPIError("select 1", None, Exception("connection lost")),
+        ):
+            with pytest.raises(DBAPIError):
+                self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
 
         session.rollback()
 
@@ -10174,6 +10391,67 @@ class TestSchedulerJob:
         assert asset in active
         assert asset not in orphaned
 
+    def test_asset_orphaning_asset_referenced_from_every_table(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        shared = Asset(uri="test://shared", name="shared", group="test_group")
+        dropped = Asset(uri="test://dropped", name="dropped", group="test_group")
+        schedule_only = Asset(uri="test://schedule_only", name="schedule_only", group="test_group")
+        outlet_only = Asset(uri="test://outlet_only", name="outlet_only", group="test_group")
+        inlet_only = Asset(uri="test://inlet_only", name="inlet_only", group="test_group")
+
+        for i in range(3):
+            with dag_maker(dag_id=f"consumer-{i}", schedule=[shared], session=session):
+                BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="schedule-only", schedule=[schedule_only], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared, dropped])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
+
+        # Attach aliases: one to ``shared`` and one to an asset with no other reference.
+        alias_only = AssetModel(uri="test://alias_only", name="alias_only", group="test_group")
+        alias_only.aliases.append(AssetAliasModel(name="alias_for_alias_only", group="asset"))
+        shared_model = session.scalar(select(AssetModel).where(AssetModel.name == "shared"))
+        shared_model.aliases.append(AssetAliasModel(name="alias_for_shared", group="asset"))
+        session.add(alias_only)
+        session.flush()
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert {a.name for a in active} == {
+            "shared",
+            "dropped",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
+        assert orphaned == []
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+            BashOperator(task_id="outlet-only", bash_command="echo 1", outlets=[outlet_only])
+            BashOperator(task_id="inlet-only", bash_command="echo 1", inlets=[inlet_only])
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert {a.name for a in active} == {
+            "shared",
+            "schedule_only",
+            "outlet_only",
+            "inlet_only",
+            "alias_only",
+        }
+        assert [a.name for a in orphaned] == ["dropped"]
+
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -10631,6 +10909,33 @@ class TestSchedulerJob:
             else "on_failure_callback"
         )
         assert dispatched_callback == expected_dispatched_callback
+
+    def test_heartbeat_timeout_with_retries_moves_ti_to_retry(self, dag_maker, session):
+        """Sending the heartbeat-timeout callback must not close the purge's session and detach the TI."""
+        with dag_maker(dag_id="hb_timeout_with_retries", session=session):
+            EmptyOperator(task_id="test_task", retries=1)
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        ti = dag_run.get_task_instance(task_id="test_task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        assert _attempt_states(ti, session) == [
+            (1, TaskInstanceState.FAILED, None),
+            (2, TaskInstanceState.UP_FOR_RETRY, True),
+        ]
+        assert session.scalar(select(func.count()).select_from(DbCallbackRequest)) == 1
 
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),
@@ -13237,8 +13542,8 @@ class TestSchedulerJobQueriesCount:
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
-            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
+            ([229, 80, 79, 79], 10, 10, "1d", "@once", "no_structure"),
+            ([239, 95, 95, 95], 10, 10, "1d", "@once", "linear"),
             ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
             ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
             ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),

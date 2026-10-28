@@ -20,6 +20,11 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -42,6 +47,12 @@ on:  # yamllint disable-line rule:truthy
         type: string
       run-scripts-tests:
         description: "Whether to run scripts tests (true/false)"
+        required: true
+        type: string
+      run-generic-basic-tests:
+        description: >-
+          Whether to run the standalone Airflow and shared distributions tests (true/false): not on the
+          release branch of a single component
         required: true
         type: string
       basic-checks-only:
@@ -87,7 +98,7 @@ jobs:
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -105,7 +116,7 @@ jobs:
   run-breeze-integration-tests:
     timeout-minutes: 120
     name: Breeze integration tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     if: inputs.run-breeze-integration-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -132,17 +143,20 @@ jobs:
   tests-shared-distributions:
     timeout-minutes: 10
     name: Shared distributions tests
+    if: inputs.run-generic-basic-tests == 'true'
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
       SHARED_DISTRIBUTIONS: ${{ join(fromJSON(inputs.shared-distributions-as-json), ' ') }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
@@ -171,7 +185,7 @@ jobs:
   tests-scripts:
     timeout-minutes: 10
     name: Scripts tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     if: inputs.run-scripts-tests == 'true'
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
@@ -182,6 +196,8 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
@@ -200,7 +216,7 @@ jobs:
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.run-ui-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -210,6 +226,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
@@ -237,7 +255,7 @@ jobs:
   check-translation-completness:
     timeout-minutes: 15
     name: "Check translation completeness"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -254,7 +272,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
@@ -310,8 +328,21 @@ jobs:
           PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
+          GITHUB_TOKEN: ${{ github.token }}
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
+      - name: "Fail if static checks modified tracked files"
+        # prek does not report files that a nested-project hook modifies outside its own project,
+        # so check the tree independently.
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Static checks passed but modified tracked files. Commit the changes below."
+            git diff --stat
+            git diff | head -n 500 || true
+            exit 1
+          fi
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -327,7 +358,7 @@ jobs:
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -381,7 +412,8 @@ jobs:
   test-airflow-standalone:
     timeout-minutes: 30
     name: "Test Airflow standalone commands"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-generic-basic-tests == 'true'
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       AIRFLOW_HOME: ~/airflow
       FORCE_COLOR: 1
@@ -390,6 +422,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.

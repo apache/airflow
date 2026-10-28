@@ -38,7 +38,7 @@ import {
   useState,
 } from "react";
 
-import type { TaskRegion } from "src/api";
+import type { TaskRegion } from "src/region";
 import { MessageBubble } from "src/components/MessageBubble";
 import { NoSession } from "src/components/NoSession";
 import { useSession } from "src/hooks/useSession";

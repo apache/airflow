@@ -20,31 +20,18 @@ import pytest
 import yaml
 from ci.prek import lang_sdk_compat_matrix as matrix, update_ts_sdk_readme_matrix as hook
 
-SCHEMA_VERSION = "2026-06-16"
-
-
-def _doc() -> dict:
-    def entry(supported: bool) -> dict:
-        return {"supported": supported, "since": "3.3" if supported else None, "note": ""}
-
-    return {
-        "sdk": "ts",
-        "supervisor_schema_version": SCHEMA_VERSION,
-        "min_airflow_version": "3.3",
-        "states": {state: entry(True) for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {cap.name: entry(True) for cap in matrix.CAPABILITY_DIMENSIONS},
-    }
-
 
 class TestMain:
     @pytest.fixture
-    def wired(self, tmp_path, monkeypatch):
+    def wired(self, tmp_path, monkeypatch, capabilities_doc):
+        doc = capabilities_doc("ts")
         capabilities_yaml = tmp_path / "capabilities.yaml"
-        capabilities_yaml.write_text(yaml.safe_dump(_doc()))
+        capabilities_yaml.write_text(yaml.safe_dump(doc))
         readme = tmp_path / "README.md"
         readme.write_text(f"intro\n\n{matrix.README_MATRIX_HEADER}\n{matrix.README_MATRIX_FOOTER}\n\noutro\n")
         ts_supervisor = tmp_path / "supervisor.ts"
-        ts_supervisor.write_text(f'export const SUPERVISOR_API_VERSION = "{SCHEMA_VERSION}" as const;\n')
+        schema_version = doc["supervisor_schema_version"]
+        ts_supervisor.write_text(f'export const SUPERVISOR_API_VERSION = "{schema_version}" as const;\n')
         monkeypatch.setattr(
             hook,
             "LANG_SDKS",
@@ -56,7 +43,7 @@ class TestMain:
     def test_generates_target_then_is_idempotent(self, wired):
         assert hook.main() == 1
         content = wired.read_text()
-        assert "| Dimension | Tier | Supported | Since | Notes |" in content
+        assert "| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |" in content
         assert matrix.SUPPORTED_MARK in content
         assert content.startswith("intro\n") and content.endswith("outro\n")
 
@@ -70,4 +57,4 @@ class TestMain:
     def test_schema_version_matches_ts_source(self):
         sdk = next(entry for entry in matrix.LANG_SDKS if entry["id"] == hook.SDK_ID)
         doc = matrix.load_capabilities(sdk["capabilities_yaml"], expected_sdk=hook.SDK_ID)
-        assert doc["supervisor_schema_version"] == hook.read_ts_schema_version()
+        assert doc.supervisor_schema_version == hook.read_ts_schema_version()

@@ -14,18 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import os
-
-from pydantic import BaseModel
-
-from airflow.sdk.api.datamodels._generated import TaskInstance
-
-
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+---
+services:
+  airflow:
+    # Added by `breeze build-docs --sphinx-airflow-theme-path`. The mount is read-only so the
+    # in-container install cannot leave root-owned build output in the airflow-site checkout.
+    volumes:
+      - type: bind
+        source: ${SPHINX_AIRFLOW_THEME_PATH}
+        target: /opt/sphinx_airflow_theme
+        read_only: true

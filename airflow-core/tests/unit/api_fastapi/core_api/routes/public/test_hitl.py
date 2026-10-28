@@ -464,6 +464,14 @@ def _assert_sample_audit_log(audit_log: Log) -> None:
 
 
 @pytest.fixture
+def park_sample_ti(sample_ti: TaskInstance, session: Session) -> None:
+    ti = session.get(TIModel, sample_ti.id)
+    assert ti is not None
+    ti.state = TaskInstanceState.AWAITING_INPUT
+    session.commit()
+
+
+@pytest.fixture
 def sample_update_payload() -> dict[str, Any]:
     return {"chosen_options": ["Approve"], "params_input": {"input_1": 2}}
 
@@ -514,7 +522,7 @@ class TestUpdateHITLDetailEndpoint:
             assert verify_session.get(HITLDetail, current.id) is None
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
         return_value="Jane Doe",
@@ -534,7 +542,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json()["responded_by"] == {"id": "test", "name": "Jane Doe"}
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
@@ -612,7 +620,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.status_code == 400
         assert "Invalid options" in response.json()["detail"]
 
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_should_validate_against_row_refreshed_under_lock(
         self,
         test_client: TestClient,
@@ -666,7 +674,7 @@ class TestUpdateHITLDetailEndpoint:
         assert "reserved serialization keys" in detail
         assert reserved_key in detail
 
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_should_respond_200_for_json_string_holding_a_reserved_key(
         self,
         test_client: TestClient,
@@ -725,7 +733,7 @@ class TestUpdateHITLDetailEndpoint:
         assert "event" in (resumed.next_kwargs or {})
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail_respondent")
+    @pytest.mark.usefixtures("sample_hitl_detail_respondent", "park_sample_ti")
     def test_should_respond_200_to_assigned_users(
         self,
         test_client: TestClient,
@@ -818,7 +826,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {"detail": expected_hitl_detail_not_found_error_msg}
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_should_respond_409(
         self,
         test_client: TestClient,
@@ -853,6 +861,117 @@ class TestUpdateHITLDetailEndpoint:
         }
 
     @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.parametrize(
+        "state",
+        [
+            None,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.FAILED,
+        ],
+    )
+    def test_a_response_to_a_task_no_longer_waiting_is_refused(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+        state: TaskInstanceState | None,
+    ) -> None:
+        ti = session.get(TIModel, sample_ti.id)
+        assert ti is not None
+        ti.state = state
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.commit()
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 409
+        assert response.json() == {
+            "detail": (
+                "The Task Instance is no longer waiting for a response, so this Human-in-the-loop "
+                "response was not recorded."
+            )
+        }
+        session.expire_all()
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        assert not detail.response_received
+        assert detail.responded_at is None
+        assert detail.responded_by is None
+        assert detail.chosen_options is None
+        refreshed = session.get(TIModel, sample_ti.id)
+        assert refreshed is not None
+        assert refreshed.state == state
+        assert refreshed.next_kwargs == {}
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.parametrize("state", [TaskInstanceState.AWAITING_INPUT, TaskInstanceState.DEFERRED])
+    def test_a_response_to_a_waiting_task_is_recorded_and_resumes_it(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+        state: TaskInstanceState,
+    ) -> None:
+        ti = session.get(TIModel, sample_ti.id)
+        assert ti is not None
+        ti.state = state
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.commit()
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 200
+        session.expire_all()
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        assert detail.response_received
+        assert detail.chosen_options == ["Approve"]
+        refreshed = session.get(TIModel, sample_ti.id)
+        assert refreshed is not None
+        assert refreshed.state == TaskInstanceState.SCHEDULED
+        assert "event" in (refreshed.next_kwargs or {})
+
+    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0, tzinfo=utc), tick=False)
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_response_after_trigger_timeout_is_accepted_while_still_awaiting_input(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """The gate looks at state only: the scheduler has not timed the task out yet, so it is still waiting."""
+        ti = session.get(TIModel, sample_ti.id)
+        assert ti is not None
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        ti.trigger_timeout = datetime(2025, 7, 2, 0, 0, 0, tzinfo=utc)
+        session.commit()
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 200
+        session.expire_all()
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        assert detail.response_received
+        assert detail.chosen_options == ["Approve"]
+        refreshed = session.get(TIModel, sample_ti.id)
+        assert refreshed is not None
+        assert refreshed.state == TaskInstanceState.SCHEDULED
+        assert "event" in (refreshed.next_kwargs or {})
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_a_response_for_a_replaced_request_is_refused(
         self,
         test_client: TestClient,
@@ -880,7 +999,7 @@ class TestUpdateHITLDetailEndpoint:
         assert unanswered is not None
         assert not unanswered.response_received
 
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_a_stale_response_to_an_answered_request_reports_it_answered(
         self,
         test_client: TestClient,
@@ -921,7 +1040,7 @@ class TestUpdateHITLDetailEndpoint:
 
         assert response.status_code == 422
 
-    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_a_response_naming_the_waiting_request_is_applied(
         self,
         test_client: TestClient,

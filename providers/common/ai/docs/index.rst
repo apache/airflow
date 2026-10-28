@@ -35,7 +35,7 @@ Start here
 - :doc:`features`: what the provider can do, with the page, extra, minimum Airflow
   version and stability of each feature.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
-- :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
+- :doc:`use_cases/index`: jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
 
 This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
@@ -227,7 +227,7 @@ Install them when installing from PyPI. For example:
 ===============  =======================================================================================================================================
 Extra            Dependencies
 ===============  =======================================================================================================================================
-``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0``
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0,<2``
 ``bedrock``      ``pydantic-ai-slim[bedrock]>=2.36.0``
 ``google``       ``pydantic-ai-slim[google]>=2.36.0``
 ``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
