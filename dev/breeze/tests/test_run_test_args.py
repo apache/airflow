@@ -110,6 +110,19 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
     mock_run_command.assert_called_once()  # called only to compose down
 
 
+def test_split_provider_part_is_skipped_if_its_provider_is_ignored(mock_run_command):
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers[amazon:hooks]"),
+        extra_pytest_args=("--ignore=providers/amazon/tests",),
+        python_version="3.9",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+
+    mock_run_command.assert_called_once()  # called only to compose down
+
+
 def test_test_is_skipped_when_all_providers_excluded_for_python_version(
     mock_run_command, mock_get_excluded_provider_folders
 ):
