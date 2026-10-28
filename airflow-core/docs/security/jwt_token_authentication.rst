@@ -722,7 +722,7 @@ Use an image containing processor API support; this feature targets Airflow 3.5.
 Synchronize the bundle catalog in the trusted deployment before starting the processor,
 and again whenever the bundle configuration changes::
 
-    airflow dag-processor --sync-bundles-only
+    airflow dag-processor-sync-bundles
 
 This step needs database access and the deployment's Fernet key when signing bundle URLs.
 Token provisioning itself needs only the API's JWT signing configuration and the configured
