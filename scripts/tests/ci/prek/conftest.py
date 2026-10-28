@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ci.prek import lang_sdk_compat_matrix as matrix
 
 
 @pytest.fixture
@@ -74,3 +75,57 @@ def create_provider_tree(tmp_path):
         return test_file
 
     return _create
+
+
+@pytest.fixture
+def capabilities_entry():
+    """Factory fixture: one dimension entry of a ``capabilities.yaml`` manifest."""
+
+    def _entry(
+        supported: bool, since: str | None = None, sdk_version: str | None = None, note: str = ""
+    ) -> dict:
+        return {"supported": supported, "since": since, "sdk_version": sdk_version, "note": note}
+
+    return _entry
+
+
+@pytest.fixture
+def capabilities_doc(capabilities_entry):
+    """Factory fixture: a fully-populated, valid capabilities document for an SDK."""
+
+    def _doc(sdk_id: str = "go", **overrides) -> dict:
+        doc = {
+            "sdk": sdk_id,
+            "supervisor_schema_version": "2026-06-16",
+            "min_airflow_version": "3.3",
+            "states": {state: capabilities_entry(True, since="3.3") for state, _ in matrix.STATE_DIMENSIONS},
+            "capabilities": {
+                cap.name: {mode: capabilities_entry(True, since="3.3") for mode in matrix.AUTHORING_MODES}
+                if cap.name in matrix.SHARED_CAPABILITY_NAMES
+                else capabilities_entry(True, since="3.3")
+                for cap in matrix.CAPABILITY_DIMENSIONS
+            },
+        }
+        doc.update(overrides)
+        return doc
+
+    return _doc
+
+
+@pytest.fixture
+def capabilities_doc_without_dag_definition(capabilities_doc, capabilities_entry):
+    """Factory fixture: a valid document for an SDK that does not define Dags in its own language."""
+
+    def _doc(sdk_id: str = "go") -> dict:
+        doc = capabilities_doc(sdk_id)
+        doc["capabilities"][matrix.DAG_DEFINITION_GATE] = capabilities_entry(False)
+        for row in matrix.build_matrix_parts().dag_definition.groups[0].rows:
+            if not row.gated:
+                continue
+            if row.name in matrix.SHARED_CAPABILITY_NAMES:
+                doc["capabilities"][row.name][matrix.DAG_DEFINITION_MODE] = capabilities_entry(False)
+            else:
+                doc["capabilities"][row.name] = capabilities_entry(False)
+        return doc
+
+    return _doc

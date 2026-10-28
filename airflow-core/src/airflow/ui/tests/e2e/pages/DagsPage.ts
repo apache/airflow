@@ -70,10 +70,6 @@ export class DagsPage extends BasePage {
     return `/dags/${dagName}`;
   }
 
-  public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
-    return `/dags/${dagName}/runs/${dagRunId}/details`;
-  }
-
   /**
    * Clear the search input and wait for list to reset
    */

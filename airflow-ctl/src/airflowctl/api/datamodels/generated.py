@@ -355,9 +355,6 @@ class ConfigOption(BaseModel):
     Config option.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | Value, Field(title="Value")]
 
@@ -367,9 +364,6 @@ class ConfigSection(BaseModel):
     Config Section Schema.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     name: Annotated[str, Field(title="Name")]
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
@@ -697,9 +691,6 @@ class DagRunAssetReference(BaseModel):
     DagRun serializer for asset responses.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
@@ -776,9 +767,6 @@ class DagScheduleAssetReference(BaseModel):
     Dag schedule reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
@@ -1162,6 +1150,50 @@ class PluginImportErrorResponse(BaseModel):
     error: Annotated[str, Field(title="Error")]
 
 
+class Destination1(str, Enum):
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK_INSTANCE = "task_instance"
+
+
+class PluginLinkActionResponse(BaseModel):
+    """
+    Serializer for a UI action that opens a URL.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["link"], Field(title="Action Type")]
+    href: Annotated[str, Field(title="Href")]
+
+
+class PluginReactActionResponse(BaseModel):
+    """
+    Serializer for a UI action that mounts a React component behind a button.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    destination: Annotated[Destination1, Field(title="Destination")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
+    applies_to: PluginAppliesToResponse | None = None
+    action_type: Annotated[Literal["react"], Field(title="Action Type")]
+    bundle_url: Annotated[str, Field(title="Bundle Url")]
+
+
+class UiActions(RootModel[PluginLinkActionResponse | PluginReactActionResponse]):
+    root: Annotated[PluginLinkActionResponse | PluginReactActionResponse, Field(discriminator="action_type")]
+
+
 class PoolBody(BaseModel):
     """
     Pool serializer for post bodies.
@@ -1214,6 +1246,109 @@ class PoolResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")]
 
 
+class ProviderAssetUriInfo(BaseModel):
+    """
+    Asset URI scheme handling provided by a provider.
+    """
+
+    schemes: Annotated[list[str], Field(title="Schemes")]
+    handler: Annotated[str | None, Field(title="Handler")] = None
+    factory: Annotated[str | None, Field(title="Factory")] = None
+    to_openlineage_converter: Annotated[str | None, Field(title="To Openlineage Converter")] = None
+
+
+class ProviderConfigOptionInfo(BaseModel):
+    """
+    Configuration option contributed by a provider.
+    """
+
+    description: Annotated[str | None, Field(title="Description")] = None
+    version_added: Annotated[str | None, Field(title="Version Added")] = None
+    type: Annotated[str | None, Field(title="Type")] = None
+    example: Annotated[str | int | float | None, Field(title="Example")] = None
+    default: Annotated[str | int | float | None, Field(title="Default")] = None
+    sensitive: Annotated[bool | None, Field(title="Sensitive")] = None
+    is_template: Annotated[bool | None, Field(title="Is Template")] = None
+    see_also: Annotated[str | None, Field(title="See Also")] = None
+
+
+class ProviderConfigSectionInfo(BaseModel):
+    """
+    Configuration section contributed by a provider.
+    """
+
+    description: Annotated[str | None, Field(title="Description")] = None
+    options: Annotated[dict[str, ProviderConfigOptionInfo] | None, Field(title="Options")] = None
+
+
+class ProviderConnectionFieldInfo(BaseModel):
+    """
+    Custom connection field a connection type stores in ``Connection.extra``.
+    """
+
+    label: Annotated[str, Field(title="Label")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    schema_: Annotated[dict[str, Any], Field(alias="schema", title="Schema")]
+
+
+class ProviderConnectionUiFieldBehaviourInfo(BaseModel):
+    """
+    Customizations a connection type applies to the standard connection form fields.
+    """
+
+    hidden_fields: Annotated[list[str] | None, Field(title="Hidden Fields")] = None
+    relabeling: Annotated[dict[str, str] | None, Field(title="Relabeling")] = None
+    placeholders: Annotated[dict[str, str] | None, Field(title="Placeholders")] = None
+
+
+class ProviderDialectInfo(BaseModel):
+    """
+    SQL dialect provided by a provider.
+    """
+
+    dialect_type: Annotated[str | None, Field(title="Dialect Type")] = None
+    dialect_class_name: Annotated[str | None, Field(title="Dialect Class Name")] = None
+
+
+class ProviderIntegrationInfo(BaseModel):
+    """
+    Integration provided by a provider.
+    """
+
+    integration_name: Annotated[str, Field(title="Integration Name")]
+    external_doc_url: Annotated[str | None, Field(title="External Doc Url")] = None
+    how_to_guide: Annotated[list[str] | None, Field(title="How To Guide")] = None
+    logo: Annotated[str | None, Field(title="Logo")] = None
+    tags: Annotated[list[str] | None, Field(title="Tags")] = None
+
+
+class ProviderIntegrationModulesInfo(BaseModel):
+    """
+    Python modules an integration contributes for one kind of functionality.
+    """
+
+    integration_name: Annotated[str, Field(title="Integration Name")]
+    python_modules: Annotated[list[str], Field(title="Python Modules")]
+
+
+class ProviderPluginInfo(BaseModel):
+    """
+    Plugin provided by a provider.
+    """
+
+    name: Annotated[str | None, Field(title="Name")] = None
+    plugin_class: Annotated[str | None, Field(title="Plugin Class")] = None
+
+
+class ProviderRemoteLoggingInfo(BaseModel):
+    """
+    Remote logging IO handler provided by a provider.
+    """
+
+    classpath: Annotated[str, Field(title="Classpath")]
+    scheme: Annotated[str, Field(title="Scheme")]
+
+
 class ProviderResponse(BaseModel):
     """
     Provider serializer for responses.
@@ -1223,6 +1358,26 @@ class ProviderResponse(BaseModel):
     description: Annotated[str, Field(title="Description")]
     version: Annotated[str, Field(title="Version")]
     documentation_url: Annotated[str | None, Field(title="Documentation Url")]
+
+
+class ProviderTaskDecoratorInfo(BaseModel):
+    """
+    TaskFlow decorator provided by a provider.
+    """
+
+    name: Annotated[str | None, Field(title="Name")] = None
+    class_name: Annotated[str | None, Field(title="Class Name")] = None
+
+
+class ProviderTransferInfo(BaseModel):
+    """
+    Transfer operator provided by a provider.
+    """
+
+    source_integration_name: Annotated[str, Field(title="Source Integration Name")]
+    target_integration_name: Annotated[str, Field(title="Target Integration Name")]
+    python_module: Annotated[str, Field(title="Python Module")]
+    how_to_guide: Annotated[str | None, Field(title="How To Guide")] = None
 
 
 class QueuedEventResponse(BaseModel):
@@ -1236,7 +1391,7 @@ class QueuedEventResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
-class Destination1(str, Enum):
+class Destination3(str, Enum):
     NAV = "nav"
     DAG = "dag"
     DAG_RUN = "dag_run"
@@ -1265,7 +1420,7 @@ class ReactAppResponse(BaseModel):
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
     bundle_url: Annotated[str, Field(title="Bundle Url")]
-    destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
+    destination: Annotated[Destination3 | None, Field(title="Destination")] = "nav"
 
 
 class ReprocessBehavior(str, Enum):
@@ -1315,9 +1470,6 @@ class TaskInletAssetReference(BaseModel):
     Task inlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1400,9 +1552,6 @@ class TaskOutletAssetReference(BaseModel):
     Task outlet reference serializer for assets.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
@@ -1798,7 +1947,7 @@ class BackfillPostBody(BaseModel):
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
-    max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    max_active_runs: Annotated[int | None, Field(ge=1, title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -2174,9 +2323,6 @@ class Config(BaseModel):
     List of config sections with their options.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     sections: Annotated[list[ConfigSection], Field(title="Sections")]
 
 
@@ -2586,6 +2732,13 @@ class PluginResponse(BaseModel):
         ),
     ]
     react_apps: Annotated[list[ReactAppResponse], Field(title="React Apps")]
+    ui_actions: Annotated[
+        list[UiActions] | None,
+        Field(
+            description="User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.",
+            title="Ui Actions",
+        ),
+    ] = None
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[
         list[AppBuilderMenuItemResponse], Field(deprecated=True, title="Appbuilder Menu Items")
@@ -2613,6 +2766,58 @@ class ProviderCollectionResponse(BaseModel):
 
     providers: Annotated[list[ProviderResponse], Field(title="Providers")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class ProviderConnectionTypeInfo(BaseModel):
+    """
+    Connection type provided by a provider.
+    """
+
+    connection_type: Annotated[str, Field(title="Connection Type")]
+    hook_class_name: Annotated[str, Field(title="Hook Class Name")]
+    hook_name: Annotated[str | None, Field(title="Hook Name")] = None
+    ui_field_behaviour: ProviderConnectionUiFieldBehaviourInfo | None = None
+    conn_fields: Annotated[dict[str, ProviderConnectionFieldInfo] | None, Field(title="Conn Fields")] = None
+    external_services: Annotated[list[str] | None, Field(title="External Services")] = None
+
+
+class ProviderInfoResponse(BaseModel):
+    """
+    Typed provider metadata (from ``provider.yaml``) exposed by the API.
+    """
+
+    package_name: Annotated[str | None, Field(title="Package Name")] = None
+    name: Annotated[str | None, Field(title="Name")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
+    filesystems: Annotated[list[str] | None, Field(title="Filesystems")] = None
+    integrations: Annotated[list[ProviderIntegrationInfo] | None, Field(title="Integrations")] = None
+    operators: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Operators")] = None
+    sensors: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Sensors")] = None
+    hooks: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Hooks")] = None
+    triggers: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Triggers")] = None
+    bundles: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Bundles")] = None
+    asset_uris: Annotated[list[ProviderAssetUriInfo] | None, Field(title="Asset Uris")] = None
+    dialects: Annotated[list[ProviderDialectInfo] | None, Field(title="Dialects")] = None
+    transfers: Annotated[list[ProviderTransferInfo] | None, Field(title="Transfers")] = None
+    connection_types: Annotated[list[ProviderConnectionTypeInfo] | None, Field(title="Connection Types")] = (
+        None
+    )
+    extra_links: Annotated[list[str] | None, Field(title="Extra Links")] = None
+    secrets_backends: Annotated[list[str] | None, Field(title="Secrets Backends")] = None
+    email_backends: Annotated[list[str] | None, Field(title="Email Backends")] = None
+    logging: Annotated[list[str] | None, Field(title="Logging")] = None
+    remote_logging: Annotated[list[ProviderRemoteLoggingInfo] | None, Field(title="Remote Logging")] = None
+    auth_backends: Annotated[list[str] | None, Field(title="Auth Backends")] = None
+    auth_managers: Annotated[list[str] | None, Field(title="Auth Managers")] = None
+    notifications: Annotated[list[str] | None, Field(title="Notifications")] = None
+    executors: Annotated[list[str] | None, Field(title="Executors")] = None
+    db_managers: Annotated[list[str] | None, Field(title="Db Managers")] = None
+    cli: Annotated[list[str] | None, Field(title="Cli")] = None
+    config: Annotated[dict[str, ProviderConfigSectionInfo] | None, Field(title="Config")] = None
+    task_decorators: Annotated[list[ProviderTaskDecoratorInfo] | None, Field(title="Task Decorators")] = None
+    plugins: Annotated[list[ProviderPluginInfo] | None, Field(title="Plugins")] = None
+    queues: Annotated[list[str] | None, Field(title="Queues")] = None
 
 
 class QueuedEventCollectionResponse(BaseModel):
@@ -2681,10 +2886,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
-        Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
-            title="State Reason",
-        ),
+        Field(description="The reason this try ended, as recorded by a retry policy.", title="State Reason"),
     ] = None
 
 
@@ -2735,7 +2937,7 @@ class TaskInstanceResponse(BaseModel):
     state_reason: Annotated[
         str | None,
         Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
         ),
     ] = None
@@ -3093,6 +3295,18 @@ class PluginCollectionResponse(BaseModel):
 
     plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class ProviderDetailsResponse(BaseModel):
+    """
+    Detailed provider serializer for responses.
+    """
+
+    package_name: Annotated[str, Field(title="Package Name")]
+    description: Annotated[str, Field(title="Description")]
+    version: Annotated[str, Field(title="Version")]
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")]
+    provider_info: ProviderInfoResponse
 
 
 class TaskCollectionResponse(BaseModel):

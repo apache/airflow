@@ -29,8 +29,13 @@ Prioritize terms commonly used in the Taiwan tech ecosystem.
 
 ## Plural Forms
 
-Traditional Chinese **does not** distinguish between singular and plural forms.
-Use the **same translation** for both `_one` and `_other` suffixes:
+Traditional Chinese **does not** distinguish between singular and plural forms,
+so both suffixes use the same noun. i18next currently never selects `_one`
+for `zh-TW` (the locale has a single plural category, `other`), but the key
+must still exist for translation completeness.
+
+Some keys are plain nouns rather than counts — use the same translation for
+both suffixes:
 
 **English source:**
 
@@ -44,6 +49,30 @@ Use the **same translation** for both `_one` and `_other` suffixes:
 ```json
 "dagRun_one": "Dag 執行",
 "dagRun_other": "Dag 執行"
+```
+
+When the English `_one` does carry a count, write it as a literal `1` instead
+of interpolating `{{count, number}}`; keep the placeholder in `_other`:
+
+**English source:**
+
+```json
+"taskCount_one": "{{count, number}} Task",
+"taskCount_other": "{{count, number}} Tasks"
+```
+
+**Correct** — literal `1` in `_one`:
+
+```json
+"taskCount_one": "1 個任務",
+"taskCount_other": "{{count, number}} 個任務"
+```
+
+**Incorrect** — interpolating a count that can only be 1:
+
+```json
+"taskCount_one": "{{count, number}} 個任務",
+"taskCount_other": "{{count, number}} 個任務"
 ```
 
 ## Spacing Rules

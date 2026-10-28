@@ -23,7 +23,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -39,6 +42,7 @@ from airflowctl.api.client import (
     _bounded_get_new_password,
     get_client,
     get_json_error,
+    provide_api_client,
 )
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import (
@@ -57,7 +61,9 @@ def make_client_w_responses(responses: list[httpx.Response]) -> Client:
     return Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
 
-def make_unread_json_response(status_code: int, payload: dict, **kwargs) -> httpx.Response:
+def make_unread_json_response(
+    status_code: int, payload: Any, content_type: str = "application/json", **kwargs
+) -> httpx.Response:
     """
     Build a JSON response whose body has not been read yet.
 
@@ -67,7 +73,7 @@ def make_unread_json_response(status_code: int, payload: dict, **kwargs) -> http
     """
     return httpx.Response(
         status_code,
-        headers={"content-type": "application/json"},
+        headers={"content-type": content_type},
         content=iter([json.dumps(payload).encode()]),
         **kwargs,
     )
@@ -143,6 +149,62 @@ class TestClient:
             get_json_error(response)
 
         assert err.value.args == (expected_message,)
+
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            pytest.param("application/json; charset=utf-8", id="charset"),
+            pytest.param("application/json;charset=UTF-8", id="charset-no-space"),
+            pytest.param("Application/JSON", id="mixed-case"),
+            pytest.param("application/problem+json", id="problem-json"),
+        ],
+    )
+    def test_error_parsing_json_media_type_variants(self, content_type):
+        response = make_unread_json_response(
+            404,
+            {"detail": "boom"},
+            content_type=content_type,
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        with pytest.raises(ServerResponseError):
+            get_json_error(response)
+
+    def test_error_parsing_media_type_merely_prefixed_with_json(self):
+        response = make_unread_json_response(
+            404,
+            {"detail": "boom"},
+            content_type="application/jsonp",
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        assert get_json_error(response) is None
+
+    def test_error_parsing_undecodable_json_body(self):
+        response = httpx.Response(
+            404,
+            headers={"content-type": "application/json"},
+            content=iter([b"{truncated"]),
+            request=httpx.Request("GET", "http://error"),
+        )
+
+        assert get_json_error(response) is None
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_extra"),
+        [
+            pytest.param(["a", "b"], {"detail": ["a", "b"]}, id="array"),
+            pytest.param("plain message", {"detail": "plain message"}, id="string"),
+        ],
+    )
+    @patch("airflowctl.api.client.log.warning", autospec=True)
+    def test_error_log_accepts_non_object_json_body(self, mock_warning, payload, expected_extra):
+        response = make_unread_json_response(404, payload, request=httpx.Request("GET", "http://error"))
+
+        with pytest.raises(ServerResponseError):
+            get_json_error(response)
+
+        assert mock_warning.call_args.kwargs["extra"] == expected_extra
 
     @pytest.mark.parametrize(
         ("suppress_error_log", "expected_warning_count"),
@@ -302,6 +364,17 @@ class TestCredentials:
             Credentials(client_kind=cli_client).load()
 
         assert not os.path.exists(config_dir)
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_EMPTY_CREDENTIALS"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_empty_or_corrupt_credentials(self, mock_keyring):
+        cli_client = ClientKind.CLI
+        config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(config_dir, exist_ok=True)
+        with open(os.path.join(config_dir, "TEST_EMPTY_CREDENTIALS.json"), "w") as f:
+            f.write("")
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No credentials file found"):
+            Credentials(client_kind=cli_client).load()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CONFIG_WITH_EXPLICIT_TOKEN"})
     @patch("airflowctl.api.client.keyring")
@@ -640,3 +713,44 @@ class TestRetryConfigurationEnvVars:
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "0"
         assert result.stderr == ""
+
+
+class TestGetClientEnvironment:
+    """``get_client`` and ``@provide_api_client`` commands resolve the config file for the requested environment."""
+
+    @staticmethod
+    def _write_environment_config(airflow_home, environment: str, api_url: str) -> None:
+        (airflow_home / f"{environment}.json").write_text(json.dumps({"api_url": api_url}), encoding="utf-8")
+
+    @pytest.fixture(autouse=True)
+    def environments(self, tmp_path):
+        """The module fixture already clears the environment; pin AIRFLOW_HOME to tmp_path."""
+        os.environ["AIRFLOW_HOME"] = str(tmp_path)
+        self._write_environment_config(tmp_path, "production", "https://prod.example.com")
+        self._write_environment_config(tmp_path, "staging", "https://staging.example.com")
+        yield tmp_path
+        del os.environ["AIRFLOW_HOME"]
+
+    def test_uses_the_requested_environment(self):
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="staging") as client:
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
+
+    def test_no_auth_uses_the_requested_environment(self):
+        with get_client(kind=ClientKind.NO_AUTH, api_environment="staging") as client:
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
+
+    def test_environment_variable_beats_the_explicit_argument(self, monkeypatch):
+        """AIRFLOW_CLI_ENVIRONMENT keeps precedence, matching Credentials' own contract."""
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "staging")
+        with get_client(kind=ClientKind.CLI, api_token="TOKEN", api_environment="production") as client:
+            assert urlparse(str(client.base_url)).hostname == "staging.example.com"
+
+    def test_decorator_forwards_the_env_argument(self):
+        @provide_api_client(kind=ClientKind.CLI)
+        def command_under_test(args, api_client=None):
+            # Inspect the client inside the command: the wrapper closes it
+            # before returning.
+            return urlparse(str(api_client.base_url)).hostname == "staging.example.com"
+
+        args = SimpleNamespace(env="staging", api_token="TOKEN")
+        assert command_under_test(args) is True

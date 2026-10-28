@@ -38,7 +38,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
 from sqlalchemy import delete, select, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
@@ -1109,6 +1109,49 @@ class TestTIRunState:
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
 
+    def test_ti_run_does_not_load_the_dag_for_a_regular_task(self, client, dag_maker, mocker):
+        """The row rules the task out, so starting it reads no serialized Dag -- the point of the column."""
+        with dag_maker("test_regular_task_arg_bindings", serialized=True):
+
+            @task
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        assert ti.is_stub is False
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        get_dag = mocker.patch.object(DBDagBag, "get_dag", autospec=True)
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+        get_dag.assert_not_called()
+
+    def test_ti_run_treats_an_unset_is_stub_as_a_regular_task(self, client, dag_maker):
+        """A row written before the column existed carries null and keeps its pre-upgrade behavior."""
+        with dag_maker("test_unset_is_stub", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.get(TaskInstance, ti.id).is_stub = None
+        dag_maker.session.commit()
+        assert dag_maker.session.scalar(select(TaskInstance.is_stub).where(TaskInstance.id == ti.id)) is None
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
         autospec=True,
@@ -1150,6 +1193,55 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+
+    @pytest.mark.parametrize(
+        ("decorator", "expected"),
+        [
+            pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
+            pytest.param(task.stub, None, id="stub-without-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(
+                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+            ),
+            # A Python task's timeout stays with the task runner, which sends it to the supervisor,
+            # so the server resolves one only for a task whose definition it loads anyway.
+            pytest.param(task(execution_timeout=timedelta(seconds=10)), None, id="python-task"),
+        ],
+    )
+    def test_ti_run_returns_execution_timeout(self, client, dag_maker, decorator, expected):
+        with dag_maker("test_execution_timeout_dag", serialized=True):
+
+            @decorator
+            def sleeper(): ...
+
+            sleeper()
+
+        (ti,) = dag_maker.create_dagrun().get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("execution_timeout") == expected
+        assert ("execution_timeout" in body) == (expected is not None)
+
+    def test_ti_run_returns_execution_timeout_for_mapped_stub(self, client, dag_maker):
+        with dag_maker("test_mapped_stub_execution_timeout", serialized=True):
+
+            @task.stub(execution_timeout=timedelta(seconds=90))
+            def transform(country: str): ...
+
+            transform.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["execution_timeout"] == 90.0
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""
@@ -3682,6 +3774,45 @@ class TestTIUpdateState:
             detail = response.json()["detail"]
             assert isinstance(detail, dict)
             assert detail.get("reason") == "Database error"
+
+    @pytest.mark.parametrize(
+        ("pgcode", "expected_status", "expected_state"),
+        [
+            pytest.param("40P01", 500, State.RUNNING, id="deadlock-is-retryable"),
+            pytest.param("55P03", 204, State.FAILED, id="other-operational-error-fails-ti"),
+            pytest.param("psycopg3", 500, State.RUNNING, id="psycopg3-deadlock-is-retryable"),
+        ],
+    )
+    def test_ti_update_state_deadlock_returns_5xx_instead_of_failing(
+        self, client, session, create_task_instance, mocker, pgcode, expected_status, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_deadlock_returns_5xx_instead_of_failing",
+            state=State.RUNNING,
+        )
+        session.commit()
+        if pgcode == "psycopg3":
+            errors = pytest.importorskip(
+                "psycopg.errors", reason="Test only runs when psycopg v3 is installed."
+            )
+            orig = errors.DeadlockDetected("deadlock detected")
+        else:
+            orig = mock.Mock(sqlstate=None, pgcode=pgcode, args=("db error",))
+        mocker.patch.object(
+            task_instances_route,
+            "_create_ti_state_update_query_and_update_state",
+            autospec=True,
+            side_effect=OperationalError("statement", {}, orig),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == expected_state
 
     def test_ti_run_database_error(self, client, session, create_task_instance):
         """

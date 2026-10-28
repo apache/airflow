@@ -985,6 +985,7 @@ export const $BackfillPostBody = {
         },
         max_active_runs: {
             type: 'integer',
+            minimum: 1,
             title: 'Max Active Runs',
             default: 10
         },
@@ -2586,7 +2587,6 @@ export const $Config = {
             title: 'Sections'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['sections'],
     title: 'Config',
@@ -2621,7 +2621,6 @@ export const $ConfigOption = {
             title: 'Value'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['key', 'value'],
     title: 'ConfigOption',
@@ -2642,7 +2641,6 @@ export const $ConfigSection = {
             title: 'Options'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['name', 'options'],
     title: 'ConfigSection',
@@ -5202,7 +5200,6 @@ export const $DagRunAssetReference = {
             description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
@@ -5269,7 +5266,6 @@ export const $DagScheduleAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
@@ -7005,6 +7001,126 @@ export const $PluginImportErrorResponse = {
     description: 'Plugin Import Error serializer for responses.'
 } as const;
 
+export const $PluginLinkActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'link',
+            title: 'Action Type'
+        },
+        href: {
+            type: 'string',
+            title: 'Href'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'href'],
+    title: 'PluginLinkActionResponse',
+    description: 'Serializer for a UI action that opens a URL.'
+} as const;
+
+export const $PluginReactActionResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        destination: {
+            type: 'string',
+            enum: ['dag', 'dag_run', 'task_instance'],
+            title: 'Destination'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        action_type: {
+            type: 'string',
+            const: 'react',
+            title: 'Action Type'
+        },
+        bundle_url: {
+            type: 'string',
+            title: 'Bundle Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: ['name', 'destination', 'action_type', 'bundle_url'],
+    title: 'PluginReactActionResponse',
+    description: 'Serializer for a UI action that mounts a React component behind a button.'
+} as const;
+
 export const $PluginResponse = {
     properties: {
         name: {
@@ -7064,6 +7180,28 @@ export const $PluginResponse = {
             },
             type: 'array',
             title: 'React Apps'
+        },
+        ui_actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/PluginLinkActionResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/PluginReactActionResponse'
+                    }
+                ],
+                discriminator: {
+                    propertyName: 'action_type',
+                    mapping: {
+                        link: '#/components/schemas/PluginLinkActionResponse',
+                        react: '#/components/schemas/PluginReactActionResponse'
+                    }
+                }
+            },
+            type: 'array',
+            title: 'Ui Actions',
+            description: 'User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.'
         },
         appbuilder_views: {
             items: {
@@ -7325,6 +7463,55 @@ export const $PoolResponse = {
     description: 'Pool serializer for responses.'
 } as const;
 
+export const $ProviderAssetUriInfo = {
+    properties: {
+        schemes: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Schemes'
+        },
+        handler: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Handler'
+        },
+        factory: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Factory'
+        },
+        to_openlineage_converter: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'To Openlineage Converter'
+        }
+    },
+    type: 'object',
+    required: ['schemes'],
+    title: 'ProviderAssetUriInfo',
+    description: 'Asset URI scheme handling provided by a provider.'
+} as const;
+
 export const $ProviderCollectionResponse = {
     properties: {
         providers: {
@@ -7343,6 +7530,896 @@ export const $ProviderCollectionResponse = {
     required: ['providers', 'total_entries'],
     title: 'ProviderCollectionResponse',
     description: 'Provider Collection serializer for responses.'
+} as const;
+
+export const $ProviderConfigOptionInfo = {
+    properties: {
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        version_added: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Version Added'
+        },
+        type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Type'
+        },
+        example: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Example'
+        },
+        default: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Default'
+        },
+        sensitive: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Sensitive'
+        },
+        is_template: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Template'
+        },
+        see_also: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'See Also'
+        }
+    },
+    type: 'object',
+    title: 'ProviderConfigOptionInfo',
+    description: 'Configuration option contributed by a provider.'
+} as const;
+
+export const $ProviderConfigSectionInfo = {
+    properties: {
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        options: {
+            additionalProperties: {
+                '$ref': '#/components/schemas/ProviderConfigOptionInfo'
+            },
+            type: 'object',
+            title: 'Options'
+        }
+    },
+    type: 'object',
+    title: 'ProviderConfigSectionInfo',
+    description: 'Configuration section contributed by a provider.'
+} as const;
+
+export const $ProviderConnectionFieldInfo = {
+    properties: {
+        label: {
+            type: 'string',
+            title: 'Label'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        schema: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Schema'
+        }
+    },
+    type: 'object',
+    required: ['label', 'schema'],
+    title: 'ProviderConnectionFieldInfo',
+    description: 'Custom connection field a connection type stores in ``Connection.extra``.'
+} as const;
+
+export const $ProviderConnectionTypeInfo = {
+    properties: {
+        connection_type: {
+            type: 'string',
+            title: 'Connection Type'
+        },
+        hook_class_name: {
+            type: 'string',
+            title: 'Hook Class Name'
+        },
+        hook_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hook Name'
+        },
+        ui_field_behaviour: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/ProviderConnectionUiFieldBehaviourInfo'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        conn_fields: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/ProviderConnectionFieldInfo'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conn Fields'
+        },
+        external_services: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'External Services'
+        }
+    },
+    type: 'object',
+    required: ['connection_type', 'hook_class_name'],
+    title: 'ProviderConnectionTypeInfo',
+    description: 'Connection type provided by a provider.'
+} as const;
+
+export const $ProviderConnectionUiFieldBehaviourInfo = {
+    properties: {
+        hidden_fields: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hidden Fields'
+        },
+        relabeling: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'string'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Relabeling'
+        },
+        placeholders: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'string'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Placeholders'
+        }
+    },
+    type: 'object',
+    title: 'ProviderConnectionUiFieldBehaviourInfo',
+    description: 'Customizations a connection type applies to the standard connection form fields.'
+} as const;
+
+export const $ProviderDetailsResponse = {
+    properties: {
+        package_name: {
+            type: 'string',
+            title: 'Package Name'
+        },
+        description: {
+            type: 'string',
+            title: 'Description'
+        },
+        version: {
+            type: 'string',
+            title: 'Version'
+        },
+        documentation_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation Url'
+        },
+        provider_info: {
+            '$ref': '#/components/schemas/ProviderInfoResponse'
+        }
+    },
+    type: 'object',
+    required: ['package_name', 'description', 'version', 'documentation_url', 'provider_info'],
+    title: 'ProviderDetailsResponse',
+    description: 'Detailed provider serializer for responses.'
+} as const;
+
+export const $ProviderDialectInfo = {
+    properties: {
+        dialect_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dialect Type'
+        },
+        dialect_class_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dialect Class Name'
+        }
+    },
+    type: 'object',
+    title: 'ProviderDialectInfo',
+    description: 'SQL dialect provided by a provider.'
+} as const;
+
+export const $ProviderInfoResponse = {
+    properties: {
+        package_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Package Name'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        documentation_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation Url'
+        },
+        filesystems: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Filesystems'
+        },
+        integrations: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Integrations'
+        },
+        operators: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationModulesInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operators'
+        },
+        sensors: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationModulesInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Sensors'
+        },
+        hooks: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationModulesInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hooks'
+        },
+        triggers: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationModulesInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Triggers'
+        },
+        bundles: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderIntegrationModulesInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundles'
+        },
+        asset_uris: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderAssetUriInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Uris'
+        },
+        dialects: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderDialectInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dialects'
+        },
+        transfers: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderTransferInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Transfers'
+        },
+        connection_types: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderConnectionTypeInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Connection Types'
+        },
+        extra_links: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Extra Links'
+        },
+        secrets_backends: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Secrets Backends'
+        },
+        email_backends: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Email Backends'
+        },
+        logging: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logging'
+        },
+        remote_logging: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderRemoteLoggingInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Remote Logging'
+        },
+        auth_backends: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Auth Backends'
+        },
+        auth_managers: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Auth Managers'
+        },
+        notifications: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Notifications'
+        },
+        executors: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Executors'
+        },
+        db_managers: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Db Managers'
+        },
+        cli: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cli'
+        },
+        config: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/ProviderConfigSectionInfo'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Config'
+        },
+        task_decorators: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderTaskDecoratorInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Decorators'
+        },
+        plugins: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderPluginInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Plugins'
+        },
+        queues: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queues'
+        }
+    },
+    type: 'object',
+    title: 'ProviderInfoResponse',
+    description: 'Typed provider metadata (from ``provider.yaml``) exposed by the API.'
+} as const;
+
+export const $ProviderIntegrationInfo = {
+    properties: {
+        integration_name: {
+            type: 'string',
+            title: 'Integration Name'
+        },
+        external_doc_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'External Doc Url'
+        },
+        how_to_guide: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'How To Guide'
+        },
+        logo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logo'
+        },
+        tags: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tags'
+        }
+    },
+    type: 'object',
+    required: ['integration_name'],
+    title: 'ProviderIntegrationInfo',
+    description: 'Integration provided by a provider.'
+} as const;
+
+export const $ProviderIntegrationModulesInfo = {
+    properties: {
+        integration_name: {
+            type: 'string',
+            title: 'Integration Name'
+        },
+        python_modules: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Python Modules'
+        }
+    },
+    type: 'object',
+    required: ['integration_name', 'python_modules'],
+    title: 'ProviderIntegrationModulesInfo',
+    description: 'Python modules an integration contributes for one kind of functionality.'
+} as const;
+
+export const $ProviderPluginInfo = {
+    properties: {
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        plugin_class: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Plugin Class'
+        }
+    },
+    type: 'object',
+    title: 'ProviderPluginInfo',
+    description: 'Plugin provided by a provider.'
+} as const;
+
+export const $ProviderRemoteLoggingInfo = {
+    properties: {
+        classpath: {
+            type: 'string',
+            title: 'Classpath'
+        },
+        scheme: {
+            type: 'string',
+            title: 'Scheme'
+        }
+    },
+    type: 'object',
+    required: ['classpath', 'scheme'],
+    title: 'ProviderRemoteLoggingInfo',
+    description: 'Remote logging IO handler provided by a provider.'
 } as const;
 
 export const $ProviderResponse = {
@@ -7375,6 +8452,68 @@ export const $ProviderResponse = {
     required: ['package_name', 'description', 'version', 'documentation_url'],
     title: 'ProviderResponse',
     description: 'Provider serializer for responses.'
+} as const;
+
+export const $ProviderTaskDecoratorInfo = {
+    properties: {
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        class_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Class Name'
+        }
+    },
+    type: 'object',
+    title: 'ProviderTaskDecoratorInfo',
+    description: 'TaskFlow decorator provided by a provider.'
+} as const;
+
+export const $ProviderTransferInfo = {
+    properties: {
+        source_integration_name: {
+            type: 'string',
+            title: 'Source Integration Name'
+        },
+        target_integration_name: {
+            type: 'string',
+            title: 'Target Integration Name'
+        },
+        python_module: {
+            type: 'string',
+            title: 'Python Module'
+        },
+        how_to_guide: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'How To Guide'
+        }
+    },
+    type: 'object',
+    required: ['source_integration_name', 'target_integration_name', 'python_module'],
+    title: 'ProviderTransferInfo',
+    description: 'Transfer operator provided by a provider.'
 } as const;
 
 export const $QueuedEventCollectionResponse = {
@@ -7700,7 +8839,6 @@ export const $TaskInletAssetReference = {
             title: 'Updated At'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskInletAssetReference',
@@ -8056,7 +9194,7 @@ export const $TaskInstanceHistoryResponse = {
                 }
             ],
             title: 'State Reason',
-            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
+            description: 'The reason this try ended, as recorded by a retry policy.'
         }
     },
     type: 'object',
@@ -8391,7 +9529,7 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'State Reason',
-            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.'
+            description: 'The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.'
         }
     },
     type: 'object',
@@ -8851,7 +9989,6 @@ export const $TaskOutletAssetReference = {
             title: 'Team Name'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['dag_id', 'task_id', 'created_at', 'updated_at'],
     title: 'TaskOutletAssetReference',
@@ -12818,16 +13955,42 @@ export const $OklchColor = {
 export const $PartitionedDagRunAssetResponse = {
     properties: {
         asset_id: {
-            type: 'integer',
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Asset Id'
         },
         asset_name: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Asset Name'
         },
         asset_uri: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Asset Uri'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden',
+            default: false
         },
         received: {
             type: 'boolean',

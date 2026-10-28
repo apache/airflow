@@ -45,6 +45,7 @@ from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, Rds
 from airflow.providers.common.compat.sdk import TaskDeferred
 
 from tests_common.test_utils.compat import timezone
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -890,6 +891,26 @@ class TestRdsCreateDbInstanceOperator:
         assert db_instances[0]["DBInstanceStatus"] == "available"
         mock_await_status.assert_not_called()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(RdsCreateDbInstanceOperator, "defer")
+    @mock.patch.object(RdsHook, "conn")
+    def test_deferred(self, conn_mock, defer_mock, wait_for_completion):
+        op = RdsCreateDbInstanceOperator(
+            task_id="test_create_db_instance",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            db_instance_class="db.m5.large",
+            engine="postgres",
+            deferrable=True,
+            wait_for_completion=wait_for_completion,
+        )
+
+        with expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion):
+            op.execute({})
+
+        assert op.wait_for_completion is wait_for_completion
+        defer_mock.assert_called_once()
+        conn_mock.get_waiter.assert_not_called()
+
     def test_template_fields(self):
         operator = RdsCreateDbInstanceOperator(
             task_id="test_create_db_instance",
@@ -962,6 +983,24 @@ class TestRdsDeleteDbInstanceOperator:
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         mock_await_status.assert_not_called()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(RdsDeleteDbInstanceOperator, "defer")
+    @mock.patch.object(RdsHook, "conn")
+    def test_deferred(self, conn_mock, defer_mock, wait_for_completion):
+        op = RdsDeleteDbInstanceOperator(
+            task_id="test_delete_db_instance",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            deferrable=True,
+            wait_for_completion=wait_for_completion,
+        )
+
+        with expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion):
+            op.execute({})
+
+        assert op.wait_for_completion is wait_for_completion
+        defer_mock.assert_called_once()
+        conn_mock.get_waiter.assert_not_called()
+
     def test_template_fields(self):
         operator = RdsDeleteDbInstanceOperator(
             task_id="test_delete_db_instance_no_wait",
@@ -1016,15 +1055,20 @@ class TestRdsStopDbOperator:
         assert status == "stopped"
         mock_get_waiter.assert_not_called()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(RdsHook, "conn")
-    def test_deferred(self, conn_mock):
+    def test_deferred(self, conn_mock, wait_for_completion):
         op = RdsStopDbOperator(
             task_id="test_stop_db_instance_no_wait",
             db_identifier=DB_INSTANCE_NAME,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, RdsDbStoppedTrigger)
@@ -1142,15 +1186,20 @@ class TestRdsStartDbOperator:
         status_after = result_after["DBClusters"][0]["Status"]
         assert status_after == "available"
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(RdsHook, "conn")
-    def test_deferred(self, conn_mock):
+    def test_deferred(self, conn_mock, wait_for_completion):
         op = RdsStartDbOperator(
             task_id="test_stop_db_instance_no_wait",
             db_identifier=DB_INSTANCE_NAME,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, RdsDbAvailableTrigger)

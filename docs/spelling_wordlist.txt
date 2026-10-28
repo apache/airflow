@@ -81,6 +81,7 @@ apikey
 apis
 AppBuilder
 appbuilder
+appender
 Appflow
 appflow
 approle
@@ -1065,6 +1066,7 @@ LocalObjectReference
 localstack
 Lockbox
 lodash
+Logback
 logfile
 logformat
 loglevel
@@ -1219,6 +1221,8 @@ oauth
 objectORfile
 objectstorage
 observability
+Obtainability
+obtainability
 od
 OData
 odbc
@@ -1534,6 +1538,7 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
 RunContext
 runnable
 RunQueryOperator
@@ -1700,6 +1705,8 @@ stderr
 stdin
 stdlib
 stdout
+stockout
+stockouts
 StorageClass
 storages
 StoredInfoType

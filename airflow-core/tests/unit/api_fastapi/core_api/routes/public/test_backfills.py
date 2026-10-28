@@ -576,6 +576,20 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.status_code == 404
         assert response.json().get("detail") == "Could not find dag DAG_NOT_EXIST"
 
+    @pytest.mark.parametrize("max_active_runs", [0, -3])
+    def test_create_backfill_rejects_non_positive_max_active_runs(self, max_active_runs, test_client):
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": "TEST_DAG_1",
+                "from_date": "2024-01-01T00:00:00Z",
+                "to_date": "2024-01-02T00:00:00Z",
+                "max_active_runs": max_active_runs,
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "max_active_runs"]
+
     def test_no_schedule_dag(self, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule=None) as dag:
             EmptyOperator(task_id="mytask")
@@ -1329,6 +1343,20 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
 
         assert response.status_code == 422
         assert "Invalid input for param validated_number" in response.json().get("detail")
+
+    @pytest.mark.parametrize("max_active_runs", [0, -3])
+    def test_create_backfill_dry_run_rejects_non_positive_max_active_runs(self, max_active_runs, test_client):
+        response = test_client.post(
+            url="/backfills/dry_run",
+            json={
+                "dag_id": "TEST_DAG_1",
+                "from_date": "2024-01-01T00:00:00Z",
+                "to_date": "2024-01-02T00:00:00Z",
+                "max_active_runs": max_active_runs,
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "max_active_runs"]
 
     @pytest.mark.parametrize(
         ("repro_act", "repro_exp", "run_backwards", "status_code"),

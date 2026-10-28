@@ -310,6 +310,14 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-fork-ci-gate-config
+        name: Check fork CI gate configuration is valid and pilot instants are in the future
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/check_fork_ci_gate_config.py
+        language: python
+        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$
+        pass_filenames: false
       - id: check-java-sdk-version-in-sync
         name: Check Java SDK JDK version is consistent across build files
         env:
@@ -326,6 +334,20 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: sync-java-sdk-docs
+        name: Sync the Java SDK quick start and version across the user-facing docs
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/sync_java_sdk_docs.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/java\.rst$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/sync_java_sdk_docs\.py$
+        additional_dependencies: ['rich>=13.6.0']
+        pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
         name: Sync Java SDK supervisor schema with configured version
         env:
@@ -567,6 +589,21 @@ repos:
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
+      - id: update-lang-sdk-central-matrix
+        name: Update the consolidated Language SDK compatibility matrix
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/update_lang_sdk_central_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^(go|java|ts)-sdk/capabilities\.yaml$|
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/index\.rst$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_lang_sdk_central_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-example-mod-tidy
         name: Check lang-SDK Go example module is tidy against the Go SDK
         env:
@@ -787,6 +824,10 @@ repos:
         name: Run flynt string format converter for Python
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        # flynt's own hook manifest sets require_serial: true, and this line overrides it. flynt
+        # writes only the files that prek passes to it. prek gives each file to exactly one batch,
+        # so the batches can run in parallel.
+        require_serial: false
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),
@@ -1139,6 +1180,15 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-ci-gate-needs
+        name: Check the CI passed gate job needs every CI job
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Auto-merge waits for "CI passed"; a job missing from its needs could fail without stopping a merge
+        entry: ./scripts/ci/prek/check_ci_gate_needs.py
+        language: python
+        pass_filenames: false
+        files: ^\.github/workflows/ci-amd\.yml$|^scripts/ci/prek/check_ci_gate_needs\.py$
       - id: check-auth-manager-mock-targets
         name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
         env:
