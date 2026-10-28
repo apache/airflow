@@ -123,6 +123,44 @@ def test_split_provider_part_is_skipped_if_its_provider_is_ignored(mock_run_comm
     mock_run_command.assert_called_once()  # called only to compose down
 
 
+def test_test_is_skipped_if_its_only_path_is_ignored_next_to_path_valued_options(mock_run_command):
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers[amazon:hooks]"),
+        extra_pytest_args=(
+            "--ignore=providers/amazon/tests",
+            "--basetemp",
+            "/tmp/breeze-pytest",
+            "--rootdir",
+            "airflow-core/tests",
+        ),
+        python_version="3.9",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+
+    mock_run_command.assert_called_once()  # called only to compose down
+
+
+def test_explicit_paths_go_to_pytest_as_they_are(mock_run_command):
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="None"),
+        extra_pytest_args=(
+            "providers/amazon/tests/unit/amazon/aws/hooks",
+            "providers/http/tests",
+            "--ignore=providers/amazon/tests",
+        ),
+        python_version="3.9",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+
+    run_cmd = mock_run_command.call_args_list[1].args[0]
+    assert "providers/http/tests" in run_cmd
+    assert "providers/amazon/tests/unit/amazon/aws/hooks" in run_cmd
+
+
 def test_test_is_skipped_when_all_providers_excluded_for_python_version(
     mock_run_command, mock_get_excluded_provider_folders
 ):

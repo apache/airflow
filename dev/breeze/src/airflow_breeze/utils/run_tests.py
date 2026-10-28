@@ -244,6 +244,37 @@ def get_excluded_test_provider_folders(python_version: str) -> list[str]:
     return get_test_folders(excluded_folders)
 
 
+def get_selected_test_paths(
+    *,
+    test_group: GroupOfTests,
+    test_type: str,
+    skip_db_tests: bool = False,
+    parallel_test_types_list: list[str] | None = None,
+    integration: tuple | None = None,
+) -> list[str]:
+    """The test paths generate_args_for_pytest selects for the test type, without the pytest options.
+
+    Empty when test_type is "None": the user then provides explicit paths via extra_pytest_args.
+    """
+    if skip_db_tests and parallel_test_types_list:
+        initial_paths = convert_parallel_types_to_folders(
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types_list,
+        )
+    else:
+        initial_paths = convert_test_type_to_pytest_args(
+            test_group=test_group,
+            test_type=test_type,
+            integration=integration,
+        )
+    # Filter to only actual test directory paths (not pytest flags like -m, --include-quarantined)
+    return [p for p in initial_paths if not p.startswith("-")]
+
+
+def is_path_under_any(path: str, folders: list[str]) -> bool:
+    return any(path == folder or path.startswith(f"{folder}/") for folder in folders)
+
+
 def are_all_test_paths_excluded(
     *,
     test_group: GroupOfTests,
@@ -262,29 +293,20 @@ def are_all_test_paths_excluded(
     Returns False when test_type is "None" (user provides explicit paths via extra_pytest_args)
     or when any test path remains after exclusions.
     """
-    if skip_db_tests and parallel_test_types_list:
-        initial_paths = convert_parallel_types_to_folders(
-            test_group=test_group,
-            parallel_test_types_list=parallel_test_types_list,
-        )
-    else:
-        initial_paths = convert_test_type_to_pytest_args(
-            test_group=test_group,
-            test_type=test_type,
-            integration=integration,
-        )
-    # Filter to only actual test directory paths (not pytest flags like -m, --include-quarantined)
-    test_dir_paths = [p for p in initial_paths if not p.startswith("-")]
+    test_dir_paths = get_selected_test_paths(
+        test_group=test_group,
+        test_type=test_type,
+        skip_db_tests=skip_db_tests,
+        parallel_test_types_list=parallel_test_types_list,
+        integration=integration,
+    )
     if not test_dir_paths:
         return False
     excluded_or_suspended = [
         *get_excluded_test_provider_folders(python_version),
         *get_suspended_test_provider_folders(),
     ]
-    return all(
-        any(p == folder or p.startswith(f"{folder}/") for folder in excluded_or_suspended)
-        for p in test_dir_paths
-    )
+    return all(is_path_under_any(p, excluded_or_suspended) for p in test_dir_paths)
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
