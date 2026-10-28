@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -470,37 +470,45 @@ class GitDagBundle(BaseDagBundle):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        with self.lock():
-            cm = self.hook.configure_hook_env() if self.hook else nullcontext()
-            with cm:
+        with self.lock(), ExitStack() as stack:
+            # Some 3.4 cores predate the refresh-error contract.
+            refresh_error = getattr(bundle_base, "DagBundleRefreshError", None)
+            try:
+                if self.hook:
+                    stack.enter_context(self.hook.configure_hook_env())
+            except Exception as e:
+                if refresh_error is not None:
+                    raise refresh_error(
+                        "Failed to prepare the Dag bundle; the previous source files are unchanged",
+                        source_unchanged=True,
+                    ) from e
+                raise
+            try:
+                self._fetch_bare_repo()
+                self.repo.remotes.origin.fetch(
+                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                )
+            except GitCommandError as e:
+                if refresh_error is not None:
+                    raise refresh_error(
+                        "Failed to fetch the Dag bundle; the previous source files are unchanged",
+                        source_unchanged=True,
+                    ) from e
+                raise
+            remote_branch = f"origin/{self.tracking_ref}"
+            if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
+                target = remote_branch
+            else:
+                target = self.tracking_ref
+            self.repo.head.reset(target, index=True, working_tree=True)
+
+            if self.submodules:
                 try:
-                    self._fetch_bare_repo()
-                    self.repo.remotes.origin.fetch(
-                        ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
-                    )
+                    self._fetch_submodules()
                 except GitCommandError as e:
-                    # Some 3.4 cores predate the refresh-error contract.
-                    refresh_error = getattr(bundle_base, "DagBundleRefreshError", None)
-                    if refresh_error is not None:
-                        raise refresh_error(
-                            "Failed to fetch the Dag bundle; the previous source files are unchanged",
-                            source_unchanged=True,
-                        ) from e
-                    raise
-                remote_branch = f"origin/{self.tracking_ref}"
-                if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
-                    target = remote_branch
-                else:
-                    target = self.tracking_ref
-                self.repo.head.reset(target, index=True, working_tree=True)
+                    raise RuntimeError("Error pulling submodule from repository") from e
 
-                if self.submodules:
-                    try:
-                        self._fetch_submodules()
-                    except GitCommandError as e:
-                        raise RuntimeError("Error pulling submodule from repository") from e
-
-                self.repo.close()
+            self.repo.close()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
