@@ -174,7 +174,8 @@ def test_cleanup_rejects_nonpositive_batches(batch_size):
 
 
 @pytest.mark.parametrize("timeout", [29, 30, 31])
-def test_cleanup_rejects_expiry_before_the_health_threshold(timeout, session, time_machine):
+@mock.patch("airflow.dag_processing.maintenance.log", autospec=True)
+def test_cleanup_rejects_expiry_before_the_health_threshold(log, timeout, session, time_machine):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     job = Job(
         job_type="DagProcessorJob",
@@ -193,15 +194,63 @@ def test_cleanup_rejects_expiry_before_the_health_threshold(timeout, session, ti
             ("dag_processor", "job_heartbeat_timeout"): str(timeout),
         }
     ):
-        if timeout < 30:
-            with pytest.raises(AirflowConfigException, match="job_heartbeat_timeout.*health_check_threshold"):
-                cleanup_processor_metadata()
-        else:
-            cleanup_processor_metadata()
+        cleanup_processor_metadata()
+
+    if timeout < 30:
+        log.warning.assert_called_once_with(
+            "Skipping Dag processor Job expiration because of invalid configuration: %s", mock.ANY
+        )
+        assert isinstance(log.warning.call_args.args[1], AirflowConfigException)
 
     job = session.get(Job, job_id)
     assert job.state == (JobState.RUNNING if timeout < 30 else JobState.FAILED)
     assert job.end_date == (None if timeout < 30 else timezone.utcnow())
+
+
+@conf_vars(
+    {
+        ("dag_processor", "health_check_threshold"): "600",
+        ("dag_processor", "job_heartbeat_timeout"): "300",
+    }
+)
+@pytest.mark.parametrize("has_api_job", [False, True])
+def test_cleanup_continues_when_api_heartbeat_timeouts_are_invalid(session, time_machine, has_api_job):
+    time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
+    bundle = DagBundleModel(name="removed")
+    bundle.active = False
+    session.add(bundle)
+    session.flush()
+    session.add(DagModel(dag_id="removed", bundle_name="removed", is_stale=False))
+    session.flush()
+    session.add(DagWarning(dag_id="removed", warning_type="python:test", message="warning"))
+    retired = Job(job_type="DagProcessorJob", state=JobState.FAILED, end_date=timezone.utcnow())
+    session.add(retired)
+    session.flush()
+    _add_checkpoints(retired.id, 1, session=session)
+    live_job_id = None
+    if has_api_job:
+        live = Job(
+            job_type="DagProcessorJob",
+            state=JobState.RUNNING,
+            session_id=uuid7(),
+            latest_heartbeat=timezone.utcnow() - timedelta(seconds=900),
+        )
+        session.add(live)
+        session.flush()
+        live_job_id = live.id
+        _add_checkpoints(live_job_id, 1, session=session)
+    session.commit()
+
+    cleanup_processor_metadata()
+
+    session.expire_all()
+    assert session.get(DagModel, "removed").is_stale
+    assert session.scalars(select(DagWarning)).all() == []
+    assert session.scalars(select(DagParseCheckpoint.job_id)).all() == ([live_job_id] if has_api_job else [])
+    if has_api_job:
+        live = session.get(Job, live_job_id)
+        assert live.state == JobState.RUNNING
+        assert live.end_date is None
 
 
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "120"})

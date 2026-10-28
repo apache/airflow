@@ -175,6 +175,36 @@ class TestDagParsingEndpoint:
         session.commit()
         assert session.get(DagPriorityParsingRequest, key) is None
 
+    @pytest.mark.backend("mysql")
+    @pytest.mark.parametrize("requested_path", ["A.py", "á.py"], ids=["case", "accent"])
+    def test_reparse_preserves_claim_for_distinct_path(
+        self, session, test_client, url_safe_serializer, processor_job, requested_path
+    ):
+        original = DagPriorityParsingRequest(bundle_name="example_dags", relative_fileloc="a.py")
+        claim_id = uuid7()
+        original.processor_job_id = processor_job.id
+        original.processor_claim_id = claim_id
+        session.add_all(
+            [
+                original,
+                ParseImportError(bundle_name="example_dags", filename=requested_path, stacktrace="boom"),
+            ]
+        )
+        session.commit()
+        file_token = url_safe_serializer.dumps(
+            {"bundle_name": "example_dags", "relative_fileloc": requested_path}
+        )
+
+        response = test_client.put(f"/parseDagFile/{file_token}")
+
+        assert response.status_code == 201
+        session.expire_all()
+        requests = {
+            work.relative_fileloc: (work.processor_job_id, work.processor_claim_id)
+            for work in session.scalars(select(DagPriorityParsingRequest))
+        }
+        assert requests == {"a.py": (processor_job.id, claim_id), requested_path: (None, None)}
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.put(
             "/parseDagFile/token", headers={"Accept": "application/json"}

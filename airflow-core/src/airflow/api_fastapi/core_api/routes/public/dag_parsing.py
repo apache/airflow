@@ -47,8 +47,8 @@ def reparse_dag_file(file_token: str, session: SessionDep, request: Request) -> 
         session.execute(
             update(DagPriorityParsingRequest)
             .where(
-                DagPriorityParsingRequest.bundle_name == payload["bundle_name"],
-                DagPriorityParsingRequest.relative_fileloc == payload["relative_fileloc"],
+                DagPriorityParsingRequest.id
+                == DagPriorityParsingRequest.compute_id(payload["bundle_name"], payload["relative_fileloc"]),
                 DagPriorityParsingRequest.processor_job_id.is_not(None),
             )
             .values(processor_job_id=None, processor_claim_id=None)

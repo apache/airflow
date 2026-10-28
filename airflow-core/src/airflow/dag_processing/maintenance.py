@@ -26,6 +26,7 @@ from sqlalchemy import delete, exists, select, tuple_
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
+from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
 from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
@@ -41,7 +42,6 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
     """Drain inactive Dags and retired checkpoints, committing each bounded batch."""
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
-    timeout = get_job_heartbeat_timeout()
     while True:
         with create_session() as session:
             inactive = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
@@ -82,33 +82,38 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             session.execute(
                 delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
             )
-    with create_session() as session:
-        cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-        job_query = (
-            select(Job)
-            .where(
-                Job.job_type == "DagProcessorJob",
-                # API Jobs end with a terminal state; use its heartbeat index to skip completed history.
-                Job.state == JobState.RUNNING,
-                Job.session_id.is_not(None),
-                Job.end_date.is_(None),
-                Job.latest_heartbeat < cutoff,
+    try:
+        timeout = get_job_heartbeat_timeout()
+    except AirflowConfigException as error:
+        log.warning("Skipping Dag processor Job expiration because of invalid configuration: %s", error)
+    else:
+        with create_session() as session:
+            cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+            job_query = (
+                select(Job)
+                .where(
+                    Job.job_type == "DagProcessorJob",
+                    # API Jobs end with a terminal state; use its heartbeat index to skip completed history.
+                    Job.state == JobState.RUNNING,
+                    Job.session_id.is_not(None),
+                    Job.end_date.is_(None),
+                    Job.latest_heartbeat < cutoff,
+                )
+                .order_by(Job.id)
+                .limit(batch_size)
             )
-            .order_by(Job.id)
-            .limit(batch_size)
-        )
-        for job in session.scalars(with_row_locks(job_query, session=session, skip_locked=True)):
-            log.warning(
-                "Expiring Dag processor Job and releasing its claimed work",
-                extra={
-                    "job_id": job.id,
-                    "hostname": job.hostname,
-                    "latest_heartbeat": job.latest_heartbeat,
-                    "job_heartbeat_timeout": timeout,
-                },
-            )
-            job.state = JobState.FAILED
-            job.end_date = timezone.utcnow()
+            for job in session.scalars(with_row_locks(job_query, session=session, skip_locked=True)):
+                log.warning(
+                    "Expiring Dag processor Job and releasing its claimed work",
+                    extra={
+                        "job_id": job.id,
+                        "hostname": job.hostname,
+                        "latest_heartbeat": job.latest_heartbeat,
+                        "job_heartbeat_timeout": timeout,
+                    },
+                )
+                job.state = JobState.FAILED
+                job.end_date = timezone.utcnow()
     # Visit already-ended Jobs too: retirement may have committed before cleanup was interrupted.
     checkpoint_batch_size = min(batch_size, 499)
     while True:
