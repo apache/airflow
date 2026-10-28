@@ -1843,13 +1843,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (".github/workflows/openlineage-e2e-compat-tests.yml",),
             {
-                # The compat workflow matches ENVIRONMENT_FILES, so it forces the full matrix.
-                # The compat therefore runs via full_tests_needed, not via OPENLINEAGE_E2E_COMPAT_FILES.
                 "run-openlineage-e2e-tests": "true",
                 "run-openlineage-e2e-compat-tests": "true",
                 "full-tests-needed": "true",
             },
-            id="Compat workflow change forces the full matrix (compat runs via full_tests_needed)",
+            id="Run OpenLineage e2e compat tests when the compat workflow changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/openlineage-compat-db.yml",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the compat database override changes",
+        ),
+        pytest.param(
+            ("scripts/ci/docker-compose/base.yml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when an environment file forces full tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when the API contract forces full tests",
         ),
         (
             pytest.param(
@@ -2896,6 +2920,7 @@ def test_expected_output_pull_request_v2_7(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy-providers": "true",
                 "run-ui-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
             },
             id="All tests run on push if core file changed",
         ),
@@ -4910,14 +4935,20 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
         assert provider not in LONG_RUNNING_TEST_PROVIDERS
 
 
-RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]'
-RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
+RUNS_ON_AMD = (
+    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co'
+    '/cpu={0}/ram={1}"]'
+)
+RUNS_ON_ARM = (
+    '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+)
 RUNS_ON_AMD_IN_MEMORY = (
-    '["runs-on=42/family=m7a+m7i+m6a+m6i+r7a+r7i+r6a+r6i/image=ubuntu22-full-x64/volume=150gb'
+    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i'
+    "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 RUNS_ON_ARM_IN_MEMORY = (
-    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb'
+    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 

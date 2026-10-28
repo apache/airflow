@@ -547,13 +547,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `PROD Image building`.
 * `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
   current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
-  they do NOT run on every OpenLineage PR: on `canary` runs, when the `full tests needed` label is
-  explicitly set, or when a file that drives the compat setup but does not itself force the full
-  matrix changes — the shared e2e harness
-  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`) or the compat Dockerfile
-  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`). The compat workflow
-  (`.github/workflows/openlineage-e2e-compat-tests.yml`) matches `ENVIRONMENT_FILES` and so already
-  forces the full matrix — the same rationale as `run-ui-e2e-tests`.
+  they do NOT run on every OpenLineage PR. They run on `canary` runs, when the `full tests needed`
+  label is explicitly set, or when a file that drives the compat setup changes. These files are
+  the compat workflow (`.github/workflows/openlineage-e2e-compat-tests.yml`), the compat Dockerfile
+  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`), the compat database override
+  (`airflow-e2e-tests/docker/openlineage-compat-db.yml`) and the shared e2e harness
+  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`). Like
+  `run-ui-e2e-tests`, `run-openlineage-e2e-compat-tests` ignores `full_tests_needed`. Many changes
+  that do not touch the compat setup also turn on `full_tests_needed`, for example changes to
+  environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+  the compat tests, and the next `canary` run tests that change.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
@@ -762,9 +765,13 @@ approval `use self-hosted runners` needs, so for that label approve the head com
 reopen the PR.
 
 The RunsOn value is a label template such as
-`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
-picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (4/16, 8/32 or 32/128),
-or, for a single-job reusable workflow, its caller passes `format(<runners>, <cpu>, <ram>)`;
+`["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]`. Every job
+picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`'4+8', '16+32'`,
+`'8+16', '32+64'` or `'32+64', '128+256'`), or, for a single-job reusable workflow, its caller passes
+`format(<runners>, <cpu>, <ram>)`. Each class is a range up to twice its size, so Spot can come from
+the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
+`spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
+the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
@@ -781,8 +788,8 @@ jobs whose databases wait on disk syncs: the Postgres, MySQL and Sqlite test job
 core tests and the SQLAlchemy, Boto and Pendulum special tests. Its label adds
 [`extras=tmpfs`](https://runs-on.com/docs/runners/capabilities/yolo-mode/), which puts
 `/var/lib/docker`, `/tmp` and `/home/runner` on a RAM disk, and also accepts the memory-optimized
-r-family. The jobs ask for 8 CPUs and 32 or 64 GB (`ram=32+64`), as the RAM disk is capped at the
-runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
+r-family. The jobs ask for 8 to 16 CPUs and 32 to 128 GB (`cpu=8+16/ram=32+128`), as the RAM disk
+is capped at the runner's memory before RunsOn v3.5.0. On public runners the output equals `runner-type`, and so it does
 on RunsOn while the repository variable `USE_IN_MEMORY_DOCKER` is `false`: the switch for moving docker
 back to disk without a PR.
 
