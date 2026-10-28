@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-26T21:23:14.952152
+# This constraints file was automatically generated on 2026-10-28T14:52:20.121478
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -29,7 +29,7 @@ asgiref==3.12.1
 attrs==26.1.0
 babel==2.18.0
 cachetools==6.2.6
-cadwyn==7.0.0
+cadwyn==8.1.0
 certifi==2026.10.19
 cffi==2.1.1
 charset-normalizer==3.5.2
@@ -42,7 +42,7 @@ dill==0.4.1
 dnspython==2.9.0
 email-validator==2.3.0
 fastapi-cli==0.0.32
-fastapi==0.136.3
+fastapi==0.161.0
 fsspec==2026.9.0
 googleapis-common-protos==1.75.5
 greenback==1.3.0

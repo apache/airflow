@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-26T21:28:15.730453
+# This constraints file was automatically generated on 2026-10-28T14:57:08.756984
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.4.3
 Markdown==3.11.2
 MarkupSafe==3.0.4
-PyAthena==4.2.0
+PyAthena==4.2.1
 PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.15.1
@@ -58,7 +58,7 @@ Pygments==2.21.0
 SQLAlchemy-Utils==0.43.0
 SQLAlchemy==2.0.55
 SecretStorage==3.5.0
-WTForms==3.2.2
+WTForms==3.3.1
 Werkzeug==3.1.9
 a2wsgi==1.10.10
 adal==1.2.7
@@ -67,7 +67,7 @@ adbc-driver-postgresql==1.12.0
 adbc-driver-sqlite==1.12.0
 adlfs==2026.8.0
 aenum==3.1.17
-aiobotocore==3.9.2
+aiobotocore==3.10.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.7.1
 aiohttp-cors==0.8.1
@@ -92,7 +92,7 @@ amqp==5.4.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
 ansicolors==1.1.8
-anthropic==2.1.0
+anthropic==2.3.0
 anyio==4.15.1
 apache-airflow-providers-airbyte==6.2.0
 apache-airflow-providers-akeyless==0.3.2
@@ -208,7 +208,7 @@ apprise==2.0.1
 argcomplete==3.7.2
 arrow==1.4.0
 asana==5.4.0
-asgiref==3.12.1
+asgiref==3.13.0
 asn1crypto==1.5.1
 asttokens==3.0.2
 async-timeout==4.0.3
@@ -226,7 +226,7 @@ azure-datalake-store==1.0.1
 azure-identity==1.26.0
 azure-keyvault-secrets==4.11.3
 azure-kusto-data==6.0.4
-azure-mgmt-compute==38.4.0
+azure-mgmt-compute==39.0.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
@@ -254,11 +254,11 @@ bitarray==3.12.3
 black==26.10.1
 bleach==6.4.0
 blinker==1.9.0
-boto3==1.43.106
-botocore==1.43.106
+boto3==1.43.117
+botocore==1.43.117
 cachelib==0.17.0
 cachetools==7.2.4
-cadwyn==7.0.0
+cadwyn==8.1.1
 capi_param_builder_python==1.3.2
 cassandra-driver==3.30.1
 cattrs==26.2.1
@@ -287,9 +287,9 @@ croniter==6.2.4
 cryptography==50.0.2
 curlify==3.0.0
 darabonba-core==1.0.9
-databricks-sql-connector==4.7.0
+databricks-sql-connector==4.8.0
 datadog==0.55.0
-db-dtypes==1.8.0
+db-dtypes==1.9.0
 debugpy==1.8.22
 decorator==5.3.1
 defusedxml==0.7.1
@@ -313,7 +313,7 @@ exasol-telemetry-client==0.2.1
 executing==2.3.0
 facebook_business==26.0.2
 fastapi-cli==0.0.32
-fastapi==0.136.3
+fastapi==0.162.0
 fastavro==1.13.1
 fastcore==2.2.33
 fasteners==0.20
@@ -336,7 +336,7 @@ gevent==26.9.0
 gitdb==4.0.12
 google-ads==34.0.0
 google-analytics-admin==0.30.2
-google-api-core==2.42.0
+google-api-core==2.43.0
 google-api-python-client==2.201.0
 google-auth-httplib2==0.4.4
 google-auth-oauthlib==1.5.0
@@ -344,14 +344,14 @@ google-auth==2.62.0
 google-cloud-aiplatform==1.164.0
 google-cloud-alloydb==0.11.4
 google-cloud-appengine-logging==1.11.0
-google-cloud-audit-log==0.6.2
+google-cloud-audit-log==0.6.3
 google-cloud-automl==2.21.0
 google-cloud-batch==0.22.4
 google-cloud-bigquery-datatransfer==3.24.0
 google-cloud-bigquery-storage==2.43.0
 google-cloud-bigquery==3.46.2
-google-cloud-bigtable==2.50.1
-google-cloud-build==3.41.0
+google-cloud-bigtable==2.50.2
+google-cloud-build==3.42.0
 google-cloud-compute==1.56.0
 google-cloud-container==2.67.0
 google-cloud-core==2.8.0
@@ -377,7 +377,7 @@ google-cloud-run==0.16.2
 google-cloud-secret-manager==2.31.0
 google-cloud-spanner==3.71.0
 google-cloud-speech==2.41.0
-google-cloud-storage-control==1.16.0
+google-cloud-storage-control==1.17.0
 google-cloud-storage-transfer==1.22.0
 google-cloud-storage==3.17.1
 google-cloud-tasks==2.26.0
@@ -387,15 +387,15 @@ google-cloud-videointelligence==2.21.0
 google-cloud-vision==3.16.0
 google-cloud-workflows==1.24.0
 google-crc32c==1.9.0
-google-genai==2.32.0
+google-genai==2.33.0
 google-resumable-media==2.11.0
-googleapis-common-protos==1.75.5
+googleapis-common-protos==1.76.0
 graphviz==0.21
 greenback==1.3.0
 greenlet==3.5.6
 gremlinpython==3.8.2
 griffelib==2.4.1
-grpc-google-iam-v1==0.14.5
+grpc-google-iam-v1==0.14.6
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-health-checking==1.81.1
@@ -418,7 +418,7 @@ httpr==0.7.8
 httptools==0.9.0
 httpx2==2.16.0
 httpx==0.28.1
-huggingface_hub==2.2.0
+huggingface_hub==2.3.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -447,12 +447,12 @@ jaraco.context==6.1.2
 jaraco.functools==4.6.0
 jedi==0.20.1
 jeepney==0.9.0
-jiter==0.17.0
+jiter==0.18.0
 jmespath==1.1.0
 joblib==1.6.0
 joserfc==1.7.7
 jpype1==1.7.1
-jsonpath-ng==1.12.0
+jsonpath-ng==1.13.0
 jsonpickle==4.1.4
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
@@ -472,7 +472,7 @@ limits==5.8.0
 linkify-it-py==2.2.0
 litellm==1.85.7
 lockfile==0.12.2
-logfire-api==5.2.0
+logfire-api==5.3.0
 looker_sdk==26.20.0
 lxml==6.1.3
 lz4==4.4.5
@@ -503,7 +503,7 @@ msgspec==0.22.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.9.1
+multidict==7.2.0
 mypy_extensions==1.1.0
 mysql-connector-python==26.10.0
 mysqlclient==2.3.0
@@ -546,7 +546,7 @@ orjson==3.13.0
 outcome==1.3.0.post0
 packaging==26.3
 pagerduty==7.0.1
-pandas-gbq==0.35.2
+pandas-gbq==0.35.3
 pandas==3.1.0
 pandocfilters==1.5.1
 papermill==2.6.0
@@ -559,7 +559,7 @@ pendulum==3.3.0
 pexpect==4.9.0
 pgvector==0.5.1
 pillow==12.3.0
-pinecone==10.1.0
+pinecone==10.2.0
 pinotdb==9.2.2
 platformdirs==4.13.5
 pluggy==1.7.0
@@ -588,10 +588,10 @@ pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.12
-pycryptodome==4.1.0
-pydantic-ai-slim==2.59.0
+pycryptodome==4.2.0
+pydantic-ai-slim==2.61.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.59.0
+pydantic-graph==2.61.0
 pydantic-settings==2.16.1
 pydantic==2.14.1
 pydantic_core==2.50.1
@@ -720,7 +720,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.8.0
 uuid6==2025.0.1
-uv==0.13.5
+uv==0.13.6
 uvicorn==0.54.0
 uvloop==0.23.0
 validators==0.36.0
@@ -733,7 +733,7 @@ wcwidth==0.9.3
 weaviate-client==4.16.2
 webencodings==0.6.1
 websocket-client==1.9.0
-websockets==16.1.1
+websockets==17.3
 wheel==0.48.0
 wirerope==1.0.0
 wrapt==2.5.1
