@@ -318,6 +318,20 @@ describe("coordinator runtime integration", () => {
     expect(observedConf).toEqual(conf);
   });
 
+  it("hands a handler an empty conf when the Dag run has none", async () => {
+    let observedConf: unknown = undefined;
+    testDag.task("read_null_conf", async () => {
+      observedConf = getContext().conf;
+    })();
+
+    const result = await driveSupervisor(
+      makeStartupDetails("read_null_conf", "test_dag", "r1", { dag_run: { conf: null } }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedConf).toEqual({});
+  });
+
   it("times out when the terminal task response cannot be written", async () => {
     vi.useFakeTimers();
     const originalWrite = NetSocket.prototype.write;
