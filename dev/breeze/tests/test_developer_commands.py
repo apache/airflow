@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import shlex
 from unittest.mock import create_autospec, patch
 
 import click
@@ -164,6 +165,36 @@ class TestBuildDocsPythonVersion:
 
         assert result.exit_code != 0
         assert "no such option" in result.output.lower()
+
+
+class TestBuildDocsJobs:
+    @pytest.mark.parametrize("jobs", [None, 1, 2])
+    def test_jobs_are_passed_to_docs_builder(self, runner, docker_mocks, jobs):
+        args = ["--jobs", str(jobs)] if jobs is not None else []
+
+        result = runner.invoke(build_docs, args, catch_exceptions=False)
+
+        assert result.exit_code == 0
+        command = docker_mocks["execute_command_in_shell"].call_args.kwargs["command"]
+        expected = ["/opt/airflow/scripts/in_container/run_docs_build.sh", *args]
+        assert shlex.split(command) == expected
+
+    @pytest.mark.parametrize("jobs", [0, -1])
+    def test_non_positive_jobs_are_rejected(self, runner, docker_mocks, jobs):
+        result = runner.invoke(build_docs, ["--jobs", str(jobs)])
+
+        assert result.exit_code == 2
+        assert "x>=1" in click.unstyle(result.output)
+        for mock in docker_mocks.values():
+            mock.assert_not_called()
+
+    def test_jobs_with_sdk_docs_only_is_rejected(self, runner, docker_mocks):
+        result = runner.invoke(build_docs, ["--sdk-docs-only", "--jobs", "2"])
+
+        assert result.exit_code == 2
+        assert "--jobs cannot be used with --sdk-docs-only" in click.unstyle(result.output)
+        for mock in docker_mocks.values():
+            mock.assert_not_called()
 
 
 class TestBuildDocsSphinxAirflowTheme:
