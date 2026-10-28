@@ -3600,6 +3600,9 @@ def test_taskinstance_info_af3():
     runtime_ti.state = TaskInstanceState.UP_FOR_RETRY
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
+        "duration": 12.345,
+        "start_date": "2025-01-01T00:00:00+00:00",
+        "end_date": "2025-01-01T00:00:12.345000+00:00",
         "id": str(runtime_ti.id),
         "log_url": runtime_ti.log_url,
         "map_index": 2,
@@ -3645,11 +3648,11 @@ def test_taskinstance_info_af2():
     ti = TaskInstance(
         task=task_obj, run_id="task_instance_run_id", state=TaskInstanceState.RUNNING, map_index=2
     )
+    # Left from the previous try, as end_date is cleared when the next one starts, so it isn't reported
     ti.duration = 12.345
     ti.queued_dttm = some_date
 
     assert dict(TaskInstanceInfo(ti)) == {
-        "duration": 12.345,
         "map_index": 2,
         "rendered_map_index": None,
         "pool": "default_pool",
@@ -6112,6 +6115,194 @@ def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
         "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
     )
     assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
+
+
+_DURATION_START = datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
+
+
+@pytest.mark.parametrize(
+    ("ti_attrs", "end_date", "expected_duration"),
+    [
+        pytest.param({"duration": 3.5, "end_date": _DURATION_START}, None, 3.5, id="stored_duration"),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            3.5,
+            id="stored_duration_wins_over_passed_end_date",
+        ),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": None},
+            None,
+            None,
+            id="stored_duration_of_previous_try_without_end_date",
+        ),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START, "end_date": None},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            10.0,
+            id="passed_end_date_over_stored_duration_without_end_date",
+        ),
+        pytest.param(
+            {"duration": None, "start_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(seconds=10, milliseconds=500),
+            10.5,
+            id="passed_end_date_when_stored_duration_is_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(minutes=2),
+            120.0,
+            id="passed_end_date_when_task_instance_has_none_yet",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            None,
+            7.0,
+            id="end_date_of_task_instance",
+        ),
+        pytest.param(
+            {
+                "duration": None,
+                "start_date": _DURATION_START,
+                "end_date": _DURATION_START + datetime.timedelta(seconds=7),
+            },
+            None,
+            7.0,
+            id="end_date_of_task_instance_when_stored_duration_is_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            7.0,
+            id="end_date_of_task_instance_wins_over_passed_end_date",
+        ),
+        pytest.param({"start_date": _DURATION_START}, None, None, id="running_task_instance"),
+        pytest.param({}, None, None, id="no_dates"),
+        pytest.param(
+            {},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            None,
+            id="passed_end_date_without_start_date",
+        ),
+        pytest.param(
+            {"start_date": None, "end_date": _DURATION_START},
+            None,
+            None,
+            id="start_date_is_none",
+        ),
+        pytest.param(
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            None,
+            None,
+            id="dates_are_not_datetimes",
+        ),
+        pytest.param(
+            {"start_date": datetime.datetime(2024, 6, 1, 12, 0, 0)},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            None,
+            id="naive_start_date_and_aware_end_date",
+        ),
+    ],
+)
+def test_task_instance_info_duration(ti_attrs, end_date, expected_duration):
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, **ti_attrs)
+
+    info = dict(TaskInstanceInfo(ti, end_date=end_date))
+
+    if expected_duration is None:
+        assert "duration" not in info
+    else:
+        assert info["duration"] == expected_duration
+
+
+@pytest.mark.parametrize(
+    ("ti_attrs", "end_date", "expected_dates"),
+    [
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            id="end_date_of_task_instance_wins_over_passed_end_date",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": None},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:09+00:00"},
+            id="passed_end_date_when_task_instance_has_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START},
+            None,
+            {"start_date": "2024-06-01T12:00:00+00:00"},
+            id="running_task_instance",
+        ),
+        pytest.param(
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            None,
+            {},
+            id="dates_are_not_datetimes",
+        ),
+    ],
+)
+def test_task_instance_info_dates(ti_attrs, end_date, expected_dates):
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, **ti_attrs)
+
+    info = dict(TaskInstanceInfo(ti, end_date=end_date))
+
+    assert {key: info[key] for key in ("start_date", "end_date") if key in info} == expected_dates
+
+
+@pytest.mark.parametrize(
+    ("airflow_3_2_2_plus", "next_method", "expected_fields"),
+    [
+        pytest.param(False, "execute_complete", {}, id="resumed_before_3_2_2"),
+        pytest.param(
+            True,
+            "execute_complete",
+            {"start_date": "2024-06-01T12:00:00+00:00", "duration": 9.0},
+            id="resumed_since_3_2_2",
+        ),
+        pytest.param(
+            False,
+            None,
+            {"start_date": "2024-06-01T12:00:00+00:00", "duration": 9.0},
+            id="not_resumed_before_3_2_2",
+        ),
+    ],
+)
+def test_task_instance_info_start_date_of_task_resumed_from_deferral(
+    airflow_3_2_2_plus, next_method, expected_fields
+):
+    ti = SimpleNamespace(
+        id=uuid7(),
+        map_index=-1,
+        start_date=_DURATION_START,
+        end_date=None,
+        _ti_context_from_server=SimpleNamespace(next_method=next_method),
+    )
+
+    with patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_3_2_2_PLUS", airflow_3_2_2_plus):
+        info = dict(TaskInstanceInfo(ti, end_date=_DURATION_START + datetime.timedelta(seconds=9)))
+
+    assert {key: info[key] for key in ("start_date", "duration") if key in info} == expected_fields
+    assert info["end_date"] == "2024-06-01T12:00:09+00:00"
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets", return_value=[])
+def test_get_airflow_run_facet_passes_end_date_to_task_instance_facet(mock_get_runtime):
+    task = BashOperator(task_id="t", bash_command="echo 1")
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, start_date=_DURATION_START)
+
+    facet = get_airflow_run_facet(
+        MagicMock(),
+        MagicMock(),
+        ti,
+        task,
+        "task_uuid",
+        end_date=_DURATION_START + datetime.timedelta(seconds=4),
+    )["airflow"]
+
+    assert facet.taskInstance["duration"] == 4.0
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")
