@@ -241,6 +241,11 @@ internal object LogSender {
 
   // Kept after detachAndFlush clears writer, so a later call can cancel the channel an earlier one is stuck on.
   private var configured: ByteWriteChannel? = null
+
+  /** Test hook that pauses send after it observes no usable log channel. */
+  @Volatile
+  internal var beforeEnqueueWhenNoWriter: (() -> Unit)? = null
+
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
   // Set by detachAndFlush. Nothing writes LogSender.messages after that call, so send prints lines to errors instead.
@@ -303,6 +308,7 @@ internal object LogSender {
           isQueuing() -> false
           detached -> true
           else -> {
+            beforeEnqueueWhenNoWriter?.invoke()
             messages.addLast(message)
             return
           }
@@ -394,6 +400,7 @@ internal object LogSender {
     writer = null
     configured = null
     detached = false
+    beforeEnqueueWhenNoWriter = null
     messages.clear()
   }
 

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import java.time.Instant
 import java.util.TimeZone
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class LogTest {
@@ -131,6 +132,46 @@ class LogTest {
 
     // The supervisor cannot parse a timestamp without seconds, such as 2026-10-13T09:41.
     assertEquals("2026-10-13T09:41:00Z", sendAndRead(message)["timestamp"]!!.jsonPrimitive.content)
+  }
+
+  @Test
+  @DisplayName("Should not strand a log buffered while the log socket is configured")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun shouldFlushLogBufferedWhileConfigured() {
+    val channel = ByteChannel(autoFlush = true)
+    val message = LogMessage("started", emptyMap(), "test", Level.INFO)
+    val sawNoWriter = CountDownLatch(1)
+    val allowBuffering = CountDownLatch(1)
+    val configureStarted = CountDownLatch(1)
+    try {
+      LogSender.reset()
+      LogSender.beforeEnqueueWhenNoWriter = {
+        sawNoWriter.countDown()
+        allowBuffering.await()
+      }
+      val sender = Thread { LogSender.send(message) }
+      sender.start()
+      assertTrue(sawNoWriter.await(5, TimeUnit.SECONDS))
+
+      val configurator =
+        Thread {
+          configureStarted.countDown()
+          LogSender.configure(channel)
+        }
+      configurator.start()
+      assertTrue(configureStarted.await(5, TimeUnit.SECONDS))
+      allowBuffering.countDown()
+      sender.join(5_000)
+      configurator.join(5_000)
+      assertFalse(sender.isAlive)
+      assertFalse(configurator.isAlive)
+
+      val line = runBlocking { Json.parseToJsonElement(channel.readLine()!!) }.jsonObject
+      assertEquals(message.event, line["event"]!!.jsonPrimitive.content)
+    } finally {
+      allowBuffering.countDown()
+      LogSender.reset()
+    }
   }
 
   /** Sends [message] through [LogSender] and returns the JSON object that [LogSender] writes for the message. */
