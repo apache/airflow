@@ -487,6 +487,24 @@ class TestPrefixSearchParam:
         assert "dag_id < 'dah'" in sql
         assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
 
+    @pytest.mark.parametrize(
+        "term",
+        [
+            pytest.param("카페", id="non-ascii"),
+            pytest.param("café", id="ascii-with-accent"),
+            pytest.param("dag_카", id="ascii-then-non-ascii"),
+        ],
+    )
+    def test_to_orm_drops_the_bounds_for_a_non_ascii_prefix(self, term):
+        """A code-point range can exclude a matching value under a locale-aware collation."""
+        param = _PrefixSearchParam(DagModel.dag_id).set_value(term)
+        statement = param.to_orm(select(DagModel))
+
+        sql = _compile(statement)
+        assert "dag_id >=" not in sql
+        assert "dag_id <" not in sql
+        assert f"substr(dag.dag_id, 1, {len(term)}) = '{term}'" in sql
+
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
         """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
         param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
@@ -502,8 +520,9 @@ class TestPrefixSearchParamOnARealEngine:
     """
     Run the predicate against SQLite so the rows it lets through are checked, not just the SQL.
 
-    Every term below computes an upper bound wider than the term itself, so the bounds alone
-    would also return the rows that are missing from each ``expected`` list.
+    Every ASCII term below computes an upper bound wider than the term itself, so the bounds alone
+    would also return the rows that are missing from each ``expected`` list. A non-ASCII term gets
+    no bounds, so there the equality is the entire predicate.
     """
 
     NAMES = [
@@ -520,6 +539,8 @@ class TestPrefixSearchParamOnARealEngine:
         "z1",
         "zz",
         "{a",
+        "카페매출집계",
+        "카드결제",
     ]
 
     @pytest.fixture
@@ -550,6 +571,9 @@ class TestPrefixSearchParamOnARealEngine:
             ("z", ["z1", "zz"]),
             # Documented trade-off, unchanged: a trailing '_' is stripped, so 'dag_' means 'dag'.
             ("dag_", ["dagZ1", "dag_9", "dag_99", "dag_abc", "dagz9"]),
+            # A non-ASCII prefix is matched by the equality alone, with no bounds to drop rows.
+            ("카페", ["카페매출집계"]),
+            ("카", ["카드결제", "카페매출집계"]),
         ],
     )
     def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
