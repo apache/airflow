@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectionResponse } from "openapi/requests/types.gen";
+
 import type * as SystemComponents from "src/system-components";
+
 import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 

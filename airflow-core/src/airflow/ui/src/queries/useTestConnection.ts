@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useEffect, useState } from "react";
+
 import { useTranslation } from "react-i18next";
 
 import {
@@ -24,7 +25,9 @@ import {
   useConnectionServiceGetConnectionTest,
 } from "openapi/queries";
 import type { ConnectionTestRequestBody } from "openapi/requests/types.gen";
+
 import { toaster } from "src/system-components";
+
 import { createErrorToaster, useAutoRefresh } from "src/utils";
 
 type ConnectionStatus = boolean | undefined;
