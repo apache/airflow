@@ -267,12 +267,17 @@ def get_selected_test_paths(
             test_type=test_type,
             integration=integration,
         )
-    # Filter to only actual test directory paths (not pytest flags like -m, --include-quarantined)
-    return [p for p in initial_paths if not p.startswith("-")]
+    # Only the test folders: test suites such as "All-Postgres" add pytest options with values too
+    return [p for p in initial_paths if is_path_under_any(p, get_all_test_group_folders())]
+
+
+def get_all_test_group_folders() -> list[str]:
+    return [folder for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values() for folder in group_folders]
 
 
 def is_path_under_any(path: str, folders: list[str]) -> bool:
-    return any(path == folder or path.startswith(f"{folder}/") for folder in folders)
+    path = path.rstrip("/")
+    return any(path == folder.rstrip("/") or path.startswith(f"{folder.rstrip('/')}/") for folder in folders)
 
 
 def are_all_test_paths_excluded(
@@ -683,9 +688,6 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
                 test_type=_test_type,
             )
         )
-    all_test_prefixes: list[str] = []
+    all_test_prefixes = get_all_test_group_folders()
     # leave only folders, strip --pytest-args that exclude some folders with `-` prefix
-    for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
-        for group_folder in group_folders:
-            all_test_prefixes.append(group_folder)
     return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]

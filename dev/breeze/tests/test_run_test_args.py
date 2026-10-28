@@ -142,6 +142,19 @@ def test_test_is_skipped_if_its_only_path_is_ignored_next_to_path_valued_options
     mock_run_command.assert_called_once()  # called only to compose down
 
 
+def test_test_suite_is_skipped_if_all_its_paths_are_ignored(mock_run_command):
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.CORE, test_type="All-Postgres"),
+        extra_pytest_args=("--ignore=airflow-core/tests/unit",),
+        python_version="3.9",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+
+    mock_run_command.assert_called_once()  # called only to compose down
+
+
 def test_explicit_paths_go_to_pytest_as_they_are(mock_run_command):
     _run_test(
         shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="None"),
