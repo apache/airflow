@@ -583,6 +583,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instance: TI,
         concurrency_map: ConcurrencyMap,
         session: Session,
+        starved_dags: set[str],
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
     ) -> bool:
@@ -601,8 +602,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             raise
         except Exception:
             # A single Dag that fails to deserialize must not stop the scheduler from
-            # scheduling other Dags; skip this task instance instead of crashing the loop.
+            # scheduling other Dags; skip this task instance instead of crashing the loop. Starving
+            # the Dag keeps the next query of this cycle from handing back the same task instance,
+            # which would end the cycle with nothing queued whenever a bad Dag fills the batch.
             self.log.exception("Failed to load Dag %s for run %s, skipping it", dag_id, run_id)
+            starved_dags.add(dag_id)
             return False
 
         # If the DAG is missing, fail all scheduled TIs for this DAG.
@@ -921,6 +925,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         task_instance=task_instance,
                         concurrency_map=concurrency_map,
                         session=session,
+                        starved_dags=starved_dags,
                         starved_tasks=starved_tasks,
                         starved_tasks_task_dagrun_concurrency=(starved_tasks_task_dagrun_concurrency),
                     )

@@ -2865,6 +2865,7 @@ class TestTaskInstance:
             "priority_weight": 123,
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
+            "is_stub": False,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -5067,6 +5068,60 @@ class TestMakeTaskCarrier:
         carrier = new_task_run_carrier(None)
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
+
+
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_refresh_from_task_copies_is_stub(is_stub):
+    """ti_run gates on the row, so the flag has to travel from the task to the TaskInstance."""
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.is_stub = is_stub
+
+    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.is_stub is is_stub
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("decorator", "expected"),
+    [pytest.param(task.stub, True, id="stub"), pytest.param(task, False, id="regular")],
+)
+def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
+    """A scheduled row carries the flag, whichever of the two write paths filled it in."""
+    with dag_maker("test_scheduled_is_stub", serialized=True):
+
+        @decorator
+        def transform(country: str): ...
+
+        transform("uk")
+
+    (ti,) = dag_maker.create_dagrun().get_task_instances()
+
+    assert ti.is_stub is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_is_stub"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.is_stub = is_stub
+    dag_run = mock.MagicMock()
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["is_stub"] is is_stub
 
 
 @pytest.mark.db_test
