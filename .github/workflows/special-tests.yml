@@ -352,7 +352,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"

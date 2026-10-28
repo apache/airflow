@@ -651,7 +651,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | all-versions                                            | If set to true, then all python, k8s, DB versions are used for tests.                                   | false                                    |      |
 | basic-checks-only                                       | Whether to run all static checks ("false") or only basic set of static checks ("true")                  | false                                    |      |
 | ci-image-build                                          | Whether CI image build is needed                                                                        | true                                     |      |
-| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core                                                  | API Always Providers                     | *    |
+| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core (2 slices; 1 on RunsOn)                          | API Always Providers                     | *    |
 | debug-resources                                         | Whether resources usage should be printed during parallel job execution ("true"/ "false")               | false                                    |      |
 | default-branch                                          | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)           | main                                     |      |
 | default-constraints-branch                              | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)      | constraints-main                         |      |
@@ -675,7 +675,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
 | in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
-| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
+| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed; 5 slices, 3 on RunsOn)| Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
 | java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
@@ -767,6 +767,16 @@ picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`
 `'8+16', '32+64'` or `'32+64', '128+256'`), or, for a single-job reusable workflow, its caller passes
 `format(<runners>, <cpu>, <ram>)`. Each class is a range up to twice its size, so Spot can come from
 the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
+Jobs using `--run-in-parallel` (the DB, lowest-dependencies and special tests) run one serial pytest per
+test type instead, so they never use more CPUs than they have test types, and jobs running a single pytest
+(integration and system tests) use one. The size classes follow that: the xdist jobs and the
+lowest-dependencies provider tests take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller.
+The matrix slices follow it too. On public runners the core test types are split into
+`NUMBER_OF_CORE_SLICES` (2) jobs, to keep the Non-DB xdist collection inside the runner's memory, and
+the individually listed providers into `NUMBER_OF_LOW_DEP_SLICES` (5). On RunsOn the core test types
+stay in one job (`NUMBER_OF_CORE_SLICES_ON_RUNS_ON`), because a core DB job lasts as long as its
+slowest test type whichever slice it is in, and the providers are split into 3 jobs
+(`NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON`), so each job has about one provider per CPU of its runner.
 `spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
 the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are

@@ -52,7 +52,9 @@ from airflow_breeze.global_constants import (
     JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
+    NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
+    NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
@@ -1877,9 +1879,10 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
-        if len(current_test_types) <= NUMBER_OF_CORE_SLICES:
+        number_of_slices = NUMBER_OF_CORE_SLICES_ON_RUNS_ON if self._is_on_runs_on else NUMBER_OF_CORE_SLICES
+        if len(current_test_types) <= number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_CORE_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -1966,11 +1969,12 @@ class SelectiveChecks:
         current_test_types = sorted(self._get_individual_providers_list())
         if not current_test_types:
             return None
-        # We are hard-coding the number of lists as reasonable starting point to split the
-        # list of test types - and we can modify it in the future
-        if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
+        number_of_slices = (
+            NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON if self._is_on_runs_on else NUMBER_OF_LOW_DEP_SLICES
+        )
+        if len(current_test_types) < number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -2323,16 +2327,17 @@ class SelectiveChecks:
         return json.dumps([template.format(run_id=run_id)])
 
     @cached_property
+    def _is_on_runs_on(self) -> bool:
+        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
+        return self.runner_type not in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
+
+    @cached_property
     def in_memory_runner_type(self) -> str:
         """Runner labels like ``runner_type``, with docker on a RAM disk when the run is on RunsOn.
 
         The repository variable ``USE_IN_MEMORY_DOCKER=false`` keeps docker on disk.
         """
-        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
-        if (
-            self.runner_type in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
-            or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false"
-        ):
+        if not self._is_on_runs_on or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false":
             return self.runner_type
         template = (
             RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE

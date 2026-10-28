@@ -968,6 +968,13 @@ NUMBER_OF_LOW_DEP_SLICES = 5
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
 
+# Slice counts on the self-hosted RunsOn runners. Jobs using `--run-in-parallel` run one serial pytest per
+# test type, so a job never uses more CPUs than it has test types. The core jobs are bound by their slowest
+# test type and the Non-DB xdist collection gets enough memory on RunsOn, so one slice only removes jobs.
+# Low dep providers run on 32-CPU runners: a third of the providers per job keeps those CPUs busy.
+NUMBER_OF_CORE_SLICES_ON_RUNS_ON = 1
+NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON = 3
+
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone
 MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})

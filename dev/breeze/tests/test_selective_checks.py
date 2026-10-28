@@ -37,7 +37,9 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
+    NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
+    NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
     get_airflow_version,
@@ -2248,6 +2250,48 @@ def test_list_splitting():
     assert sum([len(list_of_types) for list_of_types in all_providers_in_sub_lists]) == len(
         LIST_OF_ALL_PROVIDER_TESTS
     )
+
+
+@pytest.mark.parametrize(
+    ("github_event", "github_context_dict", "expected_core_slices", "expected_low_dep_slices"),
+    [
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            {},
+            NUMBER_OF_CORE_SLICES,
+            NUMBER_OF_LOW_DEP_SLICES,
+            id="public runners",
+        ),
+        pytest.param(
+            GithubEvents.PUSH,
+            {"run_id": 42},
+            NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
+            NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
+            id="RunsOn runners",
+        ),
+    ],
+)
+def test_number_of_test_type_slices_follows_runners(
+    github_event: GithubEvents,
+    github_context_dict: dict[str, Any],
+    expected_core_slices: int,
+    expected_low_dep_slices: int,
+):
+    selective_checks = SelectiveChecks(
+        pr_labels=("full tests needed",),
+        default_branch="main",
+        github_event=github_event,
+        github_repository="apache/airflow",
+        github_context_dict=github_context_dict,
+    )
+    core_slices = json.loads(selective_checks.core_test_types_list_as_strings_in_json)
+    low_dep_slices = json.loads(selective_checks.individual_providers_test_types_list_as_strings_in_json)
+    assert len(core_slices) == expected_core_slices
+    assert len(low_dep_slices) == expected_low_dep_slices
+    assert sorted(" ".join(s["test_types"] for s in core_slices).split()) == sorted(
+        ALL_CI_SELECTIVE_TEST_TYPES.split()
+    )
+    assert sum(len(s["test_types"].split()) for s in low_dep_slices) == len(LIST_OF_ALL_PROVIDER_TESTS)
 
 
 def test_excluded_providers():
