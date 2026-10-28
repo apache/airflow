@@ -498,7 +498,9 @@ class TestSchedulerJob:
         session.flush()
         runner = SchedulerJobRunner(Job())
 
-        selected = session.scalars(runner._build_schedulable_tis_query(set(), set(), set(), set(), 10)).all()
+        selected = session.scalars(
+            runner._build_schedulable_tis_query(set(), set(), set(), set(), set(), 10)
+        ).all()
 
         assert [ti.id for ti in selected] == [scheduled.id]
 
