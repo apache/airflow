@@ -161,12 +161,6 @@ def _config_get_factory(section: str, key: str):
     return functools.partial(conf.get, section, key)
 
 
-def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathLike[str] | None):
-    if val is not None:
-        val = Path(val).resolve()
-    return val
-
-
 def utc_epoch() -> datetime:
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues

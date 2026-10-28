@@ -3992,12 +3992,10 @@ def test_iter_dagrun_infos_between_error(caplog):
             "airflow.serialization.encoders.find_registered_custom_timetable",
             _get_registered_timetable,
         ),
+        caplog.at_level(logging.ERROR),
     ):
         scheduler_dag = create_scheduler_dag(dag)
-
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
-    with caplog.at_level(logging.ERROR):
-        infos = list(iterator)
+        infos = list(scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end))
 
     # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
     assert infos == [DagRunInfo.interval(start, end)]

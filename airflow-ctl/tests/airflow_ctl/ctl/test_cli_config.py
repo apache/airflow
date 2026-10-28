@@ -1140,6 +1140,19 @@ class TestCliConfigMethods:
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
 
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
+    def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
+        """An operation that returns nothing is reported as a successful operation row."""
+        mocked_create_defaults.return_value = None
+        args = cli_parser.get_parser().parse_args(["connections", "create-defaults"])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"operation": "create_defaults", "status": "success"}
+        ]
+
     @pytest.mark.parametrize(
         ("output", "parse", "expected"),
         [

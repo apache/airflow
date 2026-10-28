@@ -196,13 +196,6 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
-
-
 def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     """Parse JSON object argument."""
     if isinstance(val, dict):
@@ -837,8 +830,6 @@ class CommandFactory:
                         )
 
             args.append(ARG_OUTPUT)
-            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
-            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
             if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
                 args.append(ARG_AUTH_ENVIRONMENT)
 
@@ -947,6 +938,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:

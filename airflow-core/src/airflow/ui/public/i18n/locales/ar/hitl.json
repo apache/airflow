@@ -29,6 +29,7 @@
     "received": "تم استلام الاستجابة في ",
     "respond": "الرد",
     "responded_by_user_name": "أجاب بواسطة (اسم المستخدم)",
+    "selectAtLeastOne": "اختر خيارًا واحدًا على الأقل",
     "success": "تمت الاستجابة بنجاح ل{{taskId}}",
     "title": "مثيل مهمة يدوي - {{taskId}}"
   },
