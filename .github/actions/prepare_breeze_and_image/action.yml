@@ -71,6 +71,11 @@ runs:
         else
           ./scripts/tools/free_up_disk_space.sh
         fi
+    - name: "Configure docker address pools"
+      shell: bash
+      run: ./scripts/ci/configure_docker_address_pools.sh
+      # Only self-hosted runners are large enough to run more test types at once than the default pools fit.
+      if: runner.environment == 'self-hosted'
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze
