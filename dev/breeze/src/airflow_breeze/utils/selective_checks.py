@@ -308,12 +308,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/sql/.*",
         ],
         FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
-            # Only add files that affect the compat setup and do NOT already trigger the full matrix
-            # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
-            # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
+            # run_openlineage_e2e_compat_tests ignores full_tests_needed. A file that drives the compat setup
+            # belongs here even when it also forces the full matrix, as the compat workflow does.
+            r"^\.github/workflows/openlineage-e2e-compat-tests\.yml$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+            r"^airflow-e2e-tests/docker/openlineage-compat-db\.yml$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
             # API documentation entry points and Markdown do not affect runtime e2e tests.
@@ -1453,14 +1454,13 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_openlineage_e2e_compat_tests(self) -> bool:
-        # Costly older-Airflow matrix. Like run_ui_e2e_tests it is not triggered by *derived*
-        # full_tests_needed (pushes, env changes, large PRs) — only by canary, an explicit label, or
-        # an actual change to a file that drives the compat setup but does not itself force the full
-        # matrix: the shared e2e harness (conftest / constants) or the compat Dockerfile. The compat
-        # workflow already forces full_tests_needed via ENVIRONMENT_FILES.
+        # The older-Airflow matrix is costly. Like run_ui_e2e_tests, this check ignores full_tests_needed.
+        # Many changes that do not touch the compat setup also set full_tests_needed, for example changes to
+        # environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+        # this matrix, and the next canary run tests that change.
         if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             return True
-        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
+        return bool(self._matching_files(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES, CI_FILE_GROUP_MATCHES))
 
     @cached_property
     @_scoped_to_component_branch
