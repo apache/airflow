@@ -10802,6 +10802,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/triggers:
+    get:
+      tags:
+      - Trigger
+      summary: Get Triggers
+      description: 'Get the triggers the caller can see, of every kind, and how each
+        is doing.
+
+
+        A trigger is visible to whoever can see its owner: the Dag of its task instance
+        or callback, or an asset
+
+        one of its watchers watches.'
+      operationId: get_triggers
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, created_date`'
+          default:
+          - id
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, created_date`'
+      - name: kind
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/TriggerKind'
+          description: Return only triggers of these kinds.
+          title: Kind
+        description: Return only triggers of these kinds.
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/TriggerStatus'
+          description: Return only triggers with one of these statuses.
+          title: Status
+        description: Return only triggers with one of these statuses.
+      - name: triggerer_hostname
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return only the triggers assigned to the triggerer on this
+            host.
+          title: Triggerer Hostname
+        description: Return only the triggers assigned to the triggerer on this host.
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return only the triggers of this Dag's task instances and callbacks.
+          title: Dag Id
+        description: Return only the triggers of this Dag's task instances and callbacks.
+      - name: asset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the triggers of this asset's watchers.
+          title: Asset Id
+        description: Return only the triggers of this asset's watchers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/triggers/{trigger_id}:
+    get:
+      tags:
+      - Trigger
+      summary: Get Trigger
+      description: Get a trigger, who it runs for, and how it is doing.
+      operationId: get_trigger
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: trigger_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Trigger Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/variables/{variable_key}:
     delete:
       tags:
@@ -12992,10 +13170,19 @@ components:
         trigger_id:
           type: integer
           title: Trigger Id
+          description: The watcher's trigger; `GET /triggers/{trigger_id}` has its
+            state.
         created_date:
           type: string
           format: date-time
           title: Created Date
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerStatus'
+          - type: 'null'
+          description: Status of the watcher's trigger, as in `GET /triggers`; null
+            if the caller cannot see the trigger (with multi-team on, a trigger of
+            another team).
       type: object
       required:
       - name
@@ -19431,6 +19618,72 @@ components:
       - microseconds
       title: TimeDelta
       description: TimeDelta can be used to interact with datetime.timedelta objects.
+    TriggerAssetWatcherReferenceResponse:
+      properties:
+        asset_id:
+          type: integer
+          title: Asset Id
+        asset_name:
+          type: string
+          title: Asset Name
+        asset_uri:
+          type: string
+          title: Asset Uri
+        watcher_name:
+          type: string
+          title: Watcher Name
+      type: object
+      required:
+      - asset_id
+      - asset_name
+      - asset_uri
+      - watcher_name
+      title: TriggerAssetWatcherReferenceResponse
+      description: An asset watcher a trigger serves.
+    TriggerCallbackReferenceResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      type: object
+      required:
+      - id
+      - dag_id
+      - dag_run_id
+      - state
+      title: TriggerCallbackReferenceResponse
+      description: The callback a trigger runs.
+    TriggerCollectionResponse:
+      properties:
+        triggers:
+          items:
+            $ref: '#/components/schemas/TriggerDetailResponse'
+          type: array
+          title: Triggers
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - triggers
+      - total_entries
+      title: TriggerCollectionResponse
+      description: Trigger collection response.
     TriggerDAGRunPostBody:
       properties:
         dag_run_id:
@@ -19498,6 +19751,90 @@ components:
       - logical_date
       title: TriggerDAGRunPostBody
       description: Trigger Dag Run Serializer for POST body.
+    TriggerDetailResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        kind:
+          $ref: '#/components/schemas/TriggerKind'
+          description: 'What the trigger runs for: a deferred `task`, a `callback`
+            or an `asset_watcher`.'
+        classpath:
+          type: string
+          title: Classpath
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+        status:
+          $ref: '#/components/schemas/TriggerStatus'
+          description: '`pending`: not picked up by a triggerer yet. `running`: on
+            a live triggerer. `orphaned`: its triggerer stopped sending heartbeats;
+            another triggerer will take it.'
+        triggerer_hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Triggerer Hostname
+          description: Host of the triggerer the trigger is assigned to; whether it
+            is alive is the `orphaned` status.
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+          description: The Dag of the task instance or callback the trigger runs for.
+        task_instance:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerTaskInstanceReferenceResponse'
+          - type: 'null'
+        callback:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerCallbackReferenceResponse'
+          - type: 'null'
+        asset_watchers:
+          items:
+            $ref: '#/components/schemas/TriggerAssetWatcherReferenceResponse'
+          type: array
+          title: Asset Watchers
+          description: The watchers the trigger serves, on the assets the caller can
+            read.
+      type: object
+      required:
+      - id
+      - kind
+      - classpath
+      - created_date
+      - queue
+      - team_name
+      - status
+      - triggerer_hostname
+      - dag_id
+      - task_instance
+      - callback
+      - asset_watchers
+      title: TriggerDetailResponse
+      description: A trigger, who it runs for, and how it is doing; never its kwargs.
+    TriggerKind:
+      type: string
+      enum:
+      - task
+      - callback
+      - asset_watcher
+      title: TriggerKind
+      description: What a trigger runs for, worked out from its owner rather than
+        stored.
     TriggerResponse:
       properties:
         id:
@@ -19534,6 +19871,47 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
+    TriggerStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - orphaned
+      title: TriggerStatus
+      description: How a trigger is doing, worked out the same way for every kind
+        from its row and its triggerer's heartbeat.
+    TriggerTaskInstanceReferenceResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        task_id:
+          type: string
+          title: Task Id
+        map_index:
+          type: integer
+          title: Map Index
+        try_number:
+          type: integer
+          title: Try Number
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      type: object
+      required:
+      - dag_id
+      - dag_run_id
+      - task_id
+      - map_index
+      - try_number
+      - state
+      title: TriggerTaskInstanceReferenceResponse
+      description: The task instance a trigger runs for.
     TriggererInfoResponse:
       properties:
         status:

@@ -113,16 +113,6 @@ class AssetStateStoreWriterKind(str, Enum):
     API = "api"
 
 
-class AssetWatcherResponse(BaseModel):
-    """
-    Asset watcher serializer for responses.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    trigger_id: Annotated[int, Field(title="Trigger Id")]
-    created_date: Annotated[datetime, Field(title="Created Date")]
-
-
 class AsyncConnectionTestResponse(BaseModel):
     """
     Response returned when polling for the status of an enqueued connection test.
@@ -1622,6 +1612,28 @@ class TimeDelta(BaseModel):
     microseconds: Annotated[int, Field(title="Microseconds")]
 
 
+class TriggerAssetWatcherReferenceResponse(BaseModel):
+    """
+    An asset watcher a trigger serves.
+    """
+
+    asset_id: Annotated[int, Field(title="Asset Id")]
+    asset_name: Annotated[str, Field(title="Asset Name")]
+    asset_uri: Annotated[str, Field(title="Asset Uri")]
+    watcher_name: Annotated[str, Field(title="Watcher Name")]
+
+
+class TriggerCallbackReferenceResponse(BaseModel):
+    """
+    The callback a trigger runs.
+    """
+
+    id: Annotated[str, Field(title="Id")]
+    dag_id: Annotated[str | None, Field(title="Dag Id")]
+    dag_run_id: Annotated[str | None, Field(title="Dag Run Id")]
+    state: Annotated[str | None, Field(title="State")]
+
+
 class TriggerDAGRunPostBody(BaseModel):
     """
     Trigger Dag Run Serializer for POST body.
@@ -1648,6 +1660,16 @@ class TriggerDAGRunPostBody(BaseModel):
     ] = False
 
 
+class TriggerKind(str, Enum):
+    """
+    What a trigger runs for, worked out from its owner rather than stored.
+    """
+
+    TASK = "task"
+    CALLBACK = "callback"
+    ASSET_WATCHER = "asset_watcher"
+
+
 class TriggerResponse(BaseModel):
     """
     Trigger serializer for responses.
@@ -1659,6 +1681,29 @@ class TriggerResponse(BaseModel):
     created_date: Annotated[datetime, Field(title="Created Date")]
     queue: Annotated[str | None, Field(title="Queue")]
     triggerer_id: Annotated[int | None, Field(title="Triggerer Id")]
+
+
+class TriggerStatus(str, Enum):
+    """
+    How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    ORPHANED = "orphaned"
+
+
+class TriggerTaskInstanceReferenceResponse(BaseModel):
+    """
+    The task instance a trigger runs for.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int, Field(title="Map Index")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    state: Annotated[str | None, Field(title="State")]
 
 
 class TriggererInstanceInfoResponse(BaseModel):
@@ -1871,26 +1916,6 @@ class AssetExpressionAsset(BaseModel):
     asset: AssetExpressionAssetInfo
 
 
-class AssetResponse(BaseModel):
-    """
-    Asset serializer for responses.
-    """
-
-    id: Annotated[int, Field(title="Id")]
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
-    created_at: Annotated[datetime, Field(title="Created At")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
-    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
-    producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
-    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
-    aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
-    watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
-    last_asset_event: LastAssetEventResponse | None = None
-
-
 class AssetStateStoreBody(BaseModel):
     """
     Request body for setting an asset state store value.
@@ -1927,6 +1952,28 @@ class AssetStateStoreResponse(BaseModel):
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
     last_updated_by: AssetStateStoreLastUpdatedBy | None = None
+
+
+class AssetWatcherResponse(BaseModel):
+    """
+    Asset watcher serializer for responses.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    trigger_id: Annotated[
+        int,
+        Field(
+            description="The watcher's trigger; `GET /triggers/{trigger_id}` has its state.",
+            title="Trigger Id",
+        ),
+    ]
+    created_date: Annotated[datetime, Field(title="Created Date")]
+    status: Annotated[
+        TriggerStatus | None,
+        Field(
+            description="Status of the watcher's trigger, as in `GET /triggers`; null if the caller cannot see the trigger (with multi-team on, a trigger of another team)."
+        ),
+    ] = None
 
 
 class BackfillDagRunResponse(BaseModel):
@@ -3000,6 +3047,50 @@ class TaskStateStoreCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class TriggerDetailResponse(BaseModel):
+    """
+    A trigger, who it runs for, and how it is doing; never its kwargs.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    kind: Annotated[
+        TriggerKind,
+        Field(
+            description="What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`."
+        ),
+    ]
+    classpath: Annotated[str, Field(title="Classpath")]
+    created_date: Annotated[datetime, Field(title="Created Date")]
+    queue: Annotated[str | None, Field(title="Queue")]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+    status: Annotated[
+        TriggerStatus,
+        Field(
+            description="`pending`: not picked up by a triggerer yet. `running`: on a live triggerer. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it."
+        ),
+    ]
+    triggerer_hostname: Annotated[
+        str | None,
+        Field(
+            description="Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.",
+            title="Triggerer Hostname",
+        ),
+    ]
+    dag_id: Annotated[
+        str | None,
+        Field(description="The Dag of the task instance or callback the trigger runs for.", title="Dag Id"),
+    ]
+    task_instance: TriggerTaskInstanceReferenceResponse | None
+    callback: TriggerCallbackReferenceResponse | None
+    asset_watchers: Annotated[
+        list[TriggerAssetWatcherReferenceResponse],
+        Field(
+            description="The watchers the trigger serves, on the assets the caller can read.",
+            title="Asset Watchers",
+        ),
+    ]
+
+
 class TriggererInfoResponse(BaseModel):
     """
     Triggerer info serializer for responses.
@@ -3029,15 +3120,6 @@ class XComCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class AssetCollectionResponse(BaseModel):
-    """
-    Asset collection response.
-    """
-
-    assets: Annotated[list[AssetResponse], Field(title="Assets")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
 class AssetEventCollectionResponse(BaseModel):
     """
     Asset event collection response.
@@ -3045,6 +3127,26 @@ class AssetEventCollectionResponse(BaseModel):
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset serializer for responses.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
+    producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
+    aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
+    last_asset_event: LastAssetEventResponse | None = None
 
 
 class AssetStateStoreCollectionResponse(BaseModel):
@@ -3379,6 +3481,24 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     """
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class TriggerCollectionResponse(BaseModel):
+    """
+    Trigger collection response.
+    """
+
+    triggers: Annotated[list[TriggerDetailResponse], Field(title="Triggers")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetCollectionResponse(BaseModel):
+    """
+    Asset collection response.
+    """
+
+    assets: Annotated[list[AssetResponse], Field(title="Assets")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

@@ -224,8 +224,15 @@ export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
  */
 export type AssetWatcherResponse = {
     name: string;
+    /**
+     * The watcher's trigger; `GET /triggers/{trigger_id}` has its state.
+     */
     trigger_id: number;
     created_date: string;
+    /**
+     * Status of the watcher's trigger, as in `GET /triggers`; null if the caller cannot see the trigger (with multi-team on, a trigger of another team).
+     */
+    status?: TriggerStatus | null;
 };
 
 /**
@@ -2630,6 +2637,34 @@ export type TimeDelta = {
 };
 
 /**
+ * An asset watcher a trigger serves.
+ */
+export type TriggerAssetWatcherReferenceResponse = {
+    asset_id: number;
+    asset_name: string;
+    asset_uri: string;
+    watcher_name: string;
+};
+
+/**
+ * The callback a trigger runs.
+ */
+export type TriggerCallbackReferenceResponse = {
+    id: string;
+    dag_id: string | null;
+    dag_run_id: string | null;
+    state: string | null;
+};
+
+/**
+ * Trigger collection response.
+ */
+export type TriggerCollectionResponse = {
+    triggers: Array<TriggerDetailResponse>;
+    total_entries: number;
+};
+
+/**
  * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
@@ -2651,6 +2686,44 @@ export type TriggerDAGRunPostBody = {
 };
 
 /**
+ * A trigger, who it runs for, and how it is doing; never its kwargs.
+ */
+export type TriggerDetailResponse = {
+    id: number;
+    /**
+     * What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`.
+     */
+    kind: TriggerKind;
+    classpath: string;
+    created_date: string;
+    queue: string | null;
+    team_name: string | null;
+    /**
+     * `pending`: not picked up by a triggerer yet. `running`: on a live triggerer. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it.
+     */
+    status: TriggerStatus;
+    /**
+     * Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.
+     */
+    triggerer_hostname: string | null;
+    /**
+     * The Dag of the task instance or callback the trigger runs for.
+     */
+    dag_id: string | null;
+    task_instance: TriggerTaskInstanceReferenceResponse | null;
+    callback: TriggerCallbackReferenceResponse | null;
+    /**
+     * The watchers the trigger serves, on the assets the caller can read.
+     */
+    asset_watchers: Array<TriggerAssetWatcherReferenceResponse>;
+};
+
+/**
+ * What a trigger runs for, worked out from its owner rather than stored.
+ */
+export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -2663,6 +2736,23 @@ export type TriggerResponse = {
     created_date: string;
     queue: string | null;
     triggerer_id: number | null;
+};
+
+/**
+ * How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
+ */
+export type TriggerStatus = 'pending' | 'running' | 'orphaned';
+
+/**
+ * The task instance a trigger runs for.
+ */
+export type TriggerTaskInstanceReferenceResponse = {
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    map_index: number;
+    try_number: number;
+    state: string | null;
 };
 
 /**
@@ -3181,6 +3271,10 @@ export type DeadlineResponse = {
     callback_type: string;
     callback_state?: CallbackState | null;
     callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
 
 /**
@@ -5558,6 +5652,43 @@ export type GetTaskData = {
 };
 
 export type GetTaskResponse = TaskResponse;
+
+export type GetTriggersData = {
+    /**
+     * Return only the triggers of this asset's watchers.
+     */
+    assetId?: number | null;
+    /**
+     * Return only the triggers of this Dag's task instances and callbacks.
+     */
+    dagId?: string | null;
+    /**
+     * Return only triggers of these kinds.
+     */
+    kind?: Array<TriggerKind>;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Return only triggers with one of these statuses.
+     */
+    status?: Array<TriggerStatus>;
+    /**
+     * Return only the triggers assigned to the triggerer on this host.
+     */
+    triggererHostname?: string | null;
+};
+
+export type GetTriggersResponse = TriggerCollectionResponse;
+
+export type GetTriggerData = {
+    triggerId: number;
+};
+
+export type GetTriggerResponse = TriggerDetailResponse;
 
 export type DeleteVariableData = {
     variableKey: string;
@@ -9665,6 +9796,60 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers': {
+        get: {
+            req: GetTriggersData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers/{trigger_id}': {
+        get: {
+            req: GetTriggerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerDetailResponse;
                 /**
                  * Unauthorized
                  */

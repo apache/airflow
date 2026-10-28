@@ -3153,10 +3153,19 @@ components:
         trigger_id:
           type: integer
           title: Trigger Id
+          description: The watcher's trigger; `GET /triggers/{trigger_id}` has its
+            state.
         created_date:
           type: string
           format: date-time
           title: Created Date
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerStatus'
+          - type: 'null'
+          description: Status of the watcher's trigger, as in `GET /triggers`; null
+            if the caller cannot see the trigger (with multi-team on, a trigger of
+            another team).
       type: object
       required:
       - name
@@ -4276,6 +4285,13 @@ components:
           - type: string
           - type: 'null'
           title: Callback Path
+        callback_trigger_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Callback Trigger Id
+          description: The trigger running a triggerer callback, while it runs; see
+            `GET /api/v2/triggers`.
       type: object
       required:
       - id
@@ -6346,6 +6362,15 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
+    TriggerStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - orphaned
+      title: TriggerStatus
+      description: How a trigger is doing, worked out the same way for every kind
+        from its row and its triggerer's heartbeat.
     UIAlert:
       properties:
         text:

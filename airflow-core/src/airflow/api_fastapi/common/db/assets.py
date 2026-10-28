@@ -33,6 +33,7 @@ from airflow.models.asset import (
     association_table,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.trigger import Trigger
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -72,7 +73,9 @@ def generate_assets_with_last_event_query() -> Select:
             *eager_load_asset_reference_teams(),
             selectinload(AssetModel.consuming_tasks),
             selectinload(AssetModel.aliases),
-            selectinload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            selectinload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 

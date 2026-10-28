@@ -773,12 +773,24 @@ export const $AssetWatcherResponse = {
         },
         trigger_id: {
             type: 'integer',
-            title: 'Trigger Id'
+            title: 'Trigger Id',
+            description: "The watcher's trigger; `GET /triggers/{trigger_id}` has its state."
         },
         created_date: {
             type: 'string',
             format: 'date-time',
             title: 'Created Date'
+        },
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: "Status of the watcher's trigger, as in `GET /triggers`; null if the caller cannot see the trigger (with multi-team on, a trigger of another team)."
         }
     },
     type: 'object',
@@ -10470,6 +10482,97 @@ export const $TimeDelta = {
     description: 'TimeDelta can be used to interact with datetime.timedelta objects.'
 } as const;
 
+export const $TriggerAssetWatcherReferenceResponse = {
+    properties: {
+        asset_id: {
+            type: 'integer',
+            title: 'Asset Id'
+        },
+        asset_name: {
+            type: 'string',
+            title: 'Asset Name'
+        },
+        asset_uri: {
+            type: 'string',
+            title: 'Asset Uri'
+        },
+        watcher_name: {
+            type: 'string',
+            title: 'Watcher Name'
+        }
+    },
+    type: 'object',
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name'],
+    title: 'TriggerAssetWatcherReferenceResponse',
+    description: 'An asset watcher a trigger serves.'
+} as const;
+
+export const $TriggerCallbackReferenceResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
+        },
+        state: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'dag_run_id', 'state'],
+    title: 'TriggerCallbackReferenceResponse',
+    description: 'The callback a trigger runs.'
+} as const;
+
+export const $TriggerCollectionResponse = {
+    properties: {
+        triggers: {
+            items: {
+                '$ref': '#/components/schemas/TriggerDetailResponse'
+            },
+            type: 'array',
+            title: 'Triggers'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['triggers', 'total_entries'],
+    title: 'TriggerCollectionResponse',
+    description: 'Trigger collection response.'
+} as const;
+
 export const $TriggerDAGRunPostBody = {
     properties: {
         dag_run_id: {
@@ -10590,6 +10693,117 @@ export const $TriggerDAGRunPostBody = {
     description: 'Trigger Dag Run Serializer for POST body.'
 } as const;
 
+export const $TriggerDetailResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        kind: {
+            '$ref': '#/components/schemas/TriggerKind',
+            description: 'What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`.'
+        },
+        classpath: {
+            type: 'string',
+            title: 'Classpath'
+        },
+        created_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created Date'
+        },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
+        status: {
+            '$ref': '#/components/schemas/TriggerStatus',
+            description: `\`pending\`: not picked up by a triggerer yet. \`running\`: on a live triggerer. \`orphaned\`: its triggerer stopped sending heartbeats; another triggerer will take it.`
+        },
+        triggerer_hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Triggerer Hostname',
+            description: 'Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id',
+            description: 'The Dag of the task instance or callback the trigger runs for.'
+        },
+        task_instance: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerTaskInstanceReferenceResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        callback: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerCallbackReferenceResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        asset_watchers: {
+            items: {
+                '$ref': '#/components/schemas/TriggerAssetWatcherReferenceResponse'
+            },
+            type: 'array',
+            title: 'Asset Watchers',
+            description: 'The watchers the trigger serves, on the assets the caller can read.'
+        }
+    },
+    type: 'object',
+    required: ['id', 'kind', 'classpath', 'created_date', 'queue', 'team_name', 'status', 'triggerer_hostname', 'dag_id', 'task_instance', 'callback', 'asset_watchers'],
+    title: 'TriggerDetailResponse',
+    description: 'A trigger, who it runs for, and how it is doing; never its kwargs.'
+} as const;
+
+export const $TriggerKind = {
+    type: 'string',
+    enum: ['task', 'callback', 'asset_watcher'],
+    title: 'TriggerKind',
+    description: 'What a trigger runs for, worked out from its owner rather than stored.'
+} as const;
+
 export const $TriggerResponse = {
     properties: {
         id: {
@@ -10637,6 +10851,53 @@ export const $TriggerResponse = {
     required: ['id', 'classpath', 'kwargs', 'created_date', 'queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
+} as const;
+
+export const $TriggerStatus = {
+    type: 'string',
+    enum: ['pending', 'running', 'orphaned'],
+    title: 'TriggerStatus',
+    description: "How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat."
+} as const;
+
+export const $TriggerTaskInstanceReferenceResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number'
+        },
+        state: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'State'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'dag_run_id', 'task_id', 'map_index', 'try_number', 'state'],
+    title: 'TriggerTaskInstanceReferenceResponse',
+    description: 'The task instance a trigger runs for.'
 } as const;
 
 export const $TriggererInfoResponse = {
@@ -12524,6 +12785,18 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Callback Path'
+        },
+        callback_trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Trigger Id',
+            description: 'The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.'
         }
     },
     type: 'object',

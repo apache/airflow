@@ -19,6 +19,7 @@ from __future__ import annotations
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
+from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
@@ -27,7 +28,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import or_, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -54,6 +55,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.triggers import build_trigger_dag_id_expression
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -71,7 +73,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -81,6 +83,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -1219,6 +1222,85 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
     PermittedAssetEventByAssetFilter,
     Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
 ]
+
+
+def _trigger_watchers() -> Select:
+    return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
+
+
+class ReadableTriggerTeams:
+    """
+    The teams whose triggers the user may see: with multi-team on, global triggers and those of their teams.
+
+    The user's teams are looked up on first use, so a response without a trigger of a team costs no query.
+    """
+
+    def __init__(self, user: GetUserDep, auth_manager: AuthManagerDep) -> None:
+        self._user = user
+        self._auth_manager = auth_manager
+        self.multi_team = conf.getboolean("core", "multi_team")
+
+    @cached_property
+    def teams(self) -> set[str]:
+        return self._auth_manager.get_authorized_teams(user=self._user)
+
+    def can_see(self, team_name: str | None) -> bool:
+        return not self.multi_team or team_name is None or team_name in self.teams
+
+
+ReadableTriggerTeamsDep = Annotated[ReadableTriggerTeams, Depends()]
+
+
+class PermittedTriggerFilter(OrmClause[None]):
+    """
+    Keep the triggers whose owner the caller can see, by one rule for every kind of trigger.
+
+    A trigger's owner is the Dag of its task instance or callback (through the callback's deadline) or the
+    assets its watchers watch. With multi-team on, only triggers that are global or in one of the caller's teams are kept.
+    :meth:`ReadableTriggerTeams.can_see` is the same team rule.
+    """
+
+    def __init__(self, *, dag_ids: set[str], asset_ids: set[int], teams: set[str] | None) -> None:
+        super().__init__()
+        self.dag_ids = dag_ids
+        self.asset_ids = asset_ids
+        self.teams = teams
+
+    def to_orm(self, select: Select) -> Select:
+        select = select.where(
+            or_(
+                build_trigger_dag_id_expression().in_(self.dag_ids),
+                exists(_trigger_watchers().where(AssetWatcherModel.asset_id.in_(self.asset_ids))),
+            )
+        )
+        if self.teams is not None:
+            select = select.where(or_(Trigger.team_name.is_(None), Trigger.team_name.in_(self.teams)))
+        return select
+
+
+def get_readable_asset_ids(user: BaseUser, auth_manager: BaseAuthManager) -> set[int]:
+    """
+    Return the ids of the assets the user may read, gated like ``GET /assets`` first.
+
+    ``get_authorized_assets`` may assume that gate has passed: the FAB auth manager, which has no per-asset
+    permissions, returns every asset there.
+    """
+    if not auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user):
+        return set()
+    return auth_manager.get_authorized_assets(user=user, method="GET")
+
+
+def readable_triggers_filter(
+    user: GetUserDep, auth_manager: AuthManagerDep, trigger_teams: ReadableTriggerTeamsDep
+) -> PermittedTriggerFilter:
+    return PermittedTriggerFilter(
+        dag_ids=auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+        asset_ids=get_readable_asset_ids(user, auth_manager),
+        teams=trigger_teams.teams if trigger_teams.multi_team else None,
+    )
+
+
+ReadableTriggersFilterDep = Annotated[PermittedTriggerFilter, Depends(readable_triggers_filter)]
 
 
 def _build_asset_details(asset_id: str | None) -> AssetDetails:

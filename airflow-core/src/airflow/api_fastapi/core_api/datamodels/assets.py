@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
@@ -35,6 +35,7 @@ from pydantic import (
 
 from airflow._shared.secrets_masker import redact
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.triggers import TriggerStatus, get_trigger_status
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
 from airflow.models.base import ID_LEN
@@ -84,8 +85,13 @@ class AssetWatcherResponse(BaseModel):
     """Asset watcher serializer for responses."""
 
     name: str
-    trigger_id: int
+    trigger_id: int = Field(description="The watcher's trigger; `GET /triggers/{trigger_id}` has its state.")
     created_date: datetime
+    status: TriggerStatus | None = Field(
+        default=None,
+        description="Status of the watcher's trigger, as in `GET /triggers`; null if the caller cannot see "
+        "the trigger (with multi-team on, a trigger of another team).",
+    )
 
 
 class AssetResponse(BaseModel):
@@ -118,13 +124,16 @@ class AssetResponse(BaseModel):
         last_asset_event_timestamp: datetime | None,
         *,
         readable_dag_ids: set[str] | None,
+        can_see_trigger_team: Callable[[str | None], bool],
     ) -> AssetResponse:
         """
         Build a response from an ``AssetModel`` row joined with its last AssetEvent id/timestamp.
 
         The scheduled Dag, producing task and consuming task references are narrowed to the Dags in
-        ``readable_dag_ids``; ``None`` means the caller may read every Dag. It has no default so that
-        a new caller has to decide, rather than return every reference by omission.
+        ``readable_dag_ids``; ``None`` means the caller may read every Dag. A watcher's status is only
+        given when ``can_see_trigger_team`` passes for its trigger's team, as ``GET /triggers`` would show
+        the trigger. Neither has a default so that a new caller has to decide, rather than return every
+        reference by omission.
         """
 
         def _readable(refs):
@@ -137,6 +146,9 @@ class AssetResponse(BaseModel):
                 "name": watcher.name,
                 "trigger_id": watcher.trigger_id,
                 "created_date": watcher.trigger.created_date,
+                "status": get_trigger_status(watcher.trigger)
+                if can_see_trigger_team(watcher.trigger.team_name)
+                else None,
             }
             for watcher in asset.watchers
         ]

@@ -21,6 +21,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
+from airflow.api_fastapi.common.db.triggers import TriggerKind, TriggerStatus
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -53,3 +54,66 @@ class TriggerResponse(BaseModel):
     created_date: datetime
     queue: str | None
     triggerer_id: int | None
+
+
+class TriggerTaskInstanceReferenceResponse(BaseModel):
+    """The task instance a trigger runs for."""
+
+    dag_id: str
+    dag_run_id: str
+    task_id: str
+    map_index: int
+    try_number: int
+    state: str | None
+
+
+class TriggerCallbackReferenceResponse(BaseModel):
+    """The callback a trigger runs."""
+
+    id: str
+    dag_id: str | None
+    dag_run_id: str | None
+    state: str | None
+
+
+class TriggerAssetWatcherReferenceResponse(BaseModel):
+    """An asset watcher a trigger serves."""
+
+    asset_id: int
+    asset_name: str
+    asset_uri: str
+    watcher_name: str
+
+
+class TriggerDetailResponse(BaseModel):
+    """A trigger, who it runs for, and how it is doing; never its kwargs."""
+
+    id: int
+    kind: TriggerKind = Field(
+        description="What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`."
+    )
+    classpath: str
+    created_date: datetime
+    queue: str | None
+    team_name: str | None
+    status: TriggerStatus = Field(
+        description="`pending`: not picked up by a triggerer yet. `running`: on a live triggerer. "
+        "`orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it."
+    )
+    triggerer_hostname: str | None = Field(
+        description="Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` "
+        "status."
+    )
+    dag_id: str | None = Field(description="The Dag of the task instance or callback the trigger runs for.")
+    task_instance: TriggerTaskInstanceReferenceResponse | None
+    callback: TriggerCallbackReferenceResponse | None
+    asset_watchers: list[TriggerAssetWatcherReferenceResponse] = Field(
+        description="The watchers the trigger serves, on the assets the caller can read."
+    )
+
+
+class TriggerCollectionResponse(BaseModel):
+    """Trigger collection response."""
+
+    triggers: list[TriggerDetailResponse]
+    total_entries: int

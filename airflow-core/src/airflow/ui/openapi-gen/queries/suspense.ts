@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, TriggerStatus } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -2051,6 +2051,45 @@ export const useTaskServiceGetTaskSuspense = <TData = Common.TaskServiceGetTaskD
   taskId: unknown;
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }, queryKey), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) as TData, ...options });
+/**
+* Get Triggers
+* Get the triggers the caller can see, of every kind, and how each is doing.
+*
+* A trigger is visible to whoever can see its owner: the Dag of its task instance or callback, or an asset
+* one of its watchers watches.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date`
+* @param data.kind Return only triggers of these kinds.
+* @param data.status Return only triggers with one of these statuses.
+* @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
+* @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
+* @param data.assetId Return only the triggers of this asset's watchers.
+* @returns TriggerCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTriggerServiceGetTriggersSuspense = <TData = Common.TriggerServiceGetTriggersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, dagId, kind, limit, offset, orderBy, status, triggererHostname }: {
+  assetId?: number;
+  dagId?: string;
+  kind?: TriggerKind[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  status?: TriggerStatus[];
+  triggererHostname?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, triggererHostname }, queryKey), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, triggererHostname }) as TData, ...options });
+/**
+* Get Trigger
+* Get a trigger, who it runs for, and how it is doing.
+* @param data The data for the request.
+* @param data.triggerId
+* @returns TriggerDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useTriggerServiceGetTriggerSuspense = <TData = Common.TriggerServiceGetTriggerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ triggerId }: {
+  triggerId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggerKeyFn({ triggerId }, queryKey), queryFn: () => TriggerService.getTrigger({ triggerId }) as TData, ...options });
 /**
 * Get Variable
 * Get a variable entry.

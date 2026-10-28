@@ -45,6 +45,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
@@ -52,6 +53,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
+    clear_db_triggers,
 )
 from tests_common.test_utils.team import attach_dag_to_team
 
@@ -91,6 +93,9 @@ def _cb() -> AsyncCallback:
 def _clear_db():
     clear_db_deadline()
     clear_db_deadline_alert()
+    # A queued triggerer callback references its trigger.
+    clear_db_callbacks()
+    clear_db_triggers()
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -276,9 +281,23 @@ class TestGetDagRunDeadlines:
         assert deadline1["callback_type"] == "triggerer"
         assert deadline1["callback_state"] == "scheduled"
         assert deadline1["callback_path"] == _CALLBACK_PATH
+        assert deadline1["callback_trigger_id"] is None
         assert "callback_id" in deadline1
         assert "id" in deadline1
         assert "created_at" in deadline1
+
+    def test_running_callback_links_its_trigger(self, test_client, session):
+        deadline = session.scalar(
+            select(Deadline).join(Deadline.dagrun).where(DagRun.run_id == RUN_SINGLE).limit(1)
+        )
+        deadline.callback.queue(session=session)
+        session.commit()
+        trigger_id = deadline.callback.trigger_id
+        assert trigger_id is not None
+
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_SINGLE}/deadlines")
+
+        assert response.json()["deadlines"][0]["callback_trigger_id"] == trigger_id
 
     def test_missed_deadline_is_reflected(self, test_client):
         response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/deadlines")

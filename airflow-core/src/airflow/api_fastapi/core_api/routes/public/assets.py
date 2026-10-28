@@ -76,6 +76,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableAssetEventsFilterDep,
     ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
+    ReadableTriggerTeamsDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -95,6 +96,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.trigger import Trigger
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -162,6 +164,7 @@ def get_assets(
     ],
     readable_assets_filter: ReadableAssetsFilterDep,
     readable_dags_filter: ReadableDagsFilterDep,
+    trigger_teams: ReadableTriggerTeamsDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -221,7 +224,9 @@ def get_assets(
             *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
             subqueryload(AssetModel.aliases),
-            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            subqueryload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 
@@ -232,6 +237,7 @@ def get_assets(
             last_asset_event_id,
             last_asset_event_timestamp,
             readable_dag_ids=readable_dags_filter.value,
+            can_see_trigger_team=trigger_teams.can_see,
         )
         for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows
     ]
@@ -581,6 +587,7 @@ def get_asset_queued_events(
 def get_asset(
     asset_id: int,
     readable_dags_filter: ReadableDagsFilterDep,
+    trigger_teams: ReadableTriggerTeamsDep,
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
@@ -603,7 +610,9 @@ def get_asset(
         .options(
             *eager_load_asset_reference_teams(),
             joinedload(AssetModel.consuming_tasks),
-            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            joinedload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 
@@ -619,6 +628,7 @@ def get_asset(
         last_asset_event_id,
         last_asset_event_timestamp,
         readable_dag_ids=readable_dags_filter.value,
+        can_see_trigger_team=trigger_teams.can_see,
     )
 
 
