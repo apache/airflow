@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
@@ -2257,6 +2258,17 @@ def _off_the_event_loop(lookup):
     return guarded
 
 
+# Stands in for the task instance fields the task runner binds for logging.
+_caller_context: ContextVar[str | None] = ContextVar("caller_context", default=None)
+
+# The three async entry points, each run against a hook for the "primary" connection.
+_ASYNC_HOPS = [
+    pytest.param(lambda hook: type(hook).aget_hook("primary"), id="aget_hook"),
+    pytest.param(lambda hook: hook.aget_conn(), id="aget_conn"),
+    pytest.param(lambda hook: hook.acreate_agent(instructions="Be helpful."), id="acreate_agent"),
+]
+
+
 @pytest.fixture
 def loop_guarded_registry():
     """The ``registry`` fixture, with every synchronous lookup refused on the event loop."""
@@ -2441,45 +2453,7 @@ class TestPydanticAIHookAsync:
         Connection.get_hook.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    async def test_concurrent_acreate_agent_calls_each_see_a_complete_connection(
-        self, mock_agent_cls, loop_guarded_registry, infer_model_stub
-    ):
-        loop_guarded_registry.add(
-            "primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]}
-        )
-        loop_guarded_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
-        hook = PydanticAIHook(llm_conn_id="primary")
-
-        def slow_extra(conn):
-            time.sleep(0.05)  # long enough for the other call to reach the cache meanwhile
-            return json.loads(conn.extra) if conn.extra else {}
-
-        with patch.object(Connection, "extra_dejson", new=property(_off_the_event_loop(slow_extra))):
-            await asyncio.gather(hook.acreate_agent(instructions="a"), hook.acreate_agent(instructions="b"))
-
-        first_model, second_model = (c.args[0] for c in mock_agent_cls.call_args_list)
-        assert isinstance(first_model, FallbackModel)
-        assert isinstance(second_model, FallbackModel)
-        assert (
-            first_model.models
-            == second_model.models
-            == [
-                infer_model_stub.models["openai:gpt-5.6-sol"],
-                infer_model_stub.models["anthropic:claude-opus-4-6"],
-            ]
-        )
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "hop",
-        [
-            lambda hook: type(hook).aget_hook("primary"),
-            lambda hook: hook.aget_conn(),
-            lambda hook: hook.acreate_agent(instructions="Be helpful."),
-        ],
-        ids=["aget_hook", "aget_conn", "acreate_agent"],
-    )
+    @pytest.mark.parametrize("hop", _ASYNC_HOPS)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     async def test_async_hops_do_not_need_the_default_executor(
         self, mock_agent_cls, hop, loop_guarded_registry, infer_model_stub
@@ -2501,6 +2475,28 @@ class TestPydanticAIHookAsync:
             default_executor.shutdown()
 
         loop_guarded_registry.get_connection_mock.assert_called_once_with("primary")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("hop", _ASYNC_HOPS)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    async def test_async_hops_carry_the_callers_context_variables(
+        self, mock_agent_cls, hop, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+        fetch = loop_guarded_registry.get_connection_mock.side_effect
+        seen_in_the_worker: list[str | None] = []
+
+        def fetch_and_record_the_context(conn_id):
+            seen_in_the_worker.append(_caller_context.get())
+            return fetch(conn_id)
+
+        loop_guarded_registry.get_connection_mock.side_effect = fetch_and_record_the_context
+        _caller_context.set("task-run-1")
+
+        await hop(hook)
+
+        assert seen_in_the_worker == ["task-run-1"]
 
     @pytest.mark.asyncio
     async def test_gathered_hooks_never_send_at_the_same_time(self, loop_guarded_registry, infer_model_stub):
@@ -2527,6 +2523,34 @@ class TestPydanticAIHookAsync:
 
 
 class TestPydanticAIHookConnectionCache:
+    def test_get_conn_from_two_threads_each_sees_a_complete_connection(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        def slow_extra(conn):
+            time.sleep(0.05)  # long enough for the other thread to reach the cache meanwhile
+            return json.loads(conn.extra) if conn.extra else {}
+
+        with (
+            patch.object(Connection, "extra_dejson", new=property(slow_extra)),
+            ThreadPoolExecutor(max_workers=2) as threads,
+        ):
+            first_model, second_model = (
+                f.result() for f in [threads.submit(hook.get_conn) for _ in range(2)]
+            )
+
+        assert isinstance(first_model, FallbackModel)
+        assert isinstance(second_model, FallbackModel)
+        assert (
+            first_model.models
+            == second_model.models
+            == [
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["anthropic:claude-opus-4-6"],
+            ]
+        )
+
     def test_get_conn_fetches_again_after_the_extra_failed(self, registry, infer_model_stub):
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         hook = PydanticAIHook(llm_conn_id="primary")

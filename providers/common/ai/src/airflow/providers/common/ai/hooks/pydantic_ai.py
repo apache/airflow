@@ -304,7 +304,7 @@ class PydanticAIHook(BaseHook):
         if self._conn is None:
             # Published together, once both are in hand: a reader never sees the connection
             # next to the empty default extra, whether ``extra_dejson`` is still masking in
-            # another thread (two gathered async calls on one hook) or raised.
+            # another thread (``get_conn()`` called from two threads on one hook) or raised.
             conn = self.get_connection(self.llm_conn_id)
             extra = conn.extra_dejson
             self._conn, self._conn_extra_dejson = conn, extra
