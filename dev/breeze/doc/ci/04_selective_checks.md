@@ -607,17 +607,29 @@ when some files are not changed. Those are the rules implemented:
     type errors (see #68919)
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
-  * if no `Java SDK files` changed - `ktlint` and
-    `regenerate-java-sdk-verification-metadata` checks are skipped (both run the java-sdk
-    Gradle wrapper, which downloads the Gradle distribution, and the latter additionally
-    resolves the whole Java SDK dependency graph from Maven Central, so we avoid those
-    downloads on PRs that do not touch `java-sdk/`)
+  * if no `Java SDK files` (`java-sdk/`, excluding `.md`) changed - `ktlint`, `spotless` and
+    `regenerate-java-sdk-verification-metadata` checks are skipped. All three run the java-sdk
+    Gradle wrapper, and `regenerate-java-sdk-verification-metadata` also resolves the whole Java
+    SDK dependency graph from Maven Central
   * if no `Java SDK conformance files` changed - `check-java-sdk-serialization-conformance`
-    is skipped (it compiles the Java SDK with Gradle and resolves its dependencies from Maven
-    Central). The group is wider than `Java SDK files`: it also covers Airflow's serializer
-    (`serialized_objects.py`), `schema.json` and the shared harness under
-    `scripts/ci/lang_sdk_serialization/`, because the check compares the SDK against those and
-    none of them forces `full_tests_needed`
+    and `sync-java-sdk-dag-schema` are skipped (`check-java-sdk-serialization-conformance`
+    compiles the Java SDK with Gradle and resolves its dependencies from Maven Central, and
+    `sync-java-sdk-dag-schema` runs the `:sdk:syncDagSchema` Gradle task). The group is wider
+    than `Java SDK files`. It also covers Airflow's serializer (`serialized_objects.py`),
+    `airflow-core/src/airflow/serialization/schema.json` and the shared harness under
+    `scripts/ci/lang_sdk_serialization/`. These files are in the group because the conformance
+    check compares the SDK against them, and none of them forces `full_tests_needed`. Because
+    airflow-core's `schema.json` is in the group, `sync-java-sdk-dag-schema` still runs on a PR
+    that changes only that file. Such a change is what leaves the Java SDK's copy in
+    `java-sdk/sdk/schema/dag-schema.json` out of date
+  * whichever of the five Java SDK hooks above runs first in a job pays for Gradle's cold
+    start, which includes downloading the Gradle distribution. A PR skips the cold start only
+    when it changes none of the `Java SDK conformance files`
+  * neither Java SDK group includes `.pre-commit-config.yaml` or CI setup files. A PR that
+    changes only the definition of one of the five hooks therefore does not run the hooks in
+    its own CI. The same holds for a PR whose only change is CI setup that does not force
+    `full_tests_needed`, for example a composite action under `.github/actions/`. The scheduled
+    canary runs skip none of the five hooks, so they still check such a change
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
     skipped (it regenerates and diffs the generated ts-sdk file from the vendored schema). A
     change to the supervisor wire schema on the Python side is not deferred to a follow-up PR:
