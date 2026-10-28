@@ -26,7 +26,7 @@ import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, event, func, insert, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -178,6 +178,96 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+
+
+def _create_unused_trigger(session) -> int:
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.commit()
+    return trigger.id
+
+
+def _clean_unused_while_adding_reference(session, trigger_id, add_reference):
+    """
+    Run clean_unused, executing ``add_reference`` right before its DELETE (#72061).
+
+    The trigger is unreferenced until then, so it surviving the cleanup also shows the reference was added.
+    """
+
+    def add_reference_before_delete(connection, cursor, statement, parameters, context, executemany):
+        normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
+        if "delete from trigger" in normalized_statement:
+            connection.execute(add_reference)
+
+    event.listen(session.bind, "before_cursor_execute", add_reference_before_delete)
+    try:
+        Trigger.clean_unused(session=session)
+        session.commit()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", add_reference_before_delete)
+
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger_id)) == 1
+
+
+def test_clean_unused_keeps_trigger_deferred_onto_during_cleanup(session, create_task_instance):
+    """A task deferring onto a trigger after the unused ids are read must not be deleted."""
+    trigger_id = _create_unused_trigger(session)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    session.commit()
+
+    _clean_unused_while_adding_reference(
+        session,
+        trigger_id,
+        update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id),
+    )
+
+    assert (
+        session.scalar(
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
+        )
+        == 1
+    )
+
+
+def test_clean_unused_keeps_trigger_watched_during_cleanup(session):
+    """An asset watcher added to a trigger after the unused ids are read must keep it."""
+    trigger_id = _create_unused_trigger(session)
+    asset = AssetModel("race-test")
+    session.add(asset)
+    session.commit()
+
+    _clean_unused_while_adding_reference(
+        session,
+        trigger_id,
+        insert(AssetWatcherModel).values(name="race-test-watcher", asset_id=asset.id, trigger_id=trigger_id),
+    )
+
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(AssetWatcherModel)
+            .where(AssetWatcherModel.asset_id == asset.id, AssetWatcherModel.trigger_id == trigger_id)
+        )
+        == 1
+    )
+
+
+def test_clean_unused_keeps_trigger_used_by_callback_during_cleanup(session):
+    """A callback attached to a trigger after the unused ids are read must keep it."""
+    trigger_id = _create_unused_trigger(session)
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    session.add(callback)
+    session.commit()
+
+    _clean_unused_while_adding_reference(
+        session,
+        trigger_id,
+        update(Callback).where(Callback.id == callback.id).values(trigger_id=trigger_id),
+    )
+
+    assert session.scalar(select(func.count()).select_from(Callback).where(Callback.id == callback.id)) == 1
 
 
 @patch.object(TriggererCallback, "handle_event")
