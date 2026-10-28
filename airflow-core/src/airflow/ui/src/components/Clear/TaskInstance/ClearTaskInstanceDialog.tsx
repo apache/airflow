@@ -247,7 +247,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
     },
   });
 
-  const refetchInterval = useAutoRefresh({ dagId });
+  // Undefined while there is nothing to clear: the bulk actions keep this dialog mounted.
+  const refetchInterval = useAutoRefresh({ dagId: groups[0]?.dagId });
 
   // Loop members are addressed by exact execution id: their task id and map index alone
   // do not say which pass is meant. Past and future cannot be combined with exact ids.
