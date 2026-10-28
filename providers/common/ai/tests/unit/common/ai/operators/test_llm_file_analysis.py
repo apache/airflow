@@ -175,7 +175,7 @@ class TestLLMFileAnalysisOperator:
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
     def test_run_usage_run_id_and_model_name_pushed_to_xcom(
-        self, mock_build_request, mock_hook_cls, make_reporting_agent, model_name
+        self, mock_build_request, mock_hook_cls, make_reporting_agent, reporting_task_instance, model_name
     ):
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
@@ -185,7 +185,7 @@ class TestLLMFileAnalysisOperator:
         op = LLMFileAnalysisOperator(
             task_id="test", prompt="Summarize the file", llm_conn_id="my_llm", file_path="/tmp/app.log"
         )
-        ti = MagicMock(id="ti-1")
+        ti = reporting_task_instance
 
         op.execute(context={"task_instance": ti})
 

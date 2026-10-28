@@ -258,12 +258,12 @@ class TestLLMSQLQueryOperator:
     @pytest.mark.parametrize("model_name", ["gpt-5", None])
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_run_usage_run_id_and_model_name_pushed_to_xcom(
-        self, mock_hook_cls, make_reporting_agent, model_name
+        self, mock_hook_cls, make_reporting_agent, reporting_task_instance, model_name
     ):
         mock_agent, expected_pushes = make_reporting_agent("SELECT 1", model_name=model_name)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMSQLQueryOperator(task_id="test", prompt="Get one", llm_conn_id="my_llm")
-        ti = MagicMock(id="ti-1")
+        ti = reporting_task_instance
 
         op.execute(context={"task_instance": ti})
 

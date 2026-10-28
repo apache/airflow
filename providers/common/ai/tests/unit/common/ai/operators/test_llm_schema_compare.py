@@ -303,7 +303,7 @@ class TestLLMSchemaCompareOperator:
     @pytest.mark.parametrize("model_name", ["gpt-5", None])
     @mock.patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="schema_context")
     def test_run_usage_run_id_and_model_name_pushed_to_xcom(
-        self, mock_build_schema_context, make_reporting_agent, model_name
+        self, mock_build_schema_context, make_reporting_agent, reporting_task_instance, model_name
     ):
         mock_agent, expected_pushes = make_reporting_agent(
             SchemaCompareResult(compatible=True, mismatches=[], summary="All good"), model_name=model_name
@@ -315,9 +315,9 @@ class TestLLMSchemaCompareOperator:
             db_conn_ids=["a", "b"],
             table_names=["t"],
         )
-        op.llm_hook = MagicMock()
+        op.llm_hook = MagicMock(spec=PydanticAIHook)
         op.llm_hook.create_agent.return_value = mock_agent
-        ti = MagicMock(id="ti-1")
+        ti = reporting_task_instance
 
         op.execute(context={"task_instance": ti})
 

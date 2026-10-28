@@ -107,6 +107,20 @@ def make_mock_run_result():
 
 
 @pytest.fixture
+def reporting_task_instance():
+    """A task instance with id ``ti-1``, specced to what a run reads off it or pushes to."""
+    return MagicMock(
+        spec=["id", "dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"],
+        id="ti-1",
+        dag_id="dag",
+        task_id="test",
+        run_id="run",
+        try_number=1,
+        map_index=-1,
+    )
+
+
+@pytest.fixture
 def make_reporting_agent(make_mock_run_result):
     """Factory fixture creating a mock agent whose run spends a known usage, as ``(agent, expected_pushes)``.
 
