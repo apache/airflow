@@ -87,7 +87,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     detect_pod_terminate_early_issues,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, Stats, conf
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -745,18 +745,25 @@ class KubernetesPodOperator(BaseOperator):
             {"name": pod.metadata.name, "namespace": pod.metadata.namespace},
         )
 
+    def _resume_stats_tags(self, context: Context) -> dict[str, str]:
+        ti = context.get("ti")
+        return {**(getattr(ti, "stats_tags", None) or {}), "operator": type(self).__name__}
+
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
+            stats_tags = self._resume_stats_tags(context)
             pod = self._get_pod_from_task_state_store(context)
             if pod is None:
                 pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
                 if pod is not None:
                     self._persist_pod_identity_to_task_state_store(context, pod)
             if pod:
+                Stats.incr("resumable_job.reconnect_attempt", tags=stats_tags)
                 # If pod is terminated then delete the pod an create a new as not possible to get xcom
                 pod_phase = pod.status.phase if pod.status and pod.status.phase else None
                 pod_reason = pod.status.reason.lower() if pod.status and pod.status.reason else ""
                 if pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED) and pod_reason != "evicted":
+                    Stats.incr("resumable_job.reconnect_success", tags=stats_tags)
                     self.log.info(
                         "Reusing existing pod '%s' (phase=%s, reason=%s) since it is not terminated or evicted.",
                         pod.metadata.name,
@@ -764,6 +771,11 @@ class KubernetesPodOperator(BaseOperator):
                         pod_reason,
                     )
                     return pod
+
+                if pod_phase == PodPhase.SUCCEEDED:
+                    Stats.incr("resumable_job.already_succeeded", tags=stats_tags)
+                else:
+                    Stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
 
                 self.log.info(
                     "Found terminated old matching pod %s with labels %s",
@@ -777,6 +789,8 @@ class KubernetesPodOperator(BaseOperator):
                     return pod
 
                 self.log.info("Deleted pod to handle rerun and create new pod!")
+            else:
+                Stats.incr("resumable_job.fresh_submit", tags=stats_tags)
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         created_pod = self.pod_manager.create_pod(pod=pod_request_obj)

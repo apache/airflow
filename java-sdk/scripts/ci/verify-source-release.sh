@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Run the reviewer checklist from java-sdk/README.md against an Apache Airflow
+# Run the reviewer checklist from java-sdk/DEVELOPMENT.md against an Apache Airflow
 # Java SDK source-release tarball (except the GPG signature).
 #
 # Usage:

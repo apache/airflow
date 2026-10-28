@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
+    "bundleVersion": "Bundle Version",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
@@ -92,7 +93,6 @@
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
   "dagRunState": "Dag Run State",
-  "dagWarnings": "Dag warnings/errors",
   "delete": "Delete",
   "diff": "Diff",
   "diffCompareWith": "Compare with",

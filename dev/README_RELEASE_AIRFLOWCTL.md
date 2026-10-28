@@ -233,8 +233,16 @@ create the X.Y branches" above before proceeding.
 > for a new minor (e.g. `0.2.0rc1`), the release manager may cut the RC
 > directly from `airflow-ctl/vX-Y-test` without opening a sync PR to
 > `airflow-ctl/vX-Y-stable`. However, they **must** verify that the
-> `airflow-ctl/vX-Y-test` push CI action ("Tests" workflow) has succeeded
-> before cutting the RC.
+> full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the
+> `airflow-ctl/vX-Y-test` HEAD have succeeded before cutting the RC.
+
+Release branches do not run the full CI on push: `release-branch-ci.yml`
+starts it a few times a day until the branch HEAD has a successful full
+run, and each push runs only the tests for the changes since the last
+successful run. Check the full run of the HEAD before cutting an RC as
+described in
+[CI of the `vX-Y-test` branch](README_RELEASE_AIRFLOW.md#ci-of-the-vx-y-test-branch)
+(use `airflow-ctl/vX-Y-test` as the branch name).
 
 Before cutting an RC, confirm the set of commits on the maintenance
 branch is what you expect:

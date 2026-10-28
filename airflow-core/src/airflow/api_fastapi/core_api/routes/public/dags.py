@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dags import eager_load_teams, generate_dag_with_latest_run_query
@@ -58,7 +59,11 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
-from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkBody,
+    BulkResponse,
+    validate_asset_expression,
+)
 from airflow.api_fastapi.core_api.datamodels.dags import (
     BulkDAGBody,
     DAGCollectionResponse,
@@ -71,6 +76,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import (
     EditableDagsFilterDep,
     GetUserDep,
+    ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
     requires_access_dag,
     requires_access_dag_bulk,
@@ -239,7 +245,11 @@ def get_dag(
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_details(
-    dag_id: str, session: SessionDep, dag_bag: DagBagDep, user: GetUserDep
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    user: GetUserDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
 ) -> DAGDetailsResponse:
     """Get details of Dag."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -280,7 +290,16 @@ def get_dag_details(
     setattr(dag_model, "active_runs_count", active_runs_count)
     setattr(dag_model, "latest_dag_version", latest_dag_version)
 
-    return DAGDetailsResponse.model_validate(dag_model)
+    details = DAGDetailsResponse.model_validate(dag_model)
+    # The redaction lands on the response, not on `dag_model`: that is a live ORM instance whose
+    # session commits when the request ends, so assigning the blanked leaves back onto it would
+    # persist them.
+    details.asset_expression = validate_asset_expression(
+        redact_asset_expression(
+            dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
+        )
+    )
+    return details
 
 
 @dags_router.patch(

@@ -221,7 +221,7 @@ it out for a Dag that only runs when triggered. A cron schedule runs in UTC.
 
 Every task of the Dag runs on the Node.js coordinator, so it needs a queue that
 :ref:`queue_to_coordinator <typescript-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag and
-each task inherits it. A task's own ``queue`` wins over the Dag's.
+each task inherits it. A task's own ``queue`` wins over the Dag's. A ``queue`` that is set cannot be blank.
 
 Order-only dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -565,7 +565,7 @@ The ``TaskClient``
    * - ``setXCom({ key, value, ... })``
      - Publishes an XCom value.
    * - ``taskStateStore``
-     - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retentionMs? })``,
+     - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
 
 .. note::
@@ -595,7 +595,7 @@ for the full concept, including the equivalent Python API.
       let jobId = await store.get<string>("job_id");
       if (jobId == null) {
         jobId = await submitSparkJob();
-        await store.set("job_id", jobId, { retentionMs: NEVER_EXPIRE });
+        await store.set("job_id", jobId, { retention: NEVER_EXPIRE });
       }
 
       const result = await waitForSparkJob(jobId);
@@ -603,15 +603,17 @@ for the full concept, including the equivalent Python API.
       return result;
     }
 
-**Retention.** ``retentionMs`` is milliseconds to retain the key, counted from the time of the write:
+**Retention.** ``retention`` is how long to keep the key, in seconds (see :ref:`typescript-sdk/durations`),
+counted from the time of the write:
 
-* A number retains the key for that many milliseconds from now; ``retentionMs: 0`` expires the key
+* A number retains the key for that many seconds from now; ``retention: 0`` expires the key
   immediately.
 * ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
   the deployment default.
-* When ``retentionMs`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``, which
-  the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the key
-  never expires. This is not the same as ``retentionMs: 0`` above, which expires the key immediately.
+* When ``retention`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``,
+  which the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the
+  key never expires. This is not the same as ``retention: 0`` above, which expires the key
+  immediately.
 
 **Keys** must be non-empty strings of at most 512 characters; they may contain slashes. **Values** must be
 JSON-compatible (see :ref:`typescript-sdk/types`), and can never be ``null`` — ``set`` rejects a ``null``
@@ -631,6 +633,15 @@ Logging
 Anything a task writes to stdout or stderr, such as ``console.log`` or ``console.error``, appears in the
 Airflow task log: stdout at ``INFO`` level, stderr at ``ERROR``. There is no dedicated structured-logging API
 yet.
+
+.. _typescript-sdk/durations:
+
+Durations
+---------
+
+Every duration in the SDK is a number of seconds, with no unit in its name: the Dag and task options
+``retryDelay``, ``executionTimeout`` and ``dagrunTimeout``, ``responseTimeout`` on a human-in-the-loop task,
+``pokeInterval`` on ``triggerDagRun``, and ``retention`` in the task state store.
 
 .. _typescript-sdk/types:
 

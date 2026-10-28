@@ -93,6 +93,13 @@ class _E2ETestState:
     airflow_dags_path: Path | None = None
 
 
+def _is_image_present_locally(image: str) -> bool:
+    return (
+        subprocess.run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode
+        == 0
+    )
+
+
 def _copy_localstack_files(tmp_dir):
     """Copy localstack compose file and init script into the temp directory."""
     copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
@@ -960,10 +967,11 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     #
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
-    # Skip pull for images that exist only locally and cannot be fetched from a registry:
-    # - ghcr.io/apache/airflow/: pre-pulled by the prepare_breeze_and_image CI step
-    # - openlineage-e2e/: locally built by _build_openlineage_e2e_compat_image (never pushed)
-    pull = not DOCKER_IMAGE.startswith(("ghcr.io/apache/airflow/", "openlineage-e2e/"))
+    # Pull only an image that is not there yet. CI loads the PROD image it built under the repository
+    # running the workflow (ghcr.io/<owner>/airflow/..., a fork's owner on fork CI), and pulling that
+    # tag would replace it with whatever the registry has. openlineage-e2e/ images are built locally,
+    # before the tests start, by breeze's _build_openlineage_e2e_compat_image and never pushed.
+    pull = not _is_image_present_locally(DOCKER_IMAGE)
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
@@ -985,20 +993,22 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     except Exception:
         console.print("[red]Failed to start docker compose")
         if _E2ETestState.compose_instance:
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
             _E2ETestState.compose_instance.stop()
         raise
 
 
-def _print_logs(compose_instance: DockerCompose):
-    containers = compose_instance.get_containers()
-    for container in containers:
+def _save_service_logs(compose_instance: DockerCompose):
+    LOGS_FOLDER.mkdir(parents=True, exist_ok=True)
+    for container in compose_instance.get_containers():
         service = container.Service
         if service:
             stdout, _ = compose_instance.get_logs(service)
-            console.print(f"::group:: {service} Logs")
-            console.print(stdout, style="red", soft_wrap=True, markup=False)
-            console.print("::endgroup::")
+            (LOGS_FOLDER / f"{service}.log").write_text(stdout)
+    console.print(
+        f"[yellow]Service and task logs are not printed here: find them in {LOGS_FOLDER} "
+        f"(in CI, the `e2e-test-logs-<mode>` artifact, `logs.zip`)"
+    )
 
 
 def pytest_sessionstart(session: pytest.Session):
@@ -1036,9 +1046,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
         copytree(_E2ETestState.airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     if _E2ETestState.compose_instance:
-        # If any test failures lets print the services logs
+        # If any test failures lets save the services logs next to the uploaded task logs
         if any(r["status"] == "failed" for r in test_results):
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
 
