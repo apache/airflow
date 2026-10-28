@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 from importlib import import_module
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy.pool import NullPool
+
+from airflow import settings
 
 pytestmark = pytest.mark.db_test
 
@@ -62,11 +64,21 @@ def _run_migration(engine, migrate):
 
 @pytest.fixture
 def migrated_database(tmp_path):
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'work_claims.db'}", poolclass=NullPool)
+    source = settings.engine
+    name = f"processor_work_claims_{uuid4().hex}"
+    if source.dialect.name == "sqlite":
+        url = source.url.set(database=str(tmp_path / "work_claims.db"))
+    else:
+        url = source.url.set(database=name)
+        with source.connect().execution_options(isolation_level="AUTOCOMMIT") as admin:
+            admin.exec_driver_sql(f"CREATE DATABASE {name}")
+    engine = sa.create_engine(url, poolclass=NullPool)
 
-    @sa.event.listens_for(engine, "connect")
-    def _enable_foreign_keys(connection, connection_record):
-        connection.execute("PRAGMA foreign_keys=ON")
+    if source.dialect.name == "sqlite":
+
+        @sa.event.listens_for(engine, "connect")
+        def _enable_foreign_keys(connection, connection_record):
+            connection.execute("PRAGMA foreign_keys=ON")
 
     try:
         metadata.create_all(engine)
@@ -79,6 +91,9 @@ def migrated_database(tmp_path):
         yield engine
     finally:
         engine.dispose()
+        if source.dialect.name != "sqlite":
+            with source.connect().execution_options(isolation_level="AUTOCOMMIT") as admin:
+                admin.exec_driver_sql(f"DROP DATABASE {name}")
 
 
 def _get_retained_rows(engine):

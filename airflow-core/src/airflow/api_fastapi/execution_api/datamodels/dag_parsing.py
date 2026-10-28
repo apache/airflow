@@ -25,6 +25,7 @@ from pydantic import Field, model_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.models.dag import TAG_MAX_LEN
 from airflow.models.dagwarning import DagWarningTypeValue
 from airflow.models.errors import IMPORT_ERROR_FILENAME_MAX_LENGTH
@@ -177,7 +178,7 @@ class ProcessorWorkItem(StrictBaseModel):
     claim_id: UUID
     bundle_name: str
     relative_fileloc: str
-    callback: str | None = None
+    callback: CallbackRequest | None = None
 
 
 class ProcessorWorkAckBody(StrictBaseModel):

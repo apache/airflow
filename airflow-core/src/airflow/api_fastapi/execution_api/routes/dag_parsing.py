@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
@@ -67,15 +67,17 @@ from airflow.models.errors import ParseImportError
 from airflow.sdk.importers.base import DagSourceCode  # noqa: SDK001
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
     from pydantic import BaseModel
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
     from starlette.responses import Response
     from starlette.types import Message
+
+    from airflow.callbacks.callback_requests import CallbackRequest
 
 
 class DagParsingRoute(ExecutionAPIRoute):
@@ -416,6 +418,57 @@ def publish_inventory(
     )
 
 
+WorkT = TypeVar("WorkT", DagProcessorCallback, DagPriorityParsingRequest)
+
+
+class _RequestedWork(Protocol[WorkT]):
+    model: type[WorkT]
+    kind: Literal["callbacks", "priority"]
+
+    def build_query(self, *, replaying: bool) -> Select[tuple[WorkT]]: ...
+
+    def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None]: ...
+
+    def parse_key(self, work_id: str) -> UUID | str: ...
+
+
+class _CallbackWork:
+    model = DagProcessorCallback
+    kind: Literal["callbacks", "priority"] = "callbacks"
+
+    def build_query(self, *, replaying: bool) -> Select[tuple[DagProcessorCallback]]:
+        query = select(self.model).order_by(self.model.priority_weight.desc(), self.model.id)
+        if not replaying:
+            query = query.where(self.model.state.is_(None))
+        return query
+
+    def get_payload(self, work: DagProcessorCallback) -> tuple[str, CallbackRequest]:
+        request = work.get_callback_request()
+        return request.filepath, request
+
+    def parse_key(self, work_id: str) -> UUID:
+        try:
+            return UUID(work_id)
+        except ValueError as error:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid callback ID"
+            ) from error
+
+
+class _PriorityWork:
+    model = DagPriorityParsingRequest
+    kind: Literal["callbacks", "priority"] = "priority"
+
+    def build_query(self, *, replaying: bool) -> Select[tuple[DagPriorityParsingRequest]]:
+        return select(self.model).order_by(self.model.id)
+
+    def get_payload(self, work: DagPriorityParsingRequest) -> tuple[str, None]:
+        return work.relative_fileloc, None
+
+    def parse_key(self, work_id: str) -> str:
+        return work_id
+
+
 @router.post(
     "/{job_id}/requested-work/{kind}/claim",
     responses=create_openapi_http_exception_doc(
@@ -435,60 +488,55 @@ def claim_work(
     if not set(body.bundle_names) <= token.claims.dag_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     _validate_job(job_id, token, session=session)
-    model = DagProcessorCallback if kind == "callbacks" else DagPriorityParsingRequest
-    receipt = session.get(DagProcessorWorkClaim, (job_id, kind))
+    if kind == "callbacks":
+        return _claim_work(_CallbackWork(), job_id, body, token.claims.dag_bundles, session=session)
+    return _claim_work(_PriorityWork(), job_id, body, token.claims.dag_bundles, session=session)
+
+
+def _claim_work(
+    source: _RequestedWork[WorkT],
+    job_id: int,
+    body: ProcessorWorkClaimBody,
+    granted_bundles: frozenset[str],
+    *,
+    session: Session,
+) -> list[ProcessorWorkItem]:
+    model = source.model
+    receipt = session.get(DagProcessorWorkClaim, (job_id, source.kind))
     payload_hash = _compute_payload_hash(body)
     replaying = receipt is not None and body.claim_sequence <= receipt.claim_sequence
+    query = source.build_query(replaying=replaying)
     if receipt is not None and replaying:
         if body.claim_sequence < receipt.claim_sequence:
             return []
         if receipt.claim_id != body.claim_id or receipt.payload_hash != payload_hash:
             raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "claim_conflict"})
-        query = select(model).where(
-            model.processor_job_id == job_id, model.processor_claim_id == body.claim_id
-        )
+        query = query.where(model.processor_job_id == job_id, model.processor_claim_id == body.claim_id)
     else:
         if receipt is None:
-            receipt = DagProcessorWorkClaim(job_id=job_id, kind=kind)
+            receipt = DagProcessorWorkClaim(job_id=job_id, kind=source.kind)
             session.add(receipt)
         receipt.claim_id = body.claim_id
         receipt.claim_sequence = body.claim_sequence
         receipt.payload_hash = payload_hash
         ready = select(DagBundleModel.name).where(DagBundleModel.active.is_(True))
-        query = select(model).where(
+        query = query.where(
             model.bundle_name.in_(body.bundle_names),
             model.bundle_name.in_(ready),
             get_available_work_filter(model.processor_job_id),
         )
-        if kind == "callbacks":
-            query = query.where(
-                or_(DagProcessorCallback.state.is_(None), DagProcessorCallback.state == CallbackState.QUEUED)
-            )
-    if kind == "callbacks":
-        query = query.order_by(DagProcessorCallback.priority_weight.desc(), DagProcessorCallback.id)
-    else:
-        query = query.order_by(DagPriorityParsingRequest.id)
     if not replaying:
         query = with_row_locks(query.limit(body.limit), session=session, skip_locked=True)
-    replay = list(
-        cast("list[DagProcessorCallback | DagPriorityParsingRequest]", session.scalars(query).all())
-    )
+    replay = session.scalars(query).all()
     if not replaying:
         for work in replay:
             work.processor_job_id = job_id
             work.processor_claim_id = body.claim_id
-            if isinstance(work, DagProcessorCallback):
-                work.state = CallbackState.QUEUED
     result = []
     for work in replay:
-        if work.bundle_name is None or work.bundle_name not in token.claims.dag_bundles:
+        if work.bundle_name is None or work.bundle_name not in granted_bundles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
-        if isinstance(work, DagProcessorCallback):
-            request = work.get_callback_request()
-            path = request.filepath
-            callback = request.to_json()
-        else:
-            path, callback = work.relative_fileloc, None
+        path, callback = source.get_payload(work)
         result.append(
             ProcessorWorkItem(
                 id=str(work.id),
@@ -525,18 +573,28 @@ def acknowledge_work(
 ) -> None:
     """Reject acknowledgments that could consume a replacement owner's claim."""
     _validate_job(job_id, token, session=session)
-    model = DagProcessorCallback if kind == "callbacks" else DagPriorityParsingRequest
-    try:
-        key = UUID(work_id) if kind == "callbacks" else work_id
-    except ValueError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid callback ID") from error
-    work = cast(
-        "DagProcessorCallback | DagPriorityParsingRequest | None",
-        session.scalar(select(model).where(model.id == key).with_for_update()),
+    if kind == "callbacks":
+        _acknowledge_work(_CallbackWork(), job_id, work_id, body, token.claims.dag_bundles, session=session)
+    else:
+        _acknowledge_work(_PriorityWork(), job_id, work_id, body, token.claims.dag_bundles, session=session)
+
+
+def _acknowledge_work(
+    source: _RequestedWork[WorkT],
+    job_id: int,
+    work_id: str,
+    body: ProcessorWorkAckBody,
+    granted_bundles: frozenset[str],
+    *,
+    session: Session,
+) -> None:
+    key = source.parse_key(work_id)
+    work = session.scalar(
+        select(source.model).where(source.model.id == key).with_for_update(),
     )
     if work is None:
         return
-    if work.bundle_name not in token.claims.dag_bundles:
+    if work.bundle_name not in granted_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     if (work.processor_job_id, work.processor_claim_id) != (job_id, body.claim_id):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "claim_replaced"})

@@ -3476,6 +3476,9 @@ dag_processor:
         dag processor is considered unhealthy.
         This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
         CLI for DagProcessorJob.
+        For processors using the Execution API, a new registration with the same session
+        credential can replace an unhealthy Job after this threshold, releasing its claimed
+        work. This can happen before ``[dag_processor] job_heartbeat_timeout`` expires.
       version_added: 3.2.0
       type: integer
       example: ~
@@ -3485,8 +3488,11 @@ dag_processor:
         Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
         After this, the scheduler's next cleanup (every ``[scheduler] parsing_cleanup_interval``)
         ends the Job and releases the callbacks and parse requests it claimed.
+        This must be at least ``[dag_processor] health_check_threshold``. That shorter health
+        threshold also allows a new registration with the same session credential to replace
+        an unhealthy Job, without waiting for this timeout or scheduler cleanup.
         A callback that ran before its acknowledgment was recorded can run again after the Job
-        times out, repeating its side effects. Callbacks should tolerate repeated execution.
+        times out or is replaced, repeating its side effects. Callbacks should tolerate repeated execution.
       version_added: 3.5.0
       type: integer
       example: ~
