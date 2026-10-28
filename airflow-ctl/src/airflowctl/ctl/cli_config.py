@@ -38,7 +38,7 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
 from airflowctl.ctl.utils.yaml import safe_load
@@ -73,10 +73,7 @@ def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
     """Warn that a failed write is not retried because the server may already have applied it."""
     if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
         return
-    try:
-        method = error.request.method
-    except RuntimeError:
-        return
+    method = _request_method(error)
     if method in _WRITE_METHODS:
         rich.print(
             f"[yellow]The {method} request failed, but it may already have been applied on the server. "

@@ -39,6 +39,7 @@ from airflowctl.api.client import (
     ClientKind,
     Credentials,
     _bounded_get_new_password,
+    _request_method,
     _should_retry_api_request,
     get_client,
     get_json_error,
@@ -303,6 +304,16 @@ class TestRequestRetries:
     @pytest.mark.parametrize("error", [httpx.ReadTimeout("timed out"), httpx.ReadError("disconnected")])
     def test_missing_request_does_not_allow_replay(self, error):
         assert not _should_retry_api_request(error)
+
+
+class TestRequestMethod:
+    def test_returns_the_method_of_the_attached_request(self):
+        error = httpx.ReadTimeout("timed out", request=httpx.Request("PATCH", "http://localhost/dags/d"))
+
+        assert _request_method(error) == "PATCH"
+
+    def test_returns_none_when_httpx_attached_no_request(self):
+        assert _request_method(httpx.ReadTimeout("timed out")) is None
 
 
 class TestCredentials:
