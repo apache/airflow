@@ -34,61 +34,7 @@ stem, and the expected events check both. It checks that an authored list:
 - replaces a hook scoped ``hook_lineage: false``, so the datasets of that hook are kept unless the list excludes
   them (``t_authored_over_dropped``), while a locked one keeps dropping them (``t_locked_dropped``)
 
-Required global conf::
-
-    [
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag"},
-            "controls": {"exclude_datasets": [".*/conf_excluded_.*"]},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "hook": ".*\\.AuthHook"},
-            "match_mode": "regex",
-            "controls": {"exclude_datasets": [".*/conf_hook_excluded_.*"]},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_authoring_dag", "task_id": "t_locked"},
-            "locked": true,
-            "controls": {"exclude_datasets": [".*/locked_excluded_.*"]},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-                "task_id": "t_locked",
-                "hook": ".*\\.AuthHook",
-            },
-            "match_mode": "regex",
-            "controls": {"exclude_datasets": [".*/specific_excluded_.*"]},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-                "task_id": "t_locked_hook",
-                "hook": ".*\\.LockedHook",
-            },
-            "match_mode": "regex",
-            "locked": true,
-            "controls": {"exclude_datasets": [".*/locked_hook_excluded_.*"]},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-                "hook": ".*\\.AuthDroppedHook",
-            },
-            "match_mode": "regex",
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_authoring_dag",
-                "task_id": "t_locked_dropped",
-                "hook": ".*\\.AuthLockedDroppedHook",
-            },
-            "match_mode": "regex",
-            "locked": true,
-            "controls": {"hook_lineage": false},
-        },
-    ]
+The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
 
 from __future__ import annotations

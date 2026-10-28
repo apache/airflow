@@ -37,38 +37,8 @@ on the names of the stand-in classes below.
 - ``t_emit_query``, ``t_emit_query_all_excluded``: ``emit_query_lineage`` filters its datasets, given and parsed
   from the query, and still emits its events when all of them are excluded, next to a call that keeps its datasets.
 - ``t_failed``: the FAIL event of a failed task is filtered too.
-- ``t_skipped``: the COMPLETE event of a skipped task is filtered too (Airflow 3.0 calls no listener when a task
-  skips itself, so it emits no COMPLETE there, and its lone START isn't checked).
 
-Required global conf::
-
-    [
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag"},
-            "controls": {"exclude_datasets": [".*/dag_excluded_.*", ".*sql_excluded.*"]},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_sources_dag",
-                "hook": ".*\\.SqlRuledHook",
-            },
-            "match_mode": "regex",
-            "controls": {"exclude_datasets": [".*sql_hook_excluded.*"]},
-        },
-        {
-            "scope": {
-                "dag_id": "openlineage_policy_exclude_datasets_sources_dag",
-                "hook": ".*\\.SqlDroppedHook",
-            },
-            "match_mode": "regex",
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SourceHook"},
-            "match_mode": "regex",
-            "controls": {"exclude_datasets": [".*/hook_scoped_.*"]},
-        },
-    ]
+The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
 
 from __future__ import annotations
@@ -82,7 +52,6 @@ from openlineage.client.event_v2 import Dataset
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import AirflowSkipException
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.api import emit_dataset_lineage, emit_query_lineage
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -273,10 +242,6 @@ def _emit_query_all_excluded():
     )
 
 
-def _skipped():
-    raise AirflowSkipException("Intentional skip to check the skipped task's COMPLETE event")
-
-
 def _failed():
     _register_stems(QuietHook(), ["dag_excluded", "keep"])
     raise ValueError("Intentional failure to check the FAIL event")
@@ -332,16 +297,8 @@ with DAG(
     )
     t_failed = PythonOperator(task_id="t_failed", python_callable=_failed)
     t_after_failed = EmptyOperator(task_id="t_after_failed", trigger_rule=TriggerRule.ONE_FAILED)
-    t_skipped = PythonOperator(
-        task_id="t_skipped",
-        python_callable=_skipped,
-        inlets=_inlets(["dag_excluded", "keep"]),
-        outlets=_outlets(["dag_excluded", "keep"]),
-    )
     check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=get_expected_event_file_path(DAG_ID),
-        trigger_rule=TriggerRule.NONE_FAILED,
+        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
     (
         t_declared
@@ -361,7 +318,6 @@ with DAG(
         >> check_events
     )
     t_failed >> t_after_failed >> check_events
-    t_skipped >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

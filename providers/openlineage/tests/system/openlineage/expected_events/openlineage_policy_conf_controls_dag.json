@@ -26,12 +26,6 @@
                         },
                         "t_exact_operator": {
                             "emits_ol_events": "{{ result == false }}"
-                        },
-                        "t_skipped_emit_off": {
-                            "emits_ol_events": "{{ result == false }}"
-                        },
-                        "t_skipped_full_info": {
-                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }
@@ -653,69 +647,6 @@
                 "sourceCode": {
                     "language": "python",
                     "sourceCode": "{{ 'file://host1/in.txt' in result }}"
-                }
-            }
-        }
-    },
-    {
-        "$absent": "conf emit false on a skipped task",
-        "eventType": "START",
-        "job": {
-            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
-        }
-    },
-    {
-        "$absent": "conf emit false on a skipped task",
-        "eventType": "COMPLETE",
-        "job": {
-            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
-        }
-    },
-    {
-        "$absent": "conf emit false on a skipped task",
-        "eventType": "FAIL",
-        "job": {
-            "name": "openlineage_policy_conf_controls_dag.t_skipped_emit_off"
-        }
-    },
-    {
-        "eventType": "START",
-        "run": {
-            "facets": {
-                "airflow": {
-                    "task": {
-                        "bash_command": "exit 99"
-                    }
-                }
-            }
-        },
-        "job": {
-            "name": "openlineage_policy_conf_controls_dag.t_skipped_full_info",
-            "facets": {
-                "sourceCode": {
-                    "language": "bash",
-                    "sourceCode": "exit 99"
-                }
-            }
-        }
-    },
-    {
-        "eventType": "COMPLETE",
-        "run": {
-            "facets": {
-                "airflow": {
-                    "task": {
-                        "bash_command": "exit 99"
-                    }
-                }
-            }
-        },
-        "job": {
-            "name": "openlineage_policy_conf_controls_dag.t_skipped_full_info",
-            "facets": {
-                "sourceCode": {
-                    "language": "bash",
-                    "sourceCode": "exit 99"
                 }
             }
         }

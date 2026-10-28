@@ -15,22 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage ``exclude_datasets`` control on lineage that depends on the Airflow version.
+DAG exercising the OpenLineage emission policy where Airflow versions differ.
 
 - ``t_runtime_outlets``: outlets added at runtime through an ``AssetAlias``, next to declared ones. Airflow reports
   runtime outlets only since 3.1.
 - ``t_collector_cap``: exclusion happens after the hook lineage collector cap, so it does not make room for the
   assets the cap dropped (requires ``AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR=67``). The cap exists only since
   Airflow 3.2.
+- ``t_skipped``, ``t_skipped_emit_off``, ``t_skipped_full_info``: a skipped task's events are filtered and follow
+  the Dag + task rules too. Airflow 3.0 calls no listener when a task skips itself, so it emits no COMPLETE there,
+  and the lone START isn't checked.
 
-Required global conf::
-
-    [
-        {
-            "scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag"},
-            "controls": {"exclude_datasets": [".*/dag_excluded_.*"]},
-        }
-    ]
+The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
 
 from __future__ import annotations
@@ -41,7 +37,10 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset, AssetAlias
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowSkipException
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
@@ -78,6 +77,10 @@ def _collector_cap():
         collector.add_output_asset(context=hook, uri=f"file://host1/{stem}_out.txt")
 
 
+def _skip():
+    raise AirflowSkipException("Intentional skip")
+
+
 DAG_ID = "openlineage_policy_exclude_datasets_versioned_dag"
 
 with DAG(
@@ -95,10 +98,21 @@ with DAG(
         outlets=[*_outlets(["dag_excluded_declared", "keep_declared"]), ALIAS],
     )
     t_collector_cap = PythonOperator(task_id="t_collector_cap", python_callable=_collector_cap)
+    t_skipped = PythonOperator(
+        task_id="t_skipped",
+        python_callable=_skip,
+        inlets=_inlets(["dag_excluded", "keep"]),
+        outlets=_outlets(["dag_excluded", "keep"]),
+    )
+    t_skipped_emit_off = PythonOperator(task_id="t_skipped_emit_off", python_callable=_skip)
+    t_skipped_full_info = BashOperator(task_id="t_skipped_full_info", bash_command="exit 99")
     check_events = OpenLineageTestOperator(
-        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
+        task_id="check_events",
+        file_path=get_expected_event_file_path(DAG_ID),
+        trigger_rule=TriggerRule.NONE_FAILED,
     )
     t_runtime_outlets >> t_collector_cap >> check_events
+    [t_skipped, t_skipped_emit_off, t_skipped_full_info] >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

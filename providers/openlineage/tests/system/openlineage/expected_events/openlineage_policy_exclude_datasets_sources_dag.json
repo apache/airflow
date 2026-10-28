@@ -704,48 +704,5 @@
         "job": {
             "name": "openlineage_policy_exclude_datasets_sources_dag.t_after_failed"
         }
-    },
-    {
-        "eventType": "START",
-        "inputs": [
-            {
-                "namespace": "file://host1",
-                "name": "/keep_in.txt"
-            }
-        ],
-        "outputs": [
-            {
-                "namespace": "file://host1",
-                "name": "/keep_out.txt"
-            }
-        ],
-        "job": {
-            "name": "openlineage_policy_exclude_datasets_sources_dag.t_skipped"
-        }
-    },
-    {
-        "eventType": "COMPLETE",
-        "inputs": [
-            {
-                "namespace": "file://host1",
-                "name": "/keep_in.txt"
-            }
-        ],
-        "outputs": [
-            {
-                "namespace": "file://host1",
-                "name": "/keep_out.txt"
-            }
-        ],
-        "job": {
-            "name": "openlineage_policy_exclude_datasets_sources_dag.t_skipped"
-        }
-    },
-    {
-        "$absent": "the task was skipped",
-        "eventType": "FAIL",
-        "job": {
-            "name": "openlineage_policy_exclude_datasets_sources_dag.t_skipped"
-        }
     }
 ]

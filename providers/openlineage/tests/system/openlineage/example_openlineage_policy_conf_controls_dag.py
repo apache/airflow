@@ -35,99 +35,11 @@ with its rule, next to ``t_default``, which has none:
 - ``t_mapped``: a Dag + task rule applies to a mapped task instance
 - ``t_regex_task``: a Dag + task rule with ``match_mode: regex`` matches both ids as patterns
 - ``t_conflict``: of two Dag + task rules with different values, the last one wins
-- ``t_skipped_emit_off``, ``t_skipped_full_info``: the events of a skipped task follow the rules too (Airflow 3.0
-  calls no listener when a task skips itself, so it emits no COMPLETE there, and its lone START isn't checked)
 
 The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler resolves the policy for
 them, including authoring.
 
-Required global conf::
-
-    [
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_extract_off"},
-            "controls": {"extract_operator_metadata": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_hook_off"},
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_full_info"},
-            "controls": {"include_full_task_info": true},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_emit_off"},
-            "controls": {"emit": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_task_events_off"},
-            "controls": {"emit_task_events": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_task_events_beat_emit"},
-            "controls": {"emit": false, "emit_task_events": true},
-        },
-        {
-            "scope": {"operator": ".*\\.PolicyConfControlsOperator"},
-            "match_mode": "regex",
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_operator_task"},
-            "controls": {"hook_lineage": true},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_extract_overridden"},
-            "controls": {"extract_operator_metadata": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_hook_overridden"},
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_emit_overridden"},
-            "controls": {"emit": false},
-        },
-        {
-            "scope": {"operator": ".*\\.PolicyConfEmitOffOperator"},
-            "match_mode": "regex",
-            "controls": {"emit": false},
-        },
-        {
-            "scope": {"operator": "airflow.providers.standard.operators.smooth.SmoothOperator"},
-            "controls": {"emit": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "grp.t_grouped"},
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_mapped"},
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_contr.*", "task_id": "t_regex_.*"},
-            "match_mode": "regex",
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_conflict"},
-            "controls": {"hook_lineage": true},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_conflict"},
-            "controls": {"hook_lineage": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_skipped_emit_off"},
-            "controls": {"emit": false},
-        },
-        {
-            "scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_skipped_full_info"},
-            "controls": {"include_full_task_info": true},
-        },
-    ]
+The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
 
 from __future__ import annotations
@@ -138,13 +50,12 @@ from openlineage.client.event_v2 import Dataset
 
 from airflow import DAG
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import AirflowSkipException, TaskGroup
+from airflow.providers.common.compat.sdk import TaskGroup
 from airflow.providers.openlineage.api import emit_dataset_lineage, emit_query_lineage
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.smooth import SmoothOperator
-from airflow.utils.trigger_rule import TriggerRule
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
@@ -177,10 +88,6 @@ def _register_and_emit_lineage():
         outputs=[Dataset(namespace="emit://source", name="out")],
         raise_on_error=True,
     )
-
-
-def _skip():
-    raise AirflowSkipException("Intentional skip")
 
 
 DAG_ID = "openlineage_policy_conf_controls_dag"
@@ -232,12 +139,8 @@ with DAG(
     )
     t_regex_task = PythonOperator(task_id="t_regex_task", python_callable=_register_hook_lineage)
     t_conflict = PythonOperator(task_id="t_conflict", python_callable=_register_hook_lineage)
-    t_skipped_emit_off = PythonOperator(task_id="t_skipped_emit_off", python_callable=_skip)
-    t_skipped_full_info = BashOperator(task_id="t_skipped_full_info", bash_command="exit 99")
     check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=get_expected_event_file_path(DAG_ID),
-        trigger_rule=TriggerRule.NONE_FAILED,
+        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
     (
         t_default
@@ -261,7 +164,6 @@ with DAG(
         >> t_conflict
         >> check_events
     )
-    [t_skipped_emit_off, t_skipped_full_info] >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
