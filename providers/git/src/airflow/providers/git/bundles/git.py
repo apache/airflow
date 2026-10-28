@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
 from contextlib import nullcontext
 from pathlib import Path
@@ -181,6 +180,9 @@ class GitDagBundle(BaseDagBundle):
         try:
             self._clone_repo_if_required(temporary_path)
             repo = self.repo
+            repo.remotes.origin.fetch(
+                ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+            )
             repo.git.checkout(self.tracking_ref)
             if not self._has_version(repo, self.version):
                 repo.remotes.origin.fetch()
@@ -285,10 +287,9 @@ class GitDagBundle(BaseDagBundle):
                     raise RuntimeError("Error cloning repository") from e
                 except InvalidGitRepositoryError as e:
                     raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
-                if re.fullmatch(r"[0-9a-f]{40}", self.tracking_ref):
-                    self.repo.remotes.origin.fetch(
-                        ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
-                    )
+                self.repo.remotes.origin.fetch(
+                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                )
                 self.repo.git.checkout(self.tracking_ref)
                 self.refresh()
 
