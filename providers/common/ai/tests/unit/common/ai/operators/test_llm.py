@@ -492,6 +492,12 @@ class TestLLMOperator:
         assert not isinstance(result, Entities)
 
 
+def _result(make_mock_run_result, output, details, *, cost=None):
+    result = make_mock_run_result(output, cost=cost)
+    result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
+    return result
+
+
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()
     ti = MagicMock()
@@ -655,11 +661,6 @@ class TestLLMOperatorUsageBudget:
 class TestLLMOperatorConfidenceGate:
     """decision_policy on a structured output, and the decision XCom."""
 
-    def _result(self, make_mock_run_result, output, details, *, cost=None):
-        result = make_mock_run_result(output, cost=cost)
-        result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
-        return result
-
     @pytest.mark.parametrize(
         "context",
         [
@@ -674,7 +675,7 @@ class TestLLMOperatorConfidenceGate:
     ):
         """A dict-shaped or missing task instance (old tests, custom runners) must not fail the run."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+        mock_agent.run_sync.return_value = _result(make_mock_run_result, Summary(text="t"), None)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
 
@@ -689,7 +690,7 @@ class TestLLMOperatorConfidenceGate:
         """The model that actually answered, the run id, and the run's usage/cost are exposed on XCom."""
         cost = Decimal("0.0042")
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        result = self._result(make_mock_run_result, Summary(text="t"), None, cost=cost)
+        result = _result(make_mock_run_result, Summary(text="t"), None, cost=cost)
         result.run_id = "ti-9"
 
         def _run_sync(*args, **kwargs):
@@ -840,7 +841,7 @@ class TestLLMOperatorConfidenceGate:
         self, mock_hook_cls, make_mock_run_result
     ):
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.return_value = self._result(
+        mock_agent.run_sync.return_value = _result(
             make_mock_run_result,
             Summary(text="t"),
             {"confidence": {"text": 0.9}, "probabilities": {}, "scores": {}},
@@ -879,7 +880,7 @@ class TestLLMOperatorConfidenceGate:
     ):
         """The least confident of the fields that reported a confidence is what the bar is compared against."""
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.return_value = self._result(
+        mock_agent.run_sync.return_value = _result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
             {"confidence": {"category": 0.9, "score": 0.4}, "probabilities": {}, "scores": {}},
@@ -922,7 +923,7 @@ class TestLLMOperatorConfidenceGate:
     def test_a_field_that_reports_no_confidence_is_not_gated(self, mock_hook_cls, make_mock_run_result):
         """A bounded float field reports no confidence (the probability is the answer); only reported fields count."""
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.return_value = self._result(
+        mock_agent.run_sync.return_value = _result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
             {"confidence": {"category": 0.9}, "probabilities": {}, "scores": {"score": 0.3}},
@@ -948,7 +949,7 @@ class TestLLMOperatorConfidenceGate:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_nan_confidence_counts_as_not_reported(self, mock_hook_cls, make_mock_run_result):
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.return_value = self._result(
+        mock_agent.run_sync.return_value = _result(
             make_mock_run_result,
             Summary(text="t"),
             {"confidence": {"text": float("nan")}, "probabilities": {}, "scores": {}},
@@ -1629,6 +1630,29 @@ class TestLLMOperatorApproval:
 
         assert op.execute_complete({}, generated_output="null", event=event) == "null"
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
+    )
+    @pytest.mark.parametrize(
+        "review_kwargs",
+        [
+            pytest.param({"require_approval": True}, id="require-approval"),
+            pytest.param({"decision_policy": DecisionPolicy(min_confidence=0.7)}, id="below-threshold"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_validate_approval_prompt_override_runs_before_the_model_call(self, mock_hook_cls, review_kwargs):
+        class StrictOperator(LLMOperator):
+            def validate_approval_prompt(self):
+                raise TypeError("custom prompt check")
+
+        op = StrictOperator(task_id="t", prompt="p", llm_conn_id="c", **review_kwargs)
+
+        with pytest.raises(TypeError, match="custom prompt check"):
+            op.execute(context=_make_context())
+
+        mock_hook_cls.get_hook.assert_not_called()
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -1647,15 +1671,10 @@ class TestLLMOperatorMultimodalPromptApproval:
     def test_execute_with_approval_reviews_a_sequence_prompt(
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result, review_kwargs
     ):
-        result = make_mock_run_result(Assessment(category="billing", score=0.3))
-        result.response = ModelResponse(
-            parts=[],
-            model_name="jev-1.13.0",
-            provider_details={
-                "confidence": {"category": 0.9, "score": 0.4},
-                "probabilities": {},
-                "scores": {},
-            },
+        result = _result(
+            make_mock_run_result,
+            Assessment(category="billing", score=0.3),
+            {"confidence": {"category": 0.9, "score": 0.4}, "probabilities": {}, "scores": {}},
         )
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = result

@@ -210,6 +210,9 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         }
 
     def execute(self, context: Context) -> str | Iterable[str] | None:
+        if self._may_review:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
         if not self.downstream_task_ids:
             raise ValueError(
                 f"{self.task_id!r} has no downstream tasks. "

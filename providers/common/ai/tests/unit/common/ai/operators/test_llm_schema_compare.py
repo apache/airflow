@@ -30,6 +30,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
@@ -849,11 +850,12 @@ class TestLLMSchemaCompareOperatorApproval:
             **{**_BASE_KWARGS, "prompt": ["Compare", BinaryContent(data=b"\x89PNG", media_type="image/png")]},
             **self._APPROVAL_KWARGS,
         )
-        mock_agent = mock.Mock()
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         )
-        op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
+        op.llm_hook = mock.Mock(spec=PydanticAIHook)
+        op.llm_hook.create_agent.return_value = mock_agent
 
         with pytest.raises(TaskAwaitingInput):
             op.execute(context=_make_context())

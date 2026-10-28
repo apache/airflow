@@ -360,6 +360,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         )
 
     def execute(self, context: Context) -> Any:
+        if self._may_review:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
