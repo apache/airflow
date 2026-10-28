@@ -14,18 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Command functions for installed Airflow providers."""
 
 from __future__ import annotations
 
-import os
+from typing import Any
 
-from pydantic import BaseModel
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.ctl.console_formatting import AirflowConsole
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
 
+@provide_api_client(kind=ClientKind.CLI)
+def get_provider(args, api_client: Client = NEW_API_CLIENT) -> dict[str, Any]:
+    """Get information for an installed provider."""
+    response = api_client.providers.get(provider_name=args.provider_name)
+    if args.full:
+        result = response.provider_info.model_dump(by_alias=True, exclude_none=True)
+    else:
+        result = {"Provider": response.package_name, "Version": response.version}
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+    AirflowConsole().print_as(data=[result], output=args.output)
+    return result

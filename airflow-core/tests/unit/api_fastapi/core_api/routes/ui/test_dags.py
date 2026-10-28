@@ -559,6 +559,42 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             f"the attribute does not exist on the model"
         )
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(self, mock_get_authorized_assets, test_client, session):
+        dag_model = session.get(DagModel, DAG1_ID)
+        dag_model.asset_expression = {
+            "any": [
+                {"asset": {"uri": "s3://bucket/visible", "name": "visible", "group": "asset", "id": 1}},
+                {"asset": {"uri": "s3://bucket/secret", "name": "secret", "group": "asset", "id": 2}},
+            ]
+        }
+        session.commit()
+        mock_get_authorized_assets.return_value = {1}
+
+        response = test_client.get("/dags", params={"dag_ids": [DAG1_ID]})
+
+        assert response.status_code == 200
+        assert response.json()["dags"][0]["asset_expression"] == {
+            "any": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": 1,
+                        "hidden": False,
+                    }
+                },
+                # The route is served with ``response_model_exclude_none``, so the blanked fields
+                # drop out of the payload entirely.
+                {"asset": {"group": "asset", "hidden": True}},
+            ]
+        }
+        assert "s3://bucket/secret" not in response.text
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5

@@ -10,6 +10,44 @@
       "eventType": "نوع الأصل"
     }
   },
+  "dagBundles": {
+    "active": "نشط",
+    "columns": {
+      "active": "نشط",
+      "importErrors": "أخطاء الاستيراد",
+      "lastRefreshed": "آخر تحديث",
+      "name": "الاسم",
+      "version": "الإصدار"
+    },
+    "detail": {
+      "status": "الحالة"
+    },
+    "files": {
+      "columns": {
+        "file": "الملف",
+        "lastParsed": "آخر تحليل",
+        "parseDuration": "مدة التحليل"
+      },
+      "file_few": "ملفات",
+      "file_many": "ملفات",
+      "file_one": "ملف",
+      "file_other": "ملفات",
+      "file_two": "ملفان",
+      "file_zero": "لا يوجد أي ملف",
+      "importErrorGone": "لم يعد خطأ الاستيراد هذا مسجلاً. ربما تم إصلاحه بإعادة التحليل.",
+      "neverParsed": "أبداً",
+      "showImportError_few": "عرض {{count, number}} أخطاء",
+      "showImportError_many": "عرض {{count, number}} خطأً",
+      "showImportError_one": "عرض الخطأ",
+      "showImportError_other": "عرض {{count, number}} خطأ",
+      "showImportError_two": "عرض خطأين",
+      "showImportError_zero": "لا توجد أخطاء"
+    },
+    "inactive": "غير نشط",
+    "neverRefreshed": "أبداً",
+    "notRefreshedYet": "لم يتم التحديث بعد",
+    "notVersioned": "بدون إصدار"
+  },
   "deadlines": {
     "columns": {
       "alertName": "اسم التنبيه",
@@ -43,6 +81,7 @@
     "columns": {
       "dag": "Dag",
       "key": "مفتاح",
+      "timestamp": "الختم الزمني",
       "value": "قيمة"
     },
     "delete": {
@@ -60,6 +99,12 @@
       "successTitle": "تم تحديث XCom",
       "title": "تعديل XCom"
     },
+    "entry_few": "إدخالات XCom",
+    "entry_many": "إدخالات XCom",
+    "entry_one": "إدخال XCom",
+    "entry_other": "إدخالات XCom",
+    "entry_two": "إدخالا XCom",
+    "entry_zero": "لا يوجد أي إدخال XCom",
     "key": "مفتاح",
     "title": "(XCom) إكس كوم",
     "value": "قيمة"

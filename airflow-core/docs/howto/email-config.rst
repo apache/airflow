@@ -18,80 +18,32 @@
 Email Configuration
 ===================
 
-You can configure the email that is being sent in your ``airflow.cfg``
-by setting a ``subject_template`` and/or a ``html_content_template``
-in the ``[email]`` section.
+Airflow sends task emails through the function set in ``[email] email_backend``. By default, email is sent
+over SMTP by the SMTP provider (``apache-airflow-providers-smtp``). To set up the SMTP server and its
+credentials, see :doc:`apache-airflow-providers-smtp:email-backend` and
+:doc:`apache-airflow-providers-smtp:connections/smtp`.
+
+The ``[email]`` section also sets the connection, sender and message templates used for any backend:
 
 .. code-block:: ini
 
   [email]
   email_backend = airflow.utils.email.send_email_smtp
+  email_conn_id = smtp_default
+  from_email = "John Doe <johndoe@example.com>"
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-Equivalent environment variables look like:
-
-.. code-block:: sh
-
-  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
-  AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
-  AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
-
-You can configure a sender's email address by setting ``from_email`` in the ``[email]`` section like:
-
-.. code-block:: ini
-
-  [email]
-  from_email = "John Doe <johndoe@example.com>"
-
-Equivalent environment variables look like:
-
-.. code-block:: sh
-
-  AIRFLOW__EMAIL__FROM_EMAIL="John Doe <johndoe@example.com>"
-
-By default, ``email_backend`` is set to ``airflow.utils.email.send_email_smtp``, which sends email over SMTP.
-
-To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
-If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
-connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in
-the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
-from the configuration only. The connection can be of any type (for example 'HTTP connection').
-
-.. image:: ../img/ui-dark/email_connection.png
-    :align: center
-    :alt: create email connection
-
-If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
-the example below.
-
-.. code-block:: bash
-
-    $ airflow config get-value email email_backend
-    airflow.utils.email.send_email_smtp
-
-To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
-
-For example a ``html_content_template`` file could look like this:
-
-.. code-block::
-
-  Try {{try_number}} out of {{max_tries + 1}}<br>
-  Exception:<br>{{exception_html}}<br>
-  Log: <a href="{{ti.log_url}}">Link</a><br>
-  Host: {{ti.hostname}}<br>
-  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+The templates use `Jinja <https://jinja.palletsprojects.com/>`_ and can access the task's information, for
+example ``{{ti.log_url}}``.
 
 .. note::
-    For more information on setting the configuration, see :doc:`set-config`
 
-Alternative email backends
----------------------------
+    The functions in ``airflow.utils.email`` are deprecated and now live in
+    ``airflow.providers.smtp.utils.emailer``. Only the Python imports moved: keep ``email_backend`` set to
+    ``airflow.utils.email.send_email_smtp``. Airflow treats that value as "send with ``SmtpNotifier``",
+    which reads all SMTP settings from the Connection. Any other value, including the provider path, calls
+    that function instead, and the SMTP provider's function reads the server settings from ``[smtp]``.
 
-Instead of sending email over SMTP, you can point ``email_backend`` at an implementation provided by a
-community provider to send email through a third-party service's API. To use one, install the relevant
-provider distribution, set ``email_backend`` to the dotted path of its ``send_email`` function, and set
-``email_conn_id`` to a connection holding the credentials it needs.
-
-The list of email backends provided by community-managed providers is available in
+To send email through another service, set ``email_backend`` to a backend from another provider; see
 :doc:`apache-airflow-providers:core-extensions/email-backends`.

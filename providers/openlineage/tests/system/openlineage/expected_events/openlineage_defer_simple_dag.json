@@ -5,7 +5,10 @@
             "facets": {
                 "airflow": {
                     "taskInstance": {
-                        "try_number": 1
+                        "try_number": 1,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     }
                 }
             }
@@ -20,7 +23,10 @@
             "facets": {
                 "airflow": {
                     "taskInstance": {
-                        "try_number": 1
+                        "try_number": 1,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
                     }
                 }
             }
