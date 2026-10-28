@@ -4645,7 +4645,9 @@ def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
 
 def _get_info_json_encodable_subclasses(cls: type[InfoJsonEncodable] = InfoJsonEncodable):
     for subclass in cls.__subclasses__():
-        yield subclass
+        # Leave out the subclasses other tests define
+        if subclass.__module__ == InfoJsonEncodable.__module__:
+            yield subclass
         yield from _get_info_json_encodable_subclasses(subclass)
 
 
