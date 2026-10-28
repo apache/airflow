@@ -66,3 +66,55 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+
+class AthenaSparkTrigger(AwsBaseWaiterTrigger):
+    """
+    Wait asynchronously for an Athena Spark calculation to reach a terminal state.
+
+    :param calculation_execution_id: Calculation execution ID to monitor.
+    :param waiter_delay: Seconds between status checks. Defaults to 30.
+    :param waiter_max_attempts: Maximum number of polling attempts. Defaults to 120.
+    :param aws_conn_id: Airflow connection used for AWS credentials. Defaults to ``aws_default``.
+    """
+
+    aws_hook_class = AthenaHook
+
+    def __init__(
+        self,
+        *,
+        calculation_execution_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 120,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "calculation_execution_id": calculation_execution_id,
+            },
+            waiter_name="spark_calculation_terminal",
+            waiter_args={
+                "CalculationExecutionId": calculation_execution_id,
+            },
+            failure_message=(f"Error waiting for Athena Spark calculation {calculation_execution_id}"),
+            status_message=(f"Athena Spark calculation execution ID: {calculation_execution_id}"),
+            status_queries=["Status.State", "Status.StateChangeReason"],
+            return_value=calculation_execution_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return AthenaHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

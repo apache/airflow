@@ -132,8 +132,20 @@ with DAG(
         code_block="print('hello from athena spark')",
         waiter_delay=30,
         waiter_max_attempts=120,
+        deferrable=False,
     )
     # [END howto_operator_athena_spark]
+
+    # [START howto_operator_athena_spark_deferrable]
+    run_spark_calculation_deferrable = AthenaSparkOperator(
+        task_id="run_spark_calculation_deferrable",
+        session_id=idle_session_id,
+        code_block="print('hello from athena spark in deferrable mode')",
+        waiter_delay=30,
+        waiter_max_attempts=120,
+        deferrable=True,
+    )
+    # [END howto_operator_athena_spark_deferrable]
 
     calculation_execution_id = start_athena_spark_calculation(idle_session_id)
 
@@ -164,6 +176,7 @@ with DAG(
         idle_session_id,
         # TEST BODY
         run_spark_calculation,
+        run_spark_calculation_deferrable,
         calculation_execution_id,
         await_spark_calculation,
         # TEST TEARDOWN
