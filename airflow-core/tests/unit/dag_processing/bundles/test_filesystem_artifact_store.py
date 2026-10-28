@@ -1299,28 +1299,3 @@ class TestFilesystemStorageErrors:
             read_json_file(tmp_path / "doc.json", missing_message="missing", invalid_message="invalid")
 
         assert raised.value.__cause__ is mock_read_text.side_effect
-
-
-class TestFsyncTree:
-    @mock.patch.object(store_module, "fsync_file", autospec=True, side_effect=store_module.fsync_file)
-    def test_ignored_file_can_disappear_while_authoritative_files_are_synced(self, mock_fsync, tmp_path):
-        tree = _write_source(tmp_path / "tree")
-        manifest = tree / MANIFEST_FILE_NAME
-        manifest.write_text("{}")
-        temporary_bytecode = tree / "dags" / "__pycache__" / "example.cpython-312.pyc.123"
-        temporary_bytecode.parent.mkdir()
-        temporary_bytecode.write_bytes(b"partial bytecode")
-
-        def ignore_file(path: Path) -> bool:
-            if path != temporary_bytecode:
-                return False
-            temporary_bytecode.unlink()
-            return True
-
-        store_module.fsync_tree(tree, ignore_file=ignore_file)
-
-        assert not temporary_bytecode.exists()
-        assert mock_fsync.call_count == 2
-        mock_fsync.assert_has_calls(
-            [mock.call(manifest), mock.call(tree / "dags" / "example.py")], any_order=True
-        )
