@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage emission policy where Airflow versions differ.
+Dag exercising the OpenLineage emission policy where Airflow versions differ.
 
 The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
@@ -36,7 +36,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
-from system.openlineage.expected_events import get_expected_event_file_path
+from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
@@ -95,8 +95,8 @@ with DAG(
     # Registers 70 assets. On Airflow 3.2+ the collector keeps the first 67, then the Dag list drops the 5
     # dag_excluded ones, leaving 62. Before 3.2 there is no cap, leaving 65.
     t_collector_cap = PythonOperator(task_id="t_collector_cap", python_callable=_collector_cap)
-    # Skips itself. The Dag list drops dag_excluded from its START and COMPLETE. Airflow 3.0 emits no COMPLETE
-    # for a task that skips itself.
+    # Skips itself. The Dag list drops dag_excluded from its START and COMPLETE. Airflow 3.0 emits START but no
+    # COMPLETE for a task that skips itself.
     t_skipped = PythonOperator(
         task_id="t_skipped",
         python_callable=_skip,
@@ -106,12 +106,14 @@ with DAG(
     # Skips itself, and the conf Dag + task rule emit: false applies: no task events.
     t_skipped_emit_off = PythonOperator(task_id="t_skipped_emit_off", python_callable=_skip)
     # Skips itself, and the conf Dag + task rule include_full_task_info: true applies: bash_command is in
-    # START and COMPLETE. Airflow 3.0 emits no COMPLETE.
+    # START and COMPLETE. Airflow 3.0 emits only START.
     t_skipped_full_info = BashOperator(task_id="t_skipped_full_info", bash_command="exit 99")
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
         trigger_rule=TriggerRule.NONE_FAILED,
+        # On Airflow 3.0 the skipped tasks have a START and no COMPLETE, which the runId check rejects.
+        check_run_ids=(AIRFLOW_VERSION.major, AIRFLOW_VERSION.minor) >= (3, 1),
     )
     t_runtime_outlets >> t_collector_cap >> check_events
     [t_skipped, t_skipped_emit_off, t_skipped_full_info] >> check_events

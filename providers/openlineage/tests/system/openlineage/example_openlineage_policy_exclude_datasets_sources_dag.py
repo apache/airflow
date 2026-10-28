@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage ``exclude_datasets`` control on every source of task lineage.
+Dag exercising the OpenLineage ``exclude_datasets`` control on every source of task lineage.
 
 Every source is filtered with the same Dag list, which has two patterns. Hook and operator rules are regexes
 on the names of the stand-in classes below.

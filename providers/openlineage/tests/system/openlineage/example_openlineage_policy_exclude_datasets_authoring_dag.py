@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising ``exclude_datasets`` authoring overrides via ``extend_global_openlineage_emission_policy``.
+Dag exercising ``exclude_datasets`` authoring overrides via ``extend_global_openlineage_emission_policy``.
 
 Hook rules are regexes on the names of the stand-in classes below. Every task reports an input and an output per
 stem, and the expected events check both.

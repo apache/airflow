@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage ``exclude_datasets`` control in the ``dag_id`` conf tiers.
+Dag exercising the OpenLineage ``exclude_datasets`` control in the ``dag_id`` conf tiers.
 
 The most specific matching rule replaces broader lists: Dag + task + hook, Dag + task, Dag + hook, Dag, then
 operator + hook, operator, hook, global. Hook and operator rules are regexes on the names of the stand-in classes

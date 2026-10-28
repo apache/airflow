@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the emission policy for Dag rules, including the Dag run COMPLETE and FAIL events.
+Dag exercising the emission policy for Dag rules, including the Dag run COMPLETE and FAIL events.
 
 A Dag run's own COMPLETE and FAIL events come after its checking task, so the Dag triggers child Dags and waits for
 them, and its checking task reads their events. The children end in ``__notrigger`` so the harness does not
@@ -96,13 +96,15 @@ with DAG(
     default_args={"retries": 0},
 ) as dag:
     # Not checks: each one triggers a child Dag and waits for it, so check_events can read the child's events.
+    # Deferrable so the ten waits do not hold worker slots.
     triggers = [
         TriggerDagRunOperator(
             task_id=f"trigger_{child.dag_id}",
             trigger_dag_id=child.dag_id,
             trigger_run_id=f"{child.dag_id}_triggered_by_{DAG_ID}_{datetime.now().isoformat()}",
             wait_for_completion=True,
-            poke_interval=5,
+            poke_interval=10,
+            deferrable=True,
         )
         for child in CHILDREN.values()
     ]

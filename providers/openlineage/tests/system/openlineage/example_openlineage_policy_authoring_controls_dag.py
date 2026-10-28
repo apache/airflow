@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the emission policy authoring API for the controls the other authoring Dags do not.
+Dag exercising the emission policy authoring API for the controls the other authoring Dags do not.
 
 The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising every emission policy control in Dag + task and operator scoped conf rules.
+Dag exercising every task-level boolean emission policy control in Dag + task and operator scoped conf rules.
 
 Each task registers hook lineage, so its events show the datasets and the source code. Every control has a task
 with its rule, next to ``t_default``, which has none.

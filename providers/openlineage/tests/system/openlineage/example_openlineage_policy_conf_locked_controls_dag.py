@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising locked conf rules: a locked Dag + task rule for every control, and a locked Dag rule.
+Dag exercising locked conf rules: a locked Dag + task rule for every control, and a locked Dag rule.
 
 Every task authors the opposite of what a locked rule sets, and the lock wins. The ``t_locked_*`` tasks each have
 a locked Dag + task rule for one control. The locked Dag rule sets ``include_source_code: false`` and

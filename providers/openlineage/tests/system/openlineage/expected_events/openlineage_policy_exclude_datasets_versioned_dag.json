@@ -82,11 +82,29 @@
         }
     },
     {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped"
+        }
+    },
+    {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped"
         },
-        "$absent": "Airflow 3.0 calls no listener when a task skips itself"
+        "$absent": "Airflow 3.0 calls no finish listener when a task skips itself"
     },
     {
         "$absent": "the task was skipped",
@@ -117,11 +135,32 @@
         }
     },
     {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "exit 99"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 99"
+                }
+            }
+        }
+    },
+    {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_full_info"
         },
-        "$absent": "Airflow 3.0 calls no listener when a task skips itself"
+        "$absent": "Airflow 3.0 calls no finish listener when a task skips itself"
     },
     {
         "eventType": "FAIL",

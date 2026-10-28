@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage emission policy authoring API.
+Dag exercising the OpenLineage emission policy authoring API.
 
 A locked conf rule cannot be overridden by authoring.
 

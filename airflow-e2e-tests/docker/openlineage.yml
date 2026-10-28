@@ -35,8 +35,10 @@ x-ol-common-env: &ol-common-env
   # fully-qualified class path; the OpenLineage client imports it directly.
   AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "system.openlineage.transport.variable.VariableTransport"}'
   AIRFLOW__OPENLINEAGE__DISABLED: 'false'
-  # Deployment-wide policy required by the conf-driven policy DAGs. Rules are scoped by dag_id or by
-  # names unique to a DAG (hook/operator classes, dataset patterns), so they coexist and do not affect any other DAG.
+  # Deployment-wide policy required by the conf-driven policy Dags. Rules are scoped by dag_id or by
+  # names unique to a Dag (hook/operator classes, dataset patterns), so they coexist and do not affect any other Dag.
+  # The exception is the SmoothOperator rule, which applies to every Dag: do not use SmoothOperator in other
+  # OpenLineage system tests, as its task events are never emitted.
   AIRFLOW__OPENLINEAGE__EMISSION_POLICY: >-
     [
     {"scope": {"dag_id": "openlineage_policy_conf_locked_dag"}, "locked": true, "controls": {"include_source_code": false}},
@@ -112,8 +114,9 @@ x-ol-common-env: &ol-common-env
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag", "task_id": "t_skipped_full_info"}, "controls": {"include_full_task_info": true}}
     ]
   AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
-  # openlineage_policy_exclude_datasets_versioned_dag checks that exclusion runs after this cap; no other DAG
-  # reports more than a few assets per hook, so 67 (instead of the default 100) does not affect them.
+  # openlineage_policy_exclude_datasets_versioned_dag checks that exclusion runs after this cap; no other Dag
+  # registers more than a few hook lineage inputs or outputs per task, so 67 (instead of the default 100) does
+  # not affect them.
   AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR: '67'
   # Both control how quickly the dag-processor picks up dags: REFRESH_INTERVAL is how often it
   # re-scans the folder for new/removed files, MIN_FILE_PROCESS_INTERVAL is how often it re-parses

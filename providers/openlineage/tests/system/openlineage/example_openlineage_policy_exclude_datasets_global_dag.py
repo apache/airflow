@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage ``exclude_datasets`` control in the conf tiers that have no ``dag_id``.
+Dag exercising the OpenLineage ``exclude_datasets`` control in the conf tiers that have no ``dag_id``.
 
 Hook, operator and operator + hook rules are regexes on the names of the stand-in classes below, which nothing
 else uses, so they cannot affect another test. The one global rule matches a dataset name no other test uses.
