@@ -149,10 +149,13 @@ class AwsEcsExecutor(BaseExecutor):
         self.container_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
         self.attempts_since_last_successful_connection = 0
 
-        self.run_task_concurrency = self.conf.getint(
-            CONFIG_GROUP_NAME,
-            AllEcsConfigKeys.RUN_TASK_CONCURRENCY,
-            fallback=int(CONFIG_DEFAULTS[AllEcsConfigKeys.RUN_TASK_CONCURRENCY]),
+        # ``ExecutorConf`` has no ``getint`` before Airflow 3.2.
+        self.run_task_concurrency = int(
+            self.conf.get(
+                CONFIG_GROUP_NAME,
+                AllEcsConfigKeys.RUN_TASK_CONCURRENCY,
+                fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.RUN_TASK_CONCURRENCY],
+            )
         )
         if self.run_task_concurrency < 0:
             raise ValueError(
