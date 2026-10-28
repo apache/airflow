@@ -1511,6 +1511,15 @@ config:
         type: integer
         example: "3"
         default: "3"
+      run_task_concurrency:
+        description: |
+          The maximum number of ECS RunTask calls the ECS Executor makes in parallel. With 1, tasks are
+          launched one at a time and the scheduler loop waits for each call. With more, or with 0 for no
+          limit, the calls run in background threads and the scheduler loop does not wait for them.
+        version_added: "9.40.0"
+        type: integer
+        example: "16"
+        default: "1"
       run_task_kwargs:
         description: |
           A JSON string containing arguments to provide the ECS `run_task` API (see url above).
