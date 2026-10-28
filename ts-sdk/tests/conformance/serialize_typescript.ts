@@ -19,7 +19,7 @@
 
 // Serializes the Dags of scripts/ci/lang_sdk_serialization/test_dags.yaml with this SDK, as
 // serialize_python.py there does with Airflow's serializer, and writes them keyed by Dag id. The
-// check-ts-sdk-serialization-conformance hook has that directory's compare.py run it as:
+// check_ts_sdk.py in that directory has compare.py run it as:
 //
 //   pnpm --dir ts-sdk exec tsx tests/conformance/serialize_typescript.ts <test_dags.yaml> <output.json>
 
