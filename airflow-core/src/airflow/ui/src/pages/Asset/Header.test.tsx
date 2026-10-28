@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/assets/1"]));
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) serves asset 1 with one
 // alias and one watcher, and asset 2 with neither.

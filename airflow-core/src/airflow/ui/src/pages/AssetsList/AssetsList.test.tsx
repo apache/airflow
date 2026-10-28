@@ -19,10 +19,12 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { server } from "src/mocks/server";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/assets"]));
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.
