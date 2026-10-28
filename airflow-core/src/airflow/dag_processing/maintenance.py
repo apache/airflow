@@ -29,7 +29,7 @@ from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
@@ -119,14 +119,14 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
     while True:
         with create_session() as session:
             checkpoint_query = (
-                select(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key)
+                select(DagProcessorPublicationReceipt.job_id, DagProcessorPublicationReceipt.source_key)
                 .where(
                     exists().where(
-                        Job.id == DagParseCheckpoint.job_id,
+                        Job.id == DagProcessorPublicationReceipt.job_id,
                         Job.end_date.is_not(None),
                     )
                 )
-                .order_by(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key)
+                .order_by(DagProcessorPublicationReceipt.job_id, DagProcessorPublicationReceipt.source_key)
                 .limit(checkpoint_batch_size)
             )
             checkpoint_keys = session.execute(
@@ -134,8 +134,10 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             ).all()
             if checkpoint_keys:
                 session.execute(
-                    delete(DagParseCheckpoint).where(
-                        tuple_(DagParseCheckpoint.job_id, DagParseCheckpoint.source_key).in_(checkpoint_keys)
+                    delete(DagProcessorPublicationReceipt).where(
+                        tuple_(
+                            DagProcessorPublicationReceipt.job_id, DagProcessorPublicationReceipt.source_key
+                        ).in_(checkpoint_keys)
                     )
                 )
         if len(checkpoint_keys) < checkpoint_batch_size:

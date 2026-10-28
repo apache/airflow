@@ -385,12 +385,12 @@ class TestRegisterJob:
             assert previous.end_date is None
             assert previous.session_id == SESSION_ID
             assert session.scalars(select(Job.id)).all() == [previous.id]
-            assert session.scalars(select(DagParseCheckpoint.job_id)).all() == [previous.id]
+            assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [previous.id]
         else:
             assert response.status_code == 201, response.json()
             assert previous.end_date == NOW
             assert previous.session_id is None
-            assert session.scalar(select(DagParseCheckpoint)) is None
+            assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
     @pytest.mark.parametrize(
         ("previous_job", "outcome"),

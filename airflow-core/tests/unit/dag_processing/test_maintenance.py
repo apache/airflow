@@ -31,7 +31,7 @@ from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
@@ -117,7 +117,7 @@ def test_cleanup_drains_inactive_dags_in_committed_batches(mock_session, log, se
 
 def _add_checkpoints(job_id, count, *, session):
     session.add_all(
-        DagParseCheckpoint(
+        DagProcessorPublicationReceipt(
             job_id=job_id,
             source_key=f"{index:064x}",
             attempt_id=uuid7(),
@@ -155,7 +155,7 @@ def test_cleanup_retires_only_expired_api_processor_jobs(log, session, time_mach
     assert jobs[0].end_date is not None
     assert jobs[0].state == JobState.FAILED
     assert [job.end_date for job in jobs[1:]] == [None, None, None]
-    assert set(session.scalars(select(DagParseCheckpoint.job_id))) == set(job_ids[1:])
+    assert set(session.scalars(select(DagProcessorPublicationReceipt.job_id))) == set(job_ids[1:])
     log.warning.assert_called_once_with(
         "Expiring Dag processor Job and releasing its claimed work",
         extra={
@@ -246,7 +246,9 @@ def test_cleanup_continues_when_api_heartbeat_timeouts_are_invalid(session, time
     session.expire_all()
     assert session.get(DagModel, "removed").is_stale
     assert session.scalars(select(DagWarning)).all() == []
-    assert session.scalars(select(DagParseCheckpoint.job_id)).all() == ([live_job_id] if has_api_job else [])
+    assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == (
+        [live_job_id] if has_api_job else []
+    )
     if has_api_job:
         live = session.get(Job, live_job_id)
         assert live.state == JobState.RUNNING
@@ -279,7 +281,7 @@ def test_checkpoint_cleanup_resumes_after_a_committed_batch(mock_session, sessio
         with create_session(scoped=False) as maintenance_session:
             yield maintenance_session
         with create_session(scoped=False) as observer:
-            remaining = len(observer.scalars(select(DagParseCheckpoint)).all())
+            remaining = len(observer.scalars(select(DagProcessorPublicationReceipt)).all())
         if not committed_counts or committed_counts[-1] != remaining:
             committed_counts.append(remaining)
         if remaining == 4 and not interrupted:
@@ -293,13 +295,13 @@ def test_checkpoint_cleanup_resumes_after_a_committed_batch(mock_session, sessio
     session.expire_all()
     assert session.get(Job, expired_id).state == JobState.FAILED
     assert session.get(Job, expired_id).end_date == timezone.utcnow()
-    assert len(session.scalars(select(DagParseCheckpoint)).all()) == 4
+    assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 4
     session.rollback()
 
     cleanup_processor_metadata(batch_size=2)
 
     assert committed_counts == [6, 4, 2, 1]
-    assert session.scalars(select(DagParseCheckpoint.job_id)).all() == [live_id]
+    assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [live_id]
     assert session.get(Job, live_id).end_date is None
 
 
@@ -362,7 +364,7 @@ def test_default_cleanup_respects_sqlite_variable_limit_and_retires_jobs(session
         retired = session.get(Job, expired_job_id)
         assert retired.state == JobState.FAILED
         assert retired.end_date == timezone.utcnow()
-        assert session.scalars(select(DagParseCheckpoint.job_id)).all() == [live_job_id]
+        assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [live_job_id]
 
         cleanup_processor_metadata()
 
