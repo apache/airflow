@@ -32,12 +32,13 @@ from airflow.exceptions import NotMapped
 from airflow.models.dynamic_region import ProducerContext
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
-from airflow.serialization.definitions.node import DAGNode
-from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.baseoperator import (
+    DEFAULT_OPERATOR_DEPS,
+    SerializedBaseOperator,
+    _SerializedOperator,
+)
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
-from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
 if TYPE_CHECKING:
@@ -46,12 +47,13 @@ if TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.models import TaskInstance
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import Context
     from airflow.sdk.definitions._internal.node import DAGNode as TaskSDKDAGNode
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.node import DAGNode
+    from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -87,7 +89,7 @@ def is_mapped(
     getstate_setstate=False,
     repr=False,
 )
-class SerializedMappedOperator(DAGNode):
+class SerializedMappedOperator(_SerializedOperator):
     """Object representing a mapped operator in a DAG."""
 
     # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
@@ -398,76 +400,14 @@ class SerializedMappedOperator(DAGNode):
 
         return operator_extra_links_all
 
-    @functools.cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links."""
-        from airflow import plugins_manager
-
-        global_operator_extra_links = plugins_manager.get_global_operator_extra_links()
-        return {link.name: link for link in global_operator_extra_links}
-
-    @functools.cached_property
-    def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
-
-    def get_extra_links(self, ti: TaskInstance, name: str) -> str | None:
-        """
-        For an operator, gets the URLs that the ``extra_links`` entry points to.
-
-        :meta private:
-
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link.
-        :param ti: The TaskInstance for the URL being searched for.
-        :param name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in ``extra_links``.
-        """
-        link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
-        if not link:
-            return None
-        if isinstance(link, XComOperatorLink):
-            return link.get_link(self, ti_key=ti.key, region_id=ti.region_id)
-        return link.get_link(self, ti_key=ti.key)
-
-    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Implement DAGNode."""
-        return DagAttributeTypes.OP, self.task_id
+    # attrs must see these descriptors here to retain its cached-property slots.
+    global_operator_extra_link_dict = _SerializedOperator.global_operator_extra_link_dict
+    extra_links = _SerializedOperator.extra_links
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     def _get_specified_expand_input(self) -> SchedulerExpandInput:
         """Input received from the expand call on the operator."""
         return getattr(self, self._expand_input_attr)
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
-        """
-        Return mapped task groups this task belongs to.
-
-        Groups are returned from the innermost to the outmost.
-
-        :meta private:
-        """
-        if (group := self.task_group) is None:
-            return
-        yield from group.iter_mapped_task_groups()
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
-        """
-        Get the mapped task group "closest" to this task in the DAG.
-
-        :meta private:
-        """
-        return next(self.iter_mapped_task_groups(), None)
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_needs_expansion(self) -> bool:
-        """
-        Return true if the task is MappedOperator or is in a mapped task group.
-
-        :meta private:
-        """
-        return self._needs_expansion
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     @methodtools.lru_cache(maxsize=1)

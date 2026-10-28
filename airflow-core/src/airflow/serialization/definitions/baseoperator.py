@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import abc
 import datetime
 import functools
 from typing import TYPE_CHECKING, Any
@@ -58,7 +59,80 @@ DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
 )
 
 
-class SerializedBaseOperator(DAGNode):
+class _SerializedOperator(DAGNode):
+    """Common serialized behavior for mapped and unmapped operators."""
+
+    task_id: str
+    _needs_expansion: bool
+
+    @property
+    @abc.abstractmethod
+    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink]:
+        raise NotImplementedError
+
+    @functools.cached_property
+    def global_operator_extra_link_dict(self) -> dict[str, Any]:
+        """All global extra links."""
+        from airflow import plugins_manager
+
+        return {link.name: link for link in plugins_manager.get_global_operator_extra_links()}
+
+    @functools.cached_property
+    def extra_links(self) -> list[str]:
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+
+    def get_extra_links(self, ti: TaskInstance, name: str) -> str | None:
+        """
+        For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
+
+        :raise ValueError: The error message of a ValueError will be passed on through to
+            the fronted to show up as a tooltip on the disabled link.
+        :param ti: The TaskInstance for the URL being searched for.
+        :param name: The name of the link we're looking for the URL for. Should be
+            one of the options specified in ``extra_links``.
+        """
+        link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
+        if not link:
+            return None
+        if isinstance(link, XComOperatorLink):
+            return link.get_link(self, ti_key=ti.key, region_id=ti.region_id)
+        return link.get_link(self, ti_key=ti.key)
+
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
+        return DagAttributeTypes.OP, self.task_id
+
+    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
+        """
+        Return mapped task groups this task belongs to.
+
+        Groups are returned from the innermost to the outmost.
+
+        :meta private:
+        """
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
+
+    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
+        """
+        Get the mapped task group "closest" to this task in the Dag.
+
+        :meta private:
+        """
+        return next(self.iter_mapped_task_groups(), None)
+
+    def get_needs_expansion(self) -> bool:
+        """
+        Return true if the task is MappedOperator or is in a mapped task group.
+
+        :meta private:
+        """
+        return self._needs_expansion
+
+
+class SerializedBaseOperator(_SerializedOperator):
     """
     Serialized representation of a BaseOperator instance.
 
@@ -263,36 +337,6 @@ class SerializedBaseOperator(DAGNode):
         """All extra links for the operator."""
         return {link.name: link for link in self.operator_extra_links}
 
-    @functools.cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """All global extra links."""
-        from airflow import plugins_manager
-
-        return {link.name: link for link in plugins_manager.get_global_operator_extra_links()}
-
-    @functools.cached_property
-    def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
-
-    def get_extra_links(self, ti: TaskInstance, name: str) -> str | None:
-        """
-        For an operator, gets the URLs that the ``extra_links`` entry points to.
-
-        :meta private:
-
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link.
-        :param ti: The TaskInstance for the URL being searched for.
-        :param name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in ``extra_links``.
-        """
-        link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
-        if not link:
-            return None
-        if isinstance(link, XComOperatorLink):
-            return link.get_link(self, ti_key=ti.key, region_id=ti.region_id)
-        return link.get_link(self, ti_key=ti.key)
-
     @property
     def inherits_from_empty_operator(self) -> bool:
         return self._is_empty
@@ -337,9 +381,6 @@ class SerializedBaseOperator(DAGNode):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         # For regular attributes, use task_type in the error message
         raise AttributeError(f"'{self.task_type}' object has no attribute '{name}'")
-
-    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        return DagAttributeTypes.OP, self.task_id
 
     def expand_start_from_trigger(self, *, context: Context) -> bool:
         """
@@ -407,37 +448,6 @@ class SerializedBaseOperator(DAGNode):
             for downstream in self._iter_all_mapped_downstreams()
             if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
         )
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
-        """
-        Return mapped task groups this task belongs to.
-
-        Groups are returned from the innermost to the outmost.
-
-        :meta private:
-        """
-        if (group := self.task_group) is None:
-            return
-        yield from group.iter_mapped_task_groups()
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
-        """
-        Get the mapped task group "closest" to this task in the DAG.
-
-        :meta private:
-        """
-        return next(self.iter_mapped_task_groups(), None)
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_needs_expansion(self) -> bool:
-        """
-        Return true if the task is MappedOperator or is in a mapped task group.
-
-        :meta private:
-        """
-        return self._needs_expansion
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     @methodtools.lru_cache(maxsize=1)
