@@ -54,7 +54,7 @@ class ExternalClearTarget:
     :param task_id: The task to clear. Its downstream tasks in that Dag are cleared with it.
     :param logical_date: The logical date of the Dag run to clear in.
     :param recursion_depth: How many levels of these links a clear follows when it starts here, which
-        stops a cycle of links from recursing forever.
+        keeps a cycle of links from being followed forever.
     """
 
     dag_id: str
