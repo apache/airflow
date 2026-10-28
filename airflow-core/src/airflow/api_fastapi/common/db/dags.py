@@ -65,10 +65,10 @@ def generate_dag_with_latest_run_query(
     )
 
     # Also filter the subquery for finding latest runs
-    max_run_id_query_stmt = select(DagModel.dag_id, latest_run_id.label("max_dag_run_id"))
+    latest_run_id_query_stmt = select(DagModel.dag_id, latest_run_id.label("latest_dag_run_id"))
     if dag_ids is not None:
-        max_run_id_query_stmt = max_run_id_query_stmt.where(DagModel.dag_id.in_(dag_ids or set()))
-    max_run_id_query = max_run_id_query_stmt.subquery(name="mrq")
+        latest_run_id_query_stmt = latest_run_id_query_stmt.where(DagModel.dag_id.in_(dag_ids or set()))
+    latest_run_id_query = latest_run_id_query_stmt.subquery(name="latest_run_ids")
 
     has_max_run_filter = False
 
@@ -93,10 +93,10 @@ def generate_dag_with_latest_run_query(
 
     if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
         query = query.join(
-            max_run_id_query,
-            DagModel.dag_id == max_run_id_query.c.dag_id,
+            latest_run_id_query,
+            DagModel.dag_id == latest_run_id_query.c.dag_id,
             isouter=True,
-        ).join(DagRun, DagRun.id == max_run_id_query.c.max_dag_run_id, isouter=True)
+        ).join(DagRun, DagRun.id == latest_run_id_query.c.latest_dag_run_id, isouter=True)
 
     if has_max_run_filter:
         query = apply_filters_to_select(
