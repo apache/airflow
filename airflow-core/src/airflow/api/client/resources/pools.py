@@ -25,7 +25,7 @@ from airflow.api.client.resources import quote_segment
 from airflow.api_fastapi.core_api.datamodels.pools import PoolCollectionResponse, PoolResponse
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 def _pool_from_json(data: dict[str, Any]) -> PoolResponse:
@@ -43,7 +43,7 @@ def _pool_from_json(data: dict[str, Any]) -> PoolResponse:
 class PoolsClient:
     """Client for ``/api/v2/pools`` endpoints."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(self, name: str) -> PoolResponse:

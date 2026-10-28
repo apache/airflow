@@ -32,13 +32,13 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
 _log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class DagsClient:
     """Client for ``/api/v2/dags`` endpoints."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(self, dag_id: str) -> DAGResponse:

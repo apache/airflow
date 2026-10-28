@@ -25,13 +25,13 @@ from airflow.api.client.resources import quote_segment
 from airflow.api_fastapi.core_api.datamodels.config import Config
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class ConfigClient:
     """Client for ``/api/v2/config`` endpoints (read-only)."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(self, *, section: str | None = None) -> Config:

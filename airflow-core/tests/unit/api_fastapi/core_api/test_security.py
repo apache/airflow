@@ -39,9 +39,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dags import BulkDAGBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
@@ -56,6 +59,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
+    requires_access_dag_bulk,
     requires_access_dag_from_file_token,
     requires_access_event_log,
     requires_access_pool,
@@ -1792,6 +1796,52 @@ class TestAuthManagerDependency:
 
 class TestSystemUserAccess:
     """Trusted ``SystemUser`` access bypasses authorization and permission filtering."""
+
+    @pytest.mark.parametrize("asset_id_from_body", [False, True])
+    @patch("airflow.api_fastapi.core_api.security._build_asset_details", autospec=True)
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager", autospec=True)
+    def test_requires_access_asset_skips_lookup_for_system_user(
+        self, mock_get_auth_manager, mock_build_asset_details, asset_id_from_body
+    ):
+        user = SystemUser(process_type="scheduler")
+        dependency = requires_access_asset("POST", asset_id_from_body=asset_id_from_body)
+        if asset_id_from_body:
+            assert dependency(CreateAssetEventsBody(asset_id=1), user) is None
+        else:
+            request = Request({"type": "http", "path_params": {"asset_id": "1"}})
+            assert dependency(request, user) is None
+        mock_build_asset_details.assert_not_called()
+        mock_get_auth_manager.assert_not_called()
+
+    @pytest.mark.parametrize("filter_class", [PermittedAssetFilter, PermittedAssetEventByAssetFilter])
+    def test_permitted_asset_filter_unrestricted_for_system_user(self, filter_class):
+        auth_manager = Mock(spec=BaseAuthManager)
+        result = permitted_asset_filter_factory("GET", filter_class)(
+            SystemUser(process_type="scheduler"), auth_manager
+        )
+        statement = select(AssetModel)
+        assert result.to_orm(statement) is statement
+        auth_manager.get_authorized_assets.assert_not_called()
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager", autospec=True)
+    @patch.object(DagModel, "get_dag_id_to_team_name_mapping", autospec=True)
+    def test_requires_access_dag_bulk_skips_lookup_for_system_user(
+        self, mock_get_teams, mock_get_auth_manager
+    ):
+        body = BulkBody[BulkDAGBody](actions=[{"action": "delete", "entities": ["example"]}])
+        assert requires_access_dag_bulk()(body, SystemUser(process_type="scheduler")) is None
+        mock_get_teams.assert_not_called()
+        mock_get_auth_manager.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_requires_access_backfill_skips_lookup_for_system_user(self):
+        request = Request({"type": "http", "path_params": {"backfill_id": "1"}})
+        session = Mock(spec=Session)
+        assert (
+            await requires_access_backfill("GET")(request, SystemUser(process_type="scheduler"), session)
+            is None
+        )
+        session.scalar.assert_not_called()
 
     def test_is_system_access(self):
         from airflow.api_fastapi.auth.managers.models.system_user import SystemUser

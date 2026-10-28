@@ -28,13 +28,13 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class ConnectionsClient:
     """Client for ``/api/v2/connections`` endpoints."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(self, connection_id: str) -> ConnectionResponse:

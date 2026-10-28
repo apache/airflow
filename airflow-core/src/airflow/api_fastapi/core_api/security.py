@@ -1162,6 +1162,8 @@ def requires_access_dag_bulk() -> Callable[[BulkBody[BulkDAGBody], BaseUser], No
         request: BulkBody[BulkDAGBody],
         user: GetUserDep,
     ) -> None:
+        if _is_system_access(user):
+            return
         entity_methods: list[tuple[str, ResourceMethod]] = []
         for action in request.actions:
             methods = _get_resource_methods_from_bulk_request(action)
@@ -1262,6 +1264,8 @@ def permitted_asset_filter_factory(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
     ) -> PermittedAssetFilter:
+        if _is_system_access(user):
+            return _UnrestrictedFilter()  # type: ignore[return-value]
         authorized_assets: set[int] = auth_manager.get_authorized_assets(user=user, method=method)
         return filter_class(authorized_assets)
 

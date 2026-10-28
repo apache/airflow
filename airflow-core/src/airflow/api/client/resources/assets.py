@@ -32,13 +32,13 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
 
 class AssetsClient:
     """Client for ``/api/v2/assets`` endpoints."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(self, asset_id: int) -> AssetResponse:
@@ -92,7 +92,7 @@ class AssetsClient:
 
     def materialize(self, asset_id: int) -> DAGRunResponse:
         """Trigger materialization of an asset (creates a Dag run that produces it)."""
-        resp = self._http.post(f"/api/v2/assets/{quote_segment(asset_id)}/materialize")
+        resp = self._http.post(f"/api/v2/assets/{quote_segment(asset_id)}/materialize", json={})
         resp.raise_for_status()
         return DAGRunResponse.model_validate(resp.json())
 

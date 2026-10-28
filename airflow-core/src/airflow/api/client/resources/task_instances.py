@@ -30,13 +30,13 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    import httpx
+    import httpx2
 
 
 class TaskInstancesClient:
     """Client for ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances`` endpoints."""
 
-    def __init__(self, http: httpx.Client) -> None:
+    def __init__(self, http: httpx2.Client) -> None:
         self._http = http
 
     def get(

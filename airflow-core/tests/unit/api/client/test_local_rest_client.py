@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import select
 
@@ -150,7 +150,7 @@ class TestPoolsClientViaLocalREST:
         assert result.description == "desc"
 
     def test_get_pool_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.pools.get("nonexistent")
         assert exc_info.value.response.status_code == 404
 
@@ -184,23 +184,23 @@ class TestPoolsClientViaLocalREST:
     def test_delete_pool(self, client):
         _create_pool(name="deletable", slots=1)
         client.pools.delete("deletable")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.pools.get("deletable")
         assert exc_info.value.response.status_code == 404
 
     def test_delete_pool_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.pools.delete("nonexistent")
         assert exc_info.value.response.status_code == 404
 
     def test_delete_default_pool_rejected(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.pools.delete("default_pool")
         assert exc_info.value.response.status_code == 400
 
     def test_create_duplicate_pool(self, client):
         client.pools.create(name="dup_pool", slots=2)
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.pools.create(name="dup_pool", slots=3)
         assert exc_info.value.response.status_code == 409
 
@@ -263,7 +263,7 @@ class TestConnectionsClientViaLocalREST:
         assert result.host == "db.example.com"
 
     def test_get_connection_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.connections.get("nonexistent")
         assert exc_info.value.response.status_code == 404
 
@@ -291,18 +291,18 @@ class TestConnectionsClientViaLocalREST:
     def test_delete_connection(self, client):
         self._create_connection("deletable_conn")
         client.connections.delete("deletable_conn")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.connections.get("deletable_conn")
         assert exc_info.value.response.status_code == 404
 
     def test_delete_connection_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.connections.delete("nonexistent")
         assert exc_info.value.response.status_code == 404
 
     def test_create_duplicate_connection(self, client):
         client.connections.create(connection_id="dup_conn", conn_type="http")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.connections.create(connection_id="dup_conn", conn_type="http")
         assert exc_info.value.response.status_code == 409
 
@@ -335,7 +335,7 @@ class TestVariablesClientViaLocalREST:
         assert result.key == "test_var"
 
     def test_get_variable_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.variables.get("nonexistent")
         assert exc_info.value.response.status_code == 404
 
@@ -368,18 +368,18 @@ class TestVariablesClientViaLocalREST:
     def test_delete_variable(self, client):
         Variable.set(key="deletable", value="val")
         client.variables.delete("deletable")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.variables.get("deletable")
         assert exc_info.value.response.status_code == 404
 
     def test_delete_variable_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.variables.delete("nonexistent")
         assert exc_info.value.response.status_code == 404
 
     def test_create_duplicate_variable(self, client):
         client.variables.create(key="dup_var", value="val")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.variables.create(key="dup_var", value="val2")
         assert exc_info.value.response.status_code == 409
 
@@ -410,7 +410,7 @@ class TestDagsClientViaLocalREST:
         assert result.dag_id == "test_dag"
 
     def test_get_dag_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.dags.get("nonexistent")
         assert exc_info.value.response.status_code == 404
 
@@ -442,7 +442,7 @@ class TestDagsClientViaLocalREST:
         with dag_maker("deletable_dag", schedule=None):
             EmptyOperator(task_id="t")
         client.dags.delete("deletable_dag")
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.dags.get("deletable_dag")
         assert exc_info.value.response.status_code == 404
 
@@ -517,7 +517,7 @@ class TestDagRunsClientViaLocalREST:
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         run_id = dr.run_id
         client.dag_runs.delete("del_run_dag", run_id)
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.dag_runs.get("del_run_dag", run_id)
         assert exc_info.value.response.status_code == 404
 
@@ -572,7 +572,7 @@ class TestTaskInstancesClientViaLocalREST:
         with dag_maker("notfound_ti_dag", schedule=None):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.task_instances.get("notfound_ti_dag", dr.run_id, "nonexistent_task")
         assert exc_info.value.response.status_code == 404
 
@@ -685,7 +685,7 @@ class TestAssetsClientViaLocalREST:
         assert result.name == "test_asset"
 
     def test_get_asset_not_found(self, client):
-        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             client.assets.get(99999)
         assert exc_info.value.response.status_code == 404
 

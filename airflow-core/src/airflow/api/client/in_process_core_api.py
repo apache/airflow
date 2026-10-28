@@ -34,7 +34,7 @@ from fastapi.responses import JSONResponse
 from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
 
     from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
@@ -67,7 +67,7 @@ class InProcessCoreAPI:
     but targets the Core API (``/api/v2/``) endpoints.
 
     The sync version uses a2wsgi to run the async FastAPI app in a separate thread,
-    allowing use with the sync ``httpx.Client``.
+    allowing use with the sync ``httpx2.Client``.
     """
 
     _app: FastAPI | None = None
@@ -124,8 +124,8 @@ class InProcessCoreAPI:
         return self._app
 
     @cached_property
-    def transport(self) -> httpx.WSGITransport:
-        import httpx
+    def transport(self) -> httpx2.WSGITransport:
+        import httpx2
         from a2wsgi import ASGIMiddleware
 
         # Own the event loop + executor thread (rather than letting a2wsgi create its own) so their
@@ -147,13 +147,13 @@ class InProcessCoreAPI:
 
         # Stop the loop + thread and unwind the lifespan on close() or when this instance is GC'd.
         self._finalizer = weakref.finalize(self, _shutdown_loop, loop, thread, cm)
-        return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
+        return httpx2.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property
-    def atransport(self) -> httpx.ASGITransport:
-        import httpx
+    def atransport(self) -> httpx2.ASGITransport:
+        import httpx2
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx2.ASGITransport(app=self.app)
 
     def close(self) -> None:
         """Stop the background event loop/thread and unwind the in-process app lifespan, if started."""

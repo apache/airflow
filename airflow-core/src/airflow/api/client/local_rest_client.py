@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from functools import cached_property
 
-import httpx
+import httpx2
 
 from airflow import settings
 from airflow.api.client.in_process_core_api import InProcessCoreAPI
@@ -66,7 +66,7 @@ class LocalRESTClient:
         self._in_process_api = InProcessCoreAPI(process_type=process_type)
 
     @cached_property
-    def _http(self) -> httpx.Client:
+    def _http(self) -> httpx2.Client:
         if self._is_orm_access_blocked():
             # In Airflow 3, contexts where ORM access is intentionally blocked (task/worker
             # processes and Task SDK execution-time contexts) must not escalate to privileged
@@ -78,7 +78,7 @@ class LocalRESTClient:
                 "and plugins. Use the public Execution API client (airflow.sdk) instead."
             )
 
-        return httpx.Client(
+        return httpx2.Client(
             transport=self._in_process_api.transport,
             base_url="http://in-process",
         )
