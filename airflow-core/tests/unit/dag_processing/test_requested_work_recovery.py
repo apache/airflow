@@ -54,7 +54,7 @@ def _make_work(bundle_name, relative_fileloc="a.py", *, callback=None):
         claim_id=uuid7(),
         bundle_name=bundle_name,
         relative_fileloc=relative_fileloc,
-        callback=callback.model_dump_json() if callback is not None else None,
+        callback=callback,
     )
 
 
@@ -205,9 +205,17 @@ def test_queued_callback_preserves_db_priority_request_behind_running_parse(crea
     assert file not in manager._files_awaiting_source
 
 
-@pytest.mark.parametrize("failure", ["initialize", "refresh_changed", "refresh_unchanged"])
+@pytest.mark.parametrize("failure", ["initialize", "refresh_changed", "refresh_unchanged", "listing"])
 @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
-def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(create, api_manager, tmp_path, failure):
+@mock.patch.object(
+    DagFileProcessorManager,
+    "_find_files_in_bundle",
+    autospec=True,
+    side_effect=DagFileProcessorManager._find_files_in_bundle,
+)
+def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(
+    find_files, create, api_manager, tmp_path, failure
+):
     manager, client, ready = api_manager
     broken = mock.create_autospec(BaseDagBundle, instance=True)
     broken.name = "broken"
@@ -230,9 +238,18 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(create, ap
     work = [_make_work(broken.name, filename) for filename in ("a.py", "b.py")]
     client.claim_work.return_value = work
     manager._queue_requested_files_for_parsing()
+    discover = find_files.side_effect
     if failure == "initialize":
         broken.is_initialized = False
         broken.initialize.side_effect = OSError("unavailable")
+    elif failure == "listing":
+
+        def fail_broken_listing(manager, bundle):
+            if bundle.name == broken.name:
+                raise OSError("unavailable")
+            return discover(manager, bundle)
+
+        find_files.side_effect = fail_broken_listing
     else:
         broken.refresh.side_effect = DagBundleRefreshError(
             "unavailable", source_unchanged=failure == "refresh_unchanged"
@@ -274,6 +291,7 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(create, ap
 
     broken.initialize.side_effect = lambda: setattr(broken, "is_initialized", True)
     broken.refresh.side_effect = None
+    find_files.side_effect = discover
     manager._refresh_dag_bundles(known_files)
     manager._start_new_processes()
 
@@ -356,15 +374,23 @@ def test_uninitialized_bundle_is_not_claimed_until_initialization_recovers(api_m
 @pytest.mark.parametrize("failure", ["connection", "503"])
 def test_claim_failure_preserves_deferred_callbacks_and_claims(api_manager, kind, failure):
     manager, client, bundle = api_manager
+    source = get_api_work_source(manager)
     request = DagCallbackRequest(
         filepath="a.py", bundle_name=bundle.name, bundle_version="v1", dag_id="dag", run_id="run"
     )
     deferred = [request, request.model_copy(deep=True)]
-    get_api_work_source(manager)._deferred_api_callbacks = deferred.copy()
+    source._deferred_api_callbacks = deferred.copy()
     claims = {id(callback): _make_work(bundle.name, callback=callback) for callback in deferred}
-    get_api_work_source(manager)._callback_claims = claims.copy()
+    source._callback_claims = claims.copy()
     retries = {id(request): DeferredCallback(expires_at=100, next_attempt_time=10, attempts=2)}
-    get_api_work_source(manager)._deferred_callback_retries = retries.copy()
+    source._deferred_callback_retries = retries.copy()
+    if kind == "priority":
+        client.claim_work.return_value = [_make_work(bundle.name)]
+        manager._queue_requested_files_for_parsing()
+    priority_claims = source._priority_claims.copy()
+    priority_files = manager._priority_files.copy()
+    queued_files = manager._file_queue.copy()
+    client.claim_work.reset_mock()
     if failure == "connection":
         client.claim_work.side_effect = httpx2.ConnectError("unavailable")
     else:
@@ -375,16 +401,17 @@ def test_claim_failure_preserves_deferred_callbacks_and_claims(api_manager, kind
 
     result = manager.fetch_callbacks() if kind == "callbacks" else manager.claim_priority_files()
 
+    client.claim_work.assert_called_once()
     assert result == (deferred if kind == "callbacks" else [])
     if kind == "callbacks":
         assert all(actual is expected for actual, expected in zip(result, deferred))
-    assert get_api_work_source(manager)._callback_claims == claims
-    assert get_api_work_source(manager)._deferred_callback_retries == retries
-    assert all(
-        actual is expected
-        for actual, expected in zip(get_api_work_source(manager)._deferred_api_callbacks, deferred)
-    )
-    assert not get_api_work_source(manager)._pending_work_acks
+    assert source._callback_claims == claims
+    assert source._deferred_callback_retries == retries
+    assert all(actual is expected for actual, expected in zip(source._deferred_api_callbacks, deferred))
+    assert source._priority_claims == priority_claims
+    assert manager._priority_files == priority_files
+    assert manager._file_queue == queued_files
+    assert not source._pending_work_acks
 
 
 @pytest.mark.parametrize("callback_kind", ["dag", "task"])

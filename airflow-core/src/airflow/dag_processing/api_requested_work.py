@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Literal
 
 import attrs
 import httpx2
-from pydantic import TypeAdapter
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
@@ -147,7 +146,8 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         for item in work:
             if item.callback is None:
                 raise ValueError("Callback claim returned no request")
-            request: CallbackRequest = TypeAdapter(CallbackRequest).validate_json(item.callback)
+            # Each claim needs its own identity, even when a client reuses an equal callback object.
+            request = item.callback.model_copy(deep=True)
             self._callback_claims[id(request)] = item
             self._deferred_api_callbacks.append(request)
         return list(self._deferred_api_callbacks)
@@ -187,7 +187,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             try:
                 self.client.acknowledge_work(kind, item)
             except httpx2.HTTPStatusError as error:
-                if error.response.status_code >= 500:
+                if error.response.status_code in (408, 429) or error.response.status_code >= 500:
                     self.log.warning("Unable to acknowledge requested work; retaining the claim")
                     return
                 if error.response.status_code != 409:

@@ -24,7 +24,8 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance, TIRunContext
+from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
 from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 from airflow.dag_processing.bundles.local import LocalDagBundle
@@ -38,7 +39,7 @@ def _make_work(bundle_name, relative_fileloc="a.py", *, callback=None):
         claim_id=uuid7(),
         bundle_name=bundle_name,
         relative_fileloc=relative_fileloc,
-        callback=callback.model_dump_json() if callback is not None else None,
+        callback=callback,
     )
 
 
@@ -78,19 +79,54 @@ def _claim_callback(source, client, bundle):
     return source.fetch_callbacks([bundle], limit=1)[0], work
 
 
-def test_callback_lifecycle_preserves_equal_payload_claim_identity(api_source):
+@pytest.mark.parametrize("callback_type", [DagCallbackRequest, TaskCallbackRequest, EmailRequest])
+def test_callback_lifecycle_preserves_equal_payload_claim_identity(api_source, callback_type):
     source, client, bundle = api_source
     assert source.requires_acknowledgment
     assert not source.has_outstanding_work()
-    request = DagCallbackRequest(
-        filepath="a.py", bundle_name=bundle.name, bundle_version=None, dag_id="test", run_id="run"
+    fields = dict(
+        filepath="a.py",
+        bundle_name=bundle.name,
+        bundle_version=None,
+        version_data={"manifest": {"generation": 1}},
     )
+    if callback_type is DagCallbackRequest:
+        request = callback_type(**fields, dag_id="test", run_id="run")
+    else:
+        request = callback_type(
+            **fields,
+            ti=TaskInstance(
+                id=uuid7(), dag_id="test", run_id="run", task_id="task", try_number=1, dag_version_id=uuid7()
+            ),
+            context_from_server=TIRunContext.model_validate(
+                {
+                    "dag_run": {
+                        "dag_id": "test",
+                        "run_id": "run",
+                        "logical_date": None,
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "run_after": "2026-10-28T00:00:00Z",
+                        "start_date": None,
+                        "end_date": None,
+                        "run_type": "manual",
+                        "state": "running",
+                        "consumed_asset_events": [],
+                        "partition_key": None,
+                    },
+                    "max_tries": 1,
+                }
+            ),
+        )
     work = [_make_work(bundle.name, callback=request) for _ in range(2)]
     client.claim_work.return_value = work
     first, second = source.fetch_callbacks([bundle], limit=2)
 
     assert first == second
     assert first is not second
+    first.version_data["manifest"]["generation"] = 2
+    assert second.version_data == request.version_data == {"manifest": {"generation": 1}}
+    assert all(item.callback.version_data == request.version_data for item in work)
     assert source.has_callback_claim(first)
     assert source.has_callback_claim(second)
     assert not source.has_callback_claim(request)
@@ -183,7 +219,10 @@ def test_priority_finish_keeps_newer_claim_for_same_file(api_source):
     assert not source.has_outstanding_work()
 
 
-@pytest.mark.parametrize("failure", [httpx2.ConnectError("unavailable"), _make_status_error(503)])
+@pytest.mark.parametrize(
+    "failure",
+    [httpx2.ConnectError("unavailable"), *(_make_status_error(status) for status in (408, 429, 503))],
+)
 def test_flush_retries_mixed_kinds_in_fifo_order(api_source, failure):
     source, client, bundle = api_source
     request, callback_work = _claim_callback(source, client, bundle)
@@ -347,14 +386,16 @@ def test_priority_capacity_retains_unavailable_claims_without_blocking_healthy_b
 
 
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
-def test_claim_failure_retains_outstanding_work(api_source, kind):
+@pytest.mark.parametrize("failure", [httpx2.ConnectError("unavailable"), _make_status_error(503)])
+def test_claim_failure_retains_outstanding_work(api_source, kind, failure):
     source, client, bundle = api_source
     if kind == "callbacks":
         request, _ = _claim_callback(source, client, bundle)
     else:
         client.claim_work.return_value = [_make_work(bundle.name)]
         file = _claim_priority(source, bundle)[0]
-    client.claim_work.side_effect = httpx2.ConnectError("unavailable")
+    client.claim_work.reset_mock()
+    client.claim_work.side_effect = failure
 
     if kind == "callbacks":
         assert source.fetch_callbacks([bundle], limit=2) == [request]
@@ -362,4 +403,5 @@ def test_claim_failure_retains_outstanding_work(api_source, kind):
     else:
         assert _claim_priority(source, bundle) == []
         assert source.has_priority_request(file)
+    client.claim_work.assert_called_once_with(kind, [bundle.name], 1)
     assert source.has_outstanding_work()
