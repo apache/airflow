@@ -3616,6 +3616,7 @@ def test_defer_task(create_task_instance):
     assert isinstance(trigger_row, Trigger)
     assert trigger_row.classpath == "trigger_cls"
     assert trigger_row.kwargs == {"key": "value"}
+    assert (trigger_row.dag_id, trigger_row.owner_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
 
     # Check that session.flush was called
     session.flush.assert_called_once()

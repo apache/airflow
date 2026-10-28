@@ -3973,6 +3973,7 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
+            assert (t[0].dag_id, t[0].owner_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):

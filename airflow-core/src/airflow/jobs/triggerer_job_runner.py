@@ -27,7 +27,7 @@ import signal
 import sys
 import threading
 import time
-from collections import deque
+from collections import Counter, deque
 from collections.abc import Callable, Generator, Hashable, Iterable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import datetime
@@ -60,8 +60,9 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
 from airflow.models.task_coordinates import TaskCoordinateResolver
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import RecordedFailure, Trigger, TriggerKind
 from airflow.observability.metrics import stats_utils
+from airflow.sdk._shared.secrets_masker import redact  # noqa: SDK001
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions.asset import Asset
@@ -324,6 +325,88 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name=__name__)
 
+# Stored on the trigger row and shown by the API to everyone who can see the trigger's owner; the traceback
+# stays in the logs.
+TRIGGER_ERROR_MAX_LENGTH = 1000
+
+# A trigger that stays up this long after it was last (re-)created has recovered, so one that crashes after
+# running a while is not counted as failing ever since its first crash.
+TRIGGER_RECOVERY_UPTIME = 120.0
+
+
+def format_trigger_error(exc: list[str] | None) -> str:
+    """
+    Return the exception type and message of a trigger failure, redacted and truncated.
+
+    The runner formats the traceback before anything masks it, so it is redacted here with the task SDK
+    masker, which learns the connections and variables the runner fetched, as the task runner does.
+    """
+    if not exc:
+        return "The trigger exited without yielding an event"
+    return str(redact(exc[-1].strip()))[:TRIGGER_ERROR_MAX_LENGTH]
+
+
+@attrs.define
+class _TriggerFailures:
+    consecutive: int = 0
+    # When the trigger was last (re-)created, on the monotonic clock; None until it is running again.
+    started_at: float | None = None
+
+
+@attrs.define
+class TriggerFailureTracker:
+    """
+    Count the failures of each trigger since it last recovered, for the triggers assigned to this triggerer.
+
+    A trigger recovers when it fires an event, or once it has stayed up for ``recovery_uptime`` seconds
+    since it was last (re-)created. Only triggers that failed since they last recovered are tracked.
+    """
+
+    recovery_uptime: float = TRIGGER_RECOVERY_UPTIME
+    failures: dict[int, _TriggerFailures] = attrs.field(factory=dict)
+
+    def consecutive(self, trigger_id: int) -> int:
+        return state.consecutive if (state := self.failures.get(trigger_id)) is not None else 0
+
+    def continue_from(self, trigger_id: int, consecutive_failures: int | None) -> None:
+        """Continue the count recorded on the trigger row, e.g. by the triggerer that ran it before."""
+        if consecutive_failures and trigger_id not in self.failures:
+            self.failures[trigger_id] = _TriggerFailures(consecutive=consecutive_failures)
+
+    def record_failure(self, trigger_id: int, now: float) -> int:
+        """Count a failure and return the trigger's consecutive failures."""
+        state = self.failures.setdefault(trigger_id, _TriggerFailures())
+        if state.started_at is not None and now - state.started_at >= self.recovery_uptime:
+            state.consecutive = 0
+        state.consecutive += 1
+        state.started_at = None
+        return state.consecutive
+
+    def record_success(self, trigger_id: int) -> int:
+        """Forget the failures of a trigger that fired an event; return how many it recovered from."""
+        state = self.failures.pop(trigger_id, None)
+        return state.consecutive if state is not None else 0
+
+    def record_started(self, trigger_ids: Iterable[int], now: float) -> None:
+        for trigger_id in trigger_ids:
+            if (state := self.failures.get(trigger_id)) is not None:
+                state.started_at = now
+
+    def pop_recovered(self, now: float) -> dict[int, int]:
+        """Forget the triggers that stayed up long enough; return the failures each recovered from."""
+        recovered = {
+            trigger_id: state.consecutive
+            for trigger_id, state in self.failures.items()
+            if state.started_at is not None and now - state.started_at >= self.recovery_uptime
+        }
+        for trigger_id in recovered:
+            del self.failures[trigger_id]
+        return recovered
+
+    def forget(self, trigger_ids: Iterable[int]) -> None:
+        for trigger_id in trigger_ids:
+            self.failures.pop(trigger_id, None)
+
 
 class TriggerEventEntry(NamedTuple):
     """A fired trigger event queued for dispatch to the Trigger model."""
@@ -553,6 +636,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
 
+    # Failures of the triggers assigned here since each last recovered, recorded on the trigger row.
+    failure_tracker: TriggerFailureTracker = attrs.field(factory=TriggerFailureTracker, init=False)
+    # Triggers that recovered since the last loop; their failure state on the trigger row is cleared.
+    recovered_triggers: set[int] = attrs.field(factory=set, init=False)
+    # TriggerKind value of each trigger assigned here, for the trigger_kind metric tag
+    trigger_kinds: dict[int, str] = attrs.field(factory=dict, init=False)
+
     def is_alive(self) -> bool:
         # Set by `_service_subprocess` in the loop
         return self._exit_code is None
@@ -623,10 +713,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
+            # Events before failures: a trigger that fired and then failed starts a new count.
             if msg.events:
                 self.events.extend(msg.events)
+                for entry in msg.events:
+                    self.record_trigger_success(entry.trigger_id)
             if msg.failures:
                 self.failed_triggers.extend(msg.failures)
+                now = time.monotonic()
+                for trigger_id, _ in msg.failures:
+                    self.failure_tracker.record_failure(trigger_id, now)
+                    self.recovered_triggers.discard(trigger_id)
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
@@ -658,6 +755,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
             self.running_triggers.update(m.id for m in response.to_create)
+            self.failure_tracker.record_started((m.id for m in response.to_create), time.monotonic())
             resp = response
 
         elif isinstance(msg, GetConnection):
@@ -753,6 +851,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self._service_subprocess(1)
 
         self.handle_events()
+        self.handle_recovered_triggers()
         self.handle_failed_triggers()
         self.clean_unused()
         self.heartbeat()
@@ -812,7 +911,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if entry.persist_seq is not None:
                 self.persisted_event_seqs.append(entry.persist_seq)
             # Emit stat event
-            stats.incr("triggers.succeeded", tags=prune_dict({"team_name": self.team_name}))
+            stats.incr("triggers.succeeded", tags=self._trigger_kind_tags(entry.trigger_id))
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -835,12 +934,50 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            stats.incr("triggers.failed", tags=prune_dict({"team_name": self.team_name}))
+            stats.incr("triggers.failed", tags=self._trigger_kind_tags(trigger_id))
+
+    def _trigger_kind_tags(self, trigger_id: int) -> dict[str, str]:
+        return prune_dict({"team_name": self.team_name, "trigger_kind": self.trigger_kinds.get(trigger_id)})
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
-        """Record that a trigger failed."""
+        """Record that a trigger failed, and on its row why, whatever kind of trigger it is."""
+        # A deferred task's trigger fails its task and is not re-created, so it fails once.
+        failure = RecordedFailure(
+            consecutive_failures=self.failure_tracker.consecutive(trigger_id) or 1,
+            error=format_trigger_error(exc),
+        )
         Trigger.submit_failure(
-            trigger_id=trigger_id, exc=exc, triggerer_id=self.job.id if self.job is not None else None
+            trigger_id=trigger_id,
+            exc=exc,
+            triggerer_id=self.job.id if self.job is not None else None,
+            failure=failure,
+        )
+
+    def record_trigger_success(self, trigger_id: int) -> None:
+        if after_failures := self.failure_tracker.record_success(trigger_id):
+            self._mark_recovered(trigger_id, after_failures)
+
+    def _mark_recovered(self, trigger_id: int, after_failures: int) -> None:
+        log.info(
+            "Trigger recovered",
+            trigger_id=trigger_id,
+            trigger_kind=self.trigger_kinds.get(trigger_id),
+            after_failures=after_failures,
+        )
+        self.recovered_triggers.add(trigger_id)
+
+    def handle_recovered_triggers(self) -> None:
+        """Clear the recorded failures of triggers that fired an event or have stayed up long enough."""
+        for trigger_id, after_failures in self.failure_tracker.pop_recovered(time.monotonic()).items():
+            self._mark_recovered(trigger_id, after_failures)
+        if self.recovered_triggers:
+            trigger_ids, self.recovered_triggers = self.recovered_triggers, set()
+            self.on_triggers_recovered(trigger_ids)
+
+    def on_triggers_recovered(self, trigger_ids: set[int]) -> None:
+        """Record that triggers recovered from their failures."""
+        Trigger.clear_recorded_failures(
+            trigger_ids, triggerer_id=self.job.id if self.job is not None else None
         )
 
     def metric_tags(self) -> dict[str, str]:
@@ -875,6 +1012,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             capacity_left,
             tags=tags,
         )
+        failing = Counter(self.trigger_kinds.get(trigger_id) for trigger_id in self.failure_tracker.failures)
+        for kind in TriggerKind:
+            stats.gauge("triggers.failing", failing[kind.value], tags={**tags, "trigger_kind": kind.value})
+
+    @staticmethod
+    def _record_missing_owner(trigger: Trigger) -> None:
+        """
+        Record the owner of a deferred task's or callback's trigger whose row has none.
+
+        During a rolling upgrade, components still on the previous version keep creating these triggers after
+        ``db migrate`` filled in the owners of the rows that existed then. Written with the session that builds
+        the workload.
+        """
+        if getattr(trigger, "owner_ref", None) is not None:
+            return
+        if (ti := trigger.task_instance) is not None:
+            trigger.dag_id, trigger.owner_ref = ti.dag_id, {"ti_id": str(ti.id)}
+        elif (callback := getattr(trigger, "callback", None)) is not None:
+            dag_run = ((callback.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+            trigger.dag_id = callback.get_dag_id() or dag_run.get("dag_id")
+            trigger.owner_ref = {"callback_id": str(callback.id)}
 
     def _create_workload(
         self,
@@ -884,6 +1042,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
         log_context: TaskLogContext | None = None,
     ) -> workloads.RunTrigger | None:
+        self._record_missing_owner(trigger)
+        self.trigger_kinds[trigger.id] = (
+            TriggerKind.TASK
+            if trigger.task_instance is not None
+            else TriggerKind.ASSET_WATCHER
+            if trigger.assets
+            else TriggerKind.CALLBACK
+        ).value
+        self.failure_tracker.continue_from(trigger.id, trigger.consecutive_failures)
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
@@ -1080,6 +1247,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = (
             self.running_triggers - requested_trigger_ids - self.cancelling_triggers - self.releasing_triggers
+        )
+
+        for trigger_id in self.trigger_kinds.keys() - requested_trigger_ids - known_trigger_ids:
+            del self.trigger_kinds[trigger_id]
+        self.failure_tracker.forget(
+            self.failure_tracker.failures.keys() - requested_trigger_ids - known_trigger_ids
         )
 
         if new_trigger_ids:
