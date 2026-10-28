@@ -164,7 +164,9 @@ jobs:
   gate:
     # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
     # code come from the base branch so a pull request cannot change its own eligibility. See
-    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md. A pull request whose CI runs
+    # in the contributor's fork and changes this job, or how build-info depends on it, is closed
+    # by the fork CI monitor ("Gate protection" in that document).
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
@@ -603,7 +605,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -644,7 +646,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -766,7 +768,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -795,7 +797,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -824,7 +826,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -854,7 +856,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -883,7 +885,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -914,7 +916,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -945,7 +947,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -975,7 +977,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -1062,7 +1064,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, 8, '32+64') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1092,7 +1094,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1204,7 +1206,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1220,7 +1222,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1289,7 +1291,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1325,7 +1327,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '32+64', '128+256') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1357,7 +1359,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1389,7 +1391,7 @@ jobs:
   build-ts-sdk-docs:
     name: "TypeScript SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1426,7 +1428,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 4, 16) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '4+8', '16+32') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1447,7 +1449,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1770,7 +1772,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"

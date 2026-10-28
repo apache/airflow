@@ -41,7 +41,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +=========================+==================+===================+==============================================================+
 | ``38c8df3fcb9c`` (head) | ``c71065a1b14f`` | ``3.5.0``         | Add index on dag_run (dag_id, run_after).                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``c71065a1b14f``        | ``ee86eed19e24`` | ``3.5.0``         | Add session_id and registration_id to Job.                   |
+| ``c71065a1b14f``        | ``b4f1a7d2c903`` | ``3.5.0``         | Add session_id and registration_id to Job.                   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``b4f1a7d2c903``        | ``ee86eed19e24`` | ``3.4.0``         | Add is_stub to task_instance.                                |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``ee86eed19e24``        | ``9cffe90fa0c0`` | ``3.4.0``         | Add pending_partition_key to asset_partition_dag_run and     |
 |                         |                  |                   | enforce single pending row per key.                          |

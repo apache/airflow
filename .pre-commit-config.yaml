@@ -824,6 +824,10 @@ repos:
         name: Run flynt string format converter for Python
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        # flynt's own hook manifest sets require_serial: true, and this line overrides it. flynt
+        # writes only the files that prek passes to it. prek gives each file to exactly one batch,
+        # so the batches can run in parallel.
+        require_serial: false
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),
