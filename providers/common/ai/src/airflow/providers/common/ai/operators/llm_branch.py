@@ -312,10 +312,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             # the branches that ran, and there is no Pydantic output to rehydrate. The helper still
             # finalizes a rejection or timeout before the exception leaves.
             output = self._resume_after_review(context, generated_output, event, decision)
-        except HITLRejectException:
+        except HITLRejectException as e:
             if self.fail_on_reject:
                 raise
-            self._skip_downstream_on_reject(context, event)
+            self._skip_downstream_on_reject(context, e)
             return None
         branches = self._parse_reviewed_branches(output)
         selected = {branches} if isinstance(branches, str) else set(branches)
