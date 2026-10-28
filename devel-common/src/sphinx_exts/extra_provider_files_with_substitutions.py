@@ -17,10 +17,13 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 
 from packaging.version import Version
+
+_LEGACY_RELEASE_HEADING = re.compile(r"^<h2>(?:[0-9]+!)?[0-9]+(?:\.[0-9]+)*<a")
 
 
 def _get_all_versions(package_name: str):
@@ -57,29 +60,44 @@ def fix_provider_references(app, exception):
         "|version|": app.config.version,
     }
 
-    versions_dates = _get_all_versions(os.environ.get("AIRFLOW_PACKAGE_NAME", ""))
+    versions_dates: list[tuple[str, str]] = []
+    html_paths = list(Path(app.outdir).rglob("*.html"))
+    for path in html_paths:
+        if str(path).endswith("changelog.html") and path.exists():
+            if any(
+                "|PypiReleaseDate|" not in line and _LEGACY_RELEASE_HEADING.match(line)
+                for line in path.read_text().splitlines()
+            ):
+                versions_dates = _get_all_versions(os.environ.get("AIRFLOW_PACKAGE_NAME", ""))
+                break
     # Replace `|version|` in the files that require manual substitution
-    for path in Path(app.outdir).rglob("*.html"):
+    for path in html_paths:
         is_changelog = str(path).endswith("changelog.html")
 
         if path.exists():
-            lines = path.read_text().splitlines(True)
-            with path.open("w") as output_file:
-                for line in lines:
-                    # Check if |PypiReleaseDate| format is in the line and skip it, old changelog has this template format
-                    if "|PypiReleaseDate|" in line:
-                        continue
+            with path.open(newline="") as input_file:
+                original = input_file.read()
+            # Preserve text-mode newline normalization even when deciding whether to skip a write.
+            lines = original.replace("\r\n", "\n").replace("\r", "\n").splitlines(True)
+            updated_lines = []
+            for line in lines:
+                # Check if |PypiReleaseDate| format is in the line and skip it, old changelog has this template format
+                if "|PypiReleaseDate|" in line:
+                    continue
 
-                    output_file.write(_manual_substitution(line, substitutions))
+                updated_lines.append(_manual_substitution(line, substitutions))
 
-                    if is_changelog:
-                        for version_date in versions_dates:
-                            if line.startswith(f"<h2>{version_date[0]}<a"):
-                                output_file.write(
-                                    f"""<p>Release Date: <code class="docutils literal notranslate"><span class="pre">{version_date[1]}</span></code></p>"""
-                                )
-                                versions_dates.remove(version_date)
-                                break
+                if is_changelog and _LEGACY_RELEASE_HEADING.match(line):
+                    for version_date in versions_dates:
+                        if line.startswith(f"<h2>{version_date[0]}<a"):
+                            updated_lines.append(
+                                f"""<p>Release Date: <code class="docutils literal notranslate"><span class="pre">{version_date[1]}</span></code></p>"""
+                            )
+                            versions_dates.remove(version_date)
+                            break
+            updated = "".join(updated_lines)
+            if updated != original:
+                path.write_text(updated)
 
 
 def setup(app):
