@@ -282,8 +282,10 @@ the rules above apply to them.
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
 qualify, it gets the ``need workflow approval`` label and a maintainer approves the runs after
-looking at the change. That can take a while, so please do not ping maintainers about it; it is
-not a judgement of your PR. The label is removed when a later commit is approved automatically.
+looking at the change. The pending ``Workflow approval`` status in the PR's checks says why the
+runs wait. That can take a while, so please do not ping maintainers about it; it is not a judgement
+of your PR. Once the runs are approved, by a maintainer or automatically for a later commit, the
+label is removed and the status turns green.
 
 Maintainers can see each decision, the CI jobs selective checks expect to run and their estimated
 time in the summary of the ``Auto approve workflow runs`` workflow. The rules are described in
