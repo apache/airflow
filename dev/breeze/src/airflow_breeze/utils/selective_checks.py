@@ -888,11 +888,13 @@ def _get_test_type_description(provider_test_types: list[str]) -> str:
         first_provider = first_provider.replace("Providers[", "").replace("]", "")
     if last_provider.startswith("Providers["):
         last_provider = last_provider.replace("Providers[", "").replace("]", "")
-    return (
+    description = (
         f"{first_provider[:13]}...{last_provider[:13]}"
         if first_provider != last_provider
         else (first_provider[:29])
     )
+    # The description ends up in artifact names (via JOB_ID), which must not contain ":".
+    return description.replace(":", "-")
 
 
 def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[str, str]] | None:

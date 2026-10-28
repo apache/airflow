@@ -203,7 +203,8 @@ def run_docker_compose_tests(
 
 def file_name_from_test_type(test_type: str):
     test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
-    return re.sub("[,.]", "_", test_type_no_brackets)[:30]
+    # Also names the docker compose project, which allows only lowercase letters, digits, "-" and "_".
+    return re.sub("[^a-z0-9_-]", "_", test_type_no_brackets)[:30]
 
 
 def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:

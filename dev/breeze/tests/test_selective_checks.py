@@ -2380,6 +2380,7 @@ def test_individual_providers_split_the_longest_running_providers_on_runs_on():
     )
     slices = json.loads(selective_checks.individual_providers_test_types_list_as_strings_in_json)
     assert len(slices) == 1
+    assert ":" not in slices[0]["description"]
     test_types = slices[0]["test_types"].split()
     assert "Providers[amazon]" not in test_types
     assert {"Providers[amazon:hooks]", "Providers[amazon:operators]", "Providers[amazon:other]"} <= set(

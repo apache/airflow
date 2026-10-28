@@ -20,7 +20,11 @@ import pytest
 
 from airflow_breeze.global_constants import GroupOfTests
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
+from airflow_breeze.utils.run_tests import (
+    convert_parallel_types_to_folders,
+    convert_test_type_to_pytest_args,
+    file_name_from_test_type,
+)
 
 
 def _all_providers() -> list[str]:
@@ -433,3 +437,15 @@ def xtest_wrong_types_for_parallel_test_types(test_group: GroupOfTests, parallel
             test_group=test_group,
             parallel_test_types_list=parallel_test_types.split(" "),
         )
+
+
+@pytest.mark.parametrize(
+    ("test_type", "file_name"),
+    [
+        pytest.param("Providers[amazon:hooks]", "providers_amazon_hooks", id="split provider part"),
+        pytest.param("Providers[google:cloud-hooks]", "providers_google_cloud-hooks", id="part with a dash"),
+        pytest.param("Providers[apache.hive,http]", "providers_apache_hive_http", id="provider list"),
+    ],
+)
+def test_file_name_from_test_type_is_a_valid_compose_project_name(test_type: str, file_name: str):
+    assert file_name_from_test_type(test_type) == file_name
