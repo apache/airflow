@@ -29,7 +29,7 @@ import os
 import shutil
 import stat
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
 from airflow.dag_processing.bundles.manifest import (
@@ -37,6 +37,9 @@ from airflow.dag_processing.bundles.manifest import (
     BundleManifestError,
     is_sha256_hex,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
@@ -173,3 +176,16 @@ def fsync_tree_directories(root: Path) -> None:
     directories = [Path(dirpath) for dirpath, _, _ in os.walk(root, onerror=raise_walk_error)]
     for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
         fsync_directory(directory)
+
+
+def fsync_tree(root: Path, *, ignore_file: Callable[[Path], bool] | None = None) -> None:
+    """Make regular files and directory entries durable, excluding files matched by ``ignore_file``."""
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for filename in sorted(filenames):
+            path = Path(dirpath) / filename
+            if ignore_file is not None and ignore_file(path):
+                continue
+            if not path.is_symlink():
+                fsync_file(path)
+    fsync_tree_directories(root)
