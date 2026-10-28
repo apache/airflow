@@ -1304,7 +1304,7 @@ class TestLLMBranchOperatorApproval:
     @patch.object(LLMBranchOperator, "log")
     @patch.object(LLMBranchOperator, "skip")
     @patch.object(LLMBranchOperator, "do_branch")
-    def test_execute_complete_timed_out_reject_names_the_timeout_default(
+    def test_execute_complete_timed_out_reject_logs_the_approval_timeout(
         self, mock_do_branch, mock_skip, mock_log
     ):
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
@@ -1316,9 +1316,10 @@ class TestLLMBranchOperatorApproval:
 
         op.execute_complete(ctx, generated_output="task_a", event=event)
 
-        mock_log.info.assert_called_once_with(
-            "Rejected by %s. Skipping downstream tasks...", "the approval timeout default"
-        )
+        mock_log.info.assert_called_once()
+        message, error = mock_log.info.call_args.args
+        assert message == "%s Skipping downstream tasks..."
+        assert "approval_timeout expired with on_approval_timeout='reject'" in str(error)
 
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):

@@ -157,6 +157,12 @@ earlier output: with ``allow_modifications=True``, Approve returns that earlier 
 unless the reviewer edits it; without it, Approve returns the regenerated output, which
 the reviewer did not see. With ``retries=0``, the default, a rejection is final.
 
+With ``fail_on_reject=False``, a rejection, including a timeout with ``"reject"``, succeeds
+the task instead and **skips the direct downstream tasks except teardowns**, matching
+:class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`. Set
+``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the
+direct ones. A timeout with ``"fail"`` still fails the task.
+
 Editing structured output
 -------------------------
 

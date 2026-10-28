@@ -311,8 +311,8 @@ Parameters
   tasks except teardowns and the task succeeds, as ``ApprovalOperator`` does.
   Default ``True``: a rejection fails the task.
 - ``ignore_downstream_trigger_rules``: If ``True``, a rejection that does not fail
-  the task skips every downstream task rather than only the direct ones.
-  Default ``False``.
+  the task skips every downstream task except teardowns rather than only the
+  direct ones.  Default ``False``.
 
 Logging
 -------
