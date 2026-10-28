@@ -183,12 +183,13 @@ class TestUnreadableJournal:
     @pytest.mark.parametrize(
         "content",
         [
-            pytest.param("{truncated", id="cut off mid-write"),
-            pytest.param('["not", "a", "journal"]', id="not a JSON object"),
+            pytest.param(b"{truncated", id="cut off mid-write"),
+            pytest.param(b'["not", "a", "journal"]', id="not a JSON object"),
+            pytest.param(b"\xff\xfe not utf-8", id="not UTF-8 text"),
         ],
     )
     def test_a_corrupt_journal_is_reported_and_started_over(self, storage, content):
-        storage._get_path().write_text(content)
+        storage._get_path().write_bytes(content)
 
         with patch.object(storage_module, "log") as mock_log:
             assert storage.load_step("k") is None
