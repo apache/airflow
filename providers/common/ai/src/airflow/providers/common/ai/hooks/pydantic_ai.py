@@ -51,7 +51,7 @@ R = TypeVar("R")
 _UNSET: Any = object()
 
 FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
-MODEL_PROVIDER_EXTRA_KEY = "provider"
+MODEL_PROVIDER_EXTRA_KEY = "model_provider"
 
 if TYPE_CHECKING:
     from collections.abc import Callable, MutableMapping
@@ -149,7 +149,7 @@ class PydanticAIHook(BaseHook):
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
         - **extra** JSON: ``{"model": "openai:gpt-5",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``; add
-          ``"provider": "openai-chat"`` to resolve bare model names on this connection
+          ``"model_provider": "openai-chat"`` to resolve bare model names on this connection
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
@@ -161,7 +161,7 @@ class PydanticAIHook(BaseHook):
         platform: vendor subclasses (:class:`PydanticAIAzureHook`,
         :class:`PydanticAIBedrockHook`, :class:`PydanticAIVertexHook`) each default
         to their own platform via :attr:`model_provider`; the generic connection
-        type uses the ``provider`` in its extra, and without one a bare name there
+        type uses the ``model_provider`` in its extra, and without one a bare name there
         raises ``ValueError`` instead of reaching pydantic-ai's own, less actionable
         ``Unknown model`` error.
         Overrides the model stored in the connection's extra field. Whichever of
@@ -183,7 +183,7 @@ class PydanticAIHook(BaseHook):
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
     # Platform to prefix a bare model_id with (e.g. "azure"). Vendor subclasses set it; the
-    # generic connection type leaves it None and reads extra["provider"] instead (see
+    # generic connection type leaves it None and reads extra["model_provider"] instead (see
     # _get_model_provider).
     model_provider: str | None = None
 
@@ -396,10 +396,10 @@ class PydanticAIHook(BaseHook):
         Return the platform to prefix a bare model name with.
 
         A vendor subclass's own :attr:`model_provider` wins: its credential fields are mapped
-        for that one platform, so a ``provider`` in its extra is ignored. The generic
-        connection type takes the ``provider`` in its extra, if any.
+        for that one platform, so a ``model_provider`` in its extra is ignored. The generic
+        connection type takes the ``model_provider`` in its extra, if any.
 
-        :raises ValueError: if the extra's ``provider`` is not a provider pydantic-ai recognizes.
+        :raises ValueError: if the extra's ``model_provider`` is not a provider pydantic-ai recognizes.
         """
         if self.model_provider is not None:
             return self.model_provider
@@ -438,7 +438,7 @@ class PydanticAIHook(BaseHook):
         model_provider = self._get_model_provider()
         if model_provider is not None:
             prefix, sep, _ = model_name.partition(":")
-            # Only a vendor type warns: behind a generic connection's Default Provider, a
+            # Only a vendor type warns: behind a generic connection's Default Model Provider, a
             # "name:tag" id such as Ollama's "llama3:70b" is the normal spelling, not a typo.
             if sep and self.model_provider is not None and _looks_like_unrecognized_provider_prefix(prefix):
                 self.log.warning(
@@ -513,7 +513,7 @@ class PydanticAIHook(BaseHook):
             see *forwarded_model_id* above for how it gates forwarding.
         """
         conn, extra = self._get_conn_and_extra()
-        # Read up front, so a bad ``provider`` in the extra fails even when the model name pins its own.
+        # Read up front, so a bad ``model_provider`` in the extra fails even when the model name pins its own.
         model_provider = self._get_model_provider()
 
         model_name: str | KnownModelName | None = self._get_configured_model_name()

@@ -294,7 +294,7 @@ Model identifier format
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format (or
-set the prefix once as Default Provider, see
+set the prefix once as Default Model Provider, see
 :ref:`conn-example-openai-compatible-gateway`), but which ``provider`` prefix to
 use depends on the endpoint:
 

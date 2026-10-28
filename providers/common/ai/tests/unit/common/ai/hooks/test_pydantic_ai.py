@@ -748,8 +748,8 @@ class TestPydanticAIHookModelProviderResolution:
     def test_generic_connection_provider_extra_qualifies_bare_name(
         self, registry, infer_model_stub, model_id, extra_model
     ):
-        """The extra's ``provider`` gives the generic connection type a platform for bare names."""
-        extra = {"provider": "openai-chat"}
+        """The extra's ``model_provider`` gives the generic connection type a platform for bare names."""
+        extra = {"model_provider": "openai-chat"}
         if extra_model:
             extra["model"] = extra_model
         registry.add("gateway", extra=extra)
@@ -759,7 +759,9 @@ class TestPydanticAIHookModelProviderResolution:
 
     def test_generic_connection_provider_extra_leaves_prefixed_name_alone(self, registry, infer_model_stub):
         """A name already pinning a recognized provider wins over the extra's default."""
-        registry.add("gateway", extra={"provider": "openai-chat", "model": "anthropic:claude-sonnet-4-5"})
+        registry.add(
+            "gateway", extra={"model_provider": "openai-chat", "model": "anthropic:claude-sonnet-4-5"}
+        )
         hook = PydanticAIHook(llm_conn_id="gateway")
 
         assert hook.get_conn() is infer_model_stub.models["anthropic:claude-sonnet-4-5"]
@@ -768,7 +770,7 @@ class TestPydanticAIHookModelProviderResolution:
         self, registry, infer_model_stub, caplog
     ):
         """Behind a gateway, Ollama-style ``name:tag`` ids are the normal spelling, not a typo."""
-        registry.add("gateway", extra={"provider": "openai-chat", "model": "llama3:70b"})
+        registry.add("gateway", extra={"model_provider": "openai-chat", "model": "llama3:70b"})
         hook = PydanticAIHook(llm_conn_id="gateway")
 
         with caplog.at_level(logging.WARNING):
@@ -784,7 +786,7 @@ class TestPydanticAIHookModelProviderResolution:
             conn_type="pydanticai",
             password="gateway-key",
             host="https://llm-gateway.example.com/v1",
-            extra=json.dumps({"provider": "openai-chat"}),
+            extra=json.dumps({"model_provider": "openai-chat"}),
         )
         hook = PydanticAIHook(llm_conn_id="gateway", model_id="claude-sonnet-4-5")
 
@@ -806,26 +808,28 @@ class TestPydanticAIHookModelProviderResolution:
     def test_generic_connection_unknown_provider_extra_raises(
         self, registry, infer_model_stub, provider, model
     ):
-        """A bad ``provider`` fails at resolve time even when the model name would not need it."""
-        registry.add("gateway", extra={"provider": provider, "model": model})
+        """A bad ``model_provider`` fails at resolve time even when the model name would not need it."""
+        registry.add("gateway", extra={"model_provider": provider, "model": model})
         hook = PydanticAIHook(llm_conn_id="gateway")
 
         with pytest.raises(
             ValueError,
-            match=re.escape(f"Connection 'gateway' sets 'provider' to {provider!r}, which is not a provider"),
+            match=re.escape(
+                f"Connection 'gateway' sets 'model_provider' to {provider!r}, which is not a provider"
+            ),
         ):
             hook.get_conn()
 
     @pytest.mark.parametrize("provider", [pytest.param(None, id="null"), pytest.param("", id="empty")])
     def test_generic_connection_without_provider_extra_raises(self, registry, infer_model_stub, provider):
-        """An unset or blank ``provider`` (the form can save either) leaves the error pointing at the fix."""
-        registry.add("primary", extra={"model": "gpt-4", "provider": provider})
+        """An unset or blank ``model_provider`` (the form can save either) leaves the error pointing at the fix."""
+        registry.add("primary", extra={"model": "gpt-4", "model_provider": provider})
         hook = PydanticAIHook(llm_conn_id="primary")
 
         with pytest.raises(ValueError, match="has no default model provider") as exc_info:
             hook.get_conn()
 
-        assert "set a default 'provider' in the connection's extra" in str(exc_info.value)
+        assert "set a default 'model_provider' in the connection's extra" in str(exc_info.value)
 
     def test_vendor_connection_ignores_provider_extra(self, registry, infer_model_stub):
         """A vendor type's credential fields only fit its own platform, so its class attribute wins."""
@@ -833,7 +837,7 @@ class TestPydanticAIHookModelProviderResolution:
             "primary",
             conn_type="pydanticai_azure",
             hook_class=PydanticAIAzureHook,
-            extra={"model": "gpt-5", "provider": "openai-chat"},
+            extra={"model": "gpt-5", "model_provider": "openai-chat"},
         )
         hook = PydanticAIAzureHook(llm_conn_id="primary")
 
@@ -1097,16 +1101,16 @@ class TestPydanticAIHookFallback:
         assert "claude-opus-4-5" in str(exc_info.value)
 
     def test_bare_name_forwarded_to_generic_fallback_with_provider_extra(self, registry, infer_model_stub):
-        """A forwarded bare name is qualified with the fallback's own ``provider``, not the primary's."""
+        """A forwarded bare name is qualified with the fallback's own ``model_provider``, not the primary's."""
         registry.add(
             "gateway",
             extra={
-                "provider": "openai-chat",
+                "model_provider": "openai-chat",
                 "model": "claude-sonnet-4-5",
                 "fallback_conn_ids": ["anthropic"],
             },
         )
-        registry.add("anthropic", extra={"provider": "anthropic"})
+        registry.add("anthropic", extra={"model_provider": "anthropic"})
 
         model = PydanticAIHook(llm_conn_id="gateway").get_conn()
 
@@ -1117,9 +1121,9 @@ class TestPydanticAIHookFallback:
         ]
 
     def test_colon_bearing_bare_name_forwarded_within_same_provider_extra(self, registry, infer_model_stub):
-        """The embedded-colon forwarding gate treats a generic connection's ``provider`` extra as its platform."""
-        registry.add("gateway", extra={"provider": "openai-chat", "fallback_conn_ids": ["second"]})
-        registry.add("second", extra={"provider": "openai-chat"})
+        """The embedded-colon forwarding gate treats a generic connection's ``model_provider`` extra as its platform."""
+        registry.add("gateway", extra={"model_provider": "openai-chat", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model_provider": "openai-chat"})
 
         model = PydanticAIHook(llm_conn_id="gateway", model_id="llama3:70b").get_conn()
 
@@ -1130,8 +1134,8 @@ class TestPydanticAIHookFallback:
         ]
 
     def test_colon_bearing_bare_name_not_forwarded_across_provider_extras(self, registry, infer_model_stub):
-        registry.add("gateway", extra={"provider": "openai-chat", "fallback_conn_ids": ["second"]})
-        registry.add("second", extra={"provider": "anthropic"})
+        registry.add("gateway", extra={"model_provider": "openai-chat", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model_provider": "anthropic"})
 
         hook = PydanticAIHook(llm_conn_id="gateway", model_id="llama3:70b")
         with pytest.raises(ValueError, match="No model specified for connection 'second'"):
@@ -2322,12 +2326,12 @@ class TestPydanticAIVertexHook:
         _assert_prefix_is_known_provider(prefix)
 
     def test_conn_fields_default_provider_description_example_is_valid_provider(self):
-        """Drift tripwire for the example in the generic connection's Default Provider conn-field."""
+        """Drift tripwire for the example in the generic connection's Default Model Provider conn-field."""
         connection_types = get_provider_info()["connection-types"]
         generic_conn_fields = next(
             c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai"
         )
-        description = generic_conn_fields["provider"]["description"]
+        description = generic_conn_fields["model_provider"]["description"]
         example = re.search(r"\(e\.g\. ([a-z0-9-]+)\)", description)
         assert example is not None, description
         _assert_prefix_is_known_provider(example.group(1))

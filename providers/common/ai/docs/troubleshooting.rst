@@ -34,13 +34,13 @@ Model and connection errors
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
     name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
-    **Default Provider** (``extra["provider"]``, e.g. ``openai-chat``) on the connection,
+    **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
     or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
     supply their own platform.
 
-``Connection '...' sets 'provider' to '...', which is not a provider pydantic-ai recognizes``
-    The connection's **Default Provider** is not a pydantic-ai provider. Check it for a
+``Connection '...' sets 'model_provider' to '...', which is not a provider pydantic-ai recognizes``
+    The connection's **Default Model Provider** is not a pydantic-ai provider. Check it for a
     typo; ``openai``, ``openai-chat`` and ``anthropic`` are examples of valid values.
 
 ``'...' is not a provider pydantic-ai recognizes``

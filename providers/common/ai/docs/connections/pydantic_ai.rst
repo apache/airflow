@@ -38,7 +38,7 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
-    Without Default Provider (below), the ``provider:`` prefix is required
+    Without Default Model Provider (below), the ``provider:`` prefix is required
     here: this generic connection type has no platform of its own (unlike the
     vendor connection types below), so a bare name (e.g. ``gpt-5`` without
     ``openai:``) raises ``ValueError`` naming this connection.
@@ -81,9 +81,9 @@ Extra (JSON, optional)
     When using the UI, the "Model" field above writes to this same location
     automatically.
 
-Default Provider
+Default Model Provider
     The pydantic-ai provider to prefix a bare model name with, e.g.
-    ``openai-chat``. Stored in ``extra["provider"]``. With it set, ``model_id``
+    ``openai-chat``. Stored in ``extra["model_provider"]``. With it set, ``model_id``
     and the Model field can name a model the way the endpoint does (e.g.
     ``claude-sonnet-4-5`` instead of ``openai-chat:claude-sonnet-4-5``). A name
     that already starts with a provider pydantic-ai recognizes is used as is.
@@ -146,7 +146,7 @@ OpenAI-compatible gateway
 
 A gateway or proxy that speaks the OpenAI API (LiteLLM, vLLM, an in-house
 gateway) often serves models from several vendors and implements only Chat
-Completions. Set Default Provider to ``openai-chat`` so DAG code can use the
+Completions. Set Default Model Provider to ``openai-chat`` so DAG code can use the
 gateway's own model names:
 
 .. code-block:: json
@@ -155,7 +155,7 @@ gateway's own model names:
         "conn_type": "pydanticai",
         "host": "https://llm-gateway.example.com/v1",
         "password": "gateway-key",
-        "extra": "{\"provider\": \"openai-chat\"}"
+        "extra": "{\"model_provider\": \"openai-chat\"}"
     }
 
 .. code-block:: python
@@ -237,6 +237,6 @@ The hook reads the model from these sources in priority order:
 Whichever of sources 1-3 supplies the name, a name that already pins a recognized platform
 (its segment before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a
 bare name is qualified with this connection's platform. This generic connection type takes
-its platform from Default Provider (``extra["provider"]``); without one, a bare name reaching
+its platform from Default Model Provider (``extra["model_provider"]``); without one, a bare name reaching
 this step raises. The spec-file model of source 4 goes to pydantic-ai unchanged, so write it
 with its provider prefix.

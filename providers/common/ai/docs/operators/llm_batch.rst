@@ -300,7 +300,7 @@ The OpenAI adapter reads ``base_url`` from the connection's host, so a ``pydanti
 pointed at an OpenAI-compatible gateway that exposes ``/v1/files`` and ``/v1/batches`` (LiteLLM
 does, and routes to Azure OpenAI, Vertex and Bedrock batch behind it) runs the whole batch
 through that gateway with ``model_id="openai:<gateway-model-name>"``. ``openai-chat:`` selects
-the same adapter, and a connection whose Default Provider is set (see
+the same adapter, and a connection whose Default Model Provider is set (see
 :ref:`conn-example-openai-compatible-gateway`) takes the gateway's bare model names, both in
 ``model_id`` and in a request's ``model``. That is the path to take
 today for a provider ``@task.llm_batch`` has no adapter for yet; the error message for a

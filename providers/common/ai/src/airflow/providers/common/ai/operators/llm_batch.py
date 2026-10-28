@@ -254,9 +254,9 @@ class LLMBatchOperator(BaseOperator):
     @staticmethod
     def _qualify_model_id(model_id: str | None, conn: Connection) -> str | None:
         """
-        Prefix a bare model name with the connection's Default Provider, as ``PydanticAIHook`` does.
+        Prefix a bare model name with the connection's Default Model Provider, as ``PydanticAIHook`` does.
 
-        Only the generic ``pydanticai`` type reads ``extra["provider"]``, and a name whose
+        Only the generic ``pydanticai`` type reads ``extra["model_provider"]``, and a name whose
         segment before the first ``:`` is already a pydantic-ai provider is left as is, so the
         same connection and name select the same platform on ``@task.llm`` and here.
         """

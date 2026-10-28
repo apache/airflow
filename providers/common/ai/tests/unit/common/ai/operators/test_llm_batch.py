@@ -315,24 +315,24 @@ class TestModelFromConnection:
         [
             pytest.param(
                 None,
-                {"provider": "openai-chat", "model": "gpt-5-mini"},
+                {"model_provider": "openai-chat", "model": "gpt-5-mini"},
                 "openai-chat:gpt-5-mini",
                 "gpt-5-mini",
                 id="model-field",
             ),
             pytest.param(
                 "gpt-5-mini",
-                {"provider": "openai-chat"},
+                {"model_provider": "openai-chat"},
                 "openai-chat:gpt-5-mini",
                 "gpt-5-mini",
                 id="model-id",
             ),
             pytest.param(
-                "llama3:70b", {"provider": "openai"}, "openai:llama3:70b", "llama3:70b", id="name-tag"
+                "llama3:70b", {"model_provider": "openai"}, "openai:llama3:70b", "llama3:70b", id="name-tag"
             ),
             pytest.param(
                 "openai:gpt-5-mini",
-                {"provider": "anthropic"},
+                {"model_provider": "anthropic"},
                 "openai:gpt-5-mini",
                 "gpt-5-mini",
                 id="prefixed",
@@ -342,7 +342,7 @@ class TestModelFromConnection:
     def test_default_provider_qualifies_a_bare_model(
         self, fake_adapter, result_path, model_id, extra, expected_model_id, expected_bare_model
     ):
-        """The connection's Default Provider resolves a bare name here as it does on ``@task.llm``."""
+        """The connection's Default Model Provider resolves a bare name here as it does on ``@task.llm``."""
         ctx = _context()
         with _running(fake_adapter, conn=_connection(extra=extra)):
             op = _make_operator(result_path=result_path, deferrable=True, model_id=model_id)
@@ -358,7 +358,7 @@ class TestModelFromConnection:
 
     def test_default_provider_qualifies_a_bare_per_request_model(self, fake_adapter, result_path):
         requests = [{"prompt": "a", "model": "gpt-5-mini"}, {"prompt": "b"}]
-        with _running(fake_adapter, conn=_connection(extra={"provider": "openai-chat"})):
+        with _running(fake_adapter, conn=_connection(extra={"model_provider": "openai-chat"})):
             op = _make_operator(
                 result_path=result_path, deferrable=True, model_id="gpt-5-mini", requests=requests
             )
@@ -372,12 +372,16 @@ class TestModelFromConnection:
     def test_bare_model_without_default_provider_points_at_it(self, fake_adapter, result_path):
         with _running(fake_adapter, conn=_connection(extra={"model": "gpt-5-mini"})):
             op = _make_operator(result_path=result_path, deferrable=True, model_id=None)
-            with pytest.raises(UnsupportedBatchProviderError, match="set the connection's Default Provider"):
+            with pytest.raises(
+                UnsupportedBatchProviderError, match="set the connection's Default Model Provider"
+            ):
                 op.execute(_context())
 
     def test_vendor_connection_ignores_default_provider(self, fake_adapter, result_path):
-        """As on ``PydanticAIHook``, only the generic type reads ``extra["provider"]``."""
-        conn = _connection(conn_type="pydanticai_azure", extra={"provider": "openai", "model": "gpt-5-mini"})
+        """As on ``PydanticAIHook``, only the generic type reads ``extra["model_provider"]``."""
+        conn = _connection(
+            conn_type="pydanticai_azure", extra={"model_provider": "openai", "model": "gpt-5-mini"}
+        )
         with _running(fake_adapter, conn=conn):
             op = _make_operator(result_path=result_path, deferrable=True, model_id=None)
             with pytest.raises(

@@ -122,7 +122,7 @@ def split_model_id(model_id: str | None) -> tuple[str, str]:
         raise UnsupportedBatchProviderError(
             "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-5') to "
             f"select a batch adapter; got {model_id!r}. Set it on the operator or in the "
-            "connection's Model field, or set the connection's Default Provider."
+            "connection's Model field, or set the connection's Default Model Provider."
         )
     prefix, _, bare = model_id.strip().partition(":")
     if not prefix or not bare:
