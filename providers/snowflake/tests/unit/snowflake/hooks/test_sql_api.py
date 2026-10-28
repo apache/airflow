@@ -545,7 +545,11 @@ class TestSnowflakeSqlApiHook:
     def test_get_headers_uses_workload_identity_without_private_key(
         self, mock_conn_param, mock_private_key, mock_fetch_token
     ):
-        mock_conn_param.return_value = {**CONN_PARAMS, "workload_identity_provider": "GCP"}
+        mock_conn_param.return_value = {
+            **CONN_PARAMS,
+            "region": "us-east-2.aws",
+            "workload_identity_provider": "GCP",
+        }
         mock_fetch_token.return_value = "gcp-id-token"
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         result = hook.get_headers()

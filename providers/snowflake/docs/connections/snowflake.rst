@@ -175,20 +175,6 @@ workload runs on (here ``GCP``). No password, key-pair or token is stored; the w
 is the credential. The Snowflake side needs a ``TYPE = SERVICE`` user that trusts the workload's identity
 and is granted a role with access to the target objects.
 
-``SnowflakeSqlApiHook``, ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type call
-Snowflake's REST APIs, which accept the workload's identity token directly instead of a connector session.
-The token is requested from the cloud and reused until shortly before it expires. A connection that also
-sets a private key uses key-pair authentication for these REST hooks. Each provider needs its cloud's client
-library installed, which Airflow does not install for you:
-
-* ``AWS``: ``boto3`` with ``sts:GetWebIdentityToken`` support. The workload's IAM role must be allowed to
-  call it, and AWS outbound identity federation must be enabled for the account. The call is not available on
-  the global STS endpoint, so a region must be configured.
-* ``AZURE``: ``azure-identity``. On AKS with workload identity the pod's federated identity is used,
-  otherwise the managed identity. Set ``MANAGED_IDENTITY_CLIENT_ID`` for a user-assigned managed identity.
-* ``GCP``: ``google-auth``. The ID token is issued to the workload's service account.
-* ``OIDC``: nothing extra; the token comes from the ``token`` or ``token_file_path`` extra.
-
 .. code-block:: bash
 
     export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='{
@@ -203,3 +189,27 @@ library installed, which Airflow does not install for you:
             "workload_identity_provider": "GCP"
         }
     }'
+
+``SnowflakeSqlApiHook``, ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type call
+Snowflake's REST APIs, which accept the workload's identity token directly instead of a connector session.
+The token is requested from the cloud and reused until shortly before it expires. A connection that also
+sets a private key uses key-pair authentication for these REST hooks. Each provider needs its cloud's client
+library installed:
+
+* ``AWS``: ``boto3`` with ``sts:GetWebIdentityToken`` support. The workload's IAM role must be allowed to
+  call it, and AWS outbound identity federation must be enabled for the account. The call is not available on
+  the global STS endpoint. Region resolution uses ``AWS_REGION``, then ``AWS_DEFAULT_REGION``,
+  then EC2 instance metadata. If none resolves, authentication fails with a configuration error.
+  Regional STS endpoints are used even when legacy global endpoint settings are present.
+* ``AZURE``: ``azure-identity`` (included in the provider's ``microsoft.azure`` extra).
+  On AKS with workload identity the pod's federated identity is used,
+  otherwise the managed identity. Set ``MANAGED_IDENTITY_CLIENT_ID`` for a user-assigned managed identity.
+* ``GCP``: ``google-auth``. The ID token comes from the metadata identity endpoint and is issued
+  to the workload's service account, even when ``GOOGLE_APPLICATION_CREDENTIALS`` is set.
+* ``OIDC``: nothing extra; the token comes from the ``token`` or ``token_file_path`` extra.
+
+Before fetching a WIF token or returning a cached one, REST hooks require a destination in
+``snowflakecomputing.com``, ``snowflakecomputing.cn`` or ``snowflakecomputing.mil``. Suffixes match
+DNS label boundaries. Administrators can add comma-separated trusted DNS suffixes through the process
+environment variable ``SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES`` for private deployments. Connection
+extras cannot extend this allowlist. Supply a DNS hostname without a scheme, port, path or user info.

@@ -32,6 +32,7 @@ touch those optional dependencies.
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -42,6 +43,7 @@ from typing import TYPE_CHECKING, Any
 
 import jwt
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import _validate_account_component
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -112,6 +114,7 @@ class SnowflakeRestTokenProvider:
             private_key_loader or hook.get_private_key
         )
         self._private_key: PrivateKeyTypes | None = None
+        self._private_key_loaded = False
         self._jwt_generator: JWTGenerator | None = None
         self._wif_token: SnowflakeRestToken | None = None
         self._wif_token_expires_at: float = 0.0
@@ -137,8 +140,9 @@ class SnowflakeRestTokenProvider:
                     )
                 return SnowflakeRestToken(token=pat, token_type="PROGRAMMATIC_ACCESS_TOKEN")
 
-            if self._private_key is None:
+            if not self._private_key_loaded:
                 self._private_key = self._private_key_loader()
+                self._private_key_loaded = True
             if self._private_key is None:
                 if conn_config.get("workload_identity_provider"):
                     return self._get_workload_identity_token(conn_config)
@@ -177,6 +181,7 @@ class SnowflakeRestTokenProvider:
 
         The caller must hold ``self._lock``.
         """
+        _validate_wif_host(conn_config)
         if self._wif_token is not None and time.time() < self._wif_token_expires_at:
             return self._wif_token
 
@@ -234,19 +239,56 @@ class SnowflakeRestTokenProvider:
         }
 
 
+def _validate_wif_host(conn_config: dict[str, Any]) -> None:
+    """Restrict ambient workload credentials to trusted Snowflake destinations."""
+    host = get_cortex_base_url(conn_config).removeprefix("https://").lower().removesuffix(".")
+    suffixes = ["snowflakecomputing.com", "snowflakecomputing.cn", "snowflakecomputing.mil"]
+    suffixes.extend(
+        entry.strip().lower().strip(".")
+        for entry in os.environ.get("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", "").split(",")
+        if entry.strip()
+    )
+    dns_name = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*"
+    if (
+        len(host) <= 253
+        and re.fullmatch(dns_name, host)
+        and any(
+            re.fullmatch(dns_name, suffix) and (host == suffix or host.endswith(f".{suffix}"))
+            for suffix in suffixes
+        )
+    ):
+        return
+    raise ValueError("Workload Identity Federation requires a recognized Snowflake host.")
+
+
 def _fetch_aws_identity_token() -> str:
-    """Return the JWT from ``sts:GetWebIdentityToken`` for the workload's AWS identity."""
+    """Return the JWT from regional STS for the workload's AWS identity."""
     try:
         import boto3
+        from botocore.session import get_session
+        from botocore.utils import InstanceMetadataRegionFetcher
     except ImportError as e:
-        raise ValueError(
-            "Workload Identity Federation with the AWS provider requires the boto3 package."
+        raise AirflowOptionalProviderFeatureException(
+            "Workload Identity Federation with the AWS provider requires boto3. "
+            "Install apache-airflow-providers-snowflake[amazon]."
         ) from e
-    sts = boto3.client("sts")
-    if not hasattr(sts, "get_web_identity_token"):
+    region = (
+        os.environ.get("AWS_REGION")
+        or os.environ.get("AWS_DEFAULT_REGION")
+        or InstanceMetadataRegionFetcher().retrieve_region()
+    )
+    if not region:
         raise ValueError(
+            "AWS workload identity requires a region: set AWS_REGION or AWS_DEFAULT_REGION, "
+            "or enable EC2 instance metadata region discovery."
+        )
+    session = get_session()
+    session.set_config_variable("sts_regional_endpoints", "regional")
+    sts = boto3.Session(botocore_session=session).client("sts", region_name=region)
+    if not hasattr(sts, "get_web_identity_token"):
+        raise AirflowOptionalProviderFeatureException(
             "Workload Identity Federation with the AWS provider requires a boto3 version that "
-            "supports sts:GetWebIdentityToken."
+            "supports sts:GetWebIdentityToken. Upgrade boto3."
         )
     response = sts.get_web_identity_token(Audience=[WIF_AUDIENCE], SigningAlgorithm="ES384")
     return response["WebIdentityToken"]
@@ -264,8 +306,9 @@ def _fetch_azure_identity_token() -> str:
     try:
         from azure.identity import ManagedIdentityCredential, WorkloadIdentityCredential
     except ImportError as e:
-        raise ValueError(
-            "Workload Identity Federation with the AZURE provider requires the azure-identity package."
+        raise AirflowOptionalProviderFeatureException(
+            "Workload Identity Federation with the AZURE provider requires azure-identity. "
+            "Install apache-airflow-providers-snowflake[microsoft.azure]."
         ) from e
     credential: ManagedIdentityCredential | WorkloadIdentityCredential
     if all(
@@ -283,13 +326,17 @@ def _fetch_azure_identity_token() -> str:
 def _fetch_gcp_identity_token() -> str:
     """Return a Google ID token for Snowflake's audience, issued to the workload's service account."""
     try:
+        from google.auth.compute_engine import IDTokenCredentials
         from google.auth.transport.requests import Request
-        from google.oauth2 import id_token
     except ImportError as e:
-        raise ValueError(
-            "Workload Identity Federation with the GCP provider requires the google-auth package."
+        raise AirflowOptionalProviderFeatureException(
+            "Workload Identity Federation with the GCP provider requires google-auth. "
+            "Install apache-airflow-providers-snowflake[google]."
         ) from e
-    return id_token.fetch_id_token(Request(), WIF_AUDIENCE)
+    request = Request()
+    credential = IDTokenCredentials(request, WIF_AUDIENCE, use_metadata_identity_endpoint=True)
+    credential.refresh(request)
+    return credential.token
 
 
 def get_cortex_base_url(conn_config: dict[str, Any]) -> str:
