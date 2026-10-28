@@ -46,6 +46,7 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("DELETE FROM dag_warning WHERE dag_id NOT IN (SELECT dag_id FROM dag)")
     with op.batch_alter_table("dag_warning") as batch_op:
         batch_op.drop_column("filename")
         batch_op.drop_column("bundle_name")
