@@ -26,6 +26,7 @@ from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
+from typing_extensions import TypeAliasType
 
 API_VERSION: Final[str] = "2027-02-28"
 
@@ -159,6 +160,11 @@ class DagBundleStateResponse(BaseModel):
 
 class BundleVersion(RootModel[str]):
     root: Annotated[str, Field(max_length=200, title="Bundle Version")]
+
+
+DagSourceIndexesAdditionalProperty = TypeAliasType(
+    "DagSourceIndexesAdditionalProperty", Annotated[int, Field(ge=0)]
+)
 
 
 class DagParseResultResponse(BaseModel):
@@ -957,7 +963,17 @@ class DagParseResultBody(BaseModel):
     import_errors: Annotated[dict[str, str] | None, Field(title="Import Errors")] = None
     warnings: Annotated[list[ParseWarning] | None, Field(title="Warnings")] = None
     parsed_definitions: Annotated[list[str] | None, Field(title="Parsed Definitions")] = None
-    source_codes: Annotated[dict[str, ParseSourceCode], Field(title="Source Codes")]
+    source_codes: Annotated[
+        list[ParseSourceCode],
+        Field(description="Distinct source text and language pairs.", title="Source Codes"),
+    ]
+    dag_source_indexes: Annotated[
+        dict[str, DagSourceIndexesAdditionalProperty],
+        Field(
+            description="Index in source_codes for each serialized Dag, including unavailable source.",
+            title="Dag Source Indexes",
+        ),
+    ]
 
 
 class HITLDetailRequest(BaseModel):

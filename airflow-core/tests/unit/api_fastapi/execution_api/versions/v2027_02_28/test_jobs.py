@@ -66,7 +66,9 @@ class TestDagProcessorJobEndpointsVersioning:
 
     def test_old_version_has_no_bundle_catalog(self, client):
         client.headers["Airflow-API-Version"] = "2026-10-30"
-        assert client.get("/execution/jobs/0/bundles").status_code == 404
+        response = client.get("/execution/jobs/0/bundles")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
 
     def test_head_version_routes_to_parse_token_exchange(self, client):
         response = client.post(

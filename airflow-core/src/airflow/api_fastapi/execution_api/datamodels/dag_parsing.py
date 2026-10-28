@@ -18,15 +18,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import Field, model_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
-from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
+from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
 from airflow.models.dag import TAG_MAX_LEN
 from airflow.models.dagwarning import DagWarningTypeValue
+from airflow.models.errors import IMPORT_ERROR_FILENAME_MAX_LENGTH
 from airflow.utils.helpers import validate_key
 
 MAX_PUBLICATION_BYTES = 16 * 1024 * 1024
@@ -60,7 +61,10 @@ class DagParseResultBody(DagParseTokenBody):
     import_errors: dict[str, str] = Field(default_factory=dict)
     warnings: list[ParseWarning] = Field(default_factory=list)
     parsed_definitions: list[str] = Field(default_factory=list)
-    source_codes: dict[str, ParseSourceCode]
+    source_codes: list[ParseSourceCode] = Field(description="Distinct source text and language pairs.")
+    dag_source_indexes: dict[str, Annotated[int, Field(strict=True, ge=0)]] = Field(
+        description="Index in source_codes for each serialized Dag, including unavailable source."
+    )
 
     @model_validator(mode="after")
     def validate_file_scope(self) -> DagParseResultBody:
@@ -85,16 +89,22 @@ class DagParseResultBody(DagParseTokenBody):
                 raise ValueError("Every definition must have a bundle-relative location")
             paths.append(relative_fileloc)
             fileloc = dag.get("fileloc")
-            if not isinstance(fileloc, str) or len(fileloc) > 2000:
-                raise ValueError("A serialized Dag must contain a fileloc of at most 2000 characters")
+            if not isinstance(fileloc, str) or len(fileloc) > FILELOC_MAX_LENGTH:
+                raise ValueError(
+                    f"A serialized Dag must contain a fileloc of at most {FILELOC_MAX_LENGTH} characters"
+                )
         for path in paths:
-            if len(path) > 2000:
-                raise ValueError("Definition location exceeds 2000 characters")
+            if len(path) > FILELOC_MAX_LENGTH:
+                raise ValueError(f"Definition location exceeds {FILELOC_MAX_LENGTH} characters")
             self.validate_relative_fileloc(path)
             if path != self.relative_fileloc and not path.startswith(self.relative_fileloc + "/"):
                 raise ValueError("Definition or diagnostic is outside the published file or container")
-        if set(self.source_codes) != dag_ids:
-            raise ValueError("Supply source code, or explicit null, for every serialized Dag")
+        if any(len(path) > IMPORT_ERROR_FILENAME_MAX_LENGTH for path in self.import_errors):
+            raise ValueError(f"Import-error location exceeds {IMPORT_ERROR_FILENAME_MAX_LENGTH} characters")
+        if set(self.dag_source_indexes) != dag_ids:
+            raise ValueError("Supply a source index for every serialized Dag")
+        if set(self.dag_source_indexes.values()) != set(range(len(self.source_codes))):
+            raise ValueError("Source indexes must refer to every supplied source and no others")
         if any(warning.dag_id not in dag_ids for warning in self.warnings):
             raise ValueError("Warnings must refer to Dags in this publication")
         return self
@@ -131,8 +141,8 @@ class DagBundleInventoryBody(StrictBaseModel):
     def validate_files(self) -> DagBundleInventoryBody:
         for paths in (self.files, self.failed_sources):
             for path in paths:
-                if len(path) > 2000:
-                    raise ValueError("Definition location exceeds 2000 characters")
+                if len(path) > FILELOC_MAX_LENGTH:
+                    raise ValueError(f"Definition location exceeds {FILELOC_MAX_LENGTH} characters")
                 DagParseTokenBody.validate_relative_fileloc(path)
             if len(set(paths)) != len(paths):
                 raise ValueError("Inventory contains duplicate definitions")

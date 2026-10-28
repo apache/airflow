@@ -43,7 +43,7 @@ def upgrade():
     # SQLite rebuilds these tables, and dropping the old copy would cascade to deadline and team rows.
     with disable_sqlite_fkeys(op):
         op.create_table(
-            "dag_parse_checkpoint",
+            "dag_processor_publication_receipt",
             sa.Column("job_id", sa.Integer(), nullable=False),
             sa.Column("source_key", sa.String(64), nullable=False),
             sa.Column("attempt_id", sa.Uuid(), nullable=False),
@@ -74,4 +74,4 @@ def downgrade():
         with op.batch_alter_table("dag_bundle") as batch:
             batch.drop_column("inventory_hash")
             batch.drop_column("parse_revision")
-    op.drop_table("dag_parse_checkpoint")
+    op.drop_table("dag_processor_publication_receipt")

@@ -21,7 +21,7 @@ from cadwyn import VersionChange, endpoint
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle, discovery inventory, and publication endpoints."""
+    """Add Dag processor lifecycle, inventory, and publication with shared source records."""
 
     description = __doc__
 

@@ -24,6 +24,7 @@ import jwt
 import pytest
 from fastapi import Request
 from sqlalchemy import event, insert, select, update
+from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.token import (
     DagProcessorSessionToken,
@@ -32,7 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
 )
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.jobs.job import Job, JobState
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -113,7 +114,7 @@ def _create_job(
 
 def _add_checkpoint(session, job: Job) -> None:
     session.add(
-        DagParseCheckpoint(
+        DagProcessorPublicationReceipt(
             job_id=job.id,
             source_key="0" * 64,
             attempt_id=REGISTRATION_ID,
@@ -344,6 +345,8 @@ class TestRegisterJob:
     def test_replaces_a_stopped_job(self, client, session, previous_job, outcome):
         previous = _create_job(session, **previous_job)
         _add_checkpoint(session, previous)
+        other = _create_job(session, session_id=uuid7(), registration_id=uuid7())
+        _add_checkpoint(session, other)
 
         response = _register(client, registration_id=OTHER_REGISTRATION_ID)
 
@@ -352,7 +355,7 @@ class TestRegisterJob:
         session.refresh(previous)
         assert previous.session_id is None
         assert (previous.state, previous.end_date) == outcome
-        assert session.scalar(select(DagParseCheckpoint)) is None
+        assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [other.id]
 
 
 class TestHeartbeatJob:
@@ -420,6 +423,8 @@ class TestCompleteJob:
     def test_records_the_final_state(self, client, session, authenticate, time_machine):
         job = _create_job(session)
         _add_checkpoint(session, job)
+        other = _create_job(session, session_id=uuid7(), registration_id=uuid7())
+        _add_checkpoint(session, other)
         authenticate(scope="dag_processor", dag_bundles=frozenset({"bundle_a"}), job_id=job.id)
         time_machine.move_to(NOW + timedelta(minutes=5), tick=False)
 
@@ -428,7 +433,7 @@ class TestCompleteJob:
         assert response.status_code == 204, response.text
         session.refresh(job)
         assert (job.state, job.end_date) == (JobState.SUCCESS, NOW + timedelta(minutes=5))
-        assert session.scalar(select(DagParseCheckpoint)) is None
+        assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [other.id]
 
     def test_replay_keeps_the_first_outcome(self, client, session, authenticate):
         job = _create_job(session, state=JobState.SUCCESS, end_date=NOW)
