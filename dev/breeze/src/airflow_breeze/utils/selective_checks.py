@@ -698,13 +698,6 @@ def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_re
             matched_files.append(file)
 
 
-def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_regexps):
-    for file in files:
-        if any(re.match(regexp, file) for regexp in exclude_regexps):
-            if file in matched_files:
-                matched_files.remove(file)
-
-
 @clearable_cache
 def _matching_files(
     files: tuple[str, ...], match_group: FileGroupForCi | SelectiveTestType, match_dict: HashableDict
