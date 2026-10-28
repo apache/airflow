@@ -2035,11 +2035,175 @@ export type PoolResponse = {
 };
 
 /**
+ * Asset URI scheme handling provided by a provider.
+ */
+export type ProviderAssetUriInfo = {
+    schemes: Array<(string)>;
+    handler?: string | null;
+    factory?: string | null;
+    to_openlineage_converter?: string | null;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
     providers: Array<ProviderResponse>;
     total_entries: number;
+};
+
+/**
+ * Configuration option contributed by a provider.
+ */
+export type ProviderConfigOptionInfo = {
+    description?: string | null;
+    version_added?: string | null;
+    type?: string | null;
+    example?: string | number | null;
+    default?: string | number | null;
+    sensitive?: boolean | null;
+    is_template?: boolean | null;
+    see_also?: string | null;
+};
+
+/**
+ * Configuration section contributed by a provider.
+ */
+export type ProviderConfigSectionInfo = {
+    description?: string | null;
+    options?: {
+        [key: string]: ProviderConfigOptionInfo;
+    };
+};
+
+/**
+ * Custom connection field a connection type stores in ``Connection.extra``.
+ */
+export type ProviderConnectionFieldInfo = {
+    label: string;
+    description?: string | null;
+    schema: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Connection type provided by a provider.
+ */
+export type ProviderConnectionTypeInfo = {
+    connection_type: string;
+    hook_class_name: string;
+    hook_name?: string | null;
+    ui_field_behaviour?: ProviderConnectionUiFieldBehaviourInfo | null;
+    conn_fields?: {
+    [key: string]: ProviderConnectionFieldInfo;
+} | null;
+    external_services?: Array<(string)> | null;
+};
+
+/**
+ * Customizations a connection type applies to the standard connection form fields.
+ */
+export type ProviderConnectionUiFieldBehaviourInfo = {
+    hidden_fields?: Array<(string)> | null;
+    relabeling?: {
+    [key: string]: (string);
+} | null;
+    placeholders?: {
+    [key: string]: (string);
+} | null;
+};
+
+/**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: ProviderInfoResponse;
+};
+
+/**
+ * SQL dialect provided by a provider.
+ */
+export type ProviderDialectInfo = {
+    dialect_type?: string | null;
+    dialect_class_name?: string | null;
+};
+
+/**
+ * Typed provider metadata (from ``provider.yaml``) exposed by the API.
+ */
+export type ProviderInfoResponse = {
+    package_name?: string | null;
+    name?: string | null;
+    description?: string | null;
+    documentation_url?: string | null;
+    filesystems?: Array<(string)> | null;
+    integrations?: Array<ProviderIntegrationInfo> | null;
+    operators?: Array<ProviderIntegrationModulesInfo> | null;
+    sensors?: Array<ProviderIntegrationModulesInfo> | null;
+    hooks?: Array<ProviderIntegrationModulesInfo> | null;
+    triggers?: Array<ProviderIntegrationModulesInfo> | null;
+    bundles?: Array<ProviderIntegrationModulesInfo> | null;
+    asset_uris?: Array<ProviderAssetUriInfo> | null;
+    dialects?: Array<ProviderDialectInfo> | null;
+    transfers?: Array<ProviderTransferInfo> | null;
+    connection_types?: Array<ProviderConnectionTypeInfo> | null;
+    extra_links?: Array<(string)> | null;
+    secrets_backends?: Array<(string)> | null;
+    email_backends?: Array<(string)> | null;
+    logging?: Array<(string)> | null;
+    remote_logging?: Array<ProviderRemoteLoggingInfo> | null;
+    auth_backends?: Array<(string)> | null;
+    auth_managers?: Array<(string)> | null;
+    notifications?: Array<(string)> | null;
+    executors?: Array<(string)> | null;
+    db_managers?: Array<(string)> | null;
+    cli?: Array<(string)> | null;
+    config?: {
+    [key: string]: ProviderConfigSectionInfo;
+} | null;
+    task_decorators?: Array<ProviderTaskDecoratorInfo> | null;
+    plugins?: Array<ProviderPluginInfo> | null;
+    queues?: Array<(string)> | null;
+};
+
+/**
+ * Integration provided by a provider.
+ */
+export type ProviderIntegrationInfo = {
+    integration_name: string;
+    external_doc_url?: string | null;
+    how_to_guide?: Array<(string)> | null;
+    logo?: string | null;
+    tags?: Array<(string)> | null;
+};
+
+/**
+ * Python modules an integration contributes for one kind of functionality.
+ */
+export type ProviderIntegrationModulesInfo = {
+    integration_name: string;
+    python_modules: Array<(string)>;
+};
+
+/**
+ * Plugin provided by a provider.
+ */
+export type ProviderPluginInfo = {
+    name?: string | null;
+    plugin_class?: string | null;
+};
+
+/**
+ * Remote logging IO handler provided by a provider.
+ */
+export type ProviderRemoteLoggingInfo = {
+    classpath: string;
+    scheme: string;
 };
 
 /**
@@ -2050,6 +2214,24 @@ export type ProviderResponse = {
     description: string;
     version: string;
     documentation_url: string | null;
+};
+
+/**
+ * TaskFlow decorator provided by a provider.
+ */
+export type ProviderTaskDecoratorInfo = {
+    name?: string | null;
+    class_name?: string | null;
+};
+
+/**
+ * Transfer operator provided by a provider.
+ */
+export type ProviderTransferInfo = {
+    source_integration_name: string;
+    target_integration_name: string;
+    python_module: string;
+    how_to_guide?: string | null;
 };
 
 /**
@@ -5124,6 +5306,12 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
 
 export type ListAssetStateStoreData = {
     assetId: number;
@@ -8891,6 +9079,33 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
