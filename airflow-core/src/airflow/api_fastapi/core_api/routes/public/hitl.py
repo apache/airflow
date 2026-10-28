@@ -105,29 +105,26 @@ class HITLDetailView:
         return getattr(self.value, name)
 
 
-def _check_params_input(params: Mapping[str, Any], params_input: Mapping[str, Any]) -> str | None:
+def _validate_params_input(params: Mapping[str, Any], params_input: Mapping[str, Any]) -> None:
     """
-    Return why ``params_input`` is not a valid answer to the request's ``params``, or None.
+    Raise ``ParamValidationError`` if ``params_input`` is not a valid answer to the request's ``params``.
 
     Mirrors ``HITLOperator.validate_params_input``: when both are given, the answer must name exactly
     the declared params, and each value must pass its param's JSON Schema. A param stored without a
     schema, as older providers store it, accepts any value.
     """
     if not params or not params_input:
-        return None
+        return
     if set(params) != set(params_input):
-        return f"params_input {sorted(params_input)} does not match params {sorted(params)}."
-    answers = SerializedParamsDict(
-        {key: _answer_param(value, params[key]) for key, value in params_input.items()}
-    )
-    try:
-        answers.validate()
-    except ParamValidationError as e:
-        return str(e)
-    return None
+        raise ParamValidationError(
+            f"params_input {sorted(params_input)} does not match params {sorted(params)}."
+        )
+    SerializedParamsDict(
+        {key: _build_answer_param(value, params[key]) for key, value in params_input.items()}
+    ).validate()
 
 
-def _answer_param(value: Any, spec: Any) -> SerializedParam:
+def _build_answer_param(value: Any, spec: Any) -> SerializedParam:
     """
     Build a param holding the submitted ``value``, with the JSON Schema from the field's ``spec``.
 
@@ -308,10 +305,10 @@ def update_hitl_detail(
             status.HTTP_400_BAD_REQUEST,
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
-    if params_error := _check_params_input(
-        hitl_detail_model.params or {}, update_hitl_detail_payload.params_input
-    ):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, params_error)
+    try:
+        _validate_params_input(hitl_detail_model.params or {}, update_hitl_detail_payload.params_input)
+    except ParamValidationError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     if locked_ti.state not in (TaskInstanceState.AWAITING_INPUT, TaskInstanceState.DEFERRED):
         raise HTTPException(
