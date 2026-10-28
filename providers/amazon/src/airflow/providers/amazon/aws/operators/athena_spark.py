@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.athena import AthenaSparkTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -49,11 +51,14 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
     :param waiter_delay: Seconds to wait between status checks. Defaults to 30.
     :param waiter_max_attempts: Maximum number of polling attempts before timing out. Defaults to 120.
         To limit total task time, use execution_timeout on the task as well.
+    :param deferrable: Whether to wait asynchronously using the triggerer.
+        Defaults to the ``operators.default_deferrable`` configuration value (False).
     :param log_query: Whether to log submission details. Defaults to True.
     :param aws_conn_id: The Airflow connection used for AWS credentials. Defaults to ``aws_default``.
     :param region_name: AWS region. If not set, default boto3 behavior is used. Defaults to None.
     :param verify: Whether to verify SSL certificates. Defaults to None.
     :param botocore_config: Optional botocore configuration dict. Defaults to None.
+
     """
 
     aws_hook_class = AthenaHook
@@ -71,6 +76,7 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
         client_request_token: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 120,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         log_query: bool = True,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
@@ -91,6 +97,7 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
         self.client_request_token = client_request_token
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
         self.log_query = log_query
         self._calculation_execution_id: str | None = None
 
@@ -112,6 +119,21 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
 
         self.log.info("Calculation submitted. CalculationExecutionId: %s", calculation_execution_id)
 
+        if self.deferrable:
+            self.defer(
+                trigger=AthenaSparkTrigger(
+                    calculation_execution_id=calculation_execution_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+                kwargs={"calculation_execution_id": calculation_execution_id},
+            )
+
         try:
             final_state = self.hook.poll_spark_calculation_status(
                 calculation_execution_id,
@@ -131,6 +153,42 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
             raise RuntimeError(
                 f"Polling timed out after {self.waiter_max_attempts} attempts for calculation "
                 f"{calculation_execution_id}."
+            )
+
+        return self._handle_terminal_state(calculation_execution_id, final_state)
+
+    def execute_complete(
+        self,
+        context: Context,
+        calculation_execution_id: str,
+        event: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Handle the trigger result and return calculation metadata."""
+        self._calculation_execution_id = calculation_execution_id
+
+        try:
+            if event is None:
+                raise RuntimeError("Trigger error: event is None")
+
+            if event.get("status") != "success":
+                raise RuntimeError(
+                    f"Error waiting for Athena Spark calculation "
+                    f"{calculation_execution_id}: "
+                    f"{event.get('message', 'Unknown trigger error.')}"
+                )
+
+        except RuntimeError:
+            self._stop_calculation(calculation_execution_id)
+            raise
+
+        execution_info = self.hook.get_spark_calculation_info(calculation_execution_id)
+        final_state = execution_info.get("Status", {}).get("State")
+
+        if final_state not in AthenaHook.SPARK_TERMINAL_STATES:
+            self._stop_calculation(calculation_execution_id)
+            raise RuntimeError(
+                f"Expected a terminal state for calculation "
+                f"{calculation_execution_id}, received {final_state!r}."
             )
 
         return self._handle_terminal_state(calculation_execution_id, final_state)

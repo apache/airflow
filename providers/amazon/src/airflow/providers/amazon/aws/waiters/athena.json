@@ -81,6 +81,31 @@
                 "argument": "Status.State"
                 }
             ]
+        },
+        "spark_calculation_terminal": {
+        "operation": "GetCalculationExecutionStatus",
+        "delay": 30,
+        "maxAttempts": 120,
+        "acceptors": [
+            {
+            "matcher": "path",
+            "argument": "Status.State",
+            "expected": "COMPLETED",
+            "state": "success"
+            },
+            {
+            "matcher": "path",
+            "argument": "Status.State",
+            "expected": "FAILED",
+            "state": "success"
+            },
+            {
+            "matcher": "path",
+            "argument": "Status.State",
+            "expected": "CANCELED",
+            "state": "success"
+            }
+            ]
         }
     }
 }
