@@ -35,7 +35,8 @@ with its rule, next to ``t_default``, which has none:
 - ``t_mapped``: a Dag + task rule applies to a mapped task instance
 - ``t_regex_task``: a Dag + task rule with ``match_mode: regex`` matches both ids as patterns
 - ``t_conflict``: of two Dag + task rules with different values, the last one wins
-- ``t_skipped_emit_off``, ``t_skipped_full_info``: the events of a skipped task follow the rules too
+- ``t_skipped_emit_off``, ``t_skipped_full_info``: the events of a skipped task follow the rules too (Airflow 3.0
+  calls no listener when a task skips itself, so it emits no COMPLETE there, and its lone START isn't checked)
 
 The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler resolves the policy for
 them, including authoring.

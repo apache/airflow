@@ -37,7 +37,8 @@ on the names of the stand-in classes below.
 - ``t_emit_query``, ``t_emit_query_all_excluded``: ``emit_query_lineage`` filters its datasets, given and parsed
   from the query, and still emits its events when all of them are excluded, next to a call that keeps its datasets.
 - ``t_failed``: the FAIL event of a failed task is filtered too.
-- ``t_skipped``: the COMPLETE event of a skipped task is filtered too.
+- ``t_skipped``: the COMPLETE event of a skipped task is filtered too (Airflow 3.0 calls no listener when a task
+  skips itself, so it emits no COMPLETE there, and its lone START isn't checked).
 
 Required global conf::
 
