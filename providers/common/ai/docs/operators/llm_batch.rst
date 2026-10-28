@@ -198,7 +198,8 @@ Per-request overrides
 
 A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra body parameters
 for that request only, layered over ``request_params``) and ``model``. ``model`` is written the
-same way ``model_id`` is, ``"<provider>:<model>"``, and must name the same provider as the batch.
+same way ``model_id`` is, ``"<provider>:<model>"`` or a bare name the connection's Default
+Provider qualifies, and must select the same adapter as the batch.
 Anthropic allows a different model per request; OpenAI requires every request in a batch to
 resolve to the same model and the operator rejects a mixed batch before submitting it.
 
@@ -298,7 +299,10 @@ Reaching the batch API through a gateway
 The OpenAI adapter reads ``base_url`` from the connection's host, so a ``pydanticai`` connection
 pointed at an OpenAI-compatible gateway that exposes ``/v1/files`` and ``/v1/batches`` (LiteLLM
 does, and routes to Azure OpenAI, Vertex and Bedrock batch behind it) runs the whole batch
-through that gateway with ``model_id="openai:<gateway-model-name>"``. That is the path to take
+through that gateway with ``model_id="openai:<gateway-model-name>"``. ``openai-chat:`` selects
+the same adapter, and a connection whose Default Provider is set (see
+:ref:`conn-example-openai-compatible-gateway`) takes the gateway's bare model names, both in
+``model_id`` and in a request's ``model``. That is the path to take
 today for a provider ``@task.llm_batch`` has no adapter for yet; the error message for a
 ``pydanticai_azure``, ``pydanticai_bedrock`` or ``pydanticai_vertex`` connection says so.
 

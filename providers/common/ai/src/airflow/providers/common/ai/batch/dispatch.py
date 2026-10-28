@@ -59,8 +59,17 @@ _ADAPTER_MODULES: dict[str, tuple[str, str]] = {
     "anthropic": ("airflow.providers.common.ai.batch.anthropic", "AnthropicBatchAdapter"),
 }
 
+#: model_id prefix -> the adapter that serves it under another name. ``openai-chat`` is
+#: pydantic-ai's Chat Completions prefix, and Chat Completions is what the ``openai`` adapter submits.
+_ADAPTER_ALIASES: dict[str, str] = {"openai-chat": "openai"}
+
 #: Adapter classes registered at runtime through :func:`register_adapter`.
 _REGISTERED_ADAPTERS: dict[str, type[BatchAdapter]] = {}
+
+
+def adapter_name_for_prefix(prefix: str) -> str:
+    """Return the name of the adapter that serves a ``model_id`` prefix (``openai-chat`` -> ``openai``)."""
+    return _ADAPTER_ALIASES.get(prefix, prefix)
 
 
 def register_adapter(adapter_cls: type[BatchAdapter]) -> None:
@@ -113,7 +122,7 @@ def split_model_id(model_id: str | None) -> tuple[str, str]:
         raise UnsupportedBatchProviderError(
             "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-5') to "
             f"select a batch adapter; got {model_id!r}. Set it on the operator or in the "
-            "connection's Model field."
+            "connection's Model field, or set the connection's Default Provider."
         )
     prefix, _, bare = model_id.strip().partition(":")
     if not prefix or not bare:
@@ -133,7 +142,7 @@ def get_adapter_class(conn_type: str | None, model_id: str | None) -> type[Batch
         accept this connection type (e.g. ``pydanticai_azure`` today).
     """
     prefix, _ = split_model_id(model_id)
-    adapter_cls = import_adapter_class(prefix)
+    adapter_cls = import_adapter_class(adapter_name_for_prefix(prefix))
     if conn_type not in adapter_cls.conn_types:
         raise BatchProviderNotYetSupportedError(
             f"The {prefix!r} batch adapter does not support connection type {conn_type!r}; it "

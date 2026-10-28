@@ -37,6 +37,7 @@ from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolRetu
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
@@ -762,6 +763,37 @@ class TestPydanticAIHookModelProviderResolution:
         hook = PydanticAIHook(llm_conn_id="gateway")
 
         assert hook.get_conn() is infer_model_stub.models["anthropic:claude-sonnet-4-5"]
+
+    def test_generic_connection_provider_extra_name_tag_does_not_warn(
+        self, registry, infer_model_stub, caplog
+    ):
+        """Behind a gateway, Ollama-style ``name:tag`` ids are the normal spelling, not a typo."""
+        registry.add("gateway", extra={"provider": "openai-chat", "model": "llama3:70b"})
+        hook = PydanticAIHook(llm_conn_id="gateway")
+
+        with caplog.at_level(logging.WARNING):
+            model = hook.get_conn()
+
+        assert model is infer_model_stub.models["openai-chat:llama3:70b"]
+        assert not any("typo" in r.message for r in caplog.records)
+
+    def test_generic_connection_provider_extra_builds_the_gateway_model(self):
+        """The documented gateway connection yields a Chat Completions model aimed at its host."""
+        conn = Connection(
+            conn_id="gateway",
+            conn_type="pydanticai",
+            password="gateway-key",
+            host="https://llm-gateway.example.com/v1",
+            extra=json.dumps({"provider": "openai-chat"}),
+        )
+        hook = PydanticAIHook(llm_conn_id="gateway", model_id="claude-sonnet-4-5")
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            model = hook.get_conn()
+
+        assert isinstance(model, OpenAIChatModel)
+        assert model.model_name == "claude-sonnet-4-5"
+        assert model.base_url.rstrip("/") == "https://llm-gateway.example.com/v1"
 
     @pytest.mark.parametrize(
         ("provider", "model"),

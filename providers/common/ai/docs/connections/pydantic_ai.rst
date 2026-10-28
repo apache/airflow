@@ -88,6 +88,8 @@ Default Provider
     ``claude-sonnet-4-5`` instead of ``openai-chat:claude-sonnet-4-5``). A name
     that already starts with a provider pydantic-ai recognizes is used as is.
     An unknown provider raises ``ValueError`` when the model is resolved.
+    ``@task.llm_batch`` applies it the same way, and sends ``openai-chat`` models
+    to its OpenAI adapter.
 
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is
@@ -165,6 +167,11 @@ gateway's own model names:
 ``openai:`` resolves to OpenAI's Responses API and ``openai-chat:`` to Chat
 Completions, so pick the one the gateway implements.
 
+A ``name:tag`` model id such as ``llama3:70b`` gets the default too. The
+exception is a name that is itself a pydantic-ai provider: ``mistral:7b`` goes
+to pydantic-ai's own ``mistral`` provider, so write it as
+``openai-chat:mistral:7b`` to send it through the gateway.
+
 .. _conn-example-bedrock:
 
 AWS Bedrock
@@ -227,8 +234,9 @@ The hook reads the model from these sources in priority order:
    ``fallback_conn_ids`` but no model raises instead, because a spec-file model cannot
    be wrapped in a fallback chain (see :doc:`/hooks/pydantic_ai`).
 
-Whichever name is chosen, a name that already pins a recognized platform (its segment
-before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a bare name is
-qualified with this connection's platform. This generic connection type takes its platform
-from Default Provider (``extra["provider"]``); without one, a bare name reaching this step
-raises.
+Whichever of sources 1-3 supplies the name, a name that already pins a recognized platform
+(its segment before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a
+bare name is qualified with this connection's platform. This generic connection type takes
+its platform from Default Provider (``extra["provider"]``); without one, a bare name reaching
+this step raises. The spec-file model of source 4 goes to pydantic-ai unchanged, so write it
+with its provider prefix.

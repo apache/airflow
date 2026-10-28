@@ -298,10 +298,12 @@ set the prefix once as Default Provider, see
 :ref:`conn-example-openai-compatible-gateway`), but which ``provider`` prefix to
 use depends on the endpoint:
 
-- **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
-  is the only option. pydantic-ai's ``openai`` provider class talks to
-  whatever ``host`` points at, so it works against vLLM's OpenAI-compatible
-  API even though the weights being served aren't OpenAI's.
+- **vLLM** has no dedicated provider class in pydantic-ai, so use one of the
+  OpenAI prefixes: ``openai:<model>`` for the Responses API or
+  ``openai-chat:<model>`` for Chat Completions. pydantic-ai's ``openai``
+  provider class talks to whatever ``host`` points at, so either works against
+  vLLM's OpenAI-compatible API even though the weights being served aren't
+  OpenAI's.
 - **Ollama** has two valid options: the dedicated ``ollama:<model>`` prefix
   (recommended) applies Ollama-specific model-profile tuning based on the
   model name (``llama``, ``gemma``, ``qwen``, ``deepseek``, ``mistral``,

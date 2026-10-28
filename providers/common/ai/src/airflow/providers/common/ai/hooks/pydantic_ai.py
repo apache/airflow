@@ -438,7 +438,9 @@ class PydanticAIHook(BaseHook):
         model_provider = self._get_model_provider()
         if model_provider is not None:
             prefix, sep, _ = model_name.partition(":")
-            if sep and _looks_like_unrecognized_provider_prefix(prefix):
+            # Only a vendor type warns: behind a generic connection's Default Provider, a
+            # "name:tag" id such as Ollama's "llama3:70b" is the normal spelling, not a typo.
+            if sep and self.model_provider is not None and _looks_like_unrecognized_provider_prefix(prefix):
                 self.log.warning(
                     "Model name '%s' on connection '%s' contains ':' but its prefix '%s' is not a "
                     "provider pydantic-ai recognizes; treating the whole string as a bare %s model id "
