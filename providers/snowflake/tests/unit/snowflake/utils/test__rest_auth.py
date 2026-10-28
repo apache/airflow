@@ -26,6 +26,7 @@ import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils._rest_auth import (
     SnowflakeRestToken,
@@ -169,6 +170,31 @@ class TestSnowflakeRestTokenProvider:
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: key)
 
         assert provider.get_token().token_type == "KEYPAIR_JWT"
+
+    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
+    @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True)
+    def test_private_key_absence_cached_across_wif_refresh(self, fetch, conn_params, time_machine):
+        time_machine.move_to("2024-01-01T00:00:00Z", tick=False)
+        conn_params.return_value = CONN_PARAMS_WIF
+        fetch.return_value = _make_jwt(exp=int(time.time()) + 3600)
+        loader = mock.Mock(spec=SnowflakeHook().get_private_key, return_value=None)
+        provider = SnowflakeRestTokenProvider(SnowflakeHook(), private_key_loader=loader)
+        provider.get_token()
+        provider.get_token()
+        time_machine.shift(timedelta(hours=1))
+        provider.get_token()
+        loader.assert_called_once_with()
+        assert fetch.call_count == 2
+
+    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
+    def test_private_key_loader_retries_after_error(self, conn_params):
+        conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": "OIDC", "token": "token"}
+        loader = mock.Mock(spec=SnowflakeHook().get_private_key, side_effect=[OSError("unavailable"), None])
+        provider = SnowflakeRestTokenProvider(SnowflakeHook(), private_key_loader=loader)
+        with pytest.raises(OSError, match="unavailable"):
+            provider.get_token()
+        assert provider.get_token().token == "WIF.OIDC.token"
+        assert loader.call_count == 2
 
     @pytest.mark.parametrize("provider_name", ["GCP", "AZURE", "AWS", "gcp"])
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
@@ -346,94 +372,220 @@ class TestSnowflakeRestTokenProvider:
         assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
 
 
-class TestFetchIdentityTokens:
-    @staticmethod
-    def _fake_google() -> tuple[mock.MagicMock, dict[str, mock.MagicMock]]:
-        google = mock.MagicMock()
-        modules = {
-            "google": google,
-            "google.auth": google.auth,
-            "google.auth.transport": google.auth.transport,
-            "google.auth.transport.requests": google.auth.transport.requests,
-            "google.oauth2": google.oauth2,
-            "google.oauth2.id_token": google.oauth2.id_token,
+class TestWifDestinations:
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "attacker.example",
+            "evil-snowflakecomputing.com",
+            "a.snowflakecomputing.com.evil",
+            "user@a.snowflakecomputing.com",
+            "a.snowflakecomputing.com:443",
+            "a.snowflakecomputing.com/path",
+            "a.snowflakecomputing.com?query",
+            "a.snowflakecomputing.com#fragment",
+            "a..snowflakecomputing.com",
+            "a.snowflakecomputing.com..",
+            "a.snowflakecomputing.com\n",
+            "a.snowflakecomputing.com%00",
+            "https://a.snowflakecomputing.com",
+            "a\\.snowflakecomputing.com",
+        ],
+    )
+    @pytest.mark.parametrize("cloud", ["AWS", "AZURE", "GCP", "OIDC"])
+    def test_rejects_before_fetch_or_file_read(self, host, cloud):
+        hook = mock.create_autospec(SnowflakeHook, instance=True)
+        hook._get_conn_params.return_value = {
+            **CONN_PARAMS_WIF,
+            "host": host,
+            "workload_identity_provider": cloud,
+            "token_file_path": "/does/not/exist",
         }
-        return google, modules
+        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
+        with mock.patch(
+            FETCH_TOKEN.format(cloud.lower()) if cloud != "OIDC" else f"{MODULE_PATH}.Path.read_text",
+            autospec=True,
+        ) as fetch:
+            with pytest.raises(ValueError, match="recognized Snowflake host"):
+                provider.get_token()
+            fetch.assert_not_called()
 
-    def test_aws_requests_web_identity_token_for_snowflake(self):
-        boto3 = mock.MagicMock()
-        boto3.client.return_value.get_web_identity_token.return_value = {"WebIdentityToken": "aws-jwt"}
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "a.snowflakecomputing.com",
+            "A.snowflakecomputing.cn.",
+            "a.snowflakecomputing.mil",
+            "private.example",
+            "a.private.example",
+        ],
+    )
+    @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True, return_value="id-token")
+    def test_allowed_destinations(self, fetch, host, monkeypatch):
+        monkeypatch.setenv("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", " private.example,other.example ")
+        hook = mock.create_autospec(SnowflakeHook, instance=True)
+        hook._get_conn_params.return_value = {**CONN_PARAMS_WIF, "host": host}
+        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
+        assert provider.get_token().token == "WIF.GCP.id-token"
 
-        with mock.patch.dict(sys.modules, {"boto3": boto3}):
+    @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True)
+    def test_validates_cached_token_destination(self, fetch, monkeypatch):
+        monkeypatch.setenv("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", "private.example")
+        fetch.return_value = _make_jwt(exp=int(time.time()) + 3600)
+        hook = mock.create_autospec(SnowflakeHook, instance=True)
+        hook._get_conn_params.return_value = {**CONN_PARAMS_WIF, "host": "private.example"}
+        provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
+        provider.get_token()
+        monkeypatch.delenv("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES")
+        with pytest.raises(ValueError, match="recognized Snowflake host"):
+            provider.get_token()
+        fetch.assert_called_once()
+
+    def test_connection_cannot_extend_allowlist(self, monkeypatch):
+        monkeypatch.delenv("SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES", raising=False)
+        hook = mock.create_autospec(SnowflakeHook, instance=True)
+        hook._get_conn_params.return_value = {
+            **CONN_PARAMS_WIF,
+            "host": "evil.example",
+            "SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES": "evil.example",
+        }
+        with pytest.raises(ValueError, match="recognized Snowflake host"):
+            SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None).get_token()
+
+
+class TestFetchIdentityTokens:
+    @pytest.mark.parametrize(
+        ("aws_region", "default_region", "metadata_region", "expected"),
+        [
+            ("eu-west-1", "eu-west-2", "eu-west-3", "eu-west-1"),
+            (None, "eu-west-2", "eu-west-3", "eu-west-2"),
+            (None, None, "eu-west-3", "eu-west-3"),
+            ("us-east-1", None, None, "us-east-1"),
+        ],
+    )
+    @mock.patch("botocore.utils.InstanceMetadataRegionFetcher", autospec=True)
+    def test_aws_requests_regional_web_identity_token(
+        self, metadata, aws_region, default_region, metadata_region, expected, monkeypatch
+    ):
+        import boto3
+        from botocore.stub import Stubber
+
+        for name, value in (("AWS_REGION", aws_region), ("AWS_DEFAULT_REGION", default_region)):
+            if value:
+                monkeypatch.setenv(name, value)
+            else:
+                monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
+        metadata.return_value.retrieve_region.return_value = metadata_region
+        real_session = boto3.Session
+        clients = []
+
+        def create_session(*args, **kwargs):
+            session = real_session(
+                *args, aws_access_key_id="testing", aws_secret_access_key="testing", **kwargs
+            )
+            real_client = session.client
+
+            def create_client(*args, **kwargs):
+                client = real_client(*args, **kwargs)
+                clients.append(client)
+                stubber = Stubber(client)
+                stubber.add_response(
+                    "get_web_identity_token",
+                    {
+                        "WebIdentityToken": "aws-jwt",
+                        "Expiration": datetime(2024, 1, 1, tzinfo=UTC),
+                    },
+                    {"Audience": ["snowflakecomputing.com"], "SigningAlgorithm": "ES384"},
+                )
+                stubber.activate()
+                return client
+
+            session.client = create_client
+            return session
+
+        with mock.patch("boto3.Session", autospec=True, side_effect=create_session):
             assert _fetch_aws_identity_token() == "aws-jwt"
+        assert clients[0].meta.region_name == expected
+        assert clients[0].meta.endpoint_url == f"https://sts.{expected}.amazonaws.com"
+        if aws_region or default_region:
+            metadata.assert_not_called()
+        else:
+            metadata.return_value.retrieve_region.assert_called_once_with()
 
-        boto3.client.assert_called_once_with("sts")
-        boto3.client.return_value.get_web_identity_token.assert_called_once_with(
-            Audience=["snowflakecomputing.com"], SigningAlgorithm="ES384"
-        )
+    @mock.patch("botocore.utils.InstanceMetadataRegionFetcher", autospec=True)
+    @mock.patch("boto3.Session", autospec=True)
+    def test_aws_missing_region_raises(self, session, metadata, monkeypatch):
+        monkeypatch.delenv("AWS_REGION", raising=False)
+        monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+        metadata.return_value.retrieve_region.return_value = None
+        with pytest.raises(ValueError, match="AWS_REGION or AWS_DEFAULT_REGION"):
+            _fetch_aws_identity_token()
+        session.assert_not_called()
 
-    def test_aws_old_boto3_raises(self):
-        boto3 = mock.MagicMock()
-        boto3.client.return_value = mock.Mock(spec=[])
-
-        with mock.patch.dict(sys.modules, {"boto3": boto3}):
-            with pytest.raises(ValueError, match="sts:GetWebIdentityToken"):
-                _fetch_aws_identity_token()
+    @mock.patch("boto3.Session", autospec=True)
+    def test_aws_old_boto3_raises(self, session, monkeypatch):
+        monkeypatch.setenv("AWS_REGION", "eu-west-1")
+        session.return_value.client.return_value = mock.Mock(spec=[])
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="sts:GetWebIdentityToken"):
+            _fetch_aws_identity_token()
 
     @pytest.mark.parametrize(
         ("fetch", "module", "package"),
         [
             pytest.param(_fetch_aws_identity_token, "boto3", "boto3", id="aws"),
             pytest.param(_fetch_azure_identity_token, "azure.identity", "azure-identity", id="azure"),
-            pytest.param(_fetch_gcp_identity_token, "google.oauth2", "google-auth", id="gcp"),
+            pytest.param(_fetch_gcp_identity_token, "google.auth.compute_engine", "google-auth", id="gcp"),
         ],
     )
     def test_missing_cloud_library_raises(self, fetch, module, package):
         with mock.patch.dict(sys.modules, {module: None}):
-            with pytest.raises(ValueError, match=package):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match=package):
                 fetch()
 
-    def test_azure_uses_managed_identity_with_client_id(self, monkeypatch):
+    @pytest.mark.parametrize("workload", [False, True])
+    @pytest.mark.parametrize("fails", [False, True])
+    @mock.patch("azure.identity.ManagedIdentityCredential", autospec=True)
+    @mock.patch("azure.identity.WorkloadIdentityCredential", autospec=True)
+    def test_azure_credential_selection_and_cleanup(self, aks, managed, workload, fails, monkeypatch):
+        from azure.core.credentials import AccessToken
+
         for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE"):
-            monkeypatch.delenv(name, raising=False)
+            if workload:
+                monkeypatch.setenv(name, "configured")
+            else:
+                monkeypatch.delenv(name, raising=False)
         monkeypatch.setenv("MANAGED_IDENTITY_CLIENT_ID", "mi-client-id")
-        identity = mock.MagicMock()
-        identity.ManagedIdentityCredential.return_value.get_token.return_value.token = "azure-token"
-        modules = {"azure": identity, "azure.identity": identity}
-
-        with mock.patch.dict(sys.modules, modules):
+        selected, unused = (aks, managed) if workload else (managed, aks)
+        selected.return_value.get_token.return_value = AccessToken("azure-token", 3600)
+        if fails:
+            selected.return_value.get_token.side_effect = RuntimeError("unavailable")
+            with pytest.raises(RuntimeError, match="unavailable"):
+                _fetch_azure_identity_token()
+        else:
             assert _fetch_azure_identity_token() == "azure-token"
-
-        identity.ManagedIdentityCredential.assert_called_once_with(client_id="mi-client-id")
-        identity.WorkloadIdentityCredential.assert_not_called()
-        identity.ManagedIdentityCredential.return_value.get_token.assert_called_once_with(
+        if workload:
+            selected.assert_called_once_with()
+        else:
+            selected.assert_called_once_with(client_id="mi-client-id")
+        unused.assert_not_called()
+        selected.return_value.get_token.assert_called_once_with(
             "api://fd3f753b-eed3-462c-b6a7-a4b5bb650aad/.default"
         )
-        identity.ManagedIdentityCredential.return_value.close.assert_called_once_with()
+        selected.return_value.close.assert_called_once_with()
 
-    def test_azure_uses_workload_identity_on_aks(self, monkeypatch):
-        monkeypatch.setenv("AZURE_CLIENT_ID", "client")
-        monkeypatch.setenv("AZURE_TENANT_ID", "tenant")
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/var/run/secrets/azure/tokens/azure-identity-token")
-        identity = mock.MagicMock()
-        identity.WorkloadIdentityCredential.return_value.get_token.return_value.token = "aks-token"
-        modules = {"azure": identity, "azure.identity": identity}
-
-        with mock.patch.dict(sys.modules, modules):
-            assert _fetch_azure_identity_token() == "aks-token"
-
-        identity.ManagedIdentityCredential.assert_not_called()
-
-    def test_gcp_requests_id_token_for_snowflake(self):
-        google, modules = self._fake_google()
-        google.oauth2.id_token.fetch_id_token.return_value = "gcp-id-token"
-
-        with mock.patch.dict(sys.modules, modules):
-            assert _fetch_gcp_identity_token() == "gcp-id-token"
-
-        google.oauth2.id_token.fetch_id_token.assert_called_once_with(
-            google.auth.transport.requests.Request.return_value, "snowflakecomputing.com"
+    @mock.patch("google.auth.compute_engine.IDTokenCredentials", autospec=True)
+    @mock.patch("google.auth.transport.requests.Request", autospec=True)
+    def test_gcp_uses_metadata_identity_even_with_application_credentials(
+        self, request, credential, monkeypatch
+    ):
+        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/does/not/exist.json")
+        credential.return_value.token = "gcp-id-token"
+        assert _fetch_gcp_identity_token() == "gcp-id-token"
+        credential.assert_called_once_with(
+            request.return_value, "snowflakecomputing.com", use_metadata_identity_endpoint=True
         )
+        credential.return_value.refresh.assert_called_once_with(request.return_value)
 
 
 class TestSnowflakeRestTokenRepr:
