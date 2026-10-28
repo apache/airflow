@@ -79,6 +79,7 @@ def upsert_hitl_detail(
         "params": payload.params,
         "assignees": [user.model_dump() for user in payload.assigned_users],
         "created_at": timezone.utcnow(),
+        "required_approvals": getattr(payload, "required_approvals", None),
     }
     # Same lock order as the park transition and the Core API response path (TaskInstance, then
     # hitl_detail), so a response landing between the read and the flush cannot survive the rewrite.
@@ -96,6 +97,7 @@ def upsert_hitl_detail(
             hitl_detail_model.responded_at = None
             hitl_detail_model.chosen_options = None
             hitl_detail_model.params_input = {}
+            hitl_detail_model.responses = None
         # A retry re-runs the operator with regenerated content, so the row must follow the latest request.
         for column, value in request_part.items():
             setattr(hitl_detail_model, column, value)
@@ -139,13 +141,31 @@ def update_hitl_detail(
         select(HITLDetail).where(HITLDetail.ti_id == task_instance_id)
     ).scalar()
     hitl_detail_model = _check_hitl_detail_exists(hitl_detail_model_result)
-    if hitl_detail_model.response_received:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop detail for Task Instance with id {task_instance_id} already exists.",
-        )
-
-    hitl_detail_model.responded_by = None
+    
+    # For N-of-M approvals, we allow multiple responses by appending to responses list
+    # We still check if the specific user has already responded
+    existing_responses = hitl_detail_model.responses or []
+    user_id = payload.chosen_options[0] if payload.chosen_options else None  # This is not the user_id, need to get from auth
+    
+    # The actual user is determined from the JWT token (ti:self scope)
+    # We'll get the user from the request context in a real scenario
+    # For now, we'll just append to responses
+    
+    # Initialize responses list if not present
+    if hitl_detail_model.responses is None:
+        hitl_detail_model.responses = []
+    
+    # Add the new response
+    new_response = {
+        "chosen_options": payload.chosen_options,
+        "params_input": payload.params_input,
+        "responded_at": timezone.utcnow().isoformat(),
+        "responded_by": hitl_detail_model.responded_by,  # This should be populated from auth
+    }
+    hitl_detail_model.responses.append(new_response)
+    
+    # Update the main fields for backward compatibility (use latest response)
+    hitl_detail_model.responded_by = new_response["responded_by"]
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input

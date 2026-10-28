@@ -86,6 +86,7 @@ class BaseHITLDetail(BaseModel):
     multiple: bool = False
     params: Mapping = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
+    required_approvals: int | None = None
     created_at: datetime
 
     # Response Content Detail
@@ -93,6 +94,7 @@ class BaseHITLDetail(BaseModel):
     responded_at: datetime | None = None
     chosen_options: list[str] | None = None
     params_input: dict[str, Any] = Field(default_factory=dict)
+    responses: list[dict[str, Any]] | None = None
 
     response_received: bool = False
 

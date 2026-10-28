@@ -86,6 +86,7 @@ class HITLDetailPropertyMixin:
     responded_at: datetime | None
     responded_by: dict[str, Any] | None
     assignees: list[dict[str, str]] | None
+    responses: list[dict[str, Any]] | None
 
     @hybrid_property
     def response_received(self) -> bool:
@@ -152,6 +153,7 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     params: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     assignees: Mapped[list[dict[str, str]] | None] = mapped_column(sa.JSON(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    required_approvals: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
 
     # Response Content Detail
     responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -162,6 +164,7 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
         default=None,
     )
     params_input: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
+    responses: Mapped[list[dict[str, Any]] | None] = mapped_column(sa.JSON(), nullable=True, default=None)
     task_instance = relationship(
         "TaskInstance",
         lazy="joined",
@@ -194,4 +197,5 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
             "responded_at": self.responded_at,
             "responded_by_user": self.responded_by_user,
             "timedout": timedout,
+            "responses": self.responses,
         }

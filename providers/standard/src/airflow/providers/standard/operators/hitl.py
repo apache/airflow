@@ -89,6 +89,7 @@ def _request_input_and_wait(
     timeout_datetime: datetime | None,
     method_name: str,
     kwargs: dict[str, Any] | None = None,
+    required_approvals: int | None = None,
 ) -> NoReturn:
     """Write the Human-in-the-loop request, notify, and stop the task until a response arrives."""
     ti_id = context["task_instance"].id
@@ -101,6 +102,7 @@ def _request_input_and_wait(
         multiple=multiple,
         params=params,
         assigned_users=assigned_users,
+        required_approvals=required_approvals,
     )
 
     task.log.info("Waiting for response")
@@ -122,6 +124,7 @@ def _request_input_and_wait(
             params=params,
             multiple=multiple,
             timeout_datetime=timeout_datetime,
+            required_approvals=required_approvals,
         ),
         method_name=method_name,
         kwargs=kwargs,
@@ -398,6 +401,7 @@ class HITLOperator(BaseOperator):
             timeout=self.response_timeout,
             timeout_datetime=timeout_datetime,
             method_name="execute_complete",
+            required_approvals=getattr(self, "required_approvals", None),
         )
 
     @property
@@ -548,6 +552,7 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         *,
         ignore_downstream_trigger_rules: bool = False,
         fail_on_reject: bool = False,
+        required_approvals: int | None = None,
         **kwargs,
     ) -> None:
         """
@@ -572,6 +577,9 @@ class ApprovalOperator(HITLOperator, SkipMixin):
             ignore_downstream_trigger_rules: If True, skips all downstream tasks regardless of trigger rules.
             fail_on_reject: If True, the task fails when "Reject" is selected. Generally discouraged.
                 Read the warning carefully before using.
+            required_approvals: Minimum number of distinct assigned users required to approve.
+                If set, the task waits for this many unique approvals from assigned_users.
+                Only works with Approve/Reject options.
         """
         for arg in self.FIXED_ARGS:
             if arg in kwargs:
@@ -579,6 +587,13 @@ class ApprovalOperator(HITLOperator, SkipMixin):
 
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
         self.fail_on_reject = fail_on_reject
+        self.required_approvals = required_approvals
+
+        if required_approvals is not None:
+            if required_approvals < 1:
+                raise ValueError("required_approvals must be >= 1")
+            if not kwargs.get("assigned_users"):
+                raise ValueError("required_approvals requires assigned_users to be set")
 
         super().__init__(
             options=[self.APPROVE, self.REJECT],
@@ -588,6 +603,8 @@ class ApprovalOperator(HITLOperator, SkipMixin):
 
         self.hitl_summary_extra["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
         self.hitl_summary_extra["fail_on_reject"] = self.fail_on_reject
+        if self.required_approvals is not None:
+            self.hitl_summary_extra["required_approvals"] = self.required_approvals
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)

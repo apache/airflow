@@ -45,6 +45,7 @@ class HITLDetailRequest(BaseModel):
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
+    required_approvals: int | None = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -64,6 +65,7 @@ class HITLDetailResponse(BaseModel):
     # It's empty if the user has not yet responded.
     chosen_options: Iterable[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
+    responses: list[dict[str, Any]] | None = None
 
     @classmethod
     def from_hitl_detail_orm(cls, hitl_detail: HITLDetail) -> HITLDetailResponse:
@@ -82,4 +84,5 @@ class HITLDetailResponse(BaseModel):
             responded_by_user=hitl_user,
             chosen_options=hitl_detail.chosen_options or (),
             params_input=hitl_detail.params_input or {},
+            responses=hitl_detail.responses,
         )

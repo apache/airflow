@@ -274,22 +274,81 @@ def update_hitl_detail(
             "was not recorded.",
         )
 
+    # For N-of-M approvals, we append to responses instead of replacing
+    if hitl_detail_model.responses is None:
+        hitl_detail_model.responses = []
+    
+    # Check if this user has already responded
+    existing_responses = hitl_detail_model.responses
+    user_has_responded = any(
+        resp.get("responded_by_user", {}).get("id") == user_id 
+        for resp in existing_responses
+    )
+    
+    if user_has_responded:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"User={user_name} (id={user_id}) has already responded to this task.",
+        )
+    
+    # Get required_approvals if set
+    required_approvals = getattr(hitl_detail_model, 'required_approvals', None)
+    
+    # Create new response entry
+    new_response = {
+        "chosen_options": update_hitl_detail_payload.chosen_options,
+        "params_input": dict(update_hitl_detail_payload.params_input),
+        "responded_at": timezone.utcnow().isoformat(),
+        "responded_by_user": {"id": user_id, "name": user.get_display_name()},
+    }
+    
+    hitl_detail_model.responses.append(new_response)
+    
+    # Update main fields for backward compatibility (use latest response)
     hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
+    
+    # Check if we have enough approvals for N-of-M
+    should_resume = True
+    if required_approvals is not None and required_approvals > 1:
+        # Count distinct users who approved
+        approved_user_ids = set()
+        for resp in hitl_detail_model.responses:
+            if resp.get("chosen_options") and "Approve" in resp.get("chosen_options", []):
+                user_info = resp.get("responded_by_user")
+                if user_info and user_info.get("id"):
+                    approved_user_ids.add(user_info["id"])
+        
+        if len(approved_user_ids) < required_approvals:
+            should_resume = False
+            log.info(
+                "[HITL] response received but not enough approvals (%d required, got %d), waiting for more",
+                required_approvals,
+                len(approved_user_ids),
+            )
+    
     session.add(hitl_detail_model)
-
-    # Event-driven resume: transition the parked task directly, without a trigger.
-    # handle_event_submit packs the response into next_kwargs["event"], sets state=SCHEDULED +
-    # scheduled_dttm; the scheduler then re-queues execute_complete. `locked_ti` was locked at the top
-    # (TI-before-HITLDetail order), so a concurrent clear cannot interleave between the state check
-    # above and the resume and have its reset silently overwritten.
-    handle_event_submit(
-        TriggerEvent(hitl_detail_model.as_resume_event_payload()),
-        task_instance=locked_ti,
-        session=session,
-    )
+    
+    if should_resume:
+        # Event-driven resume: transition the parked task directly, without a trigger.
+        # handle_event_submit packs the response into next_kwargs["event"], sets state=SCHEDULED +
+        # scheduled_dttm; the scheduler then re-queues execute_complete. `locked_ti` was locked at the top
+        # (TI-before-HITLDetail order), so a concurrent clear cannot interleave between the state check
+        # above and the resume and have its reset silently overwritten.
+        handle_event_submit(
+            TriggerEvent(hitl_detail_model.as_resume_event_payload()),
+            task_instance=locked_ti,
+            session=session,
+        )
+    else:
+        log.info(
+            "[HITL] waiting for more approvals (%d of %d received)",
+            len(approved_user_ids),
+            required_approvals,
+        )
+    
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 

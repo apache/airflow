@@ -75,6 +75,7 @@ class HITLTrigger(BaseTrigger):
         multiple: bool = False,
         timeout_datetime: datetime | None,
         poke_interval: float = 5.0,
+        required_approvals: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -85,6 +86,7 @@ class HITLTrigger(BaseTrigger):
         self.multiple = multiple
         self.defaults = defaults
         self.timeout_datetime = timeout_datetime
+        self.required_approvals = required_approvals
 
         self.params = ParamsDict(
             {
@@ -114,6 +116,7 @@ class HITLTrigger(BaseTrigger):
                 "multiple": self.multiple,
                 "timeout_datetime": self.timeout_datetime,
                 "poke_interval": self.poke_interval,
+                "required_approvals": self.required_approvals,
             },
         )
 
@@ -123,12 +126,45 @@ class HITLTrigger(BaseTrigger):
             return None
         return HITLUser(id=resp.responded_by_user.id, name=resp.responded_by_user.name)
 
+    def _count_distinct_approvals(self, responses: list[dict[str, Any]] | None, approve_option: str = "Approve") -> int:
+        """Count distinct users who have approved from the responses list."""
+        if not responses:
+            return 0
+        approved_user_ids = set()
+        for response in responses:
+            if response.get("chosen_options") and approve_option in response.get("chosen_options", []):
+                user = response.get("responded_by_user")
+                if user and user.get("id"):
+                    approved_user_ids.add(user["id"])
+        return len(approved_user_ids)
+
+    def _has_enough_approvals(self, resp: HITLDetailResponse) -> bool:
+        """Check if we have enough distinct approvals."""
+        if self.required_approvals is None:
+            return True
+        if not resp.responses:
+            return False
+        approved_count = self._count_distinct_approvals(resp.responses)
+        return approved_count >= self.required_approvals
+
     async def _handle_timeout(self) -> TriggerEvent:
         """Handle HITL timeout logic and yield appropriate event."""
         resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
 
         # Case 1: Response arrived just before timeout
         if resp.response_received and resp.chosen_options:
+            if TYPE_CHECKING:
+                assert resp.responded_at is not None
+
+            # Check if we have enough approvals for N-of-M
+            if self.required_approvals is not None and not self._has_enough_approvals(resp):
+                self.log.info(
+                    "[HITL] timeout reached but not enough approvals (%d required, got %d), continuing to wait",
+                    self.required_approvals,
+                    self._count_distinct_approvals(resp.responses),
+                )
+                return None  # Continue waiting in run() loop
+
             if TYPE_CHECKING:
                 assert resp.responded_at is not None
 
@@ -212,6 +248,15 @@ class HITLTrigger(BaseTrigger):
                         error_type="validation",
                     )
                 )
+
+        # Check if we have enough approvals for N-of-M
+        if self.required_approvals is not None and not self._has_enough_approvals(resp):
+            self.log.info(
+                "[HITL] response received but not enough approvals (%d required, got %d), continuing to wait",
+                self.required_approvals,
+                self._count_distinct_approvals(resp.responses),
+            )
+            return None  # Continue waiting in run() loop
 
         chosen_options_list = list(resp.chosen_options or [])
         responded_by_user = self._get_responder(resp)
