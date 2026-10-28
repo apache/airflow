@@ -22,19 +22,59 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import type { GridTISummaries, LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type {
+  GridNodeResponse,
+  GridTISummaries,
+  LightGridTaskInstanceSummary,
+} from "openapi/requests/types.gen";
 
 import { type GridCell, useGridSelectionState } from "src/context/gridSelection";
 import { SHORTCUTS, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
 import type { GridTask } from "./utils";
 
+/** The task ids inside each task group whose cell can be selected, keyed by group id. */
+export type SelectableGroups = ReadonlyMap<string, Array<string>>;
+
 export const getCellKey = (runId: string, taskId: string) => JSON.stringify([runId, taskId]);
 
+// A selected group cell acts on every task inside it. A loop group, a group that contains a loop
+// or one inside a loop is left out, for the same reason as a looped task.
+export const buildSelectableGroups = (nodes: Array<GridNodeResponse> | undefined): SelectableGroups => {
+  const groups = new Map<string, Array<string>>();
+  const visit = (node: GridNodeResponse, inLoop: boolean): { hasLoop: boolean; taskIds: Array<string> } => {
+    if (!node.children) {
+      return { hasLoop: false, taskIds: [node.id] };
+    }
+
+    const isLoop = node.is_loop === true;
+    const children = node.children.map((child) => visit(child, inLoop || isLoop));
+    const hasLoop = isLoop || children.some((child) => child.hasLoop);
+    const taskIds = children.flatMap((child) => child.taskIds);
+
+    if (!inLoop && !hasLoop) {
+      groups.set(node.id, taskIds);
+    }
+
+    return { hasLoop, taskIds };
+  };
+
+  nodes?.forEach((node) => visit(node, false));
+
+  return groups;
+};
+
+export const getCellTaskIds = (cell: GridCell, selectableGroups: SelectableGroups) =>
+  selectableGroups.get(cell.taskId) ?? [cell.taskId];
+
 // A looped task's cell aggregates every pass while its link opens only the newest one, so a bulk
-// action on it would be ambiguous. Groups and cells without a task instance have nothing to act on.
-export const isSelectableCell = (node: GridTask, taskInstance: LightGridTaskInstanceSummary | undefined) =>
-  !node.isGroup &&
+// action on it would be ambiguous. Cells without a task instance have nothing to act on.
+export const isSelectableCell = (
+  node: GridTask,
+  taskInstance: LightGridTaskInstanceSummary | undefined,
+  selectableGroups: SelectableGroups,
+) =>
+  (node.isGroup !== true || selectableGroups.has(node.id)) &&
   taskInstance?.dag_version_number !== null &&
   taskInstance?.dag_version_number !== undefined &&
   (taskInstance.latest_region_id === null || taskInstance.latest_region_id === undefined);
@@ -42,6 +82,7 @@ export const isSelectableCell = (node: GridTask, taskInstance: LightGridTaskInst
 type GridData = {
   readonly flatNodes: Array<GridTask>;
   readonly runIds: Array<string>;
+  readonly selectableGroups: SelectableGroups;
   readonly summariesByRunId: ReadonlyMap<string, GridTISummaries>;
 };
 
@@ -61,7 +102,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
 
   for (const node of data.flatNodes.slice(Math.min(...rows), Math.max(...rows) + 1)) {
     for (const runId of data.runIds.slice(Math.min(...columns), Math.max(...columns) + 1)) {
-      if (isSelectableCell(node, findTaskInstance(data, runId, node.id))) {
+      if (isSelectableCell(node, findTaskInstance(data, runId, node.id), data.selectableGroups)) {
         selection.set(getCellKey(runId, node.id), { runId, taskId: node.id });
       }
     }
@@ -76,7 +117,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
  * plain click clears the selection and navigates as before.
  */
 export const useGridSelection = (data: GridData) => {
-  const { dagId = "", runId: openedRunId, taskId: openedTaskId } = useParams();
+  const { dagId = "", groupId: openedGroupId, runId: openedRunId, taskId: openedTaskId } = useParams();
   const [selection, setSelection] = useGridSelectionState();
   const anchorRef = useRef<GridCell | undefined>(undefined);
   // The click handler is passed to every run column; reading the grid data through a ref keeps it
@@ -140,11 +181,19 @@ export const useGridSelection = (data: GridData) => {
       const isSelectable = ({ runId, taskId }: GridCell) => {
         const node = dataRef.current.flatNodes.find((flatNode) => flatNode.id === taskId);
 
-        return node !== undefined && isSelectableCell(node, findTaskInstance(dataRef.current, runId, taskId));
+        return (
+          node !== undefined &&
+          isSelectableCell(
+            node,
+            findTaskInstance(dataRef.current, runId, taskId),
+            dataRef.current.selectableGroups,
+          )
+        );
       };
+      const openedId = openedTaskId ?? openedGroupId;
       const openedCell =
-        openedRunId !== undefined && openedTaskId !== undefined
-          ? { runId: openedRunId, taskId: openedTaskId }
+        openedRunId !== undefined && openedId !== undefined
+          ? { runId: openedRunId, taskId: openedId }
           : undefined;
 
       if (event.shiftKey && isSelectable(cell)) {
@@ -191,7 +240,7 @@ export const useGridSelection = (data: GridData) => {
 
       return false;
     },
-    [clearSelection, dagId, openedRunId, openedTaskId, setSelection],
+    [clearSelection, dagId, openedGroupId, openedRunId, openedTaskId, setSelection],
   );
 
   return { clearSelection, deselectCells, handleSelectionClick, selection: cells };

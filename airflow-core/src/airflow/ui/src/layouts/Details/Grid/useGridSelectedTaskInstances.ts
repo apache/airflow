@@ -24,7 +24,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import type { GridSelection } from "src/context/gridSelection";
 
-import { getCellKey } from "./useGridSelection";
+import { getCellKey, getCellTaskIds, type SelectableGroups } from "./useGridSelection";
 
 const PAGE_LIMIT = 100;
 
@@ -32,10 +32,20 @@ const PAGE_LIMIT = 100;
  * Load the task instances behind the selected grid cells. A mapped task's cell stands for all of
  * its map indexes, as it does when the cell is clicked.
  */
-export const useGridSelectedTaskInstances = (dagId: string, selection: GridSelection) => {
+export const useGridSelectedTaskInstances = (
+  dagId: string,
+  selection: GridSelection,
+  selectableGroups: SelectableGroups,
+) => {
   const cells = [...selection.values()];
   const runIds = [...new Set(cells.map((cell) => cell.runId))].sort();
-  const taskIds = [...new Set(cells.map((cell) => cell.taskId))].sort();
+  const taskIds = [...new Set(cells.flatMap((cell) => getCellTaskIds(cell, selectableGroups)))].sort();
+  // A group cell and a cell inside it can both be selected; each task instance is kept once.
+  const selectedKeys = new Set(
+    cells.flatMap((cell) =>
+      getCellTaskIds(cell, selectableGroups).map((taskId) => getCellKey(cell.runId, taskId)),
+    ),
+  );
 
   return useQuery({
     enabled: selection.size > 0,
@@ -64,14 +74,9 @@ export const useGridSelectedTaskInstances = (dagId: string, selection: GridSelec
         done = page.task_instances.length === 0 || taskInstances.length >= (page.total_entries ?? Infinity);
       }
 
-      return taskInstances.filter((ti) => selection.has(getCellKey(ti.dag_run_id, ti.task_id)));
+      return taskInstances.filter((ti) => selectedKeys.has(getCellKey(ti.dag_run_id, ti.task_id)));
     },
     // Under the task instances key so the bulk actions' invalidation refreshes the selection too.
-    queryKey: [
-      useTaskInstanceServiceGetTaskInstancesKey,
-      "gridSelection",
-      dagId,
-      [...selection.keys()].sort(),
-    ],
+    queryKey: [useTaskInstanceServiceGetTaskInstancesKey, "gridSelection", dagId, [...selectedKeys].sort()],
   });
 };

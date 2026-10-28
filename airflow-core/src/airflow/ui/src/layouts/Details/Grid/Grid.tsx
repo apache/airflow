@@ -46,7 +46,7 @@ import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
-import { useGridSelection } from "./useGridSelection";
+import { buildSelectableGroups, useGridSelection } from "./useGridSelection";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -161,6 +161,7 @@ export const Grid = ({
   // and on the click handlers below, `flatNodes` and the handlers get fresh references every render, so
   // each TI-summaries stream line re-renders every column instead of only the run whose summary changed.
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const selectableGroups = useMemo(() => buildSelectableGroups(dagStructure), [dagStructure]);
 
   const taskNameColumnWidthPx = showGantt ? estimateTaskNameColumnWidthPx(flatNodes) : undefined;
 
@@ -188,6 +189,7 @@ export const Grid = ({
   const { clearSelection, deselectCells, handleSelectionClick, selection } = useGridSelection({
     flatNodes,
     runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    selectableGroups,
     summariesByRunId,
   });
 
@@ -339,6 +341,7 @@ export const Grid = ({
         clearSelection={clearSelection}
         dagId={dagId}
         deselectCells={deselectCells}
+        selectableGroups={selectableGroups}
         selection={selection}
       />
     </Flex>

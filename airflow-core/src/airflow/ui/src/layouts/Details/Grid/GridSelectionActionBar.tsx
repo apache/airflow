@@ -29,23 +29,40 @@ import type { GridSelection } from "src/context/gridSelection";
 import { formatNumber } from "src/utils";
 
 import { useGridSelectedTaskInstances } from "./useGridSelectedTaskInstances";
+import { getCellTaskIds, type SelectableGroups } from "./useGridSelection";
 
 type Props = {
   readonly clearSelection: VoidFunction;
   readonly dagId: string;
   readonly deselectCells: (keys: Array<string>) => void;
+  readonly selectableGroups: SelectableGroups;
   readonly selection: GridSelection;
 };
 
-export const GridSelectionActionBar = ({ clearSelection, dagId, deselectCells, selection }: Props) => {
+export const GridSelectionActionBar = ({
+  clearSelection,
+  dagId,
+  deselectCells,
+  selectableGroups,
+  selection,
+}: Props) => {
   const { i18n, t: translate } = useTranslation();
-  const { data: selectedTaskInstances = [], isLoading } = useGridSelectedTaskInstances(dagId, selection);
+  const { data: selectedTaskInstances = [], isLoading } = useGridSelectedTaskInstances(
+    dagId,
+    selection,
+    selectableGroups,
+  );
 
-  // Bulk actions report each updated task instance as `dag_id.run_id.task_id[map_index]`.
+  // Bulk actions report each updated task instance as `dag_id.run_id.task_id[map_index]`. A group cell
+  // is deselected as soon as one of its task instances is updated.
   const deselectKeys = (keys: Array<string>) =>
     deselectCells(
       [...selection.entries()]
-        .filter(([, cell]) => keys.some((key) => key.startsWith(`${dagId}.${cell.runId}.${cell.taskId}[`)))
+        .filter(([, cell]) =>
+          getCellTaskIds(cell, selectableGroups).some((taskId) =>
+            keys.some((key) => key.startsWith(`${dagId}.${cell.runId}.${taskId}[`)),
+          ),
+        )
         .map(([cellKey]) => cellKey),
     );
 

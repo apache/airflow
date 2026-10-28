@@ -69,6 +69,7 @@ it("loads every page and keeps only the selected cells, with all map indexes of 
           { runId: "r1", taskId: "mapped" },
           { runId: "r2", taskId: "plain" },
         ]),
+        new Map(),
       ),
     { wrapper: Wrapper },
   );
@@ -88,10 +89,51 @@ it("loads every page and keeps only the selected cells, with all map indexes of 
   ]);
 });
 
+it("expands a group cell to the task instances inside it in that run, once each", async () => {
+  const batch = vi.spyOn(TaskInstanceService, "getTaskInstancesBatch").mockImplementation(
+    () =>
+      new CancelablePromise((resolve) =>
+        resolve({
+          task_instances: [
+            taskInstance("r1", "group.a"),
+            taskInstance("r1", "group.b"),
+            taskInstance("r2", "group.a"),
+            taskInstance("r2", "group.b"),
+          ],
+          total_entries: 4,
+        }),
+      ),
+  );
+
+  const { result } = renderHook(
+    () =>
+      useGridSelectedTaskInstances(
+        "dag",
+        selectionOf([
+          { runId: "r1", taskId: "group" },
+          { runId: "r1", taskId: "group.a" },
+          { runId: "r2", taskId: "group.b" },
+        ]),
+        new Map([["group", ["group.a", "group.b"]]]),
+      ),
+    { wrapper: Wrapper },
+  );
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(batch.mock.calls[0]?.[0].requestBody.task_ids).toEqual(["group.a", "group.b"]);
+  expect(result.current.data?.map((ti) => ti.id)).toEqual([
+    "r1-group.a--1",
+    "r1-group.b--1",
+    "r2-group.b--1",
+  ]);
+});
+
 it("does not load anything without a selection", () => {
   const batch = vi.spyOn(TaskInstanceService, "getTaskInstancesBatch");
 
-  renderHook(() => useGridSelectedTaskInstances("dag", new Map()), { wrapper: Wrapper });
+  renderHook(() => useGridSelectedTaskInstances("dag", new Map(), new Map()), {
+    wrapper: Wrapper,
+  });
 
   expect(batch).not.toHaveBeenCalled();
 });
