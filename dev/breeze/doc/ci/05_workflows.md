@@ -166,7 +166,10 @@ as well as automatic approvals, without listing the waiting runs. A PR pushed ag
 started keeps its label, because its newer runs may wait. The job checks out nothing, and the
 contributor-chosen head branch reaches its script only through the environment. A maintainer can
 approve the runs after the approval workflow listed them and before it writes the label and status,
-so after writing either it checks the runs again and clears both if none still waits.
+so after writing either it checks the runs again and clears both if none still waits. Only a
+started `Tests (AMD)` run clears them, so a PR that removes or renames that workflow keeps its
+label and pending status after its other runs are approved; such a PR changes CI definition files
+and is reviewed by a maintainer anyway, and the status does not block merging.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must

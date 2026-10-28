@@ -1293,3 +1293,18 @@ def test_apply_decision_does_not_recheck_the_runs_when_nothing_was_written():
 
     api.is_run_waiting_for_approval.assert_not_called()
     api.set_approval_status.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_clears_a_failed_pull_request_whose_runs_were_approved_meanwhile(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa")], [_run(1, "aaa")])
+    api.get_approval_status.return_value = None
+    api.is_run_waiting_for_approval.return_value = False
+    mock_decide.side_effect = requests.HTTPError("502 Server Error")
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert results[0].failed
+    api.is_run_waiting_for_approval.assert_called_once_with(1)
+    assert api.set_approval_status.call_args_list[-1] == mock.call("aaa", "success", "Workflow runs approved")
+    api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)

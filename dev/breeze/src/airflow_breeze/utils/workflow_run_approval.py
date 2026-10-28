@@ -687,15 +687,18 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 pr_run_ids = run_ids
                 # Without the label a PR that keeps failing drops out of the query window unnoticed.
                 try:
-                    if not has_need_workflow_approval_label(pr):
+                    has_label = has_need_workflow_approval_label(pr)
+                    if not has_label:
                         api.add_label(pr["number"], NEED_WORKFLOW_APPROVAL_LABEL)
                     # The error itself is only in the job summary: it can show the workflow's internals.
-                    update_approval_status(
+                    status_changed = update_approval_status(
                         api,
                         sha=head_sha,
                         state="pending",
                         description="Waits for a maintainer: the automatic check failed",
                     )
+                    if not has_label or status_changed:
+                        clear_if_runs_were_approved(api, pr=pr, run_ids=pr_run_ids)
                 except requests.RequestException as label_error:
                     console_print(
                         f"[warning]PR #{pr['number']}: adding the label failed: {escape(str(label_error))}[/]"
@@ -805,6 +808,22 @@ def update_approval_status(api: GitHubApi, *, sha: str, state: str, description:
     return True
 
 
+def clear_if_runs_were_approved(api: GitHubApi, *, pr: dict[str, Any], run_ids: list[int]) -> bool:
+    """
+    Undo the label and pending status just written if no run waits any more; return whether it did.
+
+    A maintainer may have approved the runs since they were listed, and the run that started may
+    already have cleared the label and status that were just written. An approval after this check
+    starts its run after the writes, so mark-workflow-runs-approved.yml clears them.
+    """
+    if any(api.is_run_waiting_for_approval(run_id) for run_id in run_ids):
+        return False
+    console_print(f"[info]PR #{pr['number']}: its runs were approved meanwhile[/]")
+    api.set_approval_status(pr["head"]["sha"], "success", "Workflow runs approved")
+    api.remove_label(pr["number"], NEED_WORKFLOW_APPROVAL_LABEL)
+    return True
+
+
 def has_need_workflow_approval_label(pr: dict[str, Any]) -> bool:
     return any(label["name"] == NEED_WORKFLOW_APPROVAL_LABEL for label in pr.get("labels", []))
 
@@ -834,15 +853,7 @@ def apply_decision(
         state="pending",
         description=build_status_description("Waits for a maintainer", decision.reasons),
     )
-    # A maintainer may have approved the runs since they were listed, and the run that started may
-    # already have cleared the label and status that were just written. An approval after this check
-    # starts its run after the writes, so mark-workflow-runs-approved.yml clears them.
-    if (not has_label or status_changed) and not any(
-        api.is_run_waiting_for_approval(run_id) for run_id in run_ids
-    ):
-        console_print(f"[info]PR #{pr_number}: its runs were approved meanwhile[/]")
-        api.set_approval_status(pr["head"]["sha"], "success", "Workflow runs approved")
-        api.remove_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
+    if (not has_label or status_changed) and clear_if_runs_were_approved(api, pr=pr, run_ids=run_ids):
         return
     # Once per PR: every later push would otherwise repeat it while the change stays.
     if decision.comment is not None and not api.has_bot_comment(pr_number, CI_CHANGE_MARKER):
