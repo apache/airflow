@@ -111,6 +111,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Asset``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/auth/cli/metadata``
+     - ``Public``
+     - ``No Airflow permission required``
+   * - ``GET``
      - ``/api/v2/auth/login``
      - ``Public``
      - ``No Airflow permission required``
