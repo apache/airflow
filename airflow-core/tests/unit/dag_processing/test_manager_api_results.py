@@ -28,7 +28,7 @@ from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 
 
-@pytest.mark.parametrize("outcome", ["parsed", "callback", "failed", "stale"])
+@pytest.mark.parametrize("outcome", ["parsed", "callback", "failed", "stale", "stale_failure"])
 @mock.patch("airflow.settings.Session", autospec=True, side_effect=AssertionError("Unexpected DB session"))
 def test_api_result_collection_does_not_create_database_session(session_factory, outcome, tmp_path):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
@@ -44,7 +44,8 @@ def test_api_result_collection_does_not_create_database_session(session_factory,
     processor.parsing_result = (
         DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome in {"parsed", "stale"} else None
     )
-    manager._bundle_refresh_generations[file.bundle_name] = 1 if outcome == "stale" else 0
+    source_changed = outcome in {"stale", "stale_failure"}
+    manager._bundle_refresh_generations[file.bundle_name] = 1 if source_changed else 0
     manager._processors[file] = processor
 
     manager._collect_results()
@@ -52,12 +53,16 @@ def test_api_result_collection_does_not_create_database_session(session_factory,
     session_factory.assert_not_called()
     processor.close.assert_called_once_with()
     assert not manager._processors
-    if outcome == "parsed":
-        assert manager._pending_publications[file].body.attempt_id == processor.id
+    if outcome in {"parsed", "failed"}:
+        body = manager._pending_publications[file].body
+        assert body.attempt_id == processor.id
+        assert body.dispatch_sequence == processor.dispatch_sequence
+        assert body.bundle_revision == processor.parse_source.bundle_revision
+        assert body.import_errors == ({"a.py": mock.ANY} if outcome == "failed" else {})
         manager._publish_pending_results()
         client.publish_parse_result.assert_called_once()
     else:
         assert not manager._pending_publications
         client.publish_parse_result.assert_not_called()
-    assert list(manager._file_queue) == ([file] if outcome == "stale" else [])
-    assert manager._file_stats[file].run_count == (0 if outcome in {"callback", "stale"} else 1)
+    assert list(manager._file_queue) == ([file] if source_changed else [])
+    assert manager._file_stats[file].run_count == (0 if outcome == "callback" or source_changed else 1)
