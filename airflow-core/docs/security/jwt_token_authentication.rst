@@ -529,10 +529,15 @@ provisioning requires the API's JWT signing keys and bundle-name configuration, 
 access the metadata database. Synchronize the configured bundle catalog and provision a
 separate token file for each processor::
 
-    airflow dag-processor --sync-bundles-only
+    airflow dag-processor-sync-bundles
     airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
 
-The command writes the token atomically. A new file is readable only by its owner, and replacing
+``dag-processor-sync-bundles`` synchronizes all configured bundles by default. Use
+``--bundle-name`` to select bundles without deactivating other catalog entries. It always
+uses the metadata database, even when ``execution_api_token_file`` is configured, and
+exits without starting a processor.
+
+The token command writes the token atomically. A new file is readable only by its owner, and replacing
 an existing file keeps its mode and group, so grant the processor read access once. ACLs are not
 carried over. Keep the provisioner running and mount its directory rather than a single file so
 token replacement stays visible. Each processor process needs its own session. Restarting the

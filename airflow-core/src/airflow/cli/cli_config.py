@@ -2321,14 +2321,6 @@ core_commands: list[CLICommand] = [
                 action="store_true",
                 help="Check the API-mode processor's loop and API heartbeat and exit",
             ),
-            Arg(
-                ("--sync-bundles-only",),
-                action="store_true",
-                help=(
-                    "Provision the bundle catalog on a trusted host using database access "
-                    "and the Fernet key for signing bundle URLs, then exit"
-                ),
-            ),
             ARG_PID,
             ARG_DAEMON,
             ARG_BUNDLE_NAME,
@@ -2339,6 +2331,17 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_DEV,
         ),
+    ),
+    ActionCommand(
+        name="dag-processor-sync-bundles",
+        help="Provision the Dag bundle catalog from a trusted host",
+        description=(
+            "Synchronize configured bundles with the metadata database and exit without starting a "
+            "processor. Run on a trusted host with database access and the Fernet key used to sign "
+            "bundle URLs, regardless of whether execution_api_token_file is configured."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor_sync_bundles"),
+        args=(ARG_BUNDLE_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="dag-processor-token",
