@@ -23,6 +23,7 @@ import pytest
 from airflow_breeze.commands.testing_commands import _run_test, pull_testcontainers_images
 from airflow_breeze.global_constants import TESTCONTAINERS_IMAGES_BY_PROVIDER, GroupOfTests
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.run_tests import is_provider_selected_in_test_types
 
 
 @pytest.fixture(autouse=True)
@@ -125,6 +126,34 @@ def test_test_is_skipped_when_all_providers_excluded_for_python_version(
     assert return_code == 0
     assert "Skipped" in message
     mock_run_command.assert_not_called()
+
+
+def test_split_provider_part_is_skipped_when_provider_excluded_for_python_version(
+    mock_run_command, mock_get_excluded_provider_folders
+):
+    mock_get_excluded_provider_folders.return_value = ["amazon"]
+    return_code, message = _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers[amazon:hooks]"),
+        extra_pytest_args=(),
+        python_version="3.14",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+    assert return_code == 0
+    assert "Skipped" in message
+    mock_run_command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("test_types", "expected"),
+    [
+        pytest.param(["Providers[amazon:hooks]"], True, id="part of the provider"),
+        pytest.param(["Providers[google:cloud-hooks]"], False, id="part of another provider"),
+    ],
+)
+def test_split_provider_part_selects_its_provider(test_types: list[str], expected: bool):
+    assert is_provider_selected_in_test_types("amazon", test_types) is expected
 
 
 def test_test_is_not_skipped_when_some_providers_remain(mock_run_command, mock_get_excluded_provider_folders):

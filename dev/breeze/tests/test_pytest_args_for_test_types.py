@@ -215,6 +215,45 @@ def test_pytest_args_for_missing_provider():
 
 
 @pytest.mark.parametrize(
+    ("test_type", "pytest_args"),
+    [
+        pytest.param(
+            "Providers[amazon:hooks]",
+            ["providers/amazon/tests/unit/amazon/aws/hooks"],
+            id="named part runs its paths",
+        ),
+        pytest.param(
+            "Providers[standard:python]",
+            ["providers/standard/tests/unit/standard/operators/test_python.py"],
+            id="a part can be a single file",
+        ),
+        pytest.param(
+            "Providers[amazon:other]",
+            [
+                "providers/amazon/tests",
+                "--ignore=providers/amazon/tests/unit/amazon/aws/hooks",
+                "--ignore=providers/amazon/tests/unit/amazon/aws/operators",
+            ],
+            id="other part ignores the named parts",
+        ),
+    ],
+)
+def test_pytest_args_for_split_provider_parts(test_type: str, pytest_args: list[str]):
+    assert (
+        convert_test_type_to_pytest_args(test_group=GroupOfTests.PROVIDERS, test_type=test_type)
+        == pytest_args
+    )
+
+
+@pytest.mark.parametrize(
+    "test_type", ["Providers[amazon:missing]", "Providers[airbyte:other]"], ids=["unknown part", "unsplit"]
+)
+def test_pytest_args_for_unknown_provider_part(test_type: str):
+    with pytest.raises(SystemExit):
+        convert_test_type_to_pytest_args(test_group=GroupOfTests.PROVIDERS, test_type=test_type)
+
+
+@pytest.mark.parametrize(
     ("test_group", "parallel_test_types", "folders"),
     [
         (

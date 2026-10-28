@@ -20,6 +20,7 @@ import ast
 import difflib
 import itertools
 import json
+import math
 import os
 import re
 import sys
@@ -51,10 +52,11 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     JAVA_SDK_VERSION,
     KIND_VERSION,
+    LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
-    NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
+    PROVIDER_TEST_SPLITS,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
@@ -74,6 +76,7 @@ from airflow_breeze.global_constants import (
     all_helm_test_packages,
     all_selective_core_test_types,
     get_airflow_version,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
@@ -1979,6 +1982,12 @@ class SelectiveChecks:
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
         self._filter_platform_excluded_test_types(current_test_types)
+        if not self._is_on_runs_on:
+            return current_test_types
+        for provider_id in PROVIDER_TEST_SPLITS:
+            if f"Providers[{provider_id}]" in current_test_types:
+                current_test_types.remove(f"Providers[{provider_id}]")
+                current_test_types.update(get_provider_split_test_types(provider_id))
         return current_test_types
 
     @cached_property
@@ -1990,7 +1999,9 @@ class SelectiveChecks:
         if not current_test_types:
             return None
         number_of_slices = (
-            NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON if self._is_on_runs_on else NUMBER_OF_LOW_DEP_SLICES
+            math.ceil(len(current_test_types) / LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON)
+            if self._is_on_runs_on
+            else NUMBER_OF_LOW_DEP_SLICES
         )
         if len(current_test_types) < number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))

@@ -90,9 +90,11 @@ from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
+    PROVIDER_TEST_SPLITS,
     TESTCONTAINERS_IMAGES_BY_PROVIDER,
     GroupOfTests,
     all_selective_core_test_types,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -391,6 +393,11 @@ def _run_tests_in_pool(
     # tests are still running. We are only adding here test types that take more than 2 minutes to run
     # on a fast machine in parallel
     sorting_order = [
+        *(
+            test_type
+            for provider_id in PROVIDER_TEST_SPLITS
+            for test_type in get_provider_split_test_types(provider_id)
+        ),
         "Providers[standard]",
         "Providers[amazon]",
         "Providers[google]",

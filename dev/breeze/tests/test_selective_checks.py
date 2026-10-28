@@ -39,10 +39,10 @@ from airflow_breeze.global_constants import (
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
-    NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
     get_airflow_version,
+    get_provider_split_test_types,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
@@ -111,6 +111,12 @@ ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
 
 LIST_OF_ALL_PROVIDER_TESTS = [
     f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)
+]
+
+LIST_OF_ALL_PROVIDER_TESTS_ON_RUNS_ON = [
+    test_type
+    for provider in get_available_distributions(include_not_ready=True)
+    for test_type in get_provider_split_test_types(provider)
 ]
 
 LIST_OF_ALL_PROVIDER_TESTS_AS_JSON = json.dumps(
@@ -2253,20 +2259,28 @@ def test_list_splitting():
 
 
 @pytest.mark.parametrize(
-    ("github_event", "github_context_dict", "expected_core_slices", "expected_low_dep_slices"),
+    (
+        "github_event",
+        "github_context_dict",
+        "expected_core_slices",
+        "expected_low_dep_slices",
+        "expected_low_dep_test_types",
+    ),
     [
         pytest.param(
             GithubEvents.PULL_REQUEST,
             {},
             NUMBER_OF_CORE_SLICES,
             NUMBER_OF_LOW_DEP_SLICES,
+            LIST_OF_ALL_PROVIDER_TESTS,
             id="public runners",
         ),
         pytest.param(
             GithubEvents.PUSH,
             {"run_id": 42},
             NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
-            NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON,
+            3,
+            LIST_OF_ALL_PROVIDER_TESTS_ON_RUNS_ON,
             id="RunsOn runners",
         ),
     ],
@@ -2276,6 +2290,7 @@ def test_number_of_test_type_slices_follows_runners(
     github_context_dict: dict[str, Any],
     expected_core_slices: int,
     expected_low_dep_slices: int,
+    expected_low_dep_test_types: list[str],
 ):
     selective_checks = SelectiveChecks(
         pr_labels=("full tests needed",),
@@ -2291,7 +2306,9 @@ def test_number_of_test_type_slices_follows_runners(
     assert sorted(" ".join(s["test_types"] for s in core_slices).split()) == sorted(
         ALL_CI_SELECTIVE_TEST_TYPES.split()
     )
-    assert sum(len(s["test_types"].split()) for s in low_dep_slices) == len(LIST_OF_ALL_PROVIDER_TESTS)
+    assert sorted(" ".join(s["test_types"] for s in low_dep_slices).split()) == sorted(
+        expected_low_dep_test_types
+    )
 
 
 @pytest.mark.parametrize(
@@ -2312,7 +2329,7 @@ def test_number_of_test_type_slices_follows_runners(
         pytest.param(
             GithubEvents.PUSH,
             {"run_id": 42},
-            sorted(LIST_OF_ALL_PROVIDER_TESTS),
+            sorted(LIST_OF_ALL_PROVIDER_TESTS_ON_RUNS_ON),
             id="RunsOn runners list each provider",
         ),
     ],
@@ -2351,6 +2368,23 @@ def test_providers_xdist_test_types_are_not_split(platform: str, expected_test_t
     )
     slices = json.loads(selective_checks.providers_xdist_test_types_list_as_strings_in_json)
     assert [s["test_types"] for s in slices] == [expected_test_types]
+
+
+@patch.object(SelectiveChecks, "_is_on_runs_on", new=property(lambda self: True))
+def test_individual_providers_split_the_longest_running_providers_on_runs_on():
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/src/airflow/providers/amazon/aws/hooks/s3.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+        github_event=GithubEvents.PULL_REQUEST,
+    )
+    slices = json.loads(selective_checks.individual_providers_test_types_list_as_strings_in_json)
+    assert len(slices) == 1
+    test_types = slices[0]["test_types"].split()
+    assert "Providers[amazon]" not in test_types
+    assert {"Providers[amazon:hooks]", "Providers[amazon:operators]", "Providers[amazon:other]"} <= set(
+        test_types
+    )
 
 
 def test_excluded_providers():

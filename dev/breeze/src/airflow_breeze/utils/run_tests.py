@@ -26,6 +26,8 @@ from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     NONE_TEST_TYPE,
+    PROVIDER_TEST_SPLIT_OTHER_PART,
+    PROVIDER_TEST_SPLITS,
     GroupOfTests,
     SelectiveCoreTestType,
     all_helm_test_packages,
@@ -274,9 +276,14 @@ def are_all_test_paths_excluded(
     test_dir_paths = [p for p in initial_paths if not p.startswith("-")]
     if not test_dir_paths:
         return False
-    excluded = set(get_excluded_test_provider_folders(python_version))
-    suspended = set(get_suspended_test_provider_folders())
-    return all(p in excluded | suspended for p in test_dir_paths)
+    excluded_or_suspended = [
+        *get_excluded_test_provider_folders(python_version),
+        *get_suspended_test_provider_folders(),
+    ]
+    return all(
+        any(p == folder or p.startswith(f"{folder}/") for folder in excluded_or_suspended)
+        for p in test_dir_paths
+    )
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
@@ -382,7 +389,10 @@ def is_provider_selected_in_test_types(provider_id: str, test_types: list[str]) 
             if provider_id not in excluded:
                 return True
         elif test_type.startswith(PROVIDERS_LIST_PREFIX):
-            included = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
+            included = [
+                included_id.partition(":")[0]
+                for included_id in test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
+            ]
             if provider_id in included:
                 return True
         else:
@@ -447,6 +457,8 @@ def convert_test_type_to_pytest_args(
                     )
                     providers_with_exclusions.remove(provider_test_to_exclude)
             return providers_with_exclusions
+        if test_type.startswith(PROVIDERS_LIST_PREFIX) and ":" in test_type:
+            return convert_provider_part_to_pytest_args(test_type[len(PROVIDERS_LIST_PREFIX) : -1])
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
@@ -480,6 +492,22 @@ def convert_test_type_to_pytest_args(
         return test_dirs.copy()
     console_print(f"[error]Unknown test type: {test_type}[/]")
     sys.exit(1)
+
+
+def convert_provider_part_to_pytest_args(provider_part: str) -> list[str]:
+    """Pytest args for one part of a split provider, given as ``<provider_id>:<part>``."""
+    provider_id, _, part = provider_part.partition(":")
+    parts = PROVIDER_TEST_SPLITS.get(provider_id, {})
+    tests_folder = f"providers/{provider_id.replace('.', '/')}/tests"
+    if part == PROVIDER_TEST_SPLIT_OTHER_PART and parts:
+        return [
+            tests_folder,
+            *(f"--ignore={tests_folder}/{path}" for paths in parts.values() for path in paths),
+        ]
+    if part not in parts:
+        console_print(f"[error]Unknown part {part!r} of the {provider_id!r} provider tests[/]")
+        sys.exit(1)
+    return [f"{tests_folder}/{path}" for path in parts[part]]
 
 
 def generate_args_for_pytest(

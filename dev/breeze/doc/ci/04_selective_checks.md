@@ -780,14 +780,22 @@ The matrix slices follow it too. On public runners the core test types are split
 `NUMBER_OF_CORE_SLICES` (2) jobs, to keep the Non-DB xdist collection inside the runner's memory, and
 the individually listed providers into `NUMBER_OF_LOW_DEP_SLICES` (5). On RunsOn the core test types
 stay in one job (`NUMBER_OF_CORE_SLICES_ON_RUNS_ON`), because a core DB job lasts as long as its
-slowest test type whichever slice it is in, and the providers are split into 3 jobs
-(`NUMBER_OF_LOW_DEP_SLICES_ON_RUNS_ON`), so each job has about one provider per CPU of its runner.
+slowest test type whichever slice it is in, and the providers are split into jobs of about 40 test types
+(`LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON`), which the heaviest-first ordering keeps the 32 CPUs busy with:
+3 jobs for all providers, one for a change touching a few. On RunsOn the longest-running providers
+(`PROVIDER_TEST_SPLITS`: amazon, google and standard) are also split into several test types such as
+`Providers[amazon:hooks]`, with `Providers[amazon:other]` running the rest of the provider's tests, so
+none of them leaves the job waiting on one long serial pytest.
 `spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
 the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
 * The EC2 cost summary of each job.
+* The docker address pools (`scripts/ci/configure_docker_address_pools.sh`). Every test type of a parallel
+  run is a docker compose project with a network of its own, and Docker's default pools fit about 30
+  networks, fewer than a RunsOn runner runs test types at once; the script splits the same range into
+  `/24` subnets.
 * The image stashes (`.github/actions/stash-restore` / `stash-save`). On RunsOn the image tarballs go to
   the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
   Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by
