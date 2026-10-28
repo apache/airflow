@@ -187,15 +187,16 @@ def _create_unused_trigger(session) -> int:
     return trigger.id
 
 
-def _clean_unused_adding_reference_before_delete(session, trigger_id, add_reference):
-    """Run clean_unused, executing ``add_reference`` right before its DELETE (#72061)."""
-    reference_added = False
+def _clean_unused_while_adding_reference(session, trigger_id, add_reference):
+    """
+    Run clean_unused, executing ``add_reference`` right before its DELETE (#72061).
+
+    The trigger is unreferenced until then, so it surviving the cleanup also shows the reference was added.
+    """
 
     def add_reference_before_delete(connection, cursor, statement, parameters, context, executemany):
-        nonlocal reference_added
         normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
-        if not reference_added and "delete from trigger" in normalized_statement:
-            reference_added = True
+        if "delete from trigger" in normalized_statement:
             connection.execute(add_reference)
 
     event.listen(session.bind, "before_cursor_execute", add_reference_before_delete)
@@ -205,7 +206,6 @@ def _clean_unused_adding_reference_before_delete(session, trigger_id, add_refere
     finally:
         event.remove(session.bind, "before_cursor_execute", add_reference_before_delete)
 
-    assert reference_added
     assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger_id)) == 1
 
 
@@ -217,7 +217,7 @@ def test_clean_unused_keeps_trigger_deferred_onto_during_cleanup(session, create
     )
     session.commit()
 
-    _clean_unused_adding_reference_before_delete(
+    _clean_unused_while_adding_reference(
         session,
         trigger_id,
         update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id),
@@ -238,7 +238,7 @@ def test_clean_unused_keeps_trigger_watched_during_cleanup(session):
     session.add(asset)
     session.commit()
 
-    _clean_unused_adding_reference_before_delete(
+    _clean_unused_while_adding_reference(
         session,
         trigger_id,
         insert(AssetWatcherModel).values(name="race-test-watcher", asset_id=asset.id, trigger_id=trigger_id),
@@ -261,7 +261,7 @@ def test_clean_unused_keeps_trigger_used_by_callback_during_cleanup(session):
     session.add(callback)
     session.commit()
 
-    _clean_unused_adding_reference_before_delete(
+    _clean_unused_while_adding_reference(
         session,
         trigger_id,
         update(Callback).where(Callback.id == callback.id).values(trigger_id=trigger_id),
