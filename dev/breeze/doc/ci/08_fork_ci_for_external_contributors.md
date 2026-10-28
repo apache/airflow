@@ -363,7 +363,8 @@ applies instead:
   `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
   review) run on GitHub-hosted runners.
 - Otherwise the runs wait for a maintainer, the pull request is labelled `need workflow approval`,
-  and the workflow posts one comment explaining that the change to the listed CI files needs a
+  its head commit gets a pending `Workflow approval` status naming the CI files (as for every
+  pull request whose runs wait), and the workflow posts one comment explaining that the change to the listed CI files needs a
   maintainer to review it and approve the runs. The comment starts with the marker
   `<!-- workflow-approval: ci-change -->` and is posted once per pull request; only comments by
   `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a

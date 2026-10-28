@@ -1056,6 +1056,47 @@ class TestInletEventAccessor:
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
 
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param("2024-01-01T00:00:00Z", id="str"),
+            pytest.param(datetime(2024, 1, 1, tzinfo=UTC), id="datetime"),
+        ],
+    )
+    def test__get_item__with_bounds(self, sample_inlet_evnets_accessor, mock_supervisor_comms, bound):
+        mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[])]
+        expected = datetime(2024, 1, 1, tzinfo=UTC)
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].after(bound).before(bound))
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name="test_uri",
+                uri="test://test/",
+                after=expected,
+                before=expected,
+                limit=None,
+                ascending=True,
+            )
+        )
+
+    @pytest.mark.parametrize("method", ["after", "before"])
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param(datetime(2024, 1, 1), id="naive-datetime"),
+            pytest.param("2024-01-01T00:00:00", id="naive-str"),
+            pytest.param("not a timestamp", id="malformed-str"),
+        ],
+    )
+    def test_invalid_bound_raises_on_call(
+        self, sample_inlet_evnets_accessor, mock_supervisor_comms, method, bound
+    ):
+        accessor = sample_inlet_evnets_accessor[TEST_ASSET]
+        with pytest.raises(ValidationError):
+            getattr(accessor, method)(bound)
+        mock_supervisor_comms.send.assert_not_called()
+
     def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
         asset_event_resp = AssetEventResult(
             id=1,

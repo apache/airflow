@@ -25,7 +25,7 @@ and compares the two serializations field by field.
 
 Run from the repo root:
 
-    python3 scripts/ci/prek/check_go_sdk_serialization_conformance.py
+    python3 scripts/ci/lang_sdk_serialization/check_go_sdk.py
 
 It needs ``go`` and ``uv``. Exits 0 when the two serializations agree, 1 otherwise.
 """

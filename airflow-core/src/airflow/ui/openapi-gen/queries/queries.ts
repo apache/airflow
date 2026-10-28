@@ -1837,6 +1837,17 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const useProviderServiceGetProvider = <TData = Common.ProviderServiceGetProviderDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ providerName }: {
+  providerName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }, queryKey), queryFn: () => ProviderService.getProvider({ providerName }) as TData, ...options });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -2151,6 +2162,13 @@ export const useVersionServiceGetVersion = <TData = Common.VersionServiceGetVers
 export const useLoginServiceLogin = <TData = Common.LoginServiceLoginDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ next }: {
   next?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey), queryFn: () => LoginService.login({ next }) as TData, ...options });
+/**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceGetCliLoginMetadata = <TData = Common.LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(queryKey), queryFn: () => LoginService.getCliLoginMetadata() as TData, ...options });
 /**
 * Logout
 * Logout the user.
