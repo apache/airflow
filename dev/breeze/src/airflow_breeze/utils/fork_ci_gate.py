@@ -22,6 +22,11 @@ to CI in the contributor's fork. See dev/breeze/doc/ci/08_fork_ci_for_external_c
 
 The gate job in ``ci-amd.yml`` runs this file with the runner's ``python3`` from a sparse
 checkout, without installing breeze, so it must only import from the standard library.
+
+This file is part of the fork CI gate. A pull request whose CI runs in the contributor's fork
+must not change it, because the change would decide where its own CI runs: the fork CI
+monitor closes such a pull request with a comment explaining why. See "Gate protection" in
+the document above.
 """
 
 from __future__ import annotations
@@ -129,7 +134,6 @@ class GateConfig:
     allowlist: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     pilot: Mapping[str, datetime] = field(default_factory=dict)
     job_statuses: bool = True
-    cancel_merged_runs: bool = True
 
     def is_allowlisted(self, login: str) -> bool:
         wanted = login.casefold()
@@ -178,9 +182,6 @@ def parse_config(text: str) -> GateConfig:
     job_statuses = data.get("job_statuses", True)
     if not isinstance(job_statuses, bool):
         raise ValueError(f"job_statuses must be true or false, got {job_statuses!r}")
-    cancel_merged_runs = data.get("cancel_merged_runs", True)
-    if not isinstance(cancel_merged_runs, bool):
-        raise ValueError(f"cancel_merged_runs must be true or false, got {cancel_merged_runs!r}")
     return GateConfig(
         enabled=enabled,
         enabled_since=enabled_since,
@@ -188,7 +189,6 @@ def parse_config(text: str) -> GateConfig:
         allowlist=allowlist,
         pilot=pilot,
         job_statuses=job_statuses,
-        cancel_merged_runs=cancel_merged_runs,
     )
 
 

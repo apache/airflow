@@ -107,8 +107,10 @@ them, for the contributors the repository's approval setting covers. The
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
   branches' own workflows and always wait for a maintainer
-- the PR changes nothing under `.github/`, `dev/breeze/` or `scripts/ci/`, which define the workflows
-  and choose the runners
+- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`,
+  `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`, a top-level `Dockerfile*`, a
+  `.pre-commit-config.yaml` in any directory),
+  which define the workflows, what their jobs run and the runners they use
 - the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
   `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
   run from `main`'s tree and do not know it)
@@ -121,12 +123,19 @@ them, for the contributors the repository's approval setting covers. The
 
 A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
 project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
-gate: its runs are approved whatever its size, cost or dependency changes, unless it changes a file
-the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`, `scripts/ci/`,
-`scripts/docker/`, `scripts/in_container/`, `Dockerfile*`, `.pre-commit-config.yaml`). Such a PR gets
-the `need workflow approval` label and one comment telling the author that the CI change needs a
-maintainer; see
+gate: its runs are approved whatever its size, cost or dependency changes, unless it changes one of
+those CI-defining files. Such a PR gets the `need workflow approval` label and one comment telling
+the author that the CI change needs a maintainer; see
 [Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
+
+The runs of PRs whose head repository belongs to a trusted stakeholder (`astronomer/airflow` for
+Astronomer, `aws-mwaa/upstream-to-airflow` for Amazon, `VladaZakharova/airflow` for Google; listed in
+`TRUSTED_STAKEHOLDER_REPOSITORIES`) are approved whatever the PR changes or targets: only people with
+write access to those repositories can push the PR's commits. The repositories are matched by their
+numeric id, so a repository that later takes over one of these names is not trusted. None of the
+rules above apply to them, and of the rules below only the 24-hour window does: their runs are
+approved even when several open PRs share the head commit, or when the runs started before the PR
+was opened, retargeted or relabelled.
 
 Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
 approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
@@ -141,10 +150,26 @@ maintainer, since it still runs the selection it started with; the next push is 
 For a PR whose CI runs in the fork neither the selection nor the labels a run started with matter:
 the gate reads the current labels when the run starts and fails when it cannot, so a run started
 before `use fork ci` or `use project ci` was added or removed is approved too. Other PRs get the
-`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
-a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
-failure stays visible even if the label could not be added. The label is removed when a later commit
-of the PR is approved automatically.
+`need workflow approval` label and wait for a maintainer. Their head commit also gets a pending
+`Workflow approval` commit status whose description gives the reason (cut to GitHub's 140
+characters), so the author sees why in the PR's checks without a notifying comment. The status is
+not a required check and does not block merging. When processing a PR fails (for example on a
+GitHub API error), the workflow tries to add the label and a pending status with a generic reason,
+and the workflow run fails, so the failure stays visible even if the label could not be added.
+
+The label is removed when a later commit of the PR is approved automatically. GitHub has no event
+for approving runs, but a run waiting for approval never starts, so the `mark-workflow-runs-approved.yml`
+workflow follows the `Tests (AMD)` runs of fork PRs instead: when one reaches `in_progress`, a
+`ubuntu-slim` job makes a few `gh api` calls that turn the commit's pending status green and remove
+the label of the open PRs whose head is that commit. This covers runs a maintainer approves by hand
+as well as automatic approvals, without listing the waiting runs. A PR pushed again after the run
+started keeps its label, because its newer runs may wait. The job checks out nothing, and the
+contributor-chosen head branch reaches its script only through the environment. A maintainer can
+approve the runs after the approval workflow listed them and before it writes the label and status,
+so after writing either it checks the runs again and clears both if none still waits. Only a
+started `Tests (AMD)` run clears them, so a PR that removes or renames that workflow keeps its
+label and pending status after its other runs are approved; such a PR changes CI definition files
+and is reviewed by a maintainer anyway, and the status does not block merging.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must
@@ -243,6 +268,31 @@ Each composite workflow is stored in `.github/workflows/` and gets called using 
 ### Workflow Cancellation
 
 GitHub Actions includes a concurrency feature that we use to prevent wasted resources. If you push new commits while tests are already running, the system cancels the old test run and starts over with your latest code. This saves time and compute resources.
+
+### Cancelling runs of merged pull requests
+
+Merging a pull request does not stop its `pull_request` runs, and the concurrency group does not
+help, because the merge starts no new run in the pull request's group. Maintainers often merge
+once the checks they need are green, while slower jobs are still queued or running for a result
+nobody reads.
+
+Merging pushes to the target branch, which starts `cancel-merged-pr-runs.yml`. It looks up the
+merged pull request of the pushed commit and cancels its `pull_request` runs that are `queued`,
+`in_progress`, `waiting`, `pending` or `requested`. A push run has a token that can write to
+`apache/airflow`, so it cancels the runs of fork pull requests too. A run is cancelled when:
+
+- its head repository and commit are the merged pull request's (runs of pull requests from forks
+  do not list their pull request, so they are matched this way);
+- no open pull request has the same head commit; such runs are left to finish, since no later push
+  revisits them;
+- it was created before the merge. A workflow triggered by the merge itself, such as one on the
+  `closed` event, is meant to run.
+
+A run still not finished five minutes after the cancel, for example because a step ignores the
+cancellation, is force-cancelled. A run of an earlier commit of the pull request is normally
+cancelled by its concurrency group when the next commit is pushed. A push runs the workflow file
+of the pushed branch, so the cancellation works on a release branch only once the workflow is on
+that branch.
 
 ## Branch-Specific Behavior
 
@@ -525,7 +575,9 @@ its last. An interrupted job ends with exit code 137 and no test failure in its 
   each pull request every 10 minutes, including runs still in progress, and keeps one
   comment on the pull request: which jobs were interrupted and that RunsOn re-runs them,
   and, once the re-run finished, whether it passed. It runs on a schedule, not on the
-  runs' events, so no pull request run gets write access.
+  runs' events, so no pull request run gets write access. GitHub server errors (HTTP 5xx)
+  are retried, and when they persist the affected run is skipped with a warning and left
+  to the next check rather than failing the workflow; other errors still fail it.
 - **Slack.** The `notify-slack` job of a canary does not post when every failure is a Spot
   interruption that RunsOn re-runs, and leaves the notification state alone; it posts for
   RunsOn's re-run instead, including when the re-run passed. It still posts for attempt

@@ -56,7 +56,7 @@ Constructor parameters:
   Modal's own default is 300, which is below a plausible agent run.
 - ``idle_timeout``: Seconds of inactivity after which Modal reclaims the sandbox,
   or ``None`` to rely on ``sandbox_timeout`` alone. Default ``None``; see
-  :ref:`Configuring a sandbox <sandbox-configuring>`.
+  :ref:`sandbox-timeouts`.
 - ``workdir``: Working directory for commands, created if the image lacks it.
   Default ``"/workspace"``. It is a starting directory, not a jail: absolute paths
   and ``..`` are passed through, and commands run as root, so the model can read
@@ -702,6 +702,13 @@ Constructor parameters:
   ``True`` that includes a bare ``SandboxSpec()``. Set ``"deny-all"`` after running
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open
   and pass ``SandboxSpec(block_network=False)`` to match.
+
+The ``sbx`` CLI has no way to pass environment variables at creation, so the backend
+writes ``SandboxSpec.env`` as ``export`` lines to ``/etc/profile`` inside the
+sandbox. Anything in the sandbox can read that file for as long as the sandbox
+exists.
+
+.. _sandbox-backend-differences:
 
 What differs between the backends
 ---------------------------------

@@ -291,7 +291,8 @@ def make_sure_kubernetes_tools_are_installed():
 
 
 def sync_virtualenv(force_venv_setup: bool) -> RunCommandResult:
-    uv_sync_cmd = ["uv", "sync"]
+    # kubernetes-tests is a workspace member: a plain `uv sync` would re-resolve and rewrite the root uv.lock.
+    uv_sync_cmd = ["uv", "sync", "--frozen"]
     if force_venv_setup:
         uv_sync_cmd.append("--reinstall")
     if os.environ.get("CI", "false") == "true":

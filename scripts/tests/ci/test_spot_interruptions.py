@@ -295,9 +295,13 @@ def test_find_comment_ignores_comments_of_others(spot):
         assert spot.find_comment("apache/airflow", 42) == spot.Comment(1, f"{marker}\nnotice")
 
 
-def test_run_pr_comments_carries_on_past_a_failing_run(spot):
+SERVER_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Server Error (HTTP 502)\n")
+NOT_FOUND_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Not Found (HTTP 404)\n")
+
+
+@pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, False)])
+def test_run_pr_comments_carries_on_past_a_failing_run(spot, capsys, error, expected_ok):
     runs = [_run(branch="a"), _run(branch="b")]
-    error = subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 502")
 
     with (
         mock.patch.object(spot, "list_pull_request_runs", autospec=True, return_value=runs),
@@ -305,8 +309,45 @@ def test_run_pr_comments_carries_on_past_a_failing_run(spot):
     ):
         ok = spot.run_pr_comments("apache/airflow", datetime(2026, 10, 25, tzinfo=UTC))
 
-    assert ok is False
+    assert ok is expected_ok
     assert mock_update.call_count == 2
+    assert capsys.readouterr().out.startswith("::warning::") is expected_ok
+
+
+@pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, None)])
+def test_run_pr_comments_when_listing_the_runs_fails(spot, error, expected_ok):
+    with mock.patch.object(spot, "list_pull_request_runs", autospec=True, side_effect=error):
+        if expected_ok is None:
+            with pytest.raises(subprocess.CalledProcessError):
+                spot.run_pr_comments("apache/airflow", datetime(2026, 10, 25, tzinfo=UTC))
+        else:
+            assert spot.run_pr_comments("apache/airflow", datetime(2026, 10, 25, tzinfo=UTC)) is expected_ok
+
+
+@pytest.mark.parametrize(
+    ("args", "errors", "expected_calls", "expected_error"),
+    [
+        pytest.param(("repos/x",), [SERVER_ERROR, SERVER_ERROR], 3, None, id="retries-server-errors"),
+        pytest.param(("repos/x",), [SERVER_ERROR] * 3, 3, SERVER_ERROR, id="gives-up"),
+        pytest.param(("repos/x",), [NOT_FOUND_ERROR], 1, NOT_FOUND_ERROR, id="no-retry-on-client-error"),
+        pytest.param(("-X", "POST", "repos/x"), [SERVER_ERROR], 1, SERVER_ERROR, id="no-retry-on-post"),
+        pytest.param(("-X", "PATCH", "repos/x"), [SERVER_ERROR], 2, None, id="retries-patch"),
+    ],
+)
+@mock.patch("time.sleep", autospec=True)
+@mock.patch("subprocess.run", autospec=True)
+def test_gh_api_retries_server_errors(
+    mock_run, mock_sleep, spot, args, errors, expected_calls, expected_error
+):
+    mock_run.side_effect = [*errors, subprocess.CompletedProcess([], 0, stdout="out")]
+
+    if expected_error is None:
+        assert spot.gh_api(*args) == "out"
+    else:
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            spot.gh_api(*args)
+        assert raised.value is expected_error
+    assert mock_run.call_count == expected_calls
 
 
 def test_run_slack_writes_outputs(spot, monkeypatch, tmp_path):

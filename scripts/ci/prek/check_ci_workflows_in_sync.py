@@ -48,9 +48,10 @@ Documented divergences:
    ``slack_notification_state.py`` keeps independent state for each
    platform on the same branch
 9. ``gate`` job, the ``needs: [gate]`` / ``if:`` lines of ``build-info``
-   and ``gate`` in the needs of ``ci-passed`` — AMD only. The fork CI gate (AIP-120) decides whether project CI runs
-   for pull requests; ARM has no pull_request or push trigger, and the
-   ``check-run-needed`` step both share skips a fork's scheduled run.
+   and ``gate`` in the needs of ``ci-passed`` and ``check-timed-out-jobs``
+   — AMD only. The fork CI gate (AIP-120) decides whether project CI
+   runs for pull requests; ARM has no pull_request or push trigger, and
+   the ``check-run-needed`` step both share skips a fork's scheduled run.
 
 Anything else differing between the two files is a drift bug. To
 intentionally introduce a new divergence, update the rules in this script
@@ -160,7 +161,9 @@ AMD_ONLY_BLOCK = """  schedule:
 AMD_ONLY_GATE_BLOCK = """  gate:
     # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
     # code come from the base branch so a pull request cannot change its own eligibility. See
-    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md. A pull request whose CI runs
+    # in the contributor's fork and changes this job, or how build-info depends on it, is closed
+    # by the fork CI monitor ("Gate protection" in that document).
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
@@ -258,7 +261,8 @@ AMD_ONLY_GATE_BLOCK = """  gate:
       needs.gate.outputs.project-ci == 'true' &&
       needs.check-run-needed.outputs.run-needed == 'true'
 """
-# The gate is also one of the jobs the "CI passed" gate job of the merge ruleset needs.
+# The gate is also one of the jobs the "CI passed" gate job of the merge ruleset needs, and so is
+# in the needs of `check-timed-out-jobs`, which must match them.
 AMD_ONLY_CI_PASSED_GATE_NEED = """      - finalize-tests
       - gate
       - generate-constraints
@@ -334,8 +338,11 @@ def normalize(content: str, *, side: str) -> str:
             raise SystemExit("ci-amd.yml contains the ARM-only trigger block — should not.")
         if AMD_ONLY_GATE_BLOCK not in content:
             raise SystemExit(f"ci-amd.yml is missing its expected fork CI gate block:\n{AMD_ONLY_GATE_BLOCK}")
-        if content.count(AMD_ONLY_CI_PASSED_GATE_NEED) != 1:
-            raise SystemExit("ci-amd.yml must list `gate` once in the needs of the CI passed job.")
+        if content.count(AMD_ONLY_CI_PASSED_GATE_NEED) != 2:
+            raise SystemExit(
+                "ci-amd.yml must list `gate` once in the needs of the CI passed job"
+                " and once in those of check-timed-out-jobs."
+            )
         content = (
             content.replace(AMD_ONLY_BLOCK, "")
             .replace(AMD_ONLY_GATE_BLOCK, AMD_ONLY_GATE_REPLACEMENT)

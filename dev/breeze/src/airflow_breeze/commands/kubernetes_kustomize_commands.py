@@ -488,7 +488,7 @@ def _run_overlay_pytest(
     env["OVERLAY_UNDER_TEST"] = overlay_name
     env["OVERLAY_NAMESPACE"] = namespace
     env["OVERLAY_RELEASE_NAME"] = release_name
-    pytest_cmd = ["uv", "run", "pytest", str(test_file.relative_to(CHART_PATH)), "-xvs"]
+    pytest_cmd = ["uv", "run", "--frozen", "pytest", str(test_file.relative_to(CHART_PATH)), "-xvs"]
     console_print(f"[info]Running behavioural tests: {' '.join(pytest_cmd)}")
     result = run_command(pytest_cmd, env=env, check=False, cwd=CHART_PATH.as_posix())
     return result.returncode

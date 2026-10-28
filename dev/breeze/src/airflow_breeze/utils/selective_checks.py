@@ -308,12 +308,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/sql/.*",
         ],
         FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
-            # Only add files that affect the compat setup and do NOT already trigger the full matrix
-            # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
-            # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
+            # run_openlineage_e2e_compat_tests ignores full_tests_needed. A file that drives the compat setup
+            # belongs here even when it also forces the full matrix, as the compat workflow does.
+            r"^\.github/workflows/openlineage-e2e-compat-tests\.yml$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+            r"^airflow-e2e-tests/docker/openlineage-compat-db\.yml$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
             # API documentation entry points and Markdown do not affect runtime e2e tests.
@@ -1453,14 +1454,13 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_openlineage_e2e_compat_tests(self) -> bool:
-        # Costly older-Airflow matrix. Like run_ui_e2e_tests it is not triggered by *derived*
-        # full_tests_needed (pushes, env changes, large PRs) — only by canary, an explicit label, or
-        # an actual change to a file that drives the compat setup but does not itself force the full
-        # matrix: the shared e2e harness (conftest / constants) or the compat Dockerfile. The compat
-        # workflow already forces full_tests_needed via ENVIRONMENT_FILES.
+        # The older-Airflow matrix is costly. Like run_ui_e2e_tests, this check ignores full_tests_needed.
+        # Many changes that do not touch the compat setup also set full_tests_needed, for example changes to
+        # environment files or the API spec. So a PR that changes only breeze's e2e command does not run
+        # this matrix, and the next canary run tests that change.
         if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             return True
-        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
+        return bool(self._matching_files(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES, CI_FILE_GROUP_MATCHES))
 
     @cached_property
     @_scoped_to_component_branch
@@ -2348,9 +2348,11 @@ class SelectiveChecks:
         the PR's own workflow files and breeze, so a fork can request a RunsOn label directly -
         that restriction has to be enforced by the RunsOn stack and the repository's Actions
         settings, not here. Routed there: pushes, schedules and dispatches, and PRs from
-        apache/airflow branches except bots' (e.g. Dependabot's). A fork PR goes there while it
-        carries the ``use self-hosted runners`` label, a committer has approved its head commit and
-        no committer's request for changes is outstanding.
+        apache/airflow branches except bots' (e.g. Dependabot's and the ``ci-upgrade-*`` PRs),
+        except the backport PRs that ``cherry_picker`` opens as ``github-actions[bot]`` from
+        ``backport-*`` branches; a committer's merge or a dispatch by a user with write access started
+        those. A fork PR goes there while it carries the ``use self-hosted runners`` label, a
+        committer has approved its head commit and no committer's request for changes is outstanding.
         The repository variable ``USE_PUBLIC_RUNNERS=true`` moves every run back to public runners.
         """
         if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
@@ -2370,9 +2372,12 @@ class SelectiveChecks:
         pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
         # The PR author, not github.actor: a committer rebasing a Dependabot PR becomes the actor.
         # The branch too: anyone can open their own PR from a Dependabot branch.
-        if (pull_request.get("user") or {}).get("type") == "Bot" or (
-            pull_request.get("head", {}).get("ref", "").startswith("dependabot/")
-        ):
+        user = pull_request.get("user") or {}
+        head_ref = pull_request.get("head", {}).get("ref", "")
+        is_automatic_backport = user.get("login") == "github-actions[bot]" and head_ref.startswith(
+            "backport-"
+        )
+        if not is_automatic_backport and (user.get("type") == "Bot" or head_ref.startswith("dependabot/")):
             return False
         # A PR from a deleted fork has no head repo.
         head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")

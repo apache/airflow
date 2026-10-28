@@ -16,6 +16,11 @@
 # under the License.
 
 # Fork CI gate (AIP-120). See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md
+#
+# This file is part of the gate. A pull request whose CI runs in the contributor's fork may only
+# add, change or remove its author's own [pilot] entry here; the fork CI monitor closes it if it
+# changes anything else, because that change would decide where its own CI runs. See
+# "Gate protection" in the document above.
 
 # Master switch. When false the gate job lets every pull request run project CI, except
 # pull requests labelled `use fork ci` and pull requests of [pilot] participants. Push
@@ -33,11 +38,6 @@ close_after_days = 7
 # the fork CI monitor exceeds GitHub's rate limits (see dev/AGENTS.md); the `Fork CI / Tests (AMD)`
 # status is posted either way.
 job_statuses = true
-
-# Cancel the unfinished `pull_request` runs of pull requests that have already merged, of any
-# author, so they stop using GitHub-hosted minutes and self-hosted runners for a result nobody
-# reads. The fork CI monitor does it on its schedule.
-cancel_merged_runs = true
 
 # Organisations exempted under AIP-120 §2.2. Keys are display names used in comments,
 # values are GitHub logins. Changes go through a reviewed pull request.
