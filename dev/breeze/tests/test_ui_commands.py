@@ -751,7 +751,7 @@ class TestCheckTranslationCompletenessJsonCommand:
         try:
             result = CliRunner().invoke(
                 check_translation_completeness,
-                ["--language", "de", "--add-missing", "--json"],
+                ["--language", "de", "--add-missing", "--json", "--verbose"],
                 catch_exceptions=False,
             )
             assert result.exit_code == 0
@@ -780,7 +780,7 @@ class TestCheckTranslationCompletenessJsonCommand:
         try:
             result = CliRunner().invoke(
                 check_translation_completeness,
-                ["--language", "de", "--remove-unused", "--json"],
+                ["--language", "de", "--remove-unused", "--json", "--verbose"],
                 catch_exceptions=False,
             )
             assert result.exit_code == 0
@@ -788,5 +788,70 @@ class TestCheckTranslationCompletenessJsonCommand:
             de_file = payload["languages"]["de"]["files"]["app.json"]
             assert de_file["unused"] == 0
             assert "Removed 1 unused translations" in _strip_ansi(result.stderr)
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+    def test_stdout_stays_pure_when_computation_aborts(self, tmp_path):
+        import airflow_breeze.commands.ui_commands as ui_commands
+        from airflow_breeze.commands.ui_commands import check_translation_completeness
+
+        en_dir = tmp_path / "en"
+        en_dir.mkdir()
+        xy_dir = tmp_path / "xy"
+        xy_dir.mkdir()
+
+        (en_dir / "app.json").write_text(json.dumps({"a": "A"}))
+        (xy_dir / "app.json").write_text(json.dumps({"a": "X"}))
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+        try:
+            result = CliRunner().invoke(check_translation_completeness, ["--json"])
+            assert result.exit_code != 0
+            assert result.stdout.strip() == ""
+            assert "No plural suffixes defined for language 'xy'" in _strip_ansi(result.stderr)
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+    def test_malformed_locale_file_does_not_leak_to_stdout(self, tmp_path):
+        import airflow_breeze.commands.ui_commands as ui_commands
+        from airflow_breeze.commands.ui_commands import check_translation_completeness
+
+        en_dir = tmp_path / "en"
+        en_dir.mkdir()
+        de_dir = tmp_path / "de"
+        de_dir.mkdir()
+
+        (en_dir / "app.json").write_text(json.dumps({"a": "A"}))
+        (de_dir / "app.json").write_text("{not valid json")
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+        try:
+            result = CliRunner().invoke(check_translation_completeness, ["--json"])
+            assert "Error loading" not in _strip_ansi(result.stdout)
+            assert "Error loading" in _strip_ansi(result.stderr)
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+    def test_default_table_error_path_unchanged(self, tmp_path):
+        import airflow_breeze.commands.ui_commands as ui_commands
+        from airflow_breeze.commands.ui_commands import check_translation_completeness
+
+        en_dir = tmp_path / "en"
+        en_dir.mkdir()
+        de_dir = tmp_path / "de"
+        de_dir.mkdir()
+
+        (en_dir / "app.json").write_text(json.dumps({"a": "A"}))
+        (de_dir / "app.json").write_text(json.dumps({"a": "D"}))
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+        try:
+            result = CliRunner().invoke(check_translation_completeness, ["--language", "zz"])
+            assert result.exit_code == 2
+            assert "Summary of differences by language:" in _strip_ansi(result.output)
+            assert "Language 'zz' not found among locales" in _strip_ansi(result.output)
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
