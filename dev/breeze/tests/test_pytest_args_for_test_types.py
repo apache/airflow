@@ -257,6 +257,14 @@ def test_pytest_args_for_unknown_provider_part(test_type: str):
         convert_test_type_to_pytest_args(test_group=GroupOfTests.PROVIDERS, test_type=test_type)
 
 
+def test_folders_for_parallel_test_types_reject_split_provider_parts():
+    with pytest.raises(SystemExit):
+        convert_parallel_types_to_folders(
+            test_group=GroupOfTests.PROVIDERS,
+            parallel_test_types_list=["Providers[amazon:hooks]", "Providers[amazon:other]"],
+        )
+
+
 @pytest.mark.parametrize(
     ("test_group", "parallel_test_types", "folders"),
     [

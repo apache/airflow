@@ -669,6 +669,12 @@ def generate_args_for_pytest(
 
 
 def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_types_list: list[str]):
+    # All test types share one pytest here, where the --ignore of a "<provider>:other" part would also drop
+    # the provider's other parts, so a split provider runs as a whole: Providers[<provider>].
+    split_parts = [test_type for test_type in parallel_test_types_list if ":" in test_type]
+    if split_parts:
+        console_print(f"[error]Split provider test types cannot run in one pytest process: {split_parts}[/]")
+        sys.exit(1)
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(
