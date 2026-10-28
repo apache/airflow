@@ -439,17 +439,13 @@ The following methods are abstract and must be implemented in your custom bundle
     those files, as with ``LocalDagBundle``. File discovery still runs without waiting for active imports.
 
     A failed refresh normally pauses new parses because files may have been partially updated.
-    When the installed Airflow core exposes
-    ``airflow.dag_processing.bundles.base.DagBundleRefreshError``, a provider can raise it with
-    ``source_unchanged=True`` when it guarantees that the previous source remains intact and usable.
-    The processor can then continue ordinary parsing of that source while retrying refresh at the
-    bundle check interval.
+    On Airflow 3.4 and later, a provider can raise
+    ``airflow.dag_processing.bundles.base.DagBundleRefreshError`` with ``source_unchanged=True``
+    when it guarantees that the previous source remains intact and usable. The processor can then
+    continue ordinary parsing of that source while retrying refresh at the bundle check interval.
     Explicit reparse requests still wait for a successful refresh. An unchanged
     version identifier alone is insufficient to make this guarantee, particularly after a partial
     checkout or submodule update.
-
-    Providers must check for this class rather than infer availability from the Airflow version,
-    and preserve the original exception when the class is unavailable.
 
 Optional Methods
 ~~~~~~~~~~~~~~~~
