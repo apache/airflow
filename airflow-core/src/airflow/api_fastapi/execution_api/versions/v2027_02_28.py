@@ -23,7 +23,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunConte
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle, discovery inventory, and publication endpoints."""
+    """Add Dag processor lifecycle, inventory, and publication with shared source records."""
 
     description = __doc__
 

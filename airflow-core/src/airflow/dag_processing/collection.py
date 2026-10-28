@@ -524,7 +524,6 @@ def _update_import_errors(
             )
             # sending notification when an existing dag import error occurs
             try:
-                # todo: make listener accept bundle_name and relative_filename
                 import_error = session.scalar(
                     select(ParseImportError).where(
                         ParseImportError.bundle_name == bundle_name_,
@@ -535,6 +534,8 @@ def _update_import_errors(
                     get_listener_manager().hook.on_existing_dag_import_error(
                         filename=import_error.full_file_path() if resolve_bundle_paths else relative_fileloc,
                         stacktrace=stacktrace,
+                        bundle_name=bundle_name_,
+                        relative_fileloc=relative_fileloc,
                     )
             except Exception:
                 log.exception("error calling listener")
@@ -552,6 +553,8 @@ def _update_import_errors(
                 get_listener_manager().hook.on_new_dag_import_error(
                     filename=import_error.full_file_path() if resolve_bundle_paths else relative_fileloc,
                     stacktrace=stacktrace,
+                    bundle_name=bundle_name_,
+                    relative_fileloc=relative_fileloc,
                 )
             except Exception:
                 log.exception("error calling listener")

@@ -27,15 +27,15 @@ from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class DagParseCheckpoint(Base):
+class DagProcessorPublicationReceipt(Base):
     """
     Latest accepted publication per Job and source.
 
-    Publications need an open Job, so its checkpoints are deleted when the Job completes or is replaced.
+    Publications need an open Job, so its receipts are deleted when the Job completes or is replaced.
     The cascade covers a Job purged while still open.
     """
 
-    __tablename__ = "dag_parse_checkpoint"
+    __tablename__ = "dag_processor_publication_receipt"
 
     job_id: Mapped[int] = mapped_column(ForeignKey("job.id", ondelete="CASCADE"), primary_key=True)
     source_key: Mapped[str] = mapped_column(String(64), primary_key=True)

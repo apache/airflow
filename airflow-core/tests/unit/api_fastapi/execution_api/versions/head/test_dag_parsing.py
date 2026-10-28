@@ -34,6 +34,10 @@ from uuid6 import uuid7
 
 from airflow import settings
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    MAX_PUBLICATION_BYTES,
+    DagParseResultBody,
+)
 from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
 from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute, get_bundles
 from airflow.api_fastapi.execution_api.security import require_auth
@@ -41,7 +45,7 @@ from airflow.dag_processing.collection import DagModelOperation, update_dag_pars
 from airflow.jobs.job import Job, JobState
 from airflow.models.asset import DagScheduleAssetReference
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
@@ -113,7 +117,8 @@ def body():
         "version_data": {"ref": "v1"},
         "parse_duration": 0.5,
         "serialized_dags": [LazyDeserializedDAG.from_dag(dag).data],
-        "source_codes": {dag.dag_id: {"source_code": "# captured on worker", "language": "python"}},
+        "source_codes": [{"source_code": "# captured on worker", "language": "python"}],
+        "dag_source_indexes": {dag.dag_id: 0},
     }
 
 
@@ -125,20 +130,24 @@ def test_import_error_listeners_get_bundle_relative_paths(
     get_listener_manager, full_file_path, client, job, body
 ):
     hook = get_listener_manager.return_value.hook
-    body.update(serialized_dags=[], source_codes={}, import_errors={"a.py": "broken"})
+    body.update(serialized_dags=[], source_codes=[], dag_source_indexes={}, import_errors={"a.py": "broken"})
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
     body.update(attempt_id=str(uuid7()), dispatch_sequence=2, import_errors={"a.py": "still broken"})
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
 
-    hook.on_new_dag_import_error.assert_called_once_with(filename="a.py", stacktrace="broken")
-    hook.on_existing_dag_import_error.assert_called_once_with(filename="a.py", stacktrace="still broken")
+    hook.on_new_dag_import_error.assert_called_once_with(
+        filename="a.py", stacktrace="broken", bundle_name="bundle", relative_fileloc="a.py"
+    )
+    hook.on_existing_dag_import_error.assert_called_once_with(
+        filename="a.py", stacktrace="still broken", bundle_name="bundle", relative_fileloc="a.py"
+    )
     full_file_path.assert_not_called()
 
 
 @pytest.mark.parametrize("source", ["# captured on worker", "", None])
 @mock.patch.object(DagCode, "code", autospec=True, side_effect=AssertionError("Server read source"))
 def test_publishes_worker_source_without_filesystem_access(mock_code, client, session, job, body, source):
-    body["source_codes"]["published"]["source_code"] = source
+    body["source_codes"][0]["source_code"] = source
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     assert response.status_code == 200, response.json()
     assert session.get(DagModel, "published").relative_fileloc == "a.py"
@@ -146,7 +155,7 @@ def test_publishes_worker_source_without_filesystem_access(mock_code, client, se
     assert session.scalar(select(DagCode)).source_code == (
         source if source is not None else "Source unavailable"
     )
-    assert session.scalar(select(DagParseCheckpoint)).attempt_id == UUID(body["attempt_id"])
+    assert session.scalar(select(DagProcessorPublicationReceipt)).attempt_id == UUID(body["attempt_id"])
     mock_code.assert_not_called()
 
 
@@ -159,7 +168,7 @@ def test_replay_returns_receipt_without_rewriting_metadata(client, session, job,
     assert replay.json() == first.json()
     session.expire_all()
     assert session.get(DagModel, "published").last_parsed_time == parsed_at
-    assert len(session.scalars(select(DagParseCheckpoint)).all()) == 1
+    assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 1
 
 
 @pytest.mark.parametrize("first", ["parse", "inventory"])
@@ -185,7 +194,8 @@ def test_parse_and_inventory_checkpoints_have_separate_namespaces(client, sessio
                 "relative_fileloc": "a.py",
                 "parse_duration": 0.5,
                 "serialized_dags": [],
-                "source_codes": {},
+                "source_codes": [],
+                "dag_source_indexes": {},
                 "import_errors": {"a.py": "Import failed"},
             },
         ),
@@ -211,7 +221,7 @@ def test_parse_and_inventory_checkpoints_have_separate_namespaces(client, sessio
         else:
             receipts[kind] = response.json()
 
-    checkpoints = session.scalars(select(DagParseCheckpoint)).all()
+    checkpoints = session.scalars(select(DagProcessorPublicationReceipt)).all()
     assert len(checkpoints) == 2
     assert {checkpoint.attempt_id for checkpoint in checkpoints} == {
         UUID(payload["attempt_id"]) for _, payload in publications.values()
@@ -256,7 +266,7 @@ def test_newer_result_supersedes_old_attempt(client, session, job, body):
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=original).status_code == 409
     session.expire_all()
     assert session.get(DagModel, "published").last_parse_duration == 2.0
-    assert len(session.scalars(select(DagParseCheckpoint)).all()) == 1
+    assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 1
 
 
 @pytest.mark.parametrize("same_bundle", [True, False])
@@ -274,9 +284,18 @@ def test_allows_file_relocation_but_not_cross_bundle_takeover(client, session, j
 
 
 @pytest.mark.parametrize(
-    "failure", ["bundle", "job", "closed", "replaced", "inactive", "deleted", "missing_bundle"]
+    ("failure", "status_code", "reason"),
+    [
+        ("bundle", 403, "bundle_not_granted"),
+        ("job", 404, "not_found"),
+        ("closed", 403, "job_closed"),
+        ("replaced", 403, "job_closed"),
+        ("inactive", 409, "bundle_inactive"),
+        ("deleted", 403, "job_closed"),
+        ("missing_bundle", 409, "bundle_inactive"),
+    ],
 )
-def test_rejects_unauthorized_publication(client, session, job, body, failure):
+def test_rejects_unauthorized_publication(client, session, job, body, failure, status_code, reason):
     job_id = job.id
     if failure == "bundle":
         body["bundle_name"] = "other"
@@ -294,9 +313,10 @@ def test_rejects_unauthorized_publication(client, session, job, body, failure):
         session.get(DagBundleModel, "bundle").active = False
     session.commit()
     response = client.post(f"/execution/jobs/{job_id}/parse-results", json=body)
-    assert response.status_code == {"job": 404, "inactive": 409, "missing_bundle": 409}.get(failure, 403)
+    assert response.status_code == status_code
+    assert response.json()["detail"]["reason"] == reason
     assert session.get(DagModel, "published") is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 @pytest.mark.parametrize(
@@ -322,7 +342,7 @@ def test_invalid_result_is_rejected_without_writes(client, session, job, body, f
     elif failure == "version":
         dag["__version"] = 999
     elif failure == "source":
-        body["source_codes"] = {}
+        body["source_codes"] = []
     elif failure == "path":
         dag["dag"]["relative_fileloc"] = "../other.py"
     elif failure == "error_path":
@@ -338,7 +358,7 @@ def test_invalid_result_is_rejected_without_writes(client, session, job, body, f
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     assert response.status_code == 422, response.json()
     assert session.get(DagModel, "published") is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 @mock.patch("airflow.api_fastapi.execution_api.routes.dag_parsing.MAX_PUBLICATION_BYTES", 10)
@@ -352,7 +372,7 @@ def test_rejects_a_body_over_the_limit_before_reading_it(client, session, job, b
         headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 413, response.json()
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 def test_client_disconnect_during_the_body_is_a_bad_request():
@@ -406,20 +426,20 @@ def test_client_disconnect_during_the_body_is_a_bad_request():
 def test_rejects_dag_metadata_the_database_cannot_hold(client, session, job, body, field, value):
     body["serialized_dags"][0]["dag"][field] = value
     if field == "dag_id":
-        body["source_codes"] = {value: body["source_codes"].pop("published")}
+        body["dag_source_indexes"] = {value: 0}
 
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
 
     assert response.status_code == 422, response.json()
     assert session.scalar(select(DagModel)) is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 def test_rejects_non_json_version_metadata(client, session, job, body):
     body["version_data"] = {"invalid": float("nan")}
     response = client.post(f"/execution/jobs/{job.id}/parse-results", content=json.dumps(body))
     assert response.status_code == 422
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 @mock.patch(
@@ -432,11 +452,11 @@ def test_diagnostic_failure_rolls_back_metadata_and_receipt(mock_update, client,
         client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     assert session.get(DagModel, "published") is None
     assert session.scalar(select(SerializedDagModel)) is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 def test_empty_result_clears_file_errors_and_has_replay_receipt(client, session, job, body):
-    body.update(serialized_dags=[], source_codes={}, import_errors={"a.py": "broken"})
+    body.update(serialized_dags=[], source_codes=[], dag_source_indexes={}, import_errors={"a.py": "broken"})
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
     assert session.scalar(select(ParseImportError)) is not None
     body.update(attempt_id=str(uuid7()), dispatch_sequence=2, import_errors={})
@@ -469,7 +489,7 @@ def test_plugin_authorization_precedes_deserialization(reject, deserialize, clie
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     assert response.status_code == 403
     deserialize.assert_not_called()
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 @pytest.mark.parametrize(
@@ -493,7 +513,7 @@ def test_persistence_errors_do_not_leave_accepted_partial_results(
             client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     write.assert_called_once()
     assert session.get(DagModel, "published") is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
 
 
 def test_other_job_publication_is_not_overwritten_by_receipt_recovery(client, session, exec_app, job, body):
@@ -520,14 +540,14 @@ def test_other_job_publication_is_not_overwritten_by_receipt_recovery(client, se
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).json() == first.json()
     session.expire_all()
     assert session.get(DagModel, "published").last_parse_duration == 3.0
-    assert len(session.scalars(select(DagParseCheckpoint)).all()) == 2
+    assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 2
 
 
 def test_job_cleanup_removes_its_checkpoint(client, session, job, body):
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
     session.delete(job)
     session.commit()
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
     assert session.get(DagModel, "published") is not None
 
 
@@ -545,7 +565,7 @@ def test_concurrent_replay_commits_one_publication(client, session, job, body):
         responses = [future.result(timeout=30) for future in futures]
     assert [response.status_code for response in responses] == [200, 200]
     assert responses[0].json() == responses[1].json()
-    assert len(session.scalars(select(DagParseCheckpoint)).all()) == 1
+    assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 1
 
 
 @pytest.mark.backend("postgres")
@@ -608,7 +628,7 @@ def test_fab_permissions_share_publication_transaction(update_errors, client, se
     security = pytest.importorskip("airflow.providers.fab.www.security_appless")
     dag_id = f"published_{uuid7().hex}"
     body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
-    body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
+    body["dag_source_indexes"] = {dag_id: 0}
     if fail:
         update_errors.side_effect = RuntimeError("failure after Dag permissions")
         with pytest.raises(RuntimeError, match="failure after Dag permissions"):
@@ -619,7 +639,7 @@ def test_fab_permissions_share_publication_transaction(update_errors, client, se
     session.expire_all()
     assert (session.get(DagModel, dag_id) is None) == fail
     assert (session.scalar(select(SerializedDagModel)) is None) == fail
-    assert (session.scalar(select(DagParseCheckpoint)) is None) == fail
+    assert (session.scalar(select(DagProcessorPublicationReceipt)) is None) == fail
     manager = security.ApplessAirflowSecurityManager(session=session)
     assert (manager.get_resource(f"DAG:{dag_id}") is None) == fail
 
@@ -647,7 +667,7 @@ def test_invalid_fab_access_control_rejects_and_rolls_back_publication(
     manager = security.ApplessAirflowSecurityManager(session=session)
     role = manager.add_role(role_name) if failure != "role" else None
     body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
-    body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
+    body["dag_source_indexes"] = {dag_id: 0}
     original_attempt = UUID(body["attempt_id"])
     if existing:
         assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
@@ -665,7 +685,7 @@ def test_invalid_fab_access_control_rejects_and_rolls_back_publication(
     assert dag_id in response.json()["detail"]["message"]
     session.expire_all()
     stored_dag = session.get(DagModel, dag_id)
-    checkpoint = session.scalar(select(DagParseCheckpoint))
+    checkpoint = session.scalar(select(DagProcessorPublicationReceipt))
     if existing:
         assert stored_dag.last_parse_duration == 0.5
         assert not stored_dag.is_stale
@@ -689,7 +709,7 @@ def test_fab_backend_exception_is_not_reported_as_invalid_dag(commit, client, se
     override = pytest.importorskip("airflow.providers.fab.auth_manager.security_manager.override")
     dag_id = f"published_{uuid7().hex}"
     body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
-    body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
+    body["dag_source_indexes"] = {dag_id: 0}
     commit.side_effect = OperationalError(None, None, RuntimeError("temporary database failure"))
 
     with pytest.raises(override.FabException) as error:
@@ -698,7 +718,7 @@ def test_fab_backend_exception_is_not_reported_as_invalid_dag(commit, client, se
     assert isinstance(error.value.__cause__, OperationalError)
     commit.assert_called_once()
     assert session.get(DagModel, dag_id) is None
-    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
     assert session.scalar(select(ParseImportError)) is None
 
 
@@ -723,7 +743,7 @@ def test_transient_permission_failure_remains_server_error(client, session, job,
     stored_dag = session.get(DagModel, "published")
     assert stored_dag.last_parse_duration == 0.5
     assert not stored_dag.is_stale
-    assert session.scalar(select(DagParseCheckpoint)).attempt_id == original_attempt
+    assert session.scalar(select(DagProcessorPublicationReceipt)).attempt_id == original_attempt
     assert session.scalar(select(ParseImportError)) is None
 
 
@@ -807,7 +827,7 @@ def test_failed_publication_rolls_back_permissions_when_dag_metadata_is_unchange
         client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     session.expire_all()
     assert not role.permissions
-    assert session.scalar(select(DagParseCheckpoint)).attempt_id == original_attempt
+    assert session.scalar(select(DagProcessorPublicationReceipt)).attempt_id == original_attempt
     session.delete(role)
     session.commit()
 
@@ -878,7 +898,7 @@ def test_concurrent_creation_cannot_overwrite_another_bundle(
     assert first_response.status_code == 409, first_response.json()
     session.expire_all()
     assert session.get(DagModel, "published").bundle_name == "other"
-    assert [row.job_id for row in session.scalars(select(DagParseCheckpoint))] == [other.id]
+    assert [row.job_id for row in session.scalars(select(DagProcessorPublicationReceipt))] == [other.id]
 
 
 def test_complete_inventory_reconciles_only_its_bundle_and_replays(client, session, job, body):
@@ -920,7 +940,13 @@ def test_inventory_removes_asset_references_of_removed_dags(client, session, job
     body["serialized_dags"] = [LazyDeserializedDAG.from_dag(dag).data]
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
     if already_stale:
-        body.update(attempt_id=str(uuid7()), dispatch_sequence=2, serialized_dags=[], source_codes={})
+        body.update(
+            attempt_id=str(uuid7()),
+            dispatch_sequence=2,
+            serialized_dags=[],
+            source_codes=[],
+            dag_source_indexes={},
+        )
         response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
         assert response.status_code == 200, response.json()
         session.expire_all()
@@ -1093,7 +1119,13 @@ def test_invalid_inventory_cannot_remove_dags(client, session, job, body, files,
 def test_empty_publication_deactivates_only_after_acceptance(client, session, job, body, rejected):
     url = f"/execution/jobs/{job.id}/parse-results"
     assert client.post(url, json=body).status_code == 200
-    body.update(attempt_id=str(uuid7()), dispatch_sequence=2, serialized_dags=[], source_codes={})
+    body.update(
+        attempt_id=str(uuid7()),
+        dispatch_sequence=2,
+        serialized_dags=[],
+        source_codes=[],
+        dag_source_indexes={},
+    )
     if rejected:
         body["bundle_revision"] = str(uuid7())
     response = client.post(url, json=body)
@@ -1121,3 +1153,129 @@ def test_catalog_and_inventory_support_granted_bundle_with_slash(client, exec_ap
         json={"attempt_id": str(uuid7()), "dispatch_sequence": 1, "expected_revision": None, "files": []},
     )
     assert response.status_code == 200, response.json()
+
+
+@pytest.mark.parametrize("shared_source", [True, False])
+def test_publication_resolves_shared_and_distinct_dag_sources(client, session, job, body, shared_source):
+    second = deepcopy(body["serialized_dags"][0])
+    second["dag"]["dag_id"] = "second"
+    body["serialized_dags"].append(second)
+    if not shared_source:
+        body["source_codes"].append({"source_code": "# second Dag", "language": "python"})
+    body["dag_source_indexes"]["second"] = 0 if shared_source else 1
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    assert dict(session.execute(select(DagCode.dag_id, DagCode.source_code)).all()) == {
+        "published": "# captured on worker",
+        "second": "# captured on worker" if shared_source else "# second Dag",
+    }
+
+
+def test_factory_publication_carries_source_once(body):
+    source = "x" * (42 * 1024)
+    body["source_codes"][0]["source_code"] = source
+    document = body["serialized_dags"][0]
+    body["serialized_dags"] = []
+    body["dag_source_indexes"] = {}
+    for index in range(400):
+        dag_id = f"factory_{index}"
+        dag = deepcopy(document)
+        dag["dag"]["dag_id"] = dag_id
+        body["serialized_dags"].append(dag)
+        body["dag_source_indexes"][dag_id] = 0
+
+    publication = DagParseResultBody.model_validate(body)
+    encoded = publication.model_dump_json().encode()
+
+    assert len(source.encode()) * len(publication.serialized_dags) > MAX_PUBLICATION_BYTES
+    assert len(encoded) < MAX_PUBLICATION_BYTES
+    assert encoded.count(source.encode()) == 1
+
+
+@pytest.mark.parametrize("index", [-1, 1, True, "0", 0.5])
+def test_publication_rejects_invalid_source_index(client, session, job, body, index):
+    body["dag_source_indexes"]["published"] = index
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 422, response.json()
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+    assert session.get(DagModel, "published") is None
+
+
+@pytest.mark.parametrize("missing", [True, False], ids=["missing_mapping", "unused_source"])
+def test_publication_rejects_incomplete_source_mapping(client, job, body, missing):
+    if missing:
+        body["dag_source_indexes"] = {}
+    else:
+        body["source_codes"].append({"source_code": "unused", "language": "python"})
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 422, response.json()
+
+
+@pytest.mark.parametrize("length", [1024, 1025])
+def test_publication_bounds_import_error_paths(client, session, job, body, length):
+    path = "a.py/" + "x" * (length - len("a.py/"))
+    body.update(serialized_dags=[], source_codes=[], dag_source_indexes={}, import_errors={path: "broken"})
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == (200 if length == 1024 else 422), response.json()
+    errors = session.scalars(select(ParseImportError)).all()
+    assert [error.filename for error in errors] == ([path] if length == 1024 else [])
+    if length > 1024:
+        assert "Import-error location exceeds 1024 characters" in response.text
+
+
+@mock.patch(
+    "airflow.api_fastapi.execution_api.routes.dag_parsing.DagSerialization.validate_serialized_dag",
+    autospec=True,
+    side_effect=ValueError("Dag published contains a cycle"),
+)
+def test_publication_preserves_serialization_failure_reason(validate, client, session, job, body):
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 422, response.json()
+    assert response.json()["detail"] == {
+        "reason": "invalid_dag",
+        "message": "Dag published contains a cycle",
+    }
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+    assert session.get(DagModel, "published") is None
+
+
+def test_inventory_cleanup_does_not_load_import_error_stacktraces(client, session, job):
+    session.add_all(
+        ParseImportError(bundle_name="bundle", filename=path, stacktrace="traceback" * 1000)
+        for path in ("a.py", "removed.py")
+    )
+    session.commit()
+    statements = []
+
+    def record_query(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().startswith("SELECT") and "FROM import_error" in statement:
+            statements.append(statement)
+
+    event.listen(settings.engine, "before_cursor_execute", record_query)
+    try:
+        response = client.post(
+            f"/execution/jobs/{job.id}/bundles/bundle/inventory",
+            json={
+                "attempt_id": str(uuid7()),
+                "dispatch_sequence": 1,
+                "expected_revision": None,
+                "version": "v1",
+                "files": ["a.py"],
+            },
+        )
+    finally:
+        event.remove(settings.engine, "before_cursor_execute", record_query)
+
+    assert response.status_code == 200, response.json()
+    assert len(statements) == 1
+    assert "stacktrace" not in statements[0]
+    assert session.scalars(select(ParseImportError.filename)).all() == ["a.py"]

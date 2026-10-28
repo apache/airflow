@@ -54,7 +54,7 @@ from airflow.exceptions import DeserializationError
 from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -156,7 +156,7 @@ def publish_parse_result(
     ).hexdigest()
 
     _validate_job(job_id, token, session=session)
-    checkpoint = session.get(DagParseCheckpoint, (job_id, source_key))
+    checkpoint = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
     if checkpoint is not None:
         if checkpoint.attempt_id == body.attempt_id:
             if checkpoint.payload_hash != payload_hash:
@@ -196,7 +196,10 @@ def publish_parse_result(
         for dag in dags:
             DagSerialization.validate_serialized_dag(dag.data)
     except (DeserializationError, ValueError, TypeError, KeyError) as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid serialized Dag") from error
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"reason": "invalid_dag", "message": str(error)},
+        ) from error
 
     # A failed container gives its member Dags a grace period. _update_import_errors marks Dags
     # stale immediately when an error names their definition.
@@ -212,16 +215,16 @@ def publish_parse_result(
         .with_for_update(key_share=True)
     )
     for stored_dag in missing:
-        failed = any(
-            path == body.relative_fileloc or path == stored_dag.relative_fileloc
-            for path in body.import_errors
-        )
+        failed = body.relative_fileloc in body.import_errors
         if not failed or (stored_dag.last_parsed_time is not None and stored_dag.last_parsed_time < cutoff):
             stored_dag.is_stale = True
 
     import_errors = {(body.bundle_name, path): error for path, error in body.import_errors.items()}
     files_parsed = {(body.bundle_name, path) for path in [body.relative_fileloc, *body.parsed_definitions]}
     files_parsed.update(import_errors)
+    source_codes = {
+        dag_id: body.source_codes[source_index] for dag_id, source_index in body.dag_source_indexes.items()
+    }
     try:
         update_dag_parsing_results_in_db(
             bundle_name=body.bundle_name,
@@ -239,7 +242,7 @@ def publish_parse_result(
                     else "Source unavailable",
                     language=source.language,
                 )
-                for dag_id, source in body.source_codes.items()
+                for dag_id, source in source_codes.items()
             },
             atomic=True,
             enforce_bundle_ownership=True,
@@ -256,7 +259,7 @@ def publish_parse_result(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}
         ) from error
     if checkpoint is None:
-        checkpoint = DagParseCheckpoint(job_id=job_id, source_key=source_key)
+        checkpoint = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
         session.add(checkpoint)
     checkpoint.attempt_id = body.attempt_id
     checkpoint.dispatch_sequence = body.dispatch_sequence
@@ -323,7 +326,7 @@ def publish_inventory(
     source_key = hashlib.sha256(json.dumps(["inventory", bundle_name]).encode()).hexdigest()
     payload_hash = _compute_payload_hash(body)
     _validate_job(job_id, token, session=session)
-    checkpoint = session.get(DagParseCheckpoint, (job_id, source_key))
+    checkpoint = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
     if checkpoint is not None:
         if checkpoint.attempt_id == body.attempt_id:
             if checkpoint.payload_hash != payload_hash or checkpoint.bundle_revision is None:
@@ -385,18 +388,20 @@ def publish_inventory(
         session.flush()
         remove_references_to_deleted_dags(session=session)
     error_ids = [
-        error.id
-        for error in session.scalars(
-            select(ParseImportError).where(ParseImportError.bundle_name == bundle_name)
+        error_id
+        for error_id, filename in session.execute(
+            select(ParseImportError.id, ParseImportError.filename).where(
+                ParseImportError.bundle_name == bundle_name
+            )
         )
-        if is_removed(error.filename)
+        if is_removed(filename)
     ]
     for start in range(0, len(error_ids), 500):
         session.execute(
             delete(ParseImportError).where(ParseImportError.id.in_(error_ids[start : start + 500]))
         )
     if checkpoint is None:
-        checkpoint = DagParseCheckpoint(job_id=job_id, source_key=source_key)
+        checkpoint = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
         session.add(checkpoint)
     checkpoint.attempt_id = body.attempt_id
     checkpoint.dispatch_sequence = body.dispatch_sequence
