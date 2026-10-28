@@ -72,9 +72,14 @@ class FilesystemArtifactStore(ArtifactStore):
 
     Layout under ``published_root``: ``refs/<bundle>/latest.json`` (release reference),
     ``versions/<bundle>/<version>/`` (snapshots) and ``_locks/<bundle>.lock`` (publication lock).
+    ``published_root`` must already exist; the store creates only the directories below it.
+    Provision it as a dedicated directory inside the shared filesystem so that a missing
+    mount also makes it disappear. An existing root, including the mount point itself,
+    does not prove the filesystem is mounted; deployments must ensure mount availability.
 
     Publishers need write access to the publication directories and read/write access to
-    the lock file. For different OS users, provision these with a shared publisher group.
+    the lock file. For different OS users, give ``published_root`` a shared publisher group
+    with group write and the setgid bit: new directories use those bits from ``published_root``.
 
     Publishers on different hosts serialize through ``flock`` on the lock file, so the
     filesystem must enforce ``flock`` across hosts: NFSv4 does, NFSv3 only with the lock
@@ -131,13 +136,14 @@ class FilesystemArtifactStore(ArtifactStore):
 
     def write_ref(self, payload: dict[str, Any]) -> None:
         with _raise_storage_error(f"write release reference {self._ref_path}"):
+            _ensure_public_dir(self._ref_path.parent, root=self._root)
             _write_json_atomically(self._ref_path, payload)
 
     @contextmanager
     def publication_guard(self):
         """Serialize publishers through a lock stored with the authoritative snapshots."""
         with _raise_storage_error(f"open publication lock {self._lock_path}"):
-            _ensure_public_dir(self._lock_path.parent)
+            _ensure_public_dir(self._lock_path.parent, root=self._root)
             # Linux NFS implements flock with fcntl locks, which require a writable
             # descriptor for an exclusive lock.
             try:
@@ -202,8 +208,8 @@ class FilesystemArtifactStore(ArtifactStore):
 
     def prepare_publish_areas(self) -> None:
         with _raise_storage_error(f"create publication directories under {self._root}"):
-            _ensure_public_dir(self._snapshots_root)
-            _ensure_public_dir(self._ref_path.parent)
+            _ensure_public_dir(self._snapshots_root, root=self._root)
+            _ensure_public_dir(self._ref_path.parent, root=self._root)
 
     def snapshot_exists(self, version: str) -> bool:
         with _raise_storage_error(f"check published snapshot {self._snapshots_root / version}"):
@@ -366,8 +372,15 @@ def _remove_orphaned_atomic_temp_files(destination_path: Path) -> None:
             path.unlink()
 
 
+def _has_content(path: Path, content: bytes) -> bool:
+    try:
+        return path.read_bytes() == content
+    except OSError:
+        return False
+
+
 def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> None:
-    _ensure_public_dir(destination_path.parent)
+    content = serialize_bundle_version_manifest(payload)
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{destination_path.name}.",
         dir=destination_path.parent,
@@ -377,7 +390,7 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
     ref_version = version if isinstance(version, str) else None
     try:
         with os.fdopen(fd, "wb") as file:
-            file.write(serialize_bundle_version_manifest(payload))
+            file.write(content)
             file.flush()
             # mkstemp creates the file owner-only; consumers can run as a different OS user.
             os.fchmod(file.fileno(), 0o644)
@@ -385,12 +398,16 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
         try:
             os.replace(tmp_path, destination_path)
         except OSError as replace_error:
-            # NFS can report failure after completing the rename. The temporary file
-            # still existing is the only proof the reference was not replaced.
+            # NFS can report failure after completing the rename. The temporary file still
+            # existing proves the reference was not replaced, but its absence does not prove
+            # it was: a publisher whose lock is not enforced sweeps it as a leftover.
             try:
                 tmp_path.lstat()
             except FileNotFoundError:
-                pass
+                if not _has_content(destination_path, content):
+                    raise BundleManifestRefDurabilityError(
+                        ref_path=str(destination_path), version=ref_version
+                    ) from replace_error
             except OSError as e:
                 raise BundleManifestRefDurabilityError(
                     ref_path=str(destination_path), version=ref_version
@@ -407,23 +424,30 @@ def _write_json_atomically(destination_path: Path, payload: dict[str, Any]) -> N
         raise
 
 
-def _ensure_public_dir(path: Path) -> None:
+def _ensure_public_dir(path: Path, *, root: Path) -> None:
     """
-    Create ``path`` with world-traversable permissions.
+    Create ``path`` and the missing directories between it and ``root``, which must exist.
 
-    Every directory this call creates -- including ancestors above ``published_root`` -- is
-    chmodded 0755. Pre-existing directories (for example an admin-provisioned
-    ``published_root`` the publisher does not own) keep their permissions and remain the
+    Each created directory is world-traversable and uses the group write and setgid bits of
+    the provisioned ``root``. Pre-existing directories keep their permissions and remain the
     deployer's contract.
     """
+    root_mode = get_path_mode(root)
+    if root_mode is None or not stat.S_ISDIR(root_mode):
+        raise BundleManifestError(
+            f"published_root {root} does not exist or is not a directory. Create it before "
+            "publishing, and if it is on a shared filesystem, check that the filesystem is mounted."
+        )
+    # A concurrent publisher may not have applied the final mode to a shared parent yet.
+    directory_mode = 0o755 | (stat.S_IMODE(root_mode) & (stat.S_ISGID | stat.S_IWGRP))
     missing: list[Path] = []
-    current = Path(os.path.abspath(path))
-    while not current.exists() and current.parent != current:
+    current = path
+    while current != root and get_path_mode(current) is None:
         missing.append(current)
         current = current.parent
     # A previous attempt may have stopped after mkdir but before syncing its parent.
     fsync_directory(current)
-    if current.parent != current:
+    if current != root:
         fsync_directory(current.parent)
     for created in reversed(missing):
         try:
@@ -436,7 +460,7 @@ def _ensure_public_dir(path: Path) -> None:
         else:
             created_here = True
         try:
-            created.chmod(0o755)
+            created.chmod(directory_mode)
         except OSError:
             if created_here:
                 # Retries preserve pre-existing permissions, so undo incomplete creation.

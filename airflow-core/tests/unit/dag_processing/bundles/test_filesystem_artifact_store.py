@@ -55,11 +55,18 @@ if TYPE_CHECKING:
 BUNDLE_NAME = "contract"
 
 
+def _create_published_root(path: Path) -> Path:
+    path.mkdir(parents=True)
+    # Created directories copy the root's group bits, so pin its mode against the umask.
+    path.chmod(0o755)
+    return path
+
+
 @pytest.fixture
 def store(tmp_path):
     return FilesystemArtifactStore(
         bundle_name=BUNDLE_NAME,
-        published_root=tmp_path / "published",
+        published_root=_create_published_root(tmp_path / "published"),
     )
 
 
@@ -74,6 +81,12 @@ def _replace_then_fail(src, dst):
     """Complete the rename, then report failure the way a lost NFS reply does."""
     _real_replace(src, dst)
     raise OSError(errno.EIO, "rename reply lost")
+
+
+def _sweep_then_fail(src, dst):
+    """Lose the temporary file to another publisher's leftover sweep before the rename."""
+    os.unlink(src)
+    raise FileNotFoundError(errno.ENOENT, "No such file or directory", os.fspath(src))
 
 
 _real_scandir = os.scandir
@@ -327,16 +340,12 @@ class TestFilesystemCoordination:
 class TestFilesystemPublication:
     """Durability and permission behavior specific to the shared-filesystem layout."""
 
-    def test_publication_creates_readable_artifacts_and_group_writable_lock(self, tmp_path):
+    def test_publication_creates_readable_artifacts_and_group_writable_lock(self, store, tmp_path):
         source = _write_source(tmp_path / "source")
         script = source / "bin" / "task.sh"
         script.parent.mkdir()
         script.write_text("#!/bin/sh\n")
         script.chmod(0o700)
-        store = FilesystemArtifactStore(
-            bundle_name=BUNDLE_NAME,
-            published_root=tmp_path / "share" / "nested" / "published",
-        )
 
         old_umask = os.umask(0o077)
         try:
@@ -352,10 +361,6 @@ class TestFilesystemPublication:
         snapshot = Path(store.snapshot_path(result.version))
         assert get_mode(Path(store.ref_path)) == 0o644
         assert get_mode(_get_lock_path(store)) == 0o664
-        # Ancestors the publisher created above published_root must also be traversable.
-        assert get_mode(tmp_path / "share") == 0o755
-        assert get_mode(tmp_path / "share" / "nested") == 0o755
-        assert get_mode(Path(store.root)) == 0o755
         assert get_mode(Path(store.ref_path).parent) == 0o755
         assert get_mode(Path(store.snapshots_root)) == 0o755
         assert get_mode(snapshot) == 0o555
@@ -365,11 +370,84 @@ class TestFilesystemPublication:
         assert get_mode(snapshot / MANIFEST_FILE_NAME) == 0o444
 
     def test_prepare_publish_areas_keeps_pre_existing_root_mode(self, store):
-        Path(store.root).mkdir(mode=0o750)
+        Path(store.root).chmod(0o750)
 
         store.prepare_publish_areas()
 
         assert stat.S_IMODE(Path(store.root).stat().st_mode) == 0o750
+
+    @pytest.mark.parametrize("root_state", ["missing", "file"])
+    @pytest.mark.parametrize("operation", ["prepare_publish_areas", "publication_guard", "write_ref"])
+    def test_publication_requires_an_existing_published_root(self, tmp_path, operation, root_state):
+        mount_point = tmp_path / "share"
+        mount_point.mkdir()
+        published_root = mount_point / "published"
+        if root_state == "file":
+            published_root.write_text("not a directory")
+        store = FilesystemArtifactStore(bundle_name=BUNDLE_NAME, published_root=published_root)
+        operations = {
+            "prepare_publish_areas": store.prepare_publish_areas,
+            "publication_guard": lambda: store.publication_guard().__enter__(),
+            "write_ref": partial(store.write_ref, {"version": "v1"}),
+        }
+
+        with pytest.raises(BundleManifestError, match="does not exist or is not a directory") as raised:
+            operations[operation]()
+
+        assert type(raised.value) is BundleManifestError
+        assert list(mount_point.iterdir()) == ([published_root] if root_state == "file" else [])
+
+    def test_created_directories_inherit_the_group_permissions_of_published_root(self, store, tmp_path):
+        Path(store.root).chmod(0o2775)
+        source = _write_source(tmp_path / "source")
+
+        old_umask = os.umask(0o077)
+        try:
+            with store.publication_guard():
+                result, _ = _publish(store, source)
+                store.write_ref(result.ref_payload)
+        finally:
+            os.umask(old_umask)
+
+        created = [
+            _get_lock_path(store).parent,
+            Path(store.snapshots_root).parent,
+            Path(store.snapshots_root),
+            Path(store.ref_path).parent.parent,
+            Path(store.ref_path).parent,
+        ]
+        assert {path: stat.S_IMODE(path.stat().st_mode) for path in created} == dict.fromkeys(created, 0o2775)
+
+    @pytest.mark.parametrize("area", ["versions", "refs"])
+    @mock.patch.object(Path, "mkdir", autospec=True, side_effect=Path.mkdir)
+    def test_concurrent_bundles_keep_group_write_during_directory_creation(self, mock_mkdir, store, area):
+        published_root = Path(store.root)
+        published_root.chmod(0o2775)
+        shared_directory = published_root / area
+        rival = FilesystemArtifactStore(bundle_name="rival", published_root=published_root)
+        real_mkdir = mock_mkdir.side_effect
+
+        def prepare_rival_before_chmod(path, *args, **kwargs):
+            result = real_mkdir(path, *args, **kwargs)
+            if path == shared_directory:
+                rival.prepare_publish_areas()
+            return result
+
+        mock_mkdir.side_effect = prepare_rival_before_chmod
+        previous_umask = os.umask(0o077)
+        try:
+            store.prepare_publish_areas()
+        finally:
+            os.umask(previous_umask)
+
+        directories = [
+            shared_directory,
+            shared_directory / store.bundle_name,
+            shared_directory / rival.bundle_name,
+        ]
+        assert {path: stat.S_IMODE(path.stat().st_mode) for path in directories} == dict.fromkeys(
+            directories, 0o2775
+        )
 
     @pytest.mark.parametrize(("original_mode", "expected_mode"), [(0o600, 0o664), (0o666, 0o666)])
     def test_publication_guard_grants_group_access_without_removing_permissions(
@@ -444,7 +522,7 @@ class TestFilesystemPublication:
         mock_time.sleep.side_effect = advance
         store = FilesystemArtifactStore(
             bundle_name=BUNDLE_NAME,
-            published_root=tmp_path / "published",
+            published_root=_create_published_root(tmp_path / "published"),
             lock_timeout=65,
         )
 
@@ -472,12 +550,8 @@ class TestFilesystemPublication:
         assert raised.value.__cause__ is mock_flock.side_effect
 
     @pytest.mark.parametrize("artifact", ["snapshot", "reference"])
-    def test_publication_fsyncs_created_hierarchy_before_commit(self, tmp_path, artifact):
+    def test_publication_fsyncs_created_hierarchy_before_commit(self, store, tmp_path, artifact):
         source = _write_source(tmp_path / "source")
-        store = FilesystemArtifactStore(
-            bundle_name=BUNDLE_NAME,
-            published_root=tmp_path / "share" / "nested" / "published",
-        )
         calls: list[tuple[str, Path]] = []
         real_replace = os.replace
 
@@ -505,18 +579,19 @@ class TestFilesystemPublication:
         directory = destination.parent
         while True:
             assert ("fsync", directory) in calls[:commit_index]
-            if directory == tmp_path:
+            if directory == Path(store.root):
                 break
             directory = directory.parent
         assert ("fsync", destination.parent) in calls[commit_index + 1 :]
 
     @pytest.mark.parametrize("artifact", ["snapshot", "reference"])
-    def test_publication_retry_fsyncs_interrupted_ancestor_creation(self, tmp_path, artifact):
+    def test_publication_retry_fsyncs_interrupted_ancestor_creation(self, store, tmp_path, artifact):
         source = _write_source(tmp_path / "source")
-        interrupted_directory = tmp_path / "share"
-        store = FilesystemArtifactStore(
-            bundle_name=BUNDLE_NAME,
-            published_root=interrupted_directory / "nested" / "published",
+        # The first directory each publication creates below published_root.
+        interrupted_directory = (
+            Path(store.snapshots_root).parent
+            if artifact == "snapshot"
+            else Path(store.ref_path).parent.parent
         )
         calls: list[tuple[str, Path]] = []
         real_replace = os.replace
@@ -728,14 +803,14 @@ class TestFilesystemPublication:
         validate_existing.assert_called_once_with(Path(store.snapshot_path(result.version)))
         mock_fsync.assert_called_once_with(Path(store.snapshots_root))
 
-    @pytest.mark.parametrize("area", ["root", "snapshots", "reference", "lock"])
+    @pytest.mark.parametrize("area", ["versions", "snapshots", "reference", "lock"])
     @mock.patch.object(Path, "chmod", autospec=True, side_effect=Path.chmod)
     def test_publication_retries_directory_creation_after_chmod_failure(
         self, mock_chmod, store, tmp_path, area
     ):
         source = _write_source(tmp_path / "source")
         failed_directory = {
-            "root": Path(store.root),
+            "versions": Path(store.snapshots_root).parent,
             "snapshots": Path(store.snapshots_root),
             "reference": Path(store.ref_path).parent,
             "lock": _get_lock_path(store).parent,
@@ -775,7 +850,7 @@ class TestFilesystemPublication:
     def test_failed_chmod_preserves_a_directory_created_concurrently(
         self, mock_mkdir, mock_chmod, mock_rmdir, store, other_owner
     ):
-        raced_directory = Path(store.root)
+        raced_directory = Path(store.snapshots_root).parent
         real_mkdir = mock_mkdir.side_effect
         real_chmod = mock_chmod.side_effect
 
@@ -807,7 +882,7 @@ class TestFilesystemPublication:
     @mock.patch.object(Path, "chmod", autospec=True, side_effect=Path.chmod)
     @mock.patch.object(Path, "mkdir", autospec=True, side_effect=Path.mkdir)
     def test_publication_directory_creation_preserves_a_racing_file(self, mock_mkdir, mock_chmod, store):
-        raced_file = Path(store.root)
+        raced_file = Path(store.snapshots_root).parent
         real_mkdir = mock_mkdir.side_effect
 
         def create_file_first(path, *args, **kwargs):
@@ -832,13 +907,14 @@ class TestFilesystemPublication:
         with pytest.raises(BundleManifestError, match="chmod failed") as raised:
             store.prepare_publish_areas()
 
+        versions_directory = Path(store.snapshots_root).parent
         assert raised.value.__cause__ is mock_chmod.side_effect
-        mock_rmdir.assert_called_once_with(Path(store.root))
-        assert Path(store.root).is_dir()
+        mock_rmdir.assert_called_once_with(versions_directory)
+        assert versions_directory.is_dir()
         mock_log.warning.assert_called_once_with(
             "Could not clean up publication directory %s after failed permission setup; "
             "inspect its permissions before retrying",
-            Path(store.root),
+            versions_directory,
             exc_info=True,
         )
 
@@ -996,6 +1072,34 @@ class TestFilesystemPublication:
         assert store.read_ref() == {"version": "v1"}
         assert mock_fsync.call_args == mock.call(Path(store.ref_path).parent)
         assert list(Path(store.ref_path).parent.iterdir()) == [Path(store.ref_path)]
+
+    @pytest.mark.parametrize(
+        "previous_payload",
+        [
+            pytest.param(None, id="first-publication"),
+            pytest.param({"version": "v1"}, id="replacement"),
+        ],
+    )
+    @mock.patch.object(store_module.os, "replace", autospec=True, side_effect=_real_replace)
+    def test_write_ref_reports_a_swept_temp_file_as_durability_error(
+        self, mock_replace, store, previous_payload
+    ):
+        store.prepare_publish_areas()
+        if previous_payload is not None:
+            store.write_ref(previous_payload)
+        mock_replace.side_effect = _sweep_then_fail
+
+        with pytest.raises(BundleManifestRefDurabilityError) as raised:
+            store.write_ref({"version": "v2"})
+
+        assert raised.value.version == "v2"
+        assert isinstance(raised.value.__cause__, FileNotFoundError)
+        assert raised.value.__cause__.filename == os.fspath(mock_replace.call_args.args[0])
+        if previous_payload is None:
+            assert list(Path(store.ref_path).parent.iterdir()) == []
+        else:
+            assert store.read_ref() == previous_payload
+            assert list(Path(store.ref_path).parent.iterdir()) == [Path(store.ref_path)]
 
     @mock.patch.object(
         store_module.os, "replace", autospec=True, side_effect=OSError(errno.EIO, "rename reply lost")
