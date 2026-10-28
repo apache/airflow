@@ -958,7 +958,8 @@ class InfoJsonEncodable(dict):
                 if not field.isidentifier():
                     continue
                 if field not in self._fields and field not in self.excludes and field not in self.renames:
-                    setattr(self, field, val)
+                    # Any attribute may hold live Airflow objects, even nested ones that can't be pickled
+                    setattr(self, field, _convert_to_json_safe(self._cast_basic_types(val), field))
                     self._fields.append(field)
 
 
@@ -1515,7 +1516,7 @@ class TaskInfo(InfoJsonEncodable):
         # Set as items rather than fields so ``_cast_basic_types`` does not turn them into strings.
         for field in ("inlets", "outlets"):
             if hasattr(self, field):
-                self[f"{field}_list"] = _convert_to_json_safe_list(getattr(self, field), field)
+                self[f"{field}_list"] = _convert_to_json_safe(getattr(self, field), field)
 
 
 class TaskInfoComplete(TaskInfo):
@@ -1526,7 +1527,9 @@ class TaskInfoComplete(TaskInfo):
         "_BaseOperator__instantiated",
         "_BaseOperator__init_kwargs",  # Causes recursion error on AF3, nothing useful there
         "_dag",
-        "dag",  # A stored operator's Dag, e.g. in the scheduler, which can't be pickled
+        "dag",
+        "expand_input",
+        "op_kwargs_expand_input",
         "_hook",
         "_log",
         "_outlets",
@@ -2567,7 +2570,7 @@ class OpenLineageRedactor(SecretsMasker):
         return item
 
 
-def _convert_to_json_safe_list(value: list, name: str) -> list | None:
+def _convert_to_json_safe(value: Any, name: str) -> Any:
     """
     Return ``value`` with only JSON-native types.
 
@@ -2576,7 +2579,7 @@ def _convert_to_json_safe_list(value: list, name: str) -> list | None:
     try:
         return json.loads(json.dumps(value, default=str, skipkeys=True))
     except (TypeError, ValueError) as e:
-        log.warning("Unable to serialize task `%s` to a JSON list: %s", name, e)
+        log.warning("Unable to convert `%s` to JSON-native types: %s", name, e)
         return None
 
 

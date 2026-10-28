@@ -21,6 +21,7 @@ import datetime
 import enum
 import pathlib
 import pickle
+import threading
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
@@ -52,7 +53,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInstanceInfo,
     TaskInstancePosition,
     _build_labeled_edge_map,
-    _convert_to_json_safe_list,
+    _convert_to_json_safe,
     _extract_ol_info_from_asset_event,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
@@ -4663,6 +4664,9 @@ def test_info_json_encodables_of_stored_objects_pickle_to_their_items_only(dag_m
         with TaskGroup("group"):
             plain = EmptyOperator(task_id="plain", inlets=[asset], outlets=[asset])
         plain >> PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        PythonOperator.partial(task_id="mapped_from_upstream", python_callable=list).expand(
+            op_kwargs=plain.output
+        )
     run = dag_maker.create_dagrun()
     stored = next(ti for ti in run.task_instances if ti.task_id == "group.plain")
     dag = stored.task.dag
@@ -4676,6 +4680,8 @@ def test_info_json_encodables_of_stored_objects_pickle_to_their_items_only(dag_m
         TaskInfoComplete(stored.task),
         TaskInfo(dag.get_task("mapped")),
         TaskInfoComplete(dag.get_task("mapped")),
+        TaskInfo(dag.get_task("mapped_from_upstream")),
+        TaskInfoComplete(dag.get_task("mapped_from_upstream")),
         TaskGroupInfo(stored.task.task_group),
     ]
 
@@ -4686,6 +4692,37 @@ def test_info_json_encodables_of_stored_objects_pickle_to_their_items_only(dag_m
         unpickled = pickle.loads(pickle.dumps(info))
         assert type(unpickled) is type(info)
         assert unpickled == info
+
+
+@pytest.mark.db_test
+def test_task_info_complete_of_stored_mapped_task_leaves_out_its_expand_input(dag_maker):
+    with dag_maker(serialized=True):
+
+        @task
+        def produce():
+            return [1, 2]
+
+        @task
+        def consume(x):
+            return x
+
+        produced = produce()
+        consume.expand(x=produced)
+        PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=produced)
+    dag = dag_maker.create_dagrun().task_instances[0].task.dag
+
+    for task_id in ("consume", "mapped"):
+        assert not {"expand_input", "op_kwargs_expand_input"} & TaskInfoComplete(dag.get_task(task_id)).keys()
+
+
+def test_task_info_complete_keeps_only_json_native_values_of_operator_attributes():
+    operator = BashOperator(task_id="t", bash_command="echo 1")
+    operator.custom = {"when": datetime.datetime(2026, 1, 2), "lock": threading.Lock()}
+
+    info = TaskInfoComplete(operator)
+
+    assert info["custom"] == {"when": "2026-01-02 00:00:00", "lock": str(operator.custom["lock"])}
+    pickle.dumps(info)
 
 
 def test_task_instance_info_uses_the_position_it_is_given():
@@ -6148,17 +6185,17 @@ class _DatasetName(str, enum.Enum):
         ),
     ],
 )
-def test_convert_to_json_safe_list(value, expected):
-    assert _convert_to_json_safe_list(value, "outlets") == expected
+def test_convert_to_json_safe(value, expected):
+    assert _convert_to_json_safe(value, "outlets") == expected
 
 
 @patch("airflow.providers.openlineage.utils.utils.log", autospec=True)
-def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
+def test_convert_to_json_safe_returns_none_on_failure(mock_log):
     circular: list = []
     circular.append(circular)
-    assert _convert_to_json_safe_list(circular, "outlets") is None
+    assert _convert_to_json_safe(circular, "outlets") is None
     mock_log.warning.assert_called_once_with(
-        "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
+        "Unable to convert `%s` to JSON-native types: %s", "outlets", mock.ANY
     )
     assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
 
