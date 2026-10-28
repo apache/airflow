@@ -111,8 +111,6 @@ def dag_processor(args):
         if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
             raise SystemExit("Local health probes require Dag processor API mode")
         return check_processor_health(readiness=getattr(args, "check_ready", False))
-    if getattr(args, "sync_bundles_only", False):
-        return _run_with_action_log(_sync_bundle_catalog, args)
     if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
         return _run_with_action_log(_start_dag_processor, args)
     if getattr(args, "verbose", False):
@@ -128,7 +126,10 @@ def _run_with_action_log(func: Callable[[Any], Any], args: Any) -> Any:
     return cli_utils.action_cli(dag_processor)(args)
 
 
-def _sync_bundle_catalog(args):
+@cli_utils.action_cli
+@providers_configuration_loaded
+def dag_processor_sync_bundles(args) -> None:
+    """Provision the bundle catalog from a trusted host with database access."""
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
     DagFileProcessorManager(max_runs=0, bundle_names_to_parse=args.bundle_name).sync_bundles()

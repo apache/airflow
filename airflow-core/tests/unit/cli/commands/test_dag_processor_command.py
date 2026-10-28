@@ -269,36 +269,46 @@ def test_verbose_logging_in_both_modes(
         root_logger.setLevel(original_level)
 
 
+@pytest.mark.parametrize("token_file", ["", "/run/processor.jwt"])
 @mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
 @mock.patch.object(DagProcessorJobRunner, "_execute", autospec=True)
-def test_catalog_provisioning_does_not_start_a_processor(execute, sync):
-    args = cli_parser.get_parser().parse_args(["dag-processor", "--sync-bundles-only"])
-    dag_processor_command.dag_processor(args)
+def test_catalog_command_uses_database_without_starting_a_processor(execute, sync, token_file):
+    args = cli_parser.get_parser().parse_args(["dag-processor-sync-bundles"])
+    with conf_vars({("dag_processor", "execution_api_token_file"): token_file}):
+        args.func(args)
     sync.assert_called_once()
+    assert sync.call_args.args[0].api_client is None
     execute.assert_not_called()
 
 
-@pytest.mark.parametrize("command", [["dag-processor"], ["dag-processor", "--sync-bundles-only"]])
+@pytest.mark.parametrize(
+    ("command", "expected_event"),
+    [("dag-processor", "dag_processor"), ("dag-processor-sync-bundles", "dag_processor_sync_bundles")],
+)
 @mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
 @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner", autospec=True)
-def test_action_log_keeps_the_command_name(mock_runner, sync, on_pre_execution, command):
+def test_action_log_keeps_the_command_name(mock_runner, sync, on_pre_execution, command, expected_event):
     mock_runner.return_value.job = mock.create_autospec(Job, instance=True)
-    dag_processor_command.dag_processor(cli_parser.get_parser().parse_args(command))
-    assert on_pre_execution.call_args.kwargs["sub_command"] == "dag_processor"
+    args = cli_parser.get_parser().parse_args([command])
+    args.func(args)
+    assert on_pre_execution.call_args.kwargs["sub_command"] == expected_event
 
 
 @mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
 def test_catalog_provisioning_for_named_bundles_keeps_other_bundles(sync, configure_testing_dag_bundle):
     parser = cli_parser.get_parser()
     with configure_testing_dag_bundle(os.devnull):
-        dag_processor_command.dag_processor(
-            parser.parse_args(["dag-processor", "--sync-bundles-only", "--bundle-name", "testing"])
-        )
+        args = parser.parse_args(["dag-processor-sync-bundles", "--bundle-name", "testing"])
+        args.func(args)
+        args = parser.parse_args(["dag-processor-sync-bundles", "--bundle-name", "unknown"])
         with pytest.raises(SystemExit, match="Bundles not found: unknown"):
-            dag_processor_command.dag_processor(
-                parser.parse_args(["dag-processor", "--sync-bundles-only", "--bundle-name", "unknown"])
-            )
+            args.func(args)
     manager = sync.call_args.args[0]
     assert manager.bundle_names_to_parse == ["testing"]
     sync.assert_called_once()
+
+
+def test_processor_command_rejects_catalog_provisioning_option():
+    with pytest.raises(SystemExit):
+        cli_parser.get_parser().parse_args(["dag-processor", "--sync-bundles-only"])
