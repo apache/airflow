@@ -121,18 +121,26 @@ x-ol-common-env: &ol-common-env
   # registers more than a few hook lineage inputs or outputs per task, so 67 (instead of the default 100) does
   # not affect them.
   AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR: '67'
-  # Both control how quickly the dag-processor picks up dags: REFRESH_INTERVAL is how often it
-  # re-scans the folder for new/removed files, MIN_FILE_PROCESS_INTERVAL is how often it re-parses
-  # a file it already knows about. Tightened from the 300s/30s defaults so the e2e run doesn't wait
-  # on the dag-processor's own cadence on top of everything else.
+  # REFRESH_INTERVAL is how often the dag-processor re-scans the folder for new files, tightened from 300s so the
+  # Dags load quickly. MIN_FILE_PROCESS_INTERVAL is how often it re-parses a file it already parsed: the files
+  # never change during a run, and re-parsing all of them every few seconds takes most of the CPU of a CI runner.
   AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '3'
-  AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '3'
-  # openlineage_defer_simple_dag's TimeDeltaSensor defaults to a 180s delta so it reliably defers at
-  # least once even before a worker picks up the task; tighten it here since we do not need to wait.
-  SYSTEM_TESTS_OL_TIMEDELTA: '60'
+  AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '600'
+  # The TimeDeltaSensor of openlineage_defer_simple_dag and openlineage_sensor_reschedule_dag waits this long after
+  # the Dag run is triggered, and must not be done before a worker picks it up, or it never defers or reschedules.
+  # Both Dags are triggered first (harness.LONG_RUNNING_DAG_IDS), so a local worker picks them up in seconds.
+  SYSTEM_TESTS_OL_TIMEDELTA: '30'
+  # How long check_events (OpenLineageTestOperator) waits before reading the events, 10s by default. The worker,
+  # scheduler and API server write their events to Variables within a few seconds in this deployment.
+  SYSTEM_TESTS_OL_CHECK_EVENTS_DELAY_SECONDS: '5'
   # Every DAG's dagrun_timeout (system.openlineage.constants.DEFAULT_DAGRUN_TIMEOUT) defaults to 10
   # minutes; tighten it here since we do not need to wait for worker.
   SYSTEM_TESTS_OL_DAGRUN_TIMEOUT_MINUTES: '5'
+  # The harness triggers every Dag, so they start unpaused instead of being unpaused one by one
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+  # Below the Dag run timeout, so a task stuck waiting (e.g. for a worker slot or for a state change) fails with its
+  # own log and frees its slot, instead of every Dag run of the batch timing out. Tasks that set one keep theirs.
+  AIRFLOW__CORE__DEFAULT_TASK_EXECUTION_TIMEOUT: '240'
   AIRFLOW__CORE__TASK_SUCCESS_OVERTIME: '70'
   # Serve the dags folder through a versioned bundle so example_openlineage_versioned_dag gets a
   # non-null dag_bundle_version. MockVersionedLocalDagBundle still serves from /opt/airflow/dags
@@ -142,6 +150,21 @@ x-ol-common-env: &ol-common-env
   # fires on every task and errors without its connection — suppressing OL events. A curated
   # deployment (e.g. Astro) does not ship it; disable its listener to match.
   AIRFLOW__INFORMATICA__LISTENER_DISABLED: 'true'
+  # The manual state and task loop state Dags mark running tasks and Dag runs of other Dags through the REST
+  # API. The task is left sleeping, so it is killed after this cleanup time instead of the default 60s, and
+  # the worker is not given a chance to emit an event of its own in the meantime.
+  AIRFLOW__CORE__KILLED_TASK_CLEANUP_TIME: '5'
+  # Every Dag is triggered at once, and many tasks hold a worker slot while they wait (tasks left running until a
+  # test marks them, the tasks polling for a state change, check_events), so the defaults (32 and 16) leave tasks
+  # queued for tens of seconds. Each worker slot is a pre-forked process, so this is bounded by the runner memory.
+  AIRFLOW__CORE__PARALLELISM: '48'
+  AIRFLOW__CELERY__WORKER_CONCURRENCY: '48'
+  # Let one scheduler loop look at every running Dag run and queue more task instances at once
+  AIRFLOW__SCHEDULER__MAX_DAGRUNS_PER_LOOP_TO_SCHEDULE: '100'
+  AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY: '64'
+  # Credentials the Dags use to get a token for the REST API: the user the base compose file creates.
+  SYSTEM_TESTS_OL_API_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+  SYSTEM_TESTS_OL_API_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
 
 x-ol-common: &ol-common
   environment:
@@ -163,3 +186,16 @@ services:
     <<: *ol-common
   airflow-worker:
     <<: *ol-common
+    # Every task process loads the plugins of the installed providers. Those of these providers take ~4s together to
+    # import, several times a task's own work on a CI runner, and no OpenLineage Dag uses them, so the worker removes
+    # them before it starts (a no-op on the compat images, which do not have them).
+    entrypoint:
+      - /usr/bin/dumb-init
+      - --
+      - bash
+      - -c
+      - >-
+        pip uninstall --yes --quiet apache-airflow-providers-apache-hive apache-airflow-providers-common-ai
+        apache-airflow-providers-databricks apache-airflow-providers-informatica 2>/dev/null;
+        exec /entrypoint "$$@"
+      - --

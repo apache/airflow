@@ -75,24 +75,76 @@
         "eventType": "START",
         "job": {
             "name": "openlineage_short_circuit_dag.do_nothing_task"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_short_circuit_dag.do_nothing_task"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
         "job": {
             "name": "openlineage_short_circuit_dag.skip_tasks"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_short_circuit_dag.skip_tasks"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     }
 ]
