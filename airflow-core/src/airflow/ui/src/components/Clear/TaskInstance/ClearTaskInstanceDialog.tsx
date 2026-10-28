@@ -155,7 +155,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   // The Dag details and run versions behind the run-on-latest option are read for one run.
   const singleRun = groups.length === 1;
-  const dagId = groups[0]?.dagId ?? "";
+  // Undefined while there is nothing to clear: the bulk actions keep this dialog mounted.
+  const dagId = groups[0]?.dagId;
   const dagRunId = groups[0]?.dagRunId ?? "";
   const loopMode = targets.some((target) => target.in_loop);
   const initialNote = targets.length === 1 ? (targets[0]?.note ?? null) : null;
@@ -201,9 +202,11 @@ const ClearTaskInstanceDialog = (props: Props) => {
     closeDialog();
   };
 
-  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId }, undefined, { enabled: singleRun });
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId: dagId ?? "" }, undefined, {
+    enabled: singleRun,
+  });
 
-  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId }, undefined, {
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId: dagId ?? "", dagRunId }, undefined, {
     enabled: openDialog && singleRun,
   });
 
@@ -247,8 +250,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
     },
   });
 
-  // Undefined while there is nothing to clear: the bulk actions keep this dialog mounted.
-  const refetchInterval = useAutoRefresh({ dagId: groups[0]?.dagId });
+  const refetchInterval = useAutoRefresh({ dagId });
 
   // Loop members are addressed by exact execution id: their task id and map index alone
   // do not say which pass is meant. Past and future cannot be combined with exact ids.
