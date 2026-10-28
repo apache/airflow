@@ -46,6 +46,7 @@
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
+  - [Release or yank the outstanding provider candidates](#release-or-yank-the-outstanding-provider-candidates)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
@@ -725,6 +726,11 @@ still works but is no longer recommended.
    The result is committed onto the shared `constraints-X-Y` branch and tagged
    `constraints-${VERSION_RC}`. There is no `constraints-${VERSION_RC}` branch — a branch with the
    same name as the tag would make the name ambiguous, so the workflow fails if it finds one.
+
+   The regular constraints generation for the `vX-Y-test` branch, which runs without
+   pre-releases, keeps the `rcN` provider pins it finds on `constraints-X-Y` for as long as PyPI
+   serves them, so it does not undo the candidate's constraints while the vote is on. A pinned
+   candidate gives way once its final is published, and is dropped if it is yanked.
 
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
@@ -1448,6 +1454,28 @@ simple instructions described in
 
 # Publish the final Apache Airflow release
 
+## Release or yank the outstanding provider candidates
+
+The constraints of the final release cannot pin a provider release candidate, and they will not
+silently pass over one either. If the candidate's constraints pinned providers at `rcN` versions
+(see the `start-rc-process` note above), every one of them must be cleared before `start-release`
+reaches its constraints step:
+
+* **release it** - the provider vote passed and its final version is published on PyPI, or
+* **yank it** on PyPI - it is not going to be released; yanked versions are skipped.
+
+Until then, the `Release constraints` workflow for the final version fails, listing every
+provider whose newest version on PyPI is a candidate that is neither released nor yanked. To see
+which providers the candidate pinned:
+
+```shell script
+curl -s "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION_RC}/constraints-3.13.txt" \
+  | grep -E '^apache-airflow-providers-.*(a|b|rc)[0-9]+$'
+```
+
+Agree with the providers' release manager on the decision early in the vote, so the final
+release does not wait on it.
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -1564,9 +1592,12 @@ The providers are pinned rather than resolved: every `apache-airflow-providers-*
 `==` at the newest version PyPI can install, so the constraints record what is actually published
 instead of whatever the resolver settles on. A candidate takes the wave's `rcN` versions along with
 it - a pre-release only wins by sorting above every final release, so a provider without a
-candidate in the wave keeps its release. A final ignores candidates entirely, which is what makes
-it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
-graph can resolve to a pre-release, since no other requirement mentions one.
+candidate in the wave keeps its release. A final never pins a candidate, which is what makes it
+impossible for a released constraints file to carry an `rc` pin - and it fails instead of passing
+one over: a provider whose newest version on PyPI is a candidate must be released or yanked first
+(see [Release or yank the outstanding provider candidates](#release-or-yank-the-outstanding-provider-candidates)).
+Yanked versions are skipped. Nothing else in the dependency graph can resolve to a pre-release,
+since no other requirement mentions one.
 
 Re-running the workflow for the same candidate adds another commit onto `constraints-X-Y` and
 re-creates the candidate's tag on it, so redoing a candidate's constraints just works. If a

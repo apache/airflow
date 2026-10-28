@@ -195,6 +195,7 @@ class ShellParams:
     excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
+    fail_on_pending_provider_candidates: bool = False
     force_build: bool = False
     force_sa_warnings: bool = True
     force_lowest_dependencies: bool = False
@@ -708,6 +709,7 @@ services:
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
+        _set_var(_env, "FAIL_ON_PENDING_PROVIDER_CANDIDATES", self.fail_on_pending_provider_candidates)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
