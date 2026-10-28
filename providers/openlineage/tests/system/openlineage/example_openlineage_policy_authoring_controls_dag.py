@@ -17,15 +17,7 @@
 """
 DAG exercising the emission policy authoring API for the controls the other authoring Dags do not.
 
-- ``t_task_events_off``: ``emit_task_events=False`` silences the task events
-- ``t_task_events_beat_emit``: ``emit_task_events=True`` beats ``emit=False``
-- ``t_task_full_info``: a task level ``include_full_task_info=True``
-- a Dag level ``hook_lineage=False`` and ``include_full_task_info=True`` reach the tasks that exist at the call
-  (``t_dag_hook_off``, ``t_dag_full_info``) and a task level call after it wins (``t_dag_hook_back_on``,
-  ``t_dag_full_info_off``), while a task defined later does not inherit them (``t_after_dag_call``)
-- a task level call made before the Dag level call is overwritten by it (``t_task_then_dag``)
-- the API takes the ``XComArg`` of a TaskFlow task (``t_taskflow``) and a mapped operator, whose instances get
-  the flags (``t_mapped``)
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler reads the authored flags.
 """
@@ -35,6 +27,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import task
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
@@ -62,10 +55,19 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # No conf rule. Gets the Dag-level authored hook_lineage=False, as it exists at the call: no datasets, the
+    # source code stays.
     t_dag_hook_off = PythonOperator(task_id="t_dag_hook_off", python_callable=_register_hook_lineage)
+    # Gets the Dag-level authored include_full_task_info=True: bash_command is in the airflow task facet.
     t_dag_full_info = BashOperator(task_id="t_dag_full_info", bash_command="echo full_info")
+    # Gets the Dag-level hook_lineage=False, then a later task-level call sets True, which wins: the hook
+    # lineage datasets are emitted.
     t_dag_hook_back_on = PythonOperator(task_id="t_dag_hook_back_on", python_callable=_register_hook_lineage)
+    # Gets the Dag-level include_full_task_info=True, then a later task-level call sets False, which wins: no
+    # bash_command.
     t_dag_full_info_off = BashOperator(task_id="t_dag_full_info_off", bash_command="echo full_info")
+    # Its task-level hook_lineage=True comes first, and the later Dag-level call overwrites it with False: no
+    # datasets.
     t_task_then_dag = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_task_then_dag", python_callable=_register_hook_lineage),
         hook_lineage=True,
@@ -75,26 +77,38 @@ with DAG(
     extend_global_openlineage_emission_policy(t_dag_hook_back_on, hook_lineage=True)
     extend_global_openlineage_emission_policy(t_dag_full_info_off, include_full_task_info=False)
 
+    # Defined after the Dag-level call, so it gets none of its flags: the hook lineage datasets are emitted.
     t_after_dag_call = PythonOperator(task_id="t_after_dag_call", python_callable=_register_hook_lineage)
+    # Authored emit_task_events=False: no task events.
     t_task_events_off = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_task_events_off", python_callable=_register_hook_lineage),
         emit_task_events=False,
     )
+    # Authored emit=False with emit_task_events=True. emit_task_events wins: the task events are emitted.
     t_task_events_beat_emit = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_task_events_beat_emit", python_callable=_register_hook_lineage),
         emit=False,
         emit_task_events=True,
     )
+    # Authored include_full_task_info=True on the task: bash_command is in the airflow task facet.
     t_task_full_info = extend_global_openlineage_emission_policy(
         BashOperator(task_id="t_task_full_info", bash_command="echo full_info"),
         include_full_task_info=True,
     )
 
-    @task(task_id="t_taskflow")
+    # Authored hook_lineage=False through the XComArg of a TaskFlow task. The hook lineage datasets are
+    # dropped and the declared inlets and outlets are emitted instead. TaskFlow has no extractor, so no source
+    # code.
+    @task(
+        task_id="t_taskflow",
+        inlets=[Asset(uri="file://host1/declared_in.txt")],
+        outlets=[Asset(uri="file://host1/declared_out.txt")],
+    )
     def t_taskflow_fn():
         _register_hook_lineage()
 
     t_taskflow = extend_global_openlineage_emission_policy(t_taskflow_fn(), hook_lineage=False)
+    # Authored hook_lineage=False on a mapped operator, with one instance: no datasets, the source code stays.
     t_mapped = extend_global_openlineage_emission_policy(
         PythonOperator.partial(task_id="t_mapped", python_callable=_register_hook_lineage).expand(
             op_args=[[1]]

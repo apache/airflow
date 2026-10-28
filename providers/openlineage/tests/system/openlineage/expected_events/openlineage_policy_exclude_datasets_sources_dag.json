@@ -2,7 +2,64 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_exclude_datasets_sources_dag"
+            "name": "openlineage_policy_exclude_datasets_sources_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_declared": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_empty_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_empty_declared": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_scoped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_hook_rule": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_dataset": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_dataset_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_query": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_query_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_failed": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_after_failed": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {

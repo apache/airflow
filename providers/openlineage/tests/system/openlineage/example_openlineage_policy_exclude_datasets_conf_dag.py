@@ -21,20 +21,7 @@ The most specific matching rule replaces broader lists: Dag + task + hook, Dag +
 operator + hook, operator, hook, global. Hook and operator rules are regexes on the names of the stand-in classes
 below. Every task reports an input and an output per stem, and the expected events check both.
 
-- ``t_dag``: the Dag list replaces the global list.
-- ``t_dag_hook``: a Dag + hook list replaces the Dag list.
-- ``t_task``: a Dag + task list replaces the Dag + hook and Dag lists.
-- ``t_task_hook``: a Dag + task + hook list replaces the Dag + task list for its hook, a second hook of the task
-  gets the Dag + task list.
-- ``t_task_clear``: a Dag + task ``[]`` clears the Dag list.
-- ``t_task_dropped``, ``t_dropped_hook``: a hook scoped ``hook_lineage: false`` drops the datasets of one hook and
-  not of another, at Dag + task + hook and at Dag + hook.
-- ``t_kept_hook``: ``hook_lineage: true`` keeps all the datasets of a hook, which clears the Dag list for it.
-- ``t_operator_dag``: Dag rules beat operator and operator + hook rules.
-- ``t_exact_hook``: a hook scope with the exact class name of a real hook, which is the default ``match_mode``.
-- ``t_same_dataset``: one dataset reported by two hooks is filtered for each hook.
-- ``t_inlets``: Dag lists filter declared inlets and outlets, a Dag + hook list does not.
-- ``t_all_excluded``: when every hook dataset is excluded, declared inlets and outlets are not used instead.
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``, whose
 global rule, which the Dag rules here replace, belongs to ``openlineage_policy_exclude_datasets_global_dag``.
@@ -163,23 +150,47 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # The global list (exclude_datasets_global) and the Dag list (dag_excluded) match. The Dag list replaces
+    # the global one: COMPLETE drops dag_excluded and keeps exclude_datasets_global and keep.
     t_dag = PythonOperator(task_id="t_dag", python_callable=_dag)
+    # ConfHook gets the Dag + hook list (dag_hook_excluded), which replaces the Dag list: COMPLETE drops
+    # dag_hook_excluded and keeps dag_excluded and keep.
     t_dag_hook = PythonOperator(task_id="t_dag_hook", python_callable=_dag_hook)
+    # The Dag + task list (task_excluded) replaces the Dag + hook and Dag lists: COMPLETE drops
+    # task_excluded_a and keeps dag_hook_excluded, dag_excluded and keep.
     t_task = PythonOperator(task_id="t_task", python_callable=_task)
+    # ConfHook gets the Dag + task + hook list and drops task_hook_excluded. QuietHook gets the Dag + task
+    # list and drops task_excluded_b. Everything else is kept.
     t_task_hook = PythonOperator(task_id="t_task_hook", python_callable=_task_hook)
+    # The Dag + task list [] clears the Dag list: COMPLETE keeps dag_excluded and keep.
     t_task_clear = PythonOperator(task_id="t_task_clear", python_callable=_task_clear)
+    # The Dag + task + TaskDroppedHook rule hook_lineage: false drops that hook's dropped. QuietHook gets the
+    # Dag list: COMPLETE drops dag_excluded and keeps keep.
     t_task_dropped = PythonOperator(task_id="t_task_dropped", python_callable=_task_dropped)
+    # The Dag + DroppedHook rule hook_lineage: false drops that hook's dropped. QuietHook's keep is kept.
     t_dropped_hook = PythonOperator(task_id="t_dropped_hook", python_callable=_dropped_hook)
+    # The Dag + KeptHook rule hook_lineage: true clears the Dag list for that hook: COMPLETE keeps
+    # dag_excluded and keep.
     t_kept_hook = PythonOperator(task_id="t_kept_hook", python_callable=_kept_hook)
+    # The operator and operator + ConfHook rules lose to the Dag rules: COMPLETE drops dag_hook_excluded and
+    # dag_excluded, and keeps operator_hook_excluded, operator_excluded, keep_conf and keep.
     t_operator_dag = ExcludeDatasetsConfOperator(task_id="t_operator_dag", python_callable=_operator_dag)
+    # The Dag + hook rule with the exact class path of FSHook replaces the Dag list: COMPLETE drops
+    # fs_hook_excluded and keeps dag_excluded and keep.
     t_exact_hook = PythonOperator(task_id="t_exact_hook", python_callable=_exact_hook)
+    # One dataset reported by ConfHook and QuietHook is filtered per hook: dropped for ConfHook by the Dag +
+    # hook list, kept for QuietHook.
     t_same_dataset = PythonOperator(task_id="t_same_dataset", python_callable=_same_dataset)
+    # The Dag list filters the declared inlets and outlets, the Dag + hook list does not: COMPLETE drops
+    # dag_excluded and keeps dag_hook_excluded and keep.
     t_inlets = PythonOperator(
         task_id="t_inlets",
         python_callable=_do_nothing,
         inlets=_inlets(["dag_excluded", "dag_hook_excluded", "keep"]),
         outlets=_outlets(["dag_excluded", "dag_hook_excluded", "keep"]),
     )
+    # Every hook dataset is excluded by the Dag list, and the declared ones are not used instead: COMPLETE has
+    # no datasets.
     t_all_excluded = PythonOperator(
         task_id="t_all_excluded",
         python_callable=_all_excluded,

@@ -11,6 +11,9 @@
                         },
                         "task_silenced": {
                             "emits_ol_events": "{{ result == false }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }

@@ -18,23 +18,9 @@
 DAG exercising every emission policy control in Dag + task and operator scoped conf rules.
 
 Each task registers hook lineage, so its events show the datasets and the source code. Every control has a task
-with its rule, next to ``t_default``, which has none:
+with its rule, next to ``t_default``, which has none.
 
-- ``t_extract_off``: ``extract_operator_metadata: false`` leaves no datasets and no source code
-- ``t_hook_off``: ``hook_lineage: false`` leaves no datasets, and the source code stays
-- ``t_full_info``: ``include_full_task_info: true`` adds the operator fields, which ``t_default_bash`` does not have
-- ``t_emit_off``, ``t_task_events_off``: ``emit: false`` and ``emit_task_events: false`` silence the task events
-- ``t_task_events_beat_emit``: ``emit_task_events: true`` beats ``emit: false`` in the same rule
-- ``t_emit_off`` also calls ``emit_dataset_lineage`` and ``emit_query_lineage``, which emit nothing either
-- ``t_operator_conf``: an operator rule with ``hook_lineage: false`` leaves no datasets
-- ``t_operator_task``: a Dag + task rule beats the operator rule
-- ``t_operator_emit_off``: an operator rule with ``emit: false`` silences the task events
-- ``t_exact_operator``: an operator rule with the exact class name of a built-in operator, which no other test uses
-- ``t_extract_overridden``, ``t_hook_overridden``, ``t_emit_overridden``: authoring beats an unlocked conf rule
-- ``grp.t_grouped``: a Dag + task rule names a task in a task group by its full id
-- ``t_mapped``: a Dag + task rule applies to a mapped task instance
-- ``t_regex_task``: a Dag + task rule with ``match_mode: regex`` matches both ids as patterns
-- ``t_conflict``: of two Dag + task rules with different values, the last one wins
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler resolves the policy for
 them, including authoring.
@@ -49,6 +35,7 @@ from datetime import datetime
 from openlineage.client.event_v2 import Dataset
 
 from airflow import DAG
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import TaskGroup
 from airflow.providers.openlineage.api import emit_dataset_lineage, emit_query_lineage
@@ -100,44 +87,85 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # No rule. START/COMPLETE carry the hook lineage datasets and the Python source code: the baseline.
     t_default = PythonOperator(task_id="t_default", python_callable=_register_hook_lineage)
+    # No rule. START/COMPLETE carry the bash source code but no bash_command in the airflow task facet: the
+    # baseline for t_full_info.
     t_default_bash = BashOperator(task_id="t_default_bash", bash_command="echo full_info")
+    # Conf Dag + task rule extract_operator_metadata: false. START/COMPLETE carry no datasets and no source
+    # code.
     t_extract_off = PythonOperator(task_id="t_extract_off", python_callable=_register_hook_lineage)
+    # Conf Dag + task rule hook_lineage: false. START/COMPLETE carry no datasets, the source code stays.
     t_hook_off = PythonOperator(task_id="t_hook_off", python_callable=_register_hook_lineage)
+    # Conf Dag + task rule include_full_task_info: true. START/COMPLETE carry bash_command in the airflow task
+    # facet.
     t_full_info = BashOperator(task_id="t_full_info", bash_command="echo full_info")
+    # Conf Dag + task rule emit: false. No task events, and its emit_dataset_lineage and emit_query_lineage
+    # calls emit nothing either.
     t_emit_off = PythonOperator(task_id="t_emit_off", python_callable=_register_and_emit_lineage)
+    # Conf Dag + task rule emit_task_events: false. No task events.
     t_task_events_off = PythonOperator(task_id="t_task_events_off", python_callable=_register_hook_lineage)
+    # Conf Dag + task rule emit: false with emit_task_events: true. emit_task_events wins, so START/COMPLETE
+    # are emitted with the datasets.
     t_task_events_beat_emit = PythonOperator(
         task_id="t_task_events_beat_emit", python_callable=_register_hook_lineage
     )
+    # Conf operator rule (regex on PolicyConfControlsOperator) hook_lineage: false. The hook lineage datasets
+    # are dropped, so START/COMPLETE carry the declared inlets and outlets instead. The operator has no
+    # extractor, so no source code.
     t_operator_conf = PolicyConfControlsOperator(
-        task_id="t_operator_conf", python_callable=_register_hook_lineage
+        task_id="t_operator_conf",
+        python_callable=_register_hook_lineage,
+        inlets=[Asset(uri="file://host1/declared_in.txt")],
+        outlets=[Asset(uri="file://host1/declared_out.txt")],
     )
+    # The same operator rule, but a Dag + task rule sets hook_lineage: true and wins as the more specific
+    # rule. COMPLETE carries the hook lineage datasets instead of the declared ones, START only the declared
+    # ones.
     t_operator_task = PolicyConfControlsOperator(
-        task_id="t_operator_task", python_callable=_register_hook_lineage
+        task_id="t_operator_task",
+        python_callable=_register_hook_lineage,
+        inlets=[Asset(uri="file://host1/declared_in.txt")],
+        outlets=[Asset(uri="file://host1/declared_out.txt")],
     )
+    # Conf Dag + task rule extract_operator_metadata: false, unlocked. The authored True wins: datasets and
+    # source code are emitted.
     t_extract_overridden = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_extract_overridden", python_callable=_register_hook_lineage),
         extract_operator_metadata=True,
     )
+    # Conf Dag + task rule hook_lineage: false, unlocked. The authored True wins: the hook lineage datasets
+    # are emitted.
     t_hook_overridden = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_hook_overridden", python_callable=_register_hook_lineage),
         hook_lineage=True,
     )
+    # Conf Dag + task rule emit: false, unlocked. The authored True wins: START/COMPLETE are emitted.
     t_emit_overridden = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_emit_overridden", python_callable=_register_hook_lineage),
         emit=True,
     )
+    # Conf operator rule (regex on PolicyConfEmitOffOperator) emit: false. No task events.
     t_operator_emit_off = PolicyConfEmitOffOperator(
         task_id="t_operator_emit_off", python_callable=_register_hook_lineage
     )
+    # Conf operator rule with the exact class path of SmoothOperator (default match_mode) emit: false. No task
+    # events.
     t_exact_operator = SmoothOperator(task_id="t_exact_operator")
     with TaskGroup("grp"):
+        # Conf Dag + task rule naming the task by its full id grp.t_grouped, hook_lineage: false. No datasets,
+        # the source code stays.
         t_grouped = PythonOperator(task_id="t_grouped", python_callable=_register_hook_lineage)
+    # Conf Dag + task rule hook_lineage: false, applied to the one mapped instance. No datasets, the source
+    # code stays.
     t_mapped = PythonOperator.partial(task_id="t_mapped", python_callable=_register_hook_lineage).expand(
         op_args=[[1]]
     )
+    # Conf rule with match_mode regex on both the dag_id and the task_id, hook_lineage: false. No datasets,
+    # the source code stays.
     t_regex_task = PythonOperator(task_id="t_regex_task", python_callable=_register_hook_lineage)
+    # Two conf Dag + task rules, hook_lineage: true then false. The last one wins: no datasets, the source
+    # code stays.
     t_conflict = PythonOperator(task_id="t_conflict", python_callable=_register_hook_lineage)
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

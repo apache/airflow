@@ -11,6 +11,18 @@
                         },
                         "t_skipped_full_info": {
                             "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_runtime_outlets": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_collector_cap": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_skipped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }

@@ -14,6 +14,27 @@
                         },
                         "t_locked_extract": {
                             "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_level_blocked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_full": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_floor": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_blocked_up": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_blocked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }
@@ -86,8 +107,18 @@
     },
     {
         "eventType": "START",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
             "facets": {
@@ -97,8 +128,18 @@
     },
     {
         "eventType": "COMPLETE",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
             "facets": {

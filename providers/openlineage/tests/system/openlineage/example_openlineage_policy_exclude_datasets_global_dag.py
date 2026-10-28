@@ -21,18 +21,9 @@ Hook, operator and operator + hook rules are regexes on the names of the stand-i
 else uses, so they cannot affect another test. The one global rule matches a dataset name no other test uses.
 Every task reports an input and an output per stem, and the expected events check both.
 
-Tasks, and what each shows about the rule tiers (most specific first: operator + hook, operator, hook, global):
+The most specific matching rule replaces broader lists: operator + hook, operator, hook, global.
 
-- ``t_global``: the global list drops its datasets.
-- ``t_hook``: a hook rule replaces the global list.
-- ``t_operator``: an operator rule replaces the global list.
-- ``t_operator_hook``: an operator + hook rule beats both the operator and the hook rule.
-- ``t_operator_vs_hook``: an operator rule beats a hook rule.
-- ``t_hook_dropped``: a hook rule with ``hook_lineage: false`` drops one hook's datasets, not another's.
-- ``t_operator_hook_dropped``: the same for an operator + hook rule.
-- ``t_operator_inlets``: the operator list filters declared inlets and outlets, the operator + hook rule does not.
-- ``t_clear``: an operator rule with ``[]`` clears the global list.
-- ``t_operator_locked``, ``t_hook_locked``: a locked operator or hook rule ignores an authored list.
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
@@ -162,28 +153,48 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # Only the global rule matches: COMPLETE drops exclude_datasets_global and keeps keep.
     t_global = PythonOperator(task_id="t_global", python_callable=_global)
+    # The hook rule (hook_excluded) replaces the global list: COMPLETE drops hook_excluded and keeps
+    # exclude_datasets_global and keep.
     t_hook = PythonOperator(task_id="t_hook", python_callable=_hook)
+    # The operator rule (operator_excluded) replaces the global list: COMPLETE drops operator_excluded and
+    # keeps exclude_datasets_global and keep.
     t_operator = ExcludeDatasetsGlobalOperator(task_id="t_operator", python_callable=_operator)
+    # The operator + hook rule (operator_hook_excluded) beats the operator and the hook rules: COMPLETE drops
+    # operator_hook_excluded and keeps operator_excluded, hook_excluded and keep.
     t_operator_hook = ExcludeDatasetsGlobalOperator(task_id="t_operator_hook", python_callable=_operator_hook)
+    # The operator rule beats the hook rule of ExcludeDatasetsGlobalOtherHook: COMPLETE drops
+    # operator_excluded and keeps other_hook_excluded and keep.
     t_operator_vs_hook = ExcludeDatasetsGlobalOperator(
         task_id="t_operator_vs_hook", python_callable=_operator_vs_hook
     )
+    # The hook rule hook_lineage: false drops ExcludeDatasetsGlobalDropHook's dropped. QuietHook's keep is
+    # kept.
     t_hook_dropped = PythonOperator(task_id="t_hook_dropped", python_callable=_hook_dropped)
+    # The operator + hook rule hook_lineage: false drops ExcludeDatasetsGlobalOpDropHook's dropped. QuietHook
+    # gets the operator list: COMPLETE drops operator_excluded and keeps keep.
     t_operator_hook_dropped = ExcludeDatasetsGlobalOperator(
         task_id="t_operator_hook_dropped", python_callable=_operator_hook_dropped
     )
+    # The operator list filters the declared inlets and outlets, the operator + hook list does not: COMPLETE
+    # drops operator_excluded and keeps operator_hook_excluded and exclude_datasets_global.
     t_operator_inlets = ExcludeDatasetsGlobalOperator(
         task_id="t_operator_inlets",
         python_callable=_do_nothing,
         inlets=_inlets(["operator_excluded", "operator_hook_excluded", "exclude_datasets_global"]),
         outlets=_outlets(["operator_excluded", "operator_hook_excluded", "exclude_datasets_global"]),
     )
+    # The operator rule [] clears the global list: COMPLETE keeps exclude_datasets_global and keep.
     t_clear = ExcludeDatasetsGlobalClearOperator(task_id="t_clear", python_callable=_clear)
+    # The locked operator rule (operator_locked) ignores the authored list (authored_): COMPLETE drops
+    # operator_locked and keeps authored_a.
     t_operator_locked = extend_global_openlineage_emission_policy(
         ExcludeDatasetsGlobalLockedOperator(task_id="t_operator_locked", python_callable=_operator_locked),
         exclude_datasets=[".*/authored_.*"],
     )
+    # The locked hook rule (hook_locked) ignores the authored list (authored_): COMPLETE drops hook_locked and
+    # keeps authored_a.
     t_hook_locked = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_hook_locked", python_callable=_hook_locked),
         exclude_datasets=[".*/authored_.*"],

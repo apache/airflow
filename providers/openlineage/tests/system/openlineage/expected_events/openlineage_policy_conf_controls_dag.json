@@ -26,6 +26,45 @@
                         },
                         "t_exact_operator": {
                             "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_default_bash": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extract_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_conf": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extract_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "grp.t_grouped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_mapped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_regex_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_conflict": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }
@@ -307,34 +346,91 @@
     },
     {
         "eventType": "START",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_conf_controls_dag.t_operator_conf",
             "facets": {
                 "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
             }
         }
     },
     {
         "eventType": "COMPLETE",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_conf_controls_dag.t_operator_conf",
             "facets": {
                 "sourceCode": null
             }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_conf_controls_dag.t_operator_task",
             "facets": {
                 "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
             }
         }
     },
@@ -356,6 +452,15 @@
             "name": "openlineage_policy_conf_controls_dag.t_operator_task",
             "facets": {
                 "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
             }
         }
     },

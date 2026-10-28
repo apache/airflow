@@ -2,7 +2,55 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_exclude_datasets_conf_dag"
+            "name": "openlineage_policy_exclude_datasets_conf_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_clear": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dropped_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_kept_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_exact_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_same_dataset": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_inlets": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {

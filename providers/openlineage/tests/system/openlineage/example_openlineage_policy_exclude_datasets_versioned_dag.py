@@ -17,14 +17,7 @@
 """
 DAG exercising the OpenLineage emission policy where Airflow versions differ.
 
-- ``t_runtime_outlets``: outlets added at runtime through an ``AssetAlias``, next to declared ones. Airflow reports
-  runtime outlets only since 3.1.
-- ``t_collector_cap``: exclusion happens after the hook lineage collector cap, so it does not make room for the
-  assets the cap dropped (requires ``AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR=67``). The cap exists only since
-  Airflow 3.2.
-- ``t_skipped``, ``t_skipped_emit_off``, ``t_skipped_full_info``: a skipped task's events are filtered and follow
-  the Dag + task rules too. Airflow 3.0 calls no listener when a task skips itself, so it emits no COMPLETE there,
-  and the lone START isn't checked.
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
@@ -91,20 +84,29 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # The Dag list drops dag_excluded from the declared outlets and from the outlets added at runtime through
+    # the alias. COMPLETE keeps keep_declared and, on Airflow 3.1+, the runtime keep.
     t_runtime_outlets = PythonOperator(
         task_id="t_runtime_outlets",
         python_callable=_runtime_outlets,
         inlets=_inlets(["dag_excluded_declared", "keep_declared"]),
         outlets=[*_outlets(["dag_excluded_declared", "keep_declared"]), ALIAS],
     )
+    # Registers 70 assets. On Airflow 3.2+ the collector keeps the first 67, then the Dag list drops the 5
+    # dag_excluded ones, leaving 62. Before 3.2 there is no cap, leaving 65.
     t_collector_cap = PythonOperator(task_id="t_collector_cap", python_callable=_collector_cap)
+    # Skips itself. The Dag list drops dag_excluded from its START and COMPLETE. Airflow 3.0 emits no COMPLETE
+    # for a task that skips itself.
     t_skipped = PythonOperator(
         task_id="t_skipped",
         python_callable=_skip,
         inlets=_inlets(["dag_excluded", "keep"]),
         outlets=_outlets(["dag_excluded", "keep"]),
     )
+    # Skips itself, and the conf Dag + task rule emit: false applies: no task events.
     t_skipped_emit_off = PythonOperator(task_id="t_skipped_emit_off", python_callable=_skip)
+    # Skips itself, and the conf Dag + task rule include_full_task_info: true applies: bash_command is in
+    # START and COMPLETE. Airflow 3.0 emits no COMPLETE.
     t_skipped_full_info = BashOperator(task_id="t_skipped_full_info", bash_command="exit 99")
     check_events = OpenLineageTestOperator(
         task_id="check_events",

@@ -17,23 +17,11 @@
 """
 DAG exercising locked conf rules: a locked Dag + task rule for every control, and a locked Dag rule.
 
-Each of these tasks has a locked Dag + task rule, and authoring tries to give the control the opposite value, which
-the lock blocks:
+Every task authors the opposite of what a locked rule sets, and the lock wins. The ``t_locked_*`` tasks each have
+a locked Dag + task rule for one control. The locked Dag rule sets ``include_source_code: false`` and
+``exclude_datasets`` for every task, so no task has source code unless a more specific rule gives it back.
 
-- ``t_locked_emit``: ``emit: false``, authored ``emit=True``
-- ``t_locked_task_events``: ``emit_task_events: false``, authored ``emit_task_events=True``
-- ``t_locked_extract``: ``extract_operator_metadata: false``, authored ``True``
-- ``t_locked_hook``: ``hook_lineage: false``, authored ``True``
-- ``t_locked_full``: ``include_full_task_info: true``, authored ``False``
-
-The locked Dag rule sets ``include_source_code: false`` and ``exclude_datasets``, so no task has source code unless a
-more specific rule gives it back, and it blocks authoring for every task of the Dag:
-
-- ``t_floor``: an unlocked Dag + task rule sets ``include_source_code: true``, so the source code stays, and the
-  authored ``False`` is blocked
-- ``t_blocked_up``: the authored ``include_source_code=True`` is blocked
-- ``t_blocked``, ``t_dag_level_blocked``: an authored ``exclude_datasets`` list, for the task or for the whole Dag,
-  is ignored
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The Dag run START event also reports the locked tasks as not emitting in ``emits_ol_events``.
 
@@ -46,6 +34,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.bash import BashOperator
@@ -87,37 +76,59 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # Conf locked Dag rule excludes dag_locked datasets. The Dag-level authored list below (authored_) is
+    # ignored with a warning, so COMPLETE drops dag_locked and keeps authored_a.
     t_dag_level_blocked = PythonOperator(task_id="t_dag_level_blocked", python_callable=_blocked)
     # Dag-level flags only reach tasks that already exist, so the tasks below keep their own authored values.
     extend_global_openlineage_emission_policy(dag, exclude_datasets=[".*/authored_.*"])
+    # Conf locked Dag + task rule emit: false. The authored True is ignored: no task events.
     t_locked_emit = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked_emit", python_callable=_register_hook_lineage),
         emit=True,
     )
+    # Conf locked Dag + task rule emit_task_events: false. The authored True is ignored: no task events.
     t_locked_task_events = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked_task_events", python_callable=_register_hook_lineage),
         emit_task_events=True,
     )
+    # Conf locked Dag + task rule extract_operator_metadata: false. The authored True is ignored: no datasets,
+    # no source code.
     t_locked_extract = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked_extract", python_callable=_register_hook_lineage),
         extract_operator_metadata=True,
     )
+    # Conf locked Dag + task rule hook_lineage: false. The authored True is ignored: the hook lineage datasets
+    # are dropped and the declared inlets and outlets are emitted instead. No source code, from the locked Dag
+    # rule.
     t_locked_hook = extend_global_openlineage_emission_policy(
-        PythonOperator(task_id="t_locked_hook", python_callable=_register_hook_lineage),
+        PythonOperator(
+            task_id="t_locked_hook",
+            python_callable=_register_hook_lineage,
+            inlets=[Asset(uri="file://host1/declared_in.txt")],
+            outlets=[Asset(uri="file://host1/declared_out.txt")],
+        ),
         hook_lineage=True,
     )
+    # Conf locked Dag + task rule include_full_task_info: true. The authored False is ignored: bash_command
+    # stays in the airflow task facet. No source code, from the locked Dag rule.
     t_locked_full = extend_global_openlineage_emission_policy(
         BashOperator(task_id="t_locked_full", bash_command="echo full_info"),
         include_full_task_info=False,
     )
+    # Conf locked Dag rule include_source_code: false, and an unlocked Dag + task rule include_source_code:
+    # true, which wins as the more specific rule. The authored False is still ignored, because the Dag rule
+    # locks the field: the source code is emitted.
     t_floor = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_floor", python_callable=_register_hook_lineage),
         include_source_code=False,
     )
+    # Conf locked Dag rule include_source_code: false. The authored True is ignored: no source code.
     t_blocked_up = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_blocked_up", python_callable=_register_hook_lineage),
         include_source_code=True,
     )
+    # Conf locked Dag rule excludes dag_locked datasets. The task-level authored list (authored_) is ignored
+    # with a warning: COMPLETE drops dag_locked and keeps authored_a.
     t_blocked = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_blocked", python_callable=_blocked),
         exclude_datasets=[".*/authored_.*"],

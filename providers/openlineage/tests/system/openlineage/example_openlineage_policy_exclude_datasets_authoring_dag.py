@@ -18,21 +18,9 @@
 DAG exercising ``exclude_datasets`` authoring overrides via ``extend_global_openlineage_emission_policy``.
 
 Hook rules are regexes on the names of the stand-in classes below. Every task reports an input and an output per
-stem, and the expected events check both. It checks that an authored list:
+stem, and the expected events check both.
 
-- replaces the conf lists of the task, including a hook scoped one (``t_authored_task``)
-- clears the conf lists when it is ``[]`` (``t_authored_clear``)
-- applies to declared inlets and outlets (``t_authored_inlets``)
-- set for the whole Dag reaches the tasks that exist at the call (``t_authored_dag``), not the ones defined later
-  (``t_after_dag_call``), and a task level list set after it wins (``t_dag_then_task``)
-- is matched against ``<namespace>/<name>`` with ``re.fullmatch``, each of several patterns on its own
-  (``t_identity``, ``t_fullmatch``)
-- does not turn hook lineage back on: with ``hook_lineage=False`` the hook assets are ignored and the declared
-  ones are filtered by conf (``t_hook_lineage_off``)
-- is ignored where a locked conf rule applies, even when a more specific conf rule wins the value
-  (``t_locked``), and only for the datasets of the hook a locked hook rule applies to (``t_locked_hook``)
-- replaces a hook scoped ``hook_lineage: false``, so the datasets of that hook are kept unless the list excludes
-  them (``t_authored_over_dropped``), while a locked one keeps dropping them (``t_locked_dropped``)
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
@@ -179,21 +167,33 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # Conf: the Dag list excludes conf_excluded, the AuthHook list conf_hook_excluded. The Dag-level authored
+    # list (dag_authored) replaces both: COMPLETE drops dag_authored and keeps conf_excluded and
+    # conf_hook_excluded.
     t_authored_dag = PythonOperator(task_id="t_authored_dag", python_callable=_authored_dag)
+    # Gets the Dag-level authored list (dag_authored), then its own task-level list (task_authored) replaces
+    # it: COMPLETE drops task_authored and keeps dag_authored and conf_excluded.
     t_dag_then_task = PythonOperator(task_id="t_dag_then_task", python_callable=_dag_then_task)
     # Dag-level flags only reach tasks that already exist, so every task defined below is left out of this call.
     extend_global_openlineage_emission_policy(dag, exclude_datasets=[".*/dag_authored_.*"])
     extend_global_openlineage_emission_policy(t_dag_then_task, exclude_datasets=[".*/task_authored_.*"])
 
+    # Defined after the Dag-level call, so the conf lists apply: COMPLETE drops conf_excluded and AuthHook's
+    # conf_hook_excluded, and keeps dag_authored and keep.
     t_after_dag_call = PythonOperator(task_id="t_after_dag_call", python_callable=_after_dag_call)
+    # The authored list (authored_) replaces the Dag and AuthHook conf lists: COMPLETE drops authored_a and
+    # authored_b, and keeps conf_excluded and conf_hook_excluded.
     t_authored_task = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_authored_task", python_callable=_authored_task),
         exclude_datasets=[".*/authored_.*"],
     )
+    # The authored [] clears the conf lists: COMPLETE keeps conf_excluded and conf_hook_excluded.
     t_authored_clear = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_authored_clear", python_callable=_authored_clear),
         exclude_datasets=[],
     )
+    # The authored list (authored_) filters the declared inlets and outlets too: COMPLETE drops authored_a and
+    # keeps conf_excluded.
     t_authored_inlets = extend_global_openlineage_emission_policy(
         PythonOperator(
             task_id="t_authored_inlets",
@@ -203,6 +203,8 @@ with DAG(
         ),
         exclude_datasets=[".*/authored_.*"],
     )
+    # Authored hook_lineage=False drops the hook dataset (hook_ignored), so the declared inlets and outlets
+    # are used, filtered by the Dag conf list: COMPLETE drops conf_excluded and keeps keep.
     t_hook_lineage_off = extend_global_openlineage_emission_policy(
         PythonOperator(
             task_id="t_hook_lineage_off",
@@ -212,6 +214,8 @@ with DAG(
         ),
         hook_lineage=False,
     )
+    # The authored patterns use re.fullmatch on <namespace>/<name>: authored_partial_in\.txt matches only part
+    # of the name, so authored_partial is kept, and .*/authored_full_.* drops authored_full.
     t_fullmatch = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_fullmatch", python_callable=_fullmatch),
         exclude_datasets=[
@@ -220,22 +224,35 @@ with DAG(
             ".*/authored_full_.*",
         ],
     )
+    # The authored patterns match <namespace>/<name>: COMPLETE drops the s3 staging files and
+    # file://host1//slash_*, and keeps the s3 final files and keep.
     t_identity = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_identity", python_callable=_identity),
         exclude_datasets=["s3://ol-exclude-bucket/staging/part_.*", "file://host1//slash_.*"],
     )
+    # Conf: a locked Dag + task rule (locked_excluded) and an unlocked Dag + task + AuthHook rule
+    # (specific_excluded), which wins for AuthHook. The authored list is ignored with a warning: COMPLETE
+    # drops locked_excluded_a and specific_excluded, and keeps authored_a, authored_b and locked_excluded_b.
     t_locked = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked", python_callable=_locked),
         exclude_datasets=[".*/authored_.*"],
     )
+    # Conf locked Dag + task + LockedHook rule (locked_hook_excluded). The authored list is ignored for
+    # LockedHook only: LockedHook drops locked_hook_excluded and keeps authored_a, while QuietHook uses the
+    # authored list, drops authored_b and keeps conf_excluded.
     t_locked_hook = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked_hook", python_callable=_locked_hook),
         exclude_datasets=[".*/authored_.*"],
     )
+    # Conf unlocked Dag + AuthDroppedHook rule hook_lineage: false. The authored list replaces it, so that
+    # hook's datasets come back: COMPLETE drops authored_a and keeps dropped_kept.
     t_authored_over_dropped = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_authored_over_dropped", python_callable=_authored_over_dropped),
         exclude_datasets=[".*/authored_.*"],
     )
+    # Conf locked Dag + task + AuthLockedDroppedHook rule hook_lineage: false. The authored list does not
+    # bring that hook back, so dropped is gone. QuietHook uses the authored list: COMPLETE keeps conf_excluded
+    # and keep.
     t_locked_dropped = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_locked_dropped", python_callable=_locked_dropped),
         exclude_datasets=[".*/authored_.*"],

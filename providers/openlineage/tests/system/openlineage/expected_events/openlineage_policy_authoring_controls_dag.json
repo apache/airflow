@@ -17,6 +17,30 @@
                         },
                         "t_taskflow": {
                             "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_hook_back_on": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_full_info_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_then_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_after_dag_call": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_task_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_mapped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
                         }
                     }
                 }
@@ -342,16 +366,36 @@
     },
     {
         "eventType": "START",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_authoring_controls_dag.t_taskflow"
         }
     },
     {
         "eventType": "COMPLETE",
-        "inputs": [],
-        "outputs": [],
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
         "job": {
             "name": "openlineage_policy_authoring_controls_dag.t_taskflow"
         }

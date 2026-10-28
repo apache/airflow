@@ -20,23 +20,7 @@ DAG exercising the OpenLineage ``exclude_datasets`` control on every source of t
 Every source is filtered with the same Dag list, which has two patterns. Hook and operator rules are regexes
 on the names of the stand-in classes below.
 
-- ``t_declared``: declared inlets and outlets. A Dag + hook list for another hook does not apply to them.
-- ``t_extractor``: datasets of an extractor, which have no hook.
-- ``t_extractor_all_excluded``: when every dataset of an extractor is excluded, hook lineage is not used instead.
-- ``t_extractor_empty_hook``: an extractor without datasets leaves them to hook lineage, which is filtered.
-- ``t_extractor_empty_declared``: an extractor and hook lineage without datasets leave them to declared ones.
-- ``t_hook_scoped``: hook lineage of a hook with a Dag + hook list.
-- ``t_sql_dag``: datasets of SQL hook lineage queries are filtered, and both query events are still emitted.
-- ``t_sql_hook_rule``: a Dag + hook list replaces the Dag list for the datasets of a SQL hook.
-- ``t_sql_all_excluded``: a query event is still emitted when all its datasets are excluded, and a second query of
-  the task keeps its datasets.
-- ``t_sql_dropped``: ``hook_lineage: false`` for a SQL hook drops its datasets, not its query event, and the same
-  query of another SQL hook keeps them.
-- ``t_emit_dataset``, ``t_emit_dataset_all_excluded``: ``emit_dataset_lineage`` filters its datasets, and emits no
-  event when all of them are excluded, while a call of the same task with a kept dataset does.
-- ``t_emit_query``, ``t_emit_query_all_excluded``: ``emit_query_lineage`` filters its datasets, given and parsed
-  from the query, and still emits its events when all of them are excluded, next to a call that keeps its datasets.
-- ``t_failed``: the FAIL event of a failed task is filtered too.
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
 
 The rules are in ``AIRFLOW__OPENLINEAGE__EMISSION_POLICY`` of ``airflow-e2e-tests/docker/openlineage.yml``.
 """
@@ -257,45 +241,77 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # The Dag list filters the declared inlets and outlets, the SourceHook rule does not apply to them:
+    # COMPLETE drops dag_excluded and keeps hook_scoped and keep.
     t_declared = PythonOperator(
         task_id="t_declared",
         python_callable=_do_nothing,
         inlets=_inlets(["dag_excluded", "hook_scoped", "keep"]),
         outlets=_outlets(["dag_excluded", "hook_scoped", "keep"]),
     )
+    # The Dag list filters the extractor datasets, which have no hook: COMPLETE drops dag_excluded and keeps
+    # hook_scoped and keep.
     t_extractor = ExtractorOperator(
         task_id="t_extractor",
         python_callable=_do_nothing,
         lineage_stems=["dag_excluded", "hook_scoped", "keep"],
     )
+    # The extractor reports only dag_excluded, which the Dag list drops, and the hook lineage dataset (keep)
+    # is not used instead: COMPLETE has no datasets.
     t_extractor_all_excluded = ExtractorOperator(
         task_id="t_extractor_all_excluded",
         python_callable=_extractor_all_excluded,
         lineage_stems=["dag_excluded"],
     )
+    # The extractor reports nothing, so the hook lineage is used and filtered: COMPLETE drops dag_excluded and
+    # keeps keep.
     t_extractor_empty_hook = ExtractorOperator(
         task_id="t_extractor_empty_hook", python_callable=_extractor_empty_hook
     )
+    # The extractor and the hook lineage report nothing, so the declared datasets are used and filtered:
+    # COMPLETE keeps keep.
     t_extractor_empty_declared = ExtractorOperator(
         task_id="t_extractor_empty_declared",
         python_callable=_do_nothing,
         inlets=_inlets(["dag_excluded", "keep"]),
         outlets=_outlets(["dag_excluded", "keep"]),
     )
+    # The Dag + SourceHook list (hook_scoped) replaces the Dag list: COMPLETE drops hook_scoped and keeps
+    # dag_excluded and keep.
     t_hook_scoped = PythonOperator(task_id="t_hook_scoped", python_callable=_hook_scoped)
+    # Two SQL hook lineage queries, filtered by the Dag list: both query events are emitted, without the
+    # sql_excluded tables.
     t_sql_dag = PythonOperator(task_id="t_sql_dag", python_callable=_sql_dag)
+    # The Dag + SqlRuledHook list (sql_hook_excluded) replaces the Dag list: the query event drops
+    # sql_hook_excluded_in and keeps sql_excluded_in.
     t_sql_hook_rule = PythonOperator(task_id="t_sql_hook_rule", python_callable=_sql_hook_rule)
+    # The first query reads only sql_excluded_in and is still emitted, without datasets. The second query
+    # keeps sql_keep_in.
     t_sql_all_excluded = PythonOperator(task_id="t_sql_all_excluded", python_callable=_sql_all_excluded)
+    # The Dag + SqlDroppedHook rule hook_lineage: false drops that hook's datasets, not its query event. The
+    # same query from SqlHook keeps its datasets.
     t_sql_dropped = PythonOperator(task_id="t_sql_dropped", python_callable=_sql_dropped)
+    # emit_dataset_lineage is filtered by the Dag list: its RUNNING event drops dag_excluded and keeps
+    # hook_scoped and keep.
     t_emit_dataset = PythonOperator(task_id="t_emit_dataset", python_callable=_emit_dataset)
+    # The first emit_dataset_lineage call has only excluded datasets and emits nothing. The second one (keep)
+    # emits a RUNNING event.
     t_emit_dataset_all_excluded = PythonOperator(
         task_id="t_emit_dataset_all_excluded", python_callable=_emit_dataset_all_excluded
     )
+    # emit_query_lineage is filtered, for the given and the parsed datasets: the query events keep keep_in and
+    # sql_keep_in.
     t_emit_query = PythonOperator(task_id="t_emit_query", python_callable=_emit_query)
+    # The first emit_query_lineage call has only excluded datasets and still emits its query events, without
+    # datasets. The second one keeps keep.
     t_emit_query_all_excluded = PythonOperator(
         task_id="t_emit_query_all_excluded", python_callable=_emit_query_all_excluded
     )
+    # Fails after registering hook lineage. The FAIL event is filtered by the Dag list: it drops dag_excluded
+    # and keeps keep.
     t_failed = PythonOperator(task_id="t_failed", python_callable=_failed)
+    # Not a check: runs because t_failed failed, so that check_events still runs. An EmptyOperator emits no
+    # events, which emits_ol_events reports as false.
     t_after_failed = EmptyOperator(task_id="t_after_failed", trigger_rule=TriggerRule.ONE_FAILED)
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

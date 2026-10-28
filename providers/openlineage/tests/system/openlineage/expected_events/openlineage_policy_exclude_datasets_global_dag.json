@@ -2,7 +2,49 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_exclude_datasets_global_dag"
+            "name": "openlineage_policy_exclude_datasets_global_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_global": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_vs_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_hook_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_inlets": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_clear": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_locked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_locked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {

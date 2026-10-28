@@ -2,7 +2,55 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_exclude_datasets_authoring_dag"
+            "name": "openlineage_policy_exclude_datasets_authoring_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_authored_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_then_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_after_dag_call": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_authored_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_authored_clear": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_authored_inlets": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_lineage_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_fullmatch": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_identity": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_authored_over_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {

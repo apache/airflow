@@ -2,13 +2,64 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_dag_events_trigger_dag"
+            "name": "openlineage_policy_dag_events_trigger_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "trigger_openlineage_policy_dag_events_ok_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_fail_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_off_ok_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_off_fail_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_on_emit_off_ok_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_on_emit_off_fail_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_emit_off_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_task_events_on_emit_off_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_task_events_off_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "trigger_openlineage_policy_dag_events_locked_off_child__notrigger": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "all_triggered": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_dag_events_ok_child__notrigger"
+            "name": "openlineage_policy_dag_events_ok_child__notrigger",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "run": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -45,7 +96,16 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_dag_events_fail_child__notrigger"
+            "name": "openlineage_policy_dag_events_fail_child__notrigger",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "run": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -209,7 +269,16 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger"
+            "name": "openlineage_policy_dag_events_on_emit_off_fail_child__notrigger",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "run": {
+                            "emits_ol_events": "{{ result == false }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
@@ -330,7 +399,16 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_policy_dag_events_task_events_off_child__notrigger"
+            "name": "openlineage_policy_dag_events_task_events_off_child__notrigger",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "run": {
+                            "emits_ol_events": "{{ result == false }}"
+                        }
+                    }
+                }
+            }
         }
     },
     {
