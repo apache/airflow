@@ -39,12 +39,10 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
 
-TABLE_NAME = "task_instance"
-
 
 def upgrade():
     """Add is_stub to task_instance."""
-    with op.batch_alter_table(TABLE_NAME) as batch_op:
+    with op.batch_alter_table("task_instance") as batch_op:
         batch_op.add_column(sa.Column("is_stub", sa.Boolean(), nullable=True))
 
 
@@ -52,5 +50,5 @@ def downgrade():
     """Remove is_stub from task_instance."""
     # Dropping a column rebuilds the table on SQLite, unlike adding one, so the foreign keys of
     # everything that points at task_instance have to be held off while the rows are copied.
-    with sqlite_rebuilds(op), op.batch_alter_table(TABLE_NAME) as batch_op:
+    with sqlite_rebuilds(op), op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_column("is_stub")
