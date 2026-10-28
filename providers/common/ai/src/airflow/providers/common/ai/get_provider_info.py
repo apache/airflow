@@ -196,7 +196,12 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
+                        "description": "Model in provider:name format, or bare with Default Provider set (e.g. openai:gpt-5)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "provider": {
+                        "label": "Default Provider",
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "fallback_conn_ids": {

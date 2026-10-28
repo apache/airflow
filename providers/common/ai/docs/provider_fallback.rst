@@ -68,9 +68,11 @@ Bedrock primary's native id reaches a Bedrock fallback but not an Azure one. For
 a Bedrock primary with ``fallback_conn_ids: ["bedrock_dr"]`` forwards
 ``"us.anthropic.claude-opus-4-6-v1:0"`` to ``bedrock_dr`` unchanged; the same primary with
 ``fallback_conn_ids: ["azure_dr"]`` does not forward it to ``azure_dr`` at all, and
-``azure_dr`` raises "no model specified" unless its own extra sets a ``model``. See
-:doc:`connections/pydantic_ai_azure`, :doc:`connections/pydantic_ai_bedrock` and
-:doc:`connections/pydantic_ai_vertex` for how each vendor connection resolves a bare name.
+``azure_dr`` raises "no model specified" unless its own extra sets a ``model``. A generic
+``pydanticai`` connection with Default Provider set counts as being on that platform. See
+:doc:`connections/pydantic_ai`, :doc:`connections/pydantic_ai_azure`,
+:doc:`connections/pydantic_ai_bedrock` and :doc:`connections/pydantic_ai_vertex` for how
+each connection type resolves a bare name.
 
 Configure it on the operator
 -----------------------------

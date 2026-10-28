@@ -145,8 +145,8 @@ Where the model name goes
 Set the model on the connection's **Model** field in ``provider:model`` form, for example
 ``anthropic:claude-sonnet-5``. An operator's ``model_id`` overrides it for that task, so one
 connection can serve several models from the same vendor. The generic ``pydanticai``
-connection has no vendor of its own, so a bare model name without a prefix is rejected; the
-Azure, Bedrock and Vertex connection types each supply their own prefix and accept a bare
+connection has no vendor of its own, so a bare model name without a prefix is rejected unless
+the connection sets **Default Provider**; the Azure, Bedrock and Vertex connection types each supply their own prefix and accept a bare
 name. :doc:`connections/pydantic_ai` has every field and the full resolution order.
 
 Reliability across vendors
