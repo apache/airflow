@@ -46,7 +46,7 @@ import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
-import { buildSelectableGroups, useGridSelection } from "./useGridSelection";
+import { buildSelectableGroups, getCoveredCellKeys, useGridSelection } from "./useGridSelection";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -193,6 +193,11 @@ export const Grid = ({
     summariesByRunId,
   });
 
+  const selectedCellKeys = useMemo(
+    () => getCoveredCellKeys(selection, selectableGroups),
+    [selection, selectableGroups],
+  );
+
   const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
   const handleCellClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => {
@@ -306,7 +311,7 @@ export const Grid = ({
               nodes={flatNodes}
               onCellClick={handleCellClick}
               run={dr}
-              selection={selection}
+              selectedCellKeys={selectedCellKeys}
               showVersionIndicatorMode={showVersionIndicatorMode}
               tiSummaries={summariesByRunId.get(dr.run_id)}
               virtualItems={virtualItems}

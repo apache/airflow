@@ -24,7 +24,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import type { GridSelection } from "src/context/gridSelection";
 
-import { getCellKey, getCellTaskIds, type SelectableGroups } from "./useGridSelection";
+import { getCellKey, getCoveredCellKeys, getCoveredNodeIds, type SelectableGroups } from "./useGridSelection";
 
 const PAGE_LIMIT = 100;
 
@@ -39,13 +39,10 @@ export const useGridSelectedTaskInstances = (
 ) => {
   const cells = [...selection.values()];
   const runIds = [...new Set(cells.map((cell) => cell.runId))].sort();
-  const taskIds = [...new Set(cells.flatMap((cell) => getCellTaskIds(cell, selectableGroups)))].sort();
+  // Group ids are sent along with the tasks they hold; no task instance carries one.
+  const taskIds = [...new Set(cells.flatMap((cell) => getCoveredNodeIds(cell, selectableGroups)))].sort();
   // A group cell and a cell inside it can both be selected; each task instance is kept once.
-  const selectedKeys = new Set(
-    cells.flatMap((cell) =>
-      getCellTaskIds(cell, selectableGroups).map((taskId) => getCellKey(cell.runId, taskId)),
-    ),
-  );
+  const selectedKeys = getCoveredCellKeys(selection, selectableGroups);
 
   return useQuery({
     enabled: selection.size > 0,

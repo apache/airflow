@@ -31,7 +31,13 @@ import type {
 import { GridSelectionProvider, useHasGridSelection } from "src/context/gridSelection";
 import { ShortcutRegistryProvider, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
-import { buildSelectableGroups, getCellKey, isSelectableCell, useGridSelection } from "./useGridSelection";
+import {
+  buildSelectableGroups,
+  getCellKey,
+  getCoveredCellKeys,
+  isSelectableCell,
+  useGridSelection,
+} from "./useGridSelection";
 import type { GridTask } from "./utils";
 
 const node = (id: string, isGroup = false): GridTask => ({
@@ -120,7 +126,7 @@ const groupNode = (id: string, children: Array<GridNodeResponse>, isLoop = false
 const leafNode = (id: string): GridNodeResponse => ({ id, is_mapped: false, label: id });
 
 describe("buildSelectableGroups", () => {
-  it("lists the tasks of each group, leaving out loops and the groups around or inside them", () => {
+  it("lists the members of each group, leaving out loops and the groups around or inside them", () => {
     const structure = [
       groupNode("outer", [leafNode("outer.a"), groupNode("outer.inner", [leafNode("outer.inner.b")])]),
       groupNode("with_loop", [leafNode("with_loop.c"), groupNode("with_loop.loop", [leafNode("d")], true)]),
@@ -131,8 +137,21 @@ describe("buildSelectableGroups", () => {
     expect(buildSelectableGroups(structure)).toEqual(
       new Map([
         ["outer.inner", ["outer.inner.b"]],
-        ["outer", ["outer.a", "outer.inner.b"]],
+        ["outer", ["outer.a", "outer.inner", "outer.inner.b"]],
       ]),
+    );
+  });
+});
+
+describe("getCoveredCellKeys", () => {
+  it("covers the cells inside a selected group in its own run only", () => {
+    const selection = new Map([
+      [getCellKey("r1", "group"), { runId: "r1", taskId: "group" }],
+      [getCellKey("r2", "c"), { runId: "r2", taskId: "c" }],
+    ]);
+
+    expect([...getCoveredCellKeys(selection, SELECTABLE_GROUPS)].sort()).toEqual(
+      [getCellKey("r1", "group"), getCellKey("r1", "a"), getCellKey("r1", "b"), getCellKey("r2", "c")].sort(),
     );
   });
 });

@@ -29,7 +29,7 @@ import type { GridSelection } from "src/context/gridSelection";
 import { formatNumber } from "src/utils";
 
 import { useGridSelectedTaskInstances } from "./useGridSelectedTaskInstances";
-import { getCellTaskIds, type SelectableGroups } from "./useGridSelection";
+import { getCoveredNodeIds, type SelectableGroups } from "./useGridSelection";
 
 type Props = {
   readonly clearSelection: VoidFunction;
@@ -59,7 +59,7 @@ export const GridSelectionActionBar = ({
     deselectCells(
       [...selection.entries()]
         .filter(([, cell]) =>
-          getCellTaskIds(cell, selectableGroups).some((taskId) =>
+          getCoveredNodeIds(cell, selectableGroups).some((taskId) =>
             keys.some((key) => key.startsWith(`${dagId}.${cell.runId}.${taskId}[`)),
           ),
         )

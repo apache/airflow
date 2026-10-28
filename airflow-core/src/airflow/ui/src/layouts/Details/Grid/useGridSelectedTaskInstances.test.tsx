@@ -120,7 +120,7 @@ it("expands a group cell to the task instances inside it in that run, once each"
   );
 
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
-  expect(batch.mock.calls[0]?.[0].requestBody.task_ids).toEqual(["group.a", "group.b"]);
+  expect(batch.mock.calls[0]?.[0].requestBody.task_ids).toEqual(["group", "group.a", "group.b"]);
   expect(result.current.data?.map((ti) => ti.id)).toEqual([
     "r1-group.a--1",
     "r1-group.b--1",

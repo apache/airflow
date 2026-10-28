@@ -28,35 +28,35 @@ import type {
   LightGridTaskInstanceSummary,
 } from "openapi/requests/types.gen";
 
-import { type GridCell, useGridSelectionState } from "src/context/gridSelection";
+import { type GridCell, type GridSelection, useGridSelectionState } from "src/context/gridSelection";
 import { SHORTCUTS, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
 import type { GridTask } from "./utils";
 
-/** The task ids inside each task group whose cell can be selected, keyed by group id. */
+/** The nodes (tasks and nested groups) inside each task group whose cell can be selected, keyed by group id. */
 export type SelectableGroups = ReadonlyMap<string, Array<string>>;
 
 export const getCellKey = (runId: string, taskId: string) => JSON.stringify([runId, taskId]);
 
-// A selected group cell acts on every task inside it. A loop group, a group that contains a loop
+// A selected group cell acts on everything inside it. A loop group, a group that contains a loop
 // or one inside a loop is left out, for the same reason as a looped task.
 export const buildSelectableGroups = (nodes: Array<GridNodeResponse> | undefined): SelectableGroups => {
   const groups = new Map<string, Array<string>>();
-  const visit = (node: GridNodeResponse, inLoop: boolean): { hasLoop: boolean; taskIds: Array<string> } => {
+  const visit = (node: GridNodeResponse, inLoop: boolean): { hasLoop: boolean; memberIds: Array<string> } => {
     if (!node.children) {
-      return { hasLoop: false, taskIds: [node.id] };
+      return { hasLoop: false, memberIds: [] };
     }
 
     const isLoop = node.is_loop === true;
-    const children = node.children.map((child) => visit(child, inLoop || isLoop));
+    const children = node.children.map((child) => ({ id: child.id, ...visit(child, inLoop || isLoop) }));
     const hasLoop = isLoop || children.some((child) => child.hasLoop);
-    const taskIds = children.flatMap((child) => child.taskIds);
+    const memberIds = children.flatMap((child) => [child.id, ...child.memberIds]);
 
     if (!inLoop && !hasLoop) {
-      groups.set(node.id, taskIds);
+      groups.set(node.id, memberIds);
     }
 
-    return { hasLoop, taskIds };
+    return { hasLoop, memberIds };
   };
 
   nodes?.forEach((node) => visit(node, false));
@@ -64,8 +64,19 @@ export const buildSelectableGroups = (nodes: Array<GridNodeResponse> | undefined
   return groups;
 };
 
-export const getCellTaskIds = (cell: GridCell, selectableGroups: SelectableGroups) =>
-  selectableGroups.get(cell.taskId) ?? [cell.taskId];
+/** The node ids a cell stands for: its own, plus everything inside it for a group. */
+export const getCoveredNodeIds = (cell: GridCell, selectableGroups: SelectableGroups) => [
+  cell.taskId,
+  ...(selectableGroups.get(cell.taskId) ?? []),
+];
+
+/** The keys of the cells the selection acts on, including those inside the selected groups. */
+export const getCoveredCellKeys = (selection: GridSelection, selectableGroups: SelectableGroups) =>
+  new Set(
+    [...selection.values()].flatMap((cell) =>
+      getCoveredNodeIds(cell, selectableGroups).map((nodeId) => getCellKey(cell.runId, nodeId)),
+    ),
+  );
 
 // A looped task's cell aggregates every pass while its link opens only the newest one, so a bulk
 // action on it would be ambiguous. Cells without a task instance have nothing to act on.
