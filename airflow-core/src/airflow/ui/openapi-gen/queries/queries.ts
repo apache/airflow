@@ -3490,6 +3490,33 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
   requestBody: BulkBody_VariableBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Delete Asset Events
+* Permanently delete an asset's historical events strictly before the given timestamp.
+*
+* By default, return 409 without deleting anything if eligible events have queued references.
+* Set delete_queued_events=true to also remove those references. Asset delete and Dag edit
+* permissions are required, as well as read and edit access to every affected queued Dag.
+* Unauthorized requests return 403 without deleting anything; a dag_id query cannot limit this check.
+* Partitioned scheduling references follow the same protection and authorization rules.
+* Deletion also removes dependent Dag-run and alias references and empty pending partitioned runs.
+* The asset, Dags, Dag runs, and alias definitions are preserved.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.before
+* @param data.deleteQueuedEvents
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceDeleteAssetEvents = <TData = Common.AssetServiceDeleteAssetEventsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  assetId: number;
+  before: string;
+  deleteQueuedEvents?: boolean;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  assetId: number;
+  before: string;
+  deleteQueuedEvents?: boolean;
+}, TContext>({ mutationFn: ({ assetId, before, deleteQueuedEvents }) => AssetService.deleteAssetEvents({ assetId, before, deleteQueuedEvents }) as unknown as Promise<TData>, ...options });
+/**
 * Delete Asset Queued Events
 * Delete queued asset events for an asset.
 * @param data The data for the request.

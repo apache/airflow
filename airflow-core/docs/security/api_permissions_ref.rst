@@ -78,6 +78,14 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}``
      - ``AssetAlias``
      - ``GET``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/events``
+     - ``Asset``
+     - ``DELETE``
+   * - ``DELETE``
+     - ``/api/v2/assets/{asset_id}/events``
+     - ``DAG``
+     - ``PUT``
    * - ``POST``
      - ``/api/v2/assets/{asset_id}/materialize``
      - ``Asset``
