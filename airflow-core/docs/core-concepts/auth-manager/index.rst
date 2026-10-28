@@ -120,7 +120,8 @@ Login from command-line clients
 
 Before logging in, command-line clients such as ``airflowctl`` read ``GET /api/v2/auth/cli/metadata``, an
 unauthenticated route that returns ``get_cli_login_methods``. It uses RFC 8414 field names, except that endpoints
-are paths relative to the API server root URL. An empty ``grant_types_supported`` means no CLI login is offered.
+are absolute paths, resolved against the API server URL. They include the path of ``[api] base_url``, if any.
+An empty ``grant_types_supported`` means no CLI login is offered.
 
 Each advertised grant must follow the contract below, so that clients work with any auth manager. A successful call
 to ``token_endpoint`` returns ``201`` with ``{"access_token": ...}``, valid for ``[api_auth] jwt_cli_expiration_time``.

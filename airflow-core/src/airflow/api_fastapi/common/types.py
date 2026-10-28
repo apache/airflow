@@ -118,8 +118,9 @@ class CliLoginMethods:
 
     Field names follow the OAuth 2.0 Authorization Server Metadata (RFC 8414). An empty
     ``grant_types_supported`` means the auth manager offers no login method to these clients.
-    Unlike RFC 8414, endpoints are paths relative to the API server root URL, because the auth
-    manager may not know the public URL clients use to reach the API server.
+    Unlike RFC 8414, endpoints are absolute paths, such as ``/auth/token/cli``, that clients
+    resolve against the API server URL, because the auth manager may not know the public URL
+    clients use to reach the API server. They include the path of ``[api] base_url``, if any.
     """
 
     grant_types_supported: list[str] = field(default_factory=list)
