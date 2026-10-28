@@ -59,6 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     ParseSourceCode,
     ParseWarning,
 )
+from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
@@ -497,6 +498,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Tear down state after the parsing loop exits. Default implementation; override to customize."""
         if self.api_client is None:
             return
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
         from airflow.dag_processing.api_client import DagProcessorSecretsComms
 
         if isinstance(getattr(task_runner, "SUPERVISOR_COMMS", None), DagProcessorSecretsComms):
@@ -516,8 +518,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Mark this process as running in "server" context so MetastoreBackend is available.
 
-        Override to a no-op in subclasses that do not require direct DB access (e.g. API-backed
-        deployments under AIP-92).
+        Called only without an HTTP client; API mode uses ``prepare_api_secrets_context`` instead.
         """
         # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
         # The manager needs MetastoreBackend to retrieve connections from the database
@@ -1321,6 +1322,8 @@ class DagFileProcessorManager(LoggingMixin):
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
 
+                if self.api_client is not None:
+                    discovery = self._filter_api_discovery_result(bundle.name, discovery)
                 found_files = discovery.files
                 if self.api_client is not None:
                     self._dispatch_sequence += 1
@@ -1420,6 +1423,35 @@ class DagFileProcessorManager(LoggingMixin):
             )
             for rel_path, locs in definition_locs.items()
         }
+        return DagBundleDiscoveryResult(files=files, failed_sources=frozenset(failed_sources))
+
+    def _filter_api_discovery_result(
+        self, bundle_name: str, discovery: DagBundleDiscoveryResult
+    ) -> DagBundleDiscoveryResult:
+        invalid_paths = set()
+        for path in sorted(self._get_observed_filelocs(discovery.files) | discovery.failed_sources):
+            try:
+                if len(path) > FILELOC_MAX_LENGTH:
+                    raise ValueError(f"Definition location exceeds {FILELOC_MAX_LENGTH} characters")
+                DagParseTokenBody.validate_relative_fileloc(path)
+            except ValueError as error:
+                invalid_paths.add(path)
+                self.log.warning(
+                    "Skipping source with an unrepresentable API path",
+                    bundle_name=bundle_name,
+                    relative_fileloc=path,
+                    error=str(error),
+                )
+        files = set()
+        failed_sources = set(discovery.failed_sources) - invalid_paths
+        for file in discovery.files:
+            if str(file.rel_path) in invalid_paths:
+                continue
+            if file.definition_locs & invalid_paths:
+                # Omitting a container's members means deletion; retain its earlier valid definitions.
+                failed_sources.add(str(file.rel_path))
+            else:
+                files.add(file)
         return DagBundleDiscoveryResult(files=files, failed_sources=frozenset(failed_sources))
 
     @staticmethod
@@ -1802,17 +1834,21 @@ class DagFileProcessorManager(LoggingMixin):
         if source.refresh_generation != self._bundle_refresh_generations.get(file.bundle_name, 0):
             self._add_files_to_queue([file], mode="front")
             return
-        self._pending_publications[file] = self._build_rejection_report(
-            file,
-            bundle_version=source.bundle_version,
-            bundle_revision=source.bundle_revision,
-            parse_duration=run_duration,
-            stat=stat,
-            refresh_generation=source.refresh_generation,
-            reason=reason,
-            attempt_id=proc.id,
-            dispatch_sequence=proc.dispatch_sequence,
-        )
+        try:
+            self._pending_publications[file] = self._build_rejection_report(
+                file,
+                bundle_version=source.bundle_version,
+                bundle_revision=source.bundle_revision,
+                parse_duration=run_duration,
+                stat=stat,
+                refresh_generation=source.refresh_generation,
+                reason=reason,
+                attempt_id=proc.id,
+                dispatch_sequence=proc.dispatch_sequence,
+            )
+        except ValidationError:
+            self.log.exception("Unable to report failed parse for %s; preserving previous result", file)
+            self._record_failed_publication(file, stat)
 
     def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
         self._file_stats[file] = attrs.evolve(
@@ -1880,15 +1916,21 @@ class DagFileProcessorManager(LoggingMixin):
                         message = status_error.response.json()["detail"].get("message")
                         if isinstance(message, str):
                             detail += f": {message}"
-                    self._pending_publications[file] = self._build_rejection_report(
-                        file,
-                        bundle_version=pending.body.bundle_version,
-                        bundle_revision=pending.body.bundle_revision,
-                        parse_duration=pending.body.parse_duration,
-                        stat=pending.stat,
-                        refresh_generation=pending.refresh_generation,
-                        reason=f"the API server rejected it ({detail})",
-                    )
+                    try:
+                        self._pending_publications[file] = self._build_rejection_report(
+                            file,
+                            bundle_version=pending.body.bundle_version,
+                            bundle_revision=pending.body.bundle_revision,
+                            parse_duration=pending.body.parse_duration,
+                            stat=pending.stat,
+                            refresh_generation=pending.refresh_generation,
+                            reason=f"the API server rejected it ({detail})",
+                        )
+                    except ValidationError:
+                        self.log.exception("Unable to report rejected parsing result for %s", file)
+                        self._record_failed_publication(file, pending.stat)
+                        del self._pending_publications[file]
+                        continue
                     files.append(file)
                     continue
                 self.log.exception("Failed to publish parsing result for %s", file)
@@ -1957,7 +1999,8 @@ class DagFileProcessorManager(LoggingMixin):
                 bundle_revision=bundle_revision,
                 parse_duration=parse_duration,
                 serialized_dags=[],
-                source_codes={},
+                source_codes=[],
+                dag_source_indexes={},
                 import_errors=import_errors,
             ),
             stat=attrs.evolve(stat, num_dags=0, import_errors=len(import_errors)),
@@ -1983,13 +2026,16 @@ class DagFileProcessorManager(LoggingMixin):
         ]
         # The API accepts warnings only for published Dags; a Dag that failed to serialize has an import error.
         warnings = [warning for warning in warnings if warning.dag_id in published_dag_ids]
-        source_codes = {}
+        source_codes: list[ParseSourceCode] = []
+        source_indexes: dict[tuple[str | None, str], int] = {}
+        dag_source_indexes = {}
         for dag in result.serialized_dags:
             source = result.dag_source_codes.get(dag.dag_id)
-            source_codes[dag.dag_id] = ParseSourceCode(
-                source_code=source.source_code if source else None,
-                language=source.language if source else "python",
-            )
+            source_key = (source.source_code, source.language) if source else (None, "python")
+            if source_key not in source_indexes:
+                source_indexes[source_key] = len(source_codes)
+                source_codes.append(ParseSourceCode(source_code=source_key[0], language=source_key[1]))
+            dag_source_indexes[dag.dag_id] = source_indexes[source_key]
         return DagParseResultBody(
             attempt_id=proc.id,
             dispatch_sequence=proc.dispatch_sequence,
@@ -2006,6 +2052,7 @@ class DagFileProcessorManager(LoggingMixin):
             parsed_definitions=result.parsed_definitions,
             warnings=warnings,
             source_codes=source_codes,
+            dag_source_indexes=dag_source_indexes,
         )
 
     def persist_parsing_result(

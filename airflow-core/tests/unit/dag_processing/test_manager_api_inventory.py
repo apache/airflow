@@ -120,7 +120,7 @@ def test_slow_inventory_sends_yield_and_rotate_to_later_bundles(find_files, cloc
         assert bundle.refresh.call_count == (0 if already_pending else 1)
 
 
-@pytest.mark.parametrize("rejection", ["http_413", "invalid_path", "local_size_limit"])
+@pytest.mark.parametrize("rejection", ["http_413", "local_size_limit"])
 @mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 1024)
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
@@ -143,9 +143,7 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
     new_file.absolute_path.touch()
     known_files = {bundle.name: {previous_file}}
     observed = {new_file}
-    if rejection == "invalid_path":
-        observed.add(DagFileInfo(bundle_name=bundle.name, rel_path=Path(r"bad\dag.py"), bundle_path=tmp_path))
-    elif rejection == "local_size_limit":
+    if rejection == "local_size_limit":
         observed = {
             DagFileInfo(
                 bundle_name=bundle.name, rel_path=Path(f"{index}/{'é' * 80}.py"), bundle_path=tmp_path
@@ -209,6 +207,61 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
     clock.monotonic.return_value = 3705.0
     manager._refresh_dag_bundles(known_files)
     assert bundle.refresh.call_count == 2
+
+
+@pytest.mark.parametrize("invalid_path", [r"bad\dag.py", "a" * 2001], ids=["backslash", "too-long"])
+@pytest.mark.parametrize("container", [False, True], ids=["standalone", "container-member"])
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+def test_invalid_inventory_paths_do_not_pause_valid_sources(
+    find_files, clock, invalid_path, container, caplog, tmp_path
+):
+    clock.monotonic.return_value = 100.0
+    bundle = _create_bundle(tmp_path, "testing")
+    client = _create_client([bundle])
+    client.get_bundles.return_value[0].last_refreshed = timezone.utcnow()
+    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager._dag_bundles = [bundle]
+    manager.request_bundle_refresh(bundle.name)
+    valid_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("valid.py"), bundle_path=tmp_path)
+    valid_file.absolute_path.touch()
+    source_path = "archive.zip" if container else invalid_path
+    invalid_location = f"archive.zip/{invalid_path}" if container else invalid_path
+    invalid_file = DagFileInfo(
+        bundle_name=bundle.name,
+        rel_path=Path(source_path),
+        bundle_path=tmp_path,
+        definition_locs=frozenset({"archive.zip/valid.py", invalid_location}) if container else frozenset(),
+    )
+    find_files.return_value = DagBundleDiscoveryResult(
+        files={valid_file, invalid_file}, failed_sources=frozenset({"failed.zip", invalid_path})
+    )
+    revision = uuid7()
+    client.publish_inventory.side_effect = lambda bundle_name, body: DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
+    )
+    known_files = {bundle.name: {invalid_file}}
+
+    manager._refresh_dag_bundles(known_files)
+
+    body = client.publish_inventory.call_args.args[1]
+    assert body.files == ["valid.py"]
+    assert set(body.failed_sources) == ({"failed.zip", "archive.zip"} if container else {"failed.zip"})
+    assert known_files == {bundle.name: {valid_file}}
+    assert list(manager._file_queue) == [valid_file]
+    assert manager._bundle_parse_sources[bundle.name].bundle_revision == revision
+    assert not manager._bundle_inventory_retry_times
+    assert {
+        "event": "Skipping source with an unrepresentable API path",
+        "bundle_name": bundle.name,
+        "relative_fileloc": invalid_location,
+    } in caplog
+
+    clock.monotonic.return_value = 105.0
+    manager._refresh_dag_bundles(known_files)
+    bundle.refresh.assert_called_once_with()
+    find_files.assert_called_once_with(manager, bundle)
+    client.publish_inventory.assert_called_once()
 
 
 @pytest.mark.parametrize("refresh_cooldown", [False, True])
