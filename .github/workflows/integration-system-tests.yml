@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -126,7 +126,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -176,7 +176,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}
