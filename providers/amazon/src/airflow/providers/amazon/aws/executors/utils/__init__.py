@@ -14,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
+def _serialize_workload_to_command(workload) -> list[str]:
+    """Serialize a workload into a command for Task SDK execution."""
+    return [
+        "python",
+        "-m",
+        "airflow.sdk.execution_time.execute_workload",
+        "--json-string",
+        workload.model_dump_json(),
+    ]

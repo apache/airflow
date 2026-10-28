@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsQueuedTask,
     EcsTaskCollection,
 )
+from airflow.providers.amazon.aws.executors.utils import _serialize_workload_to_command
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
     exponential_backoff_retry,
@@ -617,21 +618,7 @@ class AwsEcsExecutor(BaseExecutor):
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
 
-    @staticmethod
-    def _serialize_workload_to_command(workload) -> CommandType:
-        """
-        Serialize a workload into a command for the Task SDK.
-
-        :param workload: ExecuteTask or ExecuteCallback workload to serialize
-        :return: Command as list of strings for Task SDK execution
-        """
-        return [
-            "python",
-            "-m",
-            "airflow.sdk.execution_time.execute_workload",
-            "--json-string",
-            workload.model_dump_json(),
-        ]
+    _serialize_workload_to_command = staticmethod(_serialize_workload_to_command)
 
     def _build_task_command(self, ti: TaskInstance) -> CommandType:
         """
