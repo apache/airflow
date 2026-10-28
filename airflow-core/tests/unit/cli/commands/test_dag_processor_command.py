@@ -281,9 +281,9 @@ def test_catalog_provisioning_does_not_start_a_processor(execute, sync):
 @pytest.mark.parametrize("command", [["dag-processor"], ["dag-processor", "--sync-bundles-only"]])
 @mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
-@mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
+@mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner", autospec=True)
 def test_action_log_keeps_the_command_name(mock_runner, sync, on_pre_execution, command):
-    mock_runner.return_value.job_type = "DagProcessorJob"
+    mock_runner.return_value.job = mock.create_autospec(Job, instance=True)
     dag_processor_command.dag_processor(cli_parser.get_parser().parse_args(command))
     assert on_pre_execution.call_args.kwargs["sub_command"] == "dag_processor"
 

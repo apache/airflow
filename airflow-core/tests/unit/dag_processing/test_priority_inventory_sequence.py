@@ -223,9 +223,10 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
 
 @pytest.mark.parametrize("file_process_interval", [0, 300])
 @pytest.mark.parametrize("max_runs", [-1, 1])
+@mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True, return_value=100)
 @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
 def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_regular_files(
-    create, api_manager, max_runs, file_process_interval
+    create, monotonic, api_manager, max_runs, file_process_interval
 ):
     manager, client, local_bundle, file, work = api_manager
     bundle = mock.create_autospec(BaseDagBundle, instance=True)
@@ -298,9 +299,24 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
     assert not get_api_work_source(manager)._pending_work_acks
 
     bundle.refresh.side_effect = None
+    bundle.refresh.reset_mock()
+    retry_at = manager._bundle_refresh_retry_at[bundle.name]
+    monotonic.return_value = retry_at - 1
     manager._refresh_dag_bundles(known_files)
     manager._start_new_processes()
 
+    bundle.refresh.assert_not_called()
+    client.publish_inventory.assert_not_called()
+    assert claim.attempt_id is None
+    assert file in manager._files_awaiting_source
+    assert file not in manager._processors
+
+    monotonic.return_value = retry_at
+    manager._refresh_dag_bundles(known_files)
+    manager._start_new_processes()
+
+    bundle.refresh.assert_called_once()
+    client.publish_inventory.assert_called_once()
     assert claim.attempt_id == manager._processors[file].id
     assert file not in manager._files_awaiting_source
     assert manager._bundle_parse_sources[bundle.name].inventory_sequence >= claim.inventory_sequence
