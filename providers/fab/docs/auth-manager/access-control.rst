@@ -764,6 +764,14 @@ Stable API Permissions
      - GET
      - Providers.can_read
      - Op
+   * - ``/api/v2/triggers``
+     - GET
+     - None
+     - Public
+   * - ``/api/v2/triggers/{trigger_id}``
+     - GET
+     - None
+     - Public
    * - ``/api/v2/variables``
      - GET
      - Variables.can_read

@@ -71,7 +71,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -81,6 +81,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -1205,6 +1206,52 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
     PermittedAssetEventByAssetFilter,
     Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
 ]
+
+
+def _triggers_watching(asset_ids: set[int]) -> Select:
+    # Uncorrelated, as in Trigger.owner_still_refers_expression.
+    return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
+
+
+class PermittedTriggerFilter(OrmClause[None]):
+    """
+    Keep the triggers whose owner the caller can see, by one rule for every kind of trigger.
+
+    A trigger's owner is the Dag recorded on it (the Dag of its task instance or callback) or the assets its
+    watchers watch. Team access is the auth manager's, through those Dags and assets.
+    """
+
+    def __init__(self, *, dag_ids: set[str], asset_ids: set[int]) -> None:
+        super().__init__()
+        self.dag_ids = dag_ids
+        self.asset_ids = asset_ids
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(
+            or_(Trigger.dag_id.in_(self.dag_ids), Trigger.id.in_(_triggers_watching(self.asset_ids)))
+        )
+
+
+def get_readable_asset_ids(user: BaseUser, auth_manager: BaseAuthManager) -> set[int]:
+    """
+    Return the ids of the assets the user may read, gated like ``GET /assets`` first.
+
+    ``get_authorized_assets`` may assume that gate has passed: the FAB auth manager, which has no per-asset
+    permissions, returns every asset there.
+    """
+    if not auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user):
+        return set()
+    return auth_manager.get_authorized_assets(user=user, method="GET")
+
+
+def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> PermittedTriggerFilter:
+    return PermittedTriggerFilter(
+        dag_ids=auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+        asset_ids=get_readable_asset_ids(user, auth_manager),
+    )
+
+
+ReadableTriggersFilterDep = Annotated[PermittedTriggerFilter, Depends(readable_triggers_filter)]
 
 
 def _build_asset_details(asset_id: str | None) -> AssetDetails:
