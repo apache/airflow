@@ -34,6 +34,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     MAX_LISTED_CI_FILES,
     Marker,
     ci_change_approval_comment,
+    gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
@@ -42,6 +43,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
     state_comment,
     tamper_close_comment,
+    ungated_comment,
+    workflow_disabled_comment,
 )
 
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
@@ -53,6 +56,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-behind"),
         pytest.param(replace(MARKER, behind=12), id="behind"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
 def test_marker_round_trip(marker):
@@ -114,6 +118,11 @@ def test_parse_marker_malformed(body):
         pytest.param(nudge_comment(fork="u/airflow"), id="nudge"),
         pytest.param(inactivity_close_comment(days=7, fork="u/airflow"), id="inactivity"),
         pytest.param(tamper_close_comment(run_url="https://x"), id="tamper"),
+        pytest.param(
+            workflow_disabled_comment(fork="u/airflow", workflow_state="disabled_manually"), id="disabled"
+        ),
+        pytest.param(gate_modified_close_comment(change="it changes `x`"), id="gate-modified"),
+        pytest.param(ungated_comment(MARKER, base_ref="v2-10-test"), id="ungated"),
     ],
 )
 def test_every_comment_ends_with_footer(text):
@@ -125,9 +134,11 @@ def test_every_comment_ends_with_footer(text):
     [
         pytest.param(state_comment(Marker("setup_required", "a", MARKER.since), fork="u/fork", run_url=None)),
         pytest.param(inactivity_close_comment(days=7, fork="u/fork")),
+        pytest.param(workflow_disabled_comment(fork="u/fork", workflow_state="disabled_manually")),
     ],
 )
 def test_setup_texts_give_the_exact_command(text):
+    assert "gh repo sync u/fork --branch main" in text
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 

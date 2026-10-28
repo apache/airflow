@@ -163,7 +163,7 @@ jobs:
     timeout-minutes: 60
     name: "Test examples of PROD image building"
     if: inputs.run-generic-prod-image-tests == 'true'
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,7 +201,7 @@ jobs:
     timeout-minutes: 60
     name: "Docker Compose quick start with PROD image verifying"
     if: inputs.run-generic-prod-image-tests == 'true'
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -232,7 +232,7 @@ jobs:
   task-sdk-integration-tests:
     timeout-minutes: 60
     name: "Task SDK integration tests with PROD image"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -267,7 +267,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Regular e2e test"
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -277,7 +277,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Remote logging e2e test"
-      runners: ${{ format(inputs.runners, 4, 16) }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -291,7 +291,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Elasticsearch remote logging e2e test"
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -305,7 +305,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "OpenSearch remote logging e2e test"
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -320,7 +320,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "XCom object storage backend e2e test"
-      runners: ${{ format(inputs.runners, 4, 16) }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -331,7 +331,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Event driven e2e test"
-      runners: ${{ format(inputs.runners, 32, 128) }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -345,7 +345,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Java SDK e2e test"
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -359,7 +359,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Go SDK e2e test"
-      runners: ${{ format(inputs.runners, 32, 128) }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -373,7 +373,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "TypeScript SDK e2e test"
-      runners: ${{ format(inputs.runners, 32, 128) }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -387,7 +387,7 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "OpenLineage e2e test"
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -407,7 +407,7 @@ jobs:
         compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
     uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
     with:
-      runners: ${{ format(inputs.runners, 8, 32) }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -453,7 +453,7 @@ jobs:
   airflow-ctl-integration-tests:
     timeout-minutes: 60
     name: "Airflow CTL integration tests with PROD image"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}

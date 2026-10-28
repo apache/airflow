@@ -40,8 +40,6 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
@@ -787,8 +785,3 @@ def is_deadlock_error(error: Exception) -> bool:
         or (error.orig.args[0] if error.orig.args else None)
     )
     return db_err_code in ("40P01", 1213)
-
-
-def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
-    """Create an SQLAlchemy-version-aware dialect keyword argument."""
-    return {"dialect_names": (dialect,)}

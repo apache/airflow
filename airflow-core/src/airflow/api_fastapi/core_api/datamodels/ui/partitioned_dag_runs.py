@@ -44,9 +44,15 @@ class PartitionedDagRunCollectionResponse(BaseModel):
 class PartitionedDagRunAssetResponse(BaseModel):
     """Asset info within a partitioned Dag run detail."""
 
-    asset_id: int
-    asset_name: str
-    asset_uri: str
+    asset_id: int | None
+    asset_name: str | None
+    asset_uri: str | None
+    hidden: bool = False
+    """True when the caller may not read this asset: ``asset_id``, ``asset_name`` and ``asset_uri``
+    are blanked and the UI must not link to the asset. The counts and partition keys stay, so the
+    run's progress is still readable -- they describe the Dag's own schedule, which the caller can
+    already read, rather than the asset's identity. Mirrors the redaction
+    ``redact_asset_expression`` applies to the sibling ``asset_expression`` field."""
     received: bool
     received_count: int
     required_count: int
