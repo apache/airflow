@@ -42,7 +42,6 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import httpx2
-import jwt
 import msgspec
 import pytest
 import structlog
@@ -55,6 +54,7 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    MAX_PUBLICATION_BYTES,
     DagBundleInventoryBody,
     DagBundleInventoryResponse,
     DagBundleStateResponse,
@@ -6356,15 +6356,51 @@ class TestDagFileProcessorManager:
             assert [published.model_dump() for published in body.warnings] == [warning]
             assert body.import_errors == {"dag.py": "import error"}
             assert body.parsed_definitions == ["dag.py"]
-            assert body.source_codes[dag.dag_id].source_code == ("captured" if source_available else None)
+            assert body.source_codes[body.dag_source_indexes[dag.dag_id]].source_code == (
+                "captured" if source_available else None
+            )
         finally:
             read_end.close()
             proc.close()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("different_language", [False, True])
+    def test_api_publication_deduplicates_factory_source(self, different_language):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["factory.py"])[0]
+        source_text = "#" * (42 * 1024)
+        dags = []
+        sources = {}
+        for index in range(400):
+            dag = SdkDAG(f"factory_{index}", schedule=None)
+            dag.fileloc = "/worker/factory.py"
+            dag.relative_fileloc = "factory.py"
+            dags.append(LazyDeserializedDAG.from_dag(dag))
+            sources[dag.dag_id] = DagSourceCode(
+                source_code=source_text, language="sql" if different_language and index == 0 else "python"
+            )
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        proc.parsing_result = DagFileParsingResult(
+            fileloc="/worker/factory.py", serialized_dags=dags, dag_source_codes=sources
+        )
+        try:
+            body = manager._build_parse_result(file, proc, 0.5)
+        finally:
+            read_end.close()
+            proc.close()
+
+        assert len(source_text.encode()) * len(dags) > MAX_PUBLICATION_BYTES
+        assert len(body.model_dump_json().encode()) < MAX_PUBLICATION_BYTES
+        assert len(body.source_codes) == (2 if different_language else 1)
+        assert set(body.dag_source_indexes) == set(sources)
+        for dag_id, source in sources.items():
+            published = body.source_codes[body.dag_source_indexes[dag_id]]
+            assert (published.source_code, published.language) == (source.source_code, source.language)
+
     @conf_vars({("workers", "execution_api_retries"): "1"})
     @pytest.mark.parametrize("failure", [413, 422, 403, 500, "timeout"])
-    def test_rejected_publication_preserves_stale_detection(self, session, time_machine, failure):
+    def test_rejected_publication_preserves_previous_success_stats(self, time_machine, failure):
         time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
         request = httpx2.Request("POST", "http://api/jobs/1/parse-results")
@@ -6380,17 +6416,6 @@ class TestDagFileProcessorManager:
         dag = SdkDAG("published", schedule=None)
         dag.fileloc = "/worker/dag.py"
         dag.relative_fileloc = "dag.py"
-        session.add(
-            DagModel(
-                dag_id=dag.dag_id,
-                bundle_name="testing",
-                relative_fileloc="dag.py",
-                fileloc=dag.fileloc,
-                last_parsed_time=previous,
-                is_stale=False,
-            )
-        )
-        session.commit()
         proc, read_end = self.mock_processor()
         proc.dispatch_sequence = 1
         proc.parsing_result = DagFileParsingResult(
@@ -6399,9 +6424,6 @@ class TestDagFileProcessorManager:
         try:
             manager.handle_parsing_result(file, proc)
             manager._publish_pending_results()
-            manager._scan_stale_dags()
-            session.expire_all()
-            assert not session.get(DagModel, dag.dag_id).is_stale
             assert manager._file_stats[file].last_finish_time == previous
             assert manager._file_stats[file].num_dags == 1
             assert manager.processed_recently(timezone.utcnow(), file)
@@ -6958,15 +6980,14 @@ class TestDagFileProcessorManagerWithAPIClient:
         return []
 
     @pytest.fixture
-    def api_client(self, tmp_path, api_requests):
+    def api_client(self, tmp_path, api_requests, make_registration_response):
         token_file = tmp_path / "processor.jwt"
         token_file.write_text("session-token")
-        job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
 
         def handle(request: httpx2.Request) -> httpx2.Response:
             api_requests.append(request)
             if request.url.path.endswith("/jobs"):
-                return httpx2.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
+                return make_registration_response()
             if request.url.path.endswith("/bundles"):
                 return httpx2.Response(
                     200,
@@ -7436,6 +7457,7 @@ def test_oversized_inventory_preserves_previous_inventory_and_other_bundle_progr
     ):
         bundle = _make_bundle(tmp_path)
         bundle.name = name
+        bundle.refresh_interval = 300
         manager._dag_bundles.append(bundle)
         body = DagBundleInventoryBody(
             attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, version="new", files=files
@@ -7555,7 +7577,8 @@ def _make_pending_publication(
             relative_fileloc=str(file.rel_path),
             parse_duration=0.1,
             serialized_dags=[LazyDeserializedDAG.from_dag(dag).data],
-            source_codes={dag.dag_id: ParseSourceCode(source_code="# source", language="python")},
+            source_codes=[ParseSourceCode(source_code="# source", language="python")],
+            dag_source_indexes={dag.dag_id: 0},
             import_errors=import_errors or {},
         ),
         stat=DagFileStat(num_dags=1, run_count=1, last_finish_time=timezone.utcnow()),
@@ -7624,7 +7647,8 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
     assert report.attempt_id != original.body.attempt_id
     assert report.dispatch_sequence == 8
     assert report.serialized_dags == []
-    assert report.source_codes == {}
+    assert report.source_codes == []
+    assert report.dag_source_indexes == {}
     assert report.import_errors == {
         "a.py": f"The parsing result was not published: the API server rejected it ({message}).",
     }
@@ -7651,6 +7675,28 @@ def test_server_failure_after_publication_retries_preserves_previous_result():
     assert manager._file_stats[file].num_dags == previous.num_dags
     assert manager._file_stats[file].last_finish_time == previous.last_finish_time
     assert manager._file_stats[file].last_attempt_time is not None
+
+
+def test_rejected_result_with_unrepresentable_diagnostic_does_not_stop_other_files():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = [_make_status_error(422), None]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    long_file, short_file = _get_file_infos(["directory/" * 110 + "a.py", "b.py"])
+    manager._file_stats[long_file] = DagFileStat(num_dags=2, last_finish_time=DEFAULT_DATE)
+    for file in (long_file, short_file):
+        manager._pending_publications[file] = _make_pending_publication(file)
+
+    manager._publish_pending_results()
+
+    assert not manager._pending_publications
+    assert manager._file_stats[long_file].num_dags == 2
+    assert manager._file_stats[long_file].last_finish_time == DEFAULT_DATE
+    assert manager._file_stats[long_file].last_attempt_time is not None
+    assert manager._file_stats[short_file].num_dags == 1
+    assert [call.args[0].relative_fileloc for call in client.publish_parse_result.call_args_list] == [
+        str(long_file.rel_path),
+        "b.py",
+    ]
 
 
 @pytest.mark.parametrize("status_code", [408, 429])

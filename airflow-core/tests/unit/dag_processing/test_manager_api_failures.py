@@ -33,7 +33,7 @@ from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager,
 from airflow.dag_processing.processor import DagFileProcessorProcess, DagParseSource
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
-from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.sdk import DAG, timezone
@@ -61,7 +61,9 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
     job.session_id = session_id
     job.registration_id = uuid7()
     job.bundle_names = [bundle_name]
-    session.add_all([job, DagBundleModel(name=bundle_name, version="v1", parse_revision=revision)])
+    bundle = DagBundleModel(name=bundle_name, version="v1")
+    bundle.parse_revision = revision
+    session.add_all([job, bundle])
     session.flush()
     token = DagProcessorToken(
         id=session_id,
@@ -79,7 +81,8 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
         bundle_revision=revision,
         parse_duration=0.1,
         serialized_dags=[LazyDeserializedDAG.from_dag(dag).data],
-        source_codes={dag_id: ParseSourceCode(source_code="# captured source", language="python")},
+        source_codes=[ParseSourceCode(source_code="# captured source", language="python")],
+        dag_source_indexes={dag_id: 0},
     )
     publish_parse_result(job.id, body, session=session, token=token)
     assert session.get(DagModel, dag_id).is_stale is False
@@ -134,8 +137,10 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
 
     manager._publish_pending_results()
     session.expire_all()
-    checkpoint = session.scalar(select(DagParseCheckpoint).where(DagParseCheckpoint.job_id == job.id))
-    accepted_at = checkpoint.accepted_at
+    receipt = session.scalar(
+        select(DagProcessorPublicationReceipt).where(DagProcessorPublicationReceipt.job_id == job.id)
+    )
+    accepted_at = receipt.accepted_at
     if lose_acknowledgment:
         assert manager._pending_publications[file] is pending
         assert manager._file_stats[file] is previous_stat
@@ -143,7 +148,7 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
         time_machine.shift(10)
         manager._publish_pending_results()
         session.expire_all()
-        assert checkpoint.accepted_at == accepted_at
+        assert receipt.accepted_at == accepted_at
 
     assert not manager._pending_publications
     assert manager._file_stats[file].num_dags == 0
@@ -154,8 +159,8 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
     assert error is not None
     assert error.filename == "a.py"
     assert error.stacktrace == pending.body.import_errors["a.py"]
-    assert checkpoint.attempt_id == processor.id
-    assert checkpoint.dispatch_sequence == processor.dispatch_sequence
+    assert receipt.attempt_id == processor.id
+    assert receipt.dispatch_sequence == processor.dispatch_sequence
     assert client.publish_parse_result.call_args_list == [mock.call(pending.body)] * (
         2 if lose_acknowledgment else 1
     )
@@ -191,3 +196,46 @@ def test_timeout_does_not_publish_for_callbacks_or_obsolete_sources(clock, sessi
     client.publish_parse_result.assert_not_called()
     session_factory.assert_not_called()
     assert list(manager._file_queue) == ([file] if outcome == "refreshed" else [])
+
+
+@pytest.mark.parametrize("outcome", ["no_result", "timeout"])
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+def test_failed_parse_with_unrepresentable_diagnostic_does_not_stop_other_files(clock, outcome):
+    clock.monotonic.return_value = 100.0
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.get_bundles.return_value = []
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
+    long_file, short_file = [
+        DagFileInfo(bundle_name="testing", rel_path=Path(path))
+        for path in ("directory/" * 110 + "a.py", "b.py")
+    ]
+    manager._file_stats[long_file] = DagFileStat(num_dags=1)
+    for file in (long_file, short_file):
+        processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        processor.id = uuid7()
+        processor.pid = 123
+        processor.dispatch_sequence = 1
+        processor.start_time = 89
+        processor.is_ready = True
+        processor.had_callbacks = False
+        processor.parsing_result = None
+        processor.parse_source = DagParseSource()
+        manager._processors[file] = processor
+    processes = list(manager._processors.values())
+
+    if outcome == "timeout":
+        manager._kill_timed_out_processors()
+    else:
+        manager._collect_results()
+    manager._publish_pending_results()
+
+    assert not manager._processors
+    assert not manager._pending_publications
+    assert manager._file_stats[long_file].num_dags == 1
+    assert manager._file_stats[long_file].last_finish_time is None
+    assert manager._file_stats[long_file].last_attempt_time is not None
+    assert manager._file_stats[short_file].import_errors == 1
+    client.publish_parse_result.assert_called_once()
+    assert client.publish_parse_result.call_args.args[0].relative_fileloc == "b.py"
+    for processor in processes:
+        processor.close.assert_called_once_with()

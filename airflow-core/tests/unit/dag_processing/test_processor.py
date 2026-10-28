@@ -33,7 +33,6 @@ from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import ANY, MagicMock, PropertyMock, patch
 
 import httpx2
-import jwt
 import pytest
 import structlog
 from pydantic import TypeAdapter
@@ -2530,30 +2529,23 @@ class TestDagFileProcessorProcess:
         handle_request.assert_called_once_with(proc, msg, ANY, 42)
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
-    def test_api_client_requests_are_made_for_the_files_bundle(self, send_msg, proc, tmp_path):
+    def test_api_client_requests_are_made_for_the_files_bundle(
+        self, send_msg, proc, tmp_path, make_registration_response, make_parse_token_response
+    ):
         token_file = tmp_path / "processor.jwt"
         token_file.write_text("session-token")
-        job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
-        parse_token = jwt.encode(
-            {
-                "iat": 0,
-                "exp": 300,
-                "sub": str(proc.id),
-                "scope": "dag_parse",
-                "job_id": 1,
-                "dag_bundles": [proc.bundle_name],
-                "relative_fileloc": proc.dag_file_rel_path,
-            },
-            "secret",
+        parse_response = make_parse_token_response(
+            sub=str(proc.id), dag_bundles=[proc.bundle_name], relative_fileloc=proc.dag_file_rel_path
         )
+        parse_token = parse_response.json()["token"]
         requests = []
 
         def handle(request):
             requests.append(request)
             if request.url.path.endswith("/jobs"):
-                return httpx2.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
+                return make_registration_response()
             if request.url.path.endswith("/parse-token"):
-                return httpx2.Response(200, json={"token": parse_token, "expires_in": 300})
+                return parse_response
             return httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
 
         with DagProcessorAPIClient(
