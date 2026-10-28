@@ -24,19 +24,25 @@ import os
 import pathlib
 import shlex
 import socketserver
+import ssl
 import subprocess
 import tempfile
 import threading
 import warnings
-from datetime import UTC
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-from git import Repo
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
+from git import Git, Repo
+from git.exc import GitCommandNotFound
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.git.hooks.git import GitHook
+from airflow.providers.git.hooks.git import GitHook, _is_proactive_auth_supported
 
 from tests_common.test_utils.config import conf_vars
 
@@ -45,6 +51,15 @@ from tests_common.test_utils.config import conf_vars
 def bundle_temp_dir(tmp_path):
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
         yield tmp_path
+
+
+@pytest.fixture(autouse=True)
+def proactive_auth_supported():
+    # Off unless a test turns it on, so the expected GIT_CONFIG_* entries don't depend on local git.
+    with mock.patch(
+        "airflow.providers.git.hooks.git._is_proactive_auth_supported", autospec=True, return_value=False
+    ) as supported:
+        yield supported
 
 
 GIT_DEFAULT_BRANCH = "main"
@@ -88,6 +103,56 @@ def recording_git_server():
             pass
 
     server = socketserver.TCPServer(("127.0.0.1", 0), Unauthorized)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield server.server_address[1], received
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@contextlib.contextmanager
+def recording_public_https_git_server(tmp_path: pathlib.Path):
+    """Serve 200s over https on loopback, like a public repository, recording every credential git sends."""
+    received: list[str] = []
+
+    class Public(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            header = self.headers.get("Authorization")
+            if header and header.startswith("Basic "):
+                received.append(base64.b64decode(header[6:]).decode())
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(datetime(2000, 1, 1, tzinfo=UTC))
+        .not_valid_after(datetime(2100, 1, 1, tzinfo=UTC))
+        .sign(key, hashes.SHA256())
+    )
+    cert_file = tmp_path / "cert.pem"
+    key_file = tmp_path / "key.pem"
+    cert_file.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_file.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert_file, key_file)
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Public)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         yield server.server_address[1], received
@@ -780,6 +845,76 @@ class TestGitHook:
         with hook.configure_hook_env():
             assert "GIT_CONFIG_COUNT" not in hook.env
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
+
+    @pytest.mark.parametrize(
+        ("url", "supported", "expected_count", "expected_key"),
+        [
+            pytest.param(AIRFLOW_HTTPS_URL, True, "3", f"http.{AIRFLOW_HTTPS_URL}.proactiveAuth", id="https"),
+            pytest.param(AIRFLOW_HTTPS_URL, False, "2", None, id="git-older-than-2.46"),
+            pytest.param(AIRFLOW_HTTP_URL, True, "2", None, id="plain-http"),
+        ],
+    )
+    def test_proactive_auth_config(
+        self,
+        url,
+        supported,
+        expected_count,
+        expected_key,
+        proactive_auth_supported,
+        create_connection_without_db,
+    ):
+        proactive_auth_supported.return_value = supported
+        create_connection_without_db(
+            Connection(conn_id="git_proactive_auth", host=url, password=ACCESS_TOKEN, conn_type="git")
+        )
+        hook = GitHook(git_conn_id="git_proactive_auth")
+
+        with hook.configure_hook_env():
+            assert hook.env["GIT_CONFIG_COUNT"] == expected_count
+            assert hook.env.get("GIT_CONFIG_KEY_2") == expected_key
+            assert hook.env.get("GIT_CONFIG_VALUE_2") == ("basic" if expected_key else None)
+
+    @pytest.mark.skipif(Git().version_info < (2, 46), reason="http.proactiveAuth needs git 2.46+")
+    def test_token_reaches_a_public_repository_without_a_challenge(
+        self, proactive_auth_supported, create_connection_without_db, tmp_path
+    ):
+        proactive_auth_supported.return_value = True
+        with recording_public_https_git_server(tmp_path) as (port, received):
+            url = f"https://127.0.0.1:{port}/repo.git"
+            create_connection_without_db(
+                Connection(
+                    conn_id="git_public_repo",
+                    host=url,
+                    login="token_user",
+                    password=ACCESS_TOKEN,
+                    conn_type="git",
+                )
+            )
+            hook = GitHook(git_conn_id="git_public_repo")
+
+            with hook.configure_hook_env():
+                git_ls_remote(url, {**hook.env, "GIT_SSL_NO_VERIFY": "true"})
+
+        assert set(received) == {f"token_user:{ACCESS_TOKEN}"}
+
+    @pytest.mark.parametrize(
+        ("version_info", "side_effect", "expected"),
+        [
+            pytest.param((2, 46, 0), None, True, id="2.46"),
+            pytest.param((2, 51, 2), None, True, id="2.51"),
+            pytest.param((2, 45, 4), None, False, id="2.45"),
+            pytest.param((), GitCommandNotFound("git", "not found"), False, id="unknown"),
+        ],
+    )
+    @mock.patch("airflow.providers.git.hooks.git.Git", autospec=True)
+    def test_is_proactive_auth_supported(self, mock_git, version_info, side_effect, expected):
+        mock_git.side_effect = side_effect
+        mock_git.return_value.version_info = version_info
+        _is_proactive_auth_supported.cache_clear()
+        try:
+            assert _is_proactive_auth_supported() is expected
+        finally:
+            _is_proactive_auth_supported.cache_clear()
 
     def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
         """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""
