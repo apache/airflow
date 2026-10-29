@@ -28,7 +28,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.asserts import count_queries
+from tests_common.test_utils.asserts import capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
@@ -370,6 +370,27 @@ class TestGetPools(TestPoolsEndpoint):
         assert response.status_code == 200
         assert len(response.json()["pools"]) == pool_count + 1
         assert sum(result.values()) == EXPECTED_QUERY_COUNT
+
+    def test_slot_stats_are_scoped_to_returned_page(self, test_client):
+        self.create_pools()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = test_client.get("/pools", params={"limit": 1, "offset": 1})
+
+        assert response.status_code == 200
+        assert [pool["name"] for pool in response.json()["pools"]] == [POOL1_NAME]
+        assert len(statements) == 1
+        assert f"task_instance.pool IN ('{POOL1_NAME}')" in statements[0]
+
+    def test_empty_page_skips_slot_stats(self, test_client):
+        self.create_pools()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = test_client.get("/pools", params={"limit": 1, "offset": 100})
+
+        assert response.status_code == 200
+        assert response.json() == {"pools": [], "total_entries": 4}
+        assert statements == []
 
     def test_should_skip_pool_deleted_during_request(self, test_client, session):
         self.create_pools()
