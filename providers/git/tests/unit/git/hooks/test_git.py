@@ -149,6 +149,7 @@ def recording_public_https_git_server(tmp_path: pathlib.Path):
         )
     )
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert_file, key_file)
 
     server = socketserver.TCPServer(("127.0.0.1", 0), Public)
