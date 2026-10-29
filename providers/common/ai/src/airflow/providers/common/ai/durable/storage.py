@@ -61,7 +61,7 @@ class DurableStorage:
 
     Storage failures never fail the task. A write that fails skips that step, which
     runs again on retry. A journal file that exists but cannot be read is left as it
-    is for the next attempt, and this attempt runs without journaling; one that is
+    is for the next attempt, and this attempt runs without recording its steps; one that is
     not a valid journal is replaced.
 
     :param dag_id: DAG ID of the running task.
