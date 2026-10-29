@@ -62,6 +62,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.log.path_log_reader import read_logs_at_path, validate_log_path_component
+from airflow.utils.log.trigger_log import get_callback_log_relative_path
 
 deadlines_router = AirflowRouter(prefix="/dags/{dag_id}", tags=["Deadlines"])
 
@@ -283,11 +284,10 @@ def get_callback_logs(
     # Executor callbacks log to ``executor_callbacks/...`` (see ``ExecuteCallback.make()``) and
     # triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``). Read only the
     # path for this callback's type: CloudWatch reports a missing log stream as a log line, not as no logs.
-    callback_path = f"{dag_id}/{dag_run_id}/{callback_id}"
     if callback_type == CallbackType.TRIGGERER:
-        log_stream = read_logs_at_path(f"triggerer_callbacks/{callback_path}/callback.log")
+        log_stream = read_logs_at_path(get_callback_log_relative_path(dag_id, dag_run_id, callback_id))
     else:
-        log_stream = read_logs_at_path(f"executor_callbacks/{callback_path}")
+        log_stream = read_logs_at_path(f"executor_callbacks/{dag_id}/{dag_run_id}/{callback_id}")
 
     if accept == Mimetype.NDJSON:
         return StreamingResponse(

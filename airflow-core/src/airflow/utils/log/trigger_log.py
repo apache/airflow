@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Where an asset watcher's own log lives, relative to the local and remote log folders."""
+"""Where a trigger's log lives, relative to the local and remote log folders."""
 
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
     from uuid import UUID
+
+    from airflow.models.callback import Callback
 
 TRIGGER_LOG_ROOT = "triggers"
 # key=value directory names, as in the default task log path: "=" is in no Dag id or default-pattern run id,
@@ -85,3 +87,32 @@ def list_trigger_log_files(producer_dir: Path) -> list[Path]:
         *sorted((producer_dir / TRIGGER_LOG_ROTATED_DIR).glob("*.log")),
         producer_dir / TRIGGER_LOG_FILE_NAME,
     ]
+
+
+def get_callback_dag_and_run_ids(callback: Callback) -> tuple[str, str]:
+    """
+    Return the Dag and run a triggerer callback's log is filed under, ``unknown`` for either it lacks.
+
+    A callback stores its run id next to its Dag id; one queued before that has them only in its stored context.
+    """
+    data = callback.data or {}
+    dag_run = ((data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+    return (
+        data.get("dag_id") or dag_run.get("dag_id") or "unknown",
+        data.get("run_id") or dag_run.get("dag_run_id") or "unknown",
+    )
+
+
+def get_callback_log_relative_path(dag_id: str, run_id: str, callback_id: UUID | str) -> str:
+    """
+    Return the log of a callback run by the triggerer, which its trigger writes.
+
+    One directory per callback: with ``delete_local_logs``, remote handlers delete the log file's parent
+    directory after upload, which must not hold other callbacks' logs.
+    """
+    return f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}/callback.log"
+
+
+def get_callback_trigger_log_relative_path(callback: Callback) -> str:
+    """Return the log a callback's trigger writes, from what the callback stores."""
+    return get_callback_log_relative_path(*get_callback_dag_and_run_ids(callback), callback.id)
