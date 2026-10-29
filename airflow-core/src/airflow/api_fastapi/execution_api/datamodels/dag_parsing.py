@@ -61,7 +61,9 @@ class DagParseResultBody(DagParseTokenBody):
     import_errors: dict[str, str] = Field(default_factory=dict)
     warnings: list[ParseWarning] = Field(default_factory=list)
     parsed_definitions: list[str] = Field(default_factory=list)
-    source_codes: list[ParseSourceCode] = Field(description="Distinct source text and language pairs.")
+    source_codes: list[ParseSourceCode] = Field(
+        description="Source text and language pairs, deduplicated by the processor."
+    )
     dag_source_indexes: dict[str, Annotated[int, Field(strict=True, ge=0)]] = Field(
         description="Index in source_codes for each serialized Dag, including unavailable source."
     )

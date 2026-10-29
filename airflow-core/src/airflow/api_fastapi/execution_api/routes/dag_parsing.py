@@ -122,7 +122,7 @@ def _validate_job(job_id: int, token, *, session: Session, for_update: bool = Tr
     if job_id != token.claims.job_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"reason": "not_found"})
     query = select(Job).where(Job.id == job_id)
-    # Publications lock the Job to serialize checkpoint creation and fence completion or replacement.
+    # Publications lock the Job to serialize receipt creation and fence completion or replacement.
     job = session.scalar(query.with_for_update() if for_update else query)
     if job is None or job.session_id != token.id or job.end_date is not None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "job_closed"})
@@ -156,15 +156,13 @@ def publish_parse_result(
     ).hexdigest()
 
     _validate_job(job_id, token, session=session)
-    checkpoint = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
-    if checkpoint is not None:
-        if checkpoint.attempt_id == body.attempt_id:
-            if checkpoint.payload_hash != payload_hash:
+    receipt = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
+    if receipt is not None:
+        if receipt.attempt_id == body.attempt_id:
+            if receipt.payload_hash != payload_hash:
                 raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "publication_conflict"})
-            return DagParseResultResponse(
-                attempt_id=checkpoint.attempt_id, accepted_at=checkpoint.accepted_at
-            )
-        if body.dispatch_sequence <= checkpoint.dispatch_sequence:
+            return DagParseResultResponse(attempt_id=receipt.attempt_id, accepted_at=receipt.accepted_at)
+        if body.dispatch_sequence <= receipt.dispatch_sequence:
             raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "publication_superseded"})
 
     bundle = session.scalar(
@@ -201,8 +199,11 @@ def publish_parse_result(
             detail={"reason": "invalid_dag", "message": str(error)},
         ) from error
 
-    # A failed container gives its member Dags a grace period. _update_import_errors marks Dags
-    # stale immediately when an error names their definition.
+    # Dags missing from an accepted result go stale in the same transaction. DB mode waits
+    # stale_dag_threshold because its manager compares file and Dag parse times written separately;
+    # a publication has no such gap. A failed container cannot list its members, so they get the
+    # threshold as a grace period. _update_import_errors marks Dags stale immediately when an error
+    # names their definition.
     cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "stale_dag_threshold"))
     source_filter = or_(
         DagModel.relative_fileloc == body.relative_fileloc,
@@ -258,16 +259,16 @@ def publish_parse_result(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}
         ) from error
-    if checkpoint is None:
-        checkpoint = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
-        session.add(checkpoint)
-    checkpoint.attempt_id = body.attempt_id
-    checkpoint.dispatch_sequence = body.dispatch_sequence
-    checkpoint.payload_hash = payload_hash
-    checkpoint.accepted_at = timezone.utcnow()
-    checkpoint.bundle_revision = body.bundle_revision
+    if receipt is None:
+        receipt = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
+        session.add(receipt)
+    receipt.attempt_id = body.attempt_id
+    receipt.dispatch_sequence = body.dispatch_sequence
+    receipt.payload_hash = payload_hash
+    receipt.accepted_at = timezone.utcnow()
+    receipt.bundle_revision = body.bundle_revision
     session.flush()
-    return DagParseResultResponse(attempt_id=checkpoint.attempt_id, accepted_at=checkpoint.accepted_at)
+    return DagParseResultResponse(attempt_id=receipt.attempt_id, accepted_at=receipt.accepted_at)
 
 
 @router.get(
@@ -326,17 +327,17 @@ def publish_inventory(
     source_key = hashlib.sha256(json.dumps(["inventory", bundle_name]).encode()).hexdigest()
     payload_hash = _compute_payload_hash(body)
     _validate_job(job_id, token, session=session)
-    checkpoint = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
-    if checkpoint is not None:
-        if checkpoint.attempt_id == body.attempt_id:
-            if checkpoint.payload_hash != payload_hash or checkpoint.bundle_revision is None:
+    receipt = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
+    if receipt is not None:
+        if receipt.attempt_id == body.attempt_id:
+            if receipt.payload_hash != payload_hash or receipt.bundle_revision is None:
                 raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "publication_conflict"})
             return DagBundleInventoryResponse(
-                attempt_id=checkpoint.attempt_id,
-                accepted_at=checkpoint.accepted_at,
-                revision=checkpoint.bundle_revision,
+                attempt_id=receipt.attempt_id,
+                accepted_at=receipt.accepted_at,
+                revision=receipt.bundle_revision,
             )
-        if body.dispatch_sequence <= checkpoint.dispatch_sequence:
+        if body.dispatch_sequence <= receipt.dispatch_sequence:
             raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "publication_superseded"})
     bundle = session.scalar(
         select(DagBundleModel).where(DagBundleModel.name == bundle_name).with_for_update(key_share=True)
@@ -400,17 +401,17 @@ def publish_inventory(
         session.execute(
             delete(ParseImportError).where(ParseImportError.id.in_(error_ids[start : start + 500]))
         )
-    if checkpoint is None:
-        checkpoint = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
-        session.add(checkpoint)
-    checkpoint.attempt_id = body.attempt_id
-    checkpoint.dispatch_sequence = body.dispatch_sequence
-    checkpoint.payload_hash = payload_hash
-    checkpoint.accepted_at = bundle.last_refreshed
-    checkpoint.bundle_revision = bundle.parse_revision
+    if receipt is None:
+        receipt = DagProcessorPublicationReceipt(job_id=job_id, source_key=source_key)
+        session.add(receipt)
+    receipt.attempt_id = body.attempt_id
+    receipt.dispatch_sequence = body.dispatch_sequence
+    receipt.payload_hash = payload_hash
+    receipt.accepted_at = bundle.last_refreshed
+    receipt.bundle_revision = bundle.parse_revision
     session.flush()
     return DagBundleInventoryResponse(
-        attempt_id=checkpoint.attempt_id,
-        accepted_at=checkpoint.accepted_at,
+        attempt_id=receipt.attempt_id,
+        accepted_at=receipt.accepted_at,
         revision=bundle.parse_revision,
     )

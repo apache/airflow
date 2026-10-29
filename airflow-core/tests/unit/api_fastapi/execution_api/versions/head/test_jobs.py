@@ -112,7 +112,7 @@ def _create_job(
     return job
 
 
-def _add_checkpoint(session, job: Job) -> None:
+def _add_receipt(session, job: Job) -> None:
     session.add(
         DagProcessorPublicationReceipt(
             job_id=job.id,
@@ -344,9 +344,9 @@ class TestRegisterJob:
     )
     def test_replaces_a_stopped_job(self, client, session, previous_job, outcome):
         previous = _create_job(session, **previous_job)
-        _add_checkpoint(session, previous)
+        _add_receipt(session, previous)
         other = _create_job(session, session_id=uuid7(), registration_id=uuid7())
-        _add_checkpoint(session, other)
+        _add_receipt(session, other)
 
         response = _register(client, registration_id=OTHER_REGISTRATION_ID)
 
@@ -422,9 +422,9 @@ class TestParseTokenExchange:
 class TestCompleteJob:
     def test_records_the_final_state(self, client, session, authenticate, time_machine):
         job = _create_job(session)
-        _add_checkpoint(session, job)
+        _add_receipt(session, job)
         other = _create_job(session, session_id=uuid7(), registration_id=uuid7())
-        _add_checkpoint(session, other)
+        _add_receipt(session, other)
         authenticate(scope="dag_processor", dag_bundles=frozenset({"bundle_a"}), job_id=job.id)
         time_machine.move_to(NOW + timedelta(minutes=5), tick=False)
 
