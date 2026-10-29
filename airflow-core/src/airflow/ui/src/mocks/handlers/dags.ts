@@ -159,6 +159,10 @@ const filterDags = ({
   // Narrower than ``paused=false``: a draining Dag is unpaused, so the two are not alternatives.
   if (schedulingState === "draining") {
     allDags = allDags.filter((dag) => "scheduling_state" in dag && dag.scheduling_state === "draining");
+  } else if (schedulingState === "active") {
+    allDags = allDags.filter(
+      (dag) => !dag.is_paused && !("scheduling_state" in dag && dag.scheduling_state === "draining"),
+    );
   }
 
   if (paused === "true") {
