@@ -532,10 +532,12 @@ separate token file for each processor::
     airflow dag-processor-sync-bundles
     airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
 
-``dag-processor-sync-bundles`` synchronizes all configured bundles by default. Use
-``--bundle-name`` to select bundles without deactivating other catalog entries. It always
-uses the metadata database, even when ``execution_api_token_file`` is configured, and
-exits without starting a processor.
+``dag-processor-sync-bundles`` synchronizes every configured bundle and deactivates catalog
+entries for bundles that are no longer configured. ``--bundle-name`` does not narrow the
+synchronization: the command checks that the named bundles are configured, still synchronizes
+every configured bundle, and deactivates no catalog entries. It always uses the metadata
+database, even when ``execution_api_token_file`` is configured, and exits without starting a
+processor.
 
 The token command writes the token atomically. A new file is readable only by its owner, and replacing
 an existing file keeps its mode and group, so grant the processor read access once. ACLs are not
@@ -597,10 +599,10 @@ before deserializing results and rechecks ownership on the rows used for persist
 A Dag can move between files within its bundle. Recovery from a removed bundle is
 limited to stale legacy rows with neither a relative file location nor a Dag version.
 
-Each request carries an attempt UUID and a dispatch sequence within its Job. A checkpoint
-and the metadata writes commit together. Replaying the latest identical request returns
-the saved receipt; conflicting payloads and superseded sequences are rejected. Checkpoints
-retain one entry per Job and source and are removed with Job cleanup. There is no total
+Each request carries an attempt UUID and a dispatch sequence within its Job. A publication
+receipt and the metadata writes commit together. Replaying the latest identical request returns
+the saved receipt; conflicting payloads and superseded sequences are rejected. Publication
+receipts retain one entry per Job and source and are removed with Job cleanup. There is no total
 ordering between different Jobs publishing a source without versioning; an already-accepted
 request's retry does not overwrite another Job's result. Listener side effects are not
 transactional and may repeat after a failed transaction.
@@ -612,9 +614,10 @@ failures and server errors are retried; exhausting those retries preserves the l
 result. When the API refuses a result for its content, or the result is over the limit, the
 processor publishes an import error for the file instead, so the problem is visible.
 Dags whose definition path matches an import error are marked stale until a later parse
-publishes them again. For a container-level error, missing member Dags are marked stale
-only when their last successful parse is older than ``[dag_processor] stale_dag_threshold``,
-using the server's clock. Invalid ``access_control`` produces an import error with both
+publishes them again. Dags missing from an accepted parse are marked stale at once: the
+publication is atomic, so there is no gap between file and Dag parse times to wait out. For a
+container-level error, missing member Dags are marked stale only when their last successful
+parse is older than ``[dag_processor] stale_dag_threshold``, using the server's clock. Invalid ``access_control`` produces an import error with both
 current and supported older FAB releases. Permission backend failures remain retryable
 server errors. Empty imports still publish a receipt and clear the file's earlier import
 errors. A bundle refresh, including one forced by a parse request, waits for that bundle's
@@ -639,8 +642,10 @@ Retrying an empty claim remains empty, even if work arrives
 afterward, and retrying an older claim cannot consume newly requested work. Requests from a
 retired Job become available to another processor. A callback acknowledgment confirms
 delivery, not successful execution of user code. As with other at-least-once delivery, a crash
-after a callback's side effect and before acknowledgment can repeat that side effect. A graceful
-shutdown acknowledges finished work before the processor's Job ends. When a callback's bundle
+after a callback's side effect and before acknowledgment can repeat that side effect. Before the
+processor's Job ends, a graceful shutdown acknowledges callbacks whose processes have already exited
+cleanly; callbacks that are still running or that the shutdown signal stopped are delivered again.
+When a callback's bundle
 version cannot be prepared, the processor retries with backoff for up to
 ``[dag_processor] job_heartbeat_timeout``
 and then acknowledges the request without running the callback. Priority requests are assigned
