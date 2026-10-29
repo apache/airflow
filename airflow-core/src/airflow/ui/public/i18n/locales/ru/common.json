@@ -185,6 +185,7 @@
     "home": "Главная",
     "legacyFabViews": "Устаревшие виды",
     "plugins": "Плагины",
+    "runs": "Запуски",
     "security": "Безопасность"
   },
   "noItemsFound": "Не найдено {{modelName}}",

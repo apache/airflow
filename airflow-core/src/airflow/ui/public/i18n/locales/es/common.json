@@ -188,6 +188,7 @@
     "home": "Inicio",
     "legacyFabViews": "Vistas Obsoletas",
     "plugins": "Plugins",
+    "runs": "Ejecuciones",
     "security": "Seguridad"
   },
   "noItemsFound": "No se encontraron {{modelName}}",

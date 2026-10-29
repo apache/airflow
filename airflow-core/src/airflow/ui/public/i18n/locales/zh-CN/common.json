@@ -196,6 +196,7 @@
     "home": "首页",
     "legacyFabViews": "旧版视图",
     "plugins": "插件",
+    "runs": "执行记录",
     "security": "安全"
   },
   "noItemsFound": "找不到 {{modelName}}",

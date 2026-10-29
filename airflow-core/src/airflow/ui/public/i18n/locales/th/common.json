@@ -135,6 +135,7 @@
     "home": "หน้าแรก",
     "legacyFabViews": "มุมมองแบบเก่า",
     "plugins": "ปลั๊กอิน",
+    "runs": "การทำงาน",
     "security": "ความปลอดภัย"
   },
   "noItemsFound": "ไม่พบ {{modelName}}",

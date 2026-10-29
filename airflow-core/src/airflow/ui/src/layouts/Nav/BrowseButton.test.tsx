@@ -47,15 +47,16 @@ const wrapperAt = (path: string) => {
 };
 
 describe("BrowseButton", () => {
-  it("lists Dag Runs and Task Instances for users who can see Dags", async () => {
+  it("lists Task Instances for users who can see Dags", async () => {
     render(<BrowseButton authorizedMenuItems={["Dags"]} externalViews={[]} />, { wrapper: Wrapper });
 
     await openMenu();
 
-    expect(hrefs()).toStrictEqual(["/dag_runs", "/task_instances"]);
+    // Dag runs moved to their own nav button; see RunsButton.
+    expect(hrefs()).toStrictEqual(["/task_instances"]);
   });
 
-  it("hides Dag Runs and Task Instances without access to Dags", async () => {
+  it("hides Task Instances without access to Dags", async () => {
     render(<BrowseButton authorizedMenuItems={["Jobs"]} externalViews={[]} />, { wrapper: Wrapper });
 
     await openMenu();
@@ -70,10 +71,10 @@ describe("BrowseButton", () => {
 
     await openMenu();
 
-    expect(hrefs()).toStrictEqual(["/dag_runs", "/jobs", "/task_instances", "/xcoms"]);
+    expect(hrefs()).toStrictEqual(["/jobs", "/task_instances", "/xcoms"]);
   });
 
-  it.each(["/dag_runs", "/task_instances"])("is highlighted on %s", (path) => {
+  it.each(["/task_instances"])("is highlighted on %s", (path) => {
     render(<BrowseButton authorizedMenuItems={["Dags"]} externalViews={[]} />, {
       wrapper: wrapperAt(path),
     });

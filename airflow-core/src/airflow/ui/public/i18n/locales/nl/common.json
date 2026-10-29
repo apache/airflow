@@ -172,6 +172,7 @@
     "home": "Home",
     "legacyFabViews": "Legacy weergaven",
     "plugins": "Plugins",
+    "runs": "Runs",
     "security": "Beveiliging"
   },
   "noItemsFound": "Geen {{modelName}} gevonden",

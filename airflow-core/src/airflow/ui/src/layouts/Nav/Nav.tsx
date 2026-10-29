@@ -43,6 +43,7 @@ import { DagsButton } from "./DagsButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
+import { RunsButton } from "./RunsButton";
 import { SecurityButton } from "./SecurityButton";
 import TimezoneModal from "./TimezoneModal";
 import { UserSettingsButton } from "./UserSettingsButton";
@@ -181,6 +182,7 @@ export const Nav = () => {
           to="/home"
         />
         <DagsButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
+        <RunsButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <NavButton
           data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
