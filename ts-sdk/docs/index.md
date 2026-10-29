@@ -19,71 +19,56 @@
 
 # Apache Airflow TypeScript SDK
 
-The Apache Airflow TypeScript SDK provides the public TypeScript interfaces for
-writing Apache Airflow task handlers and the coordinator runtime that executes
-registered TypeScript handlers from an Airflow worker.
+Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
 > **Note**
-> This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
+> This package is **1.0.0-beta1**: the API may change, it requires **Node 22+**, and
 > it is **ESM-only**.
 
-## Getting Started
+## Quick Start
 
-Install the beta package from npm:
+Install the beta package from npm, and `esbuild` to build the bundle:
 
 ```bash
-npm install apache-airflow-ts-sdk@0.1.0-beta1
+npm install apache-airflow-ts-sdk@1.0.0-beta1
+npm install --save-dev esbuild
 ```
 
-Bind a handler to the Python-owned task it implements, register it on a `Bundle`, and serve it.
-A handler is a plain function: `getContext()` returns the `TaskContext` and `getClient()` the `TaskClient`
-for as long as it runs, so neither is a parameter.
-Any non-`undefined` return value is pushed to XCom under the `"return_value"` key by the active runtime,
-matching Python `@task` behavior:
+Declare a Dag in `src/main.ts`. Calling a task names its inputs, which is how the tasks depend on each other:
 
 ```ts
-import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
 
-export async function sayHello() {
-  const greeting = await getClient().getVariable("greeting");
-  return { message: `Hello from ${getContext().taskId}: ${greeting}` };
-}
+const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 
-const bundle = new Bundle();
-bundle.register(new TaskHandler("example_dag", "say_hello", sayHello));
-await bundle.serve();
+const extract = dag.task("extract", async (): Promise<number> => 42);
+const report = dag.task("report", async ({ rows }: { rows: number }) => {
+  console.log(`extracted ${rows} rows`);
+});
+
+report({ rows: extract() });
+
+await new Bundle(dag).serve();
 ```
 
-`register` takes any number of items, so one bundle can provide for several `TaskHandler`s.
+Build it into a single file:
 
-When the Python Dag calls a stub task TaskFlow-style, those arguments reach the
-handler by name. Names bind by folding on both sides, lowercased with underscores removed,
-so a Python `region_code` reaches a handler's `regionCode` with nothing declared:
-
-```ts
-interface TransformArgs {
-  regionCode: string;
-  threshold: number;
-}
-
-export async function transform({ regionCode, threshold }: TransformArgs) {
-  // ...
-}
+```bash
+npx airflow-ts-pack src/main.ts --outdir dist
 ```
 
-`withArgNames` states a binding folding cannot reach, for a name the Python side never used.
-It should be rare, since folding covers ordinary spelling differences.
+Put `dist/bundle.min.mjs` in a Dag bundle, such as the default `dags-folder` bundle, and send the `typescript`
+queue to the Node.js coordinator in `airflow.cfg`:
 
-`Dag` is another interface, for a Dag declared in TypeScript rather than in Python, and is still a work in progress.
+```ini
+[sdk]
+coordinators = {"ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator"}}
+queue_to_coordinator = {"typescript": "ts"}
+```
 
-## Coordinators
-
-Airflow runs TypeScript task bundles through the Python-side `NodeCoordinator`
-(`airflow.sdk.coordinators.node.NodeCoordinator`). A Python Dag declares the
-scheduling shape with stub tasks and owns the task dependencies between them,
-and the TypeScript module registers handlers with matching task IDs. See the
-[Non-Python Task SDKs guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/index.html)
-for the conceptual overview of language SDKs.
+See the
+[TypeScript SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+for everything a Dag declared in TypeScript can do, and for building and deploying a bundle.
 
 ## API Reference
 

@@ -105,6 +105,45 @@ Materializing is what makes the contract work at all: the spec is the *only* thi
 receives, so it must be complete and self-describing rather than a reference the runtime is
 expected to resolve on its own.
 
+#### What a runtime does when the two signatures disagree
+
+The spec describes the stub signature. Nothing checks it against the foreign handler's own
+signature, in either direction, so every SDK has to answer the same two questions the same way.
+"More" means the call passed arguments the handler does not take; "fewer" means the handler
+declared something no argument supplies.
+
+| the handler binds | more | fewer |
+| --- | --- | --- |
+| by position | fail | fail |
+| by name | log, do not fail | log, do not fail |
+
+Positional binding fails either way because positions carry the whole meaning of the binding: an
+argument dropped or added shifts every later one, so the handler would read values it has mistaken
+for others. The one exception is a trailing `from_default` entry, which the runtime may drop to
+match the handler's arity, since a captured default carries no intent from the call site.
+
+Name binding cannot shift, so neither direction is worth failing a task over: a field nothing fills
+takes the language's absent value, and an argument no field claims changes nothing the handler
+reads. Both are logged instead, before the task runs, so a mistyped name surfaces in the task log
+ahead of anything the task itself prints. `from_default` entries are not reported, since a handler
+ignoring a captured default is the normal case.
+
+A single call can be wrong in both directions at once, so each gets its own message rather than one
+line a reader has to untangle. SDKs implementing this use the same two wordings, so one query finds
+the mismatch across languages:
+
+- `Dag's call passed argument(s) the task handler does not declare`
+- `Task handler declares argument(s) the Dag's call did not pass`
+
+An SDK may log more besides. The TypeScript SDK also warns when a handler reads a name nothing
+bound, which is a run-time event rather than a signature mismatch and carries its own wording.
+
+Where the declaration comes from differs by language and is not a difference in the rule. Go's sole
+struct and Java's `TaskInput` are field lists the runtime can read directly. The TypeScript SDK has
+no such list, because parameter types are erased, so it reads the handler's destructuring pattern
+instead; a handler that takes the whole argument object has declared nothing to compare a call
+against, and nothing is reported for it.
+
 ### B. Materialization belongs in core Dag serialization, behind a generic `is_stub` flag
 
 The spec is built in Airflow core, from `OperatorSerialization._serialize_node`, for a non-mapped
@@ -216,6 +255,11 @@ modes. It is also why the spec is deliberately not `@task.stub`-shaped — no fi
 `TaskArgBinding` refers to stubs, Python, or the decorator, so the same wire form describes a
 natively authored call. (Its docstrings still say "stub", reflecting the only producer that
 exists today; that is wording to revisit, not a constraint in the format.)
+
+A runtime that holds its own Dag may resolve call arguments from that Dag rather than from the
+delivered spec. The spec stays the recorded and displayed form, which keeps one wire format across
+both authoring modes. The Go SDK reads the delivered bindings and the Java SDK resolves locally;
+both emit the same spec.
 
 ### H. Scope: what does not cross the boundary
 

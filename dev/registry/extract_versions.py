@@ -42,15 +42,13 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
-    import tomllib  # Python 3.11+ stdlib
-else:  # pragma: no cover -- Python 3.10 fallback
-    import tomli as tomllib
 from registry_contract_models import validate_provider_version_metadata
+from registry_tools.uri_schemes import collect_uri_schemes
 
 try:
     import yaml
@@ -59,6 +57,7 @@ except ImportError:
     sys.exit(1)
 
 from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
@@ -129,6 +128,62 @@ def git_show(tag: str, path: str) -> str | None:
         return None
 
 
+def git_ls_tree(tag: str, prefix: str) -> list[str]:
+    """List the file paths under a prefix at a specific git tag."""
+    try:
+        result = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "--name-only", tag, "--", prefix],
+            capture_output=True,
+            cwd=AIRFLOW_ROOT,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        return []
+    return [line for line in result.stdout.decode("utf-8").splitlines() if line]
+
+
+def git_cat_file_batch(tag: str, paths: list[str]) -> dict[str, str]:
+    """Read multiple files at a specific git tag in one `git cat-file --batch` call.
+
+    Returns a mapping of path -> content for paths that exist at the tag; a path
+    git reports as missing is simply absent from the result, matching git_show's
+    "return None for a missing path" semantics.
+
+    Decode failures are left unguarded on purpose: .rst files are Sphinx
+    convention UTF-8, an explicit "utf-8" decode is more predictable than
+    following the process locale, and a UnicodeDecodeError should surface loudly
+    rather than being swallowed. A failing ``git cat-file`` call also raises
+    (``check=True``); only git_show turns CalledProcessError into ``None``.
+    """
+    if not paths:
+        return {}
+
+    stdin = ("\n".join(f"{tag}:{p}" for p in paths) + "\n").encode("utf-8")
+    result = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        input=stdin,
+        capture_output=True,
+        cwd=AIRFLOW_ROOT,
+        check=True,
+    )
+
+    output = result.stdout
+    pos = 0
+    contents: dict[str, str] = {}
+    for path in paths:
+        newline_idx = output.index(b"\n", pos)
+        header = output[pos:newline_idx].decode("utf-8")
+        pos = newline_idx + 1
+        if header.endswith(" missing"):
+            continue
+        _sha1, _obj_type, size_str = header.split(" ")
+        size = int(size_str)
+        content_bytes = output[pos : pos + size]
+        pos += size + 1  # skip the protocol's trailing LF, which isn't counted in size
+        contents[path] = content_bytes.decode("utf-8")
+    return contents
+
+
 def git_tag_exists(tag: str) -> bool:
     """Check if a git tag exists locally."""
     result = subprocess.run(
@@ -179,6 +234,32 @@ def get_source_file_path(layout: str, dir_path: str, module_path: str) -> str:
     if layout == "new":
         return f"providers/{dir_path}/src/{rel_file}"
     return f"providers/src/{rel_file}"
+
+
+def read_guide_docs(tag: str, layout: str, dir_path: str) -> dict[str, str]:
+    """Read a provider's authored reST docs at a tag, keyed by path relative to its docs dir.
+
+    Only the per-provider layout keeps docs beside the provider; under the old flat
+    layout they lived in a top-level ``docs/`` tree, so those tags get no guide
+    links rather than links guessed from a path that moved.
+    """
+    if layout != "new":
+        return {}
+
+    docs_prefix = f"providers/{dir_path}/docs/"
+    survivors: list[tuple[str, str]] = []
+    for path in git_ls_tree(tag, docs_prefix):
+        if not path.endswith(".rst"):
+            continue
+        relative = path[len(docs_prefix) :]
+        if not is_guide_page(relative):
+            continue
+        survivors.append((relative, path))
+
+    batch_result = git_cat_file_batch(tag, [full_path for _relative, full_path in survivors])
+    return {
+        relative: batch_result[full_path] for relative, full_path in survivors if batch_result.get(full_path)
+    }
 
 
 def parse_pyproject_toml_content(content: str, layout: str) -> dict[str, Any]:
@@ -382,6 +463,8 @@ def extract_modules_from_yaml(
                 }
             )
 
+    attach_guide_urls(modules, collect_guide_anchors(read_guide_docs(tag, layout, dir_path)), base_docs_url)
+
     return modules
 
 
@@ -453,6 +536,10 @@ def extract_version_data(
             }
         )
 
+    uri_schemes = collect_uri_schemes(
+        provider_yaml, lambda module_path: git_show(tag, get_source_file_path(layout, dir_path, module_path))
+    )
+
     # Extract modules from source files
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
     module_counts = count_modules(modules)
@@ -461,11 +548,12 @@ def extract_version_data(
         {
             "provider_id": provider_id,
             "version": version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "requires_python": pyproject_data["requires_python"],
             "dependencies": pyproject_data["dependencies"],
             "optional_extras": pyproject_data["optional_extras"],
             "connection_types": connection_types,
+            "uri_schemes": uri_schemes,
             "module_counts": module_counts,
             "modules": modules,
         }

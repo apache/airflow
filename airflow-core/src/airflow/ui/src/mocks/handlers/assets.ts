@@ -47,4 +47,12 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/assets/:assetId", ({ params }) =>
     HttpResponse.json(params.assetId === "2" ? plainAsset : assetWithDependencies),
   ),
+  http.get("/api/v2/assets/:assetId/state-store/:key", ({ params }) =>
+    HttpResponse.json({
+      key: String(params.key),
+      last_updated_by: null,
+      updated_at: "2025-01-15T00:00:00Z",
+      value: "ready",
+    }),
+  ),
 ];

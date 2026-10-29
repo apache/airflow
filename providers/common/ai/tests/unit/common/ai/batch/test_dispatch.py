@@ -31,7 +31,7 @@ from airflow.providers.common.ai.exceptions import (
     BatchProviderNotYetSupportedError,
     UnsupportedBatchProviderError,
 )
-from airflow.sdk import Connection
+from airflow.providers.common.compat.sdk import Connection
 
 
 class TestSplitModelId:
@@ -79,6 +79,10 @@ class TestGetAdapterClass:
     def test_unknown_prefix_is_rejected(self):
         with pytest.raises(UnsupportedBatchProviderError, match="'groq' has no batch adapter"):
             dispatch.get_adapter_class("pydanticai", "groq:llama")
+
+    def test_openai_chat_prefix_selects_the_openai_adapter(self):
+        """pydantic-ai's Chat Completions prefix names the endpoint the OpenAI adapter submits to."""
+        assert dispatch.get_adapter_class("pydanticai", "openai-chat:gpt-5") is OpenAIBatchAdapter
 
     def test_resolve_adapter_name_returns_the_prefix(self):
         assert dispatch.resolve_adapter_name("pydanticai", "openai:gpt-5") == "openai"

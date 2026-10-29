@@ -40,7 +40,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job im
 
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
-    mock_base_gcp_hook_no_default_project_id,
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
@@ -134,79 +133,6 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
-        ):
-            self.hook = HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
-
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_job_service_client"))
-    def test_delete_hyperparameter_tuning_job(self, mock_client) -> None:
-        self.hook.delete_hyperparameter_tuning_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.delete_hyperparameter_tuning_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-            TEST_HYPERPARAMETER_TUNING_JOB_ID,
-        )
-
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_job_service_client"))
-    def test_get_hyperparameter_tuning_job(self, mock_client) -> None:
-        self.hook.get_hyperparameter_tuning_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.get_hyperparameter_tuning_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.hyperparameter_tuning_job_path.return_value,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.hyperparameter_tuning_job_path.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_REGION,
-            TEST_HYPERPARAMETER_TUNING_JOB_ID,
-        )
-
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_job_service_client"))
-    def test_list_hyperparameter_tuning_jobs(self, mock_client) -> None:
-        self.hook.list_hyperparameter_tuning_jobs(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.list_hyperparameter_tuning_jobs.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                filter=None,
-                page_size=None,
-                page_token=None,
-                read_mask=None,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
-
-
-class TestHyperparameterTuningJobWithoutDefaultProjectIdHook:
-    def setup_method(self):
-        with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):
             self.hook = HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 

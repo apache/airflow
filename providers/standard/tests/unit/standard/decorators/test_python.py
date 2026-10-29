@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import typing
 from collections import namedtuple
 from datetime import date
@@ -55,9 +54,9 @@ else:
     )
     from airflow.decorators.base import DecoratedMappedOperator, _TaskDecorator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
-    from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from airflow.providers.common.compat.sdk import timezone
@@ -65,13 +64,13 @@ from airflow.providers.common.compat.sdk import timezone
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import TriggerRule
 else:
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 else:
     from airflow.models.mappedoperator import (  # type: ignore[no-redef]
-        MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
+        MappedOperator as SerializedMappedOperator,
     )
 
 if typing.TYPE_CHECKING:
@@ -81,8 +80,6 @@ if typing.TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PY38 = sys.version_info >= (3, 8)
-PY311 = sys.version_info >= (3, 11)
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -155,16 +152,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t1().operator.multiple_outputs is True
 
-    # We do not enable `from __future__ import annotations` for particular this test module,
-    # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
     def test_infer_multiple_outputs_pep_604_union_type(self):
         @task_decorator
         def t1() -> str | None:
-            # Before PEP 604 which are implemented in Python 3.10 `str | None`
-            # returns `types.UnionType` which are class and could be check in `issubclass()`.
-            # However in Python 3.10+ this construction returns object `typing.Union`
-            # which can not be used in `issubclass()`
+            # `str | None` evaluates to `types.UnionType`, which cannot be used in `issubclass()`.
             return "foo"
 
         assert t1().operator.multiple_outputs is False
@@ -940,7 +931,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
         from airflow.sdk import TriggerRule
     except ImportError:
         # Compatibility for Airflow < 3.1
-        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+        from airflow.utils.trigger_rule import TriggerRule
 
     result = None
 
@@ -982,7 +973,7 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
         from airflow.sdk import TriggerRule
     except ImportError:
         # Compatibility for Airflow < 3.1
-        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+        from airflow.utils.trigger_rule import TriggerRule
 
     result = None
 

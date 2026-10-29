@@ -27,6 +27,69 @@
 Changelog
 ---------
 
+15.3.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, ``PowerBIDatasetRefreshOperator`` resumes an existing refresh
+    by default. Durable execution starts refreshes on the worker, so workers need access
+    to the Power BI service. Set ``durable=False`` to preserve triggerer-only access:
+    the trigger starts a fresh refresh on each try and cancels it after polling errors.
+    On Airflow versions before 3.3, durable execution is disabled and this triggerer-only
+    behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
+    with ``durable=True`` and requires Airflow 3.3 or later.
+
+Features
+~~~~~~~~
+
+* ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675, #75272)``
+* ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
+* ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
+
+Misc
+~~~~
+
+* ``Require azure-keyvault-secrets 4.11.0 or newer (#73822)``
+* ``Accept optional task instances in Azure Blob remote-log type hints (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-20 (#75209)``
+
+15.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the msgraph connection extra with get_async_extra_dejson (#74161)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Cap microsoft-kiota-http below 1.13 in the Microsoft Azure provider (#74090)``
+* ``Support azure-datalake-store 1.x in AzureDataLakeHook (#73819)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix connection screenshots missing from the msgraph and IBM MQ docs (#74287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 15.2.0
 ......
 

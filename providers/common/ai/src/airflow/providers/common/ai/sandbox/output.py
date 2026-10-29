@@ -119,6 +119,7 @@ def render_file_window(
     limit: int | None,
     max_lines: int,
     max_bytes: int,
+    long_line_hint: str = "Read part of it with a shell command instead (e.g. cut, head -c, or sed).",
 ) -> str:
     """
     Render a window of a text file, head-first, with a continuation offset.
@@ -140,10 +141,7 @@ def render_file_window(
 
     kept, truncated = _keep_lines(window, max_lines=max_lines, max_bytes=max_bytes, from_tail=False)
     if not kept and truncated:
-        return (
-            f"Line {start} is longer than the {format_size(max_bytes)} output limit. "
-            "Read part of it with a shell command instead (e.g. cut, head -c, or sed)."
-        )
+        return f"Line {start} is longer than the {format_size(max_bytes)} output limit. {long_line_hint}"
 
     body = "\n".join(kept)
     next_offset = start + len(kept)

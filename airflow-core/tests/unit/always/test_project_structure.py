@@ -58,59 +58,37 @@ class TestProjectStructure:
         """
         Assert every module in /providers/ has a corresponding test_ file in providers/providers.
         """
-        # The test below had a but for quite a while and we missed a lot of modules to have tess
-        # We should make sure that one goes to 0
+        # A long-standing bug in the test below allowed modules without tests to go undetected.
+        # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
-            "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/utils/test_base_config_keys.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
-            "providers/celery/tests/unit/celery/executors/test_default_celery.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
-            "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_appbuilder.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_jinja_globals.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_manifest_files.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_security.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
-            "providers/fab/tests/unit/fab/www/extensions/test_init_wsgi_middlewares.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_security_appless.py",
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
-            "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
-            "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_compute.py",
-            "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataform.py",
-            "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
             "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
-            "providers/google/tests/unit/google/cloud/links/test_datastore.py",
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
-            "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
-            "providers/google/tests/unit/google/cloud/links/test_spanner.py",
-            "providers/google/tests/unit/google/cloud/links/test_workflows.py",
             "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
@@ -123,13 +101,30 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/unit/google/cloud/transfers/test_bigquery_to_sql.py",
             "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
-            "providers/google/tests/unit/google/cloud/utils/test_bigquery.py",
-            "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
-            "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
-            "providers/standard/tests/unit/standard/operators/test_empty.py",
-            "providers/standard/tests/unit/standard/sensors/test_external_task.py",
+        ]
+        # Deliberately untested: link modules whose tests would only assert constants.
+        # Remove an entry once its module gains logic worth testing.
+        EXEMPTED_TESTS = [
+            "providers/google/tests/unit/google/cloud/links/test_alloy_db.py",
+            "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
+            "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
+            "providers/google/tests/unit/google/cloud/links/test_compute.py",
+            "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataform.py",
+            "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
+            "providers/google/tests/unit/google/cloud/links/test_datastore.py",
+            "providers/google/tests/unit/google/cloud/links/test_managed_kafka.py",
+            "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
+            "providers/google/tests/unit/google/cloud/links/test_spanner.py",
+            "providers/google/tests/unit/google/cloud/links/test_workflows.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
@@ -176,12 +171,18 @@ class TestProjectStructure:
             ]
         )
         overlooked_test_files = {pathlib.Path(test_file) for test_file in OVERLOOKED_TESTS}
+        exempted_test_files = {pathlib.Path(test_file) for test_file in EXEMPTED_TESTS}
         stale_overlooked_tests = overlooked_test_files - expected_test_files
         assert not stale_overlooked_tests, (
             "Detected stale provider test exemptions without corresponding provider modules - "
             f"please remove them from OVERLOOKED_TESTS: {sorted(stale_overlooked_tests)}"
         )
-        expected_test_files -= overlooked_test_files
+        stale_exempted_tests = exempted_test_files - expected_test_files
+        assert not stale_exempted_tests, (
+            "Detected stale provider test exemptions without corresponding provider modules - "
+            f"please remove them from EXEMPTED_TESTS: {sorted(stale_exempted_tests)}"
+        )
+        expected_test_files -= overlooked_test_files | exempted_test_files
 
         missing_tests_files = [
             file.as_posix()
@@ -194,6 +195,11 @@ class TestProjectStructure:
         assert set() == added_test_files, (
             "Detect added tests in providers module - please remove the tests "
             "from OVERLOOKED_TESTS list above"
+        )
+        added_exempted_test_files = current_test_files.intersection(exempted_test_files)
+        assert set() == added_exempted_test_files, (
+            "Detect added tests in providers module - please remove the tests "
+            f"from EXEMPTED_TESTS list above: {sorted(added_exempted_test_files)}"
         )
 
 
@@ -395,6 +401,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogBaseOperator",
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
+        # Compatibility fallback for GKEPodExecOperator, not a standalone Google operator.
+        "airflow.providers.google.cloud.operators.kubernetes_engine.KubernetesPodExecOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
         "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
@@ -498,6 +506,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
 
     BASE_CLASSES = {
         "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        # Compatibility fallback for EksPodExecOperator, not a standalone Amazon operator.
+        "airflow.providers.amazon.aws.operators.eks.KubernetesPodExecOperator",
         "airflow.providers.amazon.aws.operators.glue_crawler._GlueCrawlerBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
@@ -518,8 +528,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
-        "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",

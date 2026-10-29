@@ -116,6 +116,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Airflow CTL integration tests (true/false)"
         required: true
         type: string
+      run-generic-prod-image-tests:
+        description: >-
+          Whether to run the tests of the PROD image itself (true/false): not on the release branch of a
+          single component, which builds the image only for that component's tests
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -132,7 +138,9 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.default-branch == 'main' && inputs.canary-run == 'true'
+    if: >-
+      inputs.default-branch == 'main' && inputs.canary-run == 'true' &&
+      inputs.run-generic-prod-image-tests == 'true'
 
   prod-image-extra-checks-release-branch:
     name: PROD image extra checks (release)
@@ -147,12 +155,15 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.default-branch != 'main' && inputs.canary-run == 'true'
+    if: >-
+      inputs.default-branch != 'main' && inputs.canary-run == 'true' &&
+      inputs.run-generic-prod-image-tests == 'true'
 
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of PROD image building"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-generic-prod-image-tests == 'true'
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,7 +200,8 @@ jobs:
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Docker Compose quick start with PROD image verifying"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-generic-prod-image-tests == 'true'
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -220,7 +232,7 @@ jobs:
   task-sdk-integration-tests:
     timeout-minutes: 60
     name: "Task SDK integration tests with PROD image"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -251,10 +263,11 @@ jobs:
 
   test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"
+    if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Regular e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -264,43 +277,50 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Remote logging e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log"
-    if: inputs.canary-run == 'true' || inputs.run-remote-logging-s3-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-remote-logging-s3-e2e-tests == 'true'
 
   test-e2e-integration-tests-remote-log-elasticsearch:
     name: "Elasticsearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Elasticsearch remote logging e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log_elasticsearch"
-    if: inputs.canary-run == 'true' || inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
 
   test-e2e-integration-tests-remote-log-opensearch:
     name: "OpenSearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "OpenSearch remote logging e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log_opensearch"
-    if: inputs.canary-run == 'true' || inputs.run-remote-logging-opensearch-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-remote-logging-opensearch-e2e-tests == 'true'
 
   test-e2e-integration-tests-xcom-object-storage:
     name: "XCom object storage backend tests with PROD image"
+    if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "XCom object storage backend e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -311,60 +331,70 @@ jobs:
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Event driven e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "event_driven"
-    if: inputs.canary-run == 'true' || inputs.run-event-driven-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-event-driven-e2e-tests == 'true'
 
   test-e2e-integration-tests-java-sdk:
     name: "Java SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Java SDK e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "java_sdk"
       java-sdk-version: "${{ inputs.java-sdk-version }}"
-    if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-java-sdk-e2e-tests == 'true'
   test-e2e-integration-tests-go-sdk:
     name: "Go SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Go SDK e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "go_sdk"
-    if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-go-sdk-e2e-tests == 'true'
 
   test-e2e-integration-tests-ts-sdk:
     name: "TypeScript SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "TypeScript SDK e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "ts_sdk"
-    if: inputs.canary-run == 'true' || inputs.run-ts-sdk-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-ts-sdk-e2e-tests == 'true'
 
   test-e2e-integration-tests-openlineage:
     name: "OpenLineage e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "OpenLineage e2e test"
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "openlineage"
-    if: inputs.canary-run == 'true' || inputs.run-openlineage-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-openlineage-e2e-tests == 'true'
 
   # Older-Airflow compatibility: costly, so it does not run on every OpenLineage PR — only on canary
   # (scheduled / main) or when a maintainer sets the "full tests needed" label (both folded into the
@@ -377,7 +407,7 @@ jobs:
         compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
     uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
     with:
-      runners: ${{ inputs.runners }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -423,7 +453,7 @@ jobs:
   airflow-ctl-integration-tests:
     timeout-minutes: 60
     name: "Airflow CTL integration tests with PROD image"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}

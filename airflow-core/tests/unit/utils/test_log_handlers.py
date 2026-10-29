@@ -25,7 +25,7 @@ import os
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -35,7 +35,7 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -44,7 +44,6 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
@@ -63,6 +62,7 @@ from airflow.utils.log.file_task_handler import (
     _log_stream_to_parsed_log_stream,
     _stream_lines_by_chunk,
 )
+from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -78,6 +78,9 @@ from tests_common.test_utils.file_task_handler import (
 )
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 pytestmark = [pytest.mark.db_test]
 
 DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
@@ -92,6 +95,18 @@ def cleanup_tables():
     yield
     clear_db_runs()
     clear_db_connections()
+
+
+def _tracking_stream(lines: list[str]) -> tuple[Generator[str, None, None], list[str]]:
+    """Return a stream of ``lines`` and the list of lines pulled from it so far."""
+    pulled: list[str] = []
+
+    def gen() -> Generator[str, None, None]:
+        for line in lines:
+            pulled.append(line)
+            yield line
+
+    return gen(), pulled
 
 
 class TestFileTaskLogHandler:
@@ -337,6 +352,36 @@ class TestFileTaskLogHandler:
                 mock_get_default_executor.assert_not_called()
                 mock_load_executor.assert_called_once_with(executor_name)
 
+    @pytest.mark.parametrize(
+        ("dag_id", "ti_executor", "expected"),
+        [
+            pytest.param("team_a_dag", None, ("LocalExecutor", "team_a"), id="team-default"),
+            pytest.param("team_b_dag", None, ("CeleryExecutor", "team_b"), id="other-team-default"),
+            pytest.param("team_a_dag", "LocalExecutor", ("LocalExecutor", "team_a"), id="team-named"),
+            pytest.param("team_a_dag", "CeleryExecutor", ("CeleryExecutor", None), id="global-named"),
+            pytest.param("global_dag", None, ("CeleryExecutor", None), id="no-team"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("core", "multi_team"): "True",
+            ("core", "executor"): "CeleryExecutor;team_a=LocalExecutor;team_b=CeleryExecutor",
+        }
+    )
+    def test_get_executor_uses_the_teams_executor(self, dag_id, ti_executor, expected, clean_executor_loader):
+        teams = {"team_a_dag": "team_a", "team_b_dag": "team_b"}
+        ti = mock.MagicMock(dag_id=dag_id, executor=ti_executor)
+        handler = FileTaskHandler("")
+        handler.executor_instances = {}
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", side_effect=teams.get),
+            mock.patch.object(executor_loader.ExecutorLoader, "load_executor") as load_executor,
+        ):
+            handler._get_executor(ti)
+        (executor_name,), _ = load_executor.call_args
+        assert (executor_name.alias, executor_name.team_name) == expected
+
     def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):
             ti.log.info("test")
@@ -474,7 +519,7 @@ class TestFileTaskLogHandler:
         log_handler_output_stream, metadata = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
         assert extract_events(log_handler_output_stream) == ["the log"]
-        assert metadata == {"end_of_log": True, "log_pos": 1}
+        assert metadata == {"end_of_log": True}
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
     def test__read_when_local_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
@@ -503,10 +548,74 @@ class TestFileTaskLogHandler:
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == {"end_of_log": True}
 
+    @pytest.mark.parametrize(
+        ("ti_state", "ti_try_number", "expected_metadata"),
+        [
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                1,
+                {"end_of_log": False, "log_pos": 3},
+                id="running-current-try",
+            ),
+            pytest.param(
+                TaskInstanceState.DEFERRED,
+                1,
+                {"end_of_log": False, "log_pos": 3},
+                id="deferred-current-try",
+            ),
+            pytest.param(TaskInstanceState.RUNNING, 2, {"end_of_log": True}, id="running-older-try"),
+            pytest.param(TaskInstanceState.SUCCESS, 1, {"end_of_log": True}, id="success"),
+            pytest.param(TaskInstanceState.FAILED, 1, {"end_of_log": True}, id="failed"),
+        ],
+    )
+    def test__read_accumulates_only_unfinished_reads(
+        self, ti_state, ti_try_number, expected_metadata, create_task_instance
+    ):
+        ti = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            state=ti_state,
+        )
+        ti.try_number = ti_try_number
+        source, pulled = _tracking_stream(["line 1", "line 2", "line 3"])
+        fth = FileTaskHandler("")
+
+        with (
+            patch.object(fth, "_read_from_local", return_value=(["the messages"], [source])),
+            patch.object(fth, "_read_from_logs_server", return_value=([], [])),
+            patch.object(fth, "_get_executor") as get_executor,
+            patch(
+                "airflow.utils.log.file_task_handler.LogStreamAccumulator", wraps=LogStreamAccumulator
+            ) as accumulator,
+        ):
+            get_executor.return_value.get_streaming_task_log.return_value = ([], [])
+            log_handler_output_stream, metadata = fth._read(ti=ti, try_number=1)
+
+            accumulated = not expected_metadata["end_of_log"]
+            assert len(pulled) == (3 if accumulated else 0)
+            assert accumulator.called is accumulated
+            assert extract_events(log_handler_output_stream) == ["line 1", "line 2", "line 3"]
+        assert metadata == expected_metadata
+
+    @pytest.mark.parametrize(
+        ("ti_state", "expected_metadata"),
+        [
+            pytest.param(TaskInstanceState.SUCCESS, {"end_of_log": True}, id="finished"),
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                {"end_of_log": False, "log_pos": 3},
+                id="running-follow-up-poll",
+            ),
+        ],
+    )
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
-    def test_read_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
+    def test_read_respects_log_pos_metadata(
+        self, mock_read_local, ti_state, expected_metadata, create_task_instance
+    ):
         """The public `read()` wrapper must accept the `islice` stream `_read()` returns for log_pos reads."""
         mock_read_local.return_value = (
             ["the messages"],
@@ -517,18 +626,25 @@ class TestFileTaskLogHandler:
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
+            state=ti_state,
         )
+        local_log_file_read.try_number = 1
         fth = FileTaskHandler("")
 
-        log_handler_output_stream, metadata = fth.read(
-            local_log_file_read,
-            try_number=1,
-            metadata={"log_pos": 2},
-        )
+        with (
+            patch.object(fth, "_read_from_logs_server", return_value=([], [])),
+            patch.object(fth, "_get_executor") as get_executor,
+        ):
+            get_executor.return_value.get_streaming_task_log.return_value = ([], [])
+            log_handler_output_stream, metadata = fth.read(
+                local_log_file_read,
+                try_number=1,
+                metadata={"log_pos": 2},
+            )
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == expected_metadata
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
@@ -623,16 +739,17 @@ class TestFileTaskLogHandler:
         else:
             fth._read_from_logs_server.assert_not_called()
         assert extract_events(logs, False) == expected_logs
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == {"end_of_log": True}
 
-    @pytest.mark.parametrize("is_tih", [False, True])
-    def test_read_served_logs(self, is_tih, create_task_instance):
+    @pytest.mark.parametrize("is_historical", [False, True])
+    def test_read_served_logs(self, is_historical, create_task_instance, session):
         ti = create_task_instance(
             state=TaskInstanceState.SUCCESS,
             hostname="test_hostname",
         )
-        if is_tih:
-            ti = TaskInstanceHistory(ti, ti.state)
+        if is_historical:
+            ti.prepare_db_for_next_try(session)
+            session.flush()
         fth = FileTaskHandler("")
         sources, _ = fth._read_from_logs_server(ti, "test.log")
         assert len(sources) > 0
@@ -657,6 +774,7 @@ class TestFileTaskLogHandler:
             session.add(t)
             ti.triggerer = t
             t.task_instance = ti
+            session.flush()
         h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
         h.set_context(ti)
         expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=0.log"
@@ -825,7 +943,7 @@ class TestFilenameRendering:
     def test_jinja_id_in_template_for_history(
         self, create_log_template, create_task_instance, logical_date, session
     ):
-        """Test that Jinja template using ti.id works for both TaskInstance and TaskInstanceHistory"""
+        """Test that Jinja template using ti.id works for current and archived attempts."""
         create_log_template("{{ ti.id }}.log")
         ti = create_task_instance(
             dag_id="dag_history_test",
@@ -834,23 +952,15 @@ class TestFilenameRendering:
             logical_date=DEFAULT_DATE,
             catchup=True,
         )
-        TaskInstanceHistory.record_ti(ti, session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        ti.try_number = 1
         session.flush()
-        tih = session.scalar(
-            select(TaskInstanceHistory).where(
-                TaskInstanceHistory.dag_id == ti.dag_id,
-                TaskInstanceHistory.task_id == ti.task_id,
-                TaskInstanceHistory.run_id == ti.run_id,
-                TaskInstanceHistory.map_index == ti.map_index,
-                TaskInstanceHistory.try_number == ti.try_number,
-            )
-        )
+        successor = ti.prepare_db_for_next_try(session)
         fth = FileTaskHandler("")
-        rendered_ti = fth._render_filename(ti, ti.try_number, session=session)
-        rendered_tih = fth._render_filename(tih, ti.try_number, session=session)
-        expected = f"{ti.id}.log"
-        assert rendered_ti == expected
-        assert rendered_tih == expected
+        rendered_current = fth._render_filename(successor, successor.try_number, session=session)
+        rendered_historical = fth._render_filename(ti, ti.try_number, session=session)
+        assert rendered_current == f"{successor.id}.log"
+        assert rendered_historical == f"{ti.id}.log"
 
 
 class TestLogUrl:

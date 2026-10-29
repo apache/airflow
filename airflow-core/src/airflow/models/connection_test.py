@@ -110,6 +110,12 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     commit_on_success: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+    # Whether a successful commit may overwrite an existing connection. Set at enqueue time only
+    # when the connection already existed and the requester was authorized to edit it; otherwise
+    # the commit may only create the connection.
+    commit_allows_update: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     is_encrypted: Mapped[bool] = mapped_column(
         Boolean, unique=False, default=False, nullable=False, server_default="0"
     )
@@ -140,6 +146,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         port: int | None = None,
         extra: str | None = None,
         commit_on_success: bool = False,
+        commit_allows_update: bool = False,
         executor: str | None = None,
         queue: str | None = None,
         team_name: str | None = None,
@@ -155,6 +162,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.port = port
         self.extra = extra
         self.commit_on_success = commit_on_success
+        self.commit_allows_update = commit_allows_update
         self.executor = executor
         self.queue = queue
         self.team_name = team_name
@@ -202,8 +210,15 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
             extra=self.extra,
         )
 
-    def commit_to_connection_table(self, *, session: Session) -> None:
-        """Upsert the tested connection into the real ``connection`` table."""
+    def commit_to_connection_table(self, *, session: Session) -> bool:
+        """
+        Write the tested connection into the real ``connection`` table.
+
+        An existing connection is only overwritten when ``commit_allows_update`` is set, i.e. the
+        connection existed when the test was enqueued and the requester was allowed to edit it.
+
+        :return: True if the connection was created or updated, False if it was left unchanged.
+        """
         conn = session.scalar(select(Connection).filter_by(conn_id=self.connection_id))
         if conn is None:
             conn = Connection(
@@ -219,6 +234,12 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
             )
             session.add(conn)
             log.info("Created new connection from successful test", connection_id=self.connection_id)
+        elif not self.commit_allows_update:
+            log.warning(
+                "Not updating connection created after the test was enqueued",
+                connection_id=self.connection_id,
+            )
+            return False
         else:
             conn.conn_type = self.conn_type
             conn.host = self.host
@@ -228,3 +249,4 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
             conn.port = self.port
             conn.extra = self.extra
             log.info("Updated existing connection from successful test", connection_id=self.connection_id)
+        return True

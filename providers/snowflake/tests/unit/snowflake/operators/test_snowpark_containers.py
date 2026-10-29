@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import itertools
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -371,7 +371,7 @@ class TestSnowparkContainerJobOperator:
     @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
     def test_execute_defer_uses_execution_timeout_for_deadline_and_buffer(self, mock_submit, time_machine):
         time_machine.move_to(1000, tick=False)
-        context = {"ti": mock.Mock(start_date=datetime.fromtimestamp(1000, tz=timezone.utc))}
+        context = {"ti": mock.Mock(start_date=datetime.fromtimestamp(1000, tz=UTC))}
         op = _make_operator(
             deferrable=True,
             timeout=3600,

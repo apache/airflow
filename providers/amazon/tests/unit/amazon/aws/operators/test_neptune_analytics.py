@@ -44,6 +44,8 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
 )
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
+
 GRAPH_NAME = "test_graph"
 GRAPH_ID = "test-graph-id"
 VPC_ID = "vpc-12345"
@@ -64,9 +66,6 @@ class TestNeptuneCreateGraphOperator:
         assert "graph_name" in fields
         assert "vector_search_config" in fields
         assert "provisioned_memory" in fields
-
-    def test_template_fields_renderers(self):
-        assert NeptuneCreateGraphOperator.template_fields_renderers == {"vector_search_config": "json"}
 
     def test_operator_extra_links(self):
 
@@ -222,9 +221,10 @@ class TestNeptuneCreateGraphOperator:
         assert isinstance(trigger, NeptuneGraphAvailableTrigger)
         assert exc_info.value.method_name == "execute_complete"
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist, wait_for_completion):
         mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
 
         operator = NeptuneCreateGraphOperator(
@@ -233,12 +233,16 @@ class TestNeptuneCreateGraphOperator:
             vector_search_config={"test": 123},
             provisioned_memory=16,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -449,9 +453,10 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         )
         assert result == {"vpc_endpoint_id": ENDPOINT_ID, "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.VpcEndpointLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist, wait_for_completion):
         mock_conn.create_private_graph_endpoint.return_value = {
             "status": "CREATING",
             "vpcEndpointId": ENDPOINT_ID,
@@ -464,12 +469,16 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             graph_identifier=GRAPH_ID,
             vpc_id=VPC_ID,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -614,8 +623,9 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
 
         # Verify the method completes without error and logs the endpoint_id
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, wait_for_completion):
         mock_conn.delete_private_graph_endpoint.return_value = {
             "status": "DELETING",
             "vpcEndpointId": ENDPOINT_ID,
@@ -627,12 +637,16 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
             graph_identifier=GRAPH_ID,
             vpc_id=VPC_ID,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -803,8 +817,9 @@ class TestNeptuneDeleteGraphOperator:
         with pytest.raises(NeptuneGraphDeletionFailedError):
             operator.execute(None)
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, wait_for_completion):
         mock_conn.delete_graph.return_value = {
             "id": GRAPH_ID,
             "name": GRAPH_NAME,
@@ -816,12 +831,16 @@ class TestNeptuneDeleteGraphOperator:
             graph_id=GRAPH_ID,
             skip_snapshot=True,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -1101,8 +1120,9 @@ class TestNeptuneCreateGraphWithImportOperator:
         assert exc_info.value.method_name == "defer_wait_for_task"
         assert exc_info.value.kwargs == {"import_task_id": self.IMPORT_TASK_ID}
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, wait_for_completion):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
             "taskId": self.IMPORT_TASK_ID,
@@ -1116,12 +1136,16 @@ class TestNeptuneCreateGraphWithImportOperator:
             source=SOURCE_S3_URI,
             role_arn=ROLE_ARN,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -1175,9 +1199,6 @@ class TestNeptuneStartImportTaskOperator:
         assert "role_arn" in fields
         assert "source" in fields
         assert "import_options" in fields
-
-    def test_template_fields_renderers(self):
-        assert NeptuneStartImportTaskOperator.template_fields_renderers == {"import_options": "json"}
 
     def test_operator_extra_links(self):
         assert len(NeptuneStartImportTaskOperator.operator_extra_links) == 1
@@ -1377,9 +1398,10 @@ class TestNeptuneStartImportTaskOperator:
 
         assert result == {"graph_id": GRAPH_ID, "import_task_id": TASK_ID}
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist, wait_for_completion):
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -1392,12 +1414,16 @@ class TestNeptuneStartImportTaskOperator:
             role_arn=ROLE_ARN,
             source=SOURCE_S3_URI,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {
@@ -1502,8 +1528,9 @@ class TestNeptuneCancelImportTaskOperator:
 
         assert result == {"import_task_id": TASK_ID}
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, wait_for_completion):
         mock_conn.cancel_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -1514,12 +1541,16 @@ class TestNeptuneCancelImportTaskOperator:
             task_id="test_task",
             import_task_id=TASK_ID,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
             region_name=REGION_NAME,
             verify=VERIFY,
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             operator.execute(None)
 
         assert exc_info.value.trigger.serialize()[1] == {

@@ -24,6 +24,11 @@ from unittest.mock import ANY, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -31,15 +36,16 @@ from airflow.providers.common.ai.mixins.approval import (
 from airflow.providers.common.ai.operators.llm import DecisionPolicy
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -47,7 +53,7 @@ else:
 
 def _make_mock_agent(output: str, make_mock_run_result):
     """Create a mock agent that returns the given output string."""
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 
@@ -192,6 +198,10 @@ class TestLLMSQLQueryOperator:
 
         assert issubclass(LLMSQLQueryOperator, LLMOperator)
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"):
+            LLMSQLQueryOperator(task_id="test", prompt="get users", llm_conn_id="my_llm", output_type=int)
+
     def test_template_fields_include_parent_and_sql_specific(self):
         expected = {
             "prompt",
@@ -199,7 +209,7 @@ class TestLLMSQLQueryOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
             "db_conn_id",
             "table_names",
@@ -242,11 +252,27 @@ class TestLLMSQLQueryOperator:
 
         assert result == "SELECT id, name FROM users WHERE active = true"
         mock_agent.run_sync.assert_called_once_with(
-            "Get active users", usage_limits=None, cancellation_token=ANY
+            "Get active users", usage=ANY, usage_limits=None, run_id=ANY, cancellation_token=ANY
         )
 
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_hook_cls, make_reporting_agent, reporting_task_instance, model_name
+    ):
+        mock_agent, expected_pushes = make_reporting_agent("SELECT 1", model_name=model_name)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMSQLQueryOperator(task_id="test", prompt="Get one", llm_conn_id="my_llm")
+        ti = reporting_task_instance
+
+        op.execute(context={"task_instance": ti})
+
+        assert {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list} == expected_pushes
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_hook_cls, make_mock_run_result, usage_budget_context
+    ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_agent = _make_mock_agent("SELECT id, name FROM users WHERE active = true", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -258,7 +284,7 @@ class TestLLMSQLQueryOperator:
             schema_context="Table: users\nColumns: id INT, name TEXT, active BOOLEAN",
             usage_limits={"cost_limit": "0.5"},
         )
-        op.execute(context=MagicMock())
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
@@ -309,8 +335,8 @@ class TestLLMSQLQueryOperator:
         assert result == "DROP TABLE users"
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
-        """agent_params inherited from LLMOperator are unpacked into create_agent."""
+    def test_execute_passes_model_settings_and_output_retries(self, mock_hook_cls, make_mock_run_result):
+        """model_settings and output_retries inherited from LLMOperator reach create_agent."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "SELECT 1", make_mock_run_result
         )
@@ -319,13 +345,14 @@ class TestLLMSQLQueryOperator:
             task_id="test",
             prompt="test",
             llm_conn_id="my_llm",
-            agent_params={"retries": 3, "model_settings": {"temperature": 0}},
+            model_settings={"temperature": 0},
+            output_retries=3,
         )
         op.execute(context=MagicMock())
 
         create_agent_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_agent_call[1]["retries"] == 3
-        assert create_agent_call[1]["model_settings"] == {"temperature": 0}
+        assert create_agent_call.kwargs["retries"] == 3
+        assert create_agent_call.kwargs["model_settings"] == {"temperature": 0}
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_system_prompt_appended_to_sql_instructions(self, mock_hook_cls, make_mock_run_result):
@@ -347,6 +374,115 @@ class TestLLMSQLQueryOperator:
         # Built-in SQL safety prompt should still be present
         assert "Generate only SELECT queries" in instructions
         assert "Never generate data modification" in instructions
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+class TestLLMSQLQueryOperatorUsageBudget:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return LLMSQLQueryOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            schema_context="Table: users\nColumns: id INT",
+            usage_limits=UsageLimits(request_limit=2),
+            **kwargs,
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self, mock_hook_cls, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="SELECT 1")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            self._make_operator().execute(usage_budget_context)
+
+        assert calls == []
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_unsafe_generated_sql_keeps_the_budget(
+        self,
+        mock_hook_cls,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "DROP TABLE users", make_mock_run_result
+        )
+
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            self._make_operator().execute(usage_budget_context)
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_successful_run_clears_the_budget(
+        self,
+        mock_hook_cls,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "SELECT 1", make_mock_run_result
+        )
+
+        assert self._make_operator().execute(usage_budget_context) == "SELECT 1"
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+    @staticmethod
+    def _make_reviewed_event(sql):
+        return {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "dba"},
+            "params_input": {"output": sql},
+        }
+
+    def test_execute_complete_keeps_the_budget_when_revalidation_fails(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(allow_modifications=True)
+
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            op.execute_complete(
+                usage_budget_context,
+                generated_output="SELECT 1",
+                event=self._make_reviewed_event("DROP TABLE users"),
+            )
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None
+
+    def test_execute_complete_clears_the_budget_once_the_reviewed_sql_is_valid(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(allow_modifications=True)
+
+        result = op.execute_complete(
+            usage_budget_context,
+            generated_output="SELECT 1",
+            event=self._make_reviewed_event("SELECT id FROM users"),
+        )
+
+        assert result == "SELECT id FROM users"
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
 
 
 class TestLLMSQLQueryOperatorSchemaIntrospection:
@@ -853,32 +989,6 @@ class TestLLMSQLQueryOperatorApproval:
         result = op.execute_complete({}, generated_output="SELECT 1", event=event)
 
         assert result == "SELECT 1"
-
-
-@pytest.mark.skipif(
-    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-)
-class TestLLMSQLQueryOperatorMultimodalPromptGuard:
-    """LLMSQLQueryOperator.execute raises before agent.run_sync when require_approval=True
-    and self.prompt is not a string."""
-
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
-        op = LLMSQLQueryOperator(
-            task_id="t",
-            prompt="placeholder",
-            llm_conn_id="c",
-            require_approval=True,
-        )
-        op.prompt = ["x", object()]
-
-        with pytest.raises(TypeError, match="require_approval=True"):
-            op.execute(context=_make_context())
-
-        mock_agent.run_sync.assert_not_called()
 
 
 def test_decision_policy_with_a_bar_is_rejected_at_construction():

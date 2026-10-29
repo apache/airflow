@@ -69,19 +69,19 @@ Breeze supports two debugger options:
     # Use PyCharm debugger
     breeze start-airflow --debug scheduler --debugger pydevd-pycharm
 
-Using mprocs Instead of tmux
------------------------------
+Choosing between mprocs and tmux
+--------------------------------
 
-By default, ``breeze start-airflow`` uses tmux to manage multiple Airflow components. You can use
-mprocs as an alternative process manager with the ``--use-mprocs`` flag:
+By default, ``breeze start-airflow`` uses mprocs to manage multiple Airflow components. You can
+switch to tmux with the ``--terminal-multiplexer`` flag. Breeze remembers your choice for later runs:
 
 .. code-block:: bash
 
-    # Use mprocs instead of tmux
-    breeze start-airflow --use-mprocs
+    # Use tmux instead of mprocs
+    breeze start-airflow --terminal-multiplexer tmux
 
     # Use mprocs with debugging
-    breeze start-airflow --use-mprocs --debug scheduler --debug triggerer
+    breeze start-airflow --terminal-multiplexer mprocs --debug scheduler --debug triggerer
 
 **Benefits of mprocs:**
 

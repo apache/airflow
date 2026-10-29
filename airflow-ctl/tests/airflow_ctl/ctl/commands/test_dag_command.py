@@ -341,7 +341,7 @@ class TestDagCommands:
 
     def test_state_by_logical_date(self, capsys):
         api_client = mock.MagicMock()
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
         api_client.dag_runs.list.return_value.dag_runs = [
             mock.MagicMock(state="failed", conf={"reason": "[red]test[/red]"})
         ]
@@ -622,7 +622,14 @@ class TestDagCommands:
             ),
         )
 
-    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self):
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            pytest.param("2025-01-01T08:00:00+08:00", "2025-01-02T17:00:00+08:00", id="aware"),
+            pytest.param("2025-01-01T00:00:00", "2025-01-02T00:00:00", id="naive"),
+        ],
+    )
+    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self, start, end):
         api_client = self._api_client_mock()
         api_client.dag_runs.list.return_value = SimpleNamespace(
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
@@ -637,42 +644,9 @@ class TestDagCommands:
                     "clear",
                     self.dag_id,
                     "--partition-date-start",
-                    "2025-01-01T08:00:00+08:00",
+                    start,
                     "--partition-date-end",
-                    "2025-01-02T17:00:00+08:00",
-                    "--yes",
-                ]
-            ),
-            api_client=api_client,
-        )
-
-        assert result == {"dag_run_count": 1, "cleared_task_instances": 1}
-        api_client.dag_runs.list.assert_called_once_with(
-            dag_id=self.dag_id,
-            offset=0,
-            order_by="partition_date",
-            partition_date_gte=datetime.date(2025, 1, 1),
-            partition_date_lte=datetime.date(2025, 1, 2),
-        )
-
-    def test_clear_by_partition_date_accepts_naive_datetime_as_calendar_date(self):
-        api_client = self._api_client_mock()
-        api_client.dag_runs.list.return_value = SimpleNamespace(
-            dag_runs=[self._dag_run("scheduled__2025-01-01")],
-            total_entries=1,
-        )
-        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
-
-        result = dag_command.clear(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "clear",
-                    self.dag_id,
-                    "--partition-date-start",
-                    "2025-01-01T00:00:00",
-                    "--partition-date-end",
-                    "2025-01-02T00:00:00",
+                    end,
                     "--yes",
                 ]
             ),

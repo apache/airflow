@@ -37,6 +37,7 @@ AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 AIRFLOW_V_3_1_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 3)
 AIRFLOW_V_3_2_PLUS: bool = get_base_airflow_version_tuple() >= (3, 2, 0)
 AIRFLOW_V_3_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 3, 0)
+AIRFLOW_V_3_4_PLUS: bool = get_base_airflow_version_tuple() >= (3, 4, 0)
 
 # BaseOperator: Use 3.1+ due to xcom_push method missing in SDK BaseOperator 3.0.x
 # This is needed for DecoratedOperator compatibility
@@ -60,6 +61,7 @@ __all__ = [
     "AIRFLOW_V_3_1_PLUS",
     "AIRFLOW_V_3_2_PLUS",
     "AIRFLOW_V_3_3_PLUS",
+    "AIRFLOW_V_3_4_PLUS",
     "ArgNotSet",
     "BaseOperator",
     "is_arg_set",

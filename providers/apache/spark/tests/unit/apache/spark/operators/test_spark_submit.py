@@ -29,9 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import (
-    _DURABLE_UNSET,
     SparkSubmitOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.types import DagRunType
@@ -1136,18 +1134,3 @@ class TestSparkSubmitOperatorK8sTracking:
         operator.execute(context={"task_state_store": task_store})
 
         assert task_store.get("spark_job_id") is None
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False

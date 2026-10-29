@@ -29,8 +29,13 @@ Prioritize terms commonly used in the Taiwan tech ecosystem.
 
 ## Plural Forms
 
-Traditional Chinese **does not** distinguish between singular and plural forms.
-Use the **same translation** for both `_one` and `_other` suffixes:
+Traditional Chinese **does not** distinguish between singular and plural forms,
+so both suffixes use the same noun. i18next currently never selects `_one`
+for `zh-TW` (the locale has a single plural category, `other`), but the key
+must still exist for translation completeness.
+
+Some keys are plain nouns rather than counts — use the same translation for
+both suffixes:
 
 **English source:**
 
@@ -46,6 +51,30 @@ Use the **same translation** for both `_one` and `_other` suffixes:
 "dagRun_other": "Dag 執行"
 ```
 
+When the English `_one` does carry a count, write it as a literal `1` instead
+of interpolating `{{count, number}}`; keep the placeholder in `_other`:
+
+**English source:**
+
+```json
+"taskCount_one": "{{count, number}} Task",
+"taskCount_other": "{{count, number}} Tasks"
+```
+
+**Correct** — literal `1` in `_one`:
+
+```json
+"taskCount_one": "1 個任務",
+"taskCount_other": "{{count, number}} 個任務"
+```
+
+**Incorrect** — interpolating a count that can only be 1:
+
+```json
+"taskCount_one": "{{count, number}} 個任務",
+"taskCount_other": "{{count, number}} 個任務"
+```
+
 ## Spacing Rules
 
 Insert a **half-width space** between Chinese characters and adjacent
@@ -57,7 +86,7 @@ English words, numbers, or symbols:
 "Dag 執行"        // space between English and Chinese
 "最近 12 小時"     // space around numbers
 "連線 ID"          // space before abbreviation
-"{{count}} 個連線" // space after placeholder
+"{{count, number}} 個連線" // space after placeholder
 ```
 
 **Incorrect:**
@@ -94,9 +123,9 @@ appropriate measure word for each context:
 
 | Measure Word | Usage | Example |
 |---|---|---|
-| `個` | General objects (connections, variables, errors) | `刪除 {{count}} 個連線` |
-| `次` | Occurrences (runs, executions, attempts) | `最近 {{count}} 次 Dag 執行` |
-| `項` | List items | `+ 其他 {{count}} 項` |
+| `個` | General objects (connections, variables, errors) | `刪除 {{count, number}} 個連線` |
+| `次` | Occurrences (runs, executions, attempts) | `最近 {{count, number}} 次 Dag 執行` |
+| `項` | List items | `+ 其他 {{count, number}} 項` |
 
 ## Tone and Formality
 

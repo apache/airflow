@@ -1,0 +1,140 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+Dag exercising the emission policy authoring API for the controls the other authoring Dags do not.
+
+The comment above each task says which rules and authoring calls apply to it, and what its events must show.
+
+The Dag run START event reports in ``emits_ol_events`` which tasks emit, as the scheduler reads the authored flags.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from airflow import DAG
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import task
+from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.expected_events import get_expected_event_file_path
+from system.openlineage.operator import OpenLineageTestOperator
+
+
+def _register_hook_lineage(*_):
+    collector = get_hook_lineage_collector()
+    collector.add_input_asset(context=None, uri="file://host1/in.txt")
+    collector.add_output_asset(context=None, uri="file://host1/out.txt")
+
+
+DAG_ID = "openlineage_policy_authoring_controls_dag"
+
+with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
+    dag_id=DAG_ID,
+    start_date=datetime(2021, 1, 1),
+    schedule=None,
+    catchup=False,
+    default_args={"retries": 0},
+) as dag:
+    # No conf rule. Gets the Dag-level authored hook_lineage=False, as it exists at the call: no datasets, the
+    # source code stays.
+    t_dag_hook_off = PythonOperator(task_id="t_dag_hook_off", python_callable=_register_hook_lineage)
+    # Gets the Dag-level authored include_full_task_info=True: bash_command is in the airflow task facet.
+    t_dag_full_info = BashOperator(task_id="t_dag_full_info", bash_command="echo full_info")
+    # Gets the Dag-level hook_lineage=False, then a later task-level call sets True, which wins: the hook
+    # lineage datasets are emitted.
+    t_dag_hook_back_on = PythonOperator(task_id="t_dag_hook_back_on", python_callable=_register_hook_lineage)
+    # Gets the Dag-level include_full_task_info=True, then a later task-level call sets False, which wins: no
+    # bash_command.
+    t_dag_full_info_off = BashOperator(task_id="t_dag_full_info_off", bash_command="echo full_info")
+    # Its task-level hook_lineage=True comes first, and the later Dag-level call overwrites it with False: no
+    # datasets.
+    t_task_then_dag = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_task_then_dag", python_callable=_register_hook_lineage),
+        hook_lineage=True,
+    )
+    # Dag-level flags only reach tasks that already exist, so the tasks defined below are left out of this call.
+    extend_global_openlineage_emission_policy(dag, hook_lineage=False, include_full_task_info=True)
+    extend_global_openlineage_emission_policy(t_dag_hook_back_on, hook_lineage=True)
+    extend_global_openlineage_emission_policy(t_dag_full_info_off, include_full_task_info=False)
+
+    # Defined after the Dag-level call, so it gets none of its flags: the hook lineage datasets are emitted.
+    t_after_dag_call = PythonOperator(task_id="t_after_dag_call", python_callable=_register_hook_lineage)
+    # Authored emit_task_events=False: no task events.
+    t_task_events_off = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_task_events_off", python_callable=_register_hook_lineage),
+        emit_task_events=False,
+    )
+    # Authored emit=False with emit_task_events=True. emit_task_events wins: the task events are emitted.
+    t_task_events_beat_emit = extend_global_openlineage_emission_policy(
+        PythonOperator(task_id="t_task_events_beat_emit", python_callable=_register_hook_lineage),
+        emit=False,
+        emit_task_events=True,
+    )
+    # Authored include_full_task_info=True on the task: bash_command is in the airflow task facet.
+    t_task_full_info = extend_global_openlineage_emission_policy(
+        BashOperator(task_id="t_task_full_info", bash_command="echo full_info"),
+        include_full_task_info=True,
+    )
+
+    # Authored hook_lineage=False through the XComArg of a TaskFlow task. The hook lineage datasets are
+    # dropped and the declared inlets and outlets are emitted instead. TaskFlow has no extractor, so no source
+    # code.
+    @task(
+        task_id="t_taskflow",
+        inlets=[Asset(uri="file://host1/declared_in.txt")],
+        outlets=[Asset(uri="file://host1/declared_out.txt")],
+    )
+    def t_taskflow_fn():
+        _register_hook_lineage()
+
+    t_taskflow = extend_global_openlineage_emission_policy(t_taskflow_fn(), hook_lineage=False)
+    # Authored hook_lineage=False on a mapped operator, with one instance: no datasets, the source code stays.
+    t_mapped = extend_global_openlineage_emission_policy(
+        PythonOperator.partial(task_id="t_mapped", python_callable=_register_hook_lineage).expand(
+            op_args=[[1]]
+        ),
+        hook_lineage=False,
+    )
+    check_events = OpenLineageTestOperator(
+        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
+    )
+    (
+        t_dag_hook_off
+        >> t_dag_full_info
+        >> t_dag_hook_back_on
+        >> t_dag_full_info_off
+        >> t_task_then_dag
+        >> t_after_dag_call
+        >> t_task_events_off
+        >> t_task_events_beat_emit
+        >> t_task_full_info
+        >> t_taskflow
+        >> t_mapped
+        >> check_events
+    )
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+test_run = get_test_run(dag)

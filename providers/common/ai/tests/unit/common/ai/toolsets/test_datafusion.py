@@ -31,7 +31,6 @@ from airflow.providers.common.ai.toolsets.datafusion import (
     _RETRYABLE_QUERY_ERROR_PATTERNS,
     DataFusionToolset,
 )
-from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.sql.config import DataSourceConfig
 
 
@@ -113,6 +112,7 @@ class TestDataFusionToolsetArgsValidation:
         ("tool_name", "valid_args"),
         [
             ("get_schema", {"table_name": "sales_data"}),
+            ("get_schema", {"table_name": "sales_data", "name_contains": "am"}),
             ("query", {"sql": "SELECT 1"}),
         ],
     )
@@ -140,6 +140,19 @@ class TestDataFusionToolsetListTables:
         tables = json.loads(result)
         assert set(tables) == {"sales", "orders"}
 
+    @pytest.mark.enable_redact
+    def test_an_error_carrying_a_secret_that_json_escapes_is_masked(self, register_secret):
+        secret = register_secret('s3-se"cret-91c3')
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        ts._engine = _make_mock_engine()
+        ts._engine.session_context.catalog.side_effect = RuntimeError(f"object store auth failed: {secret}")
+
+        result = asyncio.run(
+            ts.call_tool("list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+        )
+
+        assert json.loads(result) == {"error": "object store auth failed: ***"}
+
 
 class TestDataFusionToolsetGetSchema:
     def test_returns_column_info(self):
@@ -157,12 +170,58 @@ class TestDataFusionToolsetGetSchema:
                 tool=MagicMock(spec=ToolsetTool),
             )
         )
-        columns = json.loads(result)
-        assert columns == [
-            {"name": "id", "type": "Int64"},
+        data = json.loads(result)
+        assert data == {
+            "columns": [
+                {"name": "id", "type": "Int64"},
+                {"name": "amount", "type": "Float64"},
+                {"name": "name", "type": "Utf8"},
+            ],
+            "column_count": 3,
+        }
+
+    def test_name_contains_filters_the_columns(self):
+        """``name_contains`` threads from the tool call through to the bounded result."""
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine(
+            schema_fields=[("id", "Int64"), ("amount", "Float64"), ("item_name", "Utf8")]
+        )
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data", "name_contains": "am"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        data = json.loads(result)
+        assert data["columns"] == [
             {"name": "amount", "type": "Float64"},
-            {"name": "name", "type": "Utf8"},
+            {"name": "item_name", "type": "Utf8"},
         ]
+        assert data["name_contains"] == "am"
+        assert data["total_columns"] == 3
+
+    @patch("airflow.providers.common.ai.toolsets.datafusion.build_schema_result", return_value="{}")
+    def test_get_schema_forwards_the_toolsets_bounds(self, mock_build):
+        """The toolset's own max_columns/max_result_bytes reach build_schema_result, not defaults."""
+        ts = DataFusionToolset([_make_mock_datasource_config()], max_columns=7, max_result_bytes=123)
+        ts._engine = _make_mock_engine()
+
+        asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data", "name_contains": "id"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        kwargs = mock_build.call_args.kwargs
+        assert kwargs["max_columns"] == 7
+        assert kwargs["max_result_bytes"] == 123
+        assert kwargs["name_contains"] == "id"
 
 
 class TestDataFusionToolsetQuery:
@@ -251,7 +310,7 @@ class TestDataFusionToolsetQuery:
                     tool=MagicMock(spec=ToolsetTool),
                 )
             )
-        assert isinstance(exc_info.value.__cause__, SQLSafetyError)
+        assert "Only read-only SELECT-family queries are allowed" in exc_info.value.message
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()

@@ -114,13 +114,28 @@ def document_classifier_workflow():
     # [END howto_sensor_create_document_classifier]
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_classifier(document_classifier_arn: str):
-        ComprehendHook().conn.delete_document_classifier(DocumentClassifierArn=document_classifier_arn)
+    def delete_classifier(classifier_name: str):
+        hook = ComprehendHook()
+        classifiers = hook.conn.list_document_classifiers(
+            Filter={"DocumentClassifierName": classifier_name},
+        )["DocumentClassifierPropertiesList"]
+
+        for classifier in classifiers:
+            classifier_arn = classifier["DocumentClassifierArn"]
+
+            # A classifier can only be deleted from a terminal state.
+            if classifier["Status"] == "DELETING":
+                continue
+            if classifier["Status"] in ("SUBMITTED", "TRAINING"):
+                hook.conn.stop_training_document_classifier(DocumentClassifierArn=classifier_arn)
+
+            hook.get_waiter("document_classifier_deletable").wait(DocumentClassifierArn=classifier_arn)
+            hook.conn.delete_document_classifier(DocumentClassifierArn=classifier_arn)
 
     chain(
         create_document_classifier,
         await_create_document_classifier,
-        delete_classifier(create_document_classifier.output),
+        delete_classifier(classifier_name),
     )
 
 

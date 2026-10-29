@@ -20,6 +20,69 @@
 Changelog
 ---------
 
+3.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Distinguish invalid Dag access control from FAB backend failures (#74788)``
+* ``Check all names before airflow roles import writes anything (#74711)``
+* ``Keep the /auth mount path when ProxyFix applies X-Forwarded-Prefix (#74603)``
+* ``Sync Dag permissions for CustomAuthManager (#74022)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.13.0 and webpack to 5.112.0 (#75234)``
+* ``Support SQLAlchemy 2.1 typing in permission sorting (#75075)``
+* ``Bump prettier to 3.9.10 (#74765)``
+* ``Bump @babel/core, @babel/eslint-parser and @babel/preset-env to 8.0.7 (#74670)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix missing and incorrect endpoints in the API permission reference (#74871)``
+* ``Remove the asset-wide queued event deletion row from the API permission reference (#74839)``
+* ``Update remaining FAB Website permissions rows for Airflow 3 (#74653)``
+* ``Update FAB Website permissions rows for Airflow 3 views (#74630)``
+* ``Fix FAB Website permissions rows for the Grid and Graph views (#74599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Require Python 3.11+ for permission doc generators and fail on parse errors (#74654)``
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop rebuilding the FAB app on every users and roles API call (#73104)``
+* ``Set 'SameSite' on the fab auth manager session cookie (#73894)``
+
+Misc
+~~~~
+
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
+* ``Drop support for Python 3.10 (#74157)``
+* ``Bump stylelint to 17.16.0 (#74252)``
+* ``Bump prettier to 3.9.9 (#73857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Add an API endpoint and UI tab comparing two stored Dag versions (#73322)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``UI: Add bulk pause, drain and unpause actions to the Dags list (#73055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 3.10.0
 ......
 

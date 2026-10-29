@@ -22,6 +22,8 @@ import builtins
 
 import pytest
 
+from airflow.providers.common.compat import sdk
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -32,8 +34,6 @@ def test_all_compat_imports_work():
     For each item, validates that at least one of the specified import paths works,
     ensuring the fallback mechanism is functional.
     """
-    from airflow.providers.common.compat import sdk
-
     failed_imports = []
 
     for name in sdk.__all__:
@@ -51,11 +51,9 @@ def test_all_compat_imports_work():
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow < 3.0")
-@pytest.mark.parametrize("name", ["BaseBranchOperator", "BranchMixIn"])
-def test_branching_imports_work_without_standard_provider(name, monkeypatch):
+@pytest.mark.parametrize("name", ["BaseBranchOperator", "BranchMixIn", "get_current_context"])
+def test_airflow2_fallbacks_work_without_standard_provider(name, monkeypatch):
     """On Airflow 2 the standard provider is optional, so core paths must be used as fallback."""
-    from airflow.providers.common.compat import sdk
-
     real_import = builtins.__import__
 
     def fake_import(module_name, *args, **kwargs):
@@ -68,9 +66,13 @@ def test_branching_imports_work_without_standard_provider(name, monkeypatch):
     assert getattr(sdk, name) is not None
 
 
+def test_get_current_context_outside_a_task_raises_runtime_error():
+    """With the standard provider installed, Airflow 2 matches Airflow 3; core's version raises AirflowException."""
+    with pytest.raises(RuntimeError, match="no context was found"):
+        sdk.get_current_context()
+
+
 def test_invalid_import_raises_attribute_error():
     """Test that importing non-existent attribute raises AttributeError."""
-    from airflow.providers.common.compat import sdk
-
     with pytest.raises(AttributeError, match="has no attribute 'NonExistentClass'"):
         _ = sdk.NonExistentClass

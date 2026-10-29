@@ -35,7 +35,10 @@ class ExasolToS3Operator(BaseOperator):
     """
     Export data from Exasol database to AWS S3 bucket.
 
-    :param query_or_table: the sql statement to be executed or table name to export
+    :param query_or_table: the sql statement to be executed or table name to export.
+        A table name must be a single plain identifier (e.g. ``EMPLOYEES``): dotted
+        names such as ``SCHEMA.TABLE`` are rejected by ``pyexasol`` as unsafe
+        identifiers, so use a query instead (e.g. ``SELECT * FROM SCHEMA.TABLE``).
     :param key: S3 key that will point to the file
     :param bucket_name: Name of the bucket in which to store the file
     :param replace: A flag to decide whether or not to overwrite the key
