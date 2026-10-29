@@ -43,7 +43,8 @@ An overview of how this process works:
 * A task instance (running operator) reaches a point where it has to wait for other operations or conditions, and defers itself with a trigger tied to an event to resume it. This frees up the worker to run something else.
 * The new trigger instance is registered by Airflow, and picked up by a triggerer process.
 * The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler.
-* The scheduler queues the task to resume on a worker node.
+* The scheduler queues the task to resume on a worker node, before the scheduled tasks that are not resuming
+  (see :ref:`concepts:priority-weight`).
 
 You can either use pre-written deferrable operators as a Dag author or write your own. Writing them, however, requires that they meet certain design criteria.
 

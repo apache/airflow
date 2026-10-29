@@ -64,6 +64,17 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.
 
+Tasks resuming on a worker after a wait are queued before other scheduled tasks, whatever their
+``priority_weight``: tasks resumed by their trigger after being
+:doc:`deferred </authoring-and-scheduling/deferring>`, including when the trigger fails or times out, and
+:doc:`human-in-the-loop </tutorial/hitl>` tasks resumed after waiting for input. ``priority_weight`` orders
+the resuming tasks among themselves, and the other tasks among themselves.
+
+.. versionchanged:: 3.4
+
+   Tasks resuming after a wait are queued before other scheduled tasks. Before, they were ordered by
+   ``priority_weight`` with the other scheduled tasks.
+
 .. note::
 
     As most database engines are using 32-bit for integers, the maximum value for any calculated or
