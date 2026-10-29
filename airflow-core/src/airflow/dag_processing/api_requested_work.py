@@ -117,7 +117,17 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
                 work=item, inventory_sequence=inventory_sequence
             )
             bundle = bundles_by_name[item.bundle_name]
-            path = find_enclosing_file(bundle.path / item.relative_fileloc)
+            try:
+                path = find_enclosing_file(bundle.path / item.relative_fileloc)
+            except OSError as error:
+                # The next inventory acknowledges the claim if the bundle listing cannot see the file either.
+                self.log.warning(
+                    "Unable to resolve priority parse %s in bundle %s: %s",
+                    item.relative_fileloc,
+                    bundle.name,
+                    error,
+                )
+                path = None
             files.append(
                 DagFileInfo(
                     rel_path=path.relative_to(bundle.path) if path else Path(item.relative_fileloc),
