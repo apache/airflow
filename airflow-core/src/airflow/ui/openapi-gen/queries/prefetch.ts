@@ -1837,6 +1837,17 @@ export const prefetchUseProviderServiceGetProviders = (queryClient: QueryClient,
   offset?: number;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseProviderServiceGetProvider = (queryClient: QueryClient, { providerName }: {
+  providerName: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }), queryFn: () => ProviderService.getProvider({ providerName }) });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -2151,6 +2162,13 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
 export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }: {
   next?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }), queryFn: () => LoginService.login({ next }) });
+/**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseLoginServiceGetCliLoginMetadata = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(), queryFn: () => LoginService.getCliLoginMetadata() });
 /**
 * Logout
 * Logout the user.

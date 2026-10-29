@@ -53,6 +53,10 @@ def workflow_status(
         workflow_id,
         "--branch",
         branch,
+        # A run still in progress has no conclusion yet, which would read as "no failures" and
+        # announce a recovery that has not happened.
+        "--status",
+        "completed",
         "--limit",
         "1",  # Limit to the most recent run
         "--repo",

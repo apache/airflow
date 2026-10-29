@@ -368,45 +368,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
         agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
 
-        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
-        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
-        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
-        ti = self._resolve_task_instance(context)
-        run_kwargs: dict[str, Any] = {}
-        if ti is not None:
-            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
-            run_kwargs["run_id"] = make_task_instance_run_key(ti)
-
-        attempt_usage = RunUsage()
-        try:
-            result = self._run_llm(
-                context, agent, self.prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
-            )
-        except BaseException:
-            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
-            # still reports what it spent: the capped run is the one cost tracking most needs.
-            try:
-                log_run_usage(self.log, attempt_usage, outcome="failed")
-            except Exception:
-                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
-            try:
-                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
-            except Exception:
-                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
-            if ti is not None:
-                try:
-                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
-                except Exception:
-                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
-            raise
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
-        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
-        if ti is not None:
-            self._push_xcom(context, "run_id", result.run_id)
         model_confidence = ModelConfidence.from_result(result)
-        if model_confidence.model is not None:
-            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -499,13 +464,67 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         user_prompt: Any,
         *,
         usage_limits: UsageLimits | None,
-        run_usage: RunUsage | None = None,
+    ) -> AgentRunResult[Any]:
+        """
+        Run the agent and publish the run's ``usage``, ``run_id`` and model name on XCom.
+
+        Every ``execute`` of this operator and its subclasses runs the agent through here, so they
+        all report the same run metadata.
+        """
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
+        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
+        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
+        ti = self._resolve_task_instance(context)
+        run_kwargs: dict[str, Any] = {}
+        if ti is not None:
+            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
+            run_kwargs["run_id"] = make_task_instance_run_key(ti)
+
+        attempt_usage = RunUsage()
+        try:
+            result = self._run_agent_within_budget(
+                context, agent, user_prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
+            )
+        except BaseException:
+            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
+            # still reports what it spent: the capped run is the one cost tracking most needs.
+            try:
+                log_run_usage(self.log, attempt_usage, outcome="failed")
+            except Exception:
+                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+            try:
+                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+            except Exception:
+                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+            if ti is not None:
+                try:
+                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
+                except Exception:
+                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
+            raise
+
+        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+        if ti is not None:
+            self._push_xcom(context, "run_id", result.run_id)
+        model_name = ModelConfidence.from_result(result).model
+        if model_name is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_name)
+        return result
+
+    def _run_agent_within_budget(
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        user_prompt: Any,
+        *,
+        usage_limits: UsageLimits | None,
+        run_usage: RunUsage,
         **run_kwargs: Any,
     ) -> AgentRunResult[Any]:
         """
         Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies.
 
-        ``run_usage``, when given, receives this attempt's own usage, also when the run raises
+        ``run_usage`` receives this attempt's own usage, also when the run raises
         partway through. With the usage budget, pydantic-ai is handed the cross-attempt total
         instead, so the attempt's share is credited to ``run_usage`` once the run ends.
         """
@@ -513,8 +532,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         ti = context["task_instance"] if usage_limits is not None else None
         self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
         if self._usage_budget is None:
-            if run_usage is not None:
-                run_kwargs["usage"] = run_usage
+            run_kwargs["usage"] = run_usage
             result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits, **run_kwargs)
             log_run_summary(self.log, result)
             return result
@@ -525,8 +543,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 agent, user_prompt, run_usage=cumulative_usage, usage_limits=usage_limits, **run_kwargs
             )
         finally:
-            if run_usage is not None:
-                run_usage.incr(subtract_run_usage(cumulative_usage, base))
+            run_usage.incr(subtract_run_usage(cumulative_usage, base))
         log_run_summary(self.log, result, usage=attempt_usage)
         self._log_cumulative_usage(cumulative_usage)
         return result

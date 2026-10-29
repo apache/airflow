@@ -17,19 +17,47 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from os.path import dirname
 from unittest.mock import patch
 
 import pytest
+import time_machine
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
+from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 from unit.microsoft.azure.test_utils import mock_json_response, patch_hook_and_request_adapter
+
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
+NOT_DONE = {"status": "success", "type": "builtins.dict", "response": json.dumps({"status": "Running"})}
+DONE = {
+    "status": "success",
+    "type": "builtins.dict",
+    "response": json.dumps({"status": "Succeeded", "id": "x"}),
+}
+
+
+def _sensor(**kwargs) -> MSGraphSensor:
+    return MSGraphSensor(
+        task_id="check",
+        conn_id="powerbi",
+        url="myorg/admin/workspaces/scanStatus/{scanId}",
+        timeout=100,
+        retry_delay=30,
+        **kwargs,
+    )
+
+
+def _at(seconds: float):
+    return time_machine.travel(T0 + timedelta(seconds=seconds), tick=False)
 
 
 class TestMSGraphSensor:
@@ -143,17 +171,124 @@ class TestMSGraphSensor:
         for template_field in MSGraphSensor.template_fields:
             getattr(sensor, template_field)
 
-    def test_execute_complete_passes_timeout_to_defer(self):
-        sensor = MSGraphSensor(
-            task_id="check_timeout",
-            conn_id="powerbi",
-            url="myorg/admin/workspaces/scanStatus/{scanId}",
-            timeout=10,
-        )
+    def test_execute_defers_with_timeout_and_started_at(self):
+        sensor = _sensor()
 
-        with patch.object(sensor, "defer") as mock_defer:
-            sensor.execute_complete(
-                context={}, event={"status": "success", "response": json.dumps({"status": "running"})}
+        with _at(0), pytest.raises(TaskDeferred) as exc:
+            sensor.execute(context={})
+
+        assert isinstance(exc.value.trigger, MSGraphTrigger)
+        assert exc.value.trigger.timeout is None
+        assert exc.value.method_name == "execute_complete"
+        assert exc.value.timeout == timedelta(seconds=100)
+        assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
+
+    def test_execute_complete_redefers_with_capped_sleep_and_started_at(self):
+        sensor = _sensor()
+
+        with _at(10), pytest.raises(TaskDeferred) as exc:
+            sensor.execute_complete(context={}, event=NOT_DONE, sensor_started_at=T0.timestamp())
+
+        assert isinstance(exc.value.trigger, TimeDeltaTrigger)
+        assert exc.value.trigger.moment == T0 + timedelta(seconds=40)
+        assert exc.value.method_name == "retry_execute"
+        assert exc.value.timeout == timedelta(seconds=120)
+        assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
+
+    @pytest.mark.parametrize("elapsed", [10, 40, 70])
+    def test_retry_execute_deadline_does_not_slide(self, elapsed):
+        sensor = _sensor()
+
+        with _at(elapsed), pytest.raises(TaskDeferred) as exc:
+            sensor.retry_execute(context={}, event=T0, sensor_started_at=T0.timestamp())
+
+        assert isinstance(exc.value.trigger, MSGraphTrigger)
+        assert exc.value.method_name == "execute_complete"
+        assert exc.value.timeout == timedelta(seconds=100 - elapsed)
+        assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
+
+    def test_sleep_capped_to_remaining(self):
+        sensor = _sensor()
+
+        with _at(90), pytest.raises(TaskDeferred) as exc:
+            sensor.execute_complete(context={}, event=NOT_DONE, sensor_started_at=T0.timestamp())
+
+        assert exc.value.trigger.moment == T0 + timedelta(seconds=100)
+        assert exc.value.timeout == timedelta(seconds=40)
+
+    @pytest.mark.parametrize("elapsed", [100, 150])
+    def test_past_deadline_raises_sensor_timeout(self, elapsed):
+        sensor = _sensor()
+
+        with (
+            _at(elapsed),
+            patch.object(sensor, "defer") as mock_defer,
+            pytest.raises(AirflowSensorTimeout, match="Sensor has timed out"),
+        ):
+            sensor.execute_complete(context={}, event=NOT_DONE, sensor_started_at=T0.timestamp())
+
+        mock_defer.assert_not_called()
+
+    @pytest.mark.parametrize("elapsed", [80, 99.7, 100, 150])
+    def test_retry_execute_near_or_past_deadline_polls_once_more(self, elapsed):
+        sensor = _sensor()
+
+        with _at(elapsed), pytest.raises(TaskDeferred) as exc:
+            sensor.retry_execute(context={}, event=T0, sensor_started_at=T0.timestamp())
+
+        assert isinstance(exc.value.trigger, MSGraphTrigger)
+        assert exc.value.method_name == "execute_complete"
+        assert exc.value.timeout == timedelta(seconds=30)
+        assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
+
+    def test_done_after_deadline_returns_result(self):
+        sensor = _sensor(result_processor=lambda result, **context: result["id"])
+
+        with _at(150):
+            assert sensor.execute_complete(context={}, event=DONE, sensor_started_at=T0.timestamp()) == "x"
+
+    @pytest.mark.parametrize(
+        ("flags", "expected"),
+        [
+            pytest.param({}, AirflowSensorTimeout, id="no_flag"),
+            pytest.param({"soft_fail": True}, AirflowSkipException, id="soft_fail"),
+            pytest.param(
+                {"never_fail": True},
+                AirflowSkipException,
+                id="never_fail",
+                marks=pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="never_fail on resume is 3.1+"),
+            ),
+        ],
+    )
+    def test_timeout_via_resume_execution(self, flags, expected):
+        sensor = _sensor(**flags)
+
+        with _at(150), pytest.raises(expected):
+            sensor.resume_execution(
+                "execute_complete", {"event": NOT_DONE, "sensor_started_at": T0.timestamp()}, {}
             )
-            mock_defer.assert_called_once()
-            assert mock_defer.call_args.kwargs["timeout"] == timedelta(seconds=10)
+
+    def test_missing_started_at_falls_back_to_now(self):
+        sensor = _sensor()
+
+        with _at(500), pytest.raises(TaskDeferred) as exc:
+            sensor.retry_execute(context={}, event=T0)
+
+        assert exc.value.timeout == timedelta(seconds=100)
+        assert exc.value.kwargs == {"sensor_started_at": (T0 + timedelta(seconds=500)).timestamp()}
+
+        with _at(500), pytest.raises(TaskDeferred) as exc:
+            sensor.execute_complete(context={}, event=NOT_DONE)
+
+        assert exc.value.trigger.moment == T0 + timedelta(seconds=530)
+        assert exc.value.kwargs == {"sensor_started_at": (T0 + timedelta(seconds=500)).timestamp()}
+
+    def test_future_started_at_clamped(self):
+        sensor = _sensor()
+
+        with _at(0), pytest.raises(TaskDeferred) as exc:
+            sensor.retry_execute(
+                context={}, event=T0, sensor_started_at=(T0 + timedelta(seconds=10)).timestamp()
+            )
+
+        assert exc.value.timeout == timedelta(seconds=100)
