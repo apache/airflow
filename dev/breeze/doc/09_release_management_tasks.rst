@@ -693,6 +693,13 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage Airflow separately and then add providers individually, you can
   use those.
 
+In the ``constraints`` mode every provider is pinned at the newest version PyPI holds for it. Pre-releases
+are only picked up with ``--allow-pre-releases`` (the constraints of a release candidate), except for the
+candidates the current constraints branch already pins: those are kept while PyPI still serves them, so a
+regular run does not undo a release candidate's constraints. ``--fail-on-pending-provider-candidates``
+(the constraints of a final release) fails instead when a provider's newest version is a candidate that
+was neither released nor yanked.
+
 These are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/output_release-management_generate-constraints.svg
@@ -1128,9 +1135,11 @@ the workflow existed.
 
 The stage is derived from ``--version`` alone, so it cannot be set inconsistently with it. A candidate
 (``3.1.3rc1``) resolves allowing pre-releases for ``apache-airflow-providers-*`` — the providers of the wave
-being voted on are on PyPI only as ``rcN`` versions — and lands on a branch of its own, leaving the shared
-``constraints-X-Y`` branch where it was. A final (``3.1.3``) resolves without them and commits onto
-``constraints-X-Y``, which is what makes the released constraints the baseline everything downstream reads.
+being voted on are on PyPI only as ``rcN`` versions. A final (``3.1.3``) resolves without them, and fails
+while any provider's newest version on PyPI is still a candidate: each one has to be released or yanked
+first (yanked versions are skipped), so the released constraints neither pin a candidate nor silently pass
+over one. Both commit onto ``constraints-X-Y`` and tag the result ``constraints-<VERSION>``; the final's
+commit is what makes the released constraints the baseline everything downstream reads.
 
 These are all available flags of ``workflow-run release-constraints`` command:
 
