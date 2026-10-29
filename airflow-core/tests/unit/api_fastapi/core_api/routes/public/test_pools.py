@@ -352,6 +352,61 @@ class TestGetPools(TestPoolsEndpoint):
             "team_name": None,
         }
 
+    @mock.patch.object(Pool, "slots_stats", autospec=True)
+    def test_open_slots_use_pool_configuration_from_response_query(
+        self, mock_slots_stats, test_client, session
+    ):
+        session.add(Pool(pool="concurrent_update_pool", slots=10, include_deferred=False))
+        session.commit()
+        mock_slots_stats.return_value = {
+            "concurrent_update_pool": {
+                "total": 20,
+                "running": 2,
+                "queued": 0,
+                "open": 18,
+                "deferred": 0,
+                "scheduled": 0,
+            }
+        }
+
+        response = test_client.get("/pools", params={"pool_name_pattern": "concurrent_update_pool"})
+
+        assert response.status_code == 200
+        assert response.json()["pools"][0]["slots"] == 10
+        assert response.json()["pools"][0]["occupied_slots"] == 2
+        assert response.json()["pools"][0]["open_slots"] == 8
+
+    @pytest.mark.backend("mysql")
+    def test_list_counts_slots_after_pool_is_recreated_with_different_case(
+        self, test_client, dag_maker, session
+    ):
+        response = test_client.post("/pools", json={"name": "analytics", "slots": 10})
+        assert response.status_code == 201
+        if session.scalar(select(Pool.id).where(Pool.pool == "Analytics")) is None:
+            pytest.skip("requires the case-insensitive pool-name collation used by fresh MySQL schemas")
+
+        with dag_maker(dag_id="test_recreated_pool_slot_counts", session=session):
+            EmptyOperator(task_id="running_task", pool="analytics", pool_slots=2)
+        ti = dag_maker.create_dagrun().get_task_instances(session=session)[0]
+        ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        assert test_client.delete("/pools/analytics").status_code == 204
+        response = test_client.post("/pools", json={"name": "Analytics", "slots": 10})
+        assert response.status_code == 201
+
+        single_response = test_client.get("/pools/Analytics")
+        assert single_response.status_code == 200
+        expected_counts = {"running_slots": 2, "occupied_slots": 2, "open_slots": 8}
+        single_pool = single_response.json()
+        assert {key: single_pool[key] for key in expected_counts} == expected_counts
+
+        response = test_client.get("/pools", params={"pool_name_pattern": "Analytics"})
+        assert response.status_code == 200
+        pools = response.json()["pools"]
+        assert len(pools) == 1
+        assert {key: pools[0][key] for key in expected_counts} == expected_counts
+
     @pytest.mark.parametrize("pool_count", [5, 10, 20])
     def test_query_count_is_independent_of_pool_count(self, test_client, session, pool_count):
         """Regression guard: slot counts of all pools must be fetched together, not with queries per pool."""
@@ -380,7 +435,8 @@ class TestGetPools(TestPoolsEndpoint):
         assert response.status_code == 200
         assert [pool["name"] for pool in response.json()["pools"]] == [POOL1_NAME]
         assert len(statements) == 1
-        assert f"task_instance.pool IN ('{POOL1_NAME}')" in statements[0]
+        assert "JOIN task_instance ON task_instance.pool = slot_pool.pool" in statements[0]
+        assert f"slot_pool.pool IN ('{POOL1_NAME}')" in statements[0]
 
     def test_empty_page_skips_slot_stats(self, test_client):
         self.create_pools()
