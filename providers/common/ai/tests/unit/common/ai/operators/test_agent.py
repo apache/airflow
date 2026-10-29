@@ -1519,6 +1519,7 @@ class TestAgentOperatorExecute:
                 [Summary(text="ok")],
                 [{"text": "ok", "score": 0.0}],
                 id="list-in-output-marker",
+                marks=requires_typed_xcom,
             ),
             pytest.param(
                 ToolOutput(LinkedSummary),
