@@ -1343,7 +1343,9 @@ metrics:
       default: "False"
     dag_tags_in_metrics:
       description: |
-        Set to ``True`` to include Dag tags as metric tags on all Dag-run and task-instance metrics.
+        Set to ``True`` to include Dag tags as metric tags on all Dag-run and task-instance metrics,
+        and on the per-Dag scheduler gauges ``dag.schedule_overdue_seconds`` and
+        ``scheduler.dagruns.running`` / ``scheduler.dagruns.queued`` (with ``dagrun_metrics_per_dag_id``).
         Tags that contain a colon (e.g. ``env:prod``) are split into a key/value pair. Plain tags
         (e.g. ``production``) are emitted as standalone DogStatsd tags, or as ``tag=true`` in InfluxDB
         line-protocol format. Disabled by default to avoid unexpected cardinality increases, since Dag

@@ -104,7 +104,7 @@ from airflow.models.connection_test import (
     ConnectionTestRequest,
     ConnectionTestState,
 )
-from airflow.models.dag import DagModel
+from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_version import DagVersion, _resolve_version_data
 from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -3667,13 +3667,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
                 .group_by(DagRun.dag_id, DagRun.state)
             )
-            for dag_id, state, count in session.execute(stmt).all():
+            rows = session.execute(stmt).all()
+            dag_tags = self._dag_metric_tags({dag_id for dag_id, _, _ in rows}, session=session)
+            for dag_id, state, count in rows:
                 metric_name = (
                     "scheduler.dagruns.running"
                     if state == DagRunState.RUNNING
                     else "scheduler.dagruns.queued"
                 )
-                stats.gauge(metric_name, float(count), tags={"dag_id": dag_id})
+                stats.gauge(metric_name, float(count), tags=dag_tags[dag_id])
             return
 
         stmt = (
@@ -3687,7 +3689,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
         stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
 
-    previous_schedule_overdue_metrics: dict[str, float] = {}
+    previous_schedule_overdue_metrics: dict[str, dict[str, str]] = {}
 
     @provide_session
     def _emit_schedule_overdue_metric(self, *, session: Session = NEW_SESSION) -> None:
@@ -3714,15 +3716,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if create_after is not None
         }
 
+        dag_tags = self._dag_metric_tags(overdue_metrics.keys(), session=session)
         for dag_id, overdue_seconds in overdue_metrics.items():
-            stats.gauge("dag.schedule_overdue_seconds", overdue_seconds, tags={"dag_id": dag_id})
+            stats.gauge("dag.schedule_overdue_seconds", overdue_seconds, tags=dag_tags[dag_id])
 
-        for prev_dag_id in self.previous_schedule_overdue_metrics:
+        for prev_dag_id, prev_tags in self.previous_schedule_overdue_metrics.items():
             # Reset previously exported stats that are no longer present in current metrics to zero
             if prev_dag_id not in overdue_metrics:
-                stats.gauge("dag.schedule_overdue_seconds", 0, tags={"dag_id": prev_dag_id})
+                stats.gauge("dag.schedule_overdue_seconds", 0, tags=prev_tags)
 
-        self.previous_schedule_overdue_metrics = overdue_metrics
+        self.previous_schedule_overdue_metrics = dag_tags
+
+    def _dag_metric_tags(self, dag_ids: Iterable[str], *, session: Session) -> dict[str, dict[str, str]]:
+        """
+        Return ``dag_id`` plus, with ``[metrics] dag_tags_in_metrics`` on, the Dag tags for each Dag.
+
+        Matches ``DagRun.stats_tags``, for per-Dag gauges emitted without a ``DagRun``.
+        """
+        dag_ids = set(dag_ids)
+        tags: dict[str, dict[str, str]] = {dag_id: {"dag_id": dag_id} for dag_id in dag_ids}
+        if not self._dag_tags_in_metrics or not dag_ids:
+            return tags
+        rows = session.execute(
+            select(DagTag.dag_id, DagTag.name).where(DagTag.dag_id.in_(dag_ids)).order_by(DagTag.dag_id)
+        )
+        for dag_id, dag_rows in groupby(rows, key=operator.itemgetter(0)):
+            # Built-in keys win on collision, as in DagRun.stats_tags.
+            tags[dag_id] = {**stats.build_dag_metric_tags(name for _, name in dag_rows), "dag_id": dag_id}
+        return tags
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:

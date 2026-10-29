@@ -11524,6 +11524,74 @@ class TestSchedulerJob:
 
         assert recorded == []
 
+    def test_emit_schedule_overdue_metric_with_dag_tags(self, dag_maker, monkeypatch, session):
+        """With dag_tags_in_metrics, Dag tags are added, and the zero reset reuses the emitted tags."""
+        with dag_maker(
+            "blocked_dag",
+            schedule="@hourly",
+            max_active_runs=1,
+            tags=["team:data", "critical", "dag_id:spoofed"],
+            session=session,
+        ):
+            pass
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == "blocked_dag")
+            .values(
+                next_dagrun_create_after=timezone.utcnow() - timedelta(minutes=10),
+                exceeds_max_non_backfill=True,
+            )
+        )
+        session.flush()
+
+        recorded: list[tuple[str, float, dict | None]] = []
+
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        expected_tags = {"dag_id": "blocked_dag", "team": "data", "critical": ""}
+        with conf_vars({("metrics", "dag_tags_in_metrics"): "True"}):
+            self.job_runner = SchedulerJobRunner(Job())
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+
+        assert [tags for _, _, tags in recorded] == [expected_tags]
+
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == "blocked_dag").values(exceeds_max_non_backfill=False)
+        )
+        session.flush()
+        recorded.clear()
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+
+        assert recorded == [("dag.schedule_overdue_seconds", 0, expected_tags)]
+
+    def test_emit_dag_runs_metric_per_dag_id_with_dag_tags(self, dag_maker, monkeypatch):
+        """With dag_tags_in_metrics, the per-dag_id dagruns metrics carry the Dag tags."""
+        with dag_maker("metric_dag", tags=["team:data"]):
+            pass
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
+
+        recorded: list[tuple[str, float, dict | None]] = []
+
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "dag_tags_in_metrics"): "True",
+                ("scheduler", "dagrun_metrics_per_dag_id"): "True",
+            }
+        ):
+            self.job_runner = SchedulerJobRunner(Job())
+            self.job_runner._emit_dag_runs_metric()
+
+        assert recorded == [("scheduler.dagruns.running", 1.0, {"dag_id": "metric_dag", "team": "data"})]
+
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
         """Test successful team name resolution for multiple DAG IDs."""
