@@ -16,14 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Text } from "@chakra-ui/react";
+import { Badge, Button, HStack, Text } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfillsUi } from "openapi/queries";
-import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
+import {
+  useBackfillServiceCancelBackfill,
+  useBackfillServiceListBackfillsUi,
+  useBackfillServiceListBackfillsUiKey,
+  useBackfillServicePauseBackfill,
+  useBackfillServiceUnpauseBackfill,
+} from "openapi/queries";
+import type { BackfillResponse } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -31,8 +41,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
+import { isReprocessBehavior } from "src/constants/reprocessBehaviourParams";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { type DurationFormat, isOneOf, useDurationFormat } from "src/utils";
+import { type DurationFormat, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -53,20 +64,20 @@ const {
   TO_DATE_LTE: TO_DATE_LTE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const isReprocessBehavior = isOneOf([
-  "failed",
-  "completed",
-  "none",
-] as const satisfies ReadonlyArray<ReprocessBehavior>);
-
 type ColumnProps = {
+  readonly isActionPending: boolean;
+  readonly onCancel: (backfillId: number) => void;
   readonly onSelectBackfill: (backfillId: number) => void;
+  readonly onTogglePause: (backfill: BackfillResponse) => void;
   readonly translate: TFunction;
 } & Pick<DurationFormat, "formatElapsed">;
 
 const getColumns = ({
   formatElapsed,
+  isActionPending,
+  onCancel,
   onSelectBackfill,
+  onTogglePause,
   translate,
 }: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
@@ -121,11 +132,18 @@ const getColumns = ({
   },
   {
     accessorKey: "completed_at",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.completed_at} />
-      </Text>
-    ),
+    cell: ({ row }) =>
+      row.original.completed_at === null ? (
+        <Badge colorPalette="info" variant="subtle">
+          {row.original.is_paused
+            ? translate("dags:filters.paused.paused")
+            : translate("components:banner.backfillInProgress")}
+        </Badge>
+      ) : (
+        <Text>
+          <Time datetime={row.original.completed_at} />
+        </Text>
+      ),
     enableSorting: false,
     header: translate("table.completedAt"),
   },
@@ -146,10 +164,44 @@ const getColumns = ({
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row }) =>
+      row.original.completed_at === null ? (
+        <HStack gap={1}>
+          <IconButton
+            colorPalette="info"
+            label={
+              row.original.is_paused
+                ? translate("components:banner.unpause")
+                : translate("components:banner.pause")
+            }
+            loading={isActionPending}
+            onClick={() => onTogglePause(row.original)}
+            size="xs"
+            variant="outline"
+          >
+            {row.original.is_paused ? <MdPlayArrow /> : <MdPause />}
+          </IconButton>
+          <IconButton
+            colorPalette="info"
+            label={translate("components:banner.cancel")}
+            loading={isActionPending}
+            onClick={() => onCancel(row.original.id)}
+            size="xs"
+            variant="outline"
+          >
+            <MdStop />
+          </IconButton>
+        </HStack>
+      ) : undefined,
+    enableSorting: false,
+    header: "",
+  },
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation(["common", "components"]);
+  const { t: translate } = useTranslation(["common", "components", "dags"]);
   const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
@@ -218,7 +270,29 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: [useBackfillServiceListBackfillsUiKey] });
+  };
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isUnpausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
+    onSuccess,
+  });
+  const { isPending: isCancelPending, mutate: cancelMutate } = useBackfillServiceCancelBackfill({
+    onSuccess,
+  });
+
+  const columns = getColumns({
+    formatElapsed,
+    isActionPending: isPausePending || isUnpausePending || isCancelPending,
+    onCancel: (id) => cancelMutate({ backfillId: id }),
+    onSelectBackfill,
+    onTogglePause: (backfill) =>
+      backfill.is_paused
+        ? unpauseMutate({ backfillId: backfill.id })
+        : pauseMutate({ backfillId: backfill.id }),
+    translate,
+  });
 
   return (
     <>

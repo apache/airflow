@@ -34,6 +34,12 @@ services:
       - nodejs-bin:/opt/nodejs
 
   airflow-dag-processor:
+    environment:
+      # The dynamic Dag test swaps a YAML file and waits for the Dag IDs to change. Re-parse the
+      # bundle every few seconds, and mark a Dag stale soon after it leaves the YAML.
+      AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '5'
+      AIRFLOW__DAG_PROCESSOR__STALE_DAG_THRESHOLD: '10'
+      AIRFLOW__SCHEDULER__PARSING_CLEANUP_INTERVAL: '5'
     volumes:
       - ./ts-bundles:/opt/airflow/ts-bundles:ro
       - nodejs-bin:/opt/nodejs:ro

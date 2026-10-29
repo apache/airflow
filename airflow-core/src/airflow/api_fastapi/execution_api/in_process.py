@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(logger_name=__name__)
 
+TRIGGER_TI_ID_HEADER = "Airflow-Trigger-Ti-Id"
+
 
 # Finalizer arguments must not reference the transport, or it cannot be garbage collected.
 def _shutdown_loop(
@@ -51,12 +53,16 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
-def _configure_in_process_auth(app: FastAPI) -> None:
+def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None) -> None:
     from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
     from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
     from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
     from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-    from airflow.api_fastapi.execution_api.security import _IN_PROCESS_NON_TI_CALLER, _jwt_bearer
+    from airflow.api_fastapi.execution_api.security import (
+        _IN_PROCESS_NON_TI_CALLER,
+        _IN_PROCESS_TRIGGERER_ID,
+        _jwt_bearer,
+    )
 
     async def always_allow(request: Request):
         from uuid import UUID
@@ -71,6 +77,8 @@ def _configure_in_process_auth(app: FastAPI) -> None:
             "task_instance_id" not in request.path_params
             and "X-Airflow-In-Process-Attempt-Id" not in request.headers
         )
+        if triggerer_id is not None:
+            request.scope[_IN_PROCESS_TRIGGERER_ID] = triggerer_id
         claims = TIClaims(scope="execution")
         return TIToken(id=ti_id, claims=claims)
 
@@ -90,6 +98,7 @@ class InProcessExecutionAPI:
     """
 
     _app: FastAPI | None = None
+    triggerer_id: int | None = None
 
     @cached_property
     def app(self):
@@ -105,11 +114,10 @@ class InProcessExecutionAPI:
             self._app = create_task_execution_api_app(lifespan=attrs.evolve(lifespan, registry=registry))
             # Auth dependency overrides bypass validation, so the stub skips validator setup in lifespan().
             registry.register_value(JWTValidator, None)
-            _configure_in_process_auth(self._app)
+            _configure_in_process_auth(self._app, triggerer_id=self.triggerer_id)
 
         return self._app
 
-    # httpx2, not httpx: the only consumers are Task SDK clients, which subclass httpx2.Client.
     @cached_property
     def transport(self) -> httpx2.WSGITransport:
         import httpx2

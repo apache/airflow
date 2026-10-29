@@ -24,11 +24,17 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
+from airflow.providers.common.ai.observability import (
+    build_run_identity_attributes,
+    make_task_instance_run_key,
+    stamp_identity_on_agent_spans,
+)
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -44,9 +50,16 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
+from airflow.providers.common.ai.utils.logging import (
+    MODEL_NAME_XCOM_KEY,
+    format_usage_for_xcom,
+    log_run_summary,
+    log_run_usage,
+)
 from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
+from airflow.providers.common.ai.utils.usage_budget import copy_run_usage, subtract_run_usage
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
@@ -102,6 +115,16 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     with a fresh budget. This applies to subclasses that override ``execute`` or
     ``execute_complete``.
 
+    Alongside the returned output, the run's ``run_id`` and token ``usage``
+    are pushed to XCom under the ``run_id`` and ``usage`` keys, the same shape
+    :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` uses,
+    so a downstream task can reference the run and what it cost. ``usage`` is this
+    attempt's own usage, not the cross-attempt cumulative total described under
+    ``usage_limits`` below. Both are pushed on a failed run too, so a downstream
+    ``all_done`` task or failure callback can read what was spent, and which run,
+    before it raised. The ``run_id`` also ties the task to its GenAI trace (see the
+    provider's observability docs).
+
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
@@ -148,9 +171,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         On Airflow >= 3.3, a set ``usage_limits`` bounds the whole task instance:
         usage from earlier attempts counts against it. See
         :ref:`howto/operator:llm` for the full set of caveats.
-    :param require_approval: If ``True``, the task defers after generating
-        output and waits for a human reviewer to approve or reject via the
-        HITL interface.  Default ``False``. Needs Airflow 3.1+.
+    :param require_approval: If ``True``, the task pauses after generating
+        output (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2)
+        and waits for a human reviewer to approve or reject via the HITL
+        interface.  Default ``False``. Needs Airflow 3.1+.
     :param approval_timeout: Maximum time to wait for a review.  When
         exceeded, ``on_approval_timeout`` decides the outcome.
     :param on_approval_timeout: What to do when ``approval_timeout`` expires
@@ -168,13 +192,16 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
-        opened.  A retry re-notifies with the regenerated
-        output while the open review keeps the original subject and body.
-        Default ``None``.
+        opened.  A retry re-notifies with the regenerated output.  On
+        Airflow 3.4+ the reopened review shows it too; on Airflow 3.1 to 3.3
+        the review keeps the original subject, body and editable output, so
+        approving it unedited returns the first attempt's output.  Default
+        ``None``.
     :param approval_assigned_users: Users allowed to answer the review, as
         ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
         user id.  ``None`` (default) lets any user with the permission respond.
-        The list is fixed when the review is first created.  Needs Airflow 3.1+.
+        On Airflow 3.1 to 3.3 the list is fixed when the review is first
+        created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
     :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
@@ -340,12 +367,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         usage_limits = coerce_usage_limits(self.usage_limits)
 
         agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
+
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
-        if model_confidence.model is not None:
-            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -378,8 +404,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
             body = None
             if review != "require_approval":
                 # The same JSON text the default body and the edit field show, not the object's repr.
-                body = f"```\nPrompt: {self.prompt}\n\n{dump_output_to_json(output)}\n```\n\n" + "\n\n".join(
-                    describe_confidence(model_confidence, name, threshold) for name in fields
+                body = (
+                    f"```\nPrompt: {describe_prompt(self.prompt)}\n\n{dump_output_to_json(output)}\n```\n\n"
+                    + "\n\n".join(describe_confidence(model_confidence, name, threshold) for name in fields)
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
@@ -431,22 +458,94 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         )
 
     def _run_llm(
-        self, context: Context, agent: Agent[Any, Any], user_prompt: Any, *, usage_limits: UsageLimits | None
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        user_prompt: Any,
+        *,
+        usage_limits: UsageLimits | None,
     ) -> AgentRunResult[Any]:
-        """Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies."""
+        """
+        Run the agent and publish the run's ``usage``, ``run_id`` and model name on XCom.
+
+        Every ``execute`` of this operator and its subclasses runs the agent through here, so they
+        all report the same run metadata.
+        """
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
+        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
+        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
+        ti = self._resolve_task_instance(context)
+        run_kwargs: dict[str, Any] = {}
+        if ti is not None:
+            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
+            run_kwargs["run_id"] = make_task_instance_run_key(ti)
+
+        attempt_usage = RunUsage()
+        try:
+            result = self._run_agent_within_budget(
+                context, agent, user_prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
+            )
+        except BaseException:
+            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
+            # still reports what it spent: the capped run is the one cost tracking most needs.
+            try:
+                log_run_usage(self.log, attempt_usage, outcome="failed")
+            except Exception:
+                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+            try:
+                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+            except Exception:
+                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+            if ti is not None:
+                try:
+                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
+                except Exception:
+                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
+            raise
+
+        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+        if ti is not None:
+            self._push_xcom(context, "run_id", result.run_id)
+        model_name = ModelConfidence.from_result(result).model
+        if model_name is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_name)
+        return result
+
+    def _run_agent_within_budget(
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        user_prompt: Any,
+        *,
+        usage_limits: UsageLimits | None,
+        run_usage: RunUsage,
+        **run_kwargs: Any,
+    ) -> AgentRunResult[Any]:
+        """
+        Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies.
+
+        ``run_usage`` receives this attempt's own usage, also when the run raises
+        partway through. With the usage budget, pydantic-ai is handed the cross-attempt total
+        instead, so the attempt's share is credited to ``run_usage`` once the run ends.
+        """
         # Contexts built without a ``task_instance`` stay valid for runs that have no ``usage_limits``.
         ti = context["task_instance"] if usage_limits is not None else None
         self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
         if self._usage_budget is None:
-            result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits)
+            run_kwargs["usage"] = run_usage
+            result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits, **run_kwargs)
             log_run_summary(self.log, result)
             return result
-        run_usage = self._usage_budget.load()
-        result, attempt_usage = self._run_tracked(
-            agent, user_prompt, run_usage=run_usage, usage_limits=usage_limits
-        )
+        cumulative_usage = self._usage_budget.load()
+        base = copy_run_usage(cumulative_usage)
+        try:
+            result, attempt_usage = self._run_tracked(
+                agent, user_prompt, run_usage=cumulative_usage, usage_limits=usage_limits, **run_kwargs
+            )
+        finally:
+            run_usage.incr(subtract_run_usage(cumulative_usage, base))
         log_run_summary(self.log, result, usage=attempt_usage)
-        self._log_cumulative_usage(run_usage)
+        self._log_cumulative_usage(cumulative_usage)
         return result
 
     def _log_review(self, review: ReviewReason, confidence: float | None, threshold: float | None) -> None:
@@ -482,21 +581,30 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 self._push_decision(context, timed_out_record(decision))
             raise
 
+    def _resolve_task_instance(self, context: Context) -> Any:
+        """
+        Return ``context["task_instance"]`` if it can push XComs, else ``None``.
+
+        A hand-built context (old tests, custom runners) may carry no task instance, ``None``, or a
+        dict stand-in, none of which has the attributes the run identity is built from either.
+        """
+        try:
+            ti = context["task_instance"]
+        except (KeyError, TypeError):
+            return None
+        return ti if callable(getattr(ti, "xcom_push", None)) else None
+
     def _push_xcom(self, context: Context, key: str, value: Any) -> None:
         """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""
         if not self.do_xcom_push:
             return
-        try:
-            ti = context["task_instance"]
-        except (KeyError, TypeError):
-            ti = None
-        push = getattr(ti, "xcom_push", None)
-        if not callable(push):
+        ti = self._resolve_task_instance(context)
+        if ti is None:
             # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
             # value is inspection output, so the run goes on without it.
             self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
             return
-        push(key=key, value=value)
+        ti.xcom_push(key=key, value=value)
 
     def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
         """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""

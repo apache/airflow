@@ -26,14 +26,20 @@ repos:
     hooks:
       - id: identity
         name: Print checked files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
     hooks:
       - id: insert-license
         name: Add license for all Go files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         types: [go]
         exclude: mocks/.*\.go$|\.pb\.go$
         args:
@@ -48,6 +54,8 @@ repos:
     hooks:
       - id: go-mod-tidy
         name: Run go mod tidy
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: go mod tidy
         types: [go]
         exclude: mocks/.*\.go$
@@ -55,6 +63,8 @@ repos:
         language: golang
       - id: imports
         name: Consistent import ordering for Go files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: goimports-reviser -rm-unused -set-exit-status
         additional_dependencies: [github.com/incu6us/goimports-reviser/v3@v3.10.0]
         types: [go]
@@ -62,12 +72,16 @@ repos:
         require_serial: true
       - id: gofmt
         name: Format go code
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
         additional_dependencies: [github.com/segmentio/golines@latest, mvdan.cc/gofumpt@v0.8.0]
         types: [go]
         language: golang
       - id: staticcheck
         name: Check naming in Go code
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: staticcheck -checks ST1003 ./...
         additional_dependencies: [honnef.co/go/tools/cmd/staticcheck@v0.7.0]
         types: [go]

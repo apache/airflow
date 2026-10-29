@@ -1898,8 +1898,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
@@ -1969,8 +1969,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -2028,8 +2028,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3120,8 +3120,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
         mock_op.return_value.result.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
@@ -3315,8 +3315,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3425,8 +3425,8 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3742,6 +3742,176 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
+    @pytest.mark.parametrize(
+        ("extra_kwargs", "match"),
+        [
+            pytest.param({"batch_id": BATCH_ID}, "batch_id and batch_id_prefix", id="batch_id"),
+            pytest.param({"request_id": REQUEST_ID}, "batch_id_prefix and request_id", id="request_id"),
+        ],
+    )
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_batch_id_prefix_mutually_exclusive_params(self, mock_hook, extra_kwargs, match):
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id_prefix="batch-prefix",
+            **extra_kwargs,
+        )
+        with pytest.raises(ValueError, match=match):
+            operator.execute(context=MagicMock())
+        mock_hook.return_value.create_batch.assert_not_called()
+
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    def test_build_unique_batch_id_from_prefix_preserves_prefix_verbatim(self, mock_uuid):
+        mock_uuid.return_value.hex = "abc12345def67890"
+        batch_id = DataprocCreateBatchOperator._build_unique_batch_id_from_prefix("Batch_Prefix")
+
+        assert batch_id == "Batch_Prefix-abc12345"
+
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_with_batch_id_prefix(self, mock_hook, to_dict_mock, mock_uuid, mock_log):
+        mock_uuid.return_value.hex = "abc12345def67890"
+        expected_batch_id = "batch-prefix-abc12345"
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id_prefix="batch-prefix",
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{expected_batch_id}"
+        batch_state_succeeded = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = batch_state_succeeded
+
+        operator.execute(context=MagicMock())
+
+        mock_hook.return_value.create_batch.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=expected_batch_id,
+            request_id=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        to_dict_mock.assert_called_once_with(batch_state_succeeded)
+        logs_link = DATAPROC_BATCH_LINK.format(
+            region=GCP_REGION, project_id=GCP_PROJECT, batch_id=expected_batch_id
+        )
+        mock_log.info.assert_has_calls(
+            [
+                mock.call("Starting batch %s", expected_batch_id),
+                mock.call("The batch %s was created.", expected_batch_id),
+                mock.call("Waiting for the completion of batch job %s", expected_batch_id),
+                mock.call("Batch job %s completed.\nDriver logs: %s", expected_batch_id, logs_link),
+            ]
+        )
+
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_with_batch_id_prefix_generates_new_id_per_task_attempt(
+        self, mock_hook, to_dict_mock, mock_uuid
+    ):
+        mock_uuid.side_effect = [mock.Mock(hex="aaaaaaaa1111"), mock.Mock(hex="bbbbbbbb2222")]
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id_prefix="batch-prefix",
+        )
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+
+        operator.execute(context=MagicMock())
+        operator.execute(context=MagicMock())
+
+        assert [c.kwargs["batch_id"] for c in mock_hook.return_value.create_batch.call_args_list] == [
+            "batch-prefix-aaaaaaaa",
+            "batch-prefix-bbbbbbbb",
+        ]
+
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_with_batch_id_prefix_retries_resource_not_ready_with_same_id(
+        self, mock_hook, to_dict_mock, mock_uuid
+    ):
+        mock_uuid.return_value.hex = "abc12345def67890"
+        expected_batch_id = "batch-prefix-abc12345"
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id_prefix="batch-prefix",
+            num_retries_if_resource_is_not_ready=1,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{expected_batch_id}"
+        mock_hook.return_value.wait_for_batch.side_effect = [
+            Batch(state=Batch.State.FAILED, state_message="resource not ready"),
+            Batch(state=Batch.State.SUCCEEDED),
+        ]
+        mock_hook.return_value.check_error_for_resource_is_not_ready_msg.side_effect = [True, False]
+
+        operator.execute(context=MagicMock())
+
+        mock_uuid.assert_called_once()
+        mock_hook.return_value.delete_batch.assert_called_once_with(
+            batch_id=expected_batch_id,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        assert [c.kwargs["batch_id"] for c in mock_hook.return_value.create_batch.call_args_list] == [
+            expected_batch_id,
+            expected_batch_id,
+        ]
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_retry_batch_creation_already_exists_attaches_to_batch_id(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+
+        _, batch_id = op.retry_batch_creation(BATCH_ID)
+
+        assert batch_id == BATCH_ID
+        assert mock_hook.return_value.create_batch.call_args.kwargs["batch_id"] == BATCH_ID
+        mock_hook.return_value.wait_for_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3954,8 +4124,8 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch with given id already exists.")
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -4012,8 +4182,8 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link)
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
@@ -4080,8 +4250,8 @@ class TestDataprocCreateBatchOperator:
             logs_link,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_root_run_id")
+    @mock.patch("airflow.providers.openlineage.utils.spark.lineage_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))

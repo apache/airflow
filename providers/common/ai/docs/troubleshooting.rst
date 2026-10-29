@@ -33,10 +33,15 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, or use a
-    vendor connection type (:doc:`connections/pydantic_ai_azure`,
+    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
+    or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
     supply their own platform.
+
+``Connection '...' sets 'model_provider' to '...', which is not a provider pydantic-ai recognizes``
+    The connection's **Default Model Provider** is not a pydantic-ai provider. Check it for a
+    typo; ``openai``, ``openai-chat`` and ``anthropic`` are examples of valid values.
 
 ``'...' is not a provider pydantic-ai recognizes``
     The text before the first ``:`` in the model name is not a pydantic-ai provider.
@@ -111,10 +116,10 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True cannot be used with a CodeMode capability``
+``durable=True and enable_hitl_review=True cannot be used together``
     Durable replay matches each step to the one at the same position in the previous
-    attempt, which neither a human review loop's regenerations nor the tool calls code
-    mode makes from inside ``run_code`` keep. Pick one. See :doc:`durable_execution`.
+    attempt, which a human review loop's regenerations do not keep. Pick one. See
+    :doc:`durable_execution`.
 
 ``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
     Durable replay records each tool call under its toolset's id, so a
@@ -122,11 +127,15 @@ as a task failure.
     the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
     around it does not reach it. See :doc:`durable_execution`.
 
+``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+    Two different toolset objects share an id, so durable replay could not tell their
+    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
+
 ``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.
 
-``message_history and enable_hitl_review=True cannot be used together``
+``message_history and enable_hitl_review=True cannot be used together`` and ``emit_message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
 

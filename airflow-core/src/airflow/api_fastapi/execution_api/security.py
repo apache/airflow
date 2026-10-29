@@ -78,11 +78,13 @@ Why ``ExecutionAPIRoute`` is needed:
     to *relax* the outer router's default execution-only restriction, but
     ``SecurityScopes`` only accumulate additively — an outer dependency
     cannot see scopes declared by inner ones. ``ExecutionAPIRoute`` solves
-    this by inspecting the **merged** dependency list at route registration
-    time (after ``include_router`` has combined all parent and child
-    dependencies) and precomputing the full ``allowed_token_types`` set.
+    this by inspecting the route's own dependency list at route registration
+    time and precomputing the full ``allowed_token_types`` set.
     ``require_auth`` then reads this precomputed set from the matched route
-    at request time, avoiding the ordering problem entirely.
+    at request time, avoiding the ordering problem entirely. FastAPI includes
+    routers lazily, so ``token:*`` scopes must be declared on the route
+    itself: scopes on an enclosing router or ``include_router`` call are not
+    seen, and the route falls back to execution-only.
 
     Any router whose routes need non-default token type policies must use
     ``route_class=ExecutionAPIRoute``. Routers that only need the default
@@ -141,6 +143,7 @@ _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 _REQUEST_SCOPE_LIVE_ATTEMPT_KEY = "live_attempt_checked"
 _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
+_IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

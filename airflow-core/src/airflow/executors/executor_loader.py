@@ -38,6 +38,8 @@ from airflow.models.team import Team
 log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from airflow.executors.base_executor import BaseExecutor
 
 
@@ -331,6 +333,40 @@ class ExecutorLoader:
         if executor_name := _classname_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name
         raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
+
+    @classmethod
+    def resolve_executor_name(
+        cls,
+        executor: str | None,
+        team_name: str | None = None,
+        *,
+        executor_names: Iterable[ExecutorName] | None = None,
+    ) -> ExecutorName:
+        """
+        Return the executor name for a task's ``executor`` and team.
+
+        The team's own executor wins over a global one, and a named executor that doesn't match raises
+        instead of falling back to the default.
+
+        :param executor: alias, module path or class name, or None for the default
+        :param team_name: the task's team
+        :param executor_names: names to search, the configured ones by default
+        """
+        global_match = None
+        for name in cls._get_executor_names() if executor_names is None else executor_names:
+            if executor is not None and executor not in (
+                name.alias,
+                name.module_path,
+                name.module_path.split(".")[-1],
+            ):
+                continue
+            if team_name and name.team_name == team_name:
+                return name
+            if name.team_name is None and global_match is None:
+                global_match = name
+        if global_match is None:
+            raise UnknownExecutorException(f"Unknown executor {executor!r} for team {team_name!r}")
+        return global_match
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:

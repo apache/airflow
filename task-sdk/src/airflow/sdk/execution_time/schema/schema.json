@@ -3242,40 +3242,31 @@
       "title": "LazyDeserializedDAG",
       "type": "object"
     },
-    "LoopContext": {
-      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+    "LoopDecisionPayload": {
+      "additionalProperties": false,
+      "description": "A loop gate's evaluation of its ``until`` callable.",
       "properties": {
-        "node_id": {
-          "title": "Node Id",
-          "type": "string"
-        },
-        "index": {
-          "minimum": 0,
-          "title": "Index",
-          "type": "integer"
-        },
-        "max_iterations": {
-          "exclusiveMinimum": 0,
-          "title": "Max Iterations",
-          "type": "integer"
-        },
-        "terminal_task_id": {
-          "title": "Terminal Task Id",
-          "type": "string"
-        },
-        "terminal_is_mapped": {
-          "title": "Terminal Is Mapped",
+        "stop": {
+          "title": "Stop",
           "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
         }
       },
       "required": [
-        "node_id",
-        "index",
-        "max_iterations",
-        "terminal_task_id",
-        "terminal_is_mapped"
+        "stop"
       ],
-      "title": "LoopContext",
+      "title": "LoopDecisionPayload",
       "type": "object"
     },
     "MaskSecret": {
@@ -3800,27 +3791,6 @@
       "title": "SetAssetStateStoreByUri",
       "type": "object"
     },
-    "SetExecutionTimeout": {
-      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
-      "properties": {
-        "timeout_seconds": {
-          "exclusiveMinimum": 0,
-          "title": "Timeout Seconds",
-          "type": "number"
-        },
-        "type": {
-          "const": "SetExecutionTimeout",
-          "default": "SetExecutionTimeout",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "timeout_seconds"
-      ],
-      "title": "SetExecutionTimeout",
-      "type": "object"
-    },
     "SetRenderedFields": {
       "description": "Payload for setting RTIF for a task instance.",
       "properties": {
@@ -4014,6 +3984,19 @@
       "title": "SkipDownstreamTasks",
       "type": "object"
     },
+    "StartExecutionTimeout": {
+      "description": "Tell the supervisor to start enforcing the run context's ``execution_timeout`` from outside the task process.",
+      "properties": {
+        "type": {
+          "const": "StartExecutionTimeout",
+          "default": "StartExecutionTimeout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "StartExecutionTimeout",
+      "type": "object"
+    },
     "StartupDetails": {
       "properties": {
         "ti": {
@@ -4113,6 +4096,17 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "type": {
           "const": "SucceedTask",
@@ -4360,6 +4354,17 @@
           ],
           "default": null,
           "title": "Retry Reason"
+        },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -5204,6 +5209,63 @@
       "title": "DagRun",
       "type": "object"
     },
+    "LoopContext": {
+      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+      "properties": {
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 1,
+          "title": "Index",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "exclusiveMinimum": 0,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "terminal_task_id": {
+          "title": "Terminal Task Id",
+          "type": "string"
+        },
+        "terminal_is_mapped": {
+          "title": "Terminal Is Mapped",
+          "type": "boolean"
+        },
+        "region_id": {
+          "format": "uuid",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "trajectory": {
+          "minimum": 1,
+          "title": "Trajectory",
+          "type": "integer"
+        },
+        "forked_from_region_id": {
+          "format": "uuid",
+          "title": "Forked From Region Id",
+          "type": "string"
+        },
+        "resumes_from_index": {
+          "title": "Resumes From Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "node_id",
+        "index",
+        "max_iterations",
+        "terminal_task_id",
+        "terminal_is_mapped",
+        "region_id",
+        "trajectory"
+      ],
+      "title": "LoopContext",
+      "type": "object"
+    },
     "TIRunContext": {
       "description": "Response schema for TaskInstance run context.",
       "properties": {
@@ -5220,6 +5282,10 @@
             }
           ],
           "default": null
+        },
+        "expanded_ti_count": {
+          "title": "Expanded Ti Count",
+          "type": "integer"
         },
         "task_reschedule_count": {
           "default": 0,
@@ -5324,6 +5390,18 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "execution_timeout": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Timeout"
         },
         "multi_team": {
           "default": false,

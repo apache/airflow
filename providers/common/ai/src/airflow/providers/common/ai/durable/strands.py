@@ -165,7 +165,7 @@ def invoke_durably(
         request = prompt
 
     # Strands types the prompt as AgentInput, which leaves out its checkpointResume block.
-    result = agent(request)  # type: ignore[arg-type]
+    result = agent(request)
     while result.checkpoint is not None:
         checkpoint = result.checkpoint.to_dict()
         # In the snapshot itself, so the conversation and the pause it belongs to are saved
@@ -173,7 +173,7 @@ def invoke_durably(
         agent.state.set(_CHECKPOINT_STATE_KEY, {"checkpoint": checkpoint, "prompt": prompt_fingerprint})
         run_coroutine_sync(session_manager.save_snapshot(agent, is_latest=True))
         log.debug("Saved a Strands checkpoint", session_id=session_id, **checkpoint)
-        result = agent(_build_checkpoint_resume(checkpoint))  # type: ignore[arg-type]
+        result = agent(_build_checkpoint_resume(checkpoint))
 
     try:
         run_coroutine_sync(session_manager.delete_session())

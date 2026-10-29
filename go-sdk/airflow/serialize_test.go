@@ -759,10 +759,10 @@ func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	groupTask(t, transform, "clean")
 	publish := dag.TaskGroup("publish")
 	groupTask(t, publish, "push")
-	extracted.Before(Label(loaded, "rows"), notified)
-	extracted.Before(Label(transform, "to transform"))
-	transform.Before(Label(publish, "to publish"))
-	publish.Before(Label(notified, "to notify"))
+	extracted.Before(Label("rows").On(loaded), notified)
+	extracted.Before(Label("to transform").On(transform))
+	transform.Before(Label("to publish").On(publish))
+	publish.Before(Label("to notify").On(notified))
 
 	got := serializedDag(t, dag)
 
@@ -925,6 +925,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 	assertJSON(t, `{
 		"task_id": "trigger",
 		"task_type": "TriggerDagRunOperator",
+		"is_stub": true,
 		"_task_module": "airflow.providers.standard.operators.trigger_dagrun",
 		"ui_color": "#ffefeb",
 		"template_fields": [
@@ -1012,7 +1013,7 @@ func TestSerializeWritesOnlyTheTriggerDagRunOptionsThatAreSet(t *testing.T) {
 		"skip_when_already_exists": false
 	}`, withoutKeys(serializedTask(t, got, "trigger"),
 		"task_id", "task_type", "_task_module", "ui_color", "template_fields",
-		"template_fields_renderers", "_operator_extra_links",
+		"template_fields_renderers", "_operator_extra_links", "is_stub",
 	))
 	// An empty FailedStates means that no Dag run state fails the task.
 	assertJSON(t, `[]`, serializedTask(t, got, "trigger_never_fails")["failed_states"])

@@ -1,0 +1,2237 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag",
+            "facets": {
+                "airflow": {
+                    "taskGroups": {
+                        "plain": {
+                            "parent_group": null,
+                            "is_mapped": false,
+                            "is_loop": false,
+                            "parse_time_mapped_count": null,
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "plain.sub": {
+                            "parent_group": "plain",
+                            "is_mapped": false,
+                            "is_loop": false,
+                            "parse_time_mapped_count": null
+                        },
+                        "fan_out": {
+                            "parent_group": null,
+                            "is_mapped": true,
+                            "is_loop": false,
+                            "parse_time_mapped_count": 2,
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "outer": {
+                            "parent_group": null,
+                            "is_mapped": false,
+                            "is_loop": false,
+                            "parse_time_mapped_count": null,
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "outer.body": {
+                            "parent_group": "outer",
+                            "is_mapped": false,
+                            "is_loop": true,
+                            "parse_time_mapped_count": null,
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "outer.body.inner": {
+                            "parent_group": "outer.body",
+                            "is_mapped": false,
+                            "is_loop": false,
+                            "parse_time_mapped_count": null,
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "outer.body.inner.deeper": {
+                            "parent_group": "outer.body.inner",
+                            "is_mapped": false,
+                            "is_loop": false,
+                            "parse_time_mapped_count": null
+                        }
+                    },
+                    "tasks": {
+                        "plain.grouped": {
+                            "task_group": "plain",
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "plain.sub.subgrouped": {
+                            "task_group": "plain.sub",
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "fan_out.member": {
+                            "task_group": "fan_out",
+                            "loop_group": null,
+                            "is_mapped": true,
+                            "parse_time_mapped_count": 2,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "outer.body.direct": {
+                            "task_group": "outer.body",
+                            "loop_group": "outer.body",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "outer.body.inner.nested": {
+                            "task_group": "outer.body.inner",
+                            "loop_group": "outer.body",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "outer.body.inner.deeper.deepest": {
+                            "task_group": "outer.body.inner.deeper",
+                            "loop_group": "outer.body",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "outer.body.inner.mapped": {
+                            "task_group": "outer.body.inner",
+                            "loop_group": "outer.body",
+                            "is_mapped": true,
+                            "parse_time_mapped_count": 2,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "outer.body.__loop_gate": {
+                            "task_group": "outer.body",
+                            "loop_group": "outer.body",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.plain.grouped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "plain",
+                            "unique_group_id": "plain",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "plain.grouped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.plain.grouped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "plain",
+                            "unique_group_id": "plain",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "plain.grouped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.plain.sub.subgrouped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "sub",
+                            "unique_group_id": "plain.sub",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "plain.sub.subgrouped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.plain.sub.subgrouped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "sub",
+                            "unique_group_id": "plain.sub",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "plain.sub.subgrouped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": null,
+                        "region_index": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.fan_out.member"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "fan_out",
+                            "unique_group_id": "fan_out",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "fan_out.member",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.fan_out.member"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "fan_out",
+                            "unique_group_id": "fan_out",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "fan_out.member",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.fan_out.member"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "fan_out",
+                            "unique_group_id": "fan_out",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "fan_out.member",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.fan_out.member"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "fan_out",
+                            "unique_group_id": "fan_out",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": null,
+                        "task_id": "fan_out.member",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.direct"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.direct",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.direct"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.direct",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.direct"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.direct",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.direct"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.direct",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.nested"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.nested",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.nested"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.nested",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.nested"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.nested",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.nested"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.nested",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.deeper.deepest"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.deeper.deepest",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.deeper.deepest"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.deeper.deepest",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.deeper.deepest"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.deeper.deepest",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.deeper.deepest"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.deeper.deepest",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.inner.mapped"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "inner",
+                            "unique_group_id": "outer.body.inner",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.inner.mapped",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "expanded_ti_count": 2,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.__loop_gate"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null,
+                            "decision": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.__loop_gate"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null,
+                            "decision": null
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.__loop_gate"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 1,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null,
+                            "decision": {
+                                "stop": false
+                            }
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_loop_groups_dag.outer.body.__loop_gate"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "group_id": "body",
+                            "unique_group_id": "outer.body",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "outer.body",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "outer.body.__loop_gate",
+                            "terminal_task_id": "outer.body.inner.mapped"
+                        },
+                        "task_id": "outer.body.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": null,
+                        "expanded_ti_count": null,
+                        "loop": {
+                            "index": 2,
+                            "trajectory": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "forked_from_region_id": null,
+                            "decision": {
+                                "stop": true
+                            }
+                        },
+                        "id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_groups_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_groups_dag"
+                    }
+                }
+            },
+            "runId": "{{ is_uuid(result) }}"
+        }
+    }
+]

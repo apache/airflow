@@ -63,6 +63,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     Note,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
@@ -281,6 +282,7 @@ class TaskInstanceOperations:
         retry_reason: str | None = None,
         *,
         pid: int | None = None,
+        loop_decision: LoopDecisionPayload | None = None,
     ):
         """Report a terminal outcome or acknowledge server-requested termination."""
         if state == TaskInstanceState.SUCCESS:
@@ -291,6 +293,8 @@ class TaskInstanceOperations:
             rendered_map_index=rendered_map_index,
             retry_reason=retry_reason,
         )
+        if loop_decision is not None:
+            body.loop_decision = loop_decision
         if state == TerminalStateNonSuccess.SERVER_TERMINATED:
             body.hostname = get_hostname()
             body.pid = pid
@@ -313,13 +317,23 @@ class TaskInstanceOperations:
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
+    def succeed(
+        self,
+        id: uuid.UUID,
+        when: datetime,
+        task_outlets,
+        outlet_events,
+        rendered_map_index,
+        *,
+        loop_decision: LoopDecisionPayload | None = None,
+    ):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(
             end_date=when,
             task_outlets=task_outlets,
             outlet_events=outlet_events,
             rendered_map_index=rendered_map_index,
+            loop_decision=loop_decision,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -1405,6 +1419,14 @@ class Client(httpx2.Client):
         return DagsOperations(self)
 
 
+def _has_json_body(response: httpx2.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Kept in sync with airflowctl.api.operations._has_json_body.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
 # This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
     detail: list[RemoteValidationError] | dict[str, Any] | str
@@ -1432,7 +1454,7 @@ class ServerResponseError(httpx2.HTTPStatusError):
         if not (400 <= response.status_code < 600):
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         detail: list[RemoteValidationError] | dict[str, Any] | None = None

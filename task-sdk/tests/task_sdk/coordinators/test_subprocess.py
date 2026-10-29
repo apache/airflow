@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import pathlib
 import signal
@@ -27,16 +28,20 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
+import httpx2
+import msgspec
 import psutil
 import pytest
+from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
-from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
@@ -50,6 +55,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import SetTaskStateStore
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
@@ -61,7 +67,7 @@ if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstance:
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket", map_index: int = -1) -> TaskInstance:
     return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
@@ -69,7 +75,7 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanc
         dag_id=dag_id,
         run_id="run_1",
         try_number=1,
-        map_index=-1,
+        map_index=map_index,
         queue=queue,
     )
 
@@ -141,7 +147,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert server in accepted
             accepted[server].close()
         finally:
@@ -160,7 +166,9 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, drained = _accept_connections({"comm": comm_server, "logs": logs_server}, {}, mock_proc)
+            accepted, drained = _accept_connections(
+                {"comm": comm_server, "logs": logs_server}, {}, mock_proc, target_loggers=(log,)
+            )
             assert set(accepted) == {comm_server, logs_server}
             assert drained == {}
             for sock in accepted.values():
@@ -177,7 +185,7 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {}, mock_proc)
+            _, drained = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert drained == {}
         finally:
             server.close()
@@ -191,7 +199,9 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc)
+            _, drained = _accept_connections(
+                {"comm": server}, {"stdout": drain_r}, mock_proc, target_loggers=(log,)
+            )
             assert drain_r in drained
         finally:
             drain_r.close()
@@ -212,7 +222,9 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc)
+            _, drained = _accept_connections(
+                {"comm": server}, {"stdout": drain_r}, mock_proc, target_loggers=(log,)
+            )
             assert drained[drain_r] == b"early output\n"
         finally:
             drain_r.close()
@@ -224,19 +236,19 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            with pytest.raises(TimeoutError, match="did not connect within timeout"):
-                _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
+            with pytest.raises(TaskLaunchError, match="^The runtime did not connect within 0.05 seconds$"):
+                _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,), max_wait=0.05)
         finally:
             server.close()
 
-    def test_raises_runtime_error_if_process_exits_before_connecting(self):
+    def test_raises_launch_error_if_process_exits_before_connecting(self):
         server = _start_server()
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = 1
         mock_proc.returncode = 1
         try:
-            with pytest.raises(RuntimeError, match="process exited with 1"):
-                _accept_connections({"comm": server}, {}, mock_proc)
+            with pytest.raises(TaskLaunchError, match="^The runtime exited with 1 before connecting$"):
+                _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
         finally:
             server.close()
 
@@ -252,7 +264,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             accepted[server].sendall(b"hello")
             assert client.recv(5) == b"hello"
             accepted[server].close()
@@ -269,7 +281,7 @@ class TestAcceptConnections:
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.poll.return_value = None
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             # Key must be the socket object itself, not the string "comm"
             assert server in accepted
             assert "comm" not in accepted
@@ -289,7 +301,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc, target_loggers=(log,))
             assert mock_child_connection_check.call_count == 2
             assert server in accepted
             accepted[server].close()
@@ -319,7 +331,7 @@ sock.recv(1)
         child_proc = self._start_connector_process(addr, delay=0.05)
 
         try:
-            accepted, _ = _accept_connections({"comm": server}, {}, child_proc)
+            accepted, _ = _accept_connections({"comm": server}, {}, child_proc, target_loggers=(log,))
             accepted[server].sendall(b"x")
             accepted[server].close()
             assert child_proc.wait(timeout=5) == 0
@@ -358,7 +370,7 @@ class TestConnectionFromProcess:
         ``::ffff:127.0.0.1`` in ``/proc/net/tcp6``. The AF_INET supervisor socket's
         ``getpeername()`` reports plain ``127.0.0.1``, so the ownership check must
         treat the mapped and plain forms as the same address -- otherwise every
-        Java task is rejected with "process exited with 1 before connecting".
+        Java task is rejected with "The runtime exited with 1 before connecting".
         """
         server = _start_server()
         _, port = server.getsockname()
@@ -518,6 +530,25 @@ class TestConnectionFromProcess:
         mock_owned.assert_called_once_with(("127.0.0.1", 5000), ("127.0.0.1", 6000), 999)
 
 
+_RUNTIME_PID = 6767
+
+
+@pytest.fixture
+def runtime_process_group(monkeypatch):
+    """
+    Resolve ``_RUNTIME_PID`` to its own group and any other pid to the supervisor's real group.
+
+    ``os.killpg`` is mocked and returned so a test can assert what was signalled, and the runtime's
+    pid is reported as still in use so the leftover sweep stays out of the way.
+    """
+    own_group = os.getpgid(0)
+    killpg = MagicMock()
+    monkeypatch.setattr(os, "getpgid", lambda pid: _RUNTIME_PID if pid == _RUNTIME_PID else own_group)
+    monkeypatch.setattr(os, "killpg", killpg)
+    monkeypatch.setattr(psutil, "pid_exists", lambda pid: True)
+    return killpg
+
+
 class TestResourceTracker:
     """
     Unit tests for the _ResourceTracker context manager.
@@ -553,11 +584,26 @@ class TestResourceTracker:
             tracker.track(sock)
         sock.close.assert_called_once()
 
-    def test_context_manager_terminates_tracked_popen_on_exit(self):
+    def test_context_manager_terminates_tracked_popen_on_exit(self, runtime_process_group):
+        """A failed startup signals the runtime's whole process group, not just its pid."""
         proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = _RUNTIME_PID
         with _ResourceTracker(timeout=0.1) as tracker:
             tracker.track(proc)
-        proc.terminate.assert_called_once()
+        runtime_process_group.assert_called_once_with(_RUNTIME_PID, signal.SIGTERM)
+        proc.send_signal.assert_not_called()
+
+    def test_context_manager_kills_tracked_popen_group_on_timeout(self, runtime_process_group):
+        """A runtime that ignores SIGTERM during startup has its group SIGKILLed."""
+        proc = MagicMock(spec=subprocess.Popen)
+        proc.pid = _RUNTIME_PID
+        proc.wait.side_effect = subprocess.TimeoutExpired(cmd="runtime", timeout=0.1)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(proc)
+        assert runtime_process_group.call_args_list == [
+            call(_RUNTIME_PID, signal.SIGTERM),
+            call(_RUNTIME_PID, signal.SIGKILL),
+        ]
 
     def test_untracked_socket_not_closed_on_exit(self):
         sock = MagicMock(spec=socket.socket)
@@ -933,6 +979,391 @@ class TestPopenActivitySubprocessStart:
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
 
 
+class TestPopenActivitySubprocessSetTaskStateStore:
+    @pytest.mark.parametrize(
+        ("limit", "value", "warns"),
+        [
+            # json.dumps gives '{"a": "\\u00e9"}', 15 bytes; Go's encoding/json gives 11.
+            pytest.param("14", {"a": "é"}, True, id="over-limit"),
+            pytest.param("15", {"a": "é"}, False, id="at-limit"),
+            pytest.param("0", {"a": "é"}, False, id="limit-disabled"),
+        ],
+    )
+    def test_warns_when_value_exceeds_max_value_storage_bytes(self, limit, value, warns):
+        client = MagicMock(spec=Client)
+        process_log = MagicMock()
+        proc = _PopenActivitySubprocess(
+            process_log=process_log,
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+        msg = SetTaskStateStore(ti_id=proc.id, key="k", value=value, expires_at=None)
+
+        with (
+            conf_vars({("state_store", "max_value_storage_bytes"): limit}),
+            patch.object(_PopenActivitySubprocess, "send_msg", autospec=True),
+        ):
+            proc._handle_request(msg, log=MagicMock(), req_id=1)
+
+        client.task_state_store.set.assert_called_once_with(proc.id, "k", value, expires_at=None)
+        if warns:
+            process_log.warning.assert_called_once_with(
+                "Task store value exceeds configured max_value_storage_bytes",
+                key="k",
+                size=15,
+                max_value_storage_bytes=14,
+            )
+        else:
+            process_log.warning.assert_not_called()
+
+
+# This script connects back to the supervisor the way a language SDK runtime does, then waits for
+# StartupDetails. It exits with code 0 as soon as the supervisor sends anything or closes the
+# connection. It exits with code 3 if 10 seconds pass and neither has happened.
+_RUNTIME_AWAITING_STARTUP = """
+import socket
+import sys
+
+def connect(flag):
+    host, _, port = next(arg for arg in sys.argv if arg.startswith(flag)).split("=", 1)[1].rpartition(":")
+    return socket.create_connection((host, int(port)))
+
+comm = connect("--comm=")
+logs = connect("--logs=")
+comm.settimeout(10)
+try:
+    comm.recv(1)
+except TimeoutError:
+    sys.exit(3)
+"""
+
+
+class TestPopenActivitySubprocessClearXComs:
+    @pytest.mark.parametrize(
+        ("map_index", "query"),
+        [
+            pytest.param(-1, "", id="unmapped"),
+            pytest.param(0, "map_index=0", id="map-index-0"),
+            pytest.param(2, "map_index=2", id="map-index-2"),
+        ],
+    )
+    @pytest.mark.log_level(logging.DEBUG)
+    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.subprocess.Popen", autospec=True)
+    def test_deletes_listed_xcoms_before_the_runtime_gets_the_task(
+        self, mock_popen, mock_accept, mock_register, make_ti_context_dict, captured_logs, map_index, query
+    ):
+        ti = _make_ti(map_index=map_index)
+        ti_context = {
+            **make_ti_context_dict(),
+            "xcom_keys_to_clear": ["return_value", "skipmixin_key"],
+            "start_date": "2024-12-01T00:30:00Z",
+            "arg_bindings": [{"name": "country", "kind": "literal", "value": "uk"}],
+        }
+        events: list = []
+
+        def logged_keys() -> list[tuple[str, str, str]]:
+            return [
+                (log["logger"], log["level"], log["key"])
+                for log in captured_logs
+                if log.get("event") == "Clearing XCom with key"
+            ]
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            events.append((request.method, request.url.path, request.url.query.decode(), logged_keys()))
+            if request.url.path.endswith("/run"):
+                return httpx2.Response(200, json=ti_context)
+            return httpx2.Response(200, json={})
+
+        def record_frame(frame: bytearray) -> None:
+            body = msgspec.msgpack.decode(frame[4:])[1]
+            events.append((body["type"], TIRunContext.model_validate(body["ti_context"])))
+
+        comm_sock = MagicMock(spec=socket.socket)
+        comm_sock.sendall.side_effect = record_frame
+        mock_popen.return_value.pid = 12345
+        mock_accept.side_effect = lambda servers, drains, proc, **kw: (
+            {servers["comm"]: comm_sock, servers["logs"]: MagicMock(spec=socket.socket)},
+            {soc: b"" for soc in drains.values()},
+        )
+
+        _PopenActivitySubprocess.start(
+            what=ti,
+            dag_rel_path="bundle",
+            bundle_info=FAKE_BUNDLE,
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            command=["/bin/true"],
+            subprocess_logs_to_stdout=False,
+        )
+
+        first = ("task", "debug", "return_value")
+        second = ("task", "debug", "skipmixin_key")
+        assert events == [
+            ("PATCH", f"/task-instances/{ti.id}/run", "", []),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/return_value", query, [first]),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/skipmixin_key", query, [first, second]),
+            ("StartupDetails", TIRunContext.model_validate({**ti_context, "xcom_keys_to_clear": []})),
+        ]
+
+    @pytest.mark.parametrize(
+        ("delete_error", "should_retry", "state", "error_text"),
+        [
+            pytest.param("forbidden", True, "up_for_retry", "Forbidden", id="forbidden-retry"),
+            pytest.param("forbidden", False, "failed", "Forbidden", id="forbidden-no-retry"),
+            pytest.param("unreachable", True, "up_for_retry", "Connection refused", id="unreachable-retry"),
+        ],
+    )
+    # The patch turns off the API client's retry policy, so the case where the API server is
+    # unreachable fails at once instead of after the client's retries and their waits.
+    @patch.object(Client, "_request_with_retry", Client._request_without_retry)
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    def test_fails_the_try_without_starting_the_task_when_an_xcom_cannot_be_deleted(
+        self,
+        mock_send_msg,
+        make_ti_context_dict,
+        captured_logs,
+        time_machine,
+        delete_error,
+        should_retry,
+        state,
+        error_text,
+    ):
+        time_machine.move_to(datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC), tick=False)
+        ti = _make_ti()
+        ti_context = {
+            **make_ti_context_dict(),
+            "xcom_keys_to_clear": ["return_value", "skipmixin_key", "summary"],
+            "should_retry": should_retry,
+        }
+        requests: list[tuple[str, str]] = []
+        reports: list[tuple[str, str, str]] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append((request.method, request.url.path))
+            if request.url.path.endswith("/run"):
+                return httpx2.Response(200, json=ti_context)
+            if request.method == "DELETE":
+                if not request.url.path.endswith("/skipmixin_key"):
+                    return httpx2.Response(200, json={})
+                if delete_error == "unreachable":
+                    raise httpx2.ConnectError("Connection refused", request=request)
+                return httpx2.Response(403, json={"detail": "Forbidden"})
+            report = json.loads(request.content)
+            reports.append((report["state"], report["end_date"], report["retry_reason"]))
+            return httpx2.Response(204)
+
+        proc = _PopenActivitySubprocess.start(
+            what=ti,
+            dag_rel_path="bundle",
+            bundle_info=FAKE_BUNDLE,
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            command=[sys.executable, "-c", _RUNTIME_AWAITING_STARTUP],
+            subprocess_logs_to_stdout=False,
+        )
+
+        assert proc.wait() == -signal.SIGKILL
+        mock_send_msg.assert_not_called()
+        assert requests == [
+            ("PATCH", f"/task-instances/{ti.id}/run"),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/return_value"),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/skipmixin_key"),
+            ("PATCH", f"/task-instances/{ti.id}/state"),
+        ]
+        assert reports == [
+            (state, "2026-01-02T03:04:05Z", f"Failed to clear XCom 'skipmixin_key': {error_text}"),
+        ]
+        assert proc.final_state == state
+        assert {
+            "event": "Failed to clear XCom; not running the task",
+            "key": "skipmixin_key",
+            "level": "error",
+            "logger": "task",
+            "timestamp": ANY,
+            "exc_info": ANY,
+            "loc": ANY,
+        } in captured_logs
+
+
+_RUNTIME_SPAWNING_A_CHILD = """
+import socket
+import subprocess
+import sys
+
+def connect(flag):
+    host, _, port = next(arg for arg in sys.argv if arg.startswith(flag)).split("=", 1)[1].rpartition(":")
+    return socket.create_connection((host, int(port)))
+
+comm = connect("--comm=")
+logs = connect("--logs=")
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+with open(sys.argv[1], "w") as handle:
+    handle.write(str(child.pid))
+comm.settimeout(30)
+try:
+    comm.recv(1)
+except TimeoutError:
+    sys.exit(3)
+"""
+
+
+_RUNTIME_SPAWNING_A_CHILD_THEN_DYING = """
+import subprocess
+import sys
+
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+with open(sys.argv[1], "w") as handle:
+    handle.write(str(child.pid))
+sys.exit(1)
+"""
+
+
+def _wait_until_gone(pid: int, timeout: float = 10.0) -> bool:
+    """Return whether *pid* has stopped running, treating a not-yet-reaped zombie as gone."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+class TestPopenActivitySubprocessProcessGroup:
+    """A language SDK runtime runs in its own process group so a stop reaches what it spawned."""
+
+    def test_popen_asks_for_a_new_process_group(self, mock_client):
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        with (
+            patch(
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen", return_value=mock_proc
+            ) as popen_mock,
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+        ):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                command=["/bin/true"],
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert popen_mock.call_args.kwargs["process_group"] == 0
+        assert proc._new_process_group is True
+
+    def test_a_runtime_that_dies_before_connecting_does_not_leave_its_child(self, tmp_path):
+        """The runtime is reaped before start() fails, so its group is swept by the leader's pid."""
+        pid_file = tmp_path / "child.pid"
+        with pytest.raises(TaskLaunchError, match="before connecting"):
+            _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[
+                    sys.executable,
+                    "-c",
+                    _RUNTIME_SPAWNING_A_CHILD_THEN_DYING,
+                    str(pid_file),
+                ],
+                subprocess_logs_to_stdout=False,
+            )
+
+        spawned_pid = int(pid_file.read_text())
+        try:
+            assert _wait_until_gone(spawned_pid), "the process the runtime spawned outlived the failure"
+        finally:
+            with contextlib.suppress(OSError):
+                os.kill(spawned_pid, signal.SIGKILL)
+
+    def test_stopping_the_task_also_stops_what_the_runtime_spawned(self, tmp_path):
+        """Regression for #75533: SIGTERM reaches the CLI the task started, not only the runtime."""
+        pid_file = tmp_path / "child.pid"
+        with patch.object(ActivitySubprocess, "_on_child_started"):
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=FAKE_BUNDLE,
+                client=MagicMock(),
+                command=[sys.executable, "-c", _RUNTIME_SPAWNING_A_CHILD, str(pid_file)],
+                subprocess_logs_to_stdout=False,
+            )
+
+        deadline = time.monotonic() + 10.0
+        while not (reported := pid_file.read_text().strip() if pid_file.exists() else ""):
+            assert time.monotonic() < deadline, "the runtime did not report the pid it spawned"
+            time.sleep(0.05)
+        spawned_pid = int(reported)
+
+        try:
+            proc.kill(signal.SIGTERM, force=True, escalation_delay=5.0)
+            assert _wait_until_gone(proc.pid), "the runtime outlived the stop"
+            assert _wait_until_gone(spawned_pid), "the process the task spawned outlived the stop"
+        finally:
+            with contextlib.suppress(OSError):
+                os.kill(spawned_pid, signal.SIGKILL)
+
+
+class TestPopenActivitySubprocessExecutionTimeout:
+    @pytest.mark.parametrize(
+        ("execution_timeout", "killed"),
+        [
+            pytest.param(30.0, True, id="with-timeout"),
+            pytest.param(None, False, id="without-timeout"),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+    @patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
+    @patch("time.monotonic", autospec=True, return_value=1.0)
+    def test_arms_execution_timeout_from_run_context(
+        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, killed
+    ):
+        client = MagicMock()
+        client.task_instances.start.return_value = TIRunContext.model_construct(
+            should_retry=False, execution_timeout=execution_timeout, xcom_keys_to_clear=[]
+        )
+        proc = _PopenActivitySubprocess(
+            process_log=MagicMock(),
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+
+        proc._on_child_started(
+            ti=_make_ti(),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
+
+        mock_monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        assert mock_kill.called is killed
+
+
 class TestResolveArtifactBundle:
     """Execute-time resolution of the Dag bundle holding the artifacts."""
 
@@ -987,8 +1418,245 @@ class TestResolveArtifactBundle:
         mock_initialize.return_value = _make_bundle(tmp_path / "nope", version="v1")
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        with pytest.raises(FileNotFoundError, match="does not exist"):
+        with pytest.raises(TaskLaunchError, match="does not exist"):
             coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
+
+
+class _MissingArtifactCoordinator(_StubSubprocessCoordinator):
+    def _build_execute_task_command(self, *, what):
+        raise FileNotFoundError("cannot find a JAR with Main-Class metadata in /bundle")
+
+
+class _BrokenCoordinator(_StubSubprocessCoordinator):
+    def _build_execute_task_command(self, *, what):
+        raise RuntimeError("coordinator bug")
+
+
+def _connect_without_output(servers, drains, proc, **kwargs):
+    """Stand in for _accept_connections when the runtime connects without writing anything."""
+    accepted = {server: MagicMock(spec=socket.socket) for server in servers.values()}
+    return accepted, {soc: b"" for soc in drains.values()}
+
+
+class TestExecuteTaskLaunchFailure:
+    """A task whose runtime cannot be launched fails with TaskLaunchError, so the supervisor reports it."""
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_with_a_retry_when_the_artifact_cannot_be_found(self, mock_client):
+        coordinator = _MissingArtifactCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="cannot find a JAR with Main-Class metadata") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert isinstance(raised.value.__cause__, FileNotFoundError)
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_without_a_retry_for_a_coordinator_bug(self, mock_client):
+        coordinator = _BrokenCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="coordinator bug") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is False
+        assert isinstance(raised.value.__cause__, RuntimeError)
+
+    @patch(
+        "airflow.sdk.coordinators._subprocess.initialize_ti_bundle",
+        autospec=True,
+        side_effect=RuntimeError("Error cloning repository"),
+    )
+    def test_fails_with_a_retry_when_the_artifact_bundle_cannot_be_read(self, _, mock_client):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], task_handler_bundle_name="artifacts")
+
+        with pytest.raises(
+            TaskLaunchError, match="Dag bundle 'artifacts' cannot be read: Error cloning repository"
+        ) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        assert coordinator.recorded_roots == []
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @pytest.mark.parametrize(
+        ("script", "startup_timeout", "reason", "output"),
+        [
+            pytest.param(
+                "echo 'cannot load main class' >&2; exit 3",
+                10.0,
+                "exited with 3",
+                "cannot load main class",
+                id="exits",
+            ),
+            pytest.param(
+                "echo 'still starting' >&2; sleep 30",
+                0.5,
+                "did not connect",
+                "still starting",
+                id="times-out",
+            ),
+        ],
+    )
+    def test_fails_with_a_retry_and_logs_the_runtime_output_when_the_runtime_does_not_connect(
+        self, mock_client, captured_logs, script, startup_timeout, reason, output
+    ):
+        coordinator = _StubSubprocessCoordinator(
+            command=["sh", "-c", script], task_startup_timeout=startup_timeout
+        )
+
+        with pytest.raises(TaskLaunchError, match=reason) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is True
+        # The output belongs in the task log as its own lines, not folded into the message.
+        assert "\n" not in str(raised.value)
+        assert ("task.stderr", "error", output) in [
+            (entry.get("logger"), entry["level"], entry["event"]) for entry in captured_logs
+        ]
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @pytest.mark.parametrize(
+        ("executable", "expected"),
+        [
+            pytest.param(False, "No such file or directory", id="missing"),
+            pytest.param(True, "Permission denied", id="not-executable"),
+        ],
+    )
+    def test_fails_with_a_retry_when_the_runtime_cannot_be_executed(
+        self, mock_client, tmp_path, executable, expected
+    ):
+        runtime = tmp_path / "runtime"
+        if executable:
+            runtime.write_text("#!/bin/sh\n")
+            runtime.chmod(0o644)
+        coordinator = _StubSubprocessCoordinator(command=[str(runtime)])
+
+        with pytest.raises(TaskLaunchError) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        message = str(raised.value)
+        assert message == f"The runtime cannot start: {raised.value.__cause__}"
+        assert expected in message
+        assert str(runtime) in message
+        assert raised.value.retryable is True
+        assert isinstance(raised.value.__cause__, OSError)
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    def test_fails_without_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], schema_version="1999-01-01")
+
+        with pytest.raises(TaskLaunchError) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert str(raised.value).startswith(
+            "The runtime uses supervisor schema version '1999-01-01', which this worker's Task SDK "
+            "does not support."
+        )
+        assert raised.value.retryable is False
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @pytest.mark.parametrize(
+        ("failing", "expected"),
+        [
+            pytest.param("_register_pipe_readers", TaskLaunchError, id="registering-the-pipes"),
+            pytest.param("_on_child_started", RuntimeError, id="starting-the-task-instance"),
+        ],
+    )
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    def test_releases_the_runtime_sockets_when_the_launch_fails_after_they_are_open(
+        self, mock_accept, mock_client, failing, expected
+    ):
+        """The sockets stay with the tracker until 'self' has taken them over, so nothing leaks."""
+        mock_accept.side_effect = _connect_without_output
+        registered: list = []
+
+        def record(_self, *socks, data):
+            registered.extend(socks)
+            if failing == "_register_pipe_readers":
+                raise RuntimeError("boom")
+
+        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"])
+
+        with (
+            patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True, side_effect=record),
+            patch.object(
+                ActivitySubprocess, "_on_child_started", autospec=True, side_effect=RuntimeError("boom")
+            ),
+            pytest.raises(expected, match="boom"),
+        ):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        # _register_pipe_readers takes stdout and stderr, then the accepted comm and logs connections.
+        stdout, stderr, *connections = registered
+        assert (stdout.fileno(), stderr.fileno()) == (-1, -1)
+        for connection in connections:
+            connection.close.assert_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @patch.object(
+        ActivitySubprocess, "_on_child_started", autospec=True, side_effect=RuntimeError("API unreachable")
+    )
+    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    def test_does_not_turn_a_failure_after_the_launch_into_a_launch_error(
+        self, mock_accept, _, __, mock_client
+    ):
+        mock_accept.side_effect = _connect_without_output
+        coordinator = _StubSubprocessCoordinator(command=["sleep", "30"])
+
+        with pytest.raises(RuntimeError, match="^API unreachable$"):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
 
 
 class TestExecuteTaskBundleWiring:
@@ -1069,8 +1737,10 @@ class _NativeStubCoordinator(_StubSubprocessCoordinator):
 
 @attrs.define(kw_only=True)
 class _BrokenNativeCoordinator(_NativeStubCoordinator):
+    error: Exception
+
     def _build_dag_file_command(self, *, what, path):
-        raise ValueError("no Main-Class")
+        raise self.error
 
 
 @attrs.define(kw_only=True)
@@ -1321,29 +1991,46 @@ class TestExecuteTaskNativeDagFile:
         assert coordinator.recorded_dag_files == []
 
     @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
-    def test_fails_with_a_retry_when_the_dag_file_cannot_run(self, mock_client):
-        coordinator = _BrokenNativeCoordinator(command=["/runtime"])
+    @pytest.mark.parametrize(
+        ("error", "retryable"),
+        [
+            pytest.param(ValueError("no Main-Class"), True, id="cannot-run"),
+            pytest.param(RuntimeError("no Main-Class"), False, id="coordinator-bug"),
+        ],
+    )
+    def test_fails_when_the_dag_file_cannot_run(self, mock_client, error, retryable):
+        coordinator = _BrokenNativeCoordinator(command=["/runtime"], error=error)
 
         with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
             self._execute(coordinator, mock_client)
 
-        assert raised.value.retryable is True
+        assert raised.value.retryable is retryable
         assert str(raised.value) == (
             "Dag file 'sub/dag.native' in Dag bundle 'dags' at version 'v9' cannot run: no Main-Class"
         )
-        assert isinstance(raised.value.__cause__, ValueError)
+        assert raised.value.__cause__ is error
 
     @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
-    def test_fails_with_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
+    def test_keeps_the_launch_error_of_the_dag_file_command(self, mock_client):
+        error = TaskLaunchError("wrong runtime", retryable=False)
+        coordinator = _BrokenNativeCoordinator(command=["/runtime"], error=error)
+
+        with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
+            self._execute(coordinator, mock_client)
+
+        assert raised.value is error
+
+    @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
+    def test_fails_without_a_retry_for_a_schema_version_the_worker_does_not_support(self, mock_client):
         coordinator = _NativeStubCoordinator(command=["/runtime"], schema_version="1999-01-01")
 
         with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
             self._execute(coordinator, mock_client)
 
-        assert raised.value.retryable is True
+        assert raised.value.retryable is False
         assert str(raised.value).startswith(
-            "Dag file 'sub/dag.native' in Dag bundle 'dags' at version 'v9' cannot run: "
-            "uses supervisor schema version '1999-01-01', which this worker's Task SDK does not support"
+            "The runtime uses supervisor schema version '1999-01-01', which this worker's Task SDK "
+            "does not support."
         )
 
     @pytest.mark.usefixtures("mock_start", "mock_lock")
@@ -1445,7 +2132,7 @@ class TestGetScanRoots:
     def test_execute_task_is_not_reentrant(self, mock_client, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"])
         with coordinator._set_scan_roots([tmp_path]):
-            with pytest.raises(RuntimeError, match="not re-entrant"):
+            with pytest.raises(TaskLaunchError, match="not re-entrant") as raised:
                 coordinator.execute_task(
                     what=_make_ti(),
                     dag_rel_path="dag.py",
@@ -1453,6 +2140,7 @@ class TestGetScanRoots:
                     client=mock_client,
                     subprocess_logs_to_stdout=False,
                 )
+        assert isinstance(raised.value.__cause__, RuntimeError)
 
 
 @attrs.define(kw_only=True)

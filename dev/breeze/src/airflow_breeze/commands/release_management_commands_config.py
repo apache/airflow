@@ -90,6 +90,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "publish-schemas-to-s3",
         "verify-rc-by-pmc",
         "check-release-files",
+        "mirror-base-images",
     ],
 }
 
@@ -101,6 +102,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management mirror-base-images": [
+        {
+            "name": "Mirror flags",
+            "options": [
+                "--python",
             ],
         }
     ],
@@ -343,6 +352,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--airflow-constraints-mode",
                 "--allow-pre-releases",
+                "--fail-on-pending-provider-candidates",
                 "--github-repository",
                 "--python",
                 "--use-uv",
@@ -584,6 +594,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--execution-api",
                 "--supervisor",
+                "--dag",
                 "--destination-location",
                 "--overwrite",
                 "--dry-run",

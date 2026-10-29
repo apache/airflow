@@ -512,8 +512,8 @@ for the other routes that build their own tools; see :ref:`toolset-call-barriers
 With another agent framework
 ----------------------------
 
-A Strands or Google ADK agent, or a loop on the Anthropic SDK's tool runner, can use the
-same sandbox through ``AirflowTools`` (see :doc:`../frameworks/index`). Outside a
+A Strands, Google ADK or OpenAI Agents SDK agent, or a loop on the Anthropic SDK's tool
+runner, can use the same sandbox through its adapter (see :doc:`../frameworks/index`). Outside a
 Pydantic AI run nothing ends the run for the toolset, so the task owns the sandbox's
 life: open the toolset with ``with`` (or ``async with``) around the agent, and the
 sandbox it provisions is destroyed when the block ends, however the agent finishes:
@@ -611,7 +611,7 @@ Isolation is one of several controls an agent needs, and each has a limit:
    * - Audit
      - Can you establish what happened afterwards?
      - A record does not prevent the action.
-     - :doc:`LoggingToolset <../toolsets/logging>` and
+     - :doc:`ToolLoggingCapability <../toolsets/logging>` and
        :doc:`tracing <../observability>`.
 
 A sandbox with no egress can still leak data. A secret printed inside comes back

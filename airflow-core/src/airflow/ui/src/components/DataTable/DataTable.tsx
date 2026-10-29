@@ -60,6 +60,8 @@ type DataTableProps<TData extends RowData> = {
    * Anything that changes how already-returned rows are drawn belongs in `presentationActions`.
    */
   readonly filterActions?: ReactNode;
+  /** Stable row ids, so an expanded row stays open across refetches and re-sorts. Defaults to the row index. */
+  readonly getRowId?: (row: TData) => string;
   /** Rendered next to the row count heading, and on its own when the heading is hidden. */
   readonly headingExtra?: ReactNode;
   readonly hideRowCountHeading?: boolean;
@@ -100,12 +102,32 @@ type DataTableProps<TData extends RowData> = {
    * actions over a selection belong in the `ActionBar` below the table.
    */
   readonly primaryActions?: ReactNode;
+  /**
+   * Content shown in a full-width row under each expanded row. Rows open and close through
+   * `row.getToggleExpandedHandler()` in a cell. See https://tanstack.com/table/latest/docs/framework/react/examples/sub-components
+   */
+  readonly renderSubComponent?: (row: TData) => ReactNode;
   /** Defaults to showing the column visibility menu only when there are many columns. */
   readonly showColumnsMenu?: boolean;
   readonly showDisplayToggle?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
   readonly totalEntriesLimit?: number;
+};
+
+// Columns with hiding disabled are left out of the columns menu, so a hidden state stored for them
+// (e.g. saved before hiding was disabled) could never be undone. Such columns always show.
+const buildColumnVisibility = <TData extends RowData>(
+  columns: Array<MetaColumn<TData>>,
+  visibility: ColumnVisibilityState,
+): ColumnVisibilityState => {
+  const unhideableIds = new Set(
+    columns
+      .filter((column) => column.enableHiding === false)
+      .map((column) => column.id ?? ("accessorKey" in column ? String(column.accessorKey) : undefined)),
+  );
+
+  return Object.fromEntries(Object.entries(visibility).filter(([id]) => !unhideableIds.has(id)));
 };
 
 export const DataTable = <TData extends RowData>({
@@ -116,6 +138,7 @@ export const DataTable = <TData extends RowData>({
   enableMultiSort = false,
   errorMessage,
   filterActions,
+  getRowId,
   headingExtra,
   hideRowCountHeading,
   initialState,
@@ -128,6 +151,7 @@ export const DataTable = <TData extends RowData>({
   presentationActions,
   previousCursor,
   primaryActions,
+  renderSubComponent,
   showColumnsMenu,
   showDisplayToggle,
   skeletonCount = 10,
@@ -187,7 +211,10 @@ export const DataTable = <TData extends RowData>({
   );
   // Stored visibility only covers columns that existed when it was saved, so columns added
   // later still need their default visibility.
-  const columnVisibility = { ...initialState?.columnVisibility, ...storedColumnVisibility };
+  const columnVisibility = buildColumnVisibility(columns, {
+    ...initialState?.columnVisibility,
+    ...storedColumnVisibility,
+  });
 
   // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
   // reflects by naming the model without a number. Everything else still needs a real number.
@@ -198,11 +225,15 @@ export const DataTable = <TData extends RowData>({
   const rest = Boolean(isLoading) ? createSkeletonMock(display, skeletonCount, columns) : {};
 
   const table = useTable({
+    // Refetches replace `data`, which would otherwise close every expanded row.
+    autoResetExpanded: false,
     columns,
     data,
     enableHiding: true,
     enableMultiSort,
     features: dataTableFeatures,
+    getRowCanExpand: () => renderSubComponent !== undefined,
+    getRowId,
     manualPagination: true,
     manualSorting: true,
     onColumnVisibilityChange: setColumnVisibility,
@@ -279,6 +310,7 @@ export const DataTable = <TData extends RowData>({
           data-testid="data-table-header"
           gap={2}
           justifyContent="space-between"
+          mb={2}
           minH={10}
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
@@ -311,7 +343,7 @@ export const DataTable = <TData extends RowData>({
         {display === "card" && cardDef !== undefined ? (
           <CardList cardDef={cardDef} isLoading={isLoading} noRowsMessage={noRowsNode} rows={rows} />
         ) : (
-          <TableList noRowsMessage={noRowsNode} table={table} />
+          <TableList noRowsMessage={noRowsNode} renderSubComponent={renderSubComponent} table={table} />
         )}
       </Box>
       {hasOffsetPagination ? (

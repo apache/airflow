@@ -159,6 +159,10 @@ const filterDags = ({
   // Narrower than ``paused=false``: a draining Dag is unpaused, so the two are not alternatives.
   if (schedulingState === "draining") {
     allDags = allDags.filter((dag) => "scheduling_state" in dag && dag.scheduling_state === "draining");
+  } else if (schedulingState === "active") {
+    allDags = allDags.filter(
+      (dag) => !dag.is_paused && !("scheduling_state" in dag && dag.scheduling_state === "draining"),
+    );
   }
 
   if (paused === "true") {
@@ -231,6 +235,9 @@ export const handlers: Array<HttpHandler> = [
     });
   }),
   dagsListHandler(),
+  http.get("/ui/dags/run_state_counts", () => HttpResponse.json({ dags: [], state_count_limit: 1000 })),
+  http.get("/ui/dags/recent_task_instance_state_counts", () => HttpResponse.json({ dags: [] })),
+  http.get("/ui/teams", () => HttpResponse.json({ teams: [], total_entries: 0 })),
   http.get("/api/v2/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");

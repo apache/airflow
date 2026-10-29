@@ -30,6 +30,7 @@ from uuid import UUID
 
 import pendulum
 import pytest
+import time_machine
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -62,13 +63,16 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import (
     DagRun,
     DagRunNote,
+    FinishedTI,
+    InvalidLoopDecision,
     clear_partition_runs,
     get_or_create_dagrun,
     lock_dag_runs,
+    validate_loop_decision,
 )
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import (
@@ -99,6 +103,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
@@ -156,7 +161,7 @@ def test_loop_first_pass_uses_one_region_and_mapped_child(dag_maker, session, va
     assert {region.node_id for region in regions} == {loop.group_id, "body.mapped"}
     parent = next(region for region in regions if region.node_id == loop.group_id)
     mapped_region = next(region for region in regions if region.node_id == "body.mapped")
-    assert (mapped_region.parent_region_id, mapped_region.parent_region_index) == (parent.id, 0)
+    assert (mapped_region.parent_region_id, mapped_region.parent_region_index) == (parent.id, 1)
     original_ids = {ti.id for ti in dr.task_instances}
     for ti in dr.task_instances:
         if ti.task_id == "outside":
@@ -164,7 +169,7 @@ def test_loop_first_pass_uses_one_region_and_mapped_child(dag_maker, session, va
         elif ti.task_id == "body.mapped":
             assert ti.region_id == mapped_region.id
         else:
-            assert (ti.region_id, ti.region_index) == (parent.id, 0)
+            assert (ti.region_id, ti.region_index) == (parent.id, 1)
 
     dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
 
@@ -237,7 +242,7 @@ def test_loop_new_member_joins_live_pass_after_reserialization(dag_maker, sessio
     current = dr.get_task_instances(session=session)
     assert {ti.id for ti in current if ti.task_id != "body.new"} == original_ids
     added = next(ti for ti in current if ti.task_id == "body.new")
-    assert (added.region_id, added.region_index, added.dag_version_id) == (gate.region_id, 0, version_id)
+    assert (added.region_id, added.region_index, added.dag_version_id) == (gate.region_id, 1, version_id)
     assert session.get(TI, gate.id).state == State.SUCCESS
 
 
@@ -329,7 +334,7 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
             terminal(1)
 
     def converged(*, loop):
-        return mode == "until_true" and loop.index == 1
+        return mode == "until_true" and loop.index == 2
 
     with dag_maker(serialized=False) as dag:
         loop = body.loop(max_iterations=2, until=converged if mode.startswith("until") else None)
@@ -343,15 +348,49 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
         if ti.task_id == loop.gate_task_id
     )
     if mode == "empty":
-        assert gates == [(0, State.SKIPPED)]
+        assert gates == [(1, State.SKIPPED)]
     elif mode == "until_false":
-        assert gates == [(0, State.SUCCESS), (1, State.FAILED)]
+        assert gates == [(1, State.SUCCESS), (2, State.FAILED)]
     elif mode == "unhandled_failure":
-        assert gates == [(0, State.UPSTREAM_FAILED)]
+        assert gates == [(1, State.UPSTREAM_FAILED)]
     else:
-        assert gates == [(0, State.SUCCESS), (1, State.SUCCESS)]
+        assert gates == [(1, State.SUCCESS), (2, State.SUCCESS)]
     outside = dr.get_task_instance(task_id="outside", session=session)
     assert outside.state == State.SUCCESS
+
+
+@pytest.mark.parametrize("has_until", [False, True])
+@pytest.mark.parametrize(
+    ("region_index", "stop", "accepted"),
+    [
+        # One pass below the cap there is still an iteration left, so continuing is the only
+        # valid answer for a fixed-count loop. A zero-based cap check treats this as the limit.
+        pytest.param(2, False, True, id="continue below the cap"),
+        pytest.param(2, True, False, id="stop below the cap"),
+        # At the cap the loop cannot produce another pass.
+        pytest.param(3, False, False, id="continue at the cap"),
+        pytest.param(3, True, True, id="stop at the cap"),
+    ],
+)
+def test_validate_loop_decision_counts_the_cap_from_one(region_index, stop, accepted, has_until):
+    group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
+    group.max_iterations, group.has_until = 3, has_until
+    # A conditional loop may stop early, so only the fixed-count loop rejects an early stop.
+    expected = accepted or (has_until and stop)
+
+    if expected:
+        validate_loop_decision(stop, region_index, group)
+    else:
+        with pytest.raises(InvalidLoopDecision):
+            validate_loop_decision(stop, region_index, group)
+
+
+def test_validate_loop_decision_requires_a_decision():
+    group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
+    group.max_iterations, group.has_until = 3, True
+
+    with pytest.raises(InvalidLoopDecision, match="requires a decision"):
+        validate_loop_decision(None, 1, group)
 
 
 @pytest.fixture
@@ -385,7 +424,7 @@ def test_documented_task_loop_examples_complete(session, dag_id, expected_iterat
     assert dr.state == DagRunState.SUCCESS
     gates = [ti for ti in dr.get_task_instances(session=session) if ti.operator == "LoopGateOperator"]
     assert sorted((ti.region_index, ti.state) for ti in gates) == [
-        (index, State.SUCCESS) for index in range(expected_iterations)
+        (index, State.SUCCESS) for index in range(1, expected_iterations + 1)
     ]
 
 
@@ -752,6 +791,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_succeeded2"
 
         assert dag_run.state == DagRunState.SUCCESS
@@ -786,6 +829,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on failure
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_failed2"
 
         assert dag_run.state == DagRunState.FAILED
@@ -3372,9 +3419,15 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
     decision = dr.task_instance_scheduling_decisions(session=session)
 
-    # ti1 finished execution. ti2 goes directly to finished state because it's
-    # expanded against a zero-length XCom.
-    assert decision.finished_tis == [ti1, ti2]
+    # The finished_tis list contains both FinishedTI and TaskInstance types,
+    # so compare by content rather than identity.
+    #
+    # ti1 finished execution (before the decision - FinishedTI). ti2 goes directly to finished state
+    # (during the decision - TaskInstance) because it's expanded against a zero-length XCom.
+    assert [(ti.task_id, ti.state) for ti in decision.finished_tis] == [
+        (ti1.task_id, TaskInstanceState.SUCCESS),
+        (ti2.task_id, TaskInstanceState.SKIPPED),
+    ]
 
     indices = session.execute(
         select(TI.map_index, TI.state)
@@ -3562,6 +3615,30 @@ def test_schedule_tis_does_not_increment_try_number_if_ti_already_queued_by_othe
     assert refreshed_ti.try_number == 1
 
 
+def test_schedule_tis_empty_operator_clears_retry_policy_columns(dag_maker, session):
+    """The EmptyOperator UPDATE allocates an attempt too, so it must clear like the other one."""
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.commit()
+    ti_id = ti.id
+
+    dr.schedule_tis((ti,), session=session)
+    session.flush()
+    session.expire_all()
+
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.state == TaskInstanceState.SUCCESS
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
+
+
 def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued(dag_maker, session):
     with dag_maker(session=session) as dag:
         EmptyOperator(task_id="empty_task")
@@ -3616,6 +3693,8 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     ti.refresh_from_task(dag.get_task("task"))
     ti.state = state
     ti.try_number = try_number
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
     session.commit()
     ti_id = ti.id
 
@@ -3623,7 +3702,11 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     session.flush()
     session.expire_all()
 
-    assert session.get(TI, ti_id).try_number == try_number
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.try_number == try_number
+    # The finished try keeps these in task_instance_history; the new one must not inherit them.
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
 
 
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
@@ -3807,7 +3890,8 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
 
 
 @pytest.mark.need_serialized_dag
-def test_schedule_tis_start_trigger(dag_maker, session):
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY])
+def test_schedule_tis_start_trigger(dag_maker, session, state):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
     """
@@ -3836,8 +3920,14 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     assert ti.state is None
 
     ti.task = dr.dag.get_task("test_task")
+    ti.state = state
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+    # This path defers before the UPDATE in schedule_tis, so defer_task() has to clear.
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
 
 
 @pytest.mark.need_serialized_dag
@@ -4355,6 +4445,81 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
     finish_ti = dr.get_task_instance(task_id="finish", map_index=-1, session=session)
     assert finish_ti
     assert finish_ti.state == TaskInstanceState.SUCCESS
+
+
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_SUCCESS, TriggerRule.ONE_FAILED])
+def test_mapped_task_length_reduction_marks_removed_for_downstream_in_same_pass(
+    session, dag_maker, trigger_rule
+):
+    """
+    Shrinking a mapped task mid-pass is visible to a downstream evaluated later in the same pass.
+
+    The revise marks the surplus index REMOVED with a bulk UPDATE; the finished-row views taken
+    at the start of the pass must reflect it, or the downstream counts a stale FAILED upstream.
+    """
+
+    @task
+    def producer():
+        if get_current_context()["ti"].try_number == 1:
+            return [0, 1, 2]
+        return [0, 1]
+
+    @task
+    def work(arg):
+        return arg
+
+    @task(trigger_rule=trigger_rule)
+    def zreport():
+        return None
+
+    with dag_maker(session=session):
+        work.expand(arg=producer()) >> zreport()
+
+    dr = dag_maker.create_dagrun()
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis] == [
+        ("work", 0),
+        ("work", 1),
+        ("work", 2),
+    ]
+    end_states = {0: TaskInstanceState.SUCCESS, 1: TaskInstanceState.SUCCESS, 2: TaskInstanceState.FAILED}
+    for ti in decision.schedulable_tis:
+        ti.set_state(end_states[ti.map_index], session=session)
+    session.flush()
+
+    # Clear work[0] together with its upstream producer, which now yields two items.
+    clear_task_instances(
+        [
+            dr.get_task_instance("producer", session=session),
+            dr.get_task_instance("work", map_index=0, session=session),
+        ],
+        session=session,
+    )
+    session.flush()
+    dag_maker.run_ti("producer", dr)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    work_states = session.execute(
+        select(TI.map_index, TI.state)
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert work_states == [
+        (0, None),
+        (1, TaskInstanceState.SUCCESS),
+        (2, TaskInstanceState.REMOVED),
+    ]
+    # The downstream waits for work[0] instead of acting on the stale FAILED state of work[2].
+    assert ("zreport", -1) not in [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert dr.get_task_instance("zreport", session=session).state is None
+
+    def _get_state_of_ti(tis, task_id, map_index):
+        return next(ti.state for ti in tis if ti.task_id == task_id and ti.map_index == map_index)
+
+    assert _get_state_of_ti(decision.finished_tis, "work", 2) == TaskInstanceState.REMOVED
+    assert _get_state_of_ti(decision.tis, "work", 2) == TaskInstanceState.REMOVED
 
 
 def test_rerun_with_upstream_task_removed(session, dag_maker):
@@ -5002,6 +5167,88 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
+
+
+def test_scheduling_decisions_mark_orphaned_finished_tis_removed(dag_maker, session):
+    """
+    A finished ti whose task no longer exists in the dag is marked REMOVED and excluded.
+
+    Only the scheduled run is touched, neither another run of the Dag nor another Dag sharing
+    the run_id and task_id loses its row.
+    """
+    with dag_maker("test_dag_1", session=session):
+        EmptyOperator(task_id="stays")
+        EmptyOperator(task_id="vanishes")
+    dag_run_1 = dag_maker.create_dagrun()
+    dag_run_1_later = dag_maker.create_dagrun_after(dag_run_1, run_id="later_run")
+    with dag_maker("test_dag_2", session=session):
+        EmptyOperator(task_id="vanishes")
+    dag_run_2 = dag_maker.create_dagrun()
+    assert dag_run_2.run_id == dag_run_1.run_id
+    for run in (dag_run_1, dag_run_1_later, dag_run_2):
+        for ti in run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    del dag_run_1.dag.task_dict["vanishes"]
+    decision = dag_run_1.task_instance_scheduling_decisions(session=session)
+
+    assert len(decision.finished_tis) == 1
+    finished_ti = decision.finished_tis[0]
+    assert isinstance(finished_ti, FinishedTI)
+    assert finished_ti.task_id == "stays"
+    assert finished_ti.state == TaskInstanceState.SUCCESS
+    assert finished_ti.task is dag_run_1.dag.task_dict["stays"]
+    # The view carries the row's identity and coordinates so that trigger-rule evaluation
+    # and the dag-callback re-fetch never need the full TaskInstance.
+    stays = dag_run_1.get_task_instance("stays", session=session)
+    assert (finished_ti.id, finished_ti.dag_id, finished_ti.run_id) == (
+        stays.id,
+        dag_run_1.dag_id,
+        dag_run_1.run_id,
+    )
+    assert (finished_ti.region_id, finished_ti.region_index) == (stays.region_id, stays.region_index)
+    assert finished_ti.dag_version_id == stays.dag_version_id
+    session.expire_all()
+    assert dag_run_1.get_task_instance("vanishes", session=session).state == TaskInstanceState.REMOVED
+    assert dag_run_1_later.get_task_instance("vanishes", session=session).state == TaskInstanceState.SUCCESS
+    assert dag_run_2.get_task_instance("vanishes", session=session).state == TaskInstanceState.SUCCESS
+
+
+def test_scheduling_decisions_orphan_removal_covers_every_map_index_but_skips_removed_rows(
+    dag_maker, session
+):
+    """Every index of an orphaned mapped task is marked REMOVED, rows already REMOVED are not rewritten."""
+
+    @task
+    def vanishes(arg): ...
+
+    with dag_maker(session=session):
+        EmptyOperator(task_id="stays")
+        vanishes.expand(arg=[1, 2, 3])
+    dr = dag_maker.create_dagrun()
+    earlier = pendulum.datetime(2026, 1, 1, tz="UTC")
+    with time_machine.travel(earlier, tick=False):
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.REMOVED if ti.map_index == 2 else TaskInstanceState.SUCCESS
+        session.flush()
+
+    del dr.dag.task_dict["vanishes"]
+    later = earlier.add(hours=1)
+    with time_machine.travel(later, tick=False):
+        dr.task_instance_scheduling_decisions(session=session)
+
+    session.expire_all()
+    rows = session.execute(
+        select(TI.map_index, TI.state, TI.updated_at)
+        .where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id, TI.task_id == "vanishes")
+        .order_by(TI.map_index)
+    ).all()
+    assert rows == [
+        (0, TaskInstanceState.REMOVED, later),
+        (1, TaskInstanceState.REMOVED, later),
+        (2, TaskInstanceState.REMOVED, earlier),
+    ]
 
 
 class TestDagRunHandleDagCallback:
@@ -6353,9 +6600,9 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
 
     @task_group
     def body():
@@ -6373,7 +6620,7 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
 
     dr.verify_integrity(session=session, dag_version_id=version)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
     assert set(
         session.scalars(
             select(TaskInstance.region_index).where(
@@ -6382,7 +6629,7 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
                 TaskInstance.task_id == "body.new",
             )
         )
-    ) == {0, 1, 2}
+    ) == {1, 2, 3}
 
 
 def test_run_stays_running_after_clearing_a_gate_while_the_last_pass_is_running(completed_loop, session):
@@ -6392,15 +6639,15 @@ def test_run_stays_running_after_clearing_a_gate_while_the_last_pass_is_running(
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    assert sorted(gates) == [0, 1, 2, 3, 4], "Checking pre-conditions: every pass has a gate"
+    assert sorted(gates) == [1, 2, 3, 4, 5], "Checking pre-conditions: every pass has a gate"
     # Pretend the last pass's gate is still running, so that clearing an earlier gate supersedes it and
     # leaves it RESTARTING until its worker acknowledges the termination.
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
     dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
 
     dr.update_state(session=session)
 
@@ -6411,26 +6658,26 @@ def test_run_stays_running_when_clearing_an_early_gate_restarts_a_running_body_t
     dr, loop, _ = completed_loop
     members = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
     # `completed_loop` creates and completes every pass up front, but a real loop creates pass N + 1 only
-    # when gate N completes. Remove pass 4 so that pass 3 is the last pass and is still in progress.
-    for ti in [ti for (_, index), ti in members.items() if index == 4]:
+    # when gate N completes. Remove pass 5 so that pass 4 is the last pass and is still in progress.
+    for ti in [ti for (_, index), ti in members.items() if index == 5]:
         session.delete(ti)
-    # Pass 3 is mid-flight: its `process` task is running and `consume` and the gate have not started.
+    # Pass 4 is mid-flight: its `process` task is running and `consume` and the gate have not started.
     for task_id in ("body.consume", loop.gate_task_id):
-        members[task_id, 3].state = None
-    members["body.process", 3].state = State.RUNNING
+        members[task_id, 4].state = None
+    members["body.process", 4].state = State.RUNNING
     session.flush()
-    assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {0, 1, 2, 3}, (
-        "Checking pre-conditions: pass 3 is the last pass"
+    assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {1, 2, 3, 4}, (
+        "Checking pre-conditions: pass 4 is the last pass"
     )
-    # Clearing gate 1 supersedes passes 2 and 3: `prepare[3]` is archived and the running `process[3]`
+    # Clearing gate 2 supersedes passes 3 and 4: `prepare[4]` is archived and the running `process[4]`
     # goes RESTARTING, so it is left with no live upstream while it waits for its worker to acknowledge.
     clear_loop_task_instances(
-        [members[loop.gate_task_id, 1]], downstream=False, dag_run_state=False, session=session
+        [members[loop.gate_task_id, 2]], downstream=False, dag_run_state=False, session=session
     )
     dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
 
-    assert members["body.process", 3].state == State.RESTARTING
-    assert members["body.prepare", 3].working_set is None
+    assert members["body.process", 4].state == State.RESTARTING
+    assert members["body.prepare", 4].working_set is None
 
     dr.update_state(session=session)
 
@@ -6444,26 +6691,56 @@ def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
-    rerun = session.get(TaskInstance, gates[2].id)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
+    rerun = session.get(TaskInstance, gates[3].id)
     rerun.state = State.SUCCESS
-    session.add(XComModelV2(task_instance_id=rerun.id, key=LOOP_DECISION_KEY, value="continue"))
     session.flush()
     group, _ = TaskCoordinateResolver(DBDagBag(), session).loop_context(rerun)
 
-    dr.complete_loop_gate(rerun, group, State.SUCCESS, session=session)
+    dr.complete_loop_gate(rerun, group, State.SUCCESS, stop=False, reason=None, session=session)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
     assert session.scalars(
         select(TaskInstance.state).where(
             TaskInstance.dag_id == dr.dag_id,
             TaskInstance.run_id == dr.run_id,
             TaskInstance.task_id == "body.prepare",
-            TaskInstance.region_index == 3,
+            TaskInstance.region_index == 4,
         )
     ).all() == [None]
+
+
+@pytest.mark.parametrize(
+    ("index", "state", "stored"),
+    [(5, State.SUCCESS, ["why"]), (5, State.FAILED, ["why"]), (3, State.SUCCESS, []), (3, State.FAILED, [])],
+    ids=["last-success", "last-failed", "earlier-success", "earlier-failed"],
+)
+def test_complete_loop_gate_records_the_reason_only_without_a_later_pass(
+    completed_loop, session, index, state, stored
+):
+    dr, loop, _ = completed_loop
+    gate = next(
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id and ti.region_index == index
+    )
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    group, _ = resolver.loop_context(gate)
+    before = len(dr.get_task_instances(session=session))
+
+    dr.complete_loop_gate(gate, group, state, stop=index == 5, reason="why", session=session)
+
+    assert len(dr.get_task_instances(session=session)) == before
+    assert (
+        session.scalars(
+            select(XComModelV2.value).where(
+                XComModelV2.task_instance_id == gate.id, XComModelV2.key == LOOP_DECISION_REASON_KEY
+            )
+        ).all()
+        == stored
+    )
 
 
 @pytest.fixture

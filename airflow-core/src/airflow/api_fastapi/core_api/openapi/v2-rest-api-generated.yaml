@@ -4184,13 +4184,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+            next_dagrun, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          next_dagrun, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -6124,6 +6124,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/providers/{provider_name}:
+    get:
+      tags:
+      - Provider
+      summary: Get Provider
+      description: Get detailed information about an installed provider.
+      operationId: get_provider
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: provider_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Provider Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderDetailsResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/assets/{asset_id}/state-store:
     get:
       tags:
@@ -7391,6 +7439,17 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: exclude_internal_keys
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Leave out XComs whose keys Airflow reserves for itself, such
+            as loop decision reasons.
+          default: false
+          title: Exclude Internal Keys
+        description: Leave out XComs whose keys Airflow reserves for itself, such
+          as loop decision reasons.
       - name: limit
         in: query
         required: false
@@ -9212,11 +9271,13 @@ paths:
         schema:
           anyOf:
           - type: integer
-            minimum: 0
+            minimum: 1
           - type: 'null'
-          description: Narrow ``loop_id`` to a single pass of that loop.
+          description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+            count from one.
           title: Iteration
-        description: Narrow ``loop_id`` to a single pass of that loop.
+        description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+          count from one.
       - name: cursor
         in: query
         required: false
@@ -12365,6 +12426,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/auth/cli/metadata:
+    get:
+      tags:
+      - Login
+      summary: Get Cli Login Metadata
+      description: Return the login methods the AuthManager configured offers to command-line
+        clients.
+      operationId: get_cli_login_metadata
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliLoginMetadataResponse'
   /api/v2/auth/logout:
     get:
       tags:
@@ -13069,6 +13145,7 @@ components:
           default: none
         max_active_runs:
           type: integer
+          minimum: 1.0
           title: Max Active Runs
           default: 10
         run_on_latest_version:
@@ -14199,6 +14276,43 @@ components:
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
+    CliLoginMetadataResponse:
+      properties:
+        grant_types_supported:
+          items:
+            type: string
+          type: array
+          title: Grant Types Supported
+        code_challenge_methods_supported:
+          items:
+            type: string
+          type: array
+          title: Code Challenge Methods Supported
+        authorization_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization Endpoint
+        device_authorization_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Device Authorization Endpoint
+        token_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token Endpoint
+      type: object
+      required:
+      - grant_types_supported
+      - code_challenge_methods_supported
+      - authorization_endpoint
+      - device_authorization_endpoint
+      - token_endpoint
+      title: CliLoginMetadataResponse
+      description: Login methods the auth manager offers to command-line clients,
+        named as in RFC 8414.
     Config:
       properties:
         sections:
@@ -14206,7 +14320,6 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
-      additionalProperties: false
       type: object
       required:
       - sections
@@ -14227,7 +14340,6 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
-      additionalProperties: false
       type: object
       required:
       - key
@@ -14244,7 +14356,6 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
-      additionalProperties: false
       type: object
       required:
       - name
@@ -15858,7 +15969,6 @@ components:
           description: Whether this asset event triggered the referenced dag run.
             Only a run's most recent consumed asset event triggers it; earlier consumed
             events are included in the run but did not trigger it.
-      additionalProperties: false
       type: object
       required:
       - run_id
@@ -15939,7 +16049,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -16979,7 +17088,9 @@ components:
           title: Loop Id
         iteration:
           type: integer
+          minimum: 1.0
           title: Iteration
+          description: Position in the enclosing loop, counting from one.
       type: object
       required:
       - loop_id
@@ -17181,6 +17292,91 @@ components:
       - error
       title: PluginImportErrorResponse
       description: Plugin Import Error serializer for responses.
+    PluginLinkActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: link
+          title: Action Type
+        href:
+          type: string
+          title: Href
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - href
+      title: PluginLinkActionResponse
+      description: Serializer for a UI action that opens a URL.
+    PluginReactActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        destination:
+          type: string
+          enum:
+          - dag
+          - dag_run
+          - task_instance
+          title: Destination
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
+        action_type:
+          type: string
+          const: react
+          title: Action Type
+        bundle_url:
+          type: string
+          title: Bundle Url
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - destination
+      - action_type
+      - bundle_url
+      title: PluginReactActionResponse
+      description: Serializer for a UI action that mounts a React component behind
+        a button.
     PluginResponse:
       properties:
         name:
@@ -17223,6 +17419,20 @@ components:
             $ref: '#/components/schemas/ReactAppResponse'
           type: array
           title: React Apps
+        ui_actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/PluginLinkActionResponse'
+            - $ref: '#/components/schemas/PluginReactActionResponse'
+            discriminator:
+              propertyName: action_type
+              mapping:
+                link: '#/components/schemas/PluginLinkActionResponse'
+                react: '#/components/schemas/PluginReactActionResponse'
+          type: array
+          title: Ui Actions
+          description: User-defined actions rendered on Dag, Dag Run, and Task Instance
+            table rows and header cards.
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -17280,6 +17490,7 @@ components:
         name:
           type: string
           maxLength: 256
+          pattern: \S
           title: Name
         slots:
           type: integer
@@ -17413,6 +17624,33 @@ components:
       - team_name
       title: PoolResponse
       description: Pool serializer for responses.
+    ProviderAssetUriInfo:
+      properties:
+        schemes:
+          items:
+            type: string
+          type: array
+          title: Schemes
+        handler:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Handler
+        factory:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factory
+        to_openlineage_converter:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: To Openlineage Converter
+      type: object
+      required:
+      - schemes
+      title: ProviderAssetUriInfo
+      description: Asset URI scheme handling provided by a provider.
     ProviderCollectionResponse:
       properties:
         providers:
@@ -17429,6 +17667,483 @@ components:
       - total_entries
       title: ProviderCollectionResponse
       description: Provider Collection serializer for responses.
+    ProviderConfigOptionInfo:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        version_added:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version Added
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        example:
+          anyOf:
+          - type: string
+          - type: integer
+          - type: number
+          - type: 'null'
+          title: Example
+        default:
+          anyOf:
+          - type: string
+          - type: integer
+          - type: number
+          - type: 'null'
+          title: Default
+        sensitive:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Sensitive
+        is_template:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Template
+        see_also:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: See Also
+      type: object
+      title: ProviderConfigOptionInfo
+      description: Configuration option contributed by a provider.
+    ProviderConfigSectionInfo:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        options:
+          additionalProperties:
+            $ref: '#/components/schemas/ProviderConfigOptionInfo'
+          type: object
+          title: Options
+      type: object
+      title: ProviderConfigSectionInfo
+      description: Configuration section contributed by a provider.
+    ProviderConnectionFieldInfo:
+      properties:
+        label:
+          type: string
+          title: Label
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        schema:
+          additionalProperties: true
+          type: object
+          title: Schema
+      type: object
+      required:
+      - label
+      - schema
+      title: ProviderConnectionFieldInfo
+      description: Custom connection field a connection type stores in ``Connection.extra``.
+    ProviderConnectionTypeInfo:
+      properties:
+        connection_type:
+          type: string
+          title: Connection Type
+        hook_class_name:
+          type: string
+          title: Hook Class Name
+        hook_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hook Name
+        ui_field_behaviour:
+          anyOf:
+          - $ref: '#/components/schemas/ProviderConnectionUiFieldBehaviourInfo'
+          - type: 'null'
+        conn_fields:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/ProviderConnectionFieldInfo'
+            type: object
+          - type: 'null'
+          title: Conn Fields
+        external_services:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: External Services
+      type: object
+      required:
+      - connection_type
+      - hook_class_name
+      title: ProviderConnectionTypeInfo
+      description: Connection type provided by a provider.
+    ProviderConnectionUiFieldBehaviourInfo:
+      properties:
+        hidden_fields:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Hidden Fields
+        relabeling:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Relabeling
+        placeholders:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Placeholders
+      type: object
+      title: ProviderConnectionUiFieldBehaviourInfo
+      description: Customizations a connection type applies to the standard connection
+        form fields.
+    ProviderDetailsResponse:
+      properties:
+        package_name:
+          type: string
+          title: Package Name
+        description:
+          type: string
+          title: Description
+        version:
+          type: string
+          title: Version
+        documentation_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Documentation Url
+        provider_info:
+          $ref: '#/components/schemas/ProviderInfoResponse'
+      type: object
+      required:
+      - package_name
+      - description
+      - version
+      - documentation_url
+      - provider_info
+      title: ProviderDetailsResponse
+      description: Detailed provider serializer for responses.
+    ProviderDialectInfo:
+      properties:
+        dialect_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dialect Type
+        dialect_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dialect Class Name
+      type: object
+      title: ProviderDialectInfo
+      description: SQL dialect provided by a provider.
+    ProviderInfoResponse:
+      properties:
+        package_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Package Name
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        documentation_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Documentation Url
+        filesystems:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Filesystems
+        integrations:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationInfo'
+            type: array
+          - type: 'null'
+          title: Integrations
+        operators:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationModulesInfo'
+            type: array
+          - type: 'null'
+          title: Operators
+        sensors:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationModulesInfo'
+            type: array
+          - type: 'null'
+          title: Sensors
+        hooks:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationModulesInfo'
+            type: array
+          - type: 'null'
+          title: Hooks
+        triggers:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationModulesInfo'
+            type: array
+          - type: 'null'
+          title: Triggers
+        bundles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderIntegrationModulesInfo'
+            type: array
+          - type: 'null'
+          title: Bundles
+        asset_uris:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderAssetUriInfo'
+            type: array
+          - type: 'null'
+          title: Asset Uris
+        dialects:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderDialectInfo'
+            type: array
+          - type: 'null'
+          title: Dialects
+        transfers:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderTransferInfo'
+            type: array
+          - type: 'null'
+          title: Transfers
+        connection_types:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderConnectionTypeInfo'
+            type: array
+          - type: 'null'
+          title: Connection Types
+        extra_links:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Extra Links
+        secrets_backends:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Secrets Backends
+        email_backends:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Email Backends
+        logging:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Logging
+        remote_logging:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderRemoteLoggingInfo'
+            type: array
+          - type: 'null'
+          title: Remote Logging
+        auth_backends:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Auth Backends
+        auth_managers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Auth Managers
+        notifications:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Notifications
+        executors:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Executors
+        db_managers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Db Managers
+        cli:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Cli
+        config:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/ProviderConfigSectionInfo'
+            type: object
+          - type: 'null'
+          title: Config
+        task_decorators:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderTaskDecoratorInfo'
+            type: array
+          - type: 'null'
+          title: Task Decorators
+        plugins:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderPluginInfo'
+            type: array
+          - type: 'null'
+          title: Plugins
+        queues:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Queues
+      type: object
+      title: ProviderInfoResponse
+      description: Typed provider metadata (from ``provider.yaml``) exposed by the
+        API.
+    ProviderIntegrationInfo:
+      properties:
+        integration_name:
+          type: string
+          title: Integration Name
+        external_doc_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Doc Url
+        how_to_guide:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: How To Guide
+        logo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logo
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+      type: object
+      required:
+      - integration_name
+      title: ProviderIntegrationInfo
+      description: Integration provided by a provider.
+    ProviderIntegrationModulesInfo:
+      properties:
+        integration_name:
+          type: string
+          title: Integration Name
+        python_modules:
+          items:
+            type: string
+          type: array
+          title: Python Modules
+      type: object
+      required:
+      - integration_name
+      - python_modules
+      title: ProviderIntegrationModulesInfo
+      description: Python modules an integration contributes for one kind of functionality.
+    ProviderPluginInfo:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        plugin_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plugin Class
+      type: object
+      title: ProviderPluginInfo
+      description: Plugin provided by a provider.
+    ProviderRemoteLoggingInfo:
+      properties:
+        classpath:
+          type: string
+          title: Classpath
+        scheme:
+          type: string
+          title: Scheme
+      type: object
+      required:
+      - classpath
+      - scheme
+      title: ProviderRemoteLoggingInfo
+      description: Remote logging IO handler provided by a provider.
     ProviderResponse:
       properties:
         package_name:
@@ -17453,6 +18168,44 @@ components:
       - documentation_url
       title: ProviderResponse
       description: Provider serializer for responses.
+    ProviderTaskDecoratorInfo:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Name
+      type: object
+      title: ProviderTaskDecoratorInfo
+      description: TaskFlow decorator provided by a provider.
+    ProviderTransferInfo:
+      properties:
+        source_integration_name:
+          type: string
+          title: Source Integration Name
+        target_integration_name:
+          type: string
+          title: Target Integration Name
+        python_module:
+          type: string
+          title: Python Module
+        how_to_guide:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: How To Guide
+      type: object
+      required:
+      - source_integration_name
+      - target_integration_name
+      - python_module
+      title: ProviderTransferInfo
+      description: Transfer operator provided by a provider.
     QueuedEventCollectionResponse:
       properties:
         queued_events:
@@ -17683,7 +18436,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -17900,10 +18652,7 @@ components:
           - type: string
           - type: 'null'
           title: State Reason
-          description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
+          description: The reason this try ended, as recorded by a retry policy.
       type: object
       required:
       - id
@@ -18108,9 +18857,9 @@ components:
           - type: 'null'
           title: State Reason
           description: 'The reason the task instance reached its current state, as
-            recorded by a retry policy. May describe a previous attempt: it is cleared
-            only when the task next starts running, so a task waiting to be retried
-            or re-run can still carry the reason its last attempt ended.'
+            recorded by a retry policy. May describe a previous attempt: a task waiting
+            to be retried still carries the reason its last attempt ended. It is cleared
+            when the task is cleared and when the next attempt is scheduled or deferred.'
       type: object
       required:
       - id
@@ -18401,7 +19150,6 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -18898,6 +19646,7 @@ components:
         key:
           type: string
           maxLength: 250
+          pattern: \S
           title: Key
         value:
           $ref: '#/components/schemas/JsonValue'

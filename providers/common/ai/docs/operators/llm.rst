@@ -213,9 +213,9 @@ Multimodal prompts
 may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
 ``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
 inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
-the full example. ``require_approval=True`` is not supported with a ``Sequence``
-prompt: the approval session model expects a string, and the task raises at the
-approval boundary.
+the full example. With ``require_approval=True``, the review shows the
+prompt's text and a placeholder such as ``[image/png, 2048 bytes]`` for each
+non-text part.
 
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -288,8 +288,9 @@ Parameters
   ``dict`` of the same fields (templated via Jinja, then coerced per field type).
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
-- ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review. Default ``False``. Needs Airflow 3.1+.
+- ``require_approval``: If ``True``, the task pauses after generating output and waits
+  for human review (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2).
+  Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
@@ -305,7 +306,7 @@ Parameters
 - ``approval_assigned_users``: Users allowed to answer the review, as
   ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
   ``None`` (default) lets any user with the permission respond.  Fixed at first
-  run.  Needs Airflow 3.1+.
+  run on Airflow 3.1 to 3.3; replaced on clear or retry from 3.4.  Needs Airflow 3.1+.
 
 Logging
 -------
@@ -314,3 +315,11 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the LLM output is also logged
 (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+The same request/token/cost counts are also pushed to XCom under the ``usage``
+key, the same shape ``AgentOperator`` uses. Alongside it, the operator pushes a
+``run_id`` XCom and stamps the task's identity on the run's GenAI spans, the
+same way ``AgentOperator`` does -- see :doc:`../observability` for how the join
+key and identity attributes work. Both XComs are pushed on a failed run too, so
+a downstream ``all_done`` task or failure callback can read what was spent, and
+which run, before it raised.

@@ -99,6 +99,7 @@ export const useFilterConfigs = () => {
     "common",
     "components",
     "admin",
+    "dashboard",
     "dags",
     "hitl",
   ]);
@@ -385,6 +386,7 @@ export const useFilterConfigs = () => {
       label: translate("dags:filters.pausedState"),
       options: [
         { label: translate("dags:filters.paused.active"), value: "not_paused" },
+        { label: translate("dashboard:stats.activeDags"), value: "active" },
         { label: translate("dags:draining.label"), value: "draining" },
         { label: translate("dags:filters.paused.paused"), value: "paused" },
       ],
@@ -512,6 +514,7 @@ export const useFilterConfigs = () => {
       label: translate("common:dagDetails.tags"),
       matchModeKey: SearchParamsKeys.TAGS_MATCH_MODE,
       placeholder: translate("common:table.tagPlaceholder"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.TASK_ID]: {

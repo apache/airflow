@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 from jinja2 import TemplateError
 
 from airflow.providers.common.ai.utils.output_type import dump_output_to_json
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
@@ -37,6 +38,8 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from pydantic_ai.messages import UserContent
 
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
@@ -114,7 +117,7 @@ class DeferForApprovalProtocol(Protocol):
     on_approval_timeout: Literal["fail", "approve", "reject"]
     approval_notifiers: Sequence[BaseNotifier]
     approval_assigned_users: list[HITLUser]
-    prompt: str
+    prompt: str | Sequence[UserContent]
     task_id: str
     defer: Any
 
@@ -147,15 +150,17 @@ class LLMApprovalMixin:
     ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
     notifier whose delivery raises is logged without failing the task, while a
     template error fails the task.  A retry re-runs the LLM and re-notifies
-    with the regenerated output, while the open review keeps the original
-    subject and body.
+    with the regenerated output.  On Airflow 3.4+ the reopened review shows the
+    regenerated output too; on Airflow 3.1 to 3.3 it keeps the original subject,
+    body and editable output, so approving it unedited returns the first
+    attempt's output.
 
     ``approval_assigned_users`` restricts the review to the named users, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
     ``assigned_users``.  Leaving it empty lets any user with the permission
-    respond.  The list is stored when the review is first created; clearing
-    the task re-runs it against the existing review row, so a changed list
-    does not take effect.
+    respond.  On Airflow 3.1 to 3.3 the list is stored when the review is first
+    created, so clearing the task after changing it does not take effect; on
+    3.4+ a cleared or retried task replaces it.
 
     Operators that use this mixin must set the following attributes:
 
@@ -165,7 +170,7 @@ class LLMApprovalMixin:
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``approval_assigned_users`` (``list[HITLUser]``)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
     """
 
     APPROVE = "Approve"
@@ -173,16 +178,7 @@ class LLMApprovalMixin:
     TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
 
     def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
-        """Fail fast when the prompt cannot be rendered as text in the approval review body."""
-        if not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                "The approval review body renders the prompt as text; passing a "
-                "Sequence[UserContent] would expose object reprs (and any embedded "
-                "bytes) in the human review UI. Return a str prompt, or disable "
-                "require_approval."
-            )
+        """Check the prompt before the review opens; the default accepts every prompt."""
 
     def defer_for_approval(
         self: DeferForApprovalProtocol,
@@ -238,7 +234,7 @@ class LLMApprovalMixin:
             subject = f"Review output for task `{self.task_id}`"
 
         if body is None:
-            body = f"```\nPrompt: {self.prompt}\n\n{output}\n```"
+            body = f"```\nPrompt: {describe_prompt(self.prompt)}\n\n{output}\n```"
 
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:

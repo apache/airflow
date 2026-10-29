@@ -263,7 +263,6 @@
     "title": "Stockage d'état de tâche"
   },
   "versions": {
-    "aboutThisComparison": "À propos de cette comparaison",
     "base": "Comparer depuis",
     "categories": {
       "asset": "Asset",
@@ -284,7 +283,6 @@
       "before": "Avant",
       "category": "Catégorie",
       "impact": "Impact",
-      "occurrences": "Occurrences",
       "operation": "Opération",
       "path": "Chemin"
     },
@@ -299,7 +297,6 @@
     "maxChanges": "Changements max.",
     "maxChangesDefault": "Par défaut",
     "noChanges": "Ces versions ont le même état.",
-    "observedStateBoundary": "Compare l'état actuellement stocké, et non les preuves au moment de la création. La comparaison des sources n'est pas disponible pour les versions historiques ; utilisez l'onglet Code pour comparer les sources.",
     "operations": {
       "added": "Ajouté",
       "changed": "Modifié",
@@ -313,10 +310,6 @@
     "summary_one": "{{count, number}} changement",
     "summary_other": "{{count, number}} changements",
     "target": "Comparer avec",
-    "truncated": {
-      "description": "Les changements aux chemins non affichés ont été supprimés pour rester dans la limite, donc le nombre est une borne inférieure.",
-      "title": "Certains changements n'ont pas été renvoyés"
-    },
     "unavailable": {
       "description": "Ces versions n'ont pas pu être comparées. Raison :",
       "title": "Comparaison indisponible",

@@ -20,10 +20,14 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
-from botocore.exceptions import WaiterError
+from botocore.exceptions import NoCredentialsError, WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterNoCredentialsError,
+    WaiterTerminalFailure,
+)
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger, SageMakerTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -213,6 +217,10 @@ class TestSagemakerTrigger:
                 id="unknown-status",
             ),
             pytest.param(
+                WaiterNoCredentialsError("SageMaker job failed"),
+                id="no-credentials",
+            ),
+            pytest.param(
                 AirflowException("SageMaker job failed"),
                 id="generic-error",
             ),
@@ -234,6 +242,59 @@ class TestSagemakerTrigger:
                 "job_name": JOB_NAME,
             }
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("errors", "expected_status", "expected_message"),
+        [
+            pytest.param(
+                [NoCredentialsError(), NoCredentialsError()],
+                "error",
+                "Waiter error: max attempts reached due to missing credentials: Unable to locate credentials",
+                id="no-credentials",
+            ),
+            pytest.param(
+                [
+                    WaiterError("test_waiter", "Max attempts exceeded", {}),
+                    WaiterError("test_waiter", "Max attempts exceeded", {}),
+                ],
+                "timeout",
+                "Waiter error: max attempts reached",
+                id="ordinary-exhaustion",
+            ),
+            pytest.param(
+                [WaiterError("test_waiter", "terminal failure", {"TrainingJobStatus": "Failed"})],
+                "failed",
+                "Error while waiting for training job: Failed\nWaiter test_waiter failed: terminal failure",
+                id="terminal-failure",
+            ),
+            pytest.param(
+                [AirflowException("Unexpected failure")],
+                "error",
+                "Unexpected failure",
+                id="generic-error",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
+    async def test_run_waiter_errors(
+        self, mock_async_conn, mock_get_waiter, errors, expected_status, expected_message
+    ):
+        mock_get_waiter.return_value.wait = AsyncMock(side_effect=errors)
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            waiter_delay=0,
+            waiter_max_attempts=2,
+            aws_conn_id=AWS_CONN_ID,
+        )
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent({"status": expected_status, "job_name": JOB_NAME, "message": expected_message})
+        ]
 
 
 class TestSagemakerPipelineTrigger:

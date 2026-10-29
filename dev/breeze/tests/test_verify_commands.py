@@ -32,6 +32,7 @@ from airflow_breeze.commands.verify_commands import (
     has_merged_commits_missing_from,
     verify,
 )
+from airflow_breeze.utils.shared_options import set_dry_run
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -172,6 +173,24 @@ def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: boo
     assert "CI also runs the full suite" not in " ".join(full.output.split())
     assert ("breeze testing core-tests" in " ".join(full.output.split())) is expanded
     assert "breeze testing core-tests" not in " ".join(result.output.split())
+
+
+@pytest.mark.parametrize(
+    ("files", "has_commands"),
+    [
+        (("README.md",), False),
+        (("airflow-core/docs/index.rst",), True),
+    ],
+)
+def test_table_is_shown_only_when_there_are_commands(files: tuple[str, ...], has_commands: bool):
+    with patch(
+        "airflow_breeze.commands.verify_commands.get_changed_files_against", autospec=True, return_value=files
+    ):
+        result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    output = " ".join(result.output.split())
+    assert ("What to run for this change" in output) is has_commands
+    assert ("No tests or docs builds to run locally for the changed files." in output) is not has_commands
 
 
 @patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)
@@ -342,3 +361,17 @@ def test_merged_commits_missing_from_the_base_are_warned_about(mock_files, mock_
     assert warning in " ".join(ANSI.sub("", stream).split())
     if as_json:
         assert json.loads(result.stdout)["base_ref"] == "upstream/main"
+
+
+@patch(
+    "airflow_breeze.utils.run_utils.subprocess.run",
+    autospec=True,
+    side_effect=[
+        CompletedProcess(args=[], returncode=0, stdout="abc123\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="file.py\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    ],
+)
+def test_changed_files_are_computed_in_dry_run(mock_subprocess_run):
+    set_dry_run(True)
+    assert get_changed_files_against("main") == ("file.py",)

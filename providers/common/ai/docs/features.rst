@@ -126,7 +126,7 @@ checklist.
        ``apache.iceberg`` extra for Iceberg
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Loads ``SKILL.md`` instruction bundles when the model asks for one.
-     - ``skills``; on Airflow 2, install ``pydantic-ai-skills``
+     - ``skills``; on Airflow 2, install ``pydantic-ai-skills>=1.2.0,<2``
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.
@@ -135,6 +135,10 @@ checklist.
    * - :doc:`ManagedAgentToolset <toolsets/managed_agent>`
      - Sends a prompt to an agent on Bedrock AgentCore or Vertex AI Agent Engine.
      - The Amazon or Google provider's ``common.ai`` extra
+   * - :doc:`Progressive tool disclosure <toolsets/progressive_disclosure>`
+     - Hides a toolset's tools from the model until it searches for them, with
+       ``.defer_loading()`` on any toolset.
+     - None
 
 Control output and spend
 ------------------------
@@ -243,7 +247,8 @@ Recover from failures
 Bring your own agent
 --------------------
 
-The Strands, ADK, Anthropic SDK and other-framework routes get every toolset except
+The Strands, ADK, Anthropic SDK, OpenAI Agents SDK, Claude Agent SDK and other-framework
+routes get every toolset except
 ``MCPToolset`` and ``AgentSkillsToolset``.
 
 .. list-table::
@@ -266,6 +271,14 @@ The Strands, ADK, Anthropic SDK and other-framework routes get every toolset exc
    * - :doc:`Anthropic SDK tool runner <frameworks/anthropic>`
      - Gives a loop on the Anthropic SDK's ``tool_runner`` the toolsets.
      - ``anthropic``
+   * - :doc:`OpenAI Agents SDK <frameworks/openai_agents>`
+     - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
+       replays its completed calls.
+     - None; install ``openai-agents``
+   * - :doc:`Claude Agent SDK <frameworks/claude_agent_sdk>`
+     - Gives the Claude Agent SDK's agent loop the toolsets through an in-process MCP
+       server.
+     - ``claude-agent-sdk``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
        :doc:`turns a toolset into LangChain tools <toolsets/langchain>`.
@@ -289,8 +302,8 @@ See what ran
      - Exports model and tool calls as OpenTelemetry spans.
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
-     - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and for ``@task.agent`` the token counts and an estimated cost.
+     - Shows the model on the task instance page of ``@task.agent`` and every ``@task.llm*``
+       task except ``@task.llm_batch``, and their token counts and an estimated cost.
      - None
 
 .. toctree::

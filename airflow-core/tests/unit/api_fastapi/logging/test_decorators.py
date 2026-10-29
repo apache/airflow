@@ -23,8 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Request
-from fastapi.dependencies.utils import get_flat_dependant
-from fastapi.routing import APIRoute
+from fastapi.dependencies.models import Dependant
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -32,6 +31,7 @@ from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
     _mask_variable_fields,
+    _mask_xcom_fields,
     _sanitize_for_stdlib_log,
     action_logging,
 )
@@ -41,6 +41,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_connections,
@@ -150,6 +151,20 @@ class TestMaskVariableFields:
     def test_value_without_key_is_still_masked(self):
         result = _mask_variable_fields({"value": "secretval"})
         assert result == {"value": "***"}
+
+
+class TestMaskXComFields:
+    """The XCom value is masked unconditionally in the audit log; the key and map index are kept."""
+
+    def test_masks_value(self):
+        result = _mask_xcom_fields({"key": "report_rows", "value": "payload", "map_index": -1})
+        assert result == {"key": "report_rows", "value": "***", "map_index": -1}
+
+    def test_masks_structured_value(self):
+        assert _mask_xcom_fields({"value": {"nested": ["payload"]}}) == {"value": "***"}
+
+    def test_body_without_value_is_unchanged(self):
+        assert _mask_xcom_fields({"xcom_key": "k", "map_index": 0}) == {"xcom_key": "k", "map_index": 0}
 
 
 class TestMaskBulkFields:
@@ -546,27 +561,31 @@ class TestActionLoggingUnparsableBody:
         assert logged.event == "test_event"
 
 
+def _has_body_params(dependant: Dependant) -> bool:
+    """Return True if the dependant or any of its sub-dependencies declares a body parameter."""
+    return bool(dependant.body_params) or any(_has_body_params(dep) for dep in dependant.dependencies)
+
+
 def _bodyless_action_logging_routes(app) -> list[tuple[str, str]]:
     """Every ``action_logging`` route that declares no request body of its own."""
     found = set()
 
     def _collect(route):
-        if not isinstance(route, APIRoute):
-            return
         uses_logging = any(
             getattr(dep.call, "__qualname__", "").startswith("action_logging")
             for dep in route.dependant.dependencies
         )
         if not uses_logging:
             return
-        if get_flat_dependant(route.dependant, skip_repeats=True).body_params:
+        if _has_body_params(route.dependant):
             return
         for method in route.methods or []:
             found.add((method, route.path))
 
-    for route in app.routes:
+    for route in iter_api_routes(app.routes):
         _collect(route)
-        for sub in getattr(getattr(route, "app", None), "routes", []) or []:
+    for mount in app.routes:
+        for sub in iter_api_routes(getattr(getattr(mount, "app", None), "routes", []) or []):
             _collect(sub)
     return sorted(found)
 

@@ -25,7 +25,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
-import { useTaskInstanceServiceGetLog } from "openapi/queries";
+import { useDeadlinesServiceGetCallbackLogs, useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
   StructuredLogMessage,
   TaskInstanceResponse,
@@ -195,7 +195,7 @@ export const parseLogs = ({
   }
 
   const flatEntries: Array<ParsedLogEntry> = (() => {
-    type Group = { id: number; level: number; name: string };
+    type Group = { headerIndex: number; id: number; level: number; name: string };
     const groupStack: Array<Group> = [];
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
@@ -221,7 +221,7 @@ export const parseLogs = ({
         const level = groupStack.length;
         const parentGroup = groupStack[groupStack.length - 1];
 
-        groupStack.push({ id, level, name: groupName });
+        groupStack.push({ headerIndex: result.length, id, level, name: groupName });
         result.push({
           element: groupName,
           group: { id, level, parentId: parentGroup?.id, type: "header" },
@@ -231,7 +231,12 @@ export const parseLogs = ({
       }
 
       if (text.includes("::endgroup::")) {
-        groupStack.pop();
+        const closedGroup = groupStack.pop();
+
+        // Hide groups that closed with nothing in them.
+        if (closedGroup !== undefined && result.length === closedGroup.headerIndex + 1) {
+          result.pop();
+        }
 
         return;
       }
@@ -313,6 +318,17 @@ const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number
   };
 };
 
+// Build a 1:1 searchable text array from parsedLogs so search indices align
+// with the rendered output. Each entry maps to exactly one line.
+const getSearchableText = (parsedLogs: Array<ParsedLogEntry> | undefined): Array<string> =>
+  (parsedLogs ?? []).map((entry) => {
+    if (typeof entry.element === "string") {
+      return entry.element;
+    }
+
+    return entry.element ? innerText(entry.element) : "";
+  });
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
@@ -367,15 +383,33 @@ export const useLogs = (
     tryNumber,
   });
 
-  // Build a 1:1 searchable text array from parsedLogs so search indices align
-  // with the rendered output. Each entry maps to exactly one line.
-  const searchableText: Array<string> = (parsedData.parsedLogs ?? []).map((entry) => {
-    if (typeof entry.element === "string") {
-      return entry.element;
-    }
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
-    return entry.element ? innerText(entry.element) : "";
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
+};
+
+type CallbackLogsProps = { callbackId: string; dagRunId: string } & Omit<
+  Props,
+  "accept" | "limit" | "taskInstance" | "tryNumber"
+>;
+
+export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions }: CallbackLogsProps) => {
+  const { t: translate } = useTranslation();
+
+  const { data, ...rest } = useDeadlinesServiceGetCallbackLogs({
+    accept: "application/x-ndjson",
+    callbackId,
+    dagId,
+    dagRunId,
   });
+
+  const parsedData = parseLogs({
+    data: parseStreamingLogContent(data),
+    ...displayOptions,
+    translate,
+    tryNumber: 1,
+  });
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
   return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };

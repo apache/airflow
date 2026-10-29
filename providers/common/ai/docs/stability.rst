@@ -69,6 +69,10 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
        later run can continue it. Cannot be combined with ``enable_hitl_review``.
+   * - ``emit_message_history`` on ``AgentOperator``
+     - Publishes the finished conversation under the ``message_history`` XCom key without
+       seeding the run. Defaults to ``True`` when ``message_history`` is set, and ``False``
+       stops a seeded run from publishing it. Cannot be combined with ``enable_hitl_review``.
    * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
        :class:`~airflow.providers.common.ai.durable.AirflowDurability`
        (:doc:`durable_execution`)
@@ -98,7 +102,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        types, a write nested inside the statement fails it too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
-       schema.
+       schema. ``datasource_config`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_file_analysis`` and
        :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
      - Reads the file at ``file_path``, or up to ``max_files`` files under a prefix,
@@ -116,6 +121,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        ``severity`` of ``critical``, ``warning`` or ``info``. ``context_strategy="basic"``
        sends columns only; ``"full"``, the default, adds keys and indexes for database
        sources.
+       ``data_sources`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_batch`` and
        :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
      - Submits ``requests`` to the batch API that the ``model_id`` prefix selects, writes
@@ -181,7 +188,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :data:`~airflow.providers.common.ai.policies.retry.DEFAULT_CATEGORIES`, whose seven
        names and their retry or fail split stay the same. When the model call fails, or
        ``min_confidence`` is set and the answer is under it or carries no confidence, the
-       policy uses the RETRY or FAIL of ``fallback_policy``, then ``fallback_rules``, then
+       policy uses the decision of ``fallback_policy``, then ``fallback_rules``, then
        the task's own retry settings. ``ErrorCategory.min_confidence`` overrides the
        policy's ``min_confidence`` for that one category. ``min_confidence`` only has an
        effect when the model reports a confidence, and that comes from the ``typesafe``
@@ -223,8 +230,9 @@ Everything this provider ships that is not in the table above is experimental.
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
        before their 1.0 releases.
    * - The Agent Skills toolset (:doc:`toolsets/skills`)
-     - It may move from ``pydantic-ai-skills`` to the on-demand loading Pydantic AI now has
-       itself (`pydantic/pydantic-ai#5230 <https://github.com/pydantic/pydantic-ai/pull/5230>`__).
+     - It is built on ``pydantic-ai-skills``, a community package. Whether it moves to
+       ``pydantic-ai-harness``'s ``Skills`` once that loads skill resources and scripts is
+       still open.
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
      - ``durable=True`` cannot be used with it yet, the ``sbx`` backend leaves its sandbox
@@ -249,10 +257,10 @@ Everything this provider ships that is not in the table above is experimental.
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
        OpenTelemetry GenAI conventions, which are still in development.
-   * - :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` used directly
+   * - :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`
        (:doc:`toolsets/logging`)
-     - The wrapper ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
-       may change.
+     - The capability ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
+       and behaviour may change.
    * - The Strands plugin, the ADK toolset and Strands checkpoint resume
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
@@ -260,6 +268,13 @@ Everything this provider ships that is not in the table above is experimental.
    * - The Anthropic tool runner adapter (:doc:`frameworks/anthropic`)
      - Built on ``tool_runner``, a beta helper of the Anthropic SDK that can change between
        SDK releases.
+   * - The OpenAI Agents SDK adapter, trace processor and ``run_durably``
+       (:doc:`frameworks/openai_agents`)
+     - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
+       its tool and runner APIs between minor releases.
+   * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
+     - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
+       into an error result the adapter has to work around.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)
