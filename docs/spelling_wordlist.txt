@@ -1771,6 +1771,8 @@ subprocess
 subprocesses
 subqueries
 subquery
+subresource
+subresources
 SubscriberClient
 subscriptionId
 substring
