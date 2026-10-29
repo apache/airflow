@@ -304,6 +304,12 @@ def test_worktree_labels_are_derived_from_checkout(tmp_path, monkeypatch, linked
             {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
             id="POSTGRES_DATA_VOLUME_PATH ignores the empty version of non-postgres backends",
         ),
+        pytest.param(
+            {},
+            {"fail_on_pending_provider_candidates": True},
+            {"FAIL_ON_PENDING_PROVIDER_CANDIDATES": "true"},
+            id="FAIL_ON_PENDING_PROVIDER_CANDIDATES reaches the constraints generation",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(

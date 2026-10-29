@@ -1306,45 +1306,6 @@ def _find_matching_milestone(repo: Repository, milestone_prefix: str) -> Milesto
         return None
 
 
-def _parse_milestone_version(title: str) -> tuple[int, int, int] | None:
-    """Parse version from milestone title like 'Airflow 3.1.8' or 'Airflow 3.2'."""
-    if not title.startswith("Airflow "):
-        return None
-    version_part = title.replace("Airflow ", "")
-    parts = version_part.split(".")
-    if len(parts) < 2:
-        return None
-    try:
-        major = int(parts[0])
-        minor = int(parts[1])
-        patch = int(parts[2]) if len(parts) > 2 else 0
-        return major, minor, patch
-    except ValueError:
-        return None
-
-
-def _find_latest_milestone(repo: Repository) -> Milestone | None:
-    """Find the latest (highest version) open milestone."""
-    try:
-        milestones = list(repo.get_milestones(state="open"))
-        # Filter for Airflow milestones and parse versions
-        airflow_milestones: list[tuple[Milestone, tuple[int, int, int]]] = []
-        for m in milestones:
-            version = _parse_milestone_version(m.title)
-            if version:
-                airflow_milestones.append((m, version))
-
-        if not airflow_milestones:
-            return None
-
-        # Sort by version (major, minor, patch) descending to get the latest
-        airflow_milestones.sort(key=lambda x: x[1], reverse=True)
-        return airflow_milestones[0][0]
-    except Exception as e:
-        console_print(f"[error]Failed to get milestones: {e}[/]")
-        return None
-
-
 def _get_mention(merged_by_login: str) -> str:
     """Get the mention string for a user."""
     return f"@{merged_by_login}" if merged_by_login and merged_by_login != "unknown" else "maintainer"

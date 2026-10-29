@@ -67,14 +67,8 @@ _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    import sqlalchemy
-    from packaging.version import Version
-
     is_psycopg3 = find_spec("psycopg") is not None
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
-
-    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
