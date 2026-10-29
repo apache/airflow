@@ -206,7 +206,7 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         dataset_refresh_id = str(external_id)
         if not self.wait_for_completion:
-            # get_job_result pushes the refresh id, the mixin calls it next.
+            # get_job_result pushes the refresh id.
             self.log.info("Triggered dataset refresh %s (fire-and-forget)", dataset_refresh_id)
             return
 
