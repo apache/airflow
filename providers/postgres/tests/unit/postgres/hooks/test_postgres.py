@@ -19,6 +19,12 @@ from __future__ import annotations
 
 import json
 import os
+import signal
+import threading
+import time
+import uuid
+from contextlib import closing
+from importlib.util import find_spec
 from unittest import mock
 
 import pandas as pd
@@ -27,8 +33,9 @@ import pytest
 import sqlalchemy
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, AirflowTaskTimeout
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
+from airflow.providers.postgres.hooks import postgres as postgres_module
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from tests_common.test_utils.common_sql import mock_db_hook
@@ -1372,3 +1379,196 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
             "fast_executemany=True has no effect when using psycopg3. "
             "psycopg3's executemany already uses pipelining for optimal performance."
         )
+
+
+@pytest.mark.skipif(find_spec("psycopg2") is None, reason="psycopg2 is not installed")
+class TestPostgresHookPsycopg2WaitCallback:
+    """The psycopg2 wait callback that lets on_kill and execution_timeout cancel a running statement."""
+
+    @pytest.fixture(autouse=True)
+    def use_psycopg2(self, monkeypatch):
+        monkeypatch.setattr(postgres_module, "USE_PSYCOPG3", False)
+
+    @staticmethod
+    def hook_recording_wait_callback() -> tuple[PostgresHook, list]:
+        import psycopg2.extensions
+
+        hook = mock_db_hook(PostgresHook)
+        seen: list = []
+        cursor = hook.get_conn().cursor.return_value
+        cursor.execute.side_effect = lambda *args, **kwargs: seen.append(
+            psycopg2.extensions.get_wait_callback()
+        )
+        return hook, seen
+
+    def test_wait_callback_is_installed_only_while_the_statement_runs(self):
+        import psycopg2.extensions
+
+        hook, seen = self.hook_recording_wait_callback()
+
+        hook.run(["select 1", "select 2"])
+
+        assert seen == [postgres_module._wait_select_cancel_on_interrupt] * 2
+        assert psycopg2.extensions.get_wait_callback() is None
+
+    def test_wait_callback_is_removed_when_the_statement_fails(self):
+        import psycopg2.extensions
+
+        hook = mock_db_hook(PostgresHook)
+        hook.get_conn().cursor.return_value.execute.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            hook.run("select 1")
+
+        assert psycopg2.extensions.get_wait_callback() is None
+
+    def test_wait_callback_is_not_installed_when_cancel_on_interrupt_is_disabled(self):
+        hook, seen = self.hook_recording_wait_callback()
+        hook.cancel_on_interrupt = False
+
+        hook.run("select 1")
+
+        assert seen == [None]
+
+    def test_wait_callback_is_not_installed_outside_the_main_thread(self):
+        hook, seen = self.hook_recording_wait_callback()
+
+        thread = threading.Thread(target=hook.run, args=("select 1",))
+        thread.start()
+        thread.join()
+
+        assert seen == [None]
+
+    def test_existing_wait_callback_is_kept(self):
+        import psycopg2.extensions
+
+        hook, seen = self.hook_recording_wait_callback()
+
+        def other_callback(conn):
+            pass
+
+        psycopg2.extensions.set_wait_callback(other_callback)
+        try:
+            hook.run("select 1")
+            assert psycopg2.extensions.get_wait_callback() is other_callback
+        finally:
+            psycopg2.extensions.set_wait_callback(None)
+        assert seen == [other_callback]
+
+    def test_wait_callback_cancels_the_statement_when_interrupted(self, mocker):
+        mocker.patch.object(postgres_module._psycopg2_extras, "wait_select", side_effect=AirflowTaskTimeout())
+        conn = mock.MagicMock()
+
+        with pytest.raises(AirflowTaskTimeout):
+            postgres_module._wait_select_cancel_on_interrupt(conn)
+
+        conn.cancel.assert_called_once_with()
+
+    def test_wait_callback_waits_in_wait_select(self, mocker):
+        wait_select = mocker.patch.object(postgres_module._psycopg2_extras, "wait_select")
+        conn = mock.MagicMock()
+
+        postgres_module._wait_select_cancel_on_interrupt(conn)
+
+        wait_select.assert_called_once_with(conn)
+        conn.cancel.assert_not_called()
+
+    def test_cancel_query_after_the_wait_callback_cancelled(self):
+        hook = mock_db_hook(PostgresHook)
+        cursor = mock.MagicMock(spec=["execute", "connection"])
+        cursor.connection.closed = 2
+        hook._running_cursor = cursor
+
+        assert hook.cancel_query() is True
+        cursor.connection.cancel.assert_not_called()
+
+    def test_cancel_query_on_an_open_connection(self):
+        hook = mock_db_hook(PostgresHook)
+        cursor = mock.MagicMock(spec=["execute", "connection"])
+        cursor.connection.closed = 0
+        hook._running_cursor = cursor
+
+        assert hook.cancel_query() is True
+        cursor.connection.cancel.assert_called_once_with()
+
+
+@pytest.mark.backend("postgres")
+@pytest.mark.skipif(find_spec("psycopg2") is None, reason="psycopg2 is not installed")
+class TestPostgresHookPsycopg2CancelRunningStatement:
+    """A long psycopg2 statement is cancelled on the server by on_kill and by execution_timeout."""
+
+    SLEEP_SECONDS = 20
+
+    @pytest.fixture(autouse=True)
+    def use_psycopg2(self, monkeypatch):
+        monkeypatch.setattr(postgres_module, "USE_PSYCOPG3", False)
+
+    @pytest.fixture
+    def signal_after(self):
+        """
+        Run a signal handler 0.5 s into the test, like the SIGTERM (on_kill) and SIGALRM (execution_timeout)
+        handlers of a task. SIGUSR1 is used so that the timers of pytest-timeouts are left alone.
+        """
+        previous = signal.getsignal(signal.SIGUSR1)
+        timers = []
+
+        def install(handler):
+            signal.signal(signal.SIGUSR1, handler)
+            timers.append(threading.Timer(0.5, os.kill, (os.getpid(), signal.SIGUSR1)))
+            timers[-1].start()
+
+        yield install
+        for timer in timers:
+            timer.cancel()
+        signal.signal(signal.SIGUSR1, previous)
+
+    def statement_is_running(self, tag: str) -> bool:
+        deadline = time.monotonic() + 5
+        with closing(PostgresHook().get_conn()) as conn, closing(conn.cursor()) as cur:
+            conn.autocommit = True
+            while True:
+                cur.execute(
+                    "SELECT count(*) FROM pg_stat_activity WHERE state = 'active' AND query LIKE %s "
+                    "AND pid <> pg_backend_pid()",
+                    (f"%{tag}%",),
+                )
+                running = cur.fetchone()[0] > 0
+                # A cancel request is asynchronous: give the server a moment to act on it
+                if not running or time.monotonic() > deadline:
+                    return running
+                time.sleep(0.1)
+
+    def test_statement_is_cancelled_when_the_execution_timeout_elapses(self, signal_after):
+        import psycopg2.extensions
+
+        tag = f"cancel-test-{uuid.uuid4().hex}"
+
+        def raise_timeout(signum, frame):
+            raise AirflowTaskTimeout()
+
+        signal_after(raise_timeout)
+        start = time.monotonic()
+        with pytest.raises(AirflowTaskTimeout):
+            PostgresHook().run(f"SELECT pg_sleep({self.SLEEP_SECONDS}) -- {tag}")
+
+        assert time.monotonic() - start < self.SLEEP_SECONDS / 2
+        assert not self.statement_is_running(tag)
+        assert psycopg2.extensions.get_wait_callback() is None
+
+    def test_statement_is_cancelled_by_cancel_query_from_a_signal_handler(self, signal_after):
+        import psycopg2.errors
+
+        tag = f"cancel-test-{uuid.uuid4().hex}"
+        hook = PostgresHook()
+
+        def cancel(signum, frame):
+            # What SQLExecuteQueryOperator.on_kill does when the task receives SIGTERM
+            assert hook.cancel_query() is True
+
+        signal_after(cancel)
+        start = time.monotonic()
+        with pytest.raises(psycopg2.errors.QueryCanceled):
+            hook.run(f"SELECT pg_sleep({self.SLEEP_SECONDS}) -- {tag}")
+
+        assert time.monotonic() - start < self.SLEEP_SECONDS / 2
+        assert not self.statement_is_running(tag)
