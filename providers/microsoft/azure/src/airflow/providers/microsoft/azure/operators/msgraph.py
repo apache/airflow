@@ -333,7 +333,7 @@ class MSGraphAsyncOperator(BaseOperator):
         for page in range(cursor["pages"] if cursor else 0):
             kept = task_state_store.get(f"{_PAGE_KEY_PREFIX}{page}")
             if not isinstance(kept, dict) or "result" not in kept:
-                self.remove_pages(task_state_store, cursor)
+                self._remove_pages(task_state_store, cursor)
                 raise MSGraphPageNotInTaskStateStoreError(
                     f"Page {page + 1} is no longer in the task state store, or was kept by an earlier "
                     "version of the provider, so the next try starts again from the first page."
