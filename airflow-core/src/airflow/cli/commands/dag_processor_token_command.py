@@ -84,7 +84,11 @@ def get_session_id_from_token(token: str | None, bundle_names: set[str]) -> UUID
     with contextlib.suppress(KeyError, TypeError, ValueError, jwt.PyJWTError):
         # Unverified: only trusted provisioners can write this file or Secret.
         claims = jwt.decode(token, options={"verify_signature": False})
-        if claims["scope"] == "dag_processor_session" and set(claims["dag_bundles"]) == bundle_names:
+        if (
+            claims["scope"] == "dag_processor_session"
+            and set(claims["dag_bundles"]) == bundle_names
+            and isinstance(claims["sub"], str)
+        ):
             return UUID(claims["sub"])
     return uuid6.uuid7()
 
@@ -106,7 +110,11 @@ def dag_processor_token(args) -> None:
 
     valid_for = args.valid_for or conf.getint("execution_api", "jwt_expiration_time")
     if args.kubernetes_secret:
-        with KubernetesSecretTokenStore(args.kubernetes_secret, args.kubernetes_namespace) as store:
+        try:
+            store = KubernetesSecretTokenStore(args.kubernetes_secret, args.kubernetes_namespace)
+        except ValueError as error:
+            raise SystemExit(str(error)) from None
+        with store:
             _run_token_rotation(
                 bundle_names,
                 valid_for,

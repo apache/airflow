@@ -62,9 +62,14 @@ class KubernetesSecretTokenStore:
                 raise ValueError
         except ValueError:
             raise ValueError("Kubernetes service port must be an integer between 1 and 65535") from None
+        ca_file = _SERVICE_ACCOUNT_DIRECTORY / "ca.crt"
+        try:
+            verify = ssl.create_default_context(cafile=str(ca_file))
+        except OSError as error:
+            raise ValueError(f"Could not load the Kubernetes cluster CA from {ca_file}: {error}") from None
         self._client = httpx2.Client(
             base_url=httpx2.URL(scheme="https", host=host, port=port_number),
-            verify=ssl.create_default_context(cafile=str(_SERVICE_ACCOUNT_DIRECTORY / "ca.crt")),
+            verify=verify,
             timeout=10,
             follow_redirects=False,
             trust_env=False,
