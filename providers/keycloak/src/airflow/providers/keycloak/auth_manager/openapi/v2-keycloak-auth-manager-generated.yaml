@@ -24,17 +24,7 @@ paths:
       tags:
       - KeycloakAuthManagerLogin
       summary: Login Cli
-      description: 'Start the browser login of a command-line client.
-
-
-        Keycloak redirects straight back to the client''s loopback ``redirect_uri``,
-        and the client
-
-        exchanges the code at ``/token/cli``. PKCE is required here rather than on
-        the Keycloak
-
-        client, because requiring it there would break the web login, which does not
-        use it.'
+      description: Start the browser login of a command-line client.
       operationId: login_cli
       parameters:
       - name: redirect_uri

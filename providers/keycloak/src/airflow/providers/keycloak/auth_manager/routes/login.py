@@ -58,11 +58,11 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_OAUTH_STATE,
     COOKIE_NAME_REFRESH_TOKEN,
 )
-from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
-from airflow.providers.keycloak.auth_manager.services.token import (
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
+    KeycloakAuthManager,
     is_cli_authorization_code_enabled,
-    is_cli_loopback_redirect_uri,
 )
+from airflow.providers.keycloak.auth_manager.services.token import is_cli_loopback_redirect_uri
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
@@ -113,13 +113,7 @@ def login_cli(
     code_challenge: Annotated[str, Query(pattern=r"^[A-Za-z0-9_-]{43}$")],
     code_challenge_method: str,
 ) -> RedirectResponse:
-    """
-    Start the browser login of a command-line client.
-
-    Keycloak redirects straight back to the client's loopback ``redirect_uri``, and the client
-    exchanges the code at ``/token/cli``. PKCE is required here rather than on the Keycloak
-    client, because requiring it there would break the web login, which does not use it.
-    """
+    """Start the browser login of a command-line client."""
     if not is_cli_authorization_code_enabled():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

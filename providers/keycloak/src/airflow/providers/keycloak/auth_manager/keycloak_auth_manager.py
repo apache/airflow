@@ -114,6 +114,10 @@ TEAM_SCOPED_RESOURCES = frozenset(
 )
 
 
+def is_cli_authorization_code_enabled() -> bool:
+    return conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False)
+
+
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     """
     Keycloak auth manager.
@@ -242,15 +246,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def get_cli_login_methods(self) -> CliLoginMethods:
-        methods = CliLoginMethods(
-            grant_types_supported=["password", "refresh_token"],
-            token_endpoint=f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+        token_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli"
+        if not is_cli_authorization_code_enabled():
+            return CliLoginMethods(
+                grant_types_supported=["password", "refresh_token"], token_endpoint=token_endpoint
+            )
+        return CliLoginMethods(
+            grant_types_supported=["password", "refresh_token", "authorization_code"],
+            code_challenge_methods_supported=["S256"],
+            authorization_endpoint=f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
+            token_endpoint=token_endpoint,
         )
-        if conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False):
-            methods.grant_types_supported.append("authorization_code")
-            methods.code_challenge_methods_supported = ["S256"]
-            methods.authorization_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli"
-        return methods
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser | None) -> KeycloakAuthManagerUser | None:
         # According to RFC6749 section 4.4.3, a refresh token should not be included when using
