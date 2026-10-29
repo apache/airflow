@@ -30,7 +30,7 @@ from moto import mock_aws
 import airflow.version
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -315,7 +315,12 @@ class TestS3DagBundle:
 
         assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "subproject1" / "dag_a.py").is_file()
-        assert (bundle.path / bundle.archive_etag_marker).is_file()
+        assert bundle._archive_etag_path().is_file()
+        assert sorted(path.relative_to(bundle.path).as_posix() for path in bundle.path.rglob("*")) == [
+            "dag_01.py",
+            "subproject1",
+            "subproject1/dag_a.py",
+        ]
         # the bucket also holds objects under S3_BUCKET_PREFIX that the archive does not
         # contain: staging used the archive alone, never a per-object sync
         assert not (bundle.path / S3_BUCKET_PREFIX / "dag_02.py").exists()
@@ -347,8 +352,9 @@ class TestS3DagBundle:
         # there is no fallback to a per-object sync, so a missing archive is fatal even
         # though this bucket does hold Dag objects under a prefix
         bundle = self._archive_bundle()
-        with pytest.raises(AirflowNotFoundException, match="does not exist"):
+        with pytest.raises(ClientError) as exc_info:
             bundle.initialize()
+        assert exc_info.value.response["Error"]["Code"] == "404"
 
     def test_refresh_raises_and_keeps_bundle_when_archive_is_corrupt(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
@@ -366,7 +372,7 @@ class TestS3DagBundle:
 
         # the bundle staged by the previous refresh is left untouched
         assert (bundle.path / "dag_01.py").is_file()
-        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
 
     def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
@@ -400,7 +406,7 @@ class TestS3DagBundle:
         # the previous bundle was moved back into place, and neither the backup nor the
         # staging directory was left behind
         assert (bundle.path / "dag_01.py").read_text() == "old"
-        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
 
     def test_refresh_removes_only_this_bundles_stale_staging_dir(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data"})
@@ -409,15 +415,19 @@ class TestS3DagBundle:
         bundle.initialize()
 
         storage_root = bundle.path.parent
-        stale = storage_root / f".{bundle.name}-archive-staging-dead"
+        state_dir = bundle._archive_state_dir()
+        stale = state_dir / "archive-staging-dead"
         stale.mkdir()
         (stale / "orphan.txt").write_text("left by a killed process")
-        other = storage_root / ".other-bundle-archive-staging-dead"
-        other.mkdir()
+        collided = storage_root / f".{bundle.name}-archive-staging-dead"
+        collided.mkdir()
+        other = storage_root / ".other" / "archive-staging-dead"
+        other.mkdir(parents=True)
 
         bundle.refresh()
 
         assert not stale.exists()
+        assert collided.is_dir()
         assert other.is_dir()
 
     def test_refresh_get_object_uses_head_etag(self, s3_bucket, s3_client):
@@ -426,7 +436,7 @@ class TestS3DagBundle:
         )
         bundle = self._archive_bundle()
         bundle.initialize()
-        marker = bundle.path / bundle.archive_etag_marker
+        marker = bundle._archive_etag_path()
         etag = marker.read_text()
         marker.unlink()
 
@@ -450,7 +460,7 @@ class TestS3DagBundle:
         )
         bundle = self._archive_bundle()
         bundle.initialize()
-        (bundle.path / bundle.archive_etag_marker).unlink()
+        bundle._archive_etag_path().unlink()
 
         error = ClientError(
             {"Error": {"Code": "PreconditionFailed", "Message": "precondition failed"}},
@@ -461,14 +471,9 @@ class TestS3DagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").is_file()
-        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
 
-    @pytest.mark.parametrize("drop_data_filter", [False, True])
-    def test_refresh_rejects_archive_member_that_escapes_bundle(
-        self, mocked_s3_resource, s3_client, drop_data_filter, monkeypatch
-    ):
-        if drop_data_filter:
-            monkeypatch.delattr(tarfile, "data_filter", raising=False)
+    def test_refresh_rejects_archive_member_that_escapes_bundle(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
         s3_client.put_object(
             Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"kept"})
@@ -487,14 +492,7 @@ class TestS3DagBundle:
         assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
         assert not (bundle.path.parent / "escape.py").exists()
 
-    def test_refresh_from_archive_without_data_filter(self, s3_bucket, s3_client, monkeypatch):
+    def test_archive_key_requires_tar_data_filter(self, monkeypatch):
         monkeypatch.delattr(tarfile, "data_filter", raising=False)
-        s3_client.put_object(
-            Bucket=S3_BUCKET_NAME,
-            Key=S3_ARCHIVE_KEY,
-            Body=_make_archive({"dag_01.py": b"test data", "nested/a.py": b"nested"}),
-        )
-        bundle = self._archive_bundle()
-        bundle.initialize()
-        assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
-        assert (bundle.path / "nested" / "a.py").read_bytes() == b"nested"
+        with pytest.raises(RuntimeError, match="3.11.4"):
+            self._archive_bundle()
