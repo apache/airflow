@@ -18,7 +18,14 @@
  */
 import { useMemo, useState } from "react";
 
-import { createListCollection, Flex, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
+import {
+  createListCollection,
+  Field,
+  Flex,
+  type SelectValueChangeDetails,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
@@ -88,29 +95,39 @@ const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectPro
     return undefined;
   }
 
+  // Laid out as a form row like Logical Date and the run parameters below it, rather than a
+  // label stacked over a full-width control.
   return (
-    <Select.Root
-      collection={recentConfigOptions}
-      data-testid="recent-config-select"
-      onValueChange={handleValueChange}
-      size="sm"
-      value={selectedValue}
-    >
-      <Select.Label fontSize="xs">{translate("triggerDag.recentConfig")}</Select.Label>
-      <Select.Trigger>
-        <Select.ValueText placeholder={translate("triggerDag.recentConfigPlaceholder")} />
-      </Select.Trigger>
-      <Select.Content maxH="200px" overflowY="auto">
-        {recentConfigOptions.items.map((option) => (
-          <Select.Item item={option} key={option.run.dag_run_id}>
-            <Flex justifyContent="space-between" width="100%">
-              <Text>{option.run.dag_run_id}</Text>
-              <Time datetime={option.run.run_after} />
-            </Flex>
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+    <Field.Root orientation="horizontal">
+      <Stack>
+        <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+          {translate("triggerDag.recentConfig")}
+        </Field.Label>
+      </Stack>
+      <Stack css={{ flexBasis: "70%" }}>
+        <Select.Root
+          collection={recentConfigOptions}
+          data-testid="recent-config-select"
+          onValueChange={handleValueChange}
+          size="sm"
+          value={selectedValue}
+        >
+          <Select.Trigger>
+            <Select.ValueText placeholder={translate("triggerDag.recentConfigPlaceholder")} />
+          </Select.Trigger>
+          <Select.Content maxH="200px" overflowY="auto">
+            {recentConfigOptions.items.map((option) => (
+              <Select.Item item={option} key={option.run.dag_run_id}>
+                <Flex justifyContent="space-between" width="100%">
+                  <Text>{option.run.dag_run_id}</Text>
+                  <Time datetime={option.run.run_after} />
+                </Flex>
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Stack>
+    </Field.Root>
   );
 };
 
