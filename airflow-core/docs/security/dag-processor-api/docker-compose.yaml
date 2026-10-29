@@ -25,6 +25,10 @@ services:
       USER: airflow
       AIRFLOW_CONFIG: /tmp/airflow.cfg
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      # Parsing rejects a task whose executor is not configured here, so match the trusted deployment.
+      # The default matches the quick-start; multi-team deployments also set AIRFLOW__CORE__MULTI_TEAM.
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-CeleryExecutor}
+      AIRFLOW__CORE__MULTI_TEAM: ${AIRFLOW__CORE__MULTI_TEAM:-False}
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
       AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE: /run/dag-processor/processor.jwt
       AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH: /tmp/dag-bundles
