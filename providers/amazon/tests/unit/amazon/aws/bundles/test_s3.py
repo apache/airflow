@@ -462,3 +462,39 @@ class TestS3DagBundle:
 
         assert (bundle.path / "dag_01.py").is_file()
         assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
+
+    @pytest.mark.parametrize("drop_data_filter", [False, True])
+    def test_refresh_rejects_archive_member_that_escapes_bundle(
+        self, mocked_s3_resource, s3_client, drop_data_filter, monkeypatch
+    ):
+        if drop_data_filter:
+            monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"kept"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=S3_ARCHIVE_KEY,
+            Body=_make_archive({"../escape.py": b"nope"}),
+        )
+        with pytest.raises(tarfile.TarError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
+        assert not (bundle.path.parent / "escape.py").exists()
+
+    def test_refresh_from_archive_without_data_filter(self, s3_bucket, s3_client, monkeypatch):
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=S3_ARCHIVE_KEY,
+            Body=_make_archive({"dag_01.py": b"test data", "nested/a.py": b"nested"}),
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
+        assert (bundle.path / "nested" / "a.py").read_bytes() == b"nested"
