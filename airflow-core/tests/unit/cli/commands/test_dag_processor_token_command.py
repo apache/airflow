@@ -183,6 +183,10 @@ class TestDagProcessorTokenCommand:
             self._run(*args)
         store.assert_not_called()
 
+    def test_reports_invalid_kubernetes_settings_as_an_exit_message(self):
+        with pytest.raises(SystemExit, match="namespace must be a DNS label"):
+            self._run("--kubernetes-secret", "processor", "--kubernetes-namespace", "Processors")
+
 
 class TestKubernetesTokenCommand:
     @pytest.fixture
@@ -255,6 +259,24 @@ class TestKubernetesTokenCommand:
         assert first["sub"] == second["sub"]
         assert first["jti"] != second["jti"]
         assert store.read_token.call_count == 2
+        assert mock_sleep.call_args_list == [mock.call(60), mock.call(60)]
+
+    @mock.patch.object(
+        dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
+    )
+    def test_rotation_replaces_a_secret_holding_a_non_string_session(self, mock_sleep, secret_store):
+        store, published = secret_store
+        foreign = jwt.encode(
+            {"scope": "dag_processor_session", "dag_bundles": ["bundle_a", "bundle_b"], "sub": 123},
+            "another-writer-secret-of-32-bytes",
+            algorithm="HS256",
+        )
+        store.read_token.side_effect = [None, foreign]
+        with pytest.raises(_StopRotation):
+            self._run("--valid-for", "120", "--rotate")
+
+        first, second = map(_decode, published)
+        assert second["sub"] != first["sub"]
         assert mock_sleep.call_args_list == [mock.call(60), mock.call(60)]
 
     @mock.patch.object(

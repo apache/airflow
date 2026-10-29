@@ -124,6 +124,16 @@ def test_uses_cluster_ca_and_bounded_direct_requests(make_store, service_account
     assert store._client.is_closed
 
 
+def test_reports_the_path_of_a_missing_cluster_ca(service_account_directory, monkeypatch):
+    monkeypatch.setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
+    monkeypatch.setenv("KUBERNETES_SERVICE_PORT", "443")
+
+    with pytest.raises(ValueError, match="Could not load the Kubernetes cluster CA from") as error:
+        KubernetesSecretTokenStore("processor-session", "dag-processors")
+
+    assert str(service_account_directory / "ca.crt") in str(error.value)
+
+
 @pytest.mark.parametrize(
     ("host", "https_port", "service_port", "endpoint"),
     [
@@ -340,20 +350,22 @@ def test_rejects_empty_session_token(make_store):
 
 
 @pytest.mark.parametrize(
-    ("secret_name", "namespace"),
+    ("secret_name", "namespace", "message"),
     [
-        ("", "processors"),
-        ("../other-secret", "processors"),
-        ("secret/another", "processors"),
-        ("secret..name", "processors"),
-        ("Secret", "processors"),
-        ("s" * 254, "processors"),
-        ("secret", ""),
-        ("secret", "another/namespace"),
-        ("secret", "processor.example"),
-        ("secret", "n" * 64),
+        ("", "processors", "Secret name must be a DNS subdomain"),
+        ("../other-secret", "processors", "Secret name must be a DNS subdomain"),
+        ("secret/another", "processors", "Secret name must be a DNS subdomain"),
+        ("secret..name", "processors", "Secret name must be a DNS subdomain"),
+        ("Secret", "processors", "Secret name must be a DNS subdomain"),
+        ("s" * 254, "processors", "Secret name must be a DNS subdomain"),
+        ("secret", "", "namespace must be a DNS label"),
+        ("secret", "another/namespace", "namespace must be a DNS label"),
+        ("secret", "processor.example", "namespace must be a DNS label"),
+        ("secret", "n" * 64, "namespace must be a DNS label"),
     ],
 )
-def test_rejects_invalid_secret_or_namespace_names(secret_name, namespace):
-    with pytest.raises(ValueError, match="Kubernetes"):
+def test_rejects_invalid_secret_or_namespace_names(monkeypatch, secret_name, namespace, message):
+    monkeypatch.setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
+    monkeypatch.setenv("KUBERNETES_SERVICE_PORT", "443")
+    with pytest.raises(ValueError, match=message):
         KubernetesSecretTokenStore(secret_name, namespace)
