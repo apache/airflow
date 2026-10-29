@@ -647,8 +647,7 @@ class FileTaskHandler(logging.Handler):
 
         out_metadata: LogMetadata = {"end_of_log": end_of_log}
         if not end_of_log:
-            # Only an unfinished read needs log_pos for the continuation token, and counting
-            # lines drains the stream eagerly, so finished reads stream straight through.
+            # Counting lines for log_pos drains the stream; skip when no token is needed.
             with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
                 out_metadata["log_pos"] = stream_accumulator.total_lines
                 out_stream = stream_accumulator.stream
