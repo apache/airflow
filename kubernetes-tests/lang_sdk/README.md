@@ -25,8 +25,11 @@ Two end-to-end tests exercise every lang-SDK coordinator (Go, Java, TypeScript) 
 - **`test_lang_sdk_mixed_language.py`** runs one Dag mixing **Python + Go + Java + TypeScript**
   tasks, using the `extra.pod_template_file` routing in the `[sdk] coordinators` config.
 - **`test_lang_sdk_native_dag.py`** runs one Dag **declared entirely in each language SDK** (no
-  Python file at all): the Dag processor asks the packed Java jar / TypeScript bundle to parse
-  itself. Go has no native Dag parsing support yet, so its class is unconditionally skipped.
+  Python file at all): the Dag processor asks the packed Go binary / Java jar / TypeScript bundle
+  to parse itself.
+
+Both files name their classes `TestLangSdk*`, because the CI job that provisions this environment
+selects its tests with `-k TestLangSdk`.
 
 Every coordinator is configured once, with no `[sdk] dag_bundle_to_coordinator` entry needed:
 with exactly one coordinator per language, there is nothing to disambiguate.
@@ -46,6 +49,7 @@ with exactly one coordinator per language, there is nothing to disambiguate.
                                               then marks the matched file executable) → forks the
                                               Go binary / Java jar / TypeScript bundle
 
+   lang-sdk-native-go   ── S3DagBundle ──► dag-processor runs the binary (go-sdk coordinator)
    lang-sdk-native-java ── S3DagBundle ──► dag-processor parses the jar  (java-sdk coordinator)
    lang-sdk-native-ts   ── S3DagBundle ──► dag-processor parses the bundle (ts-sdk coordinator)
 ```
@@ -61,7 +65,7 @@ Key points:
   that excludes everything in them, so the Dag processor never tries to parse the packed Go bundle
   or the Java/TypeScript handler-only bundles as Dags. A coordinator's own artifact lookup does not
   read `.airflowignore`, so stub tasks still find their handlers there.
-- `lang-sdk-native-java` and `lang-sdk-native-ts` carry no such file: parsing them is the point.
+- The three `lang-sdk-native-*` buckets carry no such file: parsing them is the point.
 
 ## Components
 
@@ -79,15 +83,15 @@ Key points:
 
 The Go binary, Java jar, TypeScript bundle and the Dag files share one object store (localstack)
 but live in **separate buckets** (`go-task-handlers`, `java-task-handlers`, `ts-task-handlers`,
-`dags`, `lang-sdk-native-java`, `lang-sdk-native-ts`).
+`dags`, `lang-sdk-native-go`, `lang-sdk-native-java`, `lang-sdk-native-ts`).
 
 The native TypeScript bundle is `ts-sdk/example`, packed by `airflow-ts-pack`. It carries both
 halves of that example: the handlers for the Python-declared `typescript_example` Dag, and the
 natively declared `typescript_native_example`. `typescript_example.py` is uploaded to the `dags`
 bucket too, because the native Dag's trigger task starts a run of it and waits for that run,
 deferring to `DagStateTrigger` in the Python triggerer. The test un-pauses `typescript_example`
-for that reason. The native Java Dag reuses `airflow-e2e-tests/java-native-bundle`, the same fixture
-the compose e2e builds.
+for that reason. The native Java Dag reuses `airflow-e2e-tests/java-native-bundle` and the native
+Go Dags reuse `go-sdk/example/native`, the same fixtures the compose e2e builds.
 
 ## Which SDK sources get built
 

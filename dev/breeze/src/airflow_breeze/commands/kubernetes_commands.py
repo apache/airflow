@@ -2548,6 +2548,9 @@ LANG_SDK_PATH = AIRFLOW_ROOT_PATH / "kubernetes-tests" / "lang_sdk"
 # ts_example is a standalone pnpm project that resolves the SDK through a file: dependency.
 LANG_SDK_GO_EXAMPLE_PATH = LANG_SDK_PATH / "go_example"
 LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_mixed_language"
+# The native Go Dag fixture the compose e2e also packs; a package of the go-sdk module itself.
+LANG_SDK_GO_NATIVE_BUNDLE_PKG = "./example/native"
+LANG_SDK_GO_NATIVE_BUNDLE_NAME = "go_native_dags"
 LANG_SDK_JAVA_EXAMPLE_PATH = LANG_SDK_PATH / "java_example"
 # The reusable native Java Dag fixture the compose e2e also builds.
 LANG_SDK_JAVA_NATIVE_BUNDLE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-native-bundle"
@@ -2679,7 +2682,12 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
 def _lang_sdk_build_go_bundle(
     staging: Path, go_sdk_source: Path, output: Output | None, *, native: bool = False
 ) -> None:
-    """Build the Go bundle into ``staging/go-task-handlers`` and copy the result into the staging dir.
+    """Pack the mixed-language Go bundle and the native Go Dag bundle into their staging dirs.
+
+    ``go_example`` holds the handlers of the mixed-language Dag's stub tasks
+    (``staging/go-task-handlers``). ``go-sdk/example/native`` declares the ``go_native_*`` Dags with
+    no Python file, and is packed into ``staging/lang-sdk-native-go``, where the Dag processor
+    parses it.
 
     By default the build runs in an ephemeral Go toolchain container so the host needs no Go install,
     writing its caches into a gitignored dir under the repo. In ``native`` mode (used in CI, where the
@@ -2694,17 +2702,22 @@ def _lang_sdk_build_go_bundle(
     """
     go_dir = staging / "go-task-handlers"
     go_dir.mkdir(parents=True, exist_ok=True)
+    native_go_dir = staging / "lang-sdk-native-go"
+    native_go_dir.mkdir(parents=True, exist_ok=True)
     example_rel = LANG_SDK_GO_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH)
     workspace = staging / "go_workspace"
     example_path = workspace / example_rel
+    go_sdk_path = workspace / "go-sdk"
     example_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(LANG_SDK_GO_EXAMPLE_PATH, example_path, ignore=shutil.ignore_patterns(".home"))
     # In dry-run the fetch/extract commands are skipped, so the extracted copy and build outputs
     # never materialize -- skip the filesystem work that depends on them.
     if not get_dry_run():
-        shutil.copytree(go_sdk_source, workspace / "go-sdk")
+        shutil.copytree(go_sdk_source, go_sdk_path)
     output_bin = example_path / "bin" / LANG_SDK_GO_BUNDLE_NAME
     output_bin.parent.mkdir(parents=True, exist_ok=True)
+    native_output_bin = go_sdk_path / "bin" / LANG_SDK_GO_NATIVE_BUNDLE_NAME
+    native_output_bin.parent.mkdir(parents=True, exist_ok=True)
 
     # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker. The package built is
     # the current dir (".") because go_example is its own module.
@@ -2725,6 +2738,20 @@ def _lang_sdk_build_go_bundle(
             output=output,
             check=True,
         )
+        run_command(
+            [
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                str(native_output_bin),
+                LANG_SDK_GO_NATIVE_BUNDLE_PKG,
+            ],
+            cwd=go_sdk_path,
+            env=go_env,
+            output=output,
+            check=True,
+        )
     else:
         uid_gid = f"{os.getuid()}:{os.getgid()}"
         go_example_ctr = f"/repo/{example_rel.as_posix()}"
@@ -2733,30 +2760,33 @@ def _lang_sdk_build_go_bundle(
         # the real go_example's gitignored cache dir so the caches persist across scratch workspaces.
         (LANG_SDK_GO_EXAMPLE_PATH / ".home").mkdir(parents=True, exist_ok=True)
         get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
-        docker_base = [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            uid_gid,
-            "-e",
-            f"HOME={go_example_ctr}/.home",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            "-v",
-            f"{workspace}:/repo",
-            "-v",
-            f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
-            "-w",
-            go_example_ctr,
-            LANG_SDK_GO_BUILDER_IMAGE,
-        ]
-        run_command([*docker_base, "go", "mod", "tidy"], output=output, check=True)
+
+        def docker_base(workdir: str) -> list[str]:
+            return [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                uid_gid,
+                "-e",
+                f"HOME={go_example_ctr}/.home",
+                "-e",
+                "USER=airflow",
+                "-e",
+                "CGO_ENABLED=0",
+                "-v",
+                f"{workspace}:/repo",
+                "-v",
+                f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
+                "-w",
+                workdir,
+                LANG_SDK_GO_BUILDER_IMAGE,
+            ]
+
+        run_command([*docker_base(go_example_ctr), "go", "mod", "tidy"], output=output, check=True)
         run_command(
             [
-                *docker_base,
+                *docker_base(go_example_ctr),
                 "go",
                 "tool",
                 "airflow-go-pack",
@@ -2767,8 +2797,22 @@ def _lang_sdk_build_go_bundle(
             output=output,
             check=True,
         )
+        run_command(
+            [
+                *docker_base("/repo/go-sdk"),
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                f"/repo/go-sdk/bin/{LANG_SDK_GO_NATIVE_BUNDLE_NAME}",
+                LANG_SDK_GO_NATIVE_BUNDLE_PKG,
+            ],
+            output=output,
+            check=True,
+        )
     if not get_dry_run():
         shutil.copy(output_bin, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+        shutil.copy(native_output_bin, native_go_dir / LANG_SDK_GO_NATIVE_BUNDLE_NAME)
 
 
 def _lang_sdk_build_ts_bundles(staging: Path, output: Output | None, *, native: bool = False) -> None:
@@ -3047,7 +3091,7 @@ def _lang_sdk_upload_artifacts(
     ``.airflowignore`` that excludes everything in it, so the Dag processor never tries to
     parse the packed Go bundle or the Java/TypeScript handler-only bundles as Dags -- a
     coordinator's own artifact lookup does not read ``.airflowignore``, so stub tasks still
-    find their handlers there. The two ``lang-sdk-native-*`` buckets carry no such file.
+    find their handlers there. The three ``lang-sdk-native-*`` buckets carry no such file.
     """
     pod = run_command_with_k8s_env(
         [
@@ -3070,6 +3114,7 @@ def _lang_sdk_upload_artifacts(
     ).stdout.strip()
 
     go_bundle = staging / "go-task-handlers" / LANG_SDK_GO_BUNDLE_NAME
+    native_go_bundle = staging / "lang-sdk-native-go" / LANG_SDK_GO_NATIVE_BUNDLE_NAME
     native_ts_bundle = staging / "lang-sdk-native-ts" / LANG_SDK_TS_BUNDLE_NAME
     handler_ts_bundle = staging / "ts-task-handlers" / LANG_SDK_TS_BUNDLE_NAME
     if get_dry_run():
@@ -3096,12 +3141,14 @@ def _lang_sdk_upload_artifacts(
         (downstream_dag, "/tmp/typescript_example.py"),
         (native_java_jar, "/tmp/native_app.jar"),
         (native_ts_bundle, "/tmp/native_bundle.min.mjs"),
+        (native_go_bundle, "/tmp/native_go_bundle"),
     ]
     buckets = [
         "go-task-handlers",
         "java-task-handlers",
         "ts-task-handlers",
         "dags",
+        "lang-sdk-native-go",
         "lang-sdk-native-java",
         "lang-sdk-native-ts",
     ]
@@ -3116,6 +3163,7 @@ def _lang_sdk_upload_artifacts(
         ("/tmp/typescript_example.py", "s3://dags/typescript_example.py"),
         ("/tmp/native_app.jar", f"s3://lang-sdk-native-java/{native_java_jar.name}"),
         ("/tmp/native_bundle.min.mjs", f"s3://lang-sdk-native-ts/{LANG_SDK_TS_BUNDLE_NAME}"),
+        ("/tmp/native_go_bundle", f"s3://lang-sdk-native-go/{LANG_SDK_GO_NATIVE_BUNDLE_NAME}"),
     ]
 
     for src, dest in copies:
