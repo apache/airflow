@@ -65,4 +65,9 @@ class AzureAISearchIndexingError(AirflowException):
 
 
 class MSGraphPageNotInTaskStateStoreError(AirflowException):
-    """Raised when a page kept by a durable MSGraphAsyncOperator is no longer in the task state store."""
+    """
+    Raised when the pages kept by a durable MSGraphAsyncOperator cannot be read back from the task state store.
+
+    A page is gone, or an earlier version of the provider kept the pages; the next try starts again from the
+    first page.
+    """

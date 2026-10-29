@@ -84,6 +84,11 @@ def users_operator(**kwargs) -> MSGraphAsyncOperator:
     )
 
 
+def kept_cursor(pages: int = 1) -> dict[str, Any]:
+    """A cursor as this version of the provider keeps it, pointing at the next page."""
+    return {"version": 1, "url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": pages}
+
+
 class TestMSGraphAsyncOperator:
     def test_execute_with_old_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
@@ -576,7 +581,12 @@ class TestDurableMSGraphAsyncOperator:
         users = json.loads(users_event("users.json")["response"])
         assert task_state_store.values == {
             f"{_PAGE_KEY_PREFIX}0": {"result": users["value"]},
-            _CURSOR_KEY: {"url": users["@odata.nextLink"], "query_parameters": None, "pages": 1},
+            _CURSOR_KEY: {
+                "version": 1,
+                "url": users["@odata.nextLink"],
+                "query_parameters": None,
+                "pages": 1,
+            },
         }
         assert exc.value.trigger.url == users["@odata.nextLink"]
         context["ti"].xcom_push.assert_not_called()
@@ -599,7 +609,7 @@ class TestDurableMSGraphAsyncOperator:
         operator = users_operator(durable=True)
         task_state_store = TaskStateStore(
             **{f"{_PAGE_KEY_PREFIX}{page}": {"result": [{"id": str(page)}]} for page in range(3)},
-            **{_CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 3}},
+            **{_CURSOR_KEY: kept_cursor(pages=3)},
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
 
@@ -612,6 +622,7 @@ class TestDurableMSGraphAsyncOperator:
     def test_execute_resumes_at_the_kept_link(self):
         operator = users_operator(durable=True, query_parameters={"$top": 12})
         cursor = {
+            "version": 1,
             "url": "users/delta()?$skiptoken=abc",
             "query_parameters": {"$top": 12, "$skip": 12},
             "pages": 1,
@@ -634,7 +645,7 @@ class TestDurableMSGraphAsyncOperator:
         task_state_store = TaskStateStore(
             **{
                 f"{_PAGE_KEY_PREFIX}0": {"result": first_page},
-                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                _CURSOR_KEY: kept_cursor(),
                 "written_by_the_dag": "kept",
             }
         )
@@ -650,7 +661,7 @@ class TestDurableMSGraphAsyncOperator:
         task_state_store = TaskStateStore(
             **{
                 f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
-                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 2},
+                _CURSOR_KEY: kept_cursor(pages=2),
                 "written_by_the_dag": "kept",
             }
         )
@@ -661,20 +672,47 @@ class TestDurableMSGraphAsyncOperator:
 
         assert task_state_store.values == {"written_by_the_dag": "kept"}
 
-    def test_page_kept_unwrapped_by_an_earlier_version_fails_and_removes_the_pages(self):
+    @pytest.mark.parametrize(
+        "page",
+        [[{"id": "0"}], {"result": "value", "metadata": "keep"}],
+        ids=["list", "dict_with_a_result_key"],
+    )
+    @pytest.mark.parametrize("event", ["users.json", "next_users.json"], ids=["next_page", "last_page"])
+    def test_pages_kept_by_an_earlier_version_fail_and_are_removed(self, page, event):
+        """15.3.0rc1 kept the pages unwrapped, under a cursor without a version."""
         operator = users_operator(durable=True)
         task_state_store = TaskStateStore(
             **{
-                f"{_PAGE_KEY_PREFIX}0": [{"id": "0"}],
+                f"{_PAGE_KEY_PREFIX}0": page,
                 _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
 
         with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="earlier version of the provider"):
-            operator.execute_complete(context=context, event=users_event("next_users.json"))
+            operator.execute_complete(context=context, event=users_event(event))
 
-        assert task_state_store.values == {}
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+        context["ti"].xcom_push.assert_not_called()
+
+    def test_execute_removes_the_pages_kept_by_an_earlier_version_and_starts_again(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": "value", "metadata": "keep"},
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.trigger.url == operator.url
+        assert exc.value.trigger.pagination_link is False
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
 
     def test_keeps_the_result_of_a_request_that_is_not_a_get(self):
         operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
@@ -690,7 +728,7 @@ class TestDurableMSGraphAsyncOperator:
         task_state_store = TaskStateStore(
             **{
                 f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
-                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                _CURSOR_KEY: kept_cursor(),
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}

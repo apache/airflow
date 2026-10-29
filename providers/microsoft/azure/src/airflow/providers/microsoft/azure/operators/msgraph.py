@@ -49,11 +49,15 @@ if TYPE_CHECKING:
 _CURSOR_KEY = "msgraph_cursor"
 _PAGE_KEY_PREFIX = "msgraph_page_"
 _COMPLETED_KEY = "msgraph_completed"
+# The version of the kept pages and their cursor. 15.3.0rc1 kept the pages unwrapped, under a cursor without
+# a version; a cursor of another version is not read back, its pages go and the pagination starts again.
+_CURSOR_VERSION = 1
 
 
 class _PaginationCursor(TypedDict):
     """Where a durable MSGraphAsyncOperator continues: the next link and the number of pages kept."""
 
+    version: int
     url: str
     query_parameters: dict[str, Any] | None
     pages: int
@@ -199,12 +203,19 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.log.info("Returning the result of the request completed by an earlier try.")
                 return cast("dict[str, Any]", completed)["result"]
             if cursor := self.get_cursor(task_state_store):
-                self.log.info("Resuming at page %s: %s", cursor["pages"] + 1, cursor["url"])
-                self.defer_to_next_link(
-                    url=cursor["url"],
-                    query_parameters=cursor["query_parameters"],
-                    method_name=self.execute_complete.__name__,
-                )
+                if cursor.get("version") != _CURSOR_VERSION:
+                    self.log.info(
+                        "Removing the pages kept by an earlier version of the provider, "
+                        "starting again from the first page."
+                    )
+                    self._remove_pages(task_state_store, cursor)
+                else:
+                    self.log.info("Resuming at page %s: %s", cursor["pages"] + 1, cursor["url"])
+                    self.defer_to_next_link(
+                        url=cursor["url"],
+                        query_parameters=cursor["query_parameters"],
+                        method_name=self.execute_complete.__name__,
+                    )
         elif self.durable:
             self.log.warning(
                 "task_state_store not available in context, crash recovery is disabled for this run"
@@ -318,6 +329,25 @@ class MSGraphAsyncOperator(BaseOperator):
     def get_cursor(task_state_store: TaskStateStoreAccessor) -> _PaginationCursor | None:
         return cast("_PaginationCursor | None", task_state_store.get(_CURSOR_KEY))
 
+    def _get_cursor_of_this_version(
+        self, task_state_store: TaskStateStoreAccessor
+    ) -> _PaginationCursor | None:
+        """
+        Return the cursor the kept pages can be read back with, or none when no page is kept.
+
+        The pages kept by an earlier version of the provider are not read back: an unwrapped page of
+        15.3.0rc1 that happens to be a dict with a ``result`` key would pass for a wrapped one. They go,
+        with their cursor, so the next try starts again from the first page.
+        """
+        cursor = self.get_cursor(task_state_store)
+        if cursor is None or cursor.get("version") == _CURSOR_VERSION:
+            return cursor
+        self._remove_pages(task_state_store, cursor)
+        raise MSGraphPageNotInTaskStateStoreError(
+            "The pages were kept by an earlier version of the provider, so the next try starts again from "
+            "the first page."
+        )
+
     def pull_pages(self, task_state_store: TaskStateStoreAccessor) -> list[Any]:
         """
         Return the results of the pages processed so far, kept in the task state store.
@@ -325,18 +355,17 @@ class MSGraphAsyncOperator(BaseOperator):
         A page is kept wrapped in a dict, so a page whose result is ``None`` is told apart from a page
         that is gone, for instance because it expired under ``[state_store] default_retention_days``.
         A missing page removes the pages and the cursor, so the next try starts again from the first page
-        instead of returning results with a hole in them. So does a page that is not wrapped, which
-        15.3.0 kept before a provider upgrade.
+        instead of returning results with a hole in them.
         """
         results: list[Any] = []
-        cursor = self.get_cursor(task_state_store)
+        cursor = self._get_cursor_of_this_version(task_state_store)
         for page in range(cursor["pages"] if cursor else 0):
             kept = task_state_store.get(f"{_PAGE_KEY_PREFIX}{page}")
             if not isinstance(kept, dict) or "result" not in kept:
                 self._remove_pages(task_state_store, cursor)
                 raise MSGraphPageNotInTaskStateStoreError(
-                    f"Page {page + 1} is no longer in the task state store, or was kept by an earlier "
-                    "version of the provider, so the next try starts again from the first page."
+                    f"Page {page + 1} is no longer in the task state store, so the next try starts again from "
+                    "the first page."
                 )
             self.append_result(results=results, result=cast("dict[str, Any]", kept)["result"])
         return results
@@ -350,12 +379,13 @@ class MSGraphAsyncOperator(BaseOperator):
         The page goes in before the cursor that counts it, so a crash in between only fetches that page
         again.
         """
-        cursor = self.get_cursor(task_state_store)
+        cursor = self._get_cursor_of_this_version(task_state_store)
         page = cursor["pages"] if cursor else 0
         task_state_store.set(f"{_PAGE_KEY_PREFIX}{page}", {"result": result})
         task_state_store.set(
             _CURSOR_KEY,
             {
+                "version": _CURSOR_VERSION,
                 "url": deferred.trigger.url,
                 "query_parameters": (deferred.kwargs or {}).get("query_parameters"),
                 "pages": page + 1,
@@ -365,7 +395,7 @@ class MSGraphAsyncOperator(BaseOperator):
     def _clean_up(self, task_state_store: TaskStateStoreAccessor, results: Any) -> None:
         """
         Remove the pages and the cursor from the task state store once the result is returned.
-        
+
         A non GET result is written before the pages go, so a crash in between does not resend the request.
         """
         if self.method.upper() != "GET":
