@@ -22,12 +22,41 @@ import tempfile
 from unittest import mock
 from unittest.mock import patch
 
+import httpx
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
+from airflowctl.ctl.utils.browser_login import AuthorizationCode
+
+SSO_METADATA = {
+    "grant_types_supported": ["password", "refresh_token", "authorization_code"],
+    "code_challenge_methods_supported": ["S256"],
+    "authorization_endpoint": "/auth/login/cli",
+    "device_authorization_endpoint": None,
+    "token_endpoint": "/auth/token/cli",
+}
+AUTHORIZATION_CODE = AuthorizationCode(
+    code="code", code_verifier="verifier", redirect_uri="http://127.0.0.1:1234/callback"
+)
+
+
+def _make_sso_api_client(metadata: dict) -> Client:
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v2/auth/cli/metadata":
+            return httpx.Response(200, json=metadata)
+        assert str(request.url) == "http://localhost:8080/auth/token/cli"
+        assert json.loads(request.content)["code_verifier"] == "verifier"
+        return httpx.Response(201, json={"access_token": "SSO_TOKEN"})
+
+    return Client(
+        base_url="test://server",
+        transport=httpx.MockTransport(handle_request),
+        token="",
+        kind=ClientKind.AUTH,
+    )
 
 
 class TestCliAuthCommands:
@@ -258,6 +287,81 @@ class TestCliAuthCommands:
 
 class TestListEnvs:
     parser = cli_parser.get_parser()
+
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    @patch("airflowctl.api.client.keyring")
+    def test_login_with_sso(self, mock_keyring, mock_get_authorization_code):
+        mock_get_authorization_code.return_value = AUTHORIZATION_CODE
+        mock_keyring.get_password.return_value = None
+
+        auth_command.login(
+            self.parser.parse_args(
+                [
+                    "auth",
+                    "login",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--sso",
+                    "--no-browser",
+                    "--timeout",
+                    "30",
+                ]
+            ),
+            api_client=_make_sso_api_client(SSO_METADATA),
+        )
+
+        mock_get_authorization_code.assert_called_once_with(
+            api_url="http://localhost:8080",
+            authorization_endpoint="/auth/login/cli",
+            open_browser=False,
+            timeout=30,
+        )
+        mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "SSO_TOKEN")
+
+    @pytest.mark.parametrize(
+        "metadata",
+        [
+            pytest.param({**SSO_METADATA, "grant_types_supported": ["password"]}, id="no-authorization-code"),
+            pytest.param({**SSO_METADATA, "code_challenge_methods_supported": ["plain"]}, id="no-s256"),
+            pytest.param({**SSO_METADATA, "authorization_endpoint": None}, id="no-authorization-endpoint"),
+        ],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_login_with_sso_not_offered(self, mock_get_authorization_code, metadata):
+        with pytest.raises(SystemExit):
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080", "--sso"]),
+                api_client=_make_sso_api_client(metadata),
+            )
+
+        mock_get_authorization_code.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [["--username", "user"], ["--password", "pass"], ["--api-token", "token"], ["--skip-keyring"]],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_login_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args):
+        with pytest.raises(SystemExit):
+            auth_command.login(
+                self.parser.parse_args(
+                    ["auth", "login", "--api-url", "http://localhost:8080", "--sso", *extra_args]
+                ),
+                api_client=_make_sso_api_client(SSO_METADATA),
+            )
+
+        mock_get_authorization_code.assert_not_called()
+
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_get_token_with_sso(self, mock_get_authorization_code, capsys):
+        mock_get_authorization_code.return_value = AUTHORIZATION_CODE
+
+        auth_command.get_token(
+            self.parser.parse_args(["auth", "token", "--api-url", "http://localhost:8080", "--sso"]),
+            api_client=_make_sso_api_client(SSO_METADATA),
+        )
+
+        assert capsys.readouterr().out == "SSO_TOKEN\n"
 
     def test_list_envs_empty_airflow_home(self, monkeypatch):
         """Test list-envs with no AIRFLOW_HOME directory."""
