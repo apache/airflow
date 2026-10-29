@@ -24,6 +24,11 @@
 {{- if and (get (.Values.config.dag_processor | default dict) "execution_api_token_file") (gt (int .Values.dagProcessor.replicas) 1) }}
 {{- fail "`dagProcessor.replicas` must not exceed 1 when `config.dag_processor.execution_api_token_file` is set, because the pods would share one session token. Deploy a separate release, with its own token, for each additional processor." }}
 {{- end }}
+{{- range concat (.Values.env | default list) (.Values.dagProcessor.env | default list) }}
+{{- if eq .name "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE" }}
+{{- fail "Set the Dag processor token file with `config.dag_processor.execution_api_token_file`, not the `AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE` environment variable: the chart selects probes, update strategy and replica limits that work without database credentials only from the config value." }}
+{{- end }}
+{{- end }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}

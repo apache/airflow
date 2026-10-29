@@ -19,6 +19,7 @@
 # Apply kubernetes-token-provisioner.yaml first, using an image with API mode.
 airflowVersion: "3.5.0"
 defaultAirflowTag: "3.5.0"
+# Only satisfies the chart's executor validation; the processor's executor is set in dagProcessor.env.
 executor: LocalExecutor
 scheduler:
   enabled: false
@@ -60,6 +61,9 @@ dagProcessor:
   env:
     - name: CONNECTION_CHECK_MAX_COUNT
       value: "0"
+    # Match the trusted deployment's [core] executor: parsing fails for tasks naming any other executor.
+    - name: AIRFLOW__CORE__EXECUTOR
+      value: CeleryExecutor
   extraVolumes:
     - name: processor-token
       secret:
