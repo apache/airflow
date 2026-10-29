@@ -230,6 +230,10 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
+      - name: "Test Dag processor API deployment examples"
+        run: >
+          cd ./docker-tests &&
+          uv run pytest tests/docker_tests/test_dag_processor_api_deployment.py --color=yes
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests
 

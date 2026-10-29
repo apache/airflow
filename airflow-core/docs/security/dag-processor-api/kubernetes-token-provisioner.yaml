@@ -116,8 +116,10 @@ spec:
             - name: AIRFLOW__API_AUTH__JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  # Match the trusted API server's jwtSecretName (default: <release>-jwt-secret).
-                  name: airflow-jwt-secret
+                  # A pre-created Secret that the trusted release uses as its jwtSecretName. Do not use
+                  # the chart-generated <release>-jwt-secret: every helm upgrade replaces its key, and
+                  # this variable keeps the old key until the provisioner restarts.
+                  name: airflow-jwt-signing-key
                   key: jwt-secret
           securityContext:
             allowPrivilegeEscalation: false

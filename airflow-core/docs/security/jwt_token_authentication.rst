@@ -705,7 +705,11 @@ readiness without immediately failing liveness.
 For Helm, set the token-file option under ``config.dag_processor`` to select the local
 probe. The chart then replaces processor pods with the ``Recreate`` strategy, because pods
 that share a session token cannot run their Jobs side by side, and rejects more than one
-replica for the same reason. Disable the processor's migration-wait init container, provision the catalog
+replica for the same reason. It does not select those settings for the
+``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` environment variable, and rejects that
+variable in ``env`` and ``dagProcessor.env``. Do not set it through ``secret``, ``extraEnv``,
+or ``extraEnvFrom`` either; the chart does not check those.
+Disable the processor's migration-wait init container, provision the catalog
 separately, and remove server credentials from the pod. The Compose example selects the
 local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither the
 main chart release nor the quick-start Compose file removes shared credentials or adds
@@ -727,6 +731,10 @@ and again whenever the bundle configuration changes::
 This step needs database access and the deployment's Fernet key when signing bundle URLs.
 Token provisioning itself needs only the API's JWT signing configuration and the configured
 bundle names; it does not access the metadata database.
+
+Configure the processor's ``[core] executor``, and ``[core] multi_team`` with its team
+executors, to match the trusted deployment. Parsing records an import error for any Dag with
+a task whose ``executor`` is not configured on the processor.
 
 Before starting the isolated processor, stop the trusted deployment's processor for the bundles
 being moved. If that processor must continue serving other bundles, restrict it with
@@ -753,15 +761,27 @@ Customize both files before applying them:
 * Set both images to an image containing this feature. The manifest assumes the trusted
   release and namespace are named ``airflow``; update namespace references, the API
   service address, and NetworkPolicy selectors together if yours differ.
-* Point the provisioner's ``AIRFLOW__API_AUTH__JWT_SECRET`` at the API server's signing
-  Secret. For the Helm chart's default configuration this is ``<release>-jwt-secret``,
-  key ``jwt-secret``; ``jwtSecretName`` overrides the Secret name. For asymmetric signing,
-  replace this environment variable with the matching private-key mount and
+* Pin the trusted release's signing key, and point the provisioner's
+  ``AIRFLOW__API_AUTH__JWT_SECRET`` at the same Secret. Create a Secret with the key
+  ``jwt-secret``, and set the trusted release's ``jwtSecretName`` to its name, as the
+  :doc:`chart production guide <helm-chart:production-guide>` recommends. The manifest
+  expects it as ``airflow-jwt-signing-key``. Do not use the chart-generated
+  ``<release>-jwt-secret`` unless ``jwtSecret`` holds a fixed value: otherwise every
+  ``helm upgrade`` of the trusted release generates a new key. The API server switches to
+  the new key, but the provisioner keeps signing with the old one until it restarts, so the
+  API rejects the processor's requests. For asymmetric signing, replace this
+  environment variable with the matching private-key mount and
   ``AIRFLOW__API_AUTH__JWT_PRIVATE_KEY_PATH``.
 * Copy any non-default signing algorithm, key ID, issuer, and execution API audience
   settings from the API server. Do not copy database credentials or the entire server
   configuration into the provisioner. Restart the provisioner when its signing
-  configuration changes, including a signing Secret supplied through environment variables.
+  configuration changes, including a signing Secret supplied through environment variables
+  (``kubectl -n airflow rollout restart deployment/dag-processor-token-provisioner``).
+* Set ``AIRFLOW__CORE__EXECUTOR`` in the values file's ``dagProcessor.env`` to the trusted
+  deployment's ``[core] executor``; the example assumes the chart's default
+  ``CeleryExecutor``. The values file's top-level ``executor`` only satisfies the chart's
+  validation for a release without a broker, and the chart rejects a ``config.core.executor``
+  that differs from it.
 * Match ``--bundle-name`` and ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST`` to the
   catalog and processor configuration. Repeat ``--bundle-name`` for additional bundles.
   Provisioning reads their names without loading bundle classes or fetching Dag files.
@@ -792,13 +812,16 @@ To adopt an existing processor Secret while preserving its session:
   the last-applied configuration and cause the provisioner to create a new session.
 
 After preparing the files for a fresh deployment or adoption, start the provisioner
-and then the processor::
+and then the processor. Replace ``<chart-version>`` with a chart release that supports
+``config.dag_processor.execution_api_token_file``. Earlier releases keep the database-backed
+liveness probe, which fails without database credentials, and rolling updates, in which the
+new pod cannot register while the old pod holds the session::
 
     kubectl apply -f kubernetes-token-provisioner.yaml
     kubectl -n airflow rollout status deployment/dag-processor-token-provisioner
     kubectl -n airflow-dag-processor wait --for=jsonpath='{.data.processor\.jwt}' secret/dag-processor-session --timeout=120s
     kubectl -n airflow-dag-processor apply -f network-policy.yaml
-    helm upgrade --install dag-processor apache-airflow/airflow \
+    helm upgrade --install dag-processor apache-airflow/airflow --version <chart-version> \
         --namespace airflow-dag-processor --values helm-values.yaml
 
 For Secrets created by this example, the manifest deliberately omits ``data`` and
@@ -827,10 +850,16 @@ namespace restricts egress. It uses its mounted service-account token and cluste
 and reloads that credential on each request. In rotation mode, Kubernetes read and update
 failures are retried with backoff, including during initial issuance. Initial signing or
 configuration errors exit the command and Kubernetes restarts it. Later rotation failures
-also retry; the previous token remains usable until it expires. An outage lasting beyond expiry
-prevents the processor from renewing its API credentials. Monitor provisioner failures
-and processor readiness, and restore Kubernetes API access or signing configuration
-before the token expires. Monitor the token's expiry without logging its value.
+also retry; the previous token remains usable until it expires. The delay between retries
+doubles from 2 seconds up to the smaller of 1024 seconds and a quarter of the token
+lifetime: 150 seconds with ``--valid-for 600``. The processor keeps its API credentials
+only if a retry succeeds and Kubernetes projects the new token before the previous one
+expires. Restore Kubernetes API access or signing configuration at least that maximum
+delay plus your cluster's projection delay before the token expires. Otherwise the
+processor stops when the API rejects its
+expired credentials, and recovers only after Kubernetes restarts it with a newly projected
+token. Monitor provisioner failures and processor readiness, and monitor the token's expiry
+without logging its value.
 
 Compose token provisioner
 """""""""""""""""""""""""
