@@ -21,6 +21,7 @@ import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from datetime import timedelta
 from threading import Barrier, Event
 from unittest import mock
 from uuid import UUID
@@ -172,7 +173,7 @@ def test_replay_returns_receipt_without_rewriting_metadata(client, session, job,
 
 
 @pytest.mark.parametrize("first", ["parse", "inventory"])
-def test_parse_and_inventory_checkpoints_have_separate_namespaces(client, session, exec_app, job, first):
+def test_parse_and_inventory_receipts_have_separate_namespaces(client, session, exec_app, job, first):
     session.add_all([DagBundleModel(name="inventory"), DagBundleModel(name="a.py")])
     job.bundle_names = ["inventory", "a.py"]
     session.commit()
@@ -221,9 +222,9 @@ def test_parse_and_inventory_checkpoints_have_separate_namespaces(client, sessio
         else:
             receipts[kind] = response.json()
 
-    checkpoints = session.scalars(select(DagProcessorPublicationReceipt)).all()
-    assert len(checkpoints) == 2
-    assert {checkpoint.attempt_id for checkpoint in checkpoints} == {
+    stored = session.scalars(select(DagProcessorPublicationReceipt)).all()
+    assert len(stored) == 2
+    assert {receipt.attempt_id for receipt in stored} == {
         UUID(payload["attempt_id"]) for _, payload in publications.values()
     }
     error = session.scalar(select(ParseImportError))
@@ -483,6 +484,43 @@ def test_container_result_keeps_member_errors_and_source(client, session, job, b
     assert session.scalar(select(ParseImportError)).filename == "bundle.zip/b.py"
 
 
+@pytest.mark.parametrize(
+    ("parsed_seconds_ago", "stale"),
+    [(10, False), (100, True), (None, False)],
+    ids=["within_threshold", "past_threshold", "never_parsed"],
+)
+@conf_vars({("dag_processor", "stale_dag_threshold"): "50"})
+def test_failed_container_stales_members_after_the_threshold(
+    client, session, job, body, parsed_seconds_ago, stale
+):
+    last_parsed_time = None
+    if parsed_seconds_ago is not None:
+        last_parsed_time = timezone.utcnow() - timedelta(seconds=parsed_seconds_ago)
+    session.add(
+        DagModel(
+            dag_id="member",
+            bundle_name="bundle",
+            relative_fileloc="bundle.zip/a.py",
+            last_parsed_time=last_parsed_time,
+            is_stale=False,
+        )
+    )
+    session.commit()
+    body.update(
+        relative_fileloc="bundle.zip",
+        serialized_dags=[],
+        source_codes=[],
+        dag_source_indexes={},
+        import_errors={"bundle.zip": "Cannot open archive"},
+    )
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    session.expire_all()
+    assert session.get(DagModel, "member").is_stale is stale
+
+
 @mock.patch(
     "airflow.api_fastapi.execution_api.routes.dag_parsing.DagSerialization.validate_serialized_dag",
     autospec=True,
@@ -550,7 +588,7 @@ def test_other_job_publication_is_not_overwritten_by_receipt_recovery(client, se
     assert len(session.scalars(select(DagProcessorPublicationReceipt)).all()) == 2
 
 
-def test_job_cleanup_removes_its_checkpoint(client, session, job, body):
+def test_job_cleanup_removes_its_receipt(client, session, job, body):
     assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
     session.delete(job)
     session.commit()
@@ -692,14 +730,14 @@ def test_invalid_fab_access_control_rejects_and_rolls_back_publication(
     assert dag_id in response.json()["detail"]["message"]
     session.expire_all()
     stored_dag = session.get(DagModel, dag_id)
-    checkpoint = session.scalar(select(DagProcessorPublicationReceipt))
+    receipt = session.scalar(select(DagProcessorPublicationReceipt))
     if existing:
         assert stored_dag.last_parse_duration == 0.5
         assert not stored_dag.is_stale
-        assert checkpoint.attempt_id == original_attempt
+        assert receipt.attempt_id == original_attempt
     else:
         assert stored_dag is None
-        assert checkpoint is None
+        assert receipt is None
     assert len(session.scalars(select(SerializedDagModel)).all()) == int(existing)
     assert len(session.scalars(select(DagVersion)).all()) == int(existing)
     assert len(session.scalars(select(DagCode)).all()) == int(existing)
@@ -927,8 +965,12 @@ def test_complete_inventory_reconciles_only_its_bundle_and_replays(client, sessi
     assert session.get(DagModel, "published").is_stale
     assert not session.get(DagModel, "other_bundle").is_stale
     body.update(attempt_id=str(uuid7()), dispatch_sequence=3)
-    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 409
-    assert client.post(url.replace("bundle/inventory", "other/inventory"), json=inventory).status_code == 403
+    stale = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["reason"] == "source_changed"
+    other = client.post(url.replace("bundle/inventory", "other/inventory"), json=inventory)
+    assert other.status_code == 403
+    assert other.json()["detail"]["reason"] == "bundle_not_granted"
 
 
 @pytest.fixture
@@ -1034,7 +1076,9 @@ def test_failed_archive_inventory_preserves_members(client, session, job, body, 
     response = client.post(url, json=inventory)
     assert response.status_code == 200, response.json()
     assert client.post(url, json=inventory).json() == response.json()
-    assert client.post(url, json={**inventory, "failed_sources": []}).status_code == 409
+    conflict = client.post(url, json={**inventory, "failed_sources": []})
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["reason"] == "publication_conflict"
     session.expire_all()
     assert not session.get(DagModel, "published").is_stale
     assert session.get(DagModel, "deleted").is_stale
@@ -1073,13 +1117,146 @@ def test_inventory_revision_fences_late_refreshes(client, session, job):
     first = client.post(url, json=inventory)
     assert first.status_code == 200, first.json()
     retry = {**inventory, "attempt_id": str(uuid7()), "dispatch_sequence": 2, "version": "v0"}
-    assert client.post(url, json=retry).status_code == 409
+    late = client.post(url, json=retry)
+    assert late.status_code == 409
+    assert late.json()["detail"]["reason"] == "source_changed"
     retry.update(expected_revision=first.json()["revision"], version="v1")
     current = client.post(url, json=retry)
     assert current.status_code == 200
     assert current.json()["revision"] == first.json()["revision"]
     session.expire_all()
     assert session.get(DagBundleModel, "bundle").version == "v1"
+
+
+@pytest.mark.parametrize("change", [None, "version", "revision"])
+def test_publication_must_match_the_inventory_revision(client, session, job, body, change):
+    inventory = client.post(
+        f"/execution/jobs/{job.id}/bundles/bundle/inventory",
+        json={
+            "attempt_id": str(uuid7()),
+            "dispatch_sequence": 1,
+            "expected_revision": None,
+            "version": "v1",
+            "files": ["a.py"],
+        },
+    )
+    assert inventory.status_code == 200, inventory.json()
+    body["bundle_revision"] = inventory.json()["revision"]
+    if change == "version":
+        body["bundle_version"] = "v0"
+    elif change == "revision":
+        del body["bundle_revision"]
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    session.expire_all()
+    if change is None:
+        assert response.status_code == 200, response.json()
+        assert session.get(DagModel, "published").bundle_version == "v1"
+    else:
+        assert response.status_code == 409, response.json()
+        assert response.json()["detail"]["reason"] == "source_changed"
+        assert session.get(DagModel, "published") is None
+
+
+@pytest.mark.parametrize(
+    ("failure", "status_code", "reason"),
+    [
+        ("bundle", 403, "bundle_not_granted"),
+        ("job", 404, "not_found"),
+        ("closed", 403, "job_closed"),
+        ("replaced", 403, "job_closed"),
+        ("deleted", 403, "job_closed"),
+        ("inactive", 409, "bundle_inactive"),
+        ("missing_bundle", 409, "bundle_inactive"),
+        ("superseded", 409, "publication_superseded"),
+    ],
+)
+def test_rejects_unauthorized_inventory(client, session, exec_app, job, failure, status_code, reason):
+    session.add(DagModel(dag_id="published", bundle_name="bundle", relative_fileloc="a.py", is_stale=False))
+    session.commit()
+    job_id, bundle_name = job.id, "bundle"
+    inventory = {
+        "attempt_id": str(uuid7()),
+        "dispatch_sequence": 2,
+        "expected_revision": None,
+        "version": "v1",
+        "files": [],
+    }
+    if failure == "bundle":
+        bundle_name = "other"
+    elif failure == "job":
+        job_id += 1000
+    elif failure == "closed":
+        job.end_date = job.start_date
+    elif failure == "replaced":
+        job.session_id = None
+    elif failure == "deleted":
+        session.delete(job)
+    elif failure == "inactive":
+        session.get(DagBundleModel, "bundle").active = False
+    elif failure == "missing_bundle":
+        bundle_name = "unprovisioned"
+
+        async def authenticate(request: Request):
+            return DagProcessorToken(
+                id=SESSION_ID,
+                claims=DagProcessorClaims(exp=1, job_id=job.id, dag_bundles=frozenset({bundle_name})),
+            )
+
+        exec_app.dependency_overrides[require_auth] = authenticate
+    else:
+        newer = {**inventory, "attempt_id": str(uuid7()), "dispatch_sequence": 3, "files": ["a.py"]}
+        response = client.post(f"/execution/jobs/{job_id}/bundles/bundle/inventory", json=newer)
+        assert response.status_code == 200, response.json()
+    session.commit()
+
+    response = client.post(f"/execution/jobs/{job_id}/bundles/{bundle_name}/inventory", json=inventory)
+
+    assert response.status_code == status_code, response.json()
+    assert response.json()["detail"]["reason"] == reason
+    session.expire_all()
+    assert not session.get(DagModel, "published").is_stale
+    receipts = session.scalars(select(DagProcessorPublicationReceipt.attempt_id)).all()
+    assert UUID(inventory["attempt_id"]) not in receipts
+
+
+@pytest.mark.parametrize(
+    ("failure", "status_code", "reason"),
+    [("job", 404, "not_found"), ("closed", 403, "job_closed"), ("replaced", 403, "job_closed")],
+)
+def test_catalog_rejects_a_closed_or_foreign_job(client, session, job, failure, status_code, reason):
+    job_id = job.id
+    if failure == "job":
+        job_id += 1000
+    elif failure == "closed":
+        job.end_date = job.start_date
+    else:
+        job.session_id = None
+    session.commit()
+
+    response = client.get(f"/execution/jobs/{job_id}/bundles")
+
+    assert response.status_code == status_code, response.json()
+    assert response.json()["detail"]["reason"] == reason
+
+
+def test_catalog_lists_only_granted_active_bundles(client, exec_app, session, job):
+    session.get(DagBundleModel, "other").active = False
+    session.add(DagBundleModel(name="not_granted"))
+    session.commit()
+
+    async def authenticate(request: Request):
+        return DagProcessorToken(
+            id=SESSION_ID,
+            claims=DagProcessorClaims(exp=1, job_id=job.id, dag_bundles=frozenset({"bundle", "other"})),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    response = client.get(f"/execution/jobs/{job.id}/bundles")
+
+    assert response.status_code == 200, response.json()
+    assert [bundle["name"] for bundle in response.json()] == ["bundle"]
 
 
 @pytest.mark.parametrize("bundle_count", [2, 8])
@@ -1212,16 +1389,25 @@ def test_publication_rejects_invalid_source_index(client, session, job, body, in
     assert session.get(DagModel, "published") is None
 
 
-@pytest.mark.parametrize("missing", [True, False], ids=["missing_mapping", "unused_source"])
-def test_publication_rejects_incomplete_source_mapping(client, job, body, missing):
-    if missing:
+@pytest.mark.parametrize("shape", ["missing_mapping", "unused_source", "no_sources", "unmapped_dag"])
+@mock.patch.object(DagCode, "get_code_from_file", autospec=True)
+def test_publication_rejects_incomplete_source_mapping(get_code_from_file, client, session, job, body, shape):
+    if shape == "missing_mapping":
         body["dag_source_indexes"] = {}
-    else:
+    elif shape == "unused_source":
         body["source_codes"].append({"source_code": "unused", "language": "python"})
+    elif shape == "no_sources":
+        body.update(source_codes=[], dag_source_indexes={})
+    else:
+        second = deepcopy(body["serialized_dags"][0])
+        second["dag"]["dag_id"] = "second"
+        body["serialized_dags"].append(second)
 
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
 
     assert response.status_code == 422, response.json()
+    get_code_from_file.assert_not_called()
+    assert session.get(DagModel, "published") is None
 
 
 @pytest.mark.parametrize("length", [1024, 1025])
@@ -1236,6 +1422,26 @@ def test_publication_bounds_import_error_paths(client, session, job, body, lengt
     assert [error.filename for error in errors] == ([path] if length == 1024 else [])
     if length > 1024:
         assert "Import-error location exceeds 1024 characters" in response.text
+
+
+@pytest.mark.parametrize("field", ["relative_fileloc", "parsed_definitions"])
+@pytest.mark.parametrize("length", [2000, 2001])
+def test_publication_bounds_definition_paths(client, session, job, body, field, length):
+    path = "a.py/" + "x" * (length - len("a.py/"))
+    if field == "relative_fileloc":
+        body["serialized_dags"][0]["dag"]["relative_fileloc"] = path
+    else:
+        body["parsed_definitions"] = [path]
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == (200 if length == 2000 else 422), response.json()
+    dag = session.get(DagModel, "published")
+    if length > 2000:
+        assert "Definition location exceeds 2000 characters" in response.text
+        assert dag is None
+    elif field == "relative_fileloc":
+        assert dag.relative_fileloc == path
 
 
 @mock.patch(

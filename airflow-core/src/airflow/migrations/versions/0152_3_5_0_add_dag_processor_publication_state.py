@@ -40,7 +40,6 @@ airflow_version = "3.5.0"
 
 def upgrade():
     """Store publication receipts and fence publications against accepted discovery snapshots."""
-    # SQLite rebuilds these tables, and dropping the old copy would cascade to deadline and team rows.
     with disable_sqlite_fkeys(op):
         op.create_table(
             "dag_processor_publication_receipt",
@@ -62,6 +61,8 @@ def upgrade():
 
 def downgrade():
     """Remove publication receipts and discovery revision metadata."""
+    # SQLite rebuilds dag_bundle to drop its columns. With foreign keys on, dropping the old copy would
+    # fail on the dag rows that reference it and cascade to its team rows.
     with disable_sqlite_fkeys(op):
         if op.get_bind().dialect.name == "mysql":
             # MySQL lets idx_dag_bundle_name_is_stale back the bundle_name foreign key and refuses to drop

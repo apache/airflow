@@ -965,7 +965,9 @@ class DagParseResultBody(BaseModel):
     parsed_definitions: Annotated[list[str] | None, Field(title="Parsed Definitions")] = None
     source_codes: Annotated[
         list[ParseSourceCode],
-        Field(description="Distinct source text and language pairs.", title="Source Codes"),
+        Field(
+            description="Source text and language pairs, deduplicated by the processor.", title="Source Codes"
+        ),
     ]
     dag_source_indexes: Annotated[
         dict[str, DagSourceIndexesAdditionalProperty],
