@@ -19,9 +19,10 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import delete, exists, select, tuple_
 
 from airflow._shared.timezones import timezone
@@ -35,7 +36,10 @@ from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import with_row_locks
 
-log = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+log = structlog.get_logger(__name__)
 
 
 def cleanup_processor_metadata(batch_size: int = 500) -> None:
@@ -57,63 +61,37 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             dags = session.scalars(with_row_locks(query, session=session, skip_locked=True)).all()
             for dag in dags:
                 log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
-                    dag.dag_id,
-                    dag.bundle_name,
+                    "Deactivating Dag because its bundle is no longer active",
+                    dag_id=dag.dag_id,
+                    bundle_name=dag.bundle_name,
                 )
                 dag.is_stale = True
         if len(dags) < batch_size:
             break
-    with create_session() as session:
-        warning_query = (
-            select(DagWarning.dag_id, DagWarning.warning_type)
-            .join(DagModel)
-            .where(
-                DagModel.is_stale.is_(True),
-            )
-            .order_by(DagWarning.dag_id, DagWarning.warning_type)
-            # Each key needs two bind parameters; older SQLite versions allow only 999.
-            .limit(min(batch_size, 499))
-        )
-        keys = session.execute(
-            with_row_locks(warning_query, of=DagWarning, session=session, skip_locked=True)
-        ).all()
-        if keys:
-            session.execute(
-                delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
-            )
-    try:
-        timeout = get_job_heartbeat_timeout()
-    except AirflowConfigException as error:
-        log.warning("Skipping Dag processor Job expiration because of invalid configuration: %s", error)
-    else:
+    # Each key needs two bind parameters; older SQLite versions allow only 999.
+    warning_batch_size = min(batch_size, 499)
+    while True:
         with create_session() as session:
-            cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-            job_query = (
-                select(Job)
+            warning_query = (
+                select(DagWarning.dag_id, DagWarning.warning_type)
+                .join(DagModel)
                 .where(
-                    Job.job_type == "DagProcessorJob",
-                    # API Jobs end with a terminal state; use its heartbeat index to skip completed history.
-                    Job.state == JobState.RUNNING,
-                    Job.session_id.is_not(None),
-                    Job.end_date.is_(None),
-                    Job.latest_heartbeat < cutoff,
+                    DagModel.is_stale.is_(True),
                 )
-                .order_by(Job.id)
-                .limit(batch_size)
+                .order_by(DagWarning.dag_id, DagWarning.warning_type)
+                .limit(warning_batch_size)
             )
-            for job in session.scalars(with_row_locks(job_query, session=session, skip_locked=True)):
-                log.warning(
-                    "Expiring Dag processor Job and releasing its claimed work",
-                    extra={
-                        "job_id": job.id,
-                        "hostname": job.hostname,
-                        "latest_heartbeat": job.latest_heartbeat,
-                        "job_heartbeat_timeout": timeout,
-                    },
+            keys = session.execute(
+                with_row_locks(warning_query, of=DagWarning, session=session, skip_locked=True)
+            ).all()
+            if keys:
+                session.execute(
+                    delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
                 )
-                job.state = JobState.FAILED
-                job.end_date = timezone.utcnow()
+        if len(keys) < warning_batch_size:
+            break
+    with create_session() as session:
+        _expire_stale_api_jobs(batch_size, session=session)
     # Visit already-ended Jobs too: retirement may have committed before cleanup was interrupted.
     checkpoint_batch_size = min(batch_size, 499)
     while True:
@@ -142,3 +120,37 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                 )
         if len(checkpoint_keys) < checkpoint_batch_size:
             break
+
+
+def _expire_stale_api_jobs(batch_size: int, *, session: Session) -> None:
+    live_api_job = (
+        Job.job_type == "DagProcessorJob",
+        # API Jobs end with a terminal state; use its heartbeat index to skip completed history.
+        Job.state == JobState.RUNNING,
+        Job.session_id.is_not(None),
+        Job.end_date.is_(None),
+    )
+    # DB-mode deployments may keep health_check_threshold above this API-only timeout.
+    if not session.scalar(select(exists().where(*live_api_job))):
+        return
+    try:
+        timeout = get_job_heartbeat_timeout()
+    except AirflowConfigException as error:
+        log.warning(
+            "Skipping Dag processor Job expiration because of invalid configuration", error=str(error)
+        )
+        return
+    cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+    job_query = (
+        select(Job).where(*live_api_job, Job.latest_heartbeat < cutoff).order_by(Job.id).limit(batch_size)
+    )
+    for job in session.scalars(with_row_locks(job_query, session=session, skip_locked=True)):
+        log.warning(
+            "Expiring Dag processor Job and releasing its claimed work",
+            job_id=job.id,
+            hostname=job.hostname,
+            latest_heartbeat=job.latest_heartbeat,
+            job_heartbeat_timeout=timeout,
+        )
+        job.state = JobState.FAILED
+        job.end_date = timezone.utcnow()

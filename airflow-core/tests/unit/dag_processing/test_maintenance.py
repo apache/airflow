@@ -28,7 +28,6 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
@@ -79,9 +78,8 @@ def clean_db():
     clear_db_dag_bundles()
 
 
-@mock.patch("airflow.dag_processing.maintenance.log", autospec=True)
 @mock.patch("airflow.dag_processing.maintenance.create_session", autospec=True)
-def test_cleanup_drains_inactive_dags_in_committed_batches(mock_session, log, session, time_machine):
+def test_cleanup_drains_inactive_dags_in_committed_batches(mock_session, session, time_machine, caplog):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     inactive = DagBundleModel(name="removed")
     inactive.active = False
@@ -107,11 +105,11 @@ def test_cleanup_drains_inactive_dags_in_committed_batches(mock_session, log, se
     assert sorted(committed_dags[0]) == ["removed_0", "removed_1"]
     assert sorted(committed_dags[1]) == ["removed_0", "removed_1", "removed_2"]
     assert len(session.scalars(select(DagModel).where(DagModel.is_stale.is_(True))).all()) == 3
-    assert [call.args[1:] for call in log.info.call_args_list] == [
-        ("removed_0", "removed"),
-        ("removed_1", "removed"),
-        ("removed_2", "removed"),
-    ]
+    assert [
+        (entry["dag_id"], entry["bundle_name"])
+        for entry in caplog
+        if entry["event"] == "Deactivating Dag because its bundle is no longer active"
+    ] == [("removed_0", "removed"), ("removed_1", "removed"), ("removed_2", "removed")]
     assert not session.get(DagModel, "current").is_stale
 
 
@@ -135,8 +133,7 @@ def _add_checkpoints(job_id, count, *, session):
         ("dag_processor", "job_heartbeat_timeout"): "120",
     }
 )
-@mock.patch("airflow.dag_processing.maintenance.log", autospec=True)
-def test_cleanup_retires_only_expired_api_processor_jobs(log, session, time_machine):
+def test_cleanup_retires_only_expired_api_processor_jobs(session, time_machine, caplog):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     jobs = [Job(job_type="DagProcessorJob", state=JobState.RUNNING) for _ in range(4)]
     for job in jobs[:3]:
@@ -156,15 +153,45 @@ def test_cleanup_retires_only_expired_api_processor_jobs(log, session, time_mach
     assert jobs[0].state == JobState.FAILED
     assert [job.end_date for job in jobs[1:]] == [None, None, None]
     assert set(session.scalars(select(DagProcessorPublicationReceipt.job_id))) == set(job_ids[1:])
-    log.warning.assert_called_once_with(
-        "Expiring Dag processor Job and releasing its claimed work",
-        extra={
+    fields = ("job_id", "hostname", "latest_heartbeat", "job_heartbeat_timeout")
+    assert [
+        {field: entry.get(field) for field in fields}
+        for entry in caplog
+        if entry["event"] == "Expiring Dag processor Job and releasing its claimed work"
+    ] == [
+        {
             "job_id": job_ids[0],
             "hostname": "expired-processor",
             "latest_heartbeat": timezone.utcnow() - timedelta(seconds=180),
             "job_heartbeat_timeout": 120,
-        },
-    )
+        }
+    ]
+
+
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "120"})
+def test_cleanup_expires_api_processor_jobs_in_bounded_batches(session, time_machine):
+    time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
+    jobs = [
+        Job(
+            job_type="DagProcessorJob",
+            state=JobState.RUNNING,
+            session_id=uuid7(),
+            latest_heartbeat=timezone.utcnow() - timedelta(seconds=180),
+        )
+        for _ in range(3)
+    ]
+    session.add_all(jobs)
+    session.commit()
+    job_ids = sorted(job.id for job in jobs)
+
+    def get_expired_job_ids():
+        session.expire_all()
+        return session.scalars(select(Job.id).where(Job.end_date.is_not(None)).order_by(Job.id)).all()
+
+    cleanup_processor_metadata(batch_size=2)
+    assert get_expired_job_ids() == job_ids[:2]
+    cleanup_processor_metadata(batch_size=2)
+    assert get_expired_job_ids() == job_ids
 
 
 @pytest.mark.parametrize("batch_size", [0, -1])
@@ -174,8 +201,7 @@ def test_cleanup_rejects_nonpositive_batches(batch_size):
 
 
 @pytest.mark.parametrize("timeout", [29, 30, 31])
-@mock.patch("airflow.dag_processing.maintenance.log", autospec=True)
-def test_cleanup_rejects_expiry_before_the_health_threshold(log, timeout, session, time_machine):
+def test_cleanup_rejects_expiry_before_the_health_threshold(timeout, session, time_machine, caplog):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     job = Job(
         job_type="DagProcessorJob",
@@ -196,11 +222,13 @@ def test_cleanup_rejects_expiry_before_the_health_threshold(log, timeout, sessio
     ):
         cleanup_processor_metadata()
 
-    if timeout < 30:
-        log.warning.assert_called_once_with(
-            "Skipping Dag processor Job expiration because of invalid configuration: %s", mock.ANY
-        )
-        assert isinstance(log.warning.call_args.args[1], AirflowConfigException)
+    skipped = {
+        "event": "Skipping Dag processor Job expiration because of invalid configuration",
+        "error": (
+            "[dag_processor] job_heartbeat_timeout must be greater than or equal to health_check_threshold"
+        ),
+    }
+    assert (skipped in caplog) == (timeout < 30)
 
     job = session.get(Job, job_id)
     assert job.state == (JobState.RUNNING if timeout < 30 else JobState.FAILED)
@@ -214,7 +242,9 @@ def test_cleanup_rejects_expiry_before_the_health_threshold(log, timeout, sessio
     }
 )
 @pytest.mark.parametrize("has_api_job", [False, True])
-def test_cleanup_continues_when_api_heartbeat_timeouts_are_invalid(session, time_machine, has_api_job):
+def test_cleanup_continues_when_api_heartbeat_timeouts_are_invalid(
+    session, time_machine, caplog, has_api_job
+):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     bundle = DagBundleModel(name="removed")
     bundle.active = False
@@ -243,6 +273,8 @@ def test_cleanup_continues_when_api_heartbeat_timeouts_are_invalid(session, time
 
     cleanup_processor_metadata()
 
+    skipped = "Skipping Dag processor Job expiration because of invalid configuration"
+    assert (skipped in caplog) == has_api_job
     session.expire_all()
     assert session.get(DagModel, "removed").is_stale
     assert session.scalars(select(DagWarning)).all() == []
@@ -305,7 +337,8 @@ def test_checkpoint_cleanup_resumes_after_a_committed_batch(mock_session, sessio
     assert session.get(Job, live_id).end_date is None
 
 
-def test_cleanup_warnings_is_bounded_and_preserves_active_dags(session):
+@mock.patch("airflow.dag_processing.maintenance.create_session", autospec=True)
+def test_cleanup_drains_stale_dag_warnings_in_committed_batches(mock_session, session):
     session.add(DagBundleModel(name="live"))
     session.flush()
     session.add_all([DagModel(dag_id=f"dag_{i}", bundle_name="live", is_stale=i < 3) for i in range(4)])
@@ -314,9 +347,21 @@ def test_cleanup_warnings_is_bounded_and_preserves_active_dags(session):
         [DagWarning(dag_id=f"dag_{i}", warning_type="python:test", message="warning") for i in range(4)]
     )
     session.commit()
+    committed_counts = []
+
+    @contextmanager
+    def observe_commits():
+        with create_session(scoped=False) as maintenance_session:
+            yield maintenance_session
+        with create_session(scoped=False) as observer:
+            remaining = len(observer.scalars(select(DagWarning)).all())
+        if not committed_counts or committed_counts[-1] != remaining:
+            committed_counts.append(remaining)
+
+    mock_session.side_effect = observe_commits
     cleanup_processor_metadata(batch_size=2)
-    assert len(session.scalars(select(DagWarning)).all()) == 2
-    cleanup_processor_metadata(batch_size=2)
+
+    assert committed_counts == [4, 2, 1]
     assert [warning.dag_id for warning in session.scalars(select(DagWarning))] == ["dag_3"]
 
 
@@ -357,15 +402,8 @@ def test_default_cleanup_respects_sqlite_variable_limit_and_retires_jobs(session
     with _set_sqlite_variable_limit(engine, 999):
         cleanup_processor_metadata()
 
-        assert session.scalars(select(DagWarning.dag_id).order_by(DagWarning.dag_id)).all() == [
-            "active",
-            "stale",
-        ]
-        retired = session.get(Job, expired_job_id)
-        assert retired.state == JobState.FAILED
-        assert retired.end_date == timezone.utcnow()
-        assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [live_job_id]
-
-        cleanup_processor_metadata()
-
-        assert session.scalars(select(DagWarning.dag_id)).all() == ["active"]
+    assert session.scalars(select(DagWarning.dag_id)).all() == ["active"]
+    retired = session.get(Job, expired_job_id)
+    assert retired.state == JobState.FAILED
+    assert retired.end_date == timezone.utcnow()
+    assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [live_job_id]
