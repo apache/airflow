@@ -585,6 +585,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--stable-versions",
                 "--publish-all-docs",
                 "--skip-write-to-stable-folder",
+                "--skip-packages-metadata",
+                "--packages-metadata-only",
             ],
         }
     ],

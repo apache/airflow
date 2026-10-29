@@ -273,3 +273,28 @@ class TestPublishDocsToS3:
         self.publish_docs_to_s3.publish_all_docs()
 
         assert self.publish_docs_to_s3.source_dest_mapping == expected_source_dest_mapping
+
+    @pytest.mark.parametrize(
+        ("skip_packages_metadata", "expected_calls"),
+        [
+            pytest.param(False, 1, id="generates_metadata"),
+            pytest.param(True, 0, id="skips_metadata"),
+        ],
+    )
+    @patch.object(S3DocsPublish, "generate_packages_metadata")
+    @patch("airflow_breeze.utils.publish_docs_to_s3.check_async_run_results")
+    @patch("airflow_breeze.utils.publish_docs_to_s3.run_with_pool")
+    def test_run_publish_packages_metadata(
+        self,
+        mock_run_with_pool,
+        mock_check_async_run_results,
+        mock_generate_packages_metadata,
+        skip_packages_metadata,
+        expected_calls,
+    ):
+        mock_run_with_pool.return_value.__enter__.return_value = (MagicMock(), [])
+        self.publish_docs_to_s3.skip_packages_metadata = skip_packages_metadata
+
+        self.publish_docs_to_s3.run_publish()
+
+        assert mock_generate_packages_metadata.call_count == expected_calls
