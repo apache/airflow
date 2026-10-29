@@ -431,7 +431,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    def test_execute_defers_remaining_confirmations_in_reschedule_mode(
+    def test_execute_defers_to_trigger_with_remaining_timeout_in_reschedule_mode(
         self, mock_hook, elapsed, expected_timeout
     ):
         now = datetime(2026, 1, 1, tzinfo=UTC)
@@ -441,7 +441,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
             streaming_buffer=None
         )
-        ti = mock.MagicMock()
+        ti = mock.MagicMock(spec=["get_first_reschedule_date"])
         ti.get_first_reschedule_date.return_value = (
             None if elapsed is None else now - timedelta(seconds=elapsed)
         )
@@ -451,12 +451,30 @@ class TestBigQueryStreamingBufferEmptySensor:
 
         trigger = exc.value.trigger
         assert isinstance(trigger, BigQueryStreamingBufferEmptyTrigger)
-        assert trigger.empty_confirmations == 2
+        assert trigger.empty_confirmations == 3
         assert trigger.poll_interval == 10
         assert exc.value.timeout == timedelta(seconds=expected_timeout)
         assert exc.value.method_name == "execute_complete"
 
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor.defer")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.AIRFLOW_V_3_0_PLUS", False)
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_defers_with_full_timeout_in_reschedule_mode_on_airflow_2(self, mock_hook):
+        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10, timeout=100)
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+        ti = mock.MagicMock(spec=["get_first_reschedule_date"])
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.poke({"ti": ti})
+
+        assert exc.value.timeout == timedelta(seconds=100)
+        ti.get_first_reschedule_date.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor.defer",
+        autospec=True,
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_execute_times_out_instead_of_deferring_when_reschedule_timeout_elapsed(
         self, mock_hook, mock_defer
@@ -465,10 +483,11 @@ class TestBigQueryStreamingBufferEmptySensor:
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
             streaming_buffer=None
         )
-        ti = mock.MagicMock()
-        ti.get_first_reschedule_date.return_value = datetime.now(UTC) - timedelta(seconds=500)
+        now = datetime(2026, 1, 1, tzinfo=UTC)
+        ti = mock.MagicMock(spec=["get_first_reschedule_date"])
+        ti.get_first_reschedule_date.return_value = now - timedelta(seconds=500)
 
-        with pytest.raises(AirflowSensorTimeout):
+        with time_machine.travel(now, tick=False), pytest.raises(AirflowSensorTimeout):
             sensor.execute({"ti": ti})
 
         mock_defer.assert_not_called()
@@ -527,18 +546,6 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert trigger.dataset_id == TEST_DATASET_ID
         assert trigger.table_id == TEST_TABLE_ID
         assert trigger.empty_confirmations == 3
-
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    def test_execute_defers_only_remaining_confirmations_after_empty_first_poke(self, mock_hook):
-        sensor = _make_streaming_sensor(deferrable=True, empty_confirmations=3)
-        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
-            streaming_buffer=None
-        )
-
-        with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(mock.MagicMock())
-
-        assert exc.value.trigger.empty_confirmations == 2
 
     def test_execute_complete_returns_message_on_success(self):
         sensor = _make_streaming_sensor(deferrable=True)
