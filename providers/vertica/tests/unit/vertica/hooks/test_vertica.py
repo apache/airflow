@@ -21,7 +21,10 @@ import json
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
+
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 
@@ -202,6 +205,7 @@ class TestVerticaHook:
 class TestVerticaHookLineage:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
+        self.cur.nextset.return_value = False
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
@@ -274,3 +278,49 @@ class TestVerticaHookLineage:
         assert call_kw["context"] is self.db_hook
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] == parameters
+
+
+class TestVerticaHookResultSetDrain:
+    """Errors of statements after the first one are only raised by vertica-python on ``nextset()``."""
+
+    def setup_method(self):
+        self.cur = mock.MagicMock(rowcount=0, description=None)
+        self.conn = mock.MagicMock()
+        self.conn.cursor.return_value = self.cur
+        conn = self.conn
+
+        class UnitTestVerticaHook(VerticaHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_conn(self):
+                return conn
+
+        self.db_hook = UnitTestVerticaHook()
+
+    @pytest.mark.parametrize(
+        "handler",
+        [None, fetch_all_handler, fetch_one_handler, lambda cur: "custom"],
+        ids=["no_handler", "fetch_all", "fetch_one", "custom"],
+    )
+    def test_error_in_later_statement_is_raised(self, handler):
+        self.cur.nextset.side_effect = [True, RuntimeError("Duplicate key values")]
+        with pytest.raises(RuntimeError, match="Duplicate key values"):
+            self.db_hook.run("INSERT INTO t VALUES (1); INSERT INTO t VALUES (1);", handler=handler)
+
+    def test_all_result_sets_are_consumed(self):
+        self.cur.nextset.side_effect = [True, True, False]
+        assert self.db_hook.run("CREATE TABLE t (a INT); INSERT INTO t VALUES (1); SELECT 1;") is None
+        assert self.cur.nextset.call_count == 3
+
+    def test_handler_result_is_returned_after_drain(self):
+        self.cur.nextset.side_effect = [True, False]
+        self.cur.description = [("?column?", None, None, None, None, None, None)]
+        self.cur.fetchone.return_value = (1,)
+        assert self.db_hook.run("SELECT 1; SELECT 2;", handler=fetch_one_handler) == (1,)
+        assert self.cur.nextset.call_count == 2
+
+    def test_each_split_statement_is_drained(self):
+        self.cur.nextset.side_effect = [False, False]
+        self.db_hook.run("SELECT 1; SELECT 2;", split_statements=True)
+        assert self.cur.execute.call_count == 2
+        assert self.cur.nextset.call_count == 2

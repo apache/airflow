@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Any, overload
 
@@ -29,13 +30,41 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
 
+def _drain_result_sets(cursor) -> None:
+    """
+    Advance the cursor through all remaining result sets.
+
+    vertica-python streams results: an error raised by a statement other than the first one in a
+    multi-statement query is only reported once the client reaches its result set. ``nextset()``
+    discards the remaining rows of the current set (without loading them in memory) and raises
+    the server error if the next set is an error.
+
+    See https://github.com/apache/airflow/issues/32993 and
+    https://github.com/vertica/vertica-python/issues/197.
+    """
+    while cursor.nextset():
+        pass
+
+
+def _with_result_set_drain(handler: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Wrap a cursor handler so that all result sets are consumed after the handler has run."""
+
+    @functools.wraps(handler)
+    def wrapper(cursor):
+        result = handler(cursor)
+        _drain_result_sets(cursor)
+        return result
+
+    return wrapper
+
+
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     """
     Replace the default DbApiHook fetch_all_handler in order to fix this issue https://github.com/apache/airflow/issues/32993.
 
-    Returned value will not change after the initial call of fetch_all_handler, all the remaining code is here
-    only to make vertica client throws error.
-    With Vertica, if you run the following sql (with split_statements set to false):
+    Returns the rows of the first result set, then consumes the remaining result sets so that
+    errors raised by subsequent statements are not silently ignored. With Vertica, if you run
+    the following sql (with split_statements set to false):
 
     INSERT INTO MyTable (Key, Label) values (1, 'test 1');
     INSERT INTO MyTable (Key, Label) values (1, 'test 2');
@@ -45,13 +74,7 @@ def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     you won't detect error on the second insert.
     """
     result = fetch_all_handler(cursor)
-    # loop on all statement result sets to get errors
-    if cursor.description is not None:
-        while cursor.nextset():
-            if cursor.description is not None:
-                row = cursor.fetchone()
-                while row:
-                    row = cursor.fetchone()
+    _drain_result_sets(cursor)
     return result
 
 
@@ -205,8 +228,18 @@ class VerticaHook(DbApiHook):
         """
         Overwrite the common sql run.
 
-        Will automatically replace fetch_all_handler by vertica_fetch_all_handler.
+        vertica-python only reports an error raised by a statement once its result set is reached, so
+        every result set is consumed after each executed statement, whatever the handler is (including
+        when no handler is passed). Otherwise a failing statement in a multi-statement query could be
+        silently ignored.
         """
-        if handler == fetch_all_handler:
+        if handler is None:
+            DbApiHook.run(
+                self, sql, autocommit, parameters, _drain_result_sets, split_statements, return_last
+            )
+            return None
+        if handler is fetch_all_handler:
             handler = vertica_fetch_all_handler
+        else:
+            handler = _with_result_set_drain(handler)
         return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
