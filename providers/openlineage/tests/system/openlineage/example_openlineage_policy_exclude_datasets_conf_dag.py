@@ -63,6 +63,10 @@ class TaskDroppedHook:
     """Hook whose datasets a Dag + task + hook rule with ``hook_lineage: false`` drops."""
 
 
+class InvalidRuleHook:
+    """Hook whose Dag + hook rule is invalid (``emit`` is not a hook-scoped control), so it is ignored."""
+
+
 class ExcludeDatasetsConfOperator(PythonOperator):
     """Operator with operator and operator + hook rules, which the Dag rules beat."""
 
@@ -132,6 +136,14 @@ def _same_dataset():
     _register_stems(QuietHook(), ["dag_hook_excluded"])
 
 
+def _invalid_rule():
+    _register_stems(InvalidRuleHook(), ["invalid_rule_excluded", "dag_excluded", "keep"])
+
+
+def _same_tier():
+    _register_stems(QuietHook(), ["first_rule_excluded", "second_rule_excluded", "dag_excluded", "keep"])
+
+
 def _all_excluded():
     _register_stems(QuietHook(), ["dag_excluded"])
 
@@ -197,6 +209,14 @@ with DAG(
         inlets=_inlets(["keep"]),
         outlets=_outlets(["keep"]),
     )
+    # The Dag + InvalidRuleHook rule has emit: false, which a hook-scoped rule can't carry, so the whole rule
+    # is ignored with its exclude list: the events are emitted, and COMPLETE keeps invalid_rule_excluded and
+    # keep and drops dag_excluded by the Dag list.
+    t_invalid_hook_rule = PythonOperator(task_id="t_invalid_hook_rule", python_callable=_invalid_rule)
+    # Two Dag + task rules list first_rule_excluded and then second_rule_excluded. The last one wins and
+    # replaces the Dag list: COMPLETE drops second_rule_excluded and keeps first_rule_excluded, dag_excluded
+    # and keep.
+    t_same_tier = PythonOperator(task_id="t_same_tier", python_callable=_same_tier)
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
@@ -214,6 +234,8 @@ with DAG(
         >> t_same_dataset
         >> t_inlets
         >> t_all_excluded
+        >> t_invalid_hook_rule
+        >> t_same_tier
         >> check_events
     )
 

@@ -203,8 +203,8 @@ with DAG(
         ),
         exclude_datasets=[".*/authored_.*"],
     )
-    # Authored hook_lineage=False drops the hook dataset (hook_ignored), so the declared inlets and outlets
-    # are used, filtered by the Dag conf list: COMPLETE drops conf_excluded and keeps keep.
+    # Authored hook_lineage=False skips hook lineage (hook_ignored), so the declared inlets and outlets are
+    # used, filtered by the Dag conf list: COMPLETE drops conf_excluded and keeps keep.
     t_hook_lineage_off = extend_global_openlineage_emission_policy(
         PythonOperator(
             task_id="t_hook_lineage_off",
@@ -225,10 +225,11 @@ with DAG(
         ],
     )
     # The authored patterns match <namespace>/<name>: COMPLETE drops the s3 staging files and
-    # file://host1//slash_*, and keeps the s3 final files and keep.
+    # file://host1/slash_* (no doubled slash before a name starting with /), and keeps the s3 final files and
+    # keep.
     t_identity = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_identity", python_callable=_identity),
-        exclude_datasets=["s3://ol-exclude-bucket/staging/part_.*", "file://host1//slash_.*"],
+        exclude_datasets=["s3://ol-exclude-bucket/staging/part_.*", "file://host1/slash_.*"],
     )
     # Conf: a locked Dag + task rule (locked_excluded) and an unlocked Dag + task + AuthHook rule
     # (specific_excluded), which wins for AuthHook. The authored list is ignored with a warning: COMPLETE

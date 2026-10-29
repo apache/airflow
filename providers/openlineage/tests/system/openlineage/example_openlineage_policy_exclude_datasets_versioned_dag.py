@@ -93,7 +93,7 @@ with DAG(
         outlets=[*_outlets(["dag_excluded_declared", "keep_declared"]), ALIAS],
     )
     # Registers 70 assets. On Airflow 3.2+ the collector keeps the first 67, then the Dag list drops the 5
-    # dag_excluded ones, leaving 62. Before 3.2 there is no cap, leaving 65.
+    # dag_excluded ones, leaving 62. Before 3.2 the cap is a fixed 100, which 70 assets don't reach, leaving 65.
     t_collector_cap = PythonOperator(task_id="t_collector_cap", python_callable=_collector_cap)
     # Skips itself. The Dag list drops dag_excluded from its START and COMPLETE. Airflow 3.0 emits START but no
     # COMPLETE for a task that skips itself.

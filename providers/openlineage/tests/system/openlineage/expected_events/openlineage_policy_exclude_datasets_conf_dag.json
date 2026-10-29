@@ -45,6 +45,12 @@
                         "t_all_excluded": {
                             "emits_ol_events": "{{ result == true }}"
                         },
+                        "t_invalid_hook_rule": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_same_tier": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
                         "check_events": {
                             "emits_ol_events": "{{ result == true }}"
                         }
@@ -527,6 +533,82 @@
         "outputs": [],
         "job": {
             "name": "openlineage_policy_exclude_datasets_conf_dag.t_all_excluded"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_conf_dag.t_invalid_hook_rule"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/invalid_rule_excluded_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/invalid_rule_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_conf_dag.t_invalid_hook_rule"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_conf_dag.t_same_tier"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/first_rule_excluded_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/dag_excluded_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/first_rule_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/dag_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_conf_dag.t_same_tier"
         }
     }
 ]
