@@ -213,6 +213,7 @@ export const DagsList = () => {
     dagRunsLimit,
     dagRunState,
     dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
+    excludeStale: hasImportErrors !== true,
     hasImportErrors,
     isFavorite,
     lastDagRunState,
