@@ -321,8 +321,6 @@ class TestS3DagBundle:
             "subproject1",
             "subproject1/dag_a.py",
         ]
-        # the bucket also holds objects under S3_BUCKET_PREFIX that the archive does not
-        # contain: staging used the archive alone, never a per-object sync
         assert not (bundle.path / S3_BUCKET_PREFIX / "dag_02.py").exists()
         assert not (bundle.path / "dag_02.py").exists()
 
@@ -333,14 +331,11 @@ class TestS3DagBundle:
         bundle = self._archive_bundle()
         bundle.initialize()
 
-        # A local sentinel file would be wiped by the swap of a re-staged tree
         sentinel = bundle.path / "sentinel.txt"
         sentinel.write_text("still here")
         bundle.refresh()
         assert sentinel.is_file()
 
-        # A changed archive (new ETag) re-stages: additions appear, removed
-        # members and local strays disappear with the swapped tree
         updated = _make_archive({"dag_new.py": b"test data"})
         s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=updated)
         bundle.refresh()
@@ -349,8 +344,6 @@ class TestS3DagBundle:
         assert not sentinel.exists()
 
     def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
-        # there is no fallback to a per-object sync, so a missing archive is fatal even
-        # though this bucket does hold Dag objects under a prefix
         bundle = self._archive_bundle()
         with pytest.raises(ClientError) as exc_info:
             bundle.initialize()
@@ -370,7 +363,6 @@ class TestS3DagBundle:
         with pytest.raises(tarfile.ReadError):
             bundle.refresh()
 
-        # the bundle staged by the previous refresh is left untouched
         assert (bundle.path / "dag_01.py").is_file()
         assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
 
@@ -391,8 +383,6 @@ class TestS3DagBundle:
         real_rename = Path.rename
 
         def fail_swap_into_place(self: Path, target):
-            # fail only moving the newly unpacked tree into place, so the restore of the
-            # previous tree (renamed from "previous") still works
             if self.name == "unpacked" and Path(target) == bundle.path:
                 raise OSError("swap failed")
             return real_rename(self, target)
@@ -403,8 +393,6 @@ class TestS3DagBundle:
         ):
             bundle.refresh()
 
-        # the previous bundle was moved back into place, and neither the backup nor the
-        # staging directory was left behind
         assert (bundle.path / "dag_01.py").read_text() == "old"
         assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
 
