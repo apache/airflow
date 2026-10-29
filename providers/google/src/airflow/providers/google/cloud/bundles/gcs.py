@@ -31,6 +31,29 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
+def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
+    """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    with tarfile.open(archive_path, "r:*") as tar:
+        # filter="data" arrived in Python 3.11.4. 3.11.0-3.11.3 still have to reject
+        # the same escapes by hand.
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(unpack_dir, filter="data")
+            return
+        for member in tar.getmembers():
+            if _tar_member_escapes_destination(member):
+                raise tarfile.TarError(f"Refusing to extract archive member {member.name!r}")
+        tar.extractall(unpack_dir)
+
+
+def _tar_member_escapes_destination(member: tarfile.TarInfo) -> bool:
+    if not (member.isfile() or member.isdir()):
+        return True
+    name = member.name
+    if os.path.isabs(name) or ".." in Path(name).parts:
+        return True
+    return False
+
+
 class GCSDagBundle(BaseDagBundle):
     """
     GCS Dag bundle - exposes a directory in GCS as a Dag bundle.
@@ -210,8 +233,7 @@ class GCSDagBundle(BaseDagBundle):
 
             unpack_dir = staging_dir / "unpacked"
             unpack_dir.mkdir()
-            with tarfile.open(archive_path, "r:*") as tar:
-                tar.extractall(unpack_dir, filter="data")
+            _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
             if etag:
