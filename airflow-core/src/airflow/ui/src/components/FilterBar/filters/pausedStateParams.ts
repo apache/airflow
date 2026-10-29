@@ -21,9 +21,10 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import type { FilterValue } from "../types";
 
 /**
- * The Paused state pill covers three choices backed by the two URL params that already exist:
+ * The Paused state pill covers four choices backed by the two URL params that already exist:
  *
  *   "not_paused" → ``paused=false``              unpaused, which includes draining Dags
+ *   "active"     → ``scheduling_state=active``    excludes paused and draining Dags
  *   "paused"     → ``paused=true``
  *   "draining"   → ``scheduling_state=draining``
  *
@@ -32,29 +33,27 @@ import type { FilterValue } from "../types";
  * ``paused`` for the other two leaves existing links and the ``hide_paused_dags_by_default``
  * seed working untouched.
  */
-export type PausedStateValue = "draining" | "not_paused" | "paused";
+export type PausedStateValue = "active" | "draining" | "not_paused" | "paused";
 
 export const pausedStateToSearchParams = (value: FilterValue): Record<string, string | undefined> => {
   const paused = value === "not_paused" ? "false" : undefined;
 
   return {
     [SearchParamsKeys.PAUSED]: value === "paused" ? "true" : paused,
-    [SearchParamsKeys.SCHEDULING_STATE]: value === "draining" ? "draining" : undefined,
+    [SearchParamsKeys.SCHEDULING_STATE]: value === "draining" || value === "active" ? value : undefined,
   };
 };
 
 export const pausedStateFromSearchParams = (params: URLSearchParams): PausedStateValue | undefined => {
   const schedulingState = params.get(SearchParamsKeys.SCHEDULING_STATE);
 
-  // Checked first: a draining Dag is also unpaused, so ``paused=false`` alongside it would
-  // otherwise win and widen the pill back to every unpaused Dag.
-  if (schedulingState === "draining") {
-    return "draining";
+  // Scheduling state is narrower than paused=false, which also includes draining Dags.
+  if (schedulingState === "draining" || schedulingState === "active") {
+    return schedulingState;
   }
 
   // ``scheduling_state=paused`` is the same set as ``paused=true``, so links written against the
-  // short-lived Scheduling state filter keep working. ``=active`` has no equivalent here — it
-  // excludes draining Dags, which no single choice does — so it falls through and is ignored.
+  // short-lived Scheduling state filter keep working.
   if (schedulingState === "paused") {
     return "paused";
   }
@@ -78,5 +77,5 @@ export const pausedStateToQuery = (value: PausedStateValue | undefined) => {
     paused = false;
   }
 
-  return { paused, schedulingState: value === "draining" ? ("draining" as const) : undefined };
+  return { paused, schedulingState: value === "draining" || value === "active" ? value : undefined };
 };
