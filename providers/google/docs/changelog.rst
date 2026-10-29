@@ -33,6 +33,11 @@ Changelog
     a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
     serves, install ``litellm`` yourself; without it those calls raise ``ImportError``.
 
+.. note::
+    ``CreateBatchPredictionJobOperator`` now fails the task when Vertex AI reports a batch
+    prediction job as succeeded but every input row failed. Set
+    ``fail_on_empty_predictions=False`` to keep the previous behavior.
+
 22.9.0
 ......
 
