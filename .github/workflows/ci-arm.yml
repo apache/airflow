@@ -201,6 +201,10 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-split-test-types-list-as-strings-in-json }}
+      providers-xdist-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -679,7 +683,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -690,7 +694,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -738,7 +742,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -749,7 +753,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -798,7 +802,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -811,7 +815,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -872,7 +876,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -902,6 +906,8 @@ jobs:
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1088,7 +1094,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1173,7 +1179,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1209,7 +1215,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '32+64', '128+256') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1295,7 +1301,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1709,7 +1715,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
