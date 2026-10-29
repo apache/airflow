@@ -31,27 +31,17 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
+def _require_tar_data_filter() -> None:
+    if hasattr(tarfile, "data_filter"):
+        return
+    raise RuntimeError("Archive Dag bundles require Python 3.11.4 or later (tarfile filter='data').")
+
+
 def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
     """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    _require_tar_data_filter()
     with tarfile.open(archive_path, "r:*") as tar:
-        # filter="data" arrived in Python 3.11.4. 3.11.0-3.11.3 still have to reject
-        # the same escapes by hand.
-        if hasattr(tarfile, "data_filter"):
-            tar.extractall(unpack_dir, filter="data")
-            return
-        for member in tar.getmembers():
-            if _tar_member_escapes_destination(member):
-                raise tarfile.TarError(f"Refusing to extract archive member {member.name!r}")
-        tar.extractall(unpack_dir)
-
-
-def _tar_member_escapes_destination(member: tarfile.TarInfo) -> bool:
-    if not (member.isfile() or member.isdir()):
-        return True
-    name = member.name
-    if os.path.isabs(name) or ".." in Path(name).parts:
-        return True
-    return False
+        tar.extractall(unpack_dir, filter="data")
 
 
 class GCSDagBundle(BaseDagBundle):
@@ -71,12 +61,11 @@ class GCSDagBundle(BaseDagBundle):
                     The archive is then the only source of the Dags: ``archive_object`` is mutually
                     exclusive with ``prefix``, so there is no second copy to keep in sync and no
                     fallback to a per-object sync. Members are extracted relative to the bundle
-                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .`` (Optional).
+                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``.
+                    Requires Python 3.11.4 or later (Optional).
     """
 
     supports_versioning = False
-
-    archive_etag_marker = ".airflow_bundle_archive_etag"
 
     def __init__(
         self,
@@ -93,6 +82,8 @@ class GCSDagBundle(BaseDagBundle):
                 "GCSDagBundle accepts either 'prefix' or 'archive_object', not both. When "
                 "'archive_object' is set the archive is the only staging source."
             )
+        if archive_object:
+            _require_tar_data_filter()
         self.gcp_conn_id = gcp_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
@@ -183,23 +174,22 @@ class GCSDagBundle(BaseDagBundle):
                 delete_stale=True,
             )
 
-    def _archive_staging_prefix(self) -> str:
-        # The storage root is shared by every bundle. The lock is per bundle name, so
-        # leftover cleanup must not match another bundle's in-progress staging directory.
-        return f".{self.name}-archive-staging-"
+    def _archive_state_dir(self) -> Path:
+        return self.gcs_dags_dir.parent / f".{self.name}"
+
+    def _archive_etag_path(self) -> Path:
+        return self._archive_state_dir() / "etag"
 
     def _remove_stale_archive_staging_dirs(self) -> None:
-        storage_root = self.gcs_dags_dir.parent
-        if not storage_root.is_dir():
+        state_dir = self._archive_state_dir()
+        if not state_dir.is_dir():
             return
-        prefix = self._archive_staging_prefix()
-        for leftover in storage_root.iterdir():
-            if leftover.is_dir() and leftover.name.startswith(prefix):
+        for leftover in state_dir.iterdir():
+            if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
                 shutil.rmtree(leftover, ignore_errors=True)
 
     def _refresh_from_archive(self, archive_object: str) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive object."""
-        # A killed process never reaches the finally that removes its staging directory.
         self._remove_stale_archive_staging_dirs()
         blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(archive_object)
         try:
@@ -208,7 +198,7 @@ class GCSDagBundle(BaseDagBundle):
             raise ValueError(f"GCS archive 'gs://{self.bucket_name}/{archive_object}' does not exist.")
         etag = blob.etag or ""
 
-        marker = self.gcs_dags_dir / self.archive_etag_marker
+        marker = self._archive_etag_path()
         if etag and marker.is_file() and marker.read_text() == etag:
             self._log.debug(
                 "Dag bundle archive 'gs://%s/%s' is unchanged (ETag %s), skipping staging",
@@ -218,14 +208,11 @@ class GCSDagBundle(BaseDagBundle):
             )
             return
 
-        staging_dir = Path(
-            tempfile.mkdtemp(dir=self.gcs_dags_dir.parent, prefix=self._archive_staging_prefix())
-        )
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
         try:
             archive_path = staging_dir / "_bundle_archive"
-            # Pin the bytes to the generation just read. An overwrite between reload()
-            # and the download then fails, instead of storing the new bytes under the
-            # old ETag. GCSHook.download cannot pass if_generation_match.
             download_kwargs = {}
             if blob.generation is not None:
                 download_kwargs["if_generation_match"] = blob.generation
@@ -236,14 +223,8 @@ class GCSDagBundle(BaseDagBundle):
             _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
-            if etag:
-                (unpack_dir / self.archive_etag_marker).write_text(etag)
-
-            # Swap the unpacked tree into place. The previous tree is kept inside the
-            # staging directory and renamed back if the second rename fails, so a
-            # half-unpacked tree is never left at self.gcs_dags_dir. There is a short
-            # gap between the two renames where the directory does not exist. Readers
-            # do not take self.lock(), so a scan during that gap sees nothing.
+            # Two renames, so the bundle directory is missing for a moment. A failed
+            # second rename puts the previous tree back.
             backup_dir = staging_dir / "previous"
             if self.gcs_dags_dir.exists():
                 self.gcs_dags_dir.rename(backup_dir)
@@ -253,6 +234,9 @@ class GCSDagBundle(BaseDagBundle):
                 if backup_dir.exists():
                     backup_dir.rename(self.gcs_dags_dir)
                 raise
+
+            if etag:
+                self._archive_etag_path().write_text(etag)
 
             self._log.debug(
                 "Staged Dag bundle from archive 'gs://%s/%s' (%s bytes) to %s",
