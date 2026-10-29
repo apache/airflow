@@ -16,15 +16,13 @@
 # under the License.
 
 """
-Manual Breeze test for a processor on an API-only internal network.
+End-to-end test of a processor on an API-only internal network.
 
-CI's named integration jobs collect this module but skip its tests because they
-have no integration marker. With Docker running, run it from the repository root
-without pytest's ``--integration`` selector::
+The tests need the Docker CLI and socket, which Breeze always provides, and a PostgreSQL or
+MySQL backend. They have no integration marker, so every core integration job in CI runs them.
+To run them locally::
 
     breeze run --backend postgres pytest airflow-core/tests/integration/dag_processing/test_api_isolation.py -v
-
-Breeze provides the Docker CLI and mounts its socket, which this test requires.
 """
 
 from __future__ import annotations

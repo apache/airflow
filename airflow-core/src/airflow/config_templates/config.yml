@@ -3477,6 +3477,8 @@ dag_processor:
         DAG is loaded. The absolute maximum that this could take is
         ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
         it results in a significant delay in the deactivation of stale dags.
+        When ``[dag_processor] execution_api_token_file`` is set, Dags missing from an accepted parse
+        are marked stale at once; the threshold applies only to the Dags of a file whose import failed.
       version_added: ~
       type: integer
       example: ~
