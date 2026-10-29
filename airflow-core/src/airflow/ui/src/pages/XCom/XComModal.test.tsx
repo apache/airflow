@@ -18,10 +18,12 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { XcomService } from "openapi/requests";
 
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import XComModal from "./XComModal";
@@ -79,4 +81,62 @@ it("edits the selected regional XCom without using the colliding public map coor
     }),
   );
   expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ regionId, regionIndex: 3 }));
+});
+
+it.each([
+  { label: "numeric string", value: "123" },
+  { label: "boolean string", value: "false" },
+  { label: "null string", value: "null" },
+  { label: "object string", value: '{"count":1}' },
+  { label: "array string", value: "[1,2]" },
+  { label: "quoted string", value: '"quoted"' },
+  { label: "empty string", value: "" },
+  { label: "multiline string", value: "first\nsecond" },
+])("preserves a stored $label when saving without edits", async ({ value }) => {
+  let deserialize: string | null = null;
+  let stringify: string | null = null;
+  const update = vi.fn();
+
+  server.use(
+    http.get("/api/v2/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/return_value", ({ request }) => {
+      const url = new URL(request.url);
+
+      deserialize = url.searchParams.get("deserialize");
+      stringify = url.searchParams.get("stringify");
+
+      return HttpResponse.json({ key: "return_value", value });
+    }),
+    http.patch(
+      "/api/v2/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/return_value",
+      async ({ request }) => {
+        update(await request.json());
+
+        return HttpResponse.json({ key: "return_value", value });
+      },
+    ),
+  );
+
+  render(
+    <XComModal
+      dagId="dag"
+      isOpen
+      mapIndex={-1}
+      mode="edit"
+      onClose={vi.fn()}
+      runId="run"
+      taskId="task"
+      xcomKey="return_value"
+    />,
+    { wrapper: Wrapper },
+  );
+
+  const editorValue = JSON.stringify(value, undefined, 2);
+
+  await waitFor(() => expect(screen.getByTestId("editor").textContent).toBe(editorValue));
+  expect(deserialize).toBe("false");
+  expect(stringify).toBe("false");
+
+  fireEvent.click(screen.getByRole("button", { name: "common:modal.save" }));
+
+  await waitFor(() => expect(update).toHaveBeenCalledWith({ map_index: -1, value }));
 });
