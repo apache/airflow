@@ -2336,6 +2336,17 @@ class TestPydanticAIVertexHook:
         assert example is not None, description
         _assert_prefix_is_known_provider(example.group(1))
 
+    def test_conn_fields_default_provider_suggestions_are_valid_providers(self):
+        """Drift tripwire for the form's Default Model Provider suggestions: each must still resolve."""
+        connection_types = get_provider_info()["connection-types"]
+        generic_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai"
+        )
+        suggestions = generic_conn_fields["model_provider"]["schema"]["examples"]
+        assert suggestions
+        for suggestion in suggestions:
+            _assert_prefix_is_known_provider(suggestion)
+
     def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
         """
         Drift tripwire for the ``provider.yaml`` ``ui-field-behaviour.placeholders.extra``,

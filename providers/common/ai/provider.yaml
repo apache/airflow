@@ -237,6 +237,19 @@ connection-types:
           type:
             - string
             - 'null'
+          # Suggestions only: the form still accepts any provider pydantic-ai recognizes.
+          examples:
+            - openai-chat
+            - openai
+            - anthropic
+            - ollama
+            - litellm
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - together
+            - fireworks
       fallback_conn_ids:
         label: Fallback Connections
         description: "Connection IDs to fail over to, in order, while this provider is unavailable."
