@@ -623,7 +623,7 @@ class TestDbApiHookCancelQuery:
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         cursor.execute.side_effect = AirflowTaskTimeout()
         hook = self._hook_with_cursor(cursor)
-        hook._cancel_on_interrupt = False
+        hook.cancel_on_interrupt = False
 
         with pytest.raises(AirflowTaskTimeout):
             hook.run("select pg_sleep(600)")

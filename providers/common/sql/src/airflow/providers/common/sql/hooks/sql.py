@@ -161,6 +161,12 @@ class DbApiHook(BaseHook):
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
     :param log_sql: Whether to log SQL query when it's executed. Defaults to *True*.
+
+    The ``cancel_on_interrupt`` attribute (default ``True``) controls whether a statement interrupted by
+    the ``execution_timeout`` of the task (or a keyboard interrupt) is cancelled through ``cancel_query``
+    before the interruption propagates. Set it to ``False`` to leave such a statement running.
+    :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` sets it from its
+    ``cancel_on_kill`` parameter.
     """
 
     # Override to provide the connection name.
@@ -203,7 +209,7 @@ class DbApiHook(BaseHook):
         # ``cancel_query``
         self._running_cursor: Any = None
         # Whether ``_track_running_cursor`` cancels a statement interrupted by a timeout or keyboard interrupt
-        self._cancel_on_interrupt = True
+        self.cancel_on_interrupt = True
         self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
@@ -939,7 +945,7 @@ class DbApiHook(BaseHook):
 
         An interruption that is not an ``Exception`` (``AirflowTaskTimeout`` raised from ``SIGALRM`` when the
         ``execution_timeout`` of the task elapses, ``KeyboardInterrupt``) cancels the statement before it
-        propagates (unless ``_cancel_on_interrupt`` is ``False``): ``on_kill`` is only called after it has
+        propagates (unless ``cancel_on_interrupt`` is ``False``): ``on_kill`` is only called after it has
         unwound through ``run``, which closes the cursor and the connection on the way, so cancelling there
         would be too late.
 
@@ -955,7 +961,7 @@ class DbApiHook(BaseHook):
         except Exception:
             raise
         except BaseException:
-            if self._cancel_on_interrupt:
+            if self.cancel_on_interrupt:
                 try:
                     self.cancel_query()
                 except Exception:
@@ -977,10 +983,10 @@ class DbApiHook(BaseHook):
         in another way can override this method.
 
         The default implementation relies on the cancellation extensions offered by many DB-API drivers:
-        ``cursor.cancel()`` is used when the cursor provides it, otherwise ``connection.cancel()`` is used
-        when the cursor exposes its connection and the connection provides it (e.g. ``psycopg``,
-        ``oracledb`` or ``trino``). This only helps with drivers that return to Python to handle signals
-        while a statement is running. Drivers that block in C until the statement completes (e.g.
+        ``cursor.cancel()`` is used when the cursor provides it (e.g. ``trino``), otherwise
+        ``connection.cancel()`` is used when the cursor exposes its connection and the connection provides
+        it (e.g. ``psycopg`` or ``oracledb`` in its default thin mode). This only helps with drivers that
+        return to Python to handle signals while a statement is running. Drivers that block in C until the statement completes (e.g.
         ``psycopg2``, ``sqlite3``, ``mysqlclient`` or ``mysql-connector-python``) never let the signal
         handlers run during the statement: ``on_kill`` is not called before the task process is killed,
         and the ``execution_timeout`` is only raised once the statement has returned. Hooks for such

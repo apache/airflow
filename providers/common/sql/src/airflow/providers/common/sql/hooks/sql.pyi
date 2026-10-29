@@ -70,6 +70,7 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None
     log_sql: Incomplete
     descriptions: Incomplete
+    cancel_on_interrupt: bool
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
     def get_conn_id(self) -> str: ...
     @cached_property

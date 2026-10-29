@@ -505,7 +505,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         making this parameter redundant.  (default: False).
     :param cancel_on_kill: (optional) if True, the SQL statement that is still running when the task
         instance is killed is cancelled on the database. Set it to False to let the statement run to
-        completion instead. (default: True).
+        completion instead. When the ``execution_timeout`` elapses, the cursor and the connection are still
+        closed as the timeout propagates, and some drivers stop the statement at that point anyway (e.g.
+        ``trino`` cancels the query when the cursor is closed). (default: True).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -582,7 +584,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
         # The hook cancels a statement interrupted by the ``execution_timeout`` itself, before ``on_kill``
-        hook._cancel_on_interrupt = self.cancel_on_kill
+        hook.cancel_on_interrupt = self.cancel_on_kill
         if self.split_statements is not None:
             extra_kwargs = {"split_statements": self.split_statements}
         else:
