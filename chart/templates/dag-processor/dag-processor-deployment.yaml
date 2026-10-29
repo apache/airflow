@@ -23,7 +23,11 @@
 {{- if .Values.dagProcessor.enabled }}
 {{- $globals := deepCopy . -}}
 {{- $dagProcessorSets := .Values.dagProcessor.sets | default list -}}
-{{- if .Values.dagProcessor.enableDefault -}}
+{{- $enableDefault := .Values.dagProcessor.enableDefault -}}
+{{- if kindIs "invalid" $enableDefault -}}
+  {{- $enableDefault = not .Values.dagProcessor.sets -}}
+{{- end -}}
+{{- if $enableDefault -}}
   {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets -}}
 {{- end -}}
 {{- range $dagProcessorSet := $dagProcessorSets -}}

@@ -271,13 +271,19 @@ so each can have its own replicas, resources, node selectors or tolerations. Def
 bundles once in ``dagProcessor.dagBundleConfigList`` and select the bundles a set parses with
 ``bundleNames``. Each set inherits the ``dagProcessor`` settings and can override them, and
 creates its own Deployment (and PodDisruptionBudget when enabled) named
-``<release>-dag-processor-<set name>``:
+``<release>-dag-processor-<set name>``.
+
+.. note::
+
+   When ``dagProcessor.sets`` is not empty, the default Dag processor is not created unless you set
+   ``dagProcessor.enableDefault: true`` explicitly. The default Dag processor parses **all** bundles
+   (unless ``bundleNames`` is set on it), so enabling it next to sets that select bundles makes those
+   bundles be parsed twice.
 
 .. code-block:: yaml
    :caption: values.yaml
 
    dagProcessor:
-     enableDefault: false
      dagBundleConfigList:
        - name: bundle1
          classpath: "airflow.providers.git.bundles.git.GitDagBundle"
@@ -295,6 +301,4 @@ creates its own Deployment (and PodDisruptionBudget when enabled) named
          bundleNames: ["bundle2"]
 
 The bundle selection is passed as ``--bundle-name`` flags appended to the last item of
-``dagProcessor.args``. Without ``bundleNames`` a Dag processor parses all bundles, so set
-``enableDefault: false`` (or ``bundleNames`` on the default Dag processor) to avoid parsing the
-same bundle twice.
+``dagProcessor.args``. Without ``bundleNames`` a Dag processor parses all bundles.

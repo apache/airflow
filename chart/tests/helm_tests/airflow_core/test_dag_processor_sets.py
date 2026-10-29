@@ -64,6 +64,24 @@ class TestDagProcessorSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
+    @pytest.mark.parametrize(
+        ("dag_processor", "expected"),
+        [
+            ({"sets": [{"name": "set1"}]}, ["test-dag-processor-set1"]),
+            ({"sets": [{"name": "set1"}], "enableDefault": None}, ["test-dag-processor-set1"]),
+            (
+                {"sets": [{"name": "set1"}], "enableDefault": True},
+                ["test-dag-processor", "test-dag-processor-set1"],
+            ),
+            ({"sets": [], "enableDefault": None}, ["test-dag-processor"]),
+            ({"sets": [], "enableDefault": False}, []),
+        ],
+    )
+    def test_enable_default_is_derived_from_sets(self, dag_processor, expected):
+        docs = render_chart(name="test", values={"dagProcessor": dag_processor}, show_only=[DEPLOYMENT])
+
+        assert jmespath.search("[*].metadata.name", docs) == expected
+
     def test_set_labels_and_selector(self):
         docs = render_chart(
             values={"dagProcessor": {"enableDefault": False, "sets": [{"name": "set1"}]}},
@@ -78,6 +96,7 @@ class TestDagProcessorSets:
             name="test",
             values={
                 "dagProcessor": {
+                    "enableDefault": True,
                     "replicas": 1,
                     "resources": {"limits": {"cpu": "1"}},
                     "sets": [
@@ -179,6 +198,7 @@ class TestDagProcessorSets:
             name="test",
             values={
                 "dagProcessor": {
+                    "enableDefault": True,
                     "podDisruptionBudget": {"enabled": True},
                     "sets": [
                         {"name": "one", "podDisruptionBudget": {"config": {"maxUnavailable": 2}}},

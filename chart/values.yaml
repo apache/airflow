@@ -2187,7 +2187,10 @@ dagProcessor:
 
   # Enable the default dag processor defined by the root `dagProcessor` configuration to be created.
   # If false, only the dedicated dag processors defined in 'sets' will be created.
-  enableDefault: true
+  # When not set, the default dag processor is created only if 'sets' is empty.
+  # Set it to true explicitly to run the default dag processor next to the sets. It parses ALL bundles
+  # unless `bundleNames` is set, so bundles selected by a set would then be parsed twice.
+  enableDefault: ~
 
   # Names of the bundles from `dagBundleConfigList` this dag processor parses
   # (passed as `--bundle-name` flags, appended to the last item of `args`).
@@ -2196,11 +2199,8 @@ dagProcessor:
 
   # List of dag processor sets. Each item requires a `name` and can overwrite values from the parent
   # `dagProcessor` section. Bundles are always defined once in the parent `dagBundleConfigList`
-  # and selected per set with `bundleNames`. When the default dag processor is also enabled it
-  # parses all the bundles (unless `bundleNames` is set), so set `enableDefault: false` or
-  # set `bundleNames` on it to avoid parsing the same bundle twice.
+  # and selected per set with `bundleNames`. See the `enableDefault` note above.
   sets: []
-  # enableDefault: false
   # dagBundleConfigList:
   #   - name: bundle1
   #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
