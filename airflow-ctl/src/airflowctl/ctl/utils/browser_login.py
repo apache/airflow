@@ -28,7 +28,8 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 
-import rich
+from rich.console import Console
+from rich.markup import escape
 
 from airflowctl.exceptions import AirflowCtlBrowserLoginException
 
@@ -109,7 +110,10 @@ def get_authorization_code(
                 }
             )
         )
-        rich.print(f"[blue]Log in from your browser:[/blue] {login_url}")
+        # stderr keeps the URL out of `auth token --sso` output; soft_wrap keeps it on one line for copying.
+        Console(stderr=True, soft_wrap=True).print(
+            f"[blue]Log in from your browser:[/blue] {escape(login_url)}"
+        )
         if open_browser:
             webbrowser.open(login_url)
 
