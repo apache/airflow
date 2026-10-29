@@ -30,6 +30,29 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 
+def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
+    """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    with tarfile.open(archive_path, "r:*") as tar:
+        # filter="data" arrived in Python 3.11.4. 3.11.0-3.11.3 still have to reject
+        # the same escapes by hand.
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(unpack_dir, filter="data")
+            return
+        for member in tar.getmembers():
+            if _tar_member_escapes_destination(member):
+                raise tarfile.TarError(f"Refusing to extract archive member {member.name!r}")
+        tar.extractall(unpack_dir)
+
+
+def _tar_member_escapes_destination(member: tarfile.TarInfo) -> bool:
+    if not (member.isfile() or member.isdir()):
+        return True
+    name = member.name
+    if os.path.isabs(name) or ".." in Path(name).parts:
+        return True
+    return False
+
+
 class S3DagBundle(BaseDagBundle):
     """
     S3 Dag bundle - exposes a directory in S3 as a Dag bundle.
@@ -228,8 +251,7 @@ class S3DagBundle(BaseDagBundle):
 
             unpack_dir = staging_dir / "unpacked"
             unpack_dir.mkdir()
-            with tarfile.open(archive_path, "r:*") as tar:
-                tar.extractall(unpack_dir, filter="data")
+            _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
             marker_etag = downloaded_etag or etag
