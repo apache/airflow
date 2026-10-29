@@ -188,6 +188,9 @@ jobs:
       # the constraints, which is exactly the version the release needed pinned.
       pypi-providers-only: "true"
       allow-pre-releases: ${{ needs.build-info.outputs.allow-pre-releases }}
+      # A final must not be cut while a provider candidate is still neither released nor yanked.
+      fail-on-pending-provider-candidates: >-
+        ${{ needs.build-info.outputs.allow-pre-releases == 'true' && 'false' || 'true' }}
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
       use-uv: "true"
