@@ -284,6 +284,10 @@ Stable API Permissions
      - PUT
      - Assets.can_edit
      - Op
+   * - ``/api/v2/auth/cli/metadata``
+     - GET
+     - None
+     - Public
    * - ``/api/v2/auth/login``
      - GET
      - None

@@ -21,10 +21,10 @@ import subprocess
 import sys
 from unittest import mock
 
-import check_go_sdk_serialization_conformance as checker
+from ci.lang_sdk_serialization import check_go_sdk as checker
 
 
-@mock.patch("check_go_sdk_serialization_conformance.subprocess.run", autospec=True)
+@mock.patch("ci.lang_sdk_serialization.check_go_sdk.subprocess.run", autospec=True)
 def test_main_runs_compare_with_the_go_serializer_and_returns_its_exit_code(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1)
 

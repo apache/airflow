@@ -346,6 +346,18 @@ class ClearTaskInstancesBody(BaseModel):
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
+class CliLoginMetadataResponse(BaseModel):
+    """
+    Login methods the auth manager offers to command-line clients, named as in RFC 8414.
+    """
+
+    grant_types_supported: Annotated[list[str], Field(title="Grant Types Supported")]
+    code_challenge_methods_supported: Annotated[list[str], Field(title="Code Challenge Methods Supported")]
+    authorization_endpoint: Annotated[str | None, Field(title="Authorization Endpoint")]
+    device_authorization_endpoint: Annotated[str | None, Field(title="Device Authorization Endpoint")]
+    token_endpoint: Annotated[str | None, Field(title="Token Endpoint")]
+
+
 class Value(RootModel[tuple[str, str]]):
     root: Annotated[tuple[str, str], Field(max_length=2, min_length=2, title="Value")]
 
