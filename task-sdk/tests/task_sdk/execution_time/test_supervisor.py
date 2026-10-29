@@ -1763,18 +1763,11 @@ class TestWatchedSubprocess:
         proc._handle_execution_timeout_if_needed()
         mock_kill.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "context_timeout",
-        [
-            pytest.param(None, id="no_run_context_timeout"),
-            pytest.param(3600.0, id="longer_run_context_timeout"),
-        ],
-    )
-    def test_set_execution_timeout_uses_task_process_value(self, mocker, context_timeout):
+    def test_set_execution_timeout_uses_task_process_value(self, mocker):
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        proc = self._start_activity_subprocess(mocker, execution_timeout=context_timeout)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=3600.0)
 
         proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
 
