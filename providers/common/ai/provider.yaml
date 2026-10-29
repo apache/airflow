@@ -23,7 +23,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1792489528
+source-date-epoch: 1793262026
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
