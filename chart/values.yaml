@@ -2185,6 +2185,42 @@ dagProcessor:
   #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
   #     kwargs: {}
 
+  # Enable the default dag processor defined by the root `dagProcessor` configuration to be created.
+  # If false, only the dedicated dag processors defined in 'sets' will be created.
+  enableDefault: true
+
+  # Names of the bundles from `dagBundleConfigList` this dag processor parses
+  # (passed as `--bundle-name` flags, appended to the last item of `args`).
+  # If empty, the dag processor parses all the bundles.
+  bundleNames: []
+
+  # List of dag processor sets. Each item requires a `name` and can overwrite values from the parent
+  # `dagProcessor` section. Bundles are always defined once in the parent `dagBundleConfigList`
+  # and selected per set with `bundleNames`. When the default dag processor is also enabled it
+  # parses all the bundles (unless `bundleNames` is set), so set `enableDefault: false` or
+  # set `bundleNames` on it to avoid parsing the same bundle twice.
+  sets: []
+  # enableDefault: false
+  # dagBundleConfigList:
+  #   - name: bundle1
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs: {...}
+  #   - name: bundle2
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs: {...}
+  # sets:
+  #   - name: bundle1
+  #     bundleNames: ["bundle1"]
+  #     replicas: 3
+  #     resources:
+  #       requests:
+  #         memory: "2Gi"
+  #         cpu: "1000m"
+  #     podDisruptionBudget:
+  #       enabled: true
+  #   - name: bundle2
+  #     bundleNames: ["bundle2"]
+
   # Number of Airflow dag processors in the Deployment
   replicas: 1
 

@@ -21,6 +21,19 @@
 ## Airflow Dag Processor Deployment
 #################################
 {{- if .Values.dagProcessor.enabled }}
+{{- $globals := deepCopy . -}}
+{{- $dagProcessorSets := .Values.dagProcessor.sets | default list -}}
+{{- if .Values.dagProcessor.enableDefault -}}
+  {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets -}}
+{{- end -}}
+{{- range $dagProcessorSet := $dagProcessorSets -}}
+  {{- if hasKey $dagProcessorSet "dagBundleConfigList" -}}
+    {{- fail "`dagProcessor.sets` items cannot define `dagBundleConfigList`; define all bundles in `dagProcessor.dagBundleConfigList` and select them per set with `bundleNames`" -}}
+  {{- end -}}
+  {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml -}}
+  {{- $_ := set $globals.Values "dagProcessor" $dagProcessor -}}
+  {{- with $globals }}
+---
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -32,10 +45,28 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.dagProcessor.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.dagProcessor.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $args := .Values.dagProcessor.args }}
+{{- with .Values.dagProcessor.bundleNames }}
+  {{- if not $args }}
+    {{- fail "`dagProcessor.bundleNames` requires `dagProcessor.args` to be set" }}
+  {{- end }}
+  {{- $definedBundles := list }}
+  {{- range $.Values.dagProcessor.dagBundleConfigList }}
+    {{- $definedBundles = append $definedBundles .name }}
+  {{- end }}
+  {{- $bundleFlags := list }}
+  {{- range . }}
+    {{- if not (has . $definedBundles) }}
+      {{- fail (printf "Bundle %q is not defined in `dagProcessor.dagBundleConfigList`" .) }}
+    {{- end }}
+    {{- $bundleFlags = append $bundleFlags (printf "--bundle-name %s" (squote .)) }}
+  {{- end }}
+  {{- $args = append (initial $args) (printf "%s %s" (last $args) (join " " $bundleFlags)) }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "airflow.fullname" . }}-dag-processor
+  name: {{ include "airflow.fullname" . }}-dag-processor{{ if ne .Values.dagProcessor.name "default" }}-{{ .Values.dagProcessor.name }}{{ end }}
   labels:
     tier: airflow
     component: dag-processor
@@ -58,6 +89,9 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
+      {{- if ne .Values.dagProcessor.name "default" }}
+      dag-processor-set: {{ .Values.dagProcessor.name }}
+      {{- end }}
   {{- if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
@@ -67,6 +101,9 @@ spec:
         tier: airflow
         component: dag-processor
         release: {{ .Release.Name }}
+        {{- if ne .Values.dagProcessor.name "default" }}
+        dag-processor-set: {{ .Values.dagProcessor.name }}
+        {{- end }}
         {{- if or .Values.labels .Values.dagProcessor.labels }}
           {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -164,8 +201,8 @@ spec:
           {{- if .Values.dagProcessor.command }}
           command: {{ tpl (toYaml .Values.dagProcessor.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.args }}
-          args: {{ tpl (toYaml .Values.dagProcessor.args) . | nindent 12 }}
+          {{- if $args }}
+          args: {{ tpl (toYaml $args) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
@@ -291,5 +328,7 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -262,3 +262,39 @@ in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts``, so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.
+
+Running a separate Dag processor per Dag bundle
+-----------------------------------------------
+
+Use ``dagProcessor.sets`` to run several Dag processors, for example one per Dag bundle,
+so each can have its own replicas, resources, node selectors or tolerations. Define all
+bundles once in ``dagProcessor.dagBundleConfigList`` and select the bundles a set parses with
+``bundleNames``. Each set inherits the ``dagProcessor`` settings and can override them, and
+creates its own Deployment (and PodDisruptionBudget when enabled) named
+``<release>-dag-processor-<set name>``:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   dagProcessor:
+     enableDefault: false
+     dagBundleConfigList:
+       - name: bundle1
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo1"
+       - name: bundle2
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo2"
+     sets:
+       - name: bundle1
+         bundleNames: ["bundle1"]
+         replicas: 3
+       - name: bundle2
+         bundleNames: ["bundle2"]
+
+The bundle selection is passed as ``--bundle-name`` flags appended to the last item of
+``dagProcessor.args``. Without ``bundleNames`` a Dag processor parses all bundles, so set
+``enableDefault: false`` (or ``bundleNames`` on the default Dag processor) to avoid parsing the
+same bundle twice.
