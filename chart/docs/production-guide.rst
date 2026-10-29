@@ -227,6 +227,35 @@ In the ``values.yaml`` below secret-related parameters should be adjusted like:
         # The maximum number of server connections to the result backend database from PgBouncer
         resultBackendPoolSize: 5
 
+Creating the first user
+-----------------------
+
+By default, the chart does not create an Airflow user. ``createUserJob`` is disabled and
+the chart ships no default username or password; enabling the job without supplying both
+fails the render with a message saying so, rather than creating an account whose
+credentials are the same on every installation.
+
+If you do not use any external user provider with Airflow for user authentication, you may
+use the FAB provider and create the user on your own by running the command:
+
+.. code-block:: bash
+
+    kubectl exec -it deploy/<RELEASE_NAME>-api-server -- \
+      airflow users create -r Admin -u <username> -e <email> -f <first> -l <last> -p <password>
+
+Or enable the job with credentials of your own:
+
+.. code-block:: yaml
+
+    createUserJob:
+      enabled: true
+      defaultUser:
+        username: <username>
+        password: <password>
+
+.. note::
+   For security reasons, avoid providing the ``password`` field directly in the ``values.yaml`` chart file.
+
 API Secret Key
 --------------
 

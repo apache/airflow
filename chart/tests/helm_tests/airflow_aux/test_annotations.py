@@ -206,6 +206,8 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "createUserJob": {
+                        "enabled": True,
+                        "defaultUser": {"username": "admin", "password": "admin"},
                         "serviceAccount": {
                             "annotations": {
                                 "example": "createuser",
@@ -326,6 +328,13 @@ class TestServiceAccountAnnotations:
                 **({"executor": "KubernetesExecutor"} if values_key == "cleanup" else {}),
                 values_key: {
                     "enabled": True,
+                    # The create-user job refuses to run without credentials of the
+                    # deployer's own, so supply them the way an install would.
+                    **(
+                        {"defaultUser": {"username": "admin", "password": "admin"}}
+                        if values_key == "createUserJob"
+                        else {}
+                    ),
                     "serviceAccount": {
                         "annotations": {
                             "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-sa@project.iam",
@@ -646,7 +655,13 @@ class TestJobAnnotationsTemplating:
         ("values", "show_only"),
         [
             (
-                {"createUserJob": {"annotations": {"job-ann": "{{ .Release.Name }}"}}},
+                {
+                    "createUserJob": {
+                        "enabled": True,
+                        "defaultUser": {"username": "admin", "password": "admin"},
+                        "annotations": {"job-ann": "{{ .Release.Name }}"},
+                    }
+                },
                 "templates/jobs/create-user-job.yaml",
             ),
             (
