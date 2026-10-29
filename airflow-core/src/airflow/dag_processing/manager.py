@@ -1610,11 +1610,9 @@ class DagFileProcessorManager(LoggingMixin):
         .. deprecated:: 3.5.0
             The Dag processor no longer uses this method. It will be removed in Airflow 4.
         """
-        warnings.warn(
-            "DagFileProcessorManager.processed_recently is deprecated and will be removed in Airflow 4.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
-        )
+        message = "DagFileProcessorManager.processed_recently is deprecated and will be removed in Airflow 4."
+        warnings.warn(message, RemovedInAirflow4Warning, stacklevel=2)
+        self.log.warning(message)
         stat = next(
             (
                 stat
