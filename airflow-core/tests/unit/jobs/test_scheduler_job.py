@@ -9589,9 +9589,9 @@ class TestSchedulerJob:
         tis = self._make_timed_out_deferred_tis(dag_maker, session, 1)
         self.job_runner = SchedulerJobRunner(job=Job())
 
-        might_fail_session = MagicMock(wraps=session)
+        might_fail_session = MagicMock(spec=session, wraps=session)
         # Not wrapped: rolling the real session back would discard the fixture's uncommitted rows.
-        might_fail_session.rollback = MagicMock()
+        might_fail_session.rollback = MagicMock(spec=session.rollback)
         claim_failed = False
 
         def claim(*args, **kwargs):
