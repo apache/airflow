@@ -471,7 +471,7 @@ class GitDagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock(), ExitStack() as stack:
-            # Some 3.4 cores predate the refresh-error contract.
+            # Older cores, including some reporting 3.4, lack this class, so probe rather than gate on version.
             refresh_error = getattr(bundle_base, "DagBundleRefreshError", None)
             try:
                 if self.hook:
