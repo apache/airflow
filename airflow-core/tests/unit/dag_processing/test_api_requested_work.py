@@ -405,3 +405,33 @@ def test_claim_failure_retains_outstanding_work(api_source, kind, failure):
         assert source.has_priority_request(file)
     client.claim_work.assert_called_once_with(kind, [bundle.name], 1)
     assert source.has_outstanding_work()
+
+
+@mock.patch("airflow.dag_processing.api_requested_work.find_enclosing_file", autospec=True)
+def test_unreadable_priority_path_keeps_its_claim_for_the_next_inventory(find_enclosing_file, api_source):
+    source, client, bundle = api_source
+    unreadable, readable = [_make_work(bundle.name, path) for path in ("locked/dag.py", "a.py")]
+    client.claim_work.return_value = [unreadable, readable]
+    find_enclosing_file.side_effect = [PermissionError(13, "Permission denied"), bundle.path / "a.py"]
+
+    files = _claim_priority(source, bundle)
+
+    assert [str(file.rel_path) for file in files] == ["locked/dag.py", "a.py"]
+    assert all(source.has_priority_request(file) for file in files)
+    source.inventory_published(bundle.name, sequence=8, files=["a.py"], failed_sources=[])
+    source.flush()
+    client.acknowledge_work.assert_called_once_with("priority", unreadable)
+    assert not source.has_priority_request(files[0])
+    assert source.has_priority_request(files[1])
+
+
+def test_callback_claim_without_a_request_is_rejected(api_source):
+    source, client, bundle = api_source
+    client.claim_work.return_value = [_make_work(bundle.name)]
+
+    with pytest.raises(ValueError, match="Callback claim returned no request"):
+        source.fetch_callbacks([bundle], limit=1)
+
+    client.claim_work.return_value = []
+    assert source.fetch_callbacks([bundle], limit=1) == []
+    assert not source.has_outstanding_work()
