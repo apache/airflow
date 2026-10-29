@@ -49,14 +49,9 @@ type RecentConfigSelectProps = {
 const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectProps) => {
   const { t: translate } = useTranslation("components");
   const [selectedValue, setSelectedValue] = useState<Array<string>>([]);
-  const { data, isFetchedAfterMount, isFetching, isSuccess } = useDagRunServiceGetDagRuns(
-    { dagId, limit: 25, orderBy: ["-run_after"] },
-    undefined,
-    { enabled: open },
-  );
-  // A query disabled until the modal opens reports isPending, not isLoading, so neither flag on
-  // its own says the runs have arrived. Matches the gate PausedDagOptions uses on the same hook.
-  const isReady = isFetchedAfterMount && isSuccess && !isFetching;
+  const { data } = useDagRunServiceGetDagRuns({ dagId, limit: 25, orderBy: ["-run_after"] }, undefined, {
+    enabled: open,
+  });
 
   const options = useMemo(() => {
     const seenConfs = new Set<string>();
@@ -89,9 +84,12 @@ const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectPro
     }
   };
 
-  // Nothing until the runs are in hand: rendering an empty, disabled Select first makes the
-  // section flash on every open.
-  if (!isReady || options.length === 0) {
+  // The options come from the runs alone, so there is nothing to show both before they arrive
+  // and when none of them carried a config. Asking the query how far along it is would be worse
+  // than useless here: the runs stay fresh for five minutes, so reopening the modal serves them
+  // from cache without fetching, and a readiness flag would read that as "not ready yet" and
+  // hide configs that are already in hand.
+  if (options.length === 0) {
     return undefined;
   }
 

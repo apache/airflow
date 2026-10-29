@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,19 +50,20 @@ const buildRun = (overrides: Record<string, unknown>) => ({
 });
 
 let mockData: { dag_runs: Array<ReturnType<typeof buildRun>> } | undefined;
-let mockIsReady = true;
+// Served from cache on a reopen: data is present without any fetch having happened since mount.
+let mockFetchedAfterMount = true;
 
 vi.mock("openapi/queries", () => ({
   useDagRunServiceGetDagRuns: vi.fn(() => ({
     data: mockData,
-    isFetchedAfterMount: mockIsReady,
-    isFetching: !mockIsReady,
-    isSuccess: mockIsReady,
+    isFetchedAfterMount: mockFetchedAfterMount,
+    isFetching: false,
+    isSuccess: mockData !== undefined,
   })),
 }));
 
 beforeEach(() => {
-  mockIsReady = true;
+  mockFetchedAfterMount = true;
 });
 
 // Select.Content is portalled to document.body, outside the render container.
@@ -108,7 +109,7 @@ describe("RecentConfigSelect", () => {
   });
 
   it("renders nothing while the runs are still loading", () => {
-    mockIsReady = false;
+    mockFetchedAfterMount = false;
     mockData = undefined;
 
     const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
@@ -116,6 +117,19 @@ describe("RecentConfigSelect", () => {
     });
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // Runs stay fresh for five minutes, so reopening the modal inside that window serves them from
+  // cache and nothing is fetched after this mount. The configs are still there to offer.
+  it("still offers configs when the runs came from cache", () => {
+    mockFetchedAfterMount = false;
+    mockData = {
+      dag_runs: [buildRun({ conf: { message: "From cache" }, dag_run_id: "run_cached" })],
+    };
+
+    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
+
+    expect(getItems()).toHaveLength(1);
   });
 
   it("renders all distinct confs without capping the list", () => {
