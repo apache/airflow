@@ -237,8 +237,6 @@ class S3DagBundle(BaseDagBundle):
             _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
-            # Two renames, so the bundle directory is missing for a moment. A failed
-            # second rename puts the previous tree back.
             backup_dir = staging_dir / "previous"
             if self.s3_dags_dir.exists():
                 self.s3_dags_dir.rename(backup_dir)
