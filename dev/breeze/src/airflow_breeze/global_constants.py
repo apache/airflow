@@ -38,6 +38,30 @@ from airflow_breeze.utils.path_utils import (
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+# RunsOn (runs-on.com) EC2 runner label templates. Jobs fill in their size class with
+# `format(<label>, cpu, ram)` in the workflow; the same call leaves the public labels unchanged.
+# `spot=co` (capacity-optimized) takes Spot from the pools least likely to run out or be reclaimed
+# instead of RunsOn's default price-capacity-optimized: a capacity miss or an interruption sends the
+# runner to on-demand (and reruns the whole job), which costs more than the higher Spot price.
+RUNS_ON_AMD_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}"
+)
+RUNS_ON_ARM_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={{0}}/ram={{1}}"
+)
+# The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
+# databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
+# ask for memory headroom and also accept the memory-optimized r-family.
+RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i"
+    "/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
+RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
 
 # Platform the tests of a CI run execute on.
 CI_AMD_PLATFORM = "linux/amd64"

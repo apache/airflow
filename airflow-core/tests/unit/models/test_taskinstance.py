@@ -21,7 +21,6 @@ import contextlib
 import datetime
 import json
 import operator
-import os
 import pathlib
 import re
 from typing import TYPE_CHECKING, cast
@@ -1975,6 +1974,30 @@ class TestTaskInstance:
         assert ti.log_url == expected_url
 
     @pytest.mark.parametrize(
+        ("mapped", "mapped_path"),
+        [
+            pytest.param(False, "", id="loop_iteration"),
+            pytest.param(True, "/mapped/1", id="mapped"),
+            pytest.param(None, "", id="task_not_attached"),
+        ],
+    )
+    def test_log_url_selects_a_task_instance_in_a_region_by_its_region(self, dag_maker, mapped, mapped_path):
+        with dag_maker("my_dag", serialized=True):
+            if mapped:
+                BashOperator.partial(task_id="op").expand(bash_command=["echo 1", "echo 2"])
+            else:
+                EmptyOperator(task_id="op")
+        ti = dag_maker.create_dagrun(run_id="test").task_instances[0]
+        ti.region_id, ti.region_index, ti.try_number = uuid6.uuid7(), 1, 2
+        if mapped is None:
+            ti.task = None
+
+        assert ti.log_url == (
+            f"http://localhost:8080/dags/my_dag/runs/test/tasks/op{mapped_path}"
+            f"?region_id={ti.region_id}&region_index=1&try_number=2"
+        )
+
+    @pytest.mark.parametrize(
         "kwargs",
         [
             {"inlets": [Asset(uri="file://some.txt")]},
@@ -2794,17 +2817,6 @@ class TestTaskInstance:
             run_task_instance(ti, task)
         assert ti.state == State.UP_FOR_RETRY
 
-    def _env_var_check_callback(self):
-        assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
-        assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
-        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert (
-            DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
-            )
-            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
-        )
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -2841,6 +2853,7 @@ class TestTaskInstance:
             "priority_weight": 123,
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
+            "is_stub": False,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -4081,11 +4094,9 @@ class TestMappedTaskInstanceReceiveValue:
         session.flush()
 
         with assert_queries_count(5, margin=1):
-            new_tis = list(
-                dag_run._revise_map_indexes_if_mapped(
-                    mapped_tis[0],
-                    session=session,
-                )
+            new_tis, _ = dag_run._revise_map_indexes_if_mapped(
+                mapped_tis[0],
+                session=session,
             )
         # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
         assert sorted(ti.map_index for ti in new_tis) == [3, 4]
@@ -4259,32 +4270,6 @@ class TestMappedTaskInstanceReceiveValue:
         assert isinstance(result, LazyXComSelectSequence), (
             f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
         )
-
-
-def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
-    backend = os.environ.get("BACKEND")
-    if backend == "mysql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
-        ]
-    if backend == "postgres":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
-        ]
-    if backend == "sqlite":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
-        ]
-    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):
@@ -5045,6 +5030,60 @@ class TestMakeTaskCarrier:
         assert "traceparent" in carrier
 
 
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_refresh_from_task_copies_is_stub(is_stub):
+    """ti_run gates on the row, so the flag has to travel from the task to the TaskInstance."""
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.is_stub = is_stub
+
+    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.is_stub is is_stub
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("decorator", "expected"),
+    [pytest.param(task.stub, True, id="stub"), pytest.param(task, False, id="regular")],
+)
+def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
+    """A scheduled row carries the flag, whichever of the two write paths filled it in."""
+    with dag_maker("test_scheduled_is_stub", serialized=True):
+
+        @decorator
+        def transform(country: str): ...
+
+        transform("uk")
+
+    (ti,) = dag_maker.create_dagrun().get_task_instances()
+
+    assert ti.is_stub is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_is_stub"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.is_stub = is_stub
+    dag_run = mock.MagicMock()
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["is_stub"] is is_stub
+
+
 @pytest.mark.db_test
 def test_insert_mapping_includes_context_carrier(dag_maker, session):
     """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
@@ -5104,6 +5143,74 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
     ti = dag_run.get_task_instance("t1", session=session)
     assert ti.context_carrier["traceparent"] != original_ti_traceparent
     assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+)
+def test_set_state_clears_retry_policy_columns_when_leaving_up_for_retry(dag_maker, session, state):
+    """A retry marked terminal by hand never runs, so it must not keep the previous attempt's values."""
+    with dag_maker("test_set_state_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(state, session=session)
+
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
+
+
+@pytest.mark.db_test
+def test_set_state_keeps_retry_policy_columns_while_up_for_retry(dag_maker, session):
+    """next_retry_datetime() reads the override while the task waits, so a re-set must not clear it."""
+    with dag_maker("test_set_state_keeps_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.flush()
+
+    ti.set_state(TaskInstanceState.UP_FOR_RETRY, session=session)
+
+    assert ti.retry_reason == "rate limit"
+    assert ti.retry_delay_override == 300.0
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
+    """Neither column may survive the clear."""
+    with dag_maker("test_clear_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.FAILED
+    ti.retry_reason = "auth error, do not retry"
+    ti.retry_delay_override = 300.0
+    session.flush()
+    old_id = ti.id
+
+    clear_task_instances([ti], session)
+    session.flush()
+    session.expire_all()
+
+    # The archived try keeps its own values, so the reset cannot move above the archive.
+    archived = session.get(TI, old_id)
+    assert archived.working_set is None
+    assert archived.retry_reason == "auth error, do not retry"
+    assert archived.retry_delay_override == 300.0
+
+    successor = dag_run.get_task_instance("t1", session=session)
+    assert successor.id != old_id
+    assert successor.retry_reason is None
+    assert successor.retry_delay_override is None
 
 
 @pytest.mark.db_test

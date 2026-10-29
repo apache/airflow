@@ -302,7 +302,6 @@
     "title": "Task State Store"
   },
   "versions": {
-    "aboutThisComparison": "About this comparison",
     "base": "Compare from",
     "categories": {
       "asset": "Asset",
@@ -323,7 +322,6 @@
       "before": "Before",
       "category": "Category",
       "impact": "Impact",
-      "occurrences": "Occurrences",
       "operation": "Operation",
       "path": "Path"
     },
@@ -343,12 +341,15 @@
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
-    "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "operations": {
       "added": "Added",
       "changed": "Changed",
       "removed": "Removed"
     },
+    "pathOccurrences_one": "{{count, number}} change shares this path",
+    "pathOccurrences_other": "{{count, number}} changes share this path",
+    "pathOccurrencesAtLeast_one": "At least {{count, number}} change shares this path",
+    "pathOccurrencesAtLeast_other": "At least {{count, number}} changes share this path",
     "record_one": "Record",
     "record_other": "Records",
     "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",

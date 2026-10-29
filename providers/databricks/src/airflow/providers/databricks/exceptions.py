@@ -40,6 +40,14 @@ class DatabricksWarehouseError(AirflowException):
     """Raised when a SQL warehouse fails to reach or times out waiting for a target state."""
 
 
+class DatabricksAgentInvocationError(AirflowException):
+    """Raised when an agent invocation fails or cannot be completed."""
+
+
+class DatabricksAgentInvocationTimeout(DatabricksAgentInvocationError):
+    """Raised when waiting for an agent invocation times out."""
+
+
 class DatabricksApiError(AirflowException):
     """Raised when a Databricks REST API call returns an error response."""
 

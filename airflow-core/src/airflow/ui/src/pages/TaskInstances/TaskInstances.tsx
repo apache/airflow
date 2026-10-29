@@ -42,6 +42,8 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import { PluginActions } from "src/components/PluginActions";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
 import { StateBadge } from "src/components/StateBadge";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
@@ -49,6 +51,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
 import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
 import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
@@ -292,6 +295,7 @@ const taskInstanceColumns = ({
         <ClearTaskInstanceButton taskInstance={row.original} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />
+        <PluginActions entity={{ destination: "task_instance", taskInstance: row.original }} />
       </Flex>
     ),
     enableHiding: false,
@@ -446,13 +450,20 @@ export const TaskInstances = () => {
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
-  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
-    useRowSelection({
-      data: data?.task_instances,
-      getKey: getRowKey,
-    });
+  const {
+    allRowsSelected,
+    clearSelections,
+    deselectKeys,
+    handleRowSelect,
+    handleSelectAll,
+    selectedItems: selectedTaskInstances,
+    selectedRows,
+  } = useRowSelection({
+    data: data?.task_instances,
+    getKey: getRowKey,
+  });
 
-  const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) => selectedRows.has(getRowKey(ti)));
+  const pluginActions = usePluginActions("task_instance");
 
   const columns = taskInstanceColumns({
     dagId,
@@ -472,20 +483,22 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <DataTable
-        columns={columns}
-        data={data?.task_instances ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        filterActions={<TaskInstancesFilter />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:taskInstance"
-        nextCursor={nextCursor}
-        onStateChange={setTableURLState}
-        previousCursor={previousCursor}
-        total={data?.total_entries ?? 0}
-        totalEntriesLimit={data?.total_entries_limit ?? undefined}
-      />
+      <PluginActionsProvider value={pluginActions}>
+        <DataTable
+          columns={columns}
+          data={data?.task_instances ?? []}
+          errorMessage={<ErrorAlert error={error} />}
+          filterActions={<TaskInstancesFilter />}
+          initialState={tableURLState}
+          isLoading={isLoading}
+          modelName="common:taskInstance"
+          nextCursor={nextCursor}
+          onStateChange={setTableURLState}
+          previousCursor={previousCursor}
+          total={data?.total_entries ?? 0}
+          totalEntriesLimit={data?.total_entries_limit ?? undefined}
+        />
+      </PluginActionsProvider>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>

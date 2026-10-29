@@ -27,7 +27,9 @@ This guide offers a reference-style walkthrough of key UI components, with annot
 experienced users alike.
 
 .. note::
-   Screenshots in this guide use **dark theme** by default. Select views are also shown in **light theme** for comparison. You can toggle themes from user settings located at the bottom corner of the Airflow UI.
+   Screenshots in this guide are available in both **dark** and **light** theme. Use the tabs above any screenshot to
+   switch; your choice applies to every screenshot on the page. You can toggle themes in the Airflow UI from user
+   settings located at the bottom corner.
 
 .. note::
    The Airflow 3 UI uses modern browser and CSS features. Use a current version of Chrome, Edge, Firefox, or
@@ -49,13 +51,20 @@ Airflow 3 and includes:
 This page is useful for quickly assessing the health of your environment and identifying recent issues or
 asset-triggered events.
 
-.. image:: img/ui-dark/home_dark.png
-   :alt: Airflow Home Page showing system health, Dag/task stats, and asset events (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/home_light.png
-   :alt: Airflow Home Page showing system health, Dag/task stats, and asset events (Light Mode)
+        .. image:: img/ui-dark/home_dark.png
+           :alt: Airflow Home Page showing system health, Dag/task stats, and asset events (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/home_light.png
+           :alt: Airflow Home Page showing system health, Dag/task stats, and asset events (Light Mode)
 
 .. _ui-dag-list:
 
@@ -81,26 +90,38 @@ At the top of the view, you can:
 - Use **search** or **advanced search (⌘+K)** to find specific Dags
 - Sort the list using the dropdown (e.g., Latest Run Start Date)
 
-.. image:: img/ui-dark/dag_list.png
-   :alt: Dag List View in dark mode showing search, filters, and Dag-level controls
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_list.png
-   :alt: Dag List View in light mode showing the same Dags and actions for comparison
+        .. image:: img/ui-dark/dag_list.png
+           :alt: Dag List View in dark mode showing search, filters, and Dag-level controls
 
-|
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_list.png
+           :alt: Dag List View in light mode showing the same Dags and actions for comparison
 
 Some Dags in this list may interact with data assets. For example, Dags that are triggered by asset conditions may
 display popups showing upstream asset inputs.
 
-.. image:: img/ui-dark/dag_list_asset_condition_popup.png
-   :alt: Dag List View showing asset condition popup (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_list_asset_condition_popup.png
-   :alt: Dag List View showing asset condition popup (Light Mode)
+        .. image:: img/ui-dark/dag_list_asset_condition_popup.png
+           :alt: Dag List View showing asset condition popup (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_list_asset_condition_popup.png
+           :alt: Dag List View showing asset condition popup (Light Mode)
 
 .. _ui-dag-details:
 
@@ -118,13 +139,20 @@ Key elements include:
 
 This page also includes a visual **timeline of recent Dag runs** and a **log preview for failures**, helping users quickly identify issues across runs.
 
-.. image:: img/ui-dark/dag_overview_dashboard.png
-   :alt: Dag Details Page in dark mode showing overview dashboard and failure diagnostics
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_dashboard.png
-   :alt: Dag Details Page in light mode showing overview dashboard and failure diagnostics
+        .. image:: img/ui-dark/dag_overview_dashboard.png
+           :alt: Dag Details Page in dark mode showing overview dashboard and failure diagnostics
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_dashboard.png
+           :alt: Dag Details Page in light mode showing overview dashboard and failure diagnostics
 
 .. _ui-grid-view:
 
@@ -145,13 +173,20 @@ Use Grid View to:
 Each row represents a task, and each column represents a Dag run. You can hover over any task instance for more detail,
 or click to drill down into logs and metadata.
 
-.. image:: img/ui-dark/dag_overview_grid.png
-   :alt: Grid View showing Dag run status matrix with varied task states (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_grid.png
-   :alt: Grid View showing Dag run status matrix with varied task states (Light Mode)
+        .. image:: img/ui-dark/dag_overview_grid.png
+           :alt: Grid View showing Dag run status matrix with varied task states (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_grid.png
+           :alt: Grid View showing Dag run status matrix with varied task states (Light Mode)
 
 .. _ui-graph-view:
 
@@ -172,13 +207,20 @@ recent run history.
 
 Use the dropdown at the top to switch between Dag runs and see how task states changed across executions.
 
-.. image:: img/ui-dark/dag_overview_graph.png
-   :alt: Graph View showing Dag structure with no Dag run selected (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_graph.png
-   :alt: Graph View showing Dag structure with no Dag run selected (Light Mode)
+        .. image:: img/ui-dark/dag_overview_graph.png
+           :alt: Graph View showing Dag structure with no Dag run selected (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_graph.png
+           :alt: Graph View showing Dag structure with no Dag run selected (Light Mode)
 
 .. _ui-dag-tabs:
 
@@ -191,71 +233,100 @@ Runs Tab
 ''''''''
 The **Runs** tab displays a sortable table of all Dag runs, along with their status, execution duration, run type, and Dag version.
 
-.. image:: img/ui-dark/dag_overview_runs.png
-   :alt: Dag Runs Tab (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_runs.png
-   :alt: Dag Runs Tab (Light Mode)
+        .. image:: img/ui-dark/dag_overview_runs.png
+           :alt: Dag Runs Tab (Dark Mode)
 
-|
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_runs.png
+           :alt: Dag Runs Tab (Light Mode)
 
 Tasks Tab
 '''''''''
 
 The **Tasks** tab shows metadata for each task in the Dag, including operator type, trigger rule, most recent run status, and run history.
 
-.. image:: img/ui-dark/dag_overview_tasks.png
-   :alt: Dag Tasks Tab (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_tasks.png
-   :alt: Dag Tasks Tab (Light Mode)
+        .. image:: img/ui-dark/dag_overview_tasks.png
+           :alt: Dag Tasks Tab (Dark Mode)
 
-|
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_tasks.png
+           :alt: Dag Tasks Tab (Light Mode)
 
 Events Tab
 ''''''''''
 
 The **Events** tab surfaces structured events related to the Dag, such as Dag triggers and version patches. This tab is especially useful for Dag versioning and troubleshooting changes.
 
-.. image:: img/ui-dark/dag_overview_events.png
-   :alt: Dag Events Tab (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_events.png
-   :alt: Dag Events Tab (Light Mode)
+        .. image:: img/ui-dark/dag_overview_events.png
+           :alt: Dag Events Tab (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_events.png
+           :alt: Dag Events Tab (Light Mode)
 
 Code Tab
 ''''''''
 
 The **Code** tab displays the current version of the Dag definition, including the timestamp of the last parse. Users can view the code for any specific Dag version.
 
-.. image:: img/ui-dark/dag_overview_code.png
-   :alt: Dag Code Tab (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_code.png
-   :alt: Dag Code Tab (Light Mode)
+        .. image:: img/ui-dark/dag_overview_code.png
+           :alt: Dag Code Tab (Dark Mode)
 
-|
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_code.png
+           :alt: Dag Code Tab (Light Mode)
 
 Details Tab
 '''''''''''
 
 The **Details** tab provides configuration details and metadata for the Dag, including schedule, file location, concurrency limits, and version identifiers.
 
-.. image:: img/ui-dark/dag_overview_details.png
-   :alt: Dag Details Tab (Dark Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_overview_details.png
-   :alt: Dag Details Tab (Light Mode)
+        .. image:: img/ui-dark/dag_overview_details.png
+           :alt: Dag Details Tab (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_details.png
+           :alt: Dag Details Tab (Light Mode)
 
 .. _ui-dag-runs:
 
@@ -264,11 +335,20 @@ Dag Run View
 Each Dag Run has its own view, accessible by selecting a specific row in the Dag's **Runs** tab. The Dag Run view
 displays metadata about the selected run, as well as task-level details, rendered code, and more.
 
-.. image:: img/ui-dark/dag_run_task_instances.png
-  :alt: Dag Run - Task Instances tab (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
+        .. image:: img/ui-dark/dag_run_task_instances.png
+           :alt: Dag Run - Task Instances tab (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_task_instances.png
+           :alt: Dag Run - Task Instances tab (light mode)
 
 Key elements include:
 
@@ -294,9 +374,6 @@ Displays the status and metadata for each task instance within the Dag Run. Colu
 
 Each row also includes a mini Gantt-style timeline that visually represents the task's duration.
 
-.. image:: img/ui-light/dag_run_task_instances.png
-   :alt: Dag Run - Task Instances (light mode)
-
 Events
 ''''''
 
@@ -310,25 +387,37 @@ or comparing behavior across Dag Runs that used different code.
 
 Dag Run code for ``hello >> airflow()``:
 
-.. image:: img/ui-dark/dag_run_code_hello_airflow.png
-   :alt: Dag Run Code Snapshot - airflow() (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_run_code_hello_airflow.png
-   :alt: Dag Run Code Snapshot - airflow() (light mode)
+        .. image:: img/ui-dark/dag_run_code_hello_airflow.png
+           :alt: Dag Run Code Snapshot - airflow() (dark mode)
 
-|
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_code_hello_airflow.png
+           :alt: Dag Run Code Snapshot - airflow() (light mode)
 
 Dag Run code for ``hello >> world()``:
 
-.. image:: img/ui-dark/dag_run_code_hello_world.png
-   :alt: Dag Run Code Snapshot - world() (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_run_code_hello_world.png
-   :alt: Dag Run Code Snapshot - world() (light mode)
+        .. image:: img/ui-dark/dag_run_code_hello_world.png
+           :alt: Dag Run Code Snapshot - world() (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_code_hello_world.png
+           :alt: Dag Run Code Snapshot - world() (light mode)
 
 Details
 '''''''
@@ -341,13 +430,20 @@ Provides extended metadata for the Dag Run, including:
 - Trigger Source and Run Config
 - Dag Version ID and Bundle Name
 
-.. image:: img/ui-dark/dag_run_details.png
-   :alt: Dag Run - Details tab (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_run_details.png
-   :alt: Dag Run - Details tab (light mode)
+        .. image:: img/ui-dark/dag_run_details.png
+           :alt: Dag Run - Details tab (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_details.png
+           :alt: Dag Run - Details tab (light mode)
 
 Graph View
 ''''''''''
@@ -356,13 +452,20 @@ Shows the Dag's task dependency structure overlaid with the status of each task 
 
 Each node includes a visual indicator of task duration.
 
-.. image:: img/ui-dark/dag_run_graph.png
-   :alt: Dag Run - Graph View (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_run_graph.png
-   :alt: Dag Run - Graph View (light mode)
+        .. image:: img/ui-dark/dag_run_graph.png
+           :alt: Dag Run - Graph View (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_graph.png
+           :alt: Dag Run - Graph View (light mode)
 
 .. _ui-ti-view:
 
@@ -374,26 +477,40 @@ Single Run
 
 The Single Run window allows you to trigger a Dag run.
 
-.. image:: img/ui-light/dag_trigger_window_single_run.png
-   :alt: Dag Trigger Window - Single Run (Light Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-dark/dag_trigger_window_single_run.png
-   :alt: Dag Trigger Window - Single Run (Dark Mode)
+        .. image:: img/ui-dark/dag_trigger_window_single_run.png
+           :alt: Dag Trigger Window - Single Run (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_trigger_window_single_run.png
+           :alt: Dag Trigger Window - Single Run (Light Mode)
 
 Backfill
 ''''''''
 
 The Backfill window allows you to trigger a Dag run for past dates.
 
-.. image:: img/ui-light/backfill.png
-   :alt: Dag Trigger Window - Backfill (Light Mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-dark/backfill.png
-   :alt: Dag Trigger Window - Backfill (Dark Mode)
+        .. image:: img/ui-dark/backfill.png
+           :alt: Dag Trigger Window - Backfill (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/backfill.png
+           :alt: Dag Trigger Window - Backfill (Light Mode)
 
 Task Instance View
 ------------------
@@ -401,8 +518,20 @@ Task Instance View
 When you click on a specific task from the Dag Run view, you're brought to the **Task Instance View**, which shows
 detailed logs and metadata for that individual task execution.
 
-.. image:: img/ui-dark/dag_task_instance_logs.png
-  :alt: Task Logs (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: img/ui-dark/dag_task_instance_logs.png
+           :alt: Task Logs (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_task_instance_logs.png
+           :alt: Task Logs (light mode)
 
 .. _ui-ti-tabs:
 
@@ -415,9 +544,6 @@ Logs
 ''''
 The default tab shows the task logs, which include system output, error messages, and traceback information. This is the first place to look when a task fails.
 
-.. image:: img/ui-light/dag_task_instance_logs.png
-  :alt: Task Logs (light mode)
-
 Rendered Templates
 ''''''''''''''''''
 Displays the rendered version of templated fields in your task. Useful for debugging context variables or verifying
@@ -427,13 +553,20 @@ XCom
 ''''
 Shows any values pushed via ``XCom.push()`` or returned from Python functions when using TaskFlow.
 
-.. image:: img/ui-dark/dag_run_task_instance_xcom.png
-  :alt: Task Instance - XCom tab (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_run_task_instance_xcom.png
-  :alt: Task Instance - XCom tab (light mode)
+        .. image:: img/ui-dark/dag_run_task_instance_xcom.png
+           :alt: Task Instance - XCom tab (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_run_task_instance_xcom.png
+           :alt: Task Instance - XCom tab (light mode)
 
 Events
 ''''''
@@ -453,13 +586,20 @@ Displays runtime metadata about the task instance, including:
 - Pool and slot usage
 - Executor and configuration
 
-.. image:: img/ui-dark/dag_task_instance_details.png
-  :alt: Task Instance - Details tab (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/dag_task_instance_details.png
-  :alt: Task Instance - Details tab (light mode)
+        .. image:: img/ui-dark/dag_task_instance_details.png
+           :alt: Task Instance - Details tab (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_task_instance_details.png
+           :alt: Task Instance - Details tab (light mode)
 
 .. _ui-asset-views:
 
@@ -481,13 +621,20 @@ The Asset List shows all known assets, grouped by name. For each asset, you can 
 
 Hovering over a count of Dags or tasks shows a tooltip with the full list of producers or consumers.
 
-.. image:: img/ui-dark/asset_list_consuming_dags.png
-  :alt: Asset List (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/asset_list_consuming_dags.png
-  :alt: Asset List (light mode)
+        .. image:: img/ui-dark/asset_list_consuming_dags.png
+           :alt: Asset List (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/asset_list_consuming_dags.png
+           :alt: Asset List (light mode)
 
 Clicking on the link takes you to the Asset Graph View.
 
@@ -500,13 +647,20 @@ The Asset Graph View shows the asset in context, including upstream producers an
 - Trigger asset events manually
 - View recent asset events and the Dag runs they triggered
 
-.. image:: img/ui-dark/asset_view.png
-  :alt: Asset Graph View (dark mode)
+.. tab-set::
+    :sync-group: ui-theme
 
-|
+    .. tab-item:: Dark
+        :sync: dark
 
-.. image:: img/ui-light/asset_view.png
-  :alt: Asset Graph View (light mode)
+        .. image:: img/ui-dark/asset_view.png
+           :alt: Asset Graph View (dark mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/asset_view.png
+           :alt: Asset Graph View (light mode)
 
 
 Graph Overlays in Dag View
@@ -521,25 +675,37 @@ Two graph modes are available:
 
 - **All Dag Dependencies**: Shows all Dag-to-Dag and task-level connections
 
-  .. image:: img/ui-dark/dag_graph_all_dependencies.png
-    :alt: Dag Graph View - All Dependencies (dark mode)
+  .. tab-set::
+      :sync-group: ui-theme
 
-  |
+      .. tab-item:: Dark
+          :sync: dark
 
-  .. image:: img/ui-light/dag_graph_all_dependencies.png
-    :alt: Dag Graph View - All Dependencies (light mode)
+          .. image:: img/ui-dark/dag_graph_all_dependencies.png
+             :alt: Dag Graph View - All Dependencies (dark mode)
 
-  |
+      .. tab-item:: Light
+          :sync: light
+
+          .. image:: img/ui-light/dag_graph_all_dependencies.png
+             :alt: Dag Graph View - All Dependencies (light mode)
 
 - **External Conditions**: Shows only Dags triggered via asset events
 
-  .. image:: img/ui-dark/dag_graph_external_conditions.png
-    :alt: Dag Graph View - External Conditions Only (dark mode)
+  .. tab-set::
+      :sync-group: ui-theme
 
-  |
+      .. tab-item:: Dark
+          :sync: dark
 
-  .. image:: img/ui-light/dag_graph_external_conditions.png
-    :alt: Dag Graph View - External Conditions Only (light mode)
+          .. image:: img/ui-dark/dag_graph_external_conditions.png
+             :alt: Dag Graph View - External Conditions Only (dark mode)
+
+      .. tab-item:: Light
+          :sync: light
+
+          .. image:: img/ui-light/dag_graph_external_conditions.png
+             :alt: Dag Graph View - External Conditions Only (light mode)
 
 .. _ui-admin-views:
 

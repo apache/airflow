@@ -330,8 +330,8 @@ class TestListEnvs:
             args = self.parser.parse_args(["auth", "list-envs"])
             auth_command.list_envs(args)
 
-    def test_list_envs_json_output(self, monkeypatch):
-        """Test list-envs with JSON output format."""
+    @pytest.mark.parametrize("output_format", ["json", "yaml", "plain"])
+    def test_list_envs_output_format(self, monkeypatch, output_format):
         with (
             tempfile.TemporaryDirectory() as temp_airflow_home,
             patch("keyring.get_password") as mock_get_password,
@@ -344,41 +344,7 @@ class TestListEnvs:
 
             mock_get_password.return_value = "test_token"
 
-            args = self.parser.parse_args(["auth", "list-envs", "--output", "json"])
-            auth_command.list_envs(args)
-
-    def test_list_envs_yaml_output(self, monkeypatch):
-        """Test list-envs with YAML output format."""
-        with (
-            tempfile.TemporaryDirectory() as temp_airflow_home,
-            patch("keyring.get_password") as mock_get_password,
-        ):
-            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
-
-            # Create a config file
-            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
-                json.dump({"api_url": "http://localhost:8080"}, f)
-
-            mock_get_password.return_value = "test_token"
-
-            args = self.parser.parse_args(["auth", "list-envs", "--output", "yaml"])
-            auth_command.list_envs(args)
-
-    def test_list_envs_plain_output(self, monkeypatch):
-        """Test list-envs with plain output format."""
-        with (
-            tempfile.TemporaryDirectory() as temp_airflow_home,
-            patch("keyring.get_password") as mock_get_password,
-        ):
-            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
-
-            # Create a config file
-            with open(os.path.join(temp_airflow_home, "production.json"), "w") as f:
-                json.dump({"api_url": "http://localhost:8080"}, f)
-
-            mock_get_password.return_value = "test_token"
-
-            args = self.parser.parse_args(["auth", "list-envs", "--output", "plain"])
+            args = self.parser.parse_args(["auth", "list-envs", "--output", output_format])
             auth_command.list_envs(args)
 
     def test_list_envs_keyring_unavailable(self, monkeypatch):
