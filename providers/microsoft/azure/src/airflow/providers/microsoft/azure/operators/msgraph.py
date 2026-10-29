@@ -373,7 +373,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self._remove_pages(task_state_store, self.get_cursor(task_state_store))
 
     @staticmethod
-    def remove_pages(task_state_store: TaskStateStoreAccessor, cursor: _PaginationCursor | None) -> None:
+    def _remove_pages(task_state_store: TaskStateStoreAccessor, cursor: _PaginationCursor | None) -> None:
         """
         Delete the pages and the cursor by their keys.
 
