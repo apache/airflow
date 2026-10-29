@@ -31,8 +31,8 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.13.16" \
+    --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.13.18" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="oauth2client" \

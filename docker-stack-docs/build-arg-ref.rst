@@ -38,7 +38,7 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                           | a plain Debian ``BASE_IMAGE`` (see below    |
 |                                          |                                           | the table).                                 |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PYTHON_VERSION``               | ``3.13.16``                               | Python version recorded in the image        |
+| ``AIRFLOW_PYTHON_VERSION``               | ``3.13.18``                               | Python version recorded in the image        |
 |                                          |                                           | labels. In the hardened flavor the Python   |
 |                                          |                                           | itself comes from ``BASE_IMAGE``, so change |
 |                                          |                                           | both together. In the legacy flavor it is   |
@@ -98,7 +98,7 @@ Those are the most common arguments that you use when you want to build a custom
 
 The default ``BASE_IMAGE`` is Airflow's public mirror of the `Docker Hardened Image <https://dhi.io>`_ for
 Python, tagged with the same Python version as ``AIRFLOW_PYTHON_VERSION`` - for Airflow |airflow-version| that
-is ``ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev``. Pulling the mirror needs no credentials;
+is ``ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev``. Pulling the mirror needs no credentials;
 pulling ``dhi.io`` directly requires a ``docker login dhi.io``.
 
 For the 3.4.x line Airflow also publishes ``legacy`` images, built the way all images were built before

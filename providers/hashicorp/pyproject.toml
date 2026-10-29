@@ -68,7 +68,7 @@ dependencies = [
 [project.optional-dependencies]
 "boto3" = [
     # Require for AWS assume role authentication
-    "boto3>=1.43.0",
+    "boto3>=1.43.2",
 ]
 "google" = [
     "apache-airflow-providers-google"
