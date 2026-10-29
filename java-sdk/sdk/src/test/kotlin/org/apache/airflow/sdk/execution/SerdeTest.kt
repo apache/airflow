@@ -96,7 +96,21 @@ internal class SerdeTest {
   @Test
   fun shouldHonorSerializationOptionsWhenParsing() {
     listOf(false, true).forEach { intervals ->
-      listOf("Europe/Amsterdam", 19800L, 0, -86399, 86399, java.math.BigInteger.valueOf(3600)).forEach { timezone ->
+      listOf(
+        "Europe/Amsterdam",
+        "EST",
+        "HST",
+        "MST",
+        "Factory",
+        "GMT+0",
+        "GMT-0",
+        "ROC",
+        19800L,
+        0,
+        -86399,
+        86399,
+        java.math.BigInteger.valueOf(3600),
+      ).forEach { timezone ->
         listOf<OffsetDateTime?>(null, OffsetDateTime.parse("2026-01-01T00:00:00-04:00"), OffsetDateTime.parse("2026-01-01T00:00:00Z"))
           .forEach { startDate ->
             val dag = DagDef("d").config("schedule", "@daily")
@@ -136,6 +150,9 @@ internal class SerdeTest {
           emptyList<Any>(),
           "",
           "Mars/Olympus",
+          "PST",
+          "-04:00",
+          "UTC+02:00",
           -86400,
           86400,
           java.math.BigInteger.ONE

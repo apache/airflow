@@ -38,7 +38,6 @@ import org.apache.airflow.sdk.internal.SchemaFields
 import java.math.BigInteger
 import java.nio.file.InvalidPathException
 import java.nio.file.Paths
-import java.time.DateTimeException
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -53,6 +52,9 @@ private val defaultsMapper = ObjectMapper()
 // Python drops both unless the operator names an email recipient. A Java task
 // has no email field to name one, so they are never written.
 private val OMITTED_TASK_KEYS = setOf("email_on_failure", "email_on_retry")
+
+// Core emits these IANA names even though the JDK omits them from its zone IDs.
+private val TIMEZONE_NAMES = ZoneId.getAvailableZoneIds() + setOf("EST", "HST", "MST", "Factory", "GMT+0", "GMT-0", "ROC")
 
 /**
  * Processes a [DagFileParseRequest] by serialising every Dag registered on
@@ -400,10 +402,8 @@ internal fun validateSerializationOptions(
       defaultTimezone is BigInteger,
   ) { "serialization_options.default_timezone must be a string or integer" }
   if (defaultTimezone is String) {
-    try {
-      ZoneId.of(defaultTimezone)
-    } catch (error: DateTimeException) {
-      throw IllegalArgumentException("serialization_options.default_timezone must be a valid timezone name", error)
+    require(defaultTimezone in TIMEZONE_NAMES) {
+      "serialization_options.default_timezone must be a valid timezone name"
     }
   } else {
     val offset = if (defaultTimezone is BigInteger) defaultTimezone else BigInteger.valueOf((defaultTimezone as Number).toLong())

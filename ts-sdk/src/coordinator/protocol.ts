@@ -134,6 +134,8 @@ function validateSerializationOptions(raw: unknown): void {
     return;
   }
   if (typeof timezone === "string" && timezone.length > 0) {
+    // Core accepts this IANA placeholder zone, which ICU omits.
+    if (timezone === "Factory") return;
     try {
       new Intl.DateTimeFormat("en", { timeZone: timezone });
       return;

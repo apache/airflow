@@ -45,7 +45,7 @@ describe("protocol decode", () => {
     expect(asMsgFromSupervisor(raw).type).toBe("StartupDetails");
   });
 
-  it.each(["Europe/Amsterdam", 3600, 0])(
+  it.each(["Europe/Amsterdam", "EST", "HST", "MST", "Factory", 3600, 0])(
     "accepts DagFileParseRequest with timezone %s",
     (timezone) => {
       const raw = {
@@ -54,7 +54,7 @@ describe("protocol decode", () => {
         bundle_path: "/",
         serialization_options: { create_cron_data_intervals: true, default_timezone: timezone },
       };
-      expect(asMsgFromSupervisor(raw).type).toBe("DagFileParseRequest");
+      expect(asMsgFromSupervisor(raw)).toEqual(raw);
     },
   );
 
