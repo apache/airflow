@@ -202,6 +202,25 @@ class CommsTest {
     return out.toByteArray()
   }
 
+  private fun variableNotFoundResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("VARIABLE_NOT_FOUND")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("key")
+      packer.packString("optional_setting")
+    }
+    return out.toByteArray()
+  }
+
   private fun taskStateStoreResultFrame(id: Int): ByteArray {
     val out = ByteArrayOutputStream()
     MessagePack.newDefaultPacker(out).use { packer ->
@@ -523,6 +542,28 @@ class CommsTest {
     Assertions.assertEquals(true, paused)
     Assertions.assertEquals("GetDag", body["type"])
     Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
+  @DisplayName("getVariable returns null on VARIABLE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (body, failure) = roundTrip(::variableNotFoundResponseFrame) { value = it.getVariable("optional_setting") }
+
+    Assertions.assertNull(failure, "getVariable should return normally on VARIABLE_NOT_FOUND, got $failure")
+    Assertions.assertEquals("GetVariable", body["type"])
+    Assertions.assertEquals("optional_setting", body["key"])
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("getVariable raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.getVariable("optional_setting") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
   @Test

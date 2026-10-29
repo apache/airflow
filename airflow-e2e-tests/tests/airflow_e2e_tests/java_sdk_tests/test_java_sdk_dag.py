@@ -388,7 +388,10 @@ class TestJavaSDKVariableWrite:
     The task lives in the java-test-bundle fixture project (served on the
     dedicated "java-test" queue). It stores its own run id in
     ``java_e2e_variable`` and deletes a scratch Variable it has just written,
-    so both paths go through the supervisor and the Task Execution API.
+    so both paths go through the supervisor and the Task Execution API. It then
+    reads the deleted Variable back and fails unless ``getVariable`` returns
+    ``null``, so a task that succeeds also proves a missing Variable reads as
+    ``null`` instead of raising.
     """
 
     def test_variable_written_by_java_task_is_readable(self, variable_write_run: _CompletedRun):
