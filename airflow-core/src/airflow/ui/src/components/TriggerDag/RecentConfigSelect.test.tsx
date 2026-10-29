@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -50,14 +50,20 @@ const buildRun = (overrides: Record<string, unknown>) => ({
 });
 
 let mockData: { dag_runs: Array<ReturnType<typeof buildRun>> } | undefined;
-const mockIsLoading = false;
+let mockIsReady = true;
 
 vi.mock("openapi/queries", () => ({
   useDagRunServiceGetDagRuns: vi.fn(() => ({
     data: mockData,
-    isLoading: mockIsLoading,
+    isFetchedAfterMount: mockIsReady,
+    isFetching: !mockIsReady,
+    isSuccess: mockIsReady,
   })),
 }));
+
+beforeEach(() => {
+  mockIsReady = true;
+});
 
 // Select.Content is portalled to document.body, outside the render container.
 const getItems = () => document.body.querySelectorAll(".chakra-select__item");
@@ -93,6 +99,17 @@ describe("RecentConfigSelect", () => {
     mockData = {
       dag_runs: [buildRun({ conf: null, dag_run_id: "run_1" }), buildRun({ conf: {}, dag_run_id: "run_2" })],
     };
+
+    const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
+      wrapper: Wrapper,
+    });
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders nothing while the runs are still loading", () => {
+    mockIsReady = false;
+    mockData = undefined;
 
     const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
       wrapper: Wrapper,

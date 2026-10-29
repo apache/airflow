@@ -42,11 +42,14 @@ type RecentConfigSelectProps = {
 const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectProps) => {
   const { t: translate } = useTranslation("components");
   const [selectedValue, setSelectedValue] = useState<Array<string>>([]);
-  const { data, isLoading } = useDagRunServiceGetDagRuns(
+  const { data, isFetchedAfterMount, isFetching, isSuccess } = useDagRunServiceGetDagRuns(
     { dagId, limit: 25, orderBy: ["-run_after"] },
     undefined,
     { enabled: open },
   );
+  // A query disabled until the modal opens reports isPending, not isLoading, so neither flag on
+  // its own says the runs have arrived. Matches the gate PausedDagOptions uses on the same hook.
+  const isReady = isFetchedAfterMount && isSuccess && !isFetching;
 
   const options = useMemo(() => {
     const seenConfs = new Set<string>();
@@ -79,7 +82,9 @@ const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectPro
     }
   };
 
-  if (!isLoading && options.length === 0) {
+  // Nothing until the runs are in hand: rendering an empty, disabled Select first makes the
+  // section flash on every open.
+  if (!isReady || options.length === 0) {
     return undefined;
   }
 
@@ -87,7 +92,6 @@ const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectPro
     <Select.Root
       collection={recentConfigOptions}
       data-testid="recent-config-select"
-      disabled={isLoading || options.length === 0}
       onValueChange={handleValueChange}
       size="sm"
       value={selectedValue}
