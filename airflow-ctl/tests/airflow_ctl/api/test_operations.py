@@ -936,7 +936,7 @@ class TestConnectionsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(
-            connection=self.connection, connection_id=self.connection_id, conn_type=self.conn_type
+            connection=self.connection,
         )
         assert response == self.connection_response
 
@@ -962,7 +962,7 @@ class TestConnectionsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(
-            connection=connection, connection_id=connection.connection_id, conn_type=connection.conn_type
+            connection=connection,
         )
         assert response == self.connection_response
 

@@ -713,6 +713,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -721,6 +722,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -786,9 +788,12 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
-                    else None,
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=field_type.is_required() and annotation is not bool,
                 )
             )
         return commands
