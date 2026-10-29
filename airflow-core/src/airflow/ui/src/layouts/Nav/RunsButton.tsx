@@ -36,7 +36,7 @@ export const RunsButton = ({ authorizedMenuItems }: { readonly authorizedMenuIte
       disabled={!isAuthorized}
       // The run bars, matching the Dag page's own Runs tab.
       icon={FiBarChart}
-      title={translate("nav.runs")}
+      title={translate("runs")}
       to={isAuthorized ? "/dag_runs" : undefined}
     />
   );

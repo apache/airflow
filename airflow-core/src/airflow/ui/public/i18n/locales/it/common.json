@@ -152,7 +152,6 @@
     "home": "Home",
     "legacyFabViews": "Legacy View",
     "plugins": "Plugins",
-    "runs": "Run",
     "security": "Sicurezza"
   },
   "noItemsFound": "Nessun {{modelName}} trovato",
@@ -182,6 +181,7 @@
     "manual": "Manuale",
     "scheduled": "Programmato"
   },
+  "runs": "Run",
   "scroll": {
     "direction": {
       "bottom": "In basso",

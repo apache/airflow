@@ -206,7 +206,6 @@
     "home": "Home",
     "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
-    "runs": "Runs",
     "security": "Security"
   },
   "no": "No",
@@ -258,6 +257,7 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "runs": "Runs",
   "scroll": {
     "direction": {
       "bottom": "bottom",

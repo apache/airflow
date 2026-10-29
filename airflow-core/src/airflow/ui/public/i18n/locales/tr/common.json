@@ -168,7 +168,6 @@
     "home": "Ana Sayfa",
     "legacyFabViews": "Airflow 2 Fab Görünümleri",
     "plugins": "Eklentiler",
-    "runs": "Çalıştırmalar",
     "security": "Güvenlik"
   },
   "noItemsFound": "Hiç {{modelName}} bulunamadı",
@@ -195,6 +194,7 @@
     "manual": "Manuel",
     "scheduled": "Planlanmış"
   },
+  "runs": "Çalıştırmalar",
   "scroll": {
     "direction": {
       "bottom": "alt",

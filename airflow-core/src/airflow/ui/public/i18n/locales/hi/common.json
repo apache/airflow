@@ -204,7 +204,6 @@
     "home": "मुख्य पृष्ठ",
     "legacyFabViews": "पुराने व्यू",
     "plugins": "प्लगइन",
-    "runs": "रन्स",
     "security": "सुरक्षा"
   },
   "no": "नहीं",
@@ -256,6 +255,7 @@
     "manual": "मैन्युअल",
     "scheduled": "निर्धारित"
   },
+  "runs": "रन्स",
   "scroll": {
     "direction": {
       "bottom": "नीचे",

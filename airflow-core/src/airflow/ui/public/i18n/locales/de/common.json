@@ -206,7 +206,6 @@
     "home": "Start",
     "legacyFabViews": "Alte Ansichten",
     "plugins": "Plug-ins",
-    "runs": "Läufe",
     "security": "Sicherheit"
   },
   "no": "Nein",
@@ -258,6 +257,7 @@
     "manual": "Manuell",
     "scheduled": "Geplant"
   },
+  "runs": "Läufe",
   "scroll": {
     "direction": {
       "bottom": "unten",

@@ -172,7 +172,6 @@
     "home": "Home",
     "legacyFabViews": "Legacy weergaven",
     "plugins": "Plugins",
-    "runs": "Runs",
     "security": "Beveiliging"
   },
   "noItemsFound": "Geen {{modelName}} gevonden",
@@ -203,6 +202,7 @@
     "manual": "Handmatig",
     "scheduled": "Gepland"
   },
+  "runs": "Runs",
   "scroll": {
     "direction": {
       "bottom": "het einde",

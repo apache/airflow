@@ -135,7 +135,6 @@
     "home": "หน้าแรก",
     "legacyFabViews": "มุมมองแบบเก่า",
     "plugins": "ปลั๊กอิน",
-    "runs": "การทำงาน",
     "security": "ความปลอดภัย"
   },
   "noItemsFound": "ไม่พบ {{modelName}}",
@@ -163,6 +162,7 @@
     "manual": "ทำด้วยตนเอง",
     "scheduled": "กำหนดเวลาทำงานแล้ว"
   },
+  "runs": "การทำงาน",
   "scroll": {
     "direction": {
       "bottom": "ล่างสุด",

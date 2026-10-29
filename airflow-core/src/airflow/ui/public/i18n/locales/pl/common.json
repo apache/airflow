@@ -213,7 +213,6 @@
     "home": "Strona główna",
     "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
-    "runs": "Wykonania",
     "security": "Dostęp"
   },
   "no": "Nie",
@@ -271,6 +270,7 @@
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "runs": "Wykonania",
   "scroll": {
     "direction": {
       "bottom": "dół",

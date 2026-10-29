@@ -169,7 +169,6 @@
     "home": "Kezdőlap",
     "legacyFabViews": "Régi nézetek",
     "plugins": "Bővítmények",
-    "runs": "Futások",
     "security": "Biztonság"
   },
   "noItemsFound": "{{modelName}} nem található ",
@@ -196,6 +195,7 @@
     "manual": "Kézi",
     "scheduled": "Ütemezett"
   },
+  "runs": "Futások",
   "scroll": {
     "direction": {
       "bottom": "aljára",

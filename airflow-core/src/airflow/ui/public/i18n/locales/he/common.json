@@ -212,7 +212,6 @@
     "home": "דף הבית",
     "legacyFabViews": "תצוגות מורשת",
     "plugins": "תוספים",
-    "runs": "הרצות",
     "security": "אבטחה"
   },
   "no": "לא",
@@ -267,6 +266,7 @@
     "manual": "הפעלה ידנית",
     "scheduled": "מתוזמן"
   },
+  "runs": "הרצות",
   "scroll": {
     "direction": {
       "bottom": "תחתית",

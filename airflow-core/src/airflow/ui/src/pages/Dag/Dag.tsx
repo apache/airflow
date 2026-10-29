@@ -48,7 +48,7 @@ export const Dag = () => {
 
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
-    { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
+    { icon: <FiBarChart />, label: translate("common:runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
     { icon: <FiCalendar />, label: translate("tabs.calendar"), value: "calendar" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },

@@ -196,7 +196,6 @@
     "home": "Inici",
     "legacyFabViews": "Vistes obsoletes",
     "plugins": "Extensions",
-    "runs": "Execucions",
     "security": "Seguretat"
   },
   "no": "No",
@@ -248,6 +247,7 @@
     "manual": "Manual",
     "scheduled": "Programat"
   },
+  "runs": "Execucions",
   "scroll": {
     "direction": {
       "bottom": "Avall",

@@ -154,7 +154,6 @@
     "overview": "概要",
     "renderedTemplates": "生成されたテンプレート",
     "requiredActions": "要対応項目",
-    "runs": "実行",
     "taskInstances": "タスクインスタンス",
     "tasks": "タスク",
     "xcom": "XCom"

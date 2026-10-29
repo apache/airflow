@@ -196,7 +196,6 @@
     "home": "首页",
     "legacyFabViews": "旧版视图",
     "plugins": "插件",
-    "runs": "执行记录",
     "security": "安全"
   },
   "noItemsFound": "找不到 {{modelName}}",
@@ -247,6 +246,7 @@
     "manual": "手动触发",
     "scheduled": "已调度"
   },
+  "runs": "执行记录",
   "scroll": {
     "direction": {
       "bottom": "最下方",

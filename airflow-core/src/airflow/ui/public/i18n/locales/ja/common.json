@@ -148,7 +148,6 @@
     "home": "ホーム",
     "legacyFabViews": "旧式ビュー",
     "plugins": "プラグイン",
-    "runs": "実行",
     "security": "セキュリティ"
   },
   "noItemsFound": "{{modelName}} が見つかりません",
@@ -176,6 +175,7 @@
     "manual": "手動",
     "scheduled": "スケジュール済"
   },
+  "runs": "実行",
   "scroll": {
     "direction": {
       "bottom": "下",

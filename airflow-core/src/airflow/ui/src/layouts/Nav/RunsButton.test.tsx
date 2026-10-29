@@ -27,7 +27,7 @@ import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { RunsButton } from "./RunsButton";
 
-const getLink = () => screen.getByRole("link", { name: "nav.runs" });
+const getLink = () => screen.getByRole("link", { name: "runs" });
 
 const wrapperAt = (path: string) => {
   const wrapper = ({ children }: PropsWithChildren) => (
@@ -62,7 +62,7 @@ describe("RunsButton", () => {
   it("is not a link when Dags is not authorized", () => {
     render(<RunsButton authorizedMenuItems={["Jobs"]} />, { wrapper: Wrapper });
 
-    expect(screen.queryByRole("link", { name: "nav.runs" })).toBeNull();
-    expect(screen.getByRole("button", { name: "nav.runs" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "runs" })).toBeNull();
+    expect(screen.getByRole("button", { name: "runs" })).toBeDisabled();
   });
 });
