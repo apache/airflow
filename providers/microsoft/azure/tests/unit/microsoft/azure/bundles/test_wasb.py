@@ -483,7 +483,7 @@ class TestWasbDagBundleArchive:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle.path.parent.glob(".wasb-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
 
     @patch(
         "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
@@ -504,7 +504,7 @@ class TestWasbDagBundleArchive:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
-        assert list(bundle.path.parent.glob(".wasb-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
 
     @patch(
         "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
@@ -536,7 +536,33 @@ class TestWasbDagBundleArchive:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle.path.parent.glob(".wasb-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
+
+    @patch(
+        "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
+    )
+    def test_refresh_removes_only_this_bundles_stale_staging_dir(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+        bundle = WasbDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+
+        storage_root = bundle.path.parent
+        stale = storage_root / f".{bundle.name}-archive-staging-dead"
+        stale.mkdir()
+        (stale / "orphan.txt").write_text("left by a killed process")
+        other = storage_root / ".other-bundle-archive-staging-dead"
+        other.mkdir()
+
+        bundle.refresh()
+
+        assert not stale.exists()
+        assert other.is_dir()
 
     @patch(
         "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
