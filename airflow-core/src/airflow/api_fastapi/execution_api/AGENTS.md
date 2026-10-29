@@ -32,7 +32,7 @@ uv run --active --group codegen --project apache-airflow-task-sdk --directory ta
 - Don't use keyword arguments with `endpoint()` — use positional: `endpoint("/path", ["GET"])`.
 - Don't add changes to already-released version files.
 - Don't forget response converters for new fields in nested objects.
-- Don't load the serialized Dag on a per-task hot path such as `ti_run`: introduce a dedicated column on `task_instance` and read there instead.
+- Don't load the serialized Dag unconditionally on a per-task hot path such as `ti_run`. Gate the load so only the tasks that need it pay the cost (as `ti.is_stub` does), and add a `task_instance` column only when every task needs the value.
 - Don't branch business logic by comparing the negotiated API version to a date/version string. For this case, subclass `VersionChangeWithSideEffects` for the version change and check its `is_applied` flag instead:
 
   ```python
