@@ -64,7 +64,9 @@ class RemoteLogIO(Protocol):
         """
         Read logs from the given remote log path.
 
-        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks.
+        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks. A path ending in ``/``
+        asks for every log under it: an asset watcher's log is one file per triggerer that ran it, under
+        ``triggers/<trigger id>/``, and is read back that way.
         """
         ...
 
@@ -77,7 +79,8 @@ class RemoteLogStreamIO(RemoteLogIO, Protocol):
         """
         Stream-based read interface for reading logs from the given remote log path.
 
-        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks.
+        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks. A path ending in ``/``
+        asks for every log under it, as for :meth:`RemoteLogIO.read`.
         """
         ...
 

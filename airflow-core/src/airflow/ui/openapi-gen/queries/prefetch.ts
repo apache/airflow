@@ -2105,6 +2105,26 @@ export const prefetchUseTriggerServiceGetTrigger = (queryClient: QueryClient, { 
   triggerId: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggerKeyFn({ triggerId }), queryFn: () => TriggerService.getTrigger({ triggerId }) });
 /**
+* Get Trigger Logs
+* Get the most recent lines a trigger logged, whatever its kind.
+*
+* For a deferred task's trigger, the trigger part of that task try's log; for a callback's trigger, the
+* callback's log; for an asset watcher, its own log files. Lines come from the triggerer running it now,
+* from remote logging, and from the API server's own log folder, merged in time order. The trigger must be
+* visible to the caller, as in GET /triggers/{trigger_id}, and its owner's logs readable.
+* @param data The data for the request.
+* @param data.triggerId
+* @param data.tailLines Number of most recent log lines to return.
+* @param data.accept
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTriggerServiceGetTriggerLogs = (queryClient: QueryClient, { accept, tailLines, triggerId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  tailLines?: number;
+  triggerId: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggerLogsKeyFn({ accept, tailLines, triggerId }), queryFn: () => TriggerService.getTriggerLogs({ accept, tailLines, triggerId }) });
+/**
 * Get Variable
 * Get a variable entry.
 * @param data The data for the request.

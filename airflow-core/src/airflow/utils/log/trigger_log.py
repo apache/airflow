@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Where an asset watcher's own log lives, relative to the local and remote log folders."""
+"""Where a trigger's log lives, relative to the local and remote log folders."""
 
 from __future__ import annotations
 
@@ -26,12 +26,19 @@ if TYPE_CHECKING:
     from pathlib import Path
     from uuid import UUID
 
+    from airflow.models.callback import Callback
+
 TRIGGER_LOG_ROOT = "triggers"
 TRIGGER_LOG_FILE_NAME = "trigger.log"
 
 # Older lines moved aside by the local size cap. Their own directory, because remote handlers with
 # ``delete_local_logs`` delete the uploaded file's parent directory.
 TRIGGER_LOG_ROTATED_DIR = "rotated"
+
+
+def trigger_log_dir(trigger_id: int) -> str:
+    """Return the directory holding one sub-directory per triggerer that ran the trigger."""
+    return f"{TRIGGER_LOG_ROOT}/{trigger_id}"
 
 
 def trigger_log_relative_path(trigger_id: int, producer_id: int | UUID) -> str:
@@ -67,3 +74,21 @@ def trigger_log_files(producer_dir: Path) -> list[Path]:
         *sorted((producer_dir / TRIGGER_LOG_ROTATED_DIR).glob("*.log")),
         producer_dir / TRIGGER_LOG_FILE_NAME,
     ]
+
+
+def get_callback_dag_and_run_ids(callback: Callback) -> tuple[str, str]:
+    """Return the Dag and run a triggerer callback's log is filed under, ``unknown`` for either it lacks."""
+    data = callback.data or {}
+    dag_run = ((data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+    return data.get("dag_id") or dag_run.get("dag_id") or "unknown", dag_run.get("dag_run_id") or "unknown"
+
+
+def callback_trigger_log_relative_path(callback: Callback) -> str:
+    """
+    Return the log of a callback run by the triggerer, which its trigger writes.
+
+    One directory per callback: with ``delete_local_logs``, remote handlers delete the log file's parent
+    directory after upload, which must not hold other callbacks' logs.
+    """
+    dag_id, run_id = get_callback_dag_and_run_ids(callback)
+    return f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log"

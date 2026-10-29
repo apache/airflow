@@ -148,6 +148,7 @@ from airflow.utils.log.trigger_log import (
     TRIGGER_LOG_FILE_NAME,
     TRIGGER_LOG_ROOT,
     TRIGGER_LOG_ROTATED_DIR,
+    callback_trigger_log_relative_path,
     trigger_log_files,
     trigger_log_part_path,
     trigger_log_relative_path,
@@ -1495,7 +1496,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self._mark_recovered(trigger_id, after_failures)
 
     def _mark_recovered(self, trigger_id: int, after_failures: int) -> None:
-        log.info(
+        self._log_trigger_transition(
+            "info",
             "Trigger recovered",
             trigger_id=trigger_id,
             trigger_kind=self.trigger_kinds.get(trigger_id),
@@ -1516,6 +1518,21 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Trigger.clear_recorded_failures(
             trigger_ids, triggerer_id=self.job.id if self.job is not None else None
         )
+
+    def _log_trigger_transition(self, level: str, event: str, *, trigger_id: int, **kwargs: Any) -> None:
+        """
+        Log a change of a trigger's state, such as its recovery, in an asset watcher's own file too.
+
+        Reading the watcher's logs then shows when it recovered, next to its own lines.
+        """
+        getattr(log, level)(event, trigger_id=trigger_id, **kwargs)
+        if isinstance(factory := self.logger_cache.get(trigger_id), WatcherLoggingFactory):
+            from structlog.stdlib import NAME_TO_LEVEL
+
+            from airflow.sdk.log import logging_processors  # noqa: SDK001
+
+            # The file only: the line is on stdout already.
+            factory(logging_processors(json_output=True)).log_to_file(NAME_TO_LEVEL[level], event, **kwargs)
 
     def metric_tags(self) -> dict[str, str]:
         """
@@ -1596,15 +1613,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if callback := getattr(trigger, "callback", None):
                 # Log callback triggers to a file the UI callback logs endpoint can read.
-                callback_data = callback.data or {}
-                context = (callback_data.get("kwargs") or {}).get("context") or {}
-                dag_run_data = context.get("dag_run") or {}
-                dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
-                run_id = dag_run_data.get("dag_run_id") or "unknown"
-                # One directory per callback: with delete_local_logs, remote handlers delete the
-                # log file's parent directory after upload, which must not hold other callbacks' logs.
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
-                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
+                    log_path=callback_trigger_log_relative_path(callback),
                     trigger_id=trigger.id,
                     on_error=self._warn_trigger_log_error,
                 )

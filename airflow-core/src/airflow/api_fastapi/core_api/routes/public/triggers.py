@@ -18,11 +18,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select, union_all
 from sqlalchemy.orm import contains_eager, defer, selectinload
 
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.parameters.base import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.parameters.sort import SortParam
 from airflow.api_fastapi.common.parameters.trigger import (
@@ -34,6 +38,8 @@ from airflow.api_fastapi.common.parameters.trigger import (
     QueryTriggerTeamsFilter,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import Mimetype
+from airflow.api_fastapi.core_api.datamodels.log import TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import (
     TriggerAssetWatcherReferenceResponse,
     TriggerCallbackReferenceResponse,
@@ -42,14 +48,31 @@ from airflow.api_fastapi.core_api.datamodels.trigger import (
     TriggerTaskInstanceReferenceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableTriggersFilterDep, requires_access_trigger
-from airflow.models.asset import AssetWatcherModel
+from airflow.api_fastapi.core_api.routes.public.log import (
+    _buffered_ndjson_stream,
+    ndjson_example_response_for_get_log,
+)
+from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
+    ReadableTriggersFilterDep,
+    requires_access_trigger,
+)
+from airflow.configuration import conf
+from airflow.models.asset import (
+    AssetModel,
+    AssetWatcherModel,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
+)
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger, TriggerKind
+from airflow.utils.log.trigger_log_reader import read_trigger_logs
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -57,6 +80,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement, Select
+
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 triggers_router = AirflowRouter(tags=["Trigger"], prefix="/triggers")
 
@@ -283,3 +308,97 @@ def get_trigger(
     if response is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The trigger with ID `{trigger_id}` was not found")
     return response
+
+
+def _can_read_trigger_logs(
+    trigger: Trigger, user: BaseUser, *, readable_asset_ids: set[int], session: Session
+) -> bool:
+    """
+    Whether the caller, who can see the trigger, may read its logs: whoever may read its owner's logs.
+
+    That is task log access to the Dag of its task instance or callback, the check their own log routes make.
+    An asset watcher belongs to no single Dag, so it takes read access to one of its assets and task log access
+    to a Dag scheduled on it (directly or by an asset name or URI reference), in the trigger's team.
+    """
+    auth_manager = get_auth_manager()
+    if trigger.kind in (TriggerKind.TASK, TriggerKind.CALLBACK):
+        dag_ids = {trigger.dag_id} if trigger.dag_id is not None else set()
+        same_team_only = False
+    else:
+        asset_ids = {w.asset_id for w in trigger.asset_watchers} & readable_asset_ids
+        # On the asset itself or on Asset.ref(name=...) / Asset.ref(uri=...) of it, as its events queue them.
+        refs = ((DagScheduleAssetNameReference, "name"), (DagScheduleAssetUriReference, "uri"))
+        by_ref = [
+            select(ref.dag_id)
+            .join(AssetModel, getattr(AssetModel, column) == getattr(ref, column))
+            .where(AssetModel.id.in_(asset_ids))
+            for ref, column in refs
+        ]
+        direct = select(DagScheduleAssetReference.dag_id).where(
+            DagScheduleAssetReference.asset_id.in_(asset_ids)
+        )
+        dag_ids = set(session.scalars(union_all(direct, *by_ref)))
+        same_team_only = conf.getboolean("core", "multi_team")
+    dag_teams = DagModel.get_dag_id_to_team_name_mapping(list(dag_ids), session=session)
+    return any(
+        auth_manager.is_authorized_dag(
+            method="GET",
+            access_entity=DagAccessEntity.TASK_LOGS,
+            details=DagDetails(id=dag_id, team_name=dag_teams.get(dag_id)),
+            user=user,
+        )
+        for dag_id in sorted(dag_ids)
+        if not same_team_only or dag_teams.get(dag_id) == trigger.team_name
+    )
+
+
+@triggers_router.get(
+    "/{trigger_id}/logs",
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": ndjson_example_response_for_get_log,
+        },
+    },
+    response_model=TaskInstancesLogResponse,
+    response_model_exclude_unset=True,
+    dependencies=[Depends(requires_access_trigger(method="GET"))],
+)
+def get_trigger_logs(
+    trigger_id: int,
+    accept: HeaderAcceptJsonOrNdjson,
+    user: GetUserDep,
+    readable_triggers_filter: ReadableTriggersFilterDep,
+    session: SessionDep,
+    tail_lines: Annotated[
+        int, Query(ge=1, le=10_000, description="Number of most recent log lines to return.")
+    ] = 200,
+):
+    """
+    Get the most recent lines a trigger logged, whatever its kind.
+
+    For a deferred task's trigger, the trigger part of that task try's log; for a callback's trigger, the
+    callback's log; for an asset watcher, its own log files. Lines come from the triggerer running it now,
+    from remote logging, and from the API server's own log folder, merged in time order. The trigger must be
+    visible to the caller, as in GET /triggers/{trigger_id}, and its owner's logs readable.
+    """
+    trigger = session.scalars(
+        readable_triggers_filter.to_orm(_build_triggers_select()).where(Trigger.id == trigger_id).limit(1)
+    ).one_or_none()
+    if trigger is None or trigger.kind is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The trigger with ID `{trigger_id}` was not found")
+    if not _can_read_trigger_logs(
+        trigger, user, readable_asset_ids=readable_triggers_filter.asset_ids, session=session
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Reading a trigger's logs needs task log access to its owner's Dag"
+        )
+    log_stream = read_trigger_logs(trigger, tail_lines=tail_lines, session=session)
+
+    if accept == Mimetype.NDJSON:
+        return StreamingResponse(
+            media_type="application/x-ndjson",
+            content=_buffered_ndjson_stream(f"{log.model_dump_json()}\n" for log in log_stream),
+        )
+    return TaskInstancesLogResponse.model_construct(content=log_stream, continuation_token=None)

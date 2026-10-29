@@ -144,7 +144,9 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
-def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
+def _fetch_logs_from_service(
+    url: str, log_relative_path: str, headers: dict[str, str] | None = None
+) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -165,7 +167,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": generator.generate({"filename": log_relative_path})},
+        headers={**(headers or {}), "Authorization": generator.generate({"filename": log_relative_path})},
         stream=True,
     )
     response.encoding = "utf-8"
