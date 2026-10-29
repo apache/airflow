@@ -25,6 +25,9 @@ tasks (see ``test_lang_sdk_mixed_language.py``); a native task ignores
 ``task_handler_bundle_name`` and reads its own Dag bundle instead, so one coordinator per
 language is enough -- no ``[sdk] dag_bundle_to_coordinator`` is configured.
 
+The class names all start with ``TestLangSdk`` because the CI job that provisions this
+environment selects its tests with ``-k TestLangSdk``.
+
 Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 """
 
@@ -50,13 +53,13 @@ _skip_unless_lang_sdk = pytest.mark.skipif(
     "ExecutableCoordinator has no parse-Dag command. Unskip once a Go bundle can answer a "
     "Dag-parse request."
 )
-class TestNativeGoDagOnKubernetes(BaseK8STest):
+class TestLangSdkNativeGoDag(BaseK8STest):
     def test_native_go_dag_succeeds(self):
         pass
 
 
 @_skip_unless_lang_sdk
-class TestNativeJavaDagOnKubernetes(BaseK8STest):
+class TestLangSdkNativeJavaDag(BaseK8STest):
     """Declared entirely in Java; the interface API half of ``airflow-e2e-tests/java-native-bundle``.
 
     Covers the path a Dag with no Python file takes: the Dag processor parses the
@@ -127,7 +130,7 @@ class TestNativeJavaDagOnKubernetes(BaseK8STest):
 
 
 @_skip_unless_lang_sdk
-class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
+class TestLangSdkNativeTypeScriptDag(BaseK8STest):
     """The same Dag the SDK and Airflow e2e suites run, under the Node coordinator.
 
     Covers the path a Dag with no Python file takes: the Dag processor parses the
