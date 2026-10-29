@@ -102,7 +102,7 @@ jobs:
           EXPECTED_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
+          test "$(node --print "require('./package.json').name")" = "@apache-airflow/ts-sdk"
           test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
       - name: Confirm release advances the npm dist-tag
         working-directory: ts-sdk

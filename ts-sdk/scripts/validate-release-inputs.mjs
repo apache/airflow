@@ -127,7 +127,8 @@ export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersio
   return {
     version,
     packageName: PACKAGE_NAME,
-    packageFile: `${PACKAGE_NAME}-${version}.tgz`,
+    // npm pack names a scoped tarball without the "@" and with "/" as "-".
+    packageFile: `${PACKAGE_NAME.replace(/^@/, "").replace("/", "-")}-${version}.tgz`,
   };
 }
 
