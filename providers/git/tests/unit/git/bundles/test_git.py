@@ -99,9 +99,7 @@ def assert_repo_is_closed(bundle: GitDagBundle):
     assert bundle.bare_repo.git.cat_file_header is None
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Simulates a 3.4 core with the BundleVersion API")
-@pytest.mark.parametrize("airflow_version", ["3.4.0b2", "3.4.0"])
-def test_import_on_airflow_3_4_without_refresh_error(airflow_version):
+def test_import_without_refresh_error_contract():
     result = subprocess.run(
         [
             sys.executable,
@@ -110,9 +108,6 @@ def test_import_on_airflow_3_4_without_refresh_error(airflow_version):
                 """
                 import sys
 
-                import airflow
-
-                airflow.__version__ = sys.argv[1]
                 from airflow.dag_processing.bundles import base
 
                 base.__dict__.pop("DagBundleRefreshError", None)
@@ -123,7 +118,6 @@ def test_import_on_airflow_3_4_without_refresh_error(airflow_version):
                 assert issubclass(GitDagBundle, base.BaseDagBundle)
                 """
             ),
-            airflow_version,
         ],
         capture_output=True,
         text=True,
