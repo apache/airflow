@@ -2635,6 +2635,35 @@ class TestSchedulerJob:
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
+    @pytest.mark.parametrize(
+        ("max_active_tasks", "max_tis"),
+        [
+            pytest.param(1, 32, id="limited-by-max-active-tasks"),
+            pytest.param(16, 1, id="limited-by-max-tis"),
+        ],
+    )
+    def test_find_executable_task_instances_order_resumed_first(
+        self, dag_maker, session, max_active_tasks, max_tis
+    ):
+        """A task resumed from a trigger is selected before a new task, even with a lower priority_weight."""
+        with dag_maker(max_active_tasks=max_active_tasks, session=session):
+            EmptyOperator(task_id="new", priority_weight=10)
+            EmptyOperator(task_id="resumed", priority_weight=1)
+        dr = dag_maker.create_dagrun()
+
+        ti_new = dr.get_task_instance("new", session=session)
+        ti_resumed = dr.get_task_instance("resumed", session=session)
+        ti_new.state = State.SCHEDULED
+        ti_resumed.state = State.SCHEDULED
+        ti_resumed.next_method = "execute_complete"
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        res = self.job_runner._select_task_instances_to_queue(
+            max_tis, make_pool_stats(), set(), session=session
+        )
+        assert [ti.key for ti in res] == [ti_resumed.key]
+
     def test_find_executable_task_instances_executor(self, dag_maker, mock_executors):
         """
         Test that tasks for all executors are set to queued, if space allows it
@@ -4247,6 +4276,7 @@ class TestSchedulerJob:
             "id",
             "row_num",
             "dr_max_active_tasks",
+            "is_not_resumed_for_ordering",
             "priority_weight_for_ordering",
             "logical_date_for_ordering",
             "region_index_for_ordering",
@@ -4272,6 +4302,24 @@ class TestSchedulerJob:
         query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
 
         assert [ti.dag_id for ti in session.scalars(query)] == [f"p{priorities[-1]:03d}"]
+
+    def test_build_schedulable_tis_query_keeps_resumed_candidates(self, dag_maker, session):
+        # More new task instances of higher priority than the candidates kept.
+        self._schedule_one_task_per_dag_run(
+            dag_maker,
+            session,
+            [*((f"new{i}", 10) for i in range(CANDIDATE_BATCHES + 1)), ("resumed", 1)],
+        )
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.dag_id == "resumed")
+            .values(next_method="execute_complete")
+        )
+        session.flush()
+
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
+
+        assert [ti.dag_id for ti in session.scalars(query)] == ["resumed"]
 
     def test_build_schedulable_tis_query_keeps_the_top_task_instances_of_a_dag_run(self, dag_maker, session):
         with dag_maker(dag_id="one_run", session=session):
