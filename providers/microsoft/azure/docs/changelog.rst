@@ -32,10 +32,17 @@ Changelog
 
 .. note::
 
-    ``PowerBIDatasetRefreshOperator`` now starts refreshes on the worker, so workers need access
-    to the Power BI service. On Airflow 3.3 and later it resumes an existing refresh by default.
-    Set ``durable=False`` to submit a fresh refresh on each retry and cancel refreshes after
-    polling errors. ``MSGraphAsyncOperator`` recovery is opt-in with ``durable=True``.
+    On Airflow 3.3 and later, ``PowerBIDatasetRefreshOperator`` resumes an existing refresh
+    by default. Durable execution starts refreshes on the worker, so workers need access
+    to the Power BI service. Set ``durable=False`` to preserve triggerer-only access:
+    the trigger starts a fresh refresh on each try and cancels it after polling errors.
+    On Airflow versions before 3.3, durable execution is disabled and this triggerer-only
+    behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
+    with ``durable=True`` and requires Airflow 3.3 or later.
+
+    When upgrading from ``15.3.0rc1``, durable ``MSGraphAsyncOperator`` pagination discards
+    pages stored in the earlier format and restarts from the first page. If this is detected
+    while resuming a deferred task, the current try fails so the next retry can restart.
 
 Features
 ~~~~~~~~
@@ -47,6 +54,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Restore triggerer-only Power BI submission and repair durable MSGraph page recovery (#75272)``
 * ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
 * ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
 

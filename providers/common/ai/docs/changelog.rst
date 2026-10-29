@@ -100,6 +100,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Publish usage, run id and model name from LLMOperator's subclasses (#75208)``
 * ``Let a generic pydanticai connection set a default model provider (#75909)``
 * ``Add async aget_conn and acreate_agent to PydanticAIHook (#74150)``
 * ``Use Common AI toolsets with the Claude Agent SDK through AirflowTools (#74026)``

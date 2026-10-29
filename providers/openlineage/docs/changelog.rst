@@ -61,7 +61,7 @@ Features
 
 * ``Fix task loop information and tests for OpenLineage provider (#74752)``
 * ``Add OpenLineage parent and root job-type macros (#75303)``
-* ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312)``
+* ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312, #75921)``
 * ``Send task inlets and outlets as JSON lists in OpenLineage facet (#74666)``
 * ``Distinguish SQL hook lineage query jobs from native query jobs (#73655)``
 * ``Attribute lineage runs and asset dependencies to task attempts on Airflow 3.4 (#74347)``
@@ -75,6 +75,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add OpenLineage system tests for the emission policy (#75678)``
    * ``Keep service logs and OpenLineage e2e noise out of the job output (#75811)``
    * ``Prepare providers release 2026-10-20 (#75209)``
    * ``Add non serializable asset's extra to openlineage e2e tests (#75094)``
