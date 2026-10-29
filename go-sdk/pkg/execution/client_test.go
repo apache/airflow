@@ -438,6 +438,41 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 	}
 }
 
+// A task that returns a nil slice or a nil any pushes null, so PushXCom must not
+// inherit the task state store's nil rule.
+func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "nil", value: nil},
+		{name: "typed nil", value: []string(nil)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			require.NoError(t, client.PushXCom(context.Background(), ti, "return_value", tc.value))
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			require.Contains(t, sentMap, "value")
+			assert.Nil(t, sentMap["value"])
+		})
+	}
+}
+
 // TestCoordinatorClientGetXComMapIndex verifies the GetXCom frame omits
 // map_index when none is supplied and propagates a real index otherwise,
 // including index 0: a plain deref into the nullable interface{} field would let
