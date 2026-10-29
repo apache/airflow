@@ -46,11 +46,12 @@ def get_bundle() -> VersionBundle:
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
-        AddXComBackendErrorType,
     )
+    from airflow.sdk.execution_time.schema.versions.v2027_02_28 import AddXComBackendErrorType
 
     return VersionBundle(
         HeadVersion(),
+        Version("2027-02-28", AddXComBackendErrorType),
         Version(
             "2026-10-30",
             AddArgBindingsToSupervisorTIRunContext,
@@ -61,7 +62,6 @@ def get_bundle() -> VersionBundle:
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
             AddExpandedTICountToSupervisorTIRunContext,
             AddExecutionTimeoutToSupervisorTIRunContext,
-            AddXComBackendErrorType,
         ),
         Version("2026-06-16"),
     )
