@@ -449,7 +449,7 @@ class TestGCSDagBundleArchive:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle.path.parent.glob(".gcs-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
 
     @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
     def test_corrupt_archive_keeps_previous_tree(self, mock_gcs_hook_property):
@@ -469,7 +469,7 @@ class TestGCSDagBundleArchive:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
-        assert list(bundle.path.parent.glob(".gcs-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
 
     @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
     def test_failed_swap_restores_previous_tree(self, mock_gcs_hook_property):
@@ -500,7 +500,31 @@ class TestGCSDagBundleArchive:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle.path.parent.glob(".gcs-archive-*")) == []
+        assert list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*")) == []
+
+    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    def test_refresh_removes_only_this_bundles_stale_staging_dir(self, mock_gcs_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_gcs_hook_property.return_value = _archive_hook({GCS_ARCHIVE_OBJECT: (archive, "etag-1")})
+        bundle = GCSDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        bundle.initialize()
+
+        storage_root = bundle.path.parent
+        stale = storage_root / f".{bundle.name}-archive-staging-dead"
+        stale.mkdir()
+        (stale / "orphan.txt").write_text("left by a killed process")
+        other = storage_root / ".other-bundle-archive-staging-dead"
+        other.mkdir()
+
+        bundle.refresh()
+
+        assert not stale.exists()
+        assert other.is_dir()
 
     def test_view_url_template_points_at_archive(self):
         bundle = GCSDagBundle(
