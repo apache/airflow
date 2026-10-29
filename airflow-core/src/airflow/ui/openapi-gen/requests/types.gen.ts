@@ -5721,6 +5721,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
