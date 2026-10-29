@@ -28,7 +28,8 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
-from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult  # noqa: SDK002
+from airflow.dag_processing.lang_sdk_processor import DagFileParseRequest  # noqa: SDK002
+from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
@@ -162,6 +163,5 @@ class AddDagSerializationOptionsToDagFileParseRequest(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        schema(DagFileParseRequest).field("create_cron_data_intervals").didnt_exist,
-        schema(DagFileParseRequest).field("dag_default_timezone").didnt_exist,
+        schema(DagFileParseRequest).field("serialization_options").didnt_exist,
     )

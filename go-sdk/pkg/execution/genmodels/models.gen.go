@@ -379,11 +379,7 @@ type DagCallbackRequest struct {
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
-// Request for DAG File Parsing.
-//
-// This is the request that the manager will send to the DAG parser with the dag
-// file and
-// any other necessary metadata.
+// Language SDK parse request; retains the existing wire discriminator.
 type DagFileParseRequest struct {
 	// BundleName corresponds to the JSON schema field "bundle_name".
 	BundleName string `msgpack:"bundle_name"`
@@ -394,15 +390,12 @@ type DagFileParseRequest struct {
 	// CallbackRequests corresponds to the JSON schema field "callback_requests".
 	CallbackRequests []interface{} `msgpack:"callback_requests,omitempty"`
 
-	// CreateCronDataIntervals corresponds to the JSON schema field
-	// "create_cron_data_intervals".
-	CreateCronDataIntervals bool `msgpack:"create_cron_data_intervals,omitempty"`
-
-	// DagDefaultTimezone corresponds to the JSON schema field "dag_default_timezone".
-	DagDefaultTimezone interface{} `msgpack:"dag_default_timezone,omitempty"`
-
 	// File corresponds to the JSON schema field "file".
 	File string `msgpack:"file"`
+
+	// SerializationOptions corresponds to the JSON schema field
+	// "serialization_options".
+	SerializationOptions DagSerializationOptions `msgpack:"serialization_options"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -646,6 +639,16 @@ const DagRunTypeBackfill DagRunType = "backfill"
 const DagRunTypeManual DagRunType = "manual"
 const DagRunTypeOperatorTriggered DagRunType = "operator_triggered"
 const DagRunTypeScheduled DagRunType = "scheduled"
+
+// Configuration resolved by core, required by language SDK serializers.
+type DagSerializationOptions struct {
+	// CreateCronDataIntervals corresponds to the JSON schema field
+	// "create_cron_data_intervals".
+	CreateCronDataIntervals bool `msgpack:"create_cron_data_intervals"`
+
+	// DefaultTimezone corresponds to the JSON schema field "default_timezone".
+	DefaultTimezone interface{} `msgpack:"default_timezone"`
+}
 
 // Raw source code and its language identifier for a DAG definition.
 type DagSourceCode struct {

@@ -322,7 +322,11 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	supervisor, done := serveForSupervisor(t, b)
 	const requestID = 7
 	require.NoError(t, supervisor.SendRequest(requestID, map[string]any{
-		"type":        "DagFileParseRequest",
+		"type": "DagFileParseRequest",
+		"serialization_options": map[string]any{
+			"create_cron_data_intervals": false,
+			"default_timezone":           "UTC",
+		},
 		"file":        "/bundles/go/etl",
 		"bundle_path": "/bundles/go",
 		"bundle_name": "go",

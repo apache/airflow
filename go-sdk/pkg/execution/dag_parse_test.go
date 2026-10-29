@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"testing"
@@ -55,10 +56,10 @@ func serializedDag(dagID string) bundle.SerializedDag {
 }
 
 var etlParseRequest = &genmodels.DagFileParseRequest{
-	File:               "/bundles/go/etl",
-	BundlePath:         "/bundles/go",
-	BundleName:         "go",
-	DagDefaultTimezone: "UTC",
+	File:                 "/bundles/go/etl",
+	BundlePath:           "/bundles/go",
+	BundleName:           "go",
+	SerializationOptions: genmodels.DagSerializationOptions{DefaultTimezone: "UTC"},
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -89,7 +90,11 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 
 	assert.Equal(t, "/bundles/go/etl", dags.fileloc)
 	assert.Equal(t, "etl", dags.relative)
-	assert.Equal(t, bundle.DagSerializationOptions{DefaultTimezone: "UTC"}, dags.options)
+	assert.Equal(
+		t,
+		bundle.DagSerializationOptions{DefaultTimezone: bundle.NamedTimezone("UTC")},
+		dags.options,
+	)
 	assert.JSONEq(t, `{
 		"type": "DagFileParsingResult",
 		"fileloc": "/bundles/go/etl",
@@ -117,15 +122,17 @@ func TestParseDagsPassesTheSerializationOptionsToTheSerializer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dags := &serializedDags{}
 			req := *etlParseRequest
-			req.CreateCronDataIntervals = tt.createIntervals
-			req.DagDefaultTimezone = tt.defaultTimezone
+			req.SerializationOptions.CreateCronDataIntervals = tt.createIntervals
+			req.SerializationOptions.DefaultTimezone = tt.defaultTimezone
 
 			parseDags(dags, &req, discardLogger())
 
+			timezone, err := parseDefaultTimezone(tt.defaultTimezone)
+			require.NoError(t, err)
 			assert.Equal(t,
 				bundle.DagSerializationOptions{
 					CreateCronDataIntervals: tt.createIntervals,
-					DefaultTimezone:         tt.defaultTimezone,
+					DefaultTimezone:         timezone,
 				},
 				dags.options,
 			)
@@ -139,6 +146,25 @@ func TestParseDagsAnswersWithNoDagsWhenTheBundleHasNoSerializer(t *testing.T) {
 	assert.NotNil(t, result.SerializedDags)
 	assert.Empty(t, result.SerializedDags)
 	assert.Nil(t, result.ImportErrors)
+}
+
+func TestParseDagsRejectsInvalidTimezoneBeforeSerializing(t *testing.T) {
+	for _, value := range []any{nil, true, 1.5, float64(3600), map[string]any{}, "", "Invalid/Zone", "Local", int64(86400), int64(-86400), ^uint64(0)} {
+		t.Run(fmt.Sprintf("%T_%v", value, value), func(t *testing.T) {
+			dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
+			req := *etlParseRequest
+			req.SerializationOptions.DefaultTimezone = value
+			result := parseDags(dags, &req, discardLogger())
+			require.NotNil(t, result.ImportErrors)
+			assert.Contains(
+				t,
+				(*result.ImportErrors)["etl"],
+				"serialization_options.default_timezone",
+			)
+			assert.Empty(t, result.SerializedDags)
+			assert.Empty(t, dags.fileloc, "serializer must not receive unvalidated configuration")
+		})
+	}
 }
 
 func TestParseDagsSendsAnEmptyListForABundleWithoutDags(t *testing.T) {

@@ -41,7 +41,11 @@ import (
 // sends.
 func serializedDag(t *testing.T, dag *DagRef) map[string]any {
 	t.Helper()
-	return serializedDagWithOptions(t, dag, bundle.DagSerializationOptions{DefaultTimezone: "UTC"})
+	return serializedDagWithOptions(
+		t,
+		dag,
+		bundle.DagSerializationOptions{DefaultTimezone: bundle.NamedTimezone("UTC")},
+	)
 }
 
 // serializedDagWithOptions is serializedDag for a Dag processor that sends options with the parse
@@ -444,7 +448,7 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 		schedule        string
 		startDate       time.Time
 		option          bool
-		defaultTimezone any
+		defaultTimezone bundle.Timezone
 		want            string
 	}{
 		{
@@ -483,7 +487,7 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 		{
 			name:            "deployment default timezone",
 			schedule:        "0 3 * * *",
-			defaultTimezone: "Europe/Amsterdam",
+			defaultTimezone: bundle.NamedTimezone("Europe/Amsterdam"),
 			want: `{
 				"__type": "airflow.timetables.trigger.CronTriggerTimetable",
 				"__var": {
@@ -496,7 +500,7 @@ func TestSerializeWritesTheTimetableThatCreateCronDataIntervalsPicks(t *testing.
 			name:            "numeric deployment default timezone",
 			schedule:        "0 3 * * *",
 			option:          true,
-			defaultTimezone: 19800,
+			defaultTimezone: bundle.FixedTimezone(19800),
 			want: `{
 				"__type": "airflow.timetables.interval.CronDataIntervalTimetable",
 				"__var": {"expression": "0 3 * * *", "timezone": 19800}
@@ -559,7 +563,11 @@ func TestSerializeWritesTheTimezoneThatTheStartDateGives(t *testing.T) {
 		{"CET in summer", time.Date(2026, 7, 1, 0, 0, 0, 0, cet), "CET"},
 		{"GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, gmt), "GMT"},
 		{"Etc GMT", time.Date(2026, 2, 1, 0, 0, 0, 0, etcGMTMinusOne), "Etc/GMT-1"},
-		{"fixed zone named CET", time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("CET", 3600)), float64(3600)},
+		{
+			"fixed zone named CET",
+			time.Date(2026, 2, 1, 0, 0, 0, 0, time.FixedZone("CET", 3600)),
+			float64(3600),
+		},
 		{
 			// Python writes the offset in seconds for a timezone that has no name to write, and Go
 			// decodes a JSON number as a float64.
@@ -898,7 +906,9 @@ func TestSerializeWritesALiteralWithItsIntegersAsIntegers(t *testing.T) {
 	dag.Task(keepAnything, Inputs(Literal(map[string]any{"big": int64(9007199254740993)})))
 
 	Bundle().Register(dag)
-	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
+	raw, err := msgpack.Marshal(
+		dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}),
+	)
 	require.NoError(t, err)
 	var decoded map[string]any
 	require.NoError(t, msgpack.Unmarshal(raw, &decoded))
@@ -1265,7 +1275,9 @@ func TestSerializeKeepsTheNumbersOfConfNumbersInMsgpack(t *testing.T) {
 	}}), TaskSpec{TaskID: "trigger"})
 	Bundle().Register(dag)
 
-	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}))
+	raw, err := msgpack.Marshal(
+		dag.serialize("/bundles/app/etl", "etl", bundle.DagSerializationOptions{}),
+	)
 	require.NoError(t, err)
 	dec := msgpack.NewDecoder(bytes.NewReader(raw))
 	dec.UseLooseInterfaceDecoding(true)

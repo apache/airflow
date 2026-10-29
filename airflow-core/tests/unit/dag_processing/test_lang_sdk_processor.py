@@ -41,11 +41,13 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
     _EXIT_GRACE_PERIOD,
+    DagFileParseRequest,
+    DagSerializationOptions,
     LangSDKDagFileProcessorProcess,
     LangSDKRuntimeSchemaVersion,
     _get_import_timeout,
 )
-from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
+from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk import DAG, BaseOperator, task
@@ -193,8 +195,8 @@ class TestLangSDKDagFileProcessorProcess:
             proc = parse()
 
         assert proc.parsing_result.import_errors is None
-        assert proc._parse_request.create_cron_data_intervals is expected
-        assert proc._parse_request.dag_default_timezone == "Europe/Amsterdam"
+        assert proc._parse_request.serialization_options.create_cron_data_intervals is expected
+        assert proc._parse_request.serialization_options.default_timezone == "Europe/Amsterdam"
 
     @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
@@ -689,7 +691,12 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
         dag_file_rel_path="dag.native",
         listeners={},
         parse_request=DagFileParseRequest(
-            file="/b/dag.native", bundle_path=Path("/b"), bundle_name="testing"
+            file="/b/dag.native",
+            bundle_path=Path("/b"),
+            bundle_name="testing",
+            serialization_options=DagSerializationOptions(
+                create_cron_data_intervals=False, default_timezone="UTC"
+            ),
         ),
         **kwargs,
     )

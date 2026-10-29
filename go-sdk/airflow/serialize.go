@@ -199,14 +199,9 @@ func serializeTimetable(
 // encodeTimezone returns the timezone of a Dag in the form that Python's encode_timezone writes:
 // the name of a named timezone, the offset in seconds of a fixed offset timezone, or "UTC". A Dag
 // without a start date uses Airflow's encoded [core] default_timezone from the parse request.
-func encodeTimezone(start time.Time, defaultTimezone any) any {
+func encodeTimezone(start time.Time, defaultTimezone bundle.Timezone) any {
 	if start.IsZero() {
-		if defaultTimezone == nil {
-			// The wire schema supplies UTC when the field is absent. Preserve that zero-value behavior
-			// for in-process callers that construct DagSerializationOptions directly.
-			return "UTC"
-		}
-		return defaultTimezone
+		return defaultTimezone.Encoded()
 	}
 	location := start.Location().String()
 	if location != "" && location != "Local" && timezoneRulesMatch(start, location) {

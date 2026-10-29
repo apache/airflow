@@ -91,12 +91,15 @@ def registered_models_by_name() -> dict[str, type[BaseModel]]:
     single head class, so a name clash is a programmer error that must
     surface immediately rather than silently picking a winner.
     """
-    from airflow.dag_processing.processor import ToDagProcessor, ToManager
+    from airflow.dag_processing.lang_sdk_processor import DagFileParseRequest as LangSDKDagFileParseRequest
+    from airflow.dag_processing.processor import DagFileParseRequest, ToDagProcessor, ToManager
     from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 
     by_name: dict[str, type[BaseModel]] = {}
     for source in (ToTask, ToSupervisor, ToManager, ToDagProcessor):
-        for model in _iter_model_types(source):
+        for member in _iter_model_types(source):
+            # The wire registry describes language runtimes, not the Python parser's request.
+            model = LangSDKDagFileParseRequest if member is DagFileParseRequest else member
             existing = by_name.get(model.__name__)
             if existing is None:
                 by_name[model.__name__] = model

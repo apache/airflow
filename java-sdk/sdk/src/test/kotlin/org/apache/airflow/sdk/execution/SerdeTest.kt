@@ -78,6 +78,93 @@ private fun queuesByTaskId(serialized: Map<String, Any?>): Map<String, Any?> =
     .associate { it["task_id"] as String to it["queue"] }
 
 internal class SerdeTest {
+  private fun parseRequest(options: Any?): DagFileParseRequest =
+    Frame.decodeBody(
+      RawFrame(
+        1,
+        mapOf(
+          "type" to "DagFileParseRequest",
+          "file" to "/bundles/app/dags.jar",
+          "bundle_path" to "/bundles",
+          "bundle_name" to "app",
+          "serialization_options" to options,
+        ),
+        null,
+      ),
+    ) as DagFileParseRequest
+
+  @Test
+  fun shouldHonorSerializationOptionsWhenParsing() {
+    listOf(false, true).forEach { intervals ->
+      listOf("Europe/Amsterdam", 19800L, 0, -86399, 86399, java.math.BigInteger.valueOf(3600)).forEach { timezone ->
+        listOf<OffsetDateTime?>(null, OffsetDateTime.parse("2026-01-01T00:00:00-04:00"), OffsetDateTime.parse("2026-01-01T00:00:00Z"))
+          .forEach { startDate ->
+            val dag = DagDef("d").config("schedule", "@daily")
+            startDate?.let { dag.config("start_date", it) }
+            val result =
+              parseDags(
+                Bundle(listOf(dag)),
+                parseRequest(mapOf("create_cron_data_intervals" to intervals, "default_timezone" to timezone)),
+              )
+            val data = ((result["serialized_dags"] as List<*>).single() as Map<*, *>)["data"] as Map<*, *>
+            val serialized = data["dag"] as Map<*, *>
+            val expectedTimezone =
+              startDate?.offset?.totalSeconds?.let { if (it == 0) "UTC" else it } ?: if (timezone == 0) "UTC" else timezone
+            assertEquals(expectedTimezone, serialized["timezone"])
+            val timetable = serialized["timetable"] as Map<*, *>
+            val timetableClass =
+              if (intervals) "airflow.timetables.interval.CronDataIntervalTimetable" else "airflow.timetables.trigger.CronTriggerTimetable"
+            assertEquals(timetableClass, timetable["__type"])
+            val expectedFields = mutableMapOf<String, Any?>("expression" to "0 0 * * *", "timezone" to expectedTimezone)
+            if (!intervals) expectedFields.putAll(mapOf("interval" to 0.0, "run_immediately" to false))
+            assertEquals(expectedFields, timetable["__var"])
+          }
+      }
+    }
+  }
+
+  @Test
+  fun shouldRejectInvalidSerializationOptions() {
+    val valid = mapOf("create_cron_data_intervals" to false, "default_timezone" to "UTC")
+    val invalid =
+      listOf(null, false, emptyMap<String, Any>()) +
+        listOf(
+          null,
+          true,
+          1.5,
+          emptyMap<String, Any>(),
+          emptyList<Any>(),
+          "",
+          "Mars/Olympus",
+          -86400,
+          86400,
+          java.math.BigInteger.ONE
+            .shiftLeft(100),
+        ).map { valid + ("default_timezone" to it) } +
+        listOf(null, "true", 1, emptyMap<String, Any>()).map { valid + ("create_cron_data_intervals" to it) } +
+        listOf(valid - "default_timezone", valid - "create_cron_data_intervals")
+    invalid.forEach { options ->
+      assertThrows(IllegalArgumentException::class.java) { parseRequest(options) }
+    }
+    assertThrows(IllegalArgumentException::class.java) { parseDags(Bundle(emptyList()), DagFileParseRequest()) }
+    val missingOptions = mapOf("type" to "DagFileParseRequest", "file" to "d", "bundle_path" to ".", "bundle_name" to "app")
+    assertThrows(IllegalArgumentException::class.java) { Frame.decodeBody(RawFrame(1, missingOptions, null)) }
+  }
+
+  @Test
+  fun shouldValidateOptionsForDirectSerialization() {
+    listOf(null, true, 1.5, emptyMap<String, Any>(), "", "Mars/Olympus", -86400, 86400).forEach { timezone ->
+      val request =
+        DagFileParseRequest().also {
+          it.serializationOptions =
+            serializationOptionsFixture().also { options -> options.defaultTimezone = timezone }
+        }
+      assertThrows(IllegalArgumentException::class.java) { parseDags(Bundle(emptyList()), request) }
+    }
+    val missingFlag = serializationOptionsFixture().also { it.createCronDataIntervals = null }
+    assertThrows(IllegalArgumentException::class.java) { SerializationOptions(missingFlag) }
+  }
+
   @Test
   @DisplayName("Should emit required dag fields and leave unset config-backed fields out")
   fun shouldEmitRequiredDagFields() {
@@ -430,6 +517,7 @@ internal class SerdeTest {
     val healthy = DagDef("healthy").addTask(TaskDef("t", SerdeNoopTask::class.java))
     val request =
       DagFileParseRequest().also {
+        it.serializationOptions = serializationOptionsFixture()
         it.file = "/bundles/app/dags.jar"
         it.bundlePath = "/bundles"
       }
@@ -454,6 +542,7 @@ internal class SerdeTest {
     val bundle = Bundle(listOf(DagDef("d").addTask(TaskDef("t", SerdeNoopTask::class.java))))
     val request =
       DagFileParseRequest().also {
+        it.serializationOptions = serializationOptionsFixture()
         it.file = "/bundles/app/dags.jar"
         it.bundlePath = "/bundles"
       }

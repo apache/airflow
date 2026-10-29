@@ -37,6 +37,11 @@ import {
 type Json = Record<string, unknown>;
 type WiredArgs = Record<string, TaskRef>;
 
+const SERIALIZATION_OPTIONS: Parameters<typeof serializeDag>[3] = {
+  create_cron_data_intervals: false,
+  default_timezone: "UTC",
+};
+
 interface StagingRefs {
   readonly extracted: TaskRef;
   readonly staging: TaskGroupRef;
@@ -59,10 +64,10 @@ function place(
 }
 
 /** A one-task Dag, serialized. */
-function serializeWith(spec: DagSpec, taskSpec?: TaskSpec): Json {
+function serializeWith(spec: DagSpec, taskSpec?: TaskSpec, options = SERIALIZATION_OPTIONS): Json {
   const dag = new Dag("d", spec);
   place(dag, "t", [], taskSpec);
-  return serializeDag(dag, "/bundles/app/bundle.mjs", "bundle.mjs") as Json;
+  return serializeDag(dag, "/bundles/app/bundle.mjs", "bundle.mjs", options) as Json;
 }
 
 function taskVar(serialized: Json, index = 0): Json {
@@ -78,6 +83,68 @@ function taskMap(serialized: Json): Map<string, Json> {
 }
 
 describe("serializeDag", () => {
+  it.each([true, false])(
+    "uses the core cron data interval setting %s",
+    (create_cron_data_intervals) => {
+      const serialized = serializeWith({ schedule: "@daily" }, undefined, {
+        create_cron_data_intervals,
+        default_timezone: "Europe/Amsterdam",
+      });
+      expect(serialized["timezone"]).toBe("Europe/Amsterdam");
+      expect(serialized["timetable"]).toEqual({
+        __type: create_cron_data_intervals
+          ? "airflow.timetables.interval.CronDataIntervalTimetable"
+          : "airflow.timetables.trigger.CronTriggerTimetable",
+        __var: {
+          expression: "0 0 * * *",
+          timezone: "Europe/Amsterdam",
+          ...(create_cron_data_intervals ? {} : { interval: 0, run_immediately: false }),
+        },
+      });
+    },
+  );
+
+  it.each([
+    ["Europe/Amsterdam", "Europe/Amsterdam"],
+    [3600, 3600],
+    [0, "UTC"],
+  ])("uses default timezone %s without a start date", (default_timezone, expected) => {
+    const serialized = serializeWith({ schedule: "@daily" }, undefined, {
+      create_cron_data_intervals: false,
+      default_timezone,
+    });
+    expect(serialized["timezone"]).toBe(expected);
+    expect((serialized["timetable"] as Json)["__var"]).toMatchObject({ timezone: expected });
+  });
+
+  it.each([true, false])(
+    "uses UTC from a Date startDate with cron interval setting %s",
+    (create_cron_data_intervals) => {
+      const serialized = serializeWith(
+        {
+          schedule: "@daily",
+          startDate: new Date("2026-01-01T00:00:00+05:00"),
+        },
+        undefined,
+        { create_cron_data_intervals, default_timezone: "Europe/Amsterdam" },
+      );
+      expect(serialized["timezone"]).toBe("UTC");
+      expect((serialized["timetable"] as Json)["__var"]).toMatchObject({ timezone: "UTC" });
+    },
+  );
+
+  it.each([undefined, null, "@once", "@continuous"])(
+    "keeps the simple timetable for %s",
+    (schedule) => {
+      expect(
+        serializeWith({ schedule } as DagSpec, undefined, {
+          create_cron_data_intervals: true,
+          default_timezone: 0,
+        })["timetable"],
+      ).toEqual(serializeWith({ schedule } as DagSpec)["timetable"]);
+    },
+  );
+
   it("writes the fields Airflow always expects", () => {
     const serialized = serializeWith({});
 
@@ -133,7 +200,7 @@ describe("serializeDag", () => {
     const first = place(dag, "first");
     place(dag, "second", [first]);
 
-    expect(serializeDag(dag, "", ".")["task_group"]).toEqual({
+    expect(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS)["task_group"]).toEqual({
       _group_id: null,
       group_display_name: "",
       prefix_group_id: true,
@@ -165,7 +232,7 @@ describe("serializeDag", () => {
       place(dag, "one");
       place(dag, "two");
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect([...tasks.values()].map((task) => task["queue"])).toEqual([
         "typescript",
         "typescript",
@@ -177,7 +244,7 @@ describe("serializeDag", () => {
       place(dag, "light");
       place(dag, "heavy", [], { queue: "typescript_large" });
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("light")?.["queue"]).toBe("typescript");
       expect(tasks.get("heavy")?.["queue"]).toBe("typescript_large");
     });
@@ -191,7 +258,9 @@ describe("serializeDag", () => {
       const dag = new Dag("d", { queue: "default" });
       place(dag, "one");
 
-      expect(taskMap(serializeDag(dag, "", ".") as Json).get("one")).not.toHaveProperty("queue");
+      expect(
+        taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json).get("one"),
+      ).not.toHaveProperty("queue");
     });
 
     it("is not written onto the Dag itself, which has no queue field", () => {
@@ -206,7 +275,9 @@ describe("serializeDag", () => {
       const transform = dag.task("transform", async (_: { extracted: unknown }) => undefined);
       transform({ extracted });
 
-      expect(taskMap(serializeDag(dag, "", ".") as Json).get("transform")).toMatchObject({
+      expect(
+        taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json).get("transform"),
+      ).toMatchObject({
         is_stub: true,
         _arg_bindings: [{ name: "extracted", kind: "xcom", task_id: "extract" }],
       });
@@ -233,7 +304,9 @@ describe("serializeDag", () => {
       });
 
       expect(
-        taskMap(serializeDag(dag, "", ".") as Json).get("transform")!["_arg_bindings"],
+        taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json).get("transform")![
+          "_arg_bindings"
+        ],
       ).toEqual([
         { name: "regionCode", kind: "literal", value: "us" },
         { name: "limits", kind: "literal", value: [1, 2] },
@@ -255,7 +328,7 @@ describe("serializeDag", () => {
       const transform = dag.task("transform", async (_: { options: unknown }) => undefined);
       transform({ options: { items: [value] } } as never);
 
-      expect(() => serializeDag(dag, "", ".")).toThrowError(
+      expect(() => serializeDag(dag, "", ".", SERIALIZATION_OPTIONS)).toThrowError(
         `Input "options" of task "transform" of Dag "d" holds ${description}, which JSON cannot carry`,
       );
     });
@@ -270,9 +343,9 @@ describe("serializeDag", () => {
       );
       summarize({ south, north, label: "both" });
 
-      const bindings = taskMap(serializeDag(dag, "", ".") as Json).get("summarize")![
-        "_arg_bindings"
-      ] as { name: string }[];
+      const bindings = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json).get(
+        "summarize",
+      )!["_arg_bindings"] as { name: string }[];
       expect(bindings.map(({ name }) => name)).toEqual(["south", "north", "label"]);
     });
 
@@ -439,7 +512,7 @@ describe("serializeDag", () => {
       const left = place(dag, "left", [root]);
       place(dag, "join", [right, left]);
 
-      const serialized = serializeDag(dag, "", ".") as Json;
+      const serialized = serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json;
       expect(taskVar(serialized, 0)["downstream_task_ids"]).toEqual(["left", "right"]);
       expect(taskVar(serialized, 1)["downstream_task_ids"]).toEqual(["join"]);
       expect(taskVar(serialized, 3)).not.toHaveProperty("downstream_task_ids");
@@ -450,9 +523,11 @@ describe("serializeDag", () => {
       const upstream = place(dag, "up");
       place(dag, "down", [upstream, upstream]);
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "down",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["down"]);
     });
 
     it("ignores a literal argument that looks like a reference", () => {
@@ -461,9 +536,9 @@ describe("serializeDag", () => {
       const factory = dag.task("down", async (_args: WiredArgs) => undefined);
       factory({ config: { dagId: "d", taskId: "up" } as unknown as TaskRef });
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)).not.toHaveProperty(
-        "downstream_task_ids",
-      );
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0),
+      ).not.toHaveProperty("downstream_task_ids");
     });
   });
 
@@ -474,9 +549,11 @@ describe("serializeDag", () => {
       const cleaned = place(dag, "cleanup");
       loaded.before(cleaned);
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "cleanup",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["cleanup"]);
     });
 
     it("joins the wiring on one graph, since the serialized Dag has only one", () => {
@@ -486,10 +563,11 @@ describe("serializeDag", () => {
       const cleaned = place(dag, "cleanup");
       extracted.before(cleaned);
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "cleanup",
-        "transform",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["cleanup", "transform"]);
     });
 
     it("writes edge labels keyed by the group join nodes at a group end", () => {
@@ -503,7 +581,7 @@ describe("serializeDag", () => {
       transformed.before(Label.of("staged").on(staging));
       staging.before(Label.of("ready").on(loaded));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: { transform: { label: "rows" } },
         transform: {
           "staging.upstream_join_id": { label: "staged" },
@@ -554,7 +632,9 @@ describe("serializeDag", () => {
       const reported = place(dag, "report");
       draw({ extracted, staging, reported });
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual(expected);
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual(
+        expected,
+      );
     });
 
     it("keeps the root labels of before() when the group's after() relabels the edge", () => {
@@ -565,7 +645,7 @@ describe("serializeDag", () => {
       extracted.before(Label.of("first").on(staging));
       staging.after(Label.of("second").on(extracted));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "staging.stage": { label: "first" },
           "staging.upstream_join_id": { label: "second" },
@@ -591,7 +671,7 @@ describe("serializeDag", () => {
       empty.before(loaded);
       reported.after(Label.of("from empty").on(empty));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         "transform.clean": { "publish.upstream_join_id": { label: "rows" } },
         "transform.checks.nulls": { "publish.upstream_join_id": { label: "checked" } },
         "publish.downstream_join_id": { "transform.checks.nulls": { label: "pushed" } },
@@ -611,7 +691,7 @@ describe("serializeDag", () => {
       extracted.before(Label.of("rows").on(g));
       first.before(second);
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "g.upstream_join_id": { label: "rows" },
           "g.first.x": { label: "rows" },
@@ -631,7 +711,7 @@ describe("serializeDag", () => {
       reported.after(Label.of("rows").on(g));
       first.before(second);
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         "g.downstream_join_id": { report: { label: "rows" } },
         "g.first.x": { report: { label: "rows" } },
         "g.second.y": { report: { label: "rows" } },
@@ -648,7 +728,7 @@ describe("serializeDag", () => {
       inner.before(t);
       extracted.before(Label.of("rows").on(outer));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "outer.upstream_join_id": { label: "rows" },
           "outer.inner.i": { label: "rows" },
@@ -667,7 +747,7 @@ describe("serializeDag", () => {
       // Drawing this edge again without a label does not set a new label.
       extracted.before(cleaned);
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "transform.clean": { label: "to transform" },
           "transform.validate": { label: "to transform" },
@@ -677,7 +757,7 @@ describe("serializeDag", () => {
 
       extracted.before(Label.of("rows").on(cleaned));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "transform.clean": { label: "rows" },
           "transform.validate": { label: "to transform" },
@@ -695,7 +775,7 @@ describe("serializeDag", () => {
       extracted.before(Label.of("a").on(outer));
       extracted.before(Label.of("b").on(inner));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "outer.inner.i": { label: "b" },
           "outer.upstream_join_id": { label: "a" },
@@ -705,7 +785,7 @@ describe("serializeDag", () => {
 
       extracted.before(Label.of("c").on(outer));
 
-      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+      expect((serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["edge_info"]).toEqual({
         extract: {
           "outer.inner.i": { label: "c" },
           "outer.upstream_join_id": { label: "c" },
@@ -720,16 +800,18 @@ describe("serializeDag", () => {
       const transformed = place(dag, "transform", [extracted]);
       extracted.before(transformed);
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "transform",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["transform"]);
     });
   });
 
   describe("task_group", () => {
     /** The Dag's root task group, as the serialized payload carries it. */
     function rootGroup(dag: Dag): Json {
-      return (serializeDag(dag, "", ".") as Json)["task_group"] as Json;
+      return (serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json)["task_group"] as Json;
     }
 
     it("puts a Dag's top-level tasks in the root group", () => {
@@ -811,9 +893,11 @@ describe("serializeDag", () => {
       });
       // And expanded onto the task graph, which is the only one the scheduler
       // reads: the group's leaves carry the edge to the task it points at.
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "load",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["load"]);
     });
 
     it("records an edge between two groups on both of them", () => {
@@ -858,9 +942,11 @@ describe("serializeDag", () => {
 
       // "staging.check" already runs after "staging.stage", so the edge in
       // reaches only the task that starts the group.
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "staging.stage",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["staging.stage"]);
     });
 
     it("expands an edge out of a group from its leaves", () => {
@@ -871,7 +957,7 @@ describe("serializeDag", () => {
       const loaded = place(dag, "load");
       staging.before(loaded);
 
-      const serialized = serializeDag(dag, "", ".") as Json;
+      const serialized = serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json;
       // "staging.stage" keeps its own intra-group edge and nothing more: the
       // edge out of the group leaves from the task that finishes it.
       expect(taskVar(serialized, 0)["downstream_task_ids"]).toEqual(["staging.check"]);
@@ -888,7 +974,7 @@ describe("serializeDag", () => {
       place(second, "tail", [secondHead]);
       first.before(second);
 
-      const serialized = serializeDag(dag, "", ".") as Json;
+      const serialized = serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json;
       expect(taskVar(serialized, 1)["downstream_task_ids"]).toEqual(["second.head"]);
       const children = rootGroup(dag)["children"] as Json;
       const [, secondGroup] = children["second"] as [string, Json];
@@ -912,9 +998,11 @@ describe("serializeDag", () => {
       place(outer.taskGroup("inner"), "deep");
       extracted.before(outer);
 
-      expect(taskVar(serializeDag(dag, "", ".") as Json, 0)["downstream_task_ids"]).toEqual([
-        "outer.inner.deep",
-      ]);
+      expect(
+        taskVar(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json, 0)[
+          "downstream_task_ids"
+        ],
+      ).toEqual(["outer.inner.deep"]);
     });
 
     it("carries an empty group, which holds nothing and constrains nothing", () => {
@@ -937,7 +1025,7 @@ describe("serializeDag", () => {
       before.before(empty);
       empty.before(after);
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("before")?.["downstream_task_ids"]).toEqual(["after"]);
     });
 
@@ -951,7 +1039,7 @@ describe("serializeDag", () => {
       first.before(second);
       second.before(after);
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("before")?.["downstream_task_ids"]).toEqual(["after"]);
     });
 
@@ -965,7 +1053,7 @@ describe("serializeDag", () => {
       const load = place(dag, "load");
       inner.before(load);
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("outer.t")?.["downstream_task_ids"]).toEqual(["load"]);
     });
 
@@ -979,7 +1067,7 @@ describe("serializeDag", () => {
       const load = place(dag, "load");
       inner.before(load);
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("outer.t")?.["downstream_task_ids"]).toEqual(["load"]);
     });
 
@@ -993,7 +1081,7 @@ describe("serializeDag", () => {
       const inner = outer.taskGroup("inner");
       place(dag, "extract").before(inner);
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("extract")).not.toHaveProperty("downstream_task_ids");
     });
 
@@ -1002,7 +1090,7 @@ describe("serializeDag", () => {
       const before = place(dag, "before");
       before.before(dag.taskGroup("empty"));
 
-      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      const tasks = taskMap(serializeDag(dag, "", ".", SERIALIZATION_OPTIONS) as Json);
       expect(tasks.get("before")).not.toHaveProperty("downstream_task_ids");
     });
   });

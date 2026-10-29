@@ -191,7 +191,7 @@ func TestDecodeStartupDetails_MissingRequiredTIFieldFails(t *testing.T) {
 	}
 }
 
-func TestDecodeDagFileParseRequestAppliesTheDefaultTimezone(t *testing.T) {
+func TestDecodeDagFileParseRequestRequiresSerializationOptions(t *testing.T) {
 	raw := marshalBody(t, map[string]any{
 		"type":        "DagFileParseRequest",
 		"file":        "/bundles/go/etl",
@@ -199,11 +199,19 @@ func TestDecodeDagFileParseRequestAppliesTheDefaultTimezone(t *testing.T) {
 		"bundle_name": "go",
 	})
 
-	body, err := decodeIncomingBody(raw)
-	require.NoError(t, err)
-	request, ok := body.(*genmodels.DagFileParseRequest)
-	require.True(t, ok, "expected *DagFileParseRequest, got %T", body)
-	assert.Equal(t, "UTC", request.DagDefaultTimezone)
+	_, err := decodeIncomingBody(raw)
+	require.ErrorContains(t, err, "serialization_options")
+}
+
+func TestDecodeDagFileParseRequestRejectsMissingOrInvalidCronOption(t *testing.T) {
+	for _, options := range []any{nil, []any{}, map[string]any{"default_timezone": "UTC"}, map[string]any{"create_cron_data_intervals": nil}, map[string]any{"create_cron_data_intervals": "false"}, map[string]any{"create_cron_data_intervals": 0}} {
+		raw := marshalBody(
+			t,
+			map[string]any{"type": "DagFileParseRequest", "serialization_options": options},
+		)
+		_, err := decodeIncomingBody(raw)
+		require.ErrorContains(t, err, "serialization_options")
+	}
 }
 
 func TestDecodeDagFileParseRequestPreservesTheConfiguredTimezone(t *testing.T) {
@@ -217,18 +225,21 @@ func TestDecodeDagFileParseRequestPreservesTheConfiguredTimezone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			raw := marshalBody(t, map[string]any{
-				"type":                 "DagFileParseRequest",
-				"file":                 "/bundles/go/etl",
-				"bundle_path":          "/bundles/go",
-				"bundle_name":          "go",
-				"dag_default_timezone": tt.timezone,
+				"type":        "DagFileParseRequest",
+				"file":        "/bundles/go/etl",
+				"bundle_path": "/bundles/go",
+				"bundle_name": "go",
+				"serialization_options": map[string]any{
+					"create_cron_data_intervals": false,
+					"default_timezone":           tt.timezone,
+				},
 			})
 
 			body, err := decodeIncomingBody(raw)
 			require.NoError(t, err)
 			request, ok := body.(*genmodels.DagFileParseRequest)
 			require.True(t, ok, "expected *DagFileParseRequest, got %T", body)
-			assert.EqualValues(t, tt.timezone, request.DagDefaultTimezone)
+			assert.EqualValues(t, tt.timezone, request.SerializationOptions.DefaultTimezone)
 		})
 	}
 }

@@ -73,10 +73,29 @@ type DagSerializationOptions struct {
 	// CronDataIntervalTimetable from a cron expression when it is set, and a CronTriggerTimetable
 	// when it is not.
 	CreateCronDataIntervals bool
-	// DefaultTimezone is Airflow's encoded [core] default_timezone. A Dag without a start date uses
-	// it as both its timezone and its cron timetable timezone. Nil represents the wire schema's
-	// default value, "UTC", for in-process callers.
-	DefaultTimezone any
+	// DefaultTimezone is the validated [core] default_timezone supplied by core.
+	DefaultTimezone Timezone
+}
+
+// Timezone holds either an IANA name or a fixed UTC offset in seconds. Its zero value is a fixed
+// zero offset; missing wire configuration is rejected before constructing serialization options.
+type Timezone struct {
+	name   string
+	offset int
+}
+
+func NamedTimezone(name string) Timezone { return Timezone{name: name} }
+func FixedTimezone(offset int) Timezone  { return Timezone{offset: offset} }
+
+// Encoded returns the representation expected by Python's timezone deserializer.
+func (t Timezone) Encoded() any {
+	if t.name != "" {
+		return t.name
+	}
+	if t.offset == 0 {
+		return "UTC"
+	}
+	return t.offset
 }
 
 // DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
