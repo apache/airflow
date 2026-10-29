@@ -40,6 +40,7 @@ from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    COMPONENT_BRANCH_OUTPUTS,
     SelectiveChecks,
     _get_test_list_as_json,
     _split_list,
@@ -3510,3 +3511,113 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+# The outputs that stay as computed on the branch of a single component: they are general checks rather
+# than another component's tests. Any other new `run_*` output must be scoped, so that it does not run there.
+GENERAL_CHECKS = {
+    "run_breeze_integration_tests",
+    "run_javascript_scans",
+    "run_mypy",
+    "run_python_scans",
+    "run_scripts_tests",
+    "run_system_tests",  # follows run_unit_tests
+}
+
+
+def _scoped_output_names() -> list[str]:
+    return [
+        name
+        for name in dir(SelectiveChecks)
+        if (name.startswith("run_") or name.endswith("_image_build")) and name not in GENERAL_CHECKS
+    ]
+
+
+def test_every_test_output_is_scoped_to_component_branches():
+    unscoped = [
+        name
+        for name in _scoped_output_names()
+        if not getattr(getattr(SelectiveChecks, name).func, "scoped_to_component_branch", False)
+    ]
+    assert unscoped == []
+    for outputs in COMPONENT_BRANCH_OUTPUTS.values():
+        assert set(outputs) <= set(_scoped_output_names())
+
+
+def _component_branch_checks(context: dict, files: tuple[str, ...]) -> SelectiveChecks:
+    return SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST if "base_ref" in context else GithubEvents.PUSH,
+        github_context_dict=context,
+    )
+
+
+@pytest.mark.parametrize(
+    ("context", "expected_on", "expected_docs"),
+    [
+        pytest.param(
+            {"base_ref": "chart/v1-2x-test"},
+            {"run_helm_tests", "run_kubernetes_tests", "ci_image_build", "prod_image_build"},
+            "helm-chart",
+            id="pull-request-to-chart-branch",
+        ),
+        pytest.param(
+            {"ref_name": "chart/v1-2x-test"},
+            {"run_helm_tests", "run_kubernetes_tests", "ci_image_build", "prod_image_build"},
+            "helm-chart",
+            id="push-to-chart-branch",
+        ),
+        pytest.param(
+            {"base_ref": "airflow-ctl/v0-1-test"},
+            {
+                "run_airflow_ctl_tests",
+                "run_airflow_ctl_integration_tests",
+                "ci_image_build",
+                "prod_image_build",
+            },
+            "apache-airflow-ctl",
+            id="pull-request-to-airflow-ctl-branch",
+        ),
+    ],
+)
+def test_component_branch_runs_only_its_component(context, expected_on, expected_docs):
+    # A change that would run nearly everything elsewhere.
+    checks = _component_branch_checks(
+        context, ("airflow-core/src/airflow/models/dag.py", "airflow-core/docs/index.rst")
+    )
+
+    assert {name for name in _scoped_output_names() if getattr(checks, name)} == expected_on
+    assert checks.skip_providers_tests is True
+    assert checks.docs_list_as_string == expected_docs
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "chart/v1-2x-stable"}, "chart", id="chart-stable-branch"),
+        pytest.param({"base_ref": "airflow-ctl/v0-1-stable"}, "airflow-ctl", id="airflow-ctl-stable"),
+        pytest.param({"base_ref": "v3-2-test"}, None, id="airflow-release-branch"),
+        pytest.param({"base_ref": "main"}, None, id="main"),
+        # A feature branch named after a component is not its release branch.
+        pytest.param({"ref_name": "chart/fix-ingress"}, None, id="chart-feature-branch"),
+    ],
+)
+def test_component_branch_detection(context, expected):
+    assert _component_branch_checks(context, ("chart/values.yaml",))._component_branch == expected
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        pytest.param({"base_ref": "main"}, True, id="main"),
+        # The PROD image is built there for the Kubernetes tests alone.
+        pytest.param({"base_ref": "chart/v1-2x-test"}, False, id="chart-branch"),
+    ],
+)
+def test_generic_tests_run_outside_component_branches(context, expected):
+    checks = _component_branch_checks(context, ("kubernetes-tests/tests/kubernetes_tests/test_base.py",))
+
+    assert checks.prod_image_build is True
+    assert checks.run_generic_prod_image_tests is expected
+    assert checks.run_generic_basic_tests is expected
