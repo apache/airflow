@@ -185,3 +185,6 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the generated SQL is also
 logged (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

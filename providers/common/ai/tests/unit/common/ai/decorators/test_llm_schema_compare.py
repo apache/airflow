@@ -38,7 +38,7 @@ def _make_compare_result():
 
 
 def _make_mock_agent(output: SchemaCompareResult, make_mock_run_result):
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 

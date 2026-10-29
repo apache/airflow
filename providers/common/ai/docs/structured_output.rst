@@ -74,24 +74,24 @@ model class. ``AgentOperator`` and ``@task.agent`` therefore push a model
 inside a list, tuple or dict as a JSON-compatible dict for every
 ``output_type``, not only for the output types listed above.
 
-Upgrading from common.ai 1.0.0 or 1.1.0 can change the type that a downstream
+Upgrading from common.ai 1.0.0 to 1.1.0 can change the type that a downstream
 task receives:
 
-* On Airflow 3.3 and later, common.ai 1.0.0 and 1.1.0 pushed each model in the
+* On Airflow 3.3 and later, common.ai 1.0.0 pushed each model in the
   output as a model instance when ``output_type`` was one of the output types
-  listed above. They dumped a top-level model with plain ``model_dump()`` only
+  listed above. It dumped a top-level model with plain ``model_dump()`` only
   when ``serialize_output=True`` was set or in HITL review. A downstream task
   loaded the instance when the class was listed in
   ``[core] allowed_deserialization_classes`` or when another task in the same
   Dag declared the class as its ``output_type``. That downstream task now gets
   a dict, and ``result.field`` raises ``AttributeError``.
 * In HITL review on Airflow 3.3 and later without ``serialize_output=True``,
-  common.ai 1.0.0 and 1.1.0 dumped a top-level model of these output types with
+  common.ai 1.0.0 dumped a top-level model of these output types with
   plain ``model_dump()`` after the reviewer approved the model. Values such as
   ``datetime``, ``date``, ``timedelta``, ``UUID`` and ``Decimal`` in that model
   now arrive as strings, for example ``"PT1M30S"`` for a ``timedelta``. Tuples
   and sets in that model now arrive as lists.
-* Before Airflow 3.3, common.ai 1.0.0 and 1.1.0 pushed a model inside a list,
+* Before Airflow 3.3, common.ai 1.0.0 pushed a model inside a list,
   tuple or dict as a model instance, for every ``output_type``. A downstream
   task that loaded the instance because the class was listed in
   ``[core] allowed_deserialization_classes`` now gets a dict.

@@ -53,6 +53,14 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      fail-on-pending-provider-candidates:
+        description: >
+          Fail the PyPI constraints when a provider's newest version is a release candidate that was
+          neither released nor yanked (true/false). Set when constraints are cut for a final release,
+          which must not pin a candidate nor silently pass over one.
+        required: false
+        default: "false"
+        type: string
       pypi-providers-only:
         description: >
           Resolve against providers exactly as published on PyPI (true/false). Skips building the
@@ -168,9 +176,12 @@ jobs:
           # both paths set it would make it unclear which one is in force. Empty on a normal run,
           # so the unquoted expansion below contributes no argument at all.
           PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
+          PENDING_CANDIDATES_FLAG: >-
+            ${{ inputs.fail-on-pending-provider-candidates == 'true'
+            && '--fail-on-pending-provider-candidates' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG} ${PENDING_CANDIDATES_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Check for provider downgrade alert"
         id: downgrade-alert
@@ -191,6 +202,7 @@ jobs:
         if: always() && steps.downgrade-alert.outputs.notify == 'true'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
+          method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}
       - name: "Upload constraint artifacts"

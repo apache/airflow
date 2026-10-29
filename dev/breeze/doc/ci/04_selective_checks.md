@@ -525,6 +525,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
   `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
   files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
+* `Lang SDK serialization conformance` (the `tests-lang-sdk-conformance` job, which serializes the Dags
+  of `scripts/ci/lang_sdk_serialization/test_dags.yaml` with an SDK and with Airflow and compares the
+  two) runs for each SDK listed in the `lang-sdk-conformance-sdks` output: `go` when `Go SDK
+  conformance files` change, `java` when `Java SDK conformance files` change and `ts` when `TS SDK
+  conformance files` change. Each group is the SDK's own files (as in `Go SDK files`, `Java SDK files`
+  and `TS SDK files`) plus what the check compares the SDK against: Airflow's serializer
+  (`serialized_objects.py`), `airflow-core/src/airflow/serialization/schema.json` and the shared
+  harness under `scripts/ci/lang_sdk_serialization/`. None of those three forces `full_tests_needed`,
+  so a change to any of them runs the check for every SDK. The list is empty on a component branch.
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
   Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
@@ -614,18 +623,14 @@ when some files are not changed. Those are the rules implemented:
     `regenerate-java-sdk-verification-metadata` checks are skipped. All three run the java-sdk
     Gradle wrapper, and `regenerate-java-sdk-verification-metadata` also resolves the whole Java
     SDK dependency graph from Maven Central
-  * if no `Java SDK conformance files` changed - `check-java-sdk-serialization-conformance`
-    and `sync-java-sdk-dag-schema` are skipped (`check-java-sdk-serialization-conformance`
-    compiles the Java SDK with Gradle and resolves its dependencies from Maven Central, and
-    `sync-java-sdk-dag-schema` runs the `:sdk:syncDagSchema` Gradle task). The group is wider
-    than `Java SDK files`. It also covers Airflow's serializer (`serialized_objects.py`),
-    `airflow-core/src/airflow/serialization/schema.json` and the shared harness under
-    `scripts/ci/lang_sdk_serialization/`. These files are in the group because the conformance
-    check compares the SDK against them, and none of them forces `full_tests_needed`. Because
-    airflow-core's `schema.json` is in the group, `sync-java-sdk-dag-schema` still runs on a PR
-    that changes only that file. Such a change is what leaves the Java SDK's copy in
+  * if no `Java SDK conformance files` changed - `sync-java-sdk-dag-schema` is skipped (it runs the
+    `:sdk:syncDagSchema` Gradle task). The group is wider than `Java SDK files`: it also covers
+    Airflow's serializer, `airflow-core/src/airflow/serialization/schema.json` and the shared
+    harness under `scripts/ci/lang_sdk_serialization/` (see `Lang SDK serialization conformance`
+    above). Because airflow-core's `schema.json` is in the group, `sync-java-sdk-dag-schema` still
+    runs on a PR that changes only that file. Such a change is what leaves the Java SDK's copy in
     `java-sdk/sdk/schema/dag-schema.json` out of date
-  * whichever of the five Java SDK hooks above runs first in a job pays for Gradle's cold
+  * whichever of the four Java SDK hooks above runs first in a job pays for Gradle's cold
     start, which includes downloading the Gradle distribution. A PR skips the cold start only
     when it changes none of the `Java SDK conformance files`
   * neither Java SDK group includes `.pre-commit-config.yaml` or CI setup files. A PR that
@@ -698,6 +703,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.11-v1.25.2 3.12-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
 | kubernetes-versions-list-as-string                      | All Kubernetes versions to use for tests as space-separated string                                      | v1.25.2                                  | *    |
+| lang-sdk-conformance-sdks                               | Language SDKs whose serialization conformance check runs, as JSON array                                 | \["go", "java", "ts"\]                   |      |
 | latest-versions-only                                    | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones.               | false                                    |      |
 | mypy-checks                                             | List of folders to be considered for mypy checks                                                        | \["airflow_aux", "airflow_core"\]        |      |
 | mysql-exclude                                           | Which versions of MySQL to exclude for tests as JSON array                                              | []                                       |      |

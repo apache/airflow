@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage emission policy authoring API.
+Dag exercising the OpenLineage emission policy authoring API.
 
 Dag-level ``include_full_task_info=True`` adds extra fields in airflow.task.
 """

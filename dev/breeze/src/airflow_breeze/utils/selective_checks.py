@@ -147,9 +147,11 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
+    GO_SDK_CONFORMANCE_FILES = auto()
     JAVA_SDK_FILES = auto()
     JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
@@ -215,6 +217,15 @@ LANG_SDK_NATIVE_DAG_PARSING_FILES = (
     r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
     r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
     r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
+# What every language SDK's serialization conformance check compares the SDK against: Airflow's
+# serializer and schema, and the shared harness. They do not force full_tests_needed, so each SDK's
+# conformance group lists them next to the SDK's own files.
+LANG_SDK_CONFORMANCE_SHARED_FILES = (
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^airflow-core/src/airflow/serialization/schema\.json$",
+    r"^scripts/ci/lang_sdk_serialization/.*",
 )
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
@@ -538,6 +549,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # everything else (go.mod, go.sum, build config) must trigger the unit tests.
             r"^go-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.GO_SDK_CONFORMANCE_FILES: [
+            # The Go SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^go-sdk/(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
+        ],
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
@@ -546,9 +563,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # The Java SDK, plus what its serialization conformance check compares it against:
             # Airflow's serializer and schema, and the shared harness.
             r"^java-sdk/(?!.*\.md$).*",
-            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
-            r"^airflow-core/src/airflow/serialization/schema\.json$",
-            r"^scripts/ci/lang_sdk_serialization/.*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
@@ -567,6 +582,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
             # docs toolchain's own package, with its own tests that vitest does not run.
             r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_CONFORMANCE_FILES: [
+            # The TS SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1511,6 +1532,19 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
     @cached_property
+    def lang_sdk_conformance_sdks(self) -> str:
+        """JSON list of the language SDKs whose serialization conformance check runs, as the matrix of its job."""
+        # No component branch runs it, as for the outputs scoped with _scoped_to_component_branch.
+        if self._component_branch is not None:
+            return json.dumps([])
+        groups = {
+            "go": FileGroupForCi.GO_SDK_CONFORMANCE_FILES,
+            "java": FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES,
+            "ts": FileGroupForCi.TS_SDK_CONFORMANCE_FILES,
+        }
+        return json.dumps([sdk for sdk, group in groups.items() if self._should_be_run(group)])
+
+    @cached_property
     @_scoped_to_component_branch
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
@@ -2144,14 +2178,10 @@ class SelectiveChecks:
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
-            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
-            # harness changed. Those last do not force full_tests_needed, so they need their own group.
-            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
-            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped together
-            # with the conformance check, not with ktlint, because JAVA_SDK_CONFORMANCE_FILES
-            # includes airflow-core's schema.json. A PR that changes only schema.json can leave
-            # the Java SDK's copy of the schema out of date, and this hook detects the outdated copy.
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped with
+            # JAVA_SDK_CONFORMANCE_FILES, not with ktlint, because that group includes airflow-core's
+            # schema.json. A PR that changes only schema.json can leave the Java SDK's copy of the
+            # schema out of date, and this hook detects the outdated copy.
             prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
