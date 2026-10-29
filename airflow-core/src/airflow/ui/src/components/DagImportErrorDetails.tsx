@@ -65,7 +65,7 @@ export const DagImportErrorDetails = ({ importError }: { readonly importError: I
         </IconButton>
         {hasMultipleBundles ? (
           <Text color="fg.muted" fontSize="sm" ms="auto">
-            {translate("components:versionDetails.bundleName")}
+            {translate("importErrors.bundle")}
             {": "}
             {importError.bundle_name}
           </Text>

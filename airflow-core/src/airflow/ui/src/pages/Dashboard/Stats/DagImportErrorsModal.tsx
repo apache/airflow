@@ -174,7 +174,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   {importError.filename}
                   {hasMultipleBundles ? (
                     <Text color="fg.muted" fontSize="sm" fontWeight="normal" ms="auto">
-                      {translate("components:versionDetails.bundleName")}
+                      {translate("importErrors.bundle")}
                       {": "}
                       {importError.bundle_name}
                     </Text>
