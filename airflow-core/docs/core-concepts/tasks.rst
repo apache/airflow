@@ -145,6 +145,15 @@ if the task has not stopped within ``[core] killed_task_cleanup_time`` seconds a
 (for example because it is blocked in native code), the supervisor sends it SIGTERM, and SIGKILL after the same
 period again. Tasks run by a language SDK do not raise ``AirflowTaskTimeout`` and are stopped only this way.
 
+A task that does not set ``execution_timeout`` itself gets ``[core] default_task_execution_timeout``, which is read in
+different places depending on how the task runs:
+
+- A Python task reads it on the worker, which parses the Dag file again before running the task.
+- A task run by a language SDK reads it where the Dag processor runs, when the Dag is parsed and serialized.
+
+Set ``[core] default_task_execution_timeout`` to the same value on the Dag processor and the workers, so both kinds
+of task get the same default.
+
 In addition, sensors have a ``timeout`` parameter. This only matters for sensors in ``reschedule`` mode. ``timeout`` controls the maximum
 time allowed for the sensor to succeed. If ``timeout`` is breached, ``AirflowSensorTimeout`` will be raised and the sensor fails immediately
 without retrying.
