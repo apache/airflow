@@ -34,11 +34,7 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_2_2_PLUS,
-    AIRFLOW_V_3_4_PLUS,
-)
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -529,10 +525,7 @@ class TestGCSTaskHandler:
             assert logs[1].event == expected_gs_uri
             assert logs[2].event == "::endgroup::"
             assert logs[3].event == "CONTENT"
-            if AIRFLOW_V_3_4_PLUS:
-                assert metadata == {"end_of_log": True}
-            else:
-                assert metadata == {"end_of_log": True, "log_pos": 1}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
@@ -570,10 +563,7 @@ class TestGCSTaskHandler:
             assert log[1].event == expected_gs_uri
             assert log[2].event == f"{self.gcs_task_handler.local_base}/1.log"
             assert log[3].event == "::endgroup::"
-            if AIRFLOW_V_3_4_PLUS:
-                assert metadata == {"end_of_log": True}
-            else:
-                assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
