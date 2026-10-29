@@ -31,11 +31,10 @@ class TestBigqueryGetData:
     def test_yields_successive_batches(self):
         mock_hook = mock.MagicMock(spec=BigQueryHook)
         mock_logger = mock.MagicMock(spec=logging.Logger)
-        mock_row_1 = mock.MagicMock(spec=Row)
-        mock_row_1.values.return_value = {"col1": "A"}
-        mock_row_2 = mock.MagicMock(spec=Row)
-        mock_row_2.values.return_value = {"col1": "B"}
-        mock_hook.list_rows.side_effect = [[mock_row_1], [mock_row_2], []]
+        rows = [mock.MagicMock(spec=Row) for _ in range(3)]
+        for row, value in zip(rows, "ABC"):
+            row.values.return_value = (value,)
+        mock_hook.list_rows.side_effect = [rows[:2], rows[2:], []]
 
         results = list(
             bigquery_get_data(
@@ -43,21 +42,21 @@ class TestBigqueryGetData:
                 dataset_id="my_dataset",
                 table_id="my_table",
                 big_query_hook=mock_hook,
-                batch_size=1,
+                batch_size=2,
                 selected_fields=["col1"],
             )
         )
 
-        assert results == [[{"col1": "A"}], [{"col1": "B"}]]
+        assert results == [[("A",), ("B",)], [("C",)]]
         assert mock_hook.list_rows.mock_calls == [
             mock.call(
                 dataset_id="my_dataset",
                 table_id="my_table",
-                max_results=1,
+                max_results=2,
                 selected_fields=["col1"],
                 start_index=start_index,
             )
-            for start_index in range(3)
+            for start_index in (0, 2, 4)
         ]
         mock_logger.info.assert_any_call("Job Finished")
 
