@@ -43,7 +43,7 @@ class TestLLMSQLDecoratedOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_hook_cls, make_mock_run_result):
         """The user's callable return value becomes the LLM prompt."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("SELECT 1")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -56,7 +56,7 @@ class TestLLMSQLDecoratedOperator:
         assert result == "SELECT 1"
         assert op.prompt == "Get all users"
         mock_agent.run_sync.assert_called_once_with(
-            "Get all users", usage_limits=None, cancellation_token=ANY
+            "Get all users", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
 
     @pytest.mark.parametrize(
@@ -77,7 +77,7 @@ class TestLLMSQLDecoratedOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_accepts_sequence_prompt(self, mock_hook_cls, make_mock_run_result):
         """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("SELECT 1")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -91,12 +91,14 @@ class TestLLMSQLDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
+        mock_agent.run_sync.assert_called_once_with(
+            prompt, usage=ANY, usage_limits=None, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("SELECT 1")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
