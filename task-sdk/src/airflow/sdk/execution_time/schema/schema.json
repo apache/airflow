@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-10-30",
+  "api_version": "2027-02-28",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -1900,7 +1900,8 @@
         "DAGRUN_ALREADY_EXISTS",
         "PERMISSION_DENIED",
         "GENERIC_ERROR",
-        "API_SERVER_ERROR"
+        "API_SERVER_ERROR",
+        "XCOM_BACKEND_ERROR"
       ],
       "title": "ErrorType",
       "type": "string"

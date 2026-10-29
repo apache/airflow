@@ -805,6 +805,7 @@ const ErrorTypeGENERICERROR ErrorType = "GENERIC_ERROR"
 const ErrorTypePERMISSIONDENIED ErrorType = "PERMISSION_DENIED"
 const ErrorTypeTASKSTORENOTFOUND ErrorType = "TASK_STORE_NOT_FOUND"
 const ErrorTypeVARIABLENOTFOUND ErrorType = "VARIABLE_NOT_FOUND"
+const ErrorTypeXCOMBACKENDERROR ErrorType = "XCOM_BACKEND_ERROR"
 const ErrorTypeXCOMNOTFOUND ErrorType = "XCOM_NOT_FOUND"
 
 type Extra map[string]JsonValue
@@ -1946,17 +1947,6 @@ type TriggerDagRun struct {
 
 type TriggerKwargs map[string]interface{}
 
-type Warnings []interface{}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -1967,8 +1957,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
@@ -2003,6 +1991,19 @@ type VariableKeysResult struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
 
 type VariableResult struct {
 	// Key corresponds to the JSON schema field "key".

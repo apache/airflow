@@ -370,7 +370,8 @@ export type ErrorType =
   | "DAGRUN_ALREADY_EXISTS"
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
-  | "API_SERVER_ERROR";
+  | "API_SERVER_ERROR"
+  | "XCOM_BACKEND_ERROR";
 export type Detail = {
   [k: string]: unknown;
 } | null;
@@ -391,7 +392,8 @@ export type ErrorType1 =
   | "DAGRUN_ALREADY_EXISTS"
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
-  | "API_SERVER_ERROR";
+  | "API_SERVER_ERROR"
+  | "XCOM_BACKEND_ERROR";
 export type Name11 = string;
 export type Type27 = "GetAssetByName";
 export type Uri6 = string;
@@ -2048,4 +2050,4 @@ export interface XComSequenceSliceResult {
  *  (e.g. bundle metadata) and runs the migrator accordingly.
  *  Exposed so the SDK author / operator can confirm which schema
  *  version their build is pinned to. */
-export const SUPERVISOR_API_VERSION = "2026-10-30" as const;
+export const SUPERVISOR_API_VERSION = "2027-02-28" as const;
