@@ -306,7 +306,7 @@ class MSGraphAsyncOperator(BaseOperator):
             elif task_state_store:
                 results = self.pull_pages(task_state_store)
             if task_state_store:
-                self.clean_up(task_state_store, results=results)
+                self._clean_up(task_state_store, results=results)
             return results
         return None
 
