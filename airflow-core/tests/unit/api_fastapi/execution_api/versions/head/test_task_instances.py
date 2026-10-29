@@ -2378,10 +2378,12 @@ class TestTIRunState:
             StartFromTriggerOperator(task_id="task")
         dr = dag_maker.create_dagrun(run_id="test", logical_date=queued_at, state=DagRunState.RUNNING)
 
-        ti = dr.get_task_instance(task_id="task")
+        ti = dr.get_task_instance(task_id="task", session=session)
         ti.task = dr.dag.get_task("task")
-        assert dr.schedule_tis((ti,), session=session) == 0
-        session.merge(ti)
+        assert dr.schedule_tis((ti,), session=session) == 1
+        session.refresh(ti)
+        # The scheduler defers a SCHEDULED start_from_trigger TI instead of queuing it.
+        ti.defer_task(session=session)
         session.commit()
 
         # Read the row back rather than the in-memory TI: what ti_run sees is the persisted state,

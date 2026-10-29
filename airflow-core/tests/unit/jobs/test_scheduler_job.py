@@ -161,6 +161,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
@@ -188,7 +189,7 @@ from tests_common.test_utils.db import (
     set_default_pool_slots,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
-from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_operators import CustomOperator, MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
@@ -2264,6 +2265,100 @@ class TestSchedulerJob:
         assert tis[2].key in res_keys
         assert tis[3].key in res_keys
         session.rollback()
+
+    def test_find_executable_task_instances_pool_defers_start_from_trigger(self, dag_maker, session):
+        with dag_maker(dag_id="test_start_from_trigger_pool", session=session):
+            for task_id in ("task_1", "task_2"):
+                task = MockOperator(task_id=task_id, pool="a")
+                task.start_from_trigger = True
+                task.start_trigger_args = StartTriggerArgs(
+                    trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                    next_method="execute_complete",
+                )
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.add(Pool(pool="a", slots=1, description="", include_deferred=True))
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
+        session.flush()
+
+        assert queued_tis == []
+        assert sorted(ti.state for ti in dr.get_task_instances(session=session)) == [
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SCHEDULED,
+        ]
+
+    def test_find_executable_task_instances_queues_start_from_trigger_resumed_by_trigger(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_resumed", session=session):
+            task = MockOperator(task_id="task")
+            task.start_from_trigger = True
+            task.start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                next_method="execute_complete",
+            )
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.next_method = "execute_complete"
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
+
+        assert [queued_ti.key for queued_ti in queued_tis] == [ti.key]
+
+    @pytest.mark.parametrize(("include_deferred", "expected_queued"), [("False", 2), ("True", 1)])
+    def test_find_executable_task_instances_max_active_tasks_include_deferred(
+        self, dag_maker, session, include_deferred, expected_queued
+    ):
+        with dag_maker(dag_id="test_max_active_tasks_include_deferred", max_active_tasks=2, session=session):
+            for task_id in ("deferred", "task_1", "task_2"):
+                EmptyOperator(task_id=task_id)
+        with conf_vars({("core", "max_active_tasks_include_deferred"): include_deferred}):
+            self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.DEFERRED if ti.task_id == "deferred" else TaskInstanceState.SCHEDULED
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
+
+        assert len(queued_tis) == expected_queued
+
+    @pytest.mark.parametrize(("include_deferred", "expected_task_ids"), [("False", ["task"]), ("True", [])])
+    def test_build_schedulable_tis_query_max_active_tasks_include_deferred(
+        self, dag_maker, session, include_deferred, expected_task_ids
+    ):
+        with dag_maker(dag_id="test_query_include_deferred", max_active_tasks=1, session=session):
+            for task_id in ("deferred", "task"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.DEFERRED if ti.task_id == "deferred" else TaskInstanceState.SCHEDULED
+        session.flush()
+        with conf_vars({("core", "max_active_tasks_include_deferred"): include_deferred}):
+            runner = SchedulerJobRunner(job=Job())
+
+        query = runner._build_schedulable_tis_query(set(), set(), set(), set(), 32)
+
+        assert [ti.task_id for ti in session.scalars(query)] == expected_task_ids
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):
