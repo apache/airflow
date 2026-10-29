@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import pathlib
+import signal
 import sys
 import textwrap
 import typing
@@ -2906,3 +2907,19 @@ class TestMultiTeamCallbackMetrics:
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag"},
         )
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "exited_cleanly"),
+    [
+        pytest.param(None, False, id="running"),
+        pytest.param(0, True, id="clean_exit"),
+        pytest.param(1, False, id="failed"),
+        pytest.param(-signal.SIGTERM, False, id="stopped_by_signal"),
+    ],
+)
+def test_exited_cleanly_requires_a_zero_exit_status(exit_code, exited_cleanly):
+    process = MagicMock(spec=BaseDagFileProcessorProcess)
+    process._check_subprocess_exit.return_value = exit_code
+
+    assert BaseDagFileProcessorProcess.exited_cleanly.fget(process) is exited_cleanly

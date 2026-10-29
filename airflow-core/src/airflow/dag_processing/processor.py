@@ -763,6 +763,11 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
         return not self._open_sockets
 
+    @property
+    def exited_cleanly(self) -> bool:
+        """Whether the process has exited with status 0."""
+        return self._check_subprocess_exit() == 0
+
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
 

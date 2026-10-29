@@ -1243,6 +1243,24 @@ def test_claim_sequence_survives_retries_and_renewal_then_advances_per_kind(
     assert subsequent["limit"] == 5
 
 
+@pytest.mark.parametrize(
+    ("bundle_names", "limit", "sent_limits"),
+    [
+        pytest.param([], 5, [], id="no_bundles_sends_no_request"),
+        pytest.param(["bundle-a"], 500, [100], id="limit_capped_at_api_maximum"),
+    ],
+)
+def test_claim_work_stays_within_the_claim_body_bounds(
+    make_client, make_registration_response, bundle_names, limit, sent_limits
+):
+    client, requests = make_client(make_registration_response(), httpx2.Response(200, json=[]))
+    client.register_job()
+
+    assert client.claim_work("callbacks", bundle_names, limit) == []
+
+    assert [json.loads(request.content)["limit"] for request in requests[1:]] == sent_limits
+
+
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
 def test_work_acknowledgment_sends_only_the_claim_identity(make_client, make_registration_response, kind):
     client, requests = make_client(make_registration_response(), httpx2.Response(204))

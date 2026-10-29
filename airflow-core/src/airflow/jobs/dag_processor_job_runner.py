@@ -97,12 +97,22 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.exception("Error calling Dag processor shutdown listener")
             self.job.end_date = timezone.utcnow()
             try:
-                if not client.restart_required:
-                    client.complete_job(TerminalJobState(self.job.state))
-            except Exception:
+                # A retired registration can still leave its Job open, for example after the token file was
+                # provisioned again under a new session. Completing it releases the Job's claimed work now
+                # instead of after scheduler cleanup.
+                client.complete_job(TerminalJobState(self.job.state))
+            except Exception as error:
                 if not failed:
                     raise
-                self.log.exception("Unable to record the failed Dag processor Job")
+                # An ended or replaced Job is expected to refuse completion after its registration retires.
+                if client.restart_required:
+                    self.log.warning(
+                        "Unable to record the end of the retired Dag processor Job",
+                        error_type=type(error).__name__,
+                        error=str(error),
+                    )
+                else:
+                    self.log.exception("Unable to record the failed Dag processor Job")
             finally:
                 stats.incr("job_end", 1, 1)
 
@@ -192,8 +202,11 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing DagProcessorJob")
             raise
         finally:
-            self.processor.terminate()
-            self.processor.end()
+            try:
+                self.processor.terminate()
+            finally:
+                # A second signal can interrupt terminate(); end() must still kill children and send acks.
+                self.processor.end()
         return None
 
     def heartbeat_callback(self, session: Session | None = None) -> None:

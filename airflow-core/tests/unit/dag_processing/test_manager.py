@@ -6683,7 +6683,7 @@ class TestDagFileProcessorManager:
         manager.work_source.flush()
         client.claim_work.return_value = []
         manager.claim_priority_files()
-        client.claim_work.assert_called_once_with("priority", [bundle.name], 1)
+        client.claim_work.assert_called_once_with("priority", [], 1)
 
         observed.return_value = set()
         client.publish_inventory.return_value.revision = uuid7()
@@ -7548,7 +7548,7 @@ def test_equal_claimed_callbacks_dispatch_once_each_after_preparation_recovers(
 
     for expected in (second, first):
         file = next(iter(manager._callback_to_execute))
-        process = manager._create_process(file)
+        process = manager._create_process(file, source=DagParseSource.for_callback(file.bundle_version))
         assert start.call_args.kwargs["callbacks"][0] is expected
         manager.work_source.attempt_finished(process.id, had_callbacks=True)
         manager.work_source.flush()
@@ -7987,7 +7987,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     manager._queue_requested_files_for_parsing()
     assert client.claim_work.call_args_list == [
         mock.call("priority", ["oversized", "ready"], 1),
-        mock.call("priority", ["oversized", "ready"], 1),
+        mock.call("priority", ["ready"], 1),
     ]
     manager._force_refresh_bundles.remove("ready")
     manager._invalidate_bundle_parse_source("ready")
@@ -8588,6 +8588,76 @@ def test_timed_out_parse_retains_priority_claim_until_publication(had_callbacks)
         assert not source._priority_claims
 
 
+@pytest.mark.parametrize("outcome", ["no_result", "timeout"])
+def test_held_back_parse_failure_acknowledges_its_priority_claim(outcome):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=1)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    source = get_api_work_source(manager)
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = source._priority_claims[work.id, work.claim_id].attempt_id
+    processor.start_time = time.monotonic() - (5 if outcome == "timeout" else 0)
+    processor.is_ready = True
+    processor.had_callbacks = False
+    processor.api_request_error = None
+    processor.parse_source = DagParseSource()
+    processor.dispatch_sequence = 1
+    processor.parsing_result = None
+    manager._processors[file] = processor
+
+    if outcome == "timeout":
+        manager._kill_timed_out_processors()
+    else:
+        manager._collect_results()
+
+    assert not manager._pending_publications
+    assert source._pending_work_acks == [("priority", work)]
+    assert not source._priority_claims
+    assert file not in manager._file_queue
+
+
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+def test_held_back_request_failure_parses_its_priority_claim_again(create):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    manager._bundle_parse_sources[file.bundle_name] = DagParseSource()
+    work = _claim_priority_parse(manager, file)
+    source = get_api_work_source(manager)
+    failed, retried = (mock.create_autospec(DagFileProcessorProcess, instance=True) for _ in range(2))
+    for processor in (failed, retried):
+        processor.id = uuid7()
+        processor.start_time = time.monotonic()
+        processor.is_ready = True
+        processor.had_callbacks = False
+        processor.parse_source = DagParseSource()
+        processor.dispatch_sequence = 1
+        processor.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+    failed.api_request_error = "GetVariable (ConnectError)"
+    retried.api_request_error = None
+    source.parse_started(file, failed.id)
+    manager._processors[file] = failed
+    create.return_value = retried
+
+    manager._collect_results()
+
+    assert not manager._pending_publications
+    assert not source._pending_work_acks
+    assert list(manager._file_queue) == [file]
+    assert not manager.max_runs_reached()
+
+    manager._start_new_processes()
+    create.assert_called_once_with(manager, file, source=DagParseSource())
+    assert source._priority_claims[work.id, work.claim_id].attempt_id == retried.id
+    manager._collect_results()
+    manager._publish_pending_results()
+
+    client.publish_parse_result.assert_called_once()
+    assert source._pending_work_acks == [("priority", work)]
+    assert not source._priority_claims
+
+
 @pytest.mark.parametrize("recovers", [False, True], ids=["dropped", "recovered"])
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
 @mock.patch("airflow.dag_processing.api_requested_work.time", autospec=True)
@@ -9005,3 +9075,99 @@ def test_shutdown_acknowledges_finished_work(failure):
     else:
         client.acknowledge_work.assert_called_once()
         assert len(get_api_work_source(manager)._pending_work_acks) == 2
+
+
+@mock.patch("airflow.dag_processing.manager.kill_child_processes_by_pids", autospec=True)
+def test_shutdown_acknowledges_only_callbacks_that_exited_cleanly(kill_pids):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = {}
+    for file, exited_cleanly in zip(_get_file_infos(["finished.py", "stopped.py"]), (True, False)):
+        processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        processor.id = uuid7()
+        processor.had_callbacks = True
+        processor.is_ready = True
+        processor.exited_cleanly = exited_cleanly
+        work[exited_cleanly] = ProcessorWorkItem(
+            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc=str(file.rel_path)
+        )
+        get_api_work_source(manager)._callback_attempts[processor.id] = [work[exited_cleanly]]
+        manager._processors[file] = processor
+
+    manager.terminate()
+    manager.end()
+
+    client.acknowledge_work.assert_called_once_with("callbacks", work[True])
+    assert get_api_work_source(manager).has_outstanding_work()
+    for processor in manager._processors.values():
+        processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)
+    kill_pids.assert_called_once_with([processor.pid for processor in manager._processors.values()])
+
+
+def test_parsing_loop_acknowledges_finished_work_each_iteration(mocker):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    with selectors.DefaultSelector() as selector:
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            api_client=client,
+            selector=selector,
+            heartbeat=mock.Mock(spec=lambda: None, side_effect=[None, RuntimeError("Loop did not finish")]),
+        )
+        for method in (
+            "_refresh_dag_bundles",
+            "_queue_requested_files_for_parsing",
+            "_scan_stale_dags",
+            "_cleanup_stale_bundle_versions",
+            "print_stats",
+        ):
+            mocker.patch.object(DagFileProcessorManager, method, autospec=True)
+        mocker.patch.object(DagFileProcessorManager, "fetch_callbacks", autospec=True, return_value=[])
+        work = ProcessorWorkItem(
+            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+        )
+        get_api_work_source(manager)._pending_work_acks = [("callbacks", work)]
+
+        manager._run_parsing_loop()
+
+    client.acknowledge_work.assert_called_once_with("callbacks", work)
+
+
+@pytest.mark.parametrize(
+    "outstanding", ["acknowledgment", "callback_claim", "callback_attempt", "priority_claim"]
+)
+def test_max_runs_waits_for_outstanding_requested_work(outstanding):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    manager._num_run = 1
+    source = get_api_work_source(manager)
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    assert manager.max_runs_reached()
+
+    if outstanding == "acknowledgment":
+        source._pending_work_acks.append(("callbacks", work))
+    elif outstanding == "callback_claim":
+        source._callback_claims[1] = work
+    elif outstanding == "callback_attempt":
+        source._callback_attempts[uuid7()] = [work]
+    else:
+        source._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, inventory_sequence=1)
+
+    assert not manager.max_runs_reached()
+
+
+@pytest.mark.parametrize(("retry_in", "eligible"), [(60, ["ready"]), (-1, ["oversized", "ready"])])
+def test_deferred_inventory_withholds_priority_claims_until_its_retry(retry_in, eligible, tmp_path):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.claim_work.return_value = []
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, parallelism=1)
+    for name in ("oversized", "ready"):
+        bundle = _make_bundle(tmp_path)
+        bundle.name = name
+        manager._dag_bundles.append(bundle)
+    manager._bundle_inventory_retry_times["oversized"] = time.monotonic() + retry_in
+
+    assert manager.claim_priority_files() == []
+
+    client.claim_work.assert_called_once_with("priority", eligible, 1)

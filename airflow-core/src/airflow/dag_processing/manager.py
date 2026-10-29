@@ -431,12 +431,11 @@ class DagFileProcessorManager(LoggingMixin):
         return self._get_team_names({bundle_name}).get(bundle_name)
 
     def _exit_gracefully(self, signum, frame):
-        """Clean up DAG file processors to avoid leaving orphan processes."""
+        """Unwind to ``DagProcessorJobRunner._execute``, which stops Dag file processors on exit."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.log.debug("Current Stacktrace is: %s", "\n".join(map(str, inspect.stack())))
-        self.terminate()
-        self.end()
-        self.log.debug("Finished terminating DAG processors.")
+        # The signal can interrupt an API request made with a parse credential. Acknowledgments sent
+        # from here would carry that credential, be refused, and the callbacks would be delivered again.
         sys.exit(os.EX_OK)
 
     def _create_bundle_manager(self) -> DagBundlesManager:
@@ -819,11 +818,14 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetch and claim files requested for priority parsing."""
         active_attempts = {process.id for process in self._processors.values()}
         active_attempts.update(pending.body.attempt_id for pending in self._pending_publications.values())
+        now = time.monotonic()
         return self.work_source.claim_priority_files(
             self._dag_bundles,
             capacity=self._parallelism,
             unavailable_bundles=self._bundles_needing_refresh
-            | {bundle.name for bundle in self._dag_bundles if not bundle.is_initialized},
+            | {bundle.name for bundle in self._dag_bundles if not bundle.is_initialized}
+            # A bundle whose inventory was rejected cannot dispatch until its inventory is retried.
+            | {name for name, retry_at in self._bundle_inventory_retry_times.items() if now < retry_at},
             active_attempts=active_attempts,
             inventory_sequence=self._dispatch_sequence + 1,
         )
@@ -1921,6 +1923,13 @@ class DagFileProcessorManager(LoggingMixin):
                 reason,
             )
             self._record_failed_publication(file, stat)
+            if proc.api_request_error is None:
+                # The requested parse ran; only reporting its failure waits for stale_dag_threshold.
+                self.work_source.attempt_finished(proc.id, had_callbacks=False)
+            elif self.work_source.has_priority_request(file):
+                # Nothing was published, and the API keeps a claim until this Job ends, so parse again.
+                # Once the failure outlasts stale_dag_threshold, its reported import error settles the claim.
+                self._add_files_to_queue([file], mode="frontprio")
             return
         try:
             self._pending_publications[file] = self._build_rejection_report(
@@ -2773,6 +2782,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     def terminate(self):
         """Stop all running processors."""
+        if self.work_source.requires_acknowledgment:
+            for processor in self._processors.values():
+                # The shutdown signal can also reach children through the process group, so only a clean
+                # exit shows that a callback finished; a stopped callback is delivered again.
+                if processor.had_callbacks and processor.exited_cleanly:
+                    self.work_source.attempt_finished(processor.id, had_callbacks=True)
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
         for file, processor in self._processors.items():

@@ -309,6 +309,18 @@ def test_catalog_provisioning_for_named_bundles_keeps_other_bundles(sync, config
     sync.assert_called_once()
 
 
-def test_processor_command_rejects_catalog_provisioning_option():
-    with pytest.raises(SystemExit):
-        cli_parser.get_parser().parse_args(["dag-processor", "--sync-bundles-only"])
+@pytest.mark.parametrize("api_mode", [False, True])
+@pytest.mark.parametrize(("flag", "readiness"), [("--check-health", False), ("--check-ready", True)])
+@mock.patch("airflow.cli.commands.dag_processor_command._start_dag_processor", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.check_processor_health", autospec=True)
+def test_health_probes_run_only_in_api_mode(check_health, start, flag, readiness, api_mode):
+    args = cli_parser.get_parser().parse_args(["dag-processor", flag])
+    with conf_vars({("dag_processor", "execution_api_token_file"): "/run/processor.jwt" if api_mode else ""}):
+        if api_mode:
+            assert dag_processor_command.dag_processor(args) is check_health.return_value
+            check_health.assert_called_once_with(readiness=readiness)
+        else:
+            with pytest.raises(SystemExit, match="Local health probes require Dag processor API mode"):
+                dag_processor_command.dag_processor(args)
+            check_health.assert_not_called()
+    start.assert_not_called()
