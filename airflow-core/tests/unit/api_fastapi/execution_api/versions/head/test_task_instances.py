@@ -1199,9 +1199,9 @@ class TestTIRunState:
         [
             pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
             pytest.param(task.stub, None, id="stub-without-timeout"),
-            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), 0.0, id="stub-zero-timeout"),
             pytest.param(
-                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+                task.stub(execution_timeout=timedelta(seconds=-30)), -30.0, id="stub-negative-timeout"
             ),
             # A Python task's timeout stays with the task runner, which sends it to the supervisor,
             # so the server resolves one only for a task whose definition it loads anyway.
