@@ -41,8 +41,8 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendProcess,
     XComBackendResult,
     _HookRunner,
-    is_hook_overridden,
     run_xcom_backend,
+    runs_in_helper,
 )
 from airflow.sdk.execution_time.supervisor import ProcessTracker, WatchedSubprocess
 
@@ -107,18 +107,17 @@ class _DeserializeOnlyXCom(BaseXCom):
 
 
 @pytest.mark.parametrize(
-    ("xcom", "hooks", "expected"),
+    ("xcom", "expected"),
     [
-        pytest.param(BaseXCom, ("store_value", "serialize_value"), False, id="default-backend"),
-        pytest.param(_StoreXCom, ("store_value", "serialize_value"), True, id="store_value"),
-        pytest.param(_SerializeOnlyXCom, ("store_value", "serialize_value"), True, id="serialize_value"),
-        pytest.param(_DeserializeOnlyXCom, ("load_value", "deserialize_value"), True, id="deserialize_value"),
-        pytest.param(_PurgeOnlyXCom, ("store_value", "serialize_value"), False, id="other-hook"),
-        pytest.param(_PurgeOnlyXCom, ("purge",), True, id="purge"),
+        pytest.param(BaseXCom, False, id="default-backend"),
+        pytest.param(_StoreXCom, True, id="store_value"),
+        pytest.param(_SerializeOnlyXCom, True, id="serialize_value"),
+        pytest.param(_DeserializeOnlyXCom, True, id="deserialize_value"),
+        pytest.param(_PurgeOnlyXCom, True, id="purge"),
     ],
 )
-def test_is_hook_overridden(xcom, hooks, expected):
-    assert is_hook_overridden(xcom, *hooks) is expected
+def test_runs_in_helper(xcom, expected):
+    assert runs_in_helper(xcom) is expected
 
 
 def test_store_call_passes_the_coordinate_to_the_backend():
@@ -133,24 +132,49 @@ def test_store_call_passes_the_coordinate_to_the_backend():
 
 
 @pytest.mark.parametrize(
-    ("xcom", "loaded", "row"),
+    ("xcom", "loaded", "row", "expected"),
     [
-        pytest.param(_FailingLoadXCom, None, "s3://bucket/xcom.json", id="cannot-import"),
+        pytest.param(
+            _FailingLoadXCom,
+            None,
+            "s3://bucket/xcom.json",
+            "ImportError: cannot import the class of the value",
+            id="cannot-load",
+        ),
         pytest.param(
             BaseXCom,
             None,
             {"__classname__": "builtins.tuple", "__version__": 99, "__data__": [1]},
+            "TypeError: ",
             id="cannot-decode",
         ),
-        pytest.param(_LoadXCom, object(), "s3://bucket/xcom.json", id="cannot-encode"),
+        pytest.param(_LoadXCom, object(), "s3://bucket/xcom.json", "TypeError: ", id="cannot-encode"),
     ],
 )
-def test_load_call_sends_the_row_when_the_value_cannot_be_sent(xcom, loaded, row):
+def test_load_call_fails_when_the_value_cannot_be_sent(xcom, loaded, row, expected):
+    """A row the backend cannot turn into a value fails the read, rather than reaching the runtime raw."""
     _LoadXCom.loaded = loaded
 
     result = _HookRunner(xcom).run(XComBackendCall(hook="load", key="return_value", value=row))
 
-    assert result == XComBackendResult(value=row)
+    assert result.value is None
+    assert result.error is not None
+    assert result.error.startswith(expected)
+
+
+def test_store_call_fails_when_the_value_cannot_be_decoded():
+    """Keeping such a value in the XCom row would put the payload in the database."""
+    call = XComBackendCall.store(
+        XComCoordinate("dag", "run", "task", uuid7()),
+        -1,
+        "return_value",
+        {"__classname__": "builtins.tuple", "__version__": 99, "__data__": [1]},
+    )
+
+    result = _HookRunner(_StoreXCom).run(call)
+
+    assert result.value is None
+    assert result.error is not None
 
 
 def test_failed_call_reports_the_error():
@@ -166,13 +190,10 @@ def test_starts_like_a_task_process(mock_start, uses_exec):
     client = create_autospec(Client, instance=True)
     logger = structlog.get_logger(logger_name="task")
     selector = selectors.DefaultSelector()
-    on_result = MagicMock()
     with patch(
         "airflow.sdk.coordinators._xcom_backend.task_process_uses_exec", autospec=True, return_value=uses_exec
     ):
-        XComBackendProcess.start(
-            id=task_id, client=client, logger=logger, selector=selector, on_result=on_result
-        )
+        XComBackendProcess.start(id=task_id, client=client, logger=logger, selector=selector)
     selector.close()
 
     assert mock_start.call_args.kwargs["target"] is run_xcom_backend
@@ -180,14 +201,13 @@ def test_starts_like_a_task_process(mock_start, uses_exec):
     assert mock_start.call_args.kwargs["id"] == task_id
     assert mock_start.call_args.kwargs["client"] is client
     assert mock_start.call_args.kwargs["selector"] is selector
-    assert mock_start.call_args.kwargs["on_result"] is on_result
 
 
 def _run_call(
     proc: XComBackendProcess, results: list[XComBackendResult], call: XComBackendCall, timeout: float = 10.0
 ) -> XComBackendResult:
     """Send *call* and service the process until it answers, the way the task's request loop does."""
-    proc.send_call(call)
+    proc.send_call(call, results.append)
     deadline = time.monotonic() + timeout
     while not results and time.monotonic() < deadline:
         proc._service_subprocess(max_wait_time=0.1)
@@ -240,7 +260,6 @@ class TestXComBackendProcess:
                 client=client,
                 logger=structlog.get_logger(logger_name="task"),
                 selector=selectors.DefaultSelector(),
-                on_result=results.append,
             )
         yield proc
         proc.stop()
@@ -298,7 +317,7 @@ class TestXComBackendProcessSendCall:
         return MagicMock()
 
     @pytest.fixture
-    def backend(self, on_result):
+    def backend(self):
         proc = XComBackendProcess(
             id=uuid7(),
             pid=12345,
@@ -306,15 +325,14 @@ class TestXComBackendProcessSendCall:
             process_log=structlog.get_logger(logger_name="task"),
             stdin=MagicMock(spec=socket.socket),
             client=create_autospec(Client, instance=True),
-            on_result=on_result,
         )
         yield proc
         proc.selector.close()
 
-    def test_a_call_sent_before_the_process_asks_is_held_until_it_does(self, backend):
+    def test_a_call_sent_before_the_process_asks_is_held_until_it_does(self, backend, on_result):
         call = XComBackendCall(hook="purge", key="return_value", value={})
 
-        backend.send_call(call)
+        backend.send_call(call, on_result)
 
         assert cast("MagicMock", backend.stdin).sendall.call_count == 0
 
@@ -328,8 +346,8 @@ class TestXComBackendProcessSendCall:
         log = structlog.get_logger(logger_name="task")
         backend._handle_await_call(AwaitXComBackendCall(), log, req_id=1)
 
-        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
-        backend.send_call(XComBackendCall(hook="load", key="second", value={}))
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
+        backend.send_call(XComBackendCall(hook="load", key="second", value={}), on_result)
 
         # Only the first call reaches the process, which runs one call at a time.
         assert cast("MagicMock", backend.stdin).sendall.call_count == 1
@@ -346,7 +364,7 @@ class TestXComBackendProcessSendCall:
         assert on_result.call_args_list[-1].args == (XComBackendResult(value="second value"),)
 
     def test_a_closed_requests_socket_reports_that_the_process_exited(self, backend, on_result):
-        backend.send_call(XComBackendCall(hook="purge", key="return_value", value={}))
+        backend.send_call(XComBackendCall(hook="purge", key="return_value", value={}), on_result)
         other_socket = MagicMock(spec=socket.socket)
 
         backend._on_socket_closed(other_socket)
@@ -360,8 +378,8 @@ class TestXComBackendProcessSendCall:
         )
 
     def test_a_closed_requests_socket_fails_every_call_that_waits(self, backend, on_result):
-        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
-        backend.send_call(XComBackendCall(hook="load", key="second", value={}))
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
+        backend.send_call(XComBackendCall(hook="load", key="second", value={}), on_result)
 
         backend._on_socket_closed(backend.stdin)
 
@@ -370,7 +388,7 @@ class TestXComBackendProcessSendCall:
 
     def test_a_stopped_process_answers_no_call(self, backend, on_result):
         """Nothing waits for a call once the task the process serves is over."""
-        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
         backend._exit_code = 0
 
         backend.stop()

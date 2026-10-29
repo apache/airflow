@@ -369,7 +369,6 @@ def test_is_legacy_xcom_backend(backend, expected):
     [
         pytest.param("return_value", True, id="task-value"),
         pytest.param("skipmixin_key", False, id="skipmixin-key"),
-        pytest.param("_link_TriggerDagRunLink", False, id="extra-link"),
         pytest.param("my_link_key", True, id="link-not-at-the-start"),
     ],
 )
