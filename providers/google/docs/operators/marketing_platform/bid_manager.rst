@@ -45,6 +45,42 @@ parameters which allow you to dynamically determine values. You can provide body
 as this operator supports this template extension.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
 
+.. _howto/operator:GoogleBidManagerGetQueryOperator:
+
+Getting a Query
+^^^^^^^^^^^^^^^
+
+To retrieve a query using Bid Manager, use
+:class:`~airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerGetQueryOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_bid_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_bid_manager_get_query_operator]
+    :end-before: [END howto_google_bid_manager_get_query_operator]
+
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerGetQueryOperator`
+parameters which allow you to dynamically determine values.
+
+.. _howto/operator:GoogleBidManagerListQueriesOperator:
+
+Listing Queries
+^^^^^^^^^^^^^^^
+
+To list queries using Bid Manager, use
+:class:`~airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerListQueriesOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_bid_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_bid_manager_list_queries_operator]
+    :end-before: [END howto_google_bid_manager_list_queries_operator]
+
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerListQueriesOperator`
+parameters which allow you to dynamically determine values.
+
 .. _howto/operator:GoogleBidManagerRunQueryOperator:
 
 Run Query
@@ -63,6 +99,42 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerRunQueryOperator`
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
+
+.. _howto/operator:GoogleBidManagerGetReportOperator:
+
+Getting a Report
+^^^^^^^^^^^^^^^^
+
+To retrieve a report using Bid Manager, use
+:class:`~airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerGetReportOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_bid_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_bid_manager_get_report_operator]
+    :end-before: [END howto_google_bid_manager_get_report_operator]
+
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerGetReportOperator`
+parameters which allow you to dynamically determine values.
+
+.. _howto/operator:GoogleBidManagerListReportsOperator:
+
+Listing Reports
+^^^^^^^^^^^^^^^
+
+To list reports for a query using Bid Manager, use
+:class:`~airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerListReportsOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_bid_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_bid_manager_list_reports_operator]
+    :end-before: [END howto_google_bid_manager_list_reports_operator]
+
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerListReportsOperator`
+parameters which allow you to dynamically determine values.
 
 .. _howto/operator:GoogleBidManagerDeleteQueryOperator:
 
@@ -111,8 +183,8 @@ To download a report to GCS bucket use
 .. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_bid_manager.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_google_bid_manager_get_report_operator]
-    :end-before: [END howto_google_bid_manager_get_report_operator]
+    :start-after: [START howto_google_bid_manager_download_report_operator]
+    :end-before: [END howto_google_bid_manager_download_report_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerDownloadReportOperator`

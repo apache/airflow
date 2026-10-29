@@ -400,20 +400,6 @@ class TestDag:
         clear_db_dags()
         clear_db_assets()
 
-    @staticmethod
-    def _occur_before(a, b, list_):
-        """
-        Assert that a occurs before b in the list.
-        """
-        a_index = -1
-        b_index = -1
-        for i, e in enumerate(list_):
-            if e.task_id == a:
-                a_index = i
-            if e.task_id == b:
-                b_index = i
-        return 0 <= a_index < b_index
-
     def test_dag_naive_default_args_start_date(self):
         dag = DAG("DAG", schedule=None, default_args={"start_date": datetime.datetime(2018, 1, 1)})
         assert dag.timezone == settings.TIMEZONE
@@ -3992,12 +3978,10 @@ def test_iter_dagrun_infos_between_error(caplog):
             "airflow.serialization.encoders.find_registered_custom_timetable",
             _get_registered_timetable,
         ),
+        caplog.at_level(logging.ERROR),
     ):
         scheduler_dag = create_scheduler_dag(dag)
-
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
-    with caplog.at_level(logging.ERROR):
-        infos = list(iterator)
+        infos = list(scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end))
 
     # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
     assert infos == [DagRunInfo.interval(start, end)]

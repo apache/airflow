@@ -31,6 +31,7 @@ from uuid import UUID
 
 import attrs
 import structlog
+from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.state import AssetScope
@@ -156,6 +157,8 @@ log = structlog.get_logger(logger_name="task")
 NEVER_EXPIRE: timedelta = timedelta.max
 
 _EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
+
+_AWARE_DATETIME_ADAPTER = TypeAdapter(AwareDatetime)
 
 
 def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
@@ -1385,8 +1388,8 @@ class OutletEventAccessors(
 
 @attrs.define(init=False)
 class InletEventsAccessor(Sequence["AssetEventResult"]):
-    _after: str | datetime | None
-    _before: str | datetime | None
+    _after: datetime | None
+    _before: datetime | None
     _ascending: bool
     _limit: int | None
     _partition_key: str | None
@@ -1410,13 +1413,13 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
-    def after(self, after: str) -> Self:
-        self._after = after
+    def after(self, after: datetime | str) -> Self:
+        self._after = _AWARE_DATETIME_ADAPTER.validate_python(after)
         self._reset_cache()
         return self
 
-    def before(self, before: str) -> Self:
-        self._before = before
+    def before(self, before: datetime | str) -> Self:
+        self._before = _AWARE_DATETIME_ADAPTER.validate_python(before)
         self._reset_cache()
         return self
 

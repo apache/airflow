@@ -21,7 +21,6 @@ import contextlib
 import datetime
 import json
 import operator
-import os
 import pathlib
 import re
 from typing import TYPE_CHECKING, cast
@@ -2818,17 +2817,6 @@ class TestTaskInstance:
             run_task_instance(ti, task)
         assert ti.state == State.UP_FOR_RETRY
 
-    def _env_var_check_callback(self):
-        assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
-        assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
-        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert (
-            DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
-            )
-            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
-        )
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -2865,6 +2853,7 @@ class TestTaskInstance:
             "priority_weight": 123,
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
+            "is_stub": False,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -4283,32 +4272,6 @@ class TestMappedTaskInstanceReceiveValue:
         )
 
 
-def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
-    backend = os.environ.get("BACKEND")
-    if backend == "mysql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
-        ]
-    if backend == "postgres":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
-        ]
-    if backend == "sqlite":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
-        ]
-    raise RuntimeError(f"unknown backend {backend!r}")
-
-
 def test_expand_non_templated_field(dag_maker, session):
     """Test expand on non-templated fields sets upstream deps properly."""
 
@@ -5065,6 +5028,60 @@ class TestMakeTaskCarrier:
         carrier = new_task_run_carrier(None)
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
+
+
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_refresh_from_task_copies_is_stub(is_stub):
+    """ti_run gates on the row, so the flag has to travel from the task to the TaskInstance."""
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.is_stub = is_stub
+
+    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.is_stub is is_stub
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("decorator", "expected"),
+    [pytest.param(task.stub, True, id="stub"), pytest.param(task, False, id="regular")],
+)
+def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
+    """A scheduled row carries the flag, whichever of the two write paths filled it in."""
+    with dag_maker("test_scheduled_is_stub", serialized=True):
+
+        @decorator
+        def transform(country: str): ...
+
+        transform("uk")
+
+    (ti,) = dag_maker.create_dagrun().get_task_instances()
+
+    assert ti.is_stub is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_is_stub"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.is_stub = is_stub
+    dag_run = mock.MagicMock()
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["is_stub"] is is_stub
 
 
 @pytest.mark.db_test
