@@ -32,27 +32,17 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 
+def _require_tar_data_filter() -> None:
+    if hasattr(tarfile, "data_filter"):
+        return
+    raise RuntimeError("Archive Dag bundles require Python 3.11.4 or later (tarfile filter='data').")
+
+
 def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
     """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    _require_tar_data_filter()
     with tarfile.open(archive_path, "r:*") as tar:
-        # filter="data" arrived in Python 3.11.4. 3.11.0-3.11.3 still have to reject
-        # the same escapes by hand.
-        if hasattr(tarfile, "data_filter"):
-            tar.extractall(unpack_dir, filter="data")
-            return
-        for member in tar.getmembers():
-            if _tar_member_escapes_destination(member):
-                raise tarfile.TarError(f"Refusing to extract archive member {member.name!r}")
-        tar.extractall(unpack_dir)
-
-
-def _tar_member_escapes_destination(member: tarfile.TarInfo) -> bool:
-    if not (member.isfile() or member.isdir()):
-        return True
-    name = member.name
-    if os.path.isabs(name) or ".." in Path(name).parts:
-        return True
-    return False
+        tar.extractall(unpack_dir, filter="data")
 
 
 class WasbDagBundle(BaseDagBundle):
@@ -73,11 +63,10 @@ class WasbDagBundle(BaseDagBundle):
         exclusive with ``prefix``, so there is no second copy to keep in sync and no
         fallback to a per-blob sync. Members are extracted relative to the bundle
         root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``.
+        Requires Python 3.11.4 or later.
     """
 
     supports_versioning = False
-
-    archive_etag_marker = ".airflow_bundle_archive_etag"
 
     def __init__(
         self,
@@ -94,6 +83,8 @@ class WasbDagBundle(BaseDagBundle):
                 "WasbDagBundle accepts either 'prefix' or 'archive_blob', not both. When "
                 "'archive_blob' is set the archive is the only staging source."
             )
+        if archive_blob:
+            _require_tar_data_filter()
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.prefix = prefix
@@ -181,23 +172,22 @@ class WasbDagBundle(BaseDagBundle):
                 delete_stale=True,
             )
 
-    def _archive_staging_prefix(self) -> str:
-        # The storage root is shared by every bundle. The lock is per bundle name, so
-        # leftover cleanup must not match another bundle's in-progress staging directory.
-        return f".{self.name}-archive-staging-"
+    def _archive_state_dir(self) -> Path:
+        return self.wasb_dags_dir.parent / f".{self.name}"
+
+    def _archive_etag_path(self) -> Path:
+        return self._archive_state_dir() / "etag"
 
     def _remove_stale_archive_staging_dirs(self) -> None:
-        storage_root = self.wasb_dags_dir.parent
-        if not storage_root.is_dir():
+        state_dir = self._archive_state_dir()
+        if not state_dir.is_dir():
             return
-        prefix = self._archive_staging_prefix()
-        for leftover in storage_root.iterdir():
-            if leftover.is_dir() and leftover.name.startswith(prefix):
+        for leftover in state_dir.iterdir():
+            if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
                 shutil.rmtree(leftover, ignore_errors=True)
 
     def _refresh_from_archive(self, archive_blob: str) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive blob."""
-        # A killed process never reaches the finally that removes its staging directory.
         self._remove_stale_archive_staging_dirs()
         blob = self.wasb_hook.get_conn().get_blob_client(self.container_name, archive_blob)
         try:
@@ -206,7 +196,7 @@ class WasbDagBundle(BaseDagBundle):
             raise ValueError(f"WASB archive 'wasb://{self.container_name}/{archive_blob}' does not exist.")
         etag = props.etag or ""
 
-        marker = self.wasb_dags_dir / self.archive_etag_marker
+        marker = self._archive_etag_path()
         if etag and marker.is_file() and marker.read_text() == etag:
             self._log.debug(
                 "Dag bundle archive 'wasb://%s/%s' is unchanged (ETag %s), skipping staging",
@@ -216,14 +206,11 @@ class WasbDagBundle(BaseDagBundle):
             )
             return
 
-        staging_dir = Path(
-            tempfile.mkdtemp(dir=self.wasb_dags_dir.parent, prefix=self._archive_staging_prefix())
-        )
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
         try:
             archive_path = staging_dir / "_bundle_archive"
-            # Pin the bytes to the ETag just read. An overwrite between the
-            # properties read and the download then fails, instead of storing
-            # the new bytes under the old ETag.
             download_kwargs = {}
             if etag:
                 download_kwargs["etag"] = etag
@@ -236,14 +223,8 @@ class WasbDagBundle(BaseDagBundle):
             _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
-            if etag:
-                (unpack_dir / self.archive_etag_marker).write_text(etag)
-
-            # Swap the unpacked tree into place. The previous tree is kept inside the
-            # staging directory and renamed back if the second rename fails, so a
-            # half-unpacked tree is never left at self.wasb_dags_dir. There is a short
-            # gap between the two renames where the directory does not exist. Readers
-            # do not take self.lock(), so a scan during that gap sees nothing.
+            # Two renames, so the bundle directory is missing for a moment. A failed
+            # second rename puts the previous tree back.
             backup_dir = staging_dir / "previous"
             if self.wasb_dags_dir.exists():
                 self.wasb_dags_dir.rename(backup_dir)
@@ -253,6 +234,9 @@ class WasbDagBundle(BaseDagBundle):
                 if backup_dir.exists():
                     backup_dir.rename(self.wasb_dags_dir)
                 raise
+
+            if etag:
+                self._archive_etag_path().write_text(etag)
 
             self._log.debug(
                 "Staged Dag bundle from archive 'wasb://%s/%s' (%s bytes) to %s",
