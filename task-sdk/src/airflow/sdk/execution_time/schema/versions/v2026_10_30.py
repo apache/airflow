@@ -26,7 +26,7 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
@@ -40,8 +40,31 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    StartupDetails,
     TaskState,
 )
+from airflow.sdk.execution_time.dag_run_conf import decode_dag_run_conf
+
+
+class SerializeSupervisorDagRunConf(VersionChange):
+    """
+    Restore configuration for direct migrations to older supervisor schemas.
+
+    Live foreign-runtime serialization also restores it for clients at the in-progress version.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("serialized_dag_run_conf").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
+    def restore_startup_conf(response: ResponseInfo) -> None:
+        context = response.body["ti_context"]
+        serialized = context.pop("serialized_dag_run_conf", None)
+        if serialized is not None:
+            context["dag_run"]["conf"] = decode_dag_run_conf(serialized)
 
 
 class AddLoopRuntime(VersionChange):

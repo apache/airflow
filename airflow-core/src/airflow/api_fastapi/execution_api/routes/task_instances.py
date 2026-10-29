@@ -36,10 +36,10 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue, ValidationError
-from sqlalchemy import and_, exists, func, or_, tuple_, union, update
+from sqlalchemy import Text, and_, cast as sql_cast, exists, func, or_, tuple_, union, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session, contains_eager, joinedload
+from sqlalchemy.orm import Session, contains_eager, defer, joinedload, selectinload
 from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.services.public.dag_run import patch_dag_run_note
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DagRunResponse,
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -318,12 +319,19 @@ def ti_run(
             else ()
         )
 
-        dr = (
-            session.scalars(
-                select(DR)
+        conf_type = (
+            func.jsonb_typeof(DR.conf)
+            if get_dialect_name(session) == "postgresql"
+            else func.json_type(DR.conf)
+        )
+        run_row = (
+            session.execute(
+                select(DR, sql_cast(DR.conf, Text).label("serialized_conf"), conf_type.label("conf_type"))
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
                 .options(
-                    joinedload(DR.consumed_asset_events),
+                    defer(DR.conf),
+                    # A separate collection SELECT avoids repeating the JSON text once per event row.
+                    selectinload(DR.consumed_asset_events),
                     *eager_load_teams(DR.dag_model),
                     *dag_tag_options,
                 )
@@ -332,7 +340,7 @@ def ti_run(
             .one_or_none()
         )
 
-        if not dr:
+        if run_row is None:
             log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -341,6 +349,20 @@ def ti_run(
                     "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
                 },
             )
+
+        dr, serialized_conf, stored_conf_type = run_row
+        # Reject invalid roots before SessionDep commits RUNNING, without decoding the object in Python.
+        if stored_conf_type not in (None, "object", "OBJECT", "null", "NULL"):
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "reason": "invalid_dag_run_conf",
+                    "message": "Dag run configuration must be a JSON object or null.",
+                },
+            )
+        dag_run_response = DagRunResponse.safe_extract_from_orm(dr)  # type: ignore[operator]
+        # Do not change the attached ORM object: other request consumers may still need its conf.
+        dag_run_response["conf"] = None
 
         # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
         # because for a Python task the task runner also purges them from a custom XCom backend, and only
@@ -363,7 +385,7 @@ def ti_run(
         ).one()
 
         context = TIRunContext(
-            dag_run=dr,
+            dag_run=dag_run_response,
             task_reschedule_count=task_reschedule_count,
             max_tries=ti.max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
@@ -373,6 +395,8 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
             multi_team=conf.getboolean("core", "multi_team"),
         )
+        if serialized_conf is not None and serialized_conf != "null":
+            context.serialized_dag_run_conf = serialized_conf
         if ti.region_id != SENTINEL_REGION_ID:
             resolver = TaskCoordinateResolver(dag_bag, session)
             task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)

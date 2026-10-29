@@ -1002,6 +1002,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    serialized_dag_run_conf: Annotated[str | None, Field(title="Serialized Dag Run Conf")] = None
     loop: LoopContext | None = None
     expanded_ti_count: Annotated[int | None, Field(title="Expanded Ti Count")] = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0

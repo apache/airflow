@@ -151,6 +151,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.dag_run_conf import materialize_dag_run_conf
 from airflow.sdk.execution_time.email_backend import (
     _DEFAULT_EMAIL_BACKEND,
     _ErrorEmailNotifier,
@@ -329,6 +330,7 @@ class RuntimeTaskInstance(TaskInstance):
         dag_run_conf: dict[str, Any] | None = None
         macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
+            materialize_dag_run_conf(from_server)
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
             macros_accessor = MacrosAccessor(
                 team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
@@ -1259,7 +1261,7 @@ def get_startup_details() -> StartupDetails:
 
         # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
         # on stdout
-        log.debug("Using serialized startup message from environment", msg=msg)
+        log.debug("Using serialized startup message from environment", ti_id=msg.ti.id)
     else:
         # normal entry point
         msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
@@ -1305,10 +1307,14 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     )
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
+        # Preserve the compact legacy environment envelope rather than escaping JSON inside JSON.
+        materialize_dag_run_conf(msg.ti_context)
         # enters here for re-exec process
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
-        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json(
+            exclude={"ti_context": {"serialized_dag_run_conf"}}
+        )
         os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
         # Import main directly from the module instead of re-executing the file.

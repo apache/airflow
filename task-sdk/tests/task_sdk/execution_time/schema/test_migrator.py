@@ -35,7 +35,10 @@ import uuid
 from typing import Literal
 from uuid import UUID
 
+import msgspec
+import psutil
 import pytest
+import structlog
 from cadwyn import (
     HeadVersion,
     Version,
@@ -70,12 +73,14 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     StartupDetails,
     TaskState,
+    _ResponseFrame,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
     resolve_body_class,
 )
+from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 
 
 class _MockBody(BaseModel):
@@ -517,6 +522,46 @@ class TestRealBundleArgBindingsDowngrade:
     def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
         assert "arg_bindings" not in out["ti_context"]
+
+    def test_downgrade_restores_serialized_conf(self, real_migrator, startup_details):
+        startup_details.ti_context.serialized_dag_run_conf = '{"nested": [{"enabled": false}]}'
+
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+
+        assert out["ti_context"]["dag_run"]["conf"] == {"nested": [{"enabled": False}]}
+        assert "serialized_dag_run_conf" not in out["ti_context"]
+        assert startup_details.ti_context.dag_run.conf is None
+        assert startup_details.ti_context.serialized_dag_run_conf is not None
+
+    @pytest.mark.parametrize("version", [None, "2026-06-16", "2026-10-30"])
+    def test_startup_conf_wire_shape_for_python_and_foreign_runtimes(self, startup_details, mocker, version):
+        raw = '{"nested": [{"enabled": false}]}'
+        startup_details.ti_context.serialized_dag_run_conf = raw
+        process = WatchedSubprocess(
+            id=startup_details.ti.id,
+            pid=1,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(spec=psutil.Process),
+            process_log=structlog.get_logger(),
+        )
+        process._subprocess_schema_version = version
+        try:
+            process.send_msg(startup_details, request_id=0)
+            frame = process.stdin.sendall.call_args.args[0]
+            decoded = msgspec.msgpack.decode(frame[4:], type=_ResponseFrame)
+            assert decoded.body is not None
+            body = decoded.body["ti_context"]
+        finally:
+            process.selector.close()
+
+        if version is None:
+            assert body["serialized_dag_run_conf"] == raw
+            assert body["dag_run"]["conf"] is None
+        else:
+            assert "serialized_dag_run_conf" not in body
+            assert body["dag_run"]["conf"] == {"nested": [{"enabled": False}]}
+        assert startup_details.ti_context.serialized_dag_run_conf == raw
+        assert startup_details.ti_context.dag_run.conf is None
 
     @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
     def test_loop_context_follows_supervisor_version(self, real_migrator, startup_details, version):

@@ -498,6 +498,9 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     """DAG run information for the task instance."""
 
+    serialized_dag_run_conf: str | None = Field(default=None, repr=False)
+    """Persisted JSON decoded in the task process, not in the server or supervisor."""
+
     loop: LoopContext | None = None
 
     expanded_ti_count: Annotated[

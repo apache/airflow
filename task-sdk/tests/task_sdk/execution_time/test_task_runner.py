@@ -108,7 +108,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskDeferred,
 )
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import dag_run_conf, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -2281,8 +2281,16 @@ def test_startup_and_run_dag_with_rtif(
 
 @patch("os.execvp")
 @patch("os.set_inheritable")
+@pytest.mark.parametrize("conf_value", [None, {}, {"value": 'quotes " and \\ slashes', "enabled": False}])
 def test_task_run_with_user_impersonation(
-    mock_set_inheritable, mock_execvp, mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+    mock_set_inheritable,
+    mock_execvp,
+    mocked_parse,
+    make_ti_context,
+    time_machine,
+    mock_supervisor_comms,
+    mocker,
+    conf_value,
 ):
     class CustomOperator(BaseOperator):
         def execute(self, context):
@@ -2307,6 +2315,8 @@ def test_task_run_with_user_impersonation(
         start_date=timezone.utcnow(),
         sentry_integration="",
     )
+    what.ti_context.serialized_dag_run_conf = json.dumps(conf_value)
+    decode = mocker.spy(dag_run_conf, "decode_dag_run_conf")
 
     mocked_parse(what, "basic_dag", task)
     time_machine.move_to(instant, tick=False)
@@ -2319,6 +2329,13 @@ def test_task_run_with_user_impersonation(
 
         assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
+        envelope = json.loads(os.environ["_AIRFLOW__STARTUP_MSG"])
+        assert "serialized_dag_run_conf" not in envelope["ti_context"]
+        assert envelope["ti_context"]["dag_run"]["conf"] == conf_value
+        reexecuted = StartupDetails.model_validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
+        dag_run_conf.materialize_dag_run_conf(reexecuted.ti_context)
+        assert reexecuted.ti_context.dag_run.conf == conf_value
+        decode.assert_called_once()
 
         mock_set_inheritable.assert_called_once_with(42, True)
         actual_cmd = mock_execvp.call_args.args[1]
@@ -2890,6 +2907,36 @@ class TestSerializeOutletEvents:
 
 
 class TestRuntimeTaskInstance:
+    @pytest.mark.parametrize("override", [True, False])
+    @pytest.mark.parametrize("conf_value", [None, {}, {"value": "run", "enabled": False}])
+    def test_serialized_conf_preserves_context_and_params(
+        self, create_runtime_ti, mock_supervisor_comms, override, conf_value
+    ):
+        task = BaseOperator(task_id="hello", params={"value": "default"})
+        runtime_ti = create_runtime_ti(task=task, dag_id="serialized_conf")
+        from_server = runtime_ti._ti_context_from_server
+        from_server.dag_run.conf = None
+        from_server.serialized_dag_run_conf = json.dumps(conf_value)
+        dr = from_server.dag_run
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        with conf_vars({("core", "dag_run_conf_overrides_params"): str(override)}):
+            context = runtime_ti.get_template_context()
+            decoded = context["dag_run"].conf
+            assert decoded == conf_value
+            expected_value = "run" if override and conf_value else "default"
+            assert context["params"]["value"] == expected_value
+            if decoded is not None:
+                decoded["task_mutation"] = 1
+            assert runtime_ti.get_template_context()["dag_run"].conf is decoded
+
+        assert from_server.serialized_dag_run_conf is None
+
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
 
