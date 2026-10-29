@@ -72,6 +72,9 @@ labelPRBasedOnFilePath:
   provider:apache-livy:
     - providers/apache/livy/**
 
+  provider:apache-ozone:
+    - providers/apache/ozone/**
+
   provider:apache-pig:
     - providers/apache/pig/**
 
