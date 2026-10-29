@@ -615,7 +615,6 @@ class TestFileTaskLogHandler:
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        # log_pos counts every record read so far, not only the ones returned in this call.
         assert metadata == expected_metadata
 
     def test__read_from_local(self, tmp_path):
