@@ -38,6 +38,8 @@ from airflow_breeze.global_constants import (
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
     COMMITTERS,
+    CORE_COMPANION_TEST_TYPES,
+    CORE_TEST_TYPE_COMPANIONS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
     CURRENT_POSTGRES_VERSIONS,
@@ -118,7 +120,7 @@ LONG_RUNNING_TEST_PROVIDERS = ["amazon", "celery", "google", "standard"]
 # across all test types, so no deterministic order exists there to reproduce.
 PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS = ["cncf.kubernetes"]
 
-ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI CLITask Core Models ModelsTI Other PublicAPI Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -1718,7 +1720,7 @@ class SelectiveChecks:
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
         for test_type in SelectiveCoreTestType:
-            if test_type not in [
+            if test_type.value not in CORE_COMPANION_TEST_TYPES and test_type not in [
                 SelectiveCoreTestType.ALWAYS,
                 SelectiveCoreTestType.CORE,
                 SelectiveCoreTestType.OTHER,
@@ -1773,6 +1775,10 @@ class SelectiveChecks:
         # run core tests if any changes in serialization files
         if SelectiveCoreTestType.SERIALIZATION.value in candidate_test_types:
             candidate_test_types.add(SelectiveCoreTestType.CORE.value)
+
+        for parent_test_type, companions in CORE_TEST_TYPE_COMPANIONS.items():
+            if parent_test_type in candidate_test_types:
+                candidate_test_types.update(companions)
 
         # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)

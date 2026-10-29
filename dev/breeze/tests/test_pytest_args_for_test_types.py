@@ -49,9 +49,27 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/core",
                 "airflow-core/tests/unit/executors",
                 "airflow-core/tests/unit/jobs",
-                "airflow-core/tests/unit/models",
                 "airflow-core/tests/unit/ti_deps",
                 "airflow-core/tests/unit/utils",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "Models",
+            [
+                "airflow-core/tests/unit/models",
+                "--ignore=airflow-core/tests/unit/models/test_cleartasks.py",
+                "--ignore=airflow-core/tests/unit/models/test_mappedoperator.py",
+                "--ignore=airflow-core/tests/unit/models/test_taskinstance.py",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "ModelsTI",
+            [
+                "airflow-core/tests/unit/models/test_cleartasks.py",
+                "airflow-core/tests/unit/models/test_mappedoperator.py",
+                "airflow-core/tests/unit/models/test_taskinstance.py",
             ],
         ),
         (
@@ -85,7 +103,29 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.CORE,
             "API",
-            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
+            [
+                "airflow-core/tests/unit/api",
+                "airflow-core/tests/unit/api_fastapi",
+                "--ignore=airflow-core/tests/unit/api_fastapi/core_api/routes/public",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "PublicAPI",
+            ["airflow-core/tests/unit/api_fastapi/core_api/routes/public"],
+        ),
+        (
+            GroupOfTests.CORE,
+            "CLI",
+            [
+                "airflow-core/tests/unit/cli",
+                "--ignore=airflow-core/tests/unit/cli/commands/test_task_command.py",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "CLITask",
+            ["airflow-core/tests/unit/cli/commands/test_task_command.py"],
         ),
         (
             GroupOfTests.CORE,
@@ -220,18 +260,34 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
+            [
+                "airflow-core/tests/unit/api",
+                "airflow-core/tests/unit/api_fastapi",
+                "--ignore=airflow-core/tests/unit/api_fastapi/core_api/routes/public",
+            ],
         ),
         (
             GroupOfTests.CORE,
             "CLI",
             [
                 "airflow-core/tests/unit/cli",
+                "--ignore=airflow-core/tests/unit/cli/commands/test_task_command.py",
             ],
         ),
         (
             GroupOfTests.CORE,
             "API CLI",
+            [
+                "airflow-core/tests/unit/api",
+                "airflow-core/tests/unit/api_fastapi",
+                "airflow-core/tests/unit/cli",
+                "--ignore=airflow-core/tests/unit/api_fastapi/core_api/routes/public",
+                "--ignore=airflow-core/tests/unit/cli/commands/test_task_command.py",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "API PublicAPI CLITask CLI",
             [
                 "airflow-core/tests/unit/api",
                 "airflow-core/tests/unit/api_fastapi",
@@ -245,9 +301,20 @@ def test_pytest_args_for_missing_provider():
                 "airflow-core/tests/unit/core",
                 "airflow-core/tests/unit/executors",
                 "airflow-core/tests/unit/jobs",
-                "airflow-core/tests/unit/models",
                 "airflow-core/tests/unit/ti_deps",
                 "airflow-core/tests/unit/utils",
+            ],
+        ),
+        (
+            GroupOfTests.CORE,
+            "ModelsTI Core Models",
+            [
+                "airflow-core/tests/unit/core",
+                "airflow-core/tests/unit/executors",
+                "airflow-core/tests/unit/jobs",
+                "airflow-core/tests/unit/ti_deps",
+                "airflow-core/tests/unit/utils",
+                "airflow-core/tests/unit/models",
             ],
         ),
         (

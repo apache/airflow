@@ -192,6 +192,16 @@ def test_estimate_full_tests_adds_special_tests_and_all_core_types():
     assert "Special tests" in names
 
 
+def test_estimate_does_not_count_companion_core_test_types():
+    estimate = estimate_ci_minutes(
+        _selective_checks(core_test_types=["API", "Always", "PublicAPI"], run_unit_tests=True)
+    )
+
+    core_group = next(group for group in estimate.job_groups if group.name.startswith("Core tests"))
+    assert core_group.name == "Core tests (2 test types)"
+    assert core_group.job_minutes == estimate_core_job_minutes(2)
+
+
 def test_estimate_without_unit_tests_has_only_base_group():
     estimate = estimate_ci_minutes(_selective_checks())
 

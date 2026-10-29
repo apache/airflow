@@ -380,10 +380,27 @@ class SelectiveTestType(Enum):
 class SelectiveCoreTestType(SelectiveTestType):
     ALWAYS = "Always"
     API = "API"
+    PUBLIC_API = "PublicAPI"
     CLI = "CLI"
+    CLI_TASK = "CLITask"
     CORE = "Core"
+    MODELS = "Models"
+    MODELS_TI = "ModelsTI"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
+
+
+CORE_TEST_TYPE_COMPANIONS: dict[str, tuple[str, ...]] = {
+    SelectiveCoreTestType.API.value: (SelectiveCoreTestType.PUBLIC_API.value,),
+    SelectiveCoreTestType.CLI.value: (SelectiveCoreTestType.CLI_TASK.value,),
+    SelectiveCoreTestType.CORE.value: (
+        SelectiveCoreTestType.MODELS.value,
+        SelectiveCoreTestType.MODELS_TI.value,
+    ),
+}
+CORE_COMPANION_TEST_TYPES: frozenset[str] = frozenset(
+    companion for companions in CORE_TEST_TYPE_COMPANIONS.values() for companion in companions
+)
 
 
 class SelectiveProvidersTestType(SelectiveTestType):

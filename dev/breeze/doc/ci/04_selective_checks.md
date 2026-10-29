@@ -248,6 +248,12 @@ When unit tests run, selective checks narrow *which* test types execute, separat
   changed source file is left over after removing provider files, test files, UI files, etc. — i.e.
   something "core/other" changed — *all* core test types are added, because a core change can affect
   anything. In full mode, all core types run unconditionally.
+  The slowest folders are carved out of their parent type into **companion types**
+  (`CORE_TEST_TYPE_COMPANIONS`): `PublicAPI` out of `API`, `CLITask` out of `CLI`, and `Models` and
+  `ModelsTI` out of `Core`. A companion type has no file patterns of its own; it is added whenever its
+  parent type is selected, so the parent's tests always run in full. DB tests run each test type
+  serially in its own container, so splitting a heavy type lets its parts run in parallel instead of
+  being the long pole of the job.
 * **Provider test types** (`_get_providers_test_types_to_run`): empty on non-`main` branches. In full
   mode (or when dependencies were upgraded) → `Providers` (all). Otherwise selective checks compute the
   **affected providers** from the changed files and add their **direct upstream and downstream
