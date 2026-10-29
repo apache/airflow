@@ -40,21 +40,16 @@ Changelog
     behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
     with ``durable=True`` and requires Airflow 3.3 or later.
 
-    When upgrading from ``15.3.0rc1``, durable ``MSGraphAsyncOperator`` pagination discards
-    pages stored in the earlier format and restarts from the first page. If this is detected
-    while resuming a deferred task, the current try fails so the next retry can restart.
-
 Features
 ~~~~~~~~
 
 * ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
-* ``Make the PowerBI refresh and MSGraph operators durable (#74675)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675, #75272)``
 * ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Restore triggerer-only Power BI submission and repair durable MSGraph page recovery (#75272)``
 * ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
 * ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
 
