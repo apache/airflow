@@ -223,8 +223,6 @@ class WasbDagBundle(BaseDagBundle):
             _extract_archive(archive_path, unpack_dir)
             archive_path.unlink()
 
-            # Two renames, so the bundle directory is missing for a moment. A failed
-            # second rename puts the previous tree back.
             backup_dir = staging_dir / "previous"
             if self.wasb_dags_dir.exists():
                 self.wasb_dags_dir.rename(backup_dir)
