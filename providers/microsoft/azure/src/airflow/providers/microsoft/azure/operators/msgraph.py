@@ -362,7 +362,7 @@ class MSGraphAsyncOperator(BaseOperator):
             },
         )
 
-    def clean_up(self, task_state_store: TaskStateStoreAccessor, results: Any) -> None:
+    def _clean_up(self, task_state_store: TaskStateStoreAccessor, results: Any) -> None:
         """
         Remove the pages and the cursor from the task state store once the result is returned.
         
