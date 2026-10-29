@@ -17,14 +17,8 @@
  * under the License.
  */
 import { useQuery } from "@tanstack/react-query";
-import ELK, { type ElkNode } from "elkjs";
-// ?raw imports the file content as a plain string without any transformation.
-// We create a blob: URL from it so the Worker is always same-origin to the
-// page — avoiding the cross-origin SecurityError that occurs in Airflow's dev
-// setup where Vite (5173) and Flask (28080) run on different ports, and all
-// URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
-// the Vite origin which browsers reject for Workers.
-import ElkWorkerSource from "elkjs/lib/elk-worker.min.js?raw";
+// The API alone: the package entry ("elkjs") also bundles the whole layout engine as a fallback worker.
+import ElkApi, { type ELK, type ElkNode } from "elkjs/lib/elk-api.js";
 
 import type { NodeResponse, StructureDataResponse } from "openapi/requests/types.gen";
 
@@ -32,15 +26,32 @@ import type { Direction } from "./DirectionDropdown";
 import { generateElkGraph } from "./elkGraphUtils";
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
-// Blob URL created once at module load. `type: "classic"` preserves the
-// original CJS environment detection in elk-worker: as a classic script
-// `typeof module === "undefined"`, so the worker sets self.onmessage rather
-// than exporting a FakeWorker.
-const elkWorkerBlobUrl = URL.createObjectURL(new Blob([ElkWorkerSource], { type: "application/javascript" }));
+// The layout engine (~1.4 MB) loads the first time a graph is laid out, not with every page that can show one.
+let elkPromise: Promise<ELK> | undefined;
 
-const elk = new ELK({
-  workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }),
-});
+const getElk = () => {
+  elkPromise ??= import("elkjs/lib/elk-worker.min.js?raw").then(({ default: elkWorkerSource }) => {
+    // ?raw imports the file content as a plain string without any transformation.
+    // We create a blob: URL from it so the Worker is always same-origin to the
+    // page — avoiding the cross-origin SecurityError that occurs in Airflow's dev
+    // setup where Vite (5173) and Flask (28080) run on different ports, and all
+    // URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
+    // the Vite origin which browsers reject for Workers.
+    // `type: "classic"` preserves the original CJS environment detection in elk-worker: as a classic script
+    // `typeof module === "undefined"`, so the worker sets self.onmessage rather than exporting a FakeWorker.
+    const elkWorkerBlobUrl = URL.createObjectURL(
+      new Blob([elkWorkerSource], { type: "application/javascript" }),
+    );
+
+    return new ElkApi({ workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }) });
+  });
+  // Retry on the next layout if the chunk failed to load, rather than keeping the rejection.
+  elkPromise.catch(() => {
+    elkPromise = undefined;
+  });
+
+  return elkPromise;
+};
 
 export type LayoutNode = ElkNode & NodeResponse;
 
@@ -71,6 +82,7 @@ export const useGraphLayout = ({
       });
 
       // 2. use elk to generate the size and position of nodes and edges
+      const elk = await getElk();
       const data = (await elk.layout(graph)) as LayoutNode;
 
       // 3. Flatten the nodes and edges for xyflow to actually render the graph
