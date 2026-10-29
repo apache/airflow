@@ -694,6 +694,32 @@ class TestDagFileProcessorManager:
             )
         }
 
+    def test_refresh_dag_bundles_calls_legacy_clear_orphaned_import_errors_override(
+        self, tmp_path, configure_dag_bundles
+    ):
+        bundle_path = tmp_path / "bundleone"
+        bundle_path.mkdir()
+        (bundle_path / "test_dag.py").write_text("from airflow.sdk import DAG\n")
+
+        class BackwardCompatibleManager(DagFileProcessorManager):
+            seen_bundle_name: str | None = None
+            seen_observed_filelocs: set[str] | None = None
+
+            def clear_orphaned_import_errors(
+                self, bundle_name: str, observed_filelocs: set[str], *, session=None
+            ) -> None:
+                self.seen_bundle_name = bundle_name
+                self.seen_observed_filelocs = observed_filelocs
+
+        with configure_dag_bundles({"bundleone": bundle_path}):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = BackwardCompatibleManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            manager._refresh_dag_bundles({})
+
+        assert manager.seen_bundle_name == "bundleone"
+        assert manager.seen_observed_filelocs == {"test_dag.py"}
+
     @conf_vars({("core", "load_examples"): "False"})
     def test_max_runs_when_no_files(self, tmp_path):
         with conf_vars({("core", "dags_folder"): str(tmp_path)}):
@@ -1806,7 +1832,7 @@ class TestDagFileProcessorManager:
                 bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
             )
             with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
-                manager._create_process(dag_file)
+                manager._create_process(dag_file, source=DagParseSource())
 
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
@@ -1850,7 +1876,7 @@ class TestDagFileProcessorManager:
 
     @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
-    def test_create_process_captures_callback_source_before_removing_its_requests(
+    def test_start_new_processes_captures_callback_source_before_removing_its_requests(
         self, get_logger, start, tmp_path
     ):
         get_logger.return_value = (mock.sentinel.logger, mock.sentinel.logger_filehandle)
@@ -1861,8 +1887,9 @@ class TestDagFileProcessorManager:
         callback = mock.create_autospec(DagCallbackRequest, instance=True)
         manager._callback_to_execute[file] = [callback]
         manager._bundle_parse_sources[file.bundle_name] = DagParseSource(bundle_version="v2")
+        manager._file_queue[file] = None
 
-        manager._create_process(file)
+        manager._start_new_processes()
 
         assert start.call_args.kwargs["parse_source"] == DagParseSource.for_callback("v1")
         assert start.call_args.kwargs["callbacks"] == [callback]
@@ -2759,6 +2786,31 @@ class TestDagFileProcessorManager:
             recovered_metric += ",bundle_name=first"
         client.gauge.assert_any_call(recovered_metric, 0, 1, False)
 
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+        autospec=True,
+        return_value={"testing": "team_alpha"},
+    )
+    @mock.patch("airflow.dag_processing.manager.stats.gauge", autospec=True)
+    def test_files_awaiting_source_gauge_tags_team_name_in_multi_team_mode(self, gauge, get_team_names):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = True
+        manager._files_awaiting_source = {DagFileInfo(bundle_name="testing", rel_path=Path("dag.py")): None}
+
+        manager._record_files_awaiting_source()
+        manager._files_awaiting_source = {}
+        manager._record_files_awaiting_source()
+
+        tags = {"bundle_name": "testing", "team_name": "team_alpha"}
+        assert [
+            call
+            for call in gauge.call_args_list
+            if call.args[0] == "dag_processing.files_awaiting_source_by_bundle"
+        ] == [
+            mock.call("dag_processing.files_awaiting_source_by_bundle", 1, tags=tags),
+            mock.call("dag_processing.files_awaiting_source_by_bundle", 0, tags=tags),
+        ]
+
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
     def test_refresh_does_not_requeue_completed_callbacks(self, persist):
         manager = DagFileProcessorManager(max_runs=1)
@@ -2834,15 +2886,21 @@ class TestDagFileProcessorManager:
         find_files.return_value = DagBundleDiscoveryResult(
             files={archive}, failed_sources=frozenset({"archive.zip"})
         )
+        failed_sources_seen = {}
+        deactivate.side_effect = lambda self, bundle_name, present: failed_sources_seen.setdefault(
+            "deactivate", self._bundle_failed_sources.get(bundle_name)
+        )
+        clear.side_effect = lambda self, bundle_name, observed_filelocs: failed_sources_seen.setdefault(
+            "clear", self._bundle_failed_sources.get(bundle_name)
+        )
 
         manager._refresh_dag_bundles({})
 
-        clear.assert_called_once_with(
-            manager,
-            bundle_name=bundle.name,
-            observed_filelocs={"archive.zip"},
-            failed_sources={"archive.zip"},
-        )
+        assert failed_sources_seen == {
+            "deactivate": frozenset({"archive.zip"}),
+            "clear": frozenset({"archive.zip"}),
+        }
+        clear.assert_called_once_with(manager, bundle_name=bundle.name, observed_filelocs={"archive.zip"})
 
     @pytest.mark.parametrize(
         "failure",
@@ -2850,7 +2908,7 @@ class TestDagFileProcessorManager:
         ids=["unspecified-source-state", "changed-source"],
     )
     @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
-    def test_failed_refresh_blocks_dispatch_until_the_source_recovers(self, create, failure):
+    def test_failed_refresh_blocks_dispatch_until_the_source_recovers(self, create, failure, caplog):
         manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=0)
         bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v1")
         bundle.refresh_interval = 300
@@ -2858,7 +2916,7 @@ class TestDagFileProcessorManager:
         manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_version="v1")
         file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"))
         manager._file_queue[file] = None
-        bundle.refresh.side_effect = [failure, None]
+        bundle.refresh.side_effect = [failure, failure, None]
         self._configure_mock_processes(create)
         state = BundleState(last_refreshed=timezone.utcnow(), version="v1")
 
@@ -2870,8 +2928,20 @@ class TestDagFileProcessorManager:
 
         self._refresh_with_mocked_state(manager, bundle, state)
         manager._start_new_processes()
+        create.assert_not_called()
+        paused = [
+            event
+            for event in caplog.entries
+            if event["event"] == "Parsing paused until bundle refresh succeeds"
+        ]
+        assert len(paused) == 1
+        assert paused[0]["bundle_name"] == bundle.name
+        assert paused[0]["log_level"] == "warning"
+
+        self._refresh_with_mocked_state(manager, bundle, state)
+        manager._start_new_processes()
         create.assert_called_once()
-        assert create.return_value.parse_source.refresh_generation == 2
+        assert create.return_value.parse_source.refresh_generation == 3
         assert not manager._file_queue
         assert not manager._files_awaiting_source
 
@@ -3039,6 +3109,138 @@ class TestDagFileProcessorManager:
         assert bundle.refresh.call_count == 3
         assert not manager._bundles_needing_refresh
         assert not manager._bundle_refresh_retry_at
+
+    @pytest.mark.parametrize("failure", ["listing", "state", "unchanged-version-state"])
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "clear_orphaned_import_errors", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "deactivate_deleted_dags", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "get_bundle_state", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_failure_after_refresh_waits_for_refresh_interval_without_draining(
+        self, monotonic, get_state, update_state, find_files, deactivate, clear, removed, failure
+    ):
+        manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=5)
+        bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
+        bundle.refresh_interval = 300
+        manager._dag_bundles = [bundle]
+        cached_version = "v2" if failure == "unchanged-version-state" else "v1"
+        manager._bundle_versions[bundle.name] = cached_version
+        manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_version=cached_version)
+        get_state.return_value = BundleState(last_refreshed=None, version=cached_version)
+        active = DagFileInfo(bundle_name=bundle.name, rel_path=Path("active.py"))
+        known_files = {bundle.name: {active}}
+        find_files.return_value = DagBundleDiscoveryResult(files={active}, failed_sources=frozenset())
+        if failure == "listing":
+            find_files.side_effect = RuntimeError("Detected recursive loop")
+        else:
+            update_state.side_effect = OSError("Database unavailable")
+        monotonic.return_value = 30
+
+        manager._refresh_dag_bundles(known_files)
+        assert bundle.refresh.call_count == 1
+
+        manager._processors[active] = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        monotonic.return_value = 40
+        manager._refresh_dag_bundles(known_files)
+
+        assert bundle.refresh.call_count == 1
+        assert not manager._bundles_waiting_for_refresh
+
+        monotonic.return_value = 330
+        manager._refresh_dag_bundles(known_files)
+
+        assert bundle.refresh.call_count == 1
+        assert manager._bundles_waiting_for_refresh == {bundle.name}
+
+    @pytest.mark.parametrize(
+        ("refresh_changes_source", "listed_before"),
+        [(True, False), (False, True)],
+        ids=["nothing-listed-yet", "read-only-bundle"],
+    )
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "clear_orphaned_import_errors", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "deactivate_deleted_dags", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "get_bundle_state", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_failed_listing_without_a_drain_retries_at_the_next_check(
+        self,
+        monotonic,
+        get_state,
+        update_state,
+        find_files,
+        deactivate,
+        clear,
+        removed,
+        refresh_changes_source,
+        listed_before,
+        tmp_path,
+    ):
+        manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=5)
+        bundle = self._make_refresh_bundle()
+        bundle.refresh_changes_source = refresh_changes_source
+        bundle.refresh_interval = 300
+        bundle.path = tmp_path
+        (tmp_path / "dag.py").touch()
+        manager._dag_bundles = [bundle]
+        file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=tmp_path)
+        known_files = {bundle.name: {file}} if listed_before else {}
+        get_state.return_value = BundleState(last_refreshed=None, version=None)
+        find_files.side_effect = [
+            OSError("Listing failed"),
+            DagBundleDiscoveryResult(files={file}, failed_sources=frozenset()),
+        ]
+        monotonic.return_value = 30
+
+        manager._refresh_dag_bundles(known_files)
+        monotonic.return_value = 35
+        manager._refresh_dag_bundles(known_files)
+
+        assert find_files.call_count == 2
+        assert known_files == {bundle.name: {file}}
+        assert not manager._bundle_refresh_retry_at
+
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_refresh_ignores_skip_override_until_the_bundle_has_a_parse_source(self):
+        class AlwaysSkipRefreshManager(DagFileProcessorManager):
+            def should_skip_refresh(
+                self,
+                *,
+                bundle: BaseDagBundle,
+                elapsed_time_since_refresh: float,
+                current_version_matches_db: bool,
+                previously_seen: bool,
+            ) -> bool:
+                return True
+
+        manager = AlwaysSkipRefreshManager(max_runs=1)
+        bundle = self._make_refresh_bundle()
+
+        self._refresh_with_mocked_state(
+            manager, bundle, BundleState(last_refreshed=DEFAULT_DATE, version=None)
+        )
+
+        bundle.refresh.assert_called_once()
+        assert manager._bundle_parse_sources[bundle.name] == DagParseSource(refresh_generation=1)
+
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_start_new_processes_drops_a_regular_duplicate_of_a_running_file(self, create):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("dag.py"))
+        manager._bundle_parse_sources["testing"] = DagParseSource()
+        manager._processors[file] = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        manager._file_queue[file] = None
+
+        manager._start_new_processes()
+
+        create.assert_not_called()
+        assert not manager._file_queue
+        assert not manager._files_awaiting_source
 
     @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
     @time_machine.travel(DEFAULT_DATE, tick=False)
@@ -3712,9 +3914,7 @@ class TestDagFileProcessorManager:
         manager._bundle_failed_sources["testing"] = frozenset({failed_source})
 
         manager.deactivate_deleted_dags("testing", {file})
-        manager.clear_orphaned_import_errors(
-            "testing", {"archive.zip"}, failed_sources=frozenset({failed_source}), session=session
-        )
+        manager.clear_orphaned_import_errors("testing", {"archive.zip"}, session=session)
         session.flush()
         session.expire_all()
 
@@ -5152,8 +5352,7 @@ class TestDagFileProcessorManager:
         # Mock the process creation
         mock_process_start.return_value = self.mock_processor()[0]
 
-        # Call _create_process (only takes one parameter: dag_file)
-        manager._create_process(file_info)
+        manager._create_process(file_info, source=DagParseSource())
 
         # Verify DagFileProcessorProcess.start was called with correct bundle_name
         mock_process_start.assert_called_once()
