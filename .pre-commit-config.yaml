@@ -364,17 +364,22 @@ repos:
         additional_dependencies: ['rich>=13.6.0']
         pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
-        name: Sync Java SDK supervisor schema with configured version
+        name: Sync Java SDK supervisor schema with the distribution that owns it
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
-        description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
+        description: "Copy task-sdk's supervisor schema when Java SDK's vendored schema.json drifts"
         entry: ./scripts/ci/prek/sync_java_sdk_supervisor_schema.py
         language: python
         pass_filenames: false
+        # Triggered by the Python source too, the way sync-go-sdk-schemas is: the hook used
+        # to watch only the Java side and the declared version, so a schema change that left
+        # api_version alone never reached the vendored copy and it went stale unnoticed.
         files: >
           (?x)
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^java-sdk/gradle\.properties$|
-          ^java-sdk/sdk/schema/schema\.json$
+          ^java-sdk/sdk/schema/schema\.json$|
+          ^scripts/ci/prek/sync_java_sdk_supervisor_schema\.py$
       - id: regenerate-java-sdk-verification-metadata
         name: Regenerate the Java SDK dependency verification metadata
         env:
