@@ -56,6 +56,7 @@ from airflow_breeze.commands.common_options import (
     option_commit_sha,
     option_debug_resources,
     option_dry_run,
+    option_fail_on_pending_provider_candidates,
     option_github_repository,
     option_github_token,
     option_include_not_ready_providers,
@@ -1590,6 +1591,7 @@ def tag_providers(
 @option_python_versions
 @option_airflow_constraints_mode_ci
 @option_allow_pre_releases
+@option_fail_on_pending_provider_candidates
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1599,6 +1601,7 @@ def generate_constraints(
     airflow_constraints_mode: str,
     allow_pre_releases: bool,
     debug_resources: bool,
+    fail_on_pending_provider_candidates: bool,
     github_repository: str,
     parallelism: int,
     python: str,
@@ -1643,6 +1646,7 @@ def generate_constraints(
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
                 allow_pre_releases=allow_pre_releases,
+                fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1662,6 +1666,7 @@ def generate_constraints(
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
             allow_pre_releases=allow_pre_releases,
+            fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
