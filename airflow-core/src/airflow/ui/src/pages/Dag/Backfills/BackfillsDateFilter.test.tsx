@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dags/tutorial_taskflow_api/backfills"]));
 
 // The backfills mock handler (see src/mocks/handlers/backfills.ts) returns:
 //   - id 1 (start_date: 2024-12-01, end_date: 2024-12-31) — excluded when filtering Jan 2025

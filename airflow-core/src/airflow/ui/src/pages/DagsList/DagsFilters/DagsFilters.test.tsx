@@ -18,11 +18,13 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeAll, describe, it, expect, vi } from "vitest";
 
 import { dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dags"]));
 
 const mockConfig: Record<string, unknown> = {
   auto_refresh_interval: 3,
@@ -51,7 +53,7 @@ const addFilter = async (key: string) => {
 };
 
 const selectPillOption = async (key: string, value: string) => {
-  fireEvent.click(screen.getByTestId(`${key}-pill`));
+  fireEvent.click(await screen.findByTestId(`${key}-pill`));
   fireEvent.click(await screen.findByTestId(`${key}-filter`));
   fireEvent.click(await screen.findByTestId(`${key}-filter-${value}`));
 };
@@ -64,16 +66,20 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("defaults to showing only active dags", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
-    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
   });
 
   it("keeps draining dags under the default, since they are not paused yet", async () => {
     withDrainingDag();
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("draining_dag")).toBeInTheDocument());
-    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("draining_dag")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
   });
 
   it("shows the default as a pill rather than filtering invisibly", async () => {
@@ -112,8 +118,10 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
-    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
     fireEvent.click(screen.getByTestId("paused-pill-remove"));

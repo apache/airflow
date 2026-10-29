@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ComponentType } from "react";
+
 import { queryOptions } from "@tanstack/react-query";
 import { createBrowserRouter } from "react-router-dom";
 
@@ -23,80 +25,139 @@ import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 
 import { BaseLayout } from "src/layouts/BaseLayout";
-import { DagsLayout } from "src/layouts/DagsLayout";
 
-import { Asset } from "src/pages/Asset";
-import { AssetEvents } from "src/pages/Asset/AssetEvents";
-import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
-import { AssetsList } from "src/pages/AssetsList";
-import { Configs } from "src/pages/Configs";
-import { Connections } from "src/pages/Connections";
-import { Dag } from "src/pages/Dag";
-import { Backfills } from "src/pages/Dag/Backfills";
-import { Calendar } from "src/pages/Dag/Calendar/Calendar";
-import { Code } from "src/pages/Dag/Code";
-import { Details as DagDetails } from "src/pages/Dag/Details";
-import { Overview } from "src/pages/Dag/Overview";
-import { Tasks } from "src/pages/Dag/Tasks";
-import { Versions } from "src/pages/Dag/Versions";
-import { DagBundle } from "src/pages/DagBundle";
-import { DagBundles } from "src/pages/DagBundles";
-import { DagRuns } from "src/pages/DagRuns";
-import { DagsList } from "src/pages/DagsList";
-import { Dashboard } from "src/pages/Dashboard";
-import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
-import { Events } from "src/pages/Events";
-import { ExternalView } from "src/pages/ExternalView";
-import { GroupTaskInstance, GroupTaskInstances } from "src/pages/GroupTaskInstance";
-import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
-import { Jobs } from "src/pages/Jobs";
-import { LandingPage } from "src/pages/LandingPage";
-import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
-import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
-import { Plugins } from "src/pages/Plugins";
-import { Pools } from "src/pages/Pools";
-import { Providers } from "src/pages/Providers";
-import { Run } from "src/pages/Run";
-import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
-import { Callbacks as DagRunCallbacks } from "src/pages/Run/Callbacks";
-import { Details as DagRunDetails } from "src/pages/Run/Details";
-import { Security } from "src/pages/Security";
-import { Settings } from "src/pages/Settings";
-import { Task } from "src/pages/Task";
-import { Overview as TaskOverview } from "src/pages/Task/Overview";
-import { TaskInstance, Logs } from "src/pages/TaskInstance";
-import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
-import { DefaultTab as TaskInstanceDefaultTab } from "src/pages/TaskInstance/DefaultTab";
-import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
-import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
-import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
-import { TaskInstances } from "src/pages/TaskInstances";
-import { TaskStateStore } from "src/pages/TaskStateStore";
-import { Variables } from "src/pages/Variables";
-import { XCom } from "src/pages/XCom";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+import { loadRouteModule } from "src/utils/routeModule";
 
 import { client } from "./queryClient";
 
+const lazyRoute =
+  <Module,>(factory: () => Promise<Module>, name: keyof Module) =>
+  async () => {
+    const module = await loadRouteModule(factory);
+
+    return { Component: module[name] as ComponentType };
+  };
+
+const loadAsset = lazyRoute(() => import("src/pages/Asset"), "Asset");
+const loadAssetEvents = lazyRoute(() => import("src/pages/Asset/AssetEvents"), "AssetEvents");
+const loadAssetStateStore = lazyRoute(() => import("src/pages/Asset/AssetStateStore"), "AssetStateStore");
+const loadAssetsList = lazyRoute(() => import("src/pages/AssetsList"), "AssetsList");
+const loadConfigs = lazyRoute(() => import("src/pages/Configs"), "Configs");
+const loadConnections = lazyRoute(() => import("src/pages/Connections"), "Connections");
+const loadDag = lazyRoute(() => import("src/pages/Dag"), "Dag");
+const loadBackfills = lazyRoute(() => import("src/pages/Dag/Backfills"), "Backfills");
+const loadCalendar = lazyRoute(() => import("src/pages/Dag/Calendar/Calendar"), "Calendar");
+const loadCode = lazyRoute(() => import("src/pages/Dag/Code"), "Code");
+const loadDagDetails = lazyRoute(() => import("src/pages/Dag/Details"), "Details");
+const loadOverview = lazyRoute(() => import("src/pages/Dag/Overview"), "Overview");
+const loadTasks = lazyRoute(() => import("src/pages/Dag/Tasks"), "Tasks");
+const loadVersions = lazyRoute(() => import("src/pages/Dag/Versions"), "Versions");
+const loadDagBundle = lazyRoute(() => import("src/pages/DagBundle"), "DagBundle");
+const loadDagBundles = lazyRoute(() => import("src/pages/DagBundles"), "DagBundles");
+const loadDagRuns = lazyRoute(() => import("src/pages/DagRuns"), "DagRuns");
+const loadDagsList = lazyRoute(() => import("src/pages/DagsList"), "DagsList");
+const loadDashboard = lazyRoute(() => import("src/pages/Dashboard"), "Dashboard");
+const loadDeadlines = lazyRoute(() => import("src/pages/Deadlines"), "Deadlines");
+const loadEvents = lazyRoute(() => import("src/pages/Events"), "Events");
+const loadExternalView = lazyRoute(() => import("src/pages/ExternalView"), "ExternalView");
+const loadGroupTaskInstance = lazyRoute(() => import("src/pages/GroupTaskInstance"), "GroupTaskInstance");
+const loadGroupTaskInstances = lazyRoute(() => import("src/pages/GroupTaskInstance"), "GroupTaskInstances");
+const loadHITLTaskInstances = lazyRoute(() => import("src/pages/HITLTaskInstances"), "HITLTaskInstances");
+const loadJobs = lazyRoute(() => import("src/pages/Jobs"), "Jobs");
+const loadLandingPage = lazyRoute(() => import("src/pages/LandingPage"), "LandingPage");
+const loadMappedTaskInstance = lazyRoute(() => import("src/pages/MappedTaskInstance"), "MappedTaskInstance");
+const loadMappedTaskInstanceDetails = lazyRoute(
+  () => import("src/pages/MappedTaskInstance/Details"),
+  "Details",
+);
+const loadPlugins = lazyRoute(() => import("src/pages/Plugins"), "Plugins");
+const loadPools = lazyRoute(() => import("src/pages/Pools"), "Pools");
+const loadProviders = lazyRoute(() => import("src/pages/Providers"), "Providers");
+const loadRun = lazyRoute(() => import("src/pages/Run"), "Run");
+const loadDagRunAssetEvents = lazyRoute(() => import("src/pages/Run/AssetEvents"), "AssetEvents");
+const loadDagRunCallbacks = lazyRoute(() => import("src/pages/Run/Callbacks"), "Callbacks");
+const loadDagRunDetails = lazyRoute(() => import("src/pages/Run/Details"), "Details");
+const loadSecurity = lazyRoute(() => import("src/pages/Security"), "Security");
+const loadSettings = lazyRoute(() => import("src/pages/Settings"), "Settings");
+const loadTask = lazyRoute(() => import("src/pages/Task"), "Task");
+const loadTaskOverview = lazyRoute(() => import("src/pages/Task/Overview"), "Overview");
+const loadTaskInstance = lazyRoute(() => import("src/pages/TaskInstance"), "TaskInstance");
+const loadLogs = lazyRoute(() => import("src/pages/TaskInstance"), "Logs");
+const loadTaskInstanceAssetEvents = lazyRoute(
+  () => import("src/pages/TaskInstance/AssetEvents"),
+  "AssetEvents",
+);
+const loadTaskInstanceDefaultTab = lazyRoute(() => import("src/pages/TaskInstance/DefaultTab"), "DefaultTab");
+const loadTaskInstanceDetails = lazyRoute(() => import("src/pages/TaskInstance/Details"), "Details");
+const loadHITLResponse = lazyRoute(() => import("src/pages/TaskInstance/HITLResponse"), "HITLResponse");
+const loadRenderedTemplates = lazyRoute(
+  () => import("src/pages/TaskInstance/RenderedTemplates"),
+  "RenderedTemplates",
+);
+const loadTaskInstances = lazyRoute(() => import("src/pages/TaskInstances"), "TaskInstances");
+const loadTaskStateStore = lazyRoute(() => import("src/pages/TaskStateStore"), "TaskStateStore");
+const loadVariables = lazyRoute(() => import("src/pages/Variables"), "Variables");
+const loadXCom = lazyRoute(() => import("src/pages/XCom"), "XCom");
+
+const loadDagRunsWithLayout = () =>
+  loadRouteModule(async () => {
+    const [{ DagsLayout }, { DagRuns: DagRunsPage }] = await Promise.all([
+      import("src/layouts/DagsLayout"),
+      import("src/pages/DagRuns"),
+    ]);
+
+    return {
+      element: (
+        <DagsLayout>
+          <DagRunsPage />
+        </DagsLayout>
+      ),
+    };
+  });
+
+const loadTaskInstancesWithLayout = () =>
+  loadRouteModule(async () => {
+    const [{ DagsLayout }, { TaskInstances: TaskInstancesPage }] = await Promise.all([
+      import("src/layouts/DagsLayout"),
+      import("src/pages/TaskInstances"),
+    ]);
+
+    return {
+      element: (
+        <DagsLayout>
+          <TaskInstancesPage />
+        </DagsLayout>
+      ),
+    };
+  });
+
+const loadHITLTaskInstancesWithDrawer = () =>
+  loadRouteModule(async () => {
+    const { HITLTaskInstances: HITLTaskInstancesPage } = await import("src/pages/HITLTaskInstances");
+
+    return { element: <HITLTaskInstancesPage enableHITLReviewDrawer /> };
+  });
+
 const pluginRoute = {
-  element: <ExternalView />,
+  lazy: loadExternalView,
   path: "plugin/:page/*",
 };
 
 export const taskInstanceRoutes = [
-  { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
-  { element: <Logs />, path: TaskInstanceTab.Logs },
-  { element: <Events />, path: TaskInstanceTab.Events },
-  { element: <XCom />, path: TaskInstanceTab.XCom },
-  { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
-  { element: <Code />, path: TaskInstanceTab.Code },
-  { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
-  { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
-  { element: <TaskInstances />, path: TaskInstanceTab.TaskInstances },
-  { element: <TaskInstanceAssetEvents />, path: TaskInstanceTab.AssetEvents },
-  { element: <HITLResponse />, path: TaskInstanceTab.RequiredActions },
+  { index: true, lazy: loadTaskInstanceDefaultTab, path: undefined },
+  { lazy: loadLogs, path: TaskInstanceTab.Logs },
+  { lazy: loadEvents, path: TaskInstanceTab.Events },
+  { lazy: loadXCom, path: TaskInstanceTab.XCom },
+  { lazy: loadTaskStateStore, path: TaskInstanceTab.TaskStateStore },
+  { lazy: loadCode, path: TaskInstanceTab.Code },
+  { lazy: loadTaskInstanceDetails, path: TaskInstanceTab.Details },
+  { lazy: loadRenderedTemplates, path: TaskInstanceTab.RenderedTemplates },
+  { lazy: loadTaskInstances, path: TaskInstanceTab.TaskInstances },
+  { lazy: loadTaskInstanceAssetEvents, path: TaskInstanceTab.AssetEvents },
+  { lazy: loadHITLResponse, path: TaskInstanceTab.RequiredActions },
   pluginRoute,
 ];
 
@@ -104,201 +165,193 @@ export const routerConfig = [
   {
     children: [
       {
-        element: <LandingPage />,
         index: true,
+        lazy: loadLandingPage,
       },
       {
-        element: <Dashboard />,
+        lazy: loadDashboard,
         path: "home",
       },
       {
-        element: <HITLTaskInstances enableHITLReviewDrawer />,
+        lazy: loadHITLTaskInstancesWithDrawer,
         path: "required_actions",
       },
       {
-        element: <DagsList />,
+        lazy: loadDagsList,
         path: "dags",
       },
       {
-        element: (
-          <DagsLayout>
-            <DagRuns />
-          </DagsLayout>
-        ),
+        lazy: loadDagRunsWithLayout,
         path: "dag_runs",
       },
       {
-        element: (
-          <DagsLayout>
-            <TaskInstances />
-          </DagsLayout>
-        ),
+        lazy: loadTaskInstancesWithLayout,
         path: "task_instances",
       },
       {
-        element: <AssetsList />,
+        lazy: loadAssetsList,
         path: "assets",
       },
       {
-        element: <Configs />,
+        lazy: loadConfigs,
         path: "configs",
       },
       {
-        element: <Settings />,
+        lazy: loadSettings,
         path: "settings",
       },
       {
         children: [
-          { element: <AssetEvents />, index: true },
-          { element: <AssetStateStore />, path: "asset-state-store" },
+          { index: true, lazy: loadAssetEvents },
+          { lazy: loadAssetStateStore, path: "asset-state-store" },
           pluginRoute,
         ],
-        element: <Asset />,
+        lazy: loadAsset,
         path: "assets/:assetId",
       },
       {
-        element: <DagBundles />,
+        lazy: loadDagBundles,
         path: "dag_bundles",
       },
       {
-        element: <DagBundle />,
+        lazy: loadDagBundle,
         path: "dag_bundles/:bundleName",
       },
       {
-        element: <Deadlines />,
+        lazy: loadDeadlines,
         path: "deadlines",
       },
       {
-        element: <Events />,
+        lazy: loadEvents,
         path: "events",
       },
       {
-        element: <XCom />,
+        lazy: loadXCom,
         path: "xcoms",
       },
       {
-        element: <Variables />,
+        lazy: loadVariables,
         path: "variables",
       },
       {
-        element: <Pools />,
+        lazy: loadPools,
         path: "pools",
       },
       {
-        element: <Providers />,
+        lazy: loadProviders,
         path: "providers",
       },
       {
-        element: <Plugins />,
+        lazy: loadPlugins,
         path: "plugins",
       },
       {
-        element: <Security />,
+        lazy: loadSecurity,
         path: "security/:page/*",
       },
       {
-        element: <Connections />,
+        lazy: loadConnections,
         path: "connections",
       },
       {
-        element: <Jobs />,
+        lazy: loadJobs,
         path: "jobs",
       },
       pluginRoute,
       {
         children: [
-          { element: <Overview />, handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true },
-          { element: <DagRuns />, handle: { entity: TabEntity.Dag, tab: TabName.Runs }, path: "runs" },
-          { element: <Tasks />, handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, path: "tasks" },
+          { handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true, lazy: loadOverview },
+          { handle: { entity: TabEntity.Dag, tab: TabName.Runs }, lazy: loadDagRuns, path: "runs" },
+          { handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, lazy: loadTasks, path: "tasks" },
           {
-            element: <Calendar />,
             handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
+            lazy: loadCalendar,
             path: "calendar",
           },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the overview, where the route sync opens the modal.
-          { element: <Overview />, path: "required_actions" },
+          { lazy: loadOverview, path: "required_actions" },
           {
-            element: <Backfills />,
             handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
+            lazy: loadBackfills,
             path: "backfills",
           },
-          { element: <Backfills />, path: "backfills/:backfillId" },
-          { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
-          { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
+          { lazy: loadBackfills, path: "backfills/:backfillId" },
+          { handle: { entity: TabEntity.Dag, tab: TabName.Events }, lazy: loadEvents, path: "events" },
+          { handle: { entity: TabEntity.Dag, tab: TabName.Code }, lazy: loadCode, path: "code" },
           {
-            element: <Versions />,
             handle: { entity: TabEntity.Dag, tab: TabName.Versions },
+            lazy: loadVersions,
             path: "versions",
           },
           {
-            element: <DagDetails />,
             handle: { entity: TabEntity.Dag, tab: TabName.Details },
+            lazy: loadDagDetails,
             path: "details",
           },
           pluginRoute,
         ],
-        element: <Dag />,
+        lazy: loadDag,
         path: "dags/:dagId",
       },
       {
         children: [
-          { element: <TaskInstances />, index: true },
+          { index: true, lazy: loadTaskInstances },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the task instances, where the route sync opens the modal.
-          { element: <TaskInstances />, path: "required_actions" },
-          { element: <Events />, path: "events" },
-          { element: <Code />, path: "code" },
-          { element: <DagRunDetails />, path: "details" },
-          { element: <DagRunAssetEvents />, path: "asset_events" },
-          { element: <DagRunCallbacks />, path: "callbacks" },
+          { lazy: loadTaskInstances, path: "required_actions" },
+          { lazy: loadEvents, path: "events" },
+          { lazy: loadCode, path: "code" },
+          { lazy: loadDagRunDetails, path: "details" },
+          { lazy: loadDagRunAssetEvents, path: "asset_events" },
+          { lazy: loadDagRunCallbacks, path: "callbacks" },
           pluginRoute,
         ],
-        element: <Run />,
+        lazy: loadRun,
         path: "dags/:dagId/runs/:runId",
       },
       {
         children: taskInstanceRoutes,
-        element: <TaskInstance />,
+        lazy: loadTaskInstance,
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
       },
       {
         children: [
-          { element: <TaskInstances />, index: true },
-          { element: <MappedTaskInstanceDetails />, path: "details" },
+          { index: true, lazy: loadTaskInstances },
+          { lazy: loadMappedTaskInstanceDetails, path: "details" },
         ],
-        element: <MappedTaskInstance />,
+        lazy: loadMappedTaskInstance,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <GroupTaskInstances />, index: true }],
-        element: <GroupTaskInstance />,
+        children: [{ index: true, lazy: loadGroupTaskInstances }],
+        lazy: loadGroupTaskInstance,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },
       {
         children: [
-          { element: <TaskOverview />, index: true },
-          { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
+          { index: true, lazy: loadTaskOverview },
+          { lazy: loadTaskInstances, path: "task_instances" },
+          { lazy: loadHITLTaskInstances, path: "required_actions" },
           pluginRoute,
         ],
-        element: <Task />,
+        lazy: loadTask,
         path: "dags/:dagId/tasks/group/:groupId",
       },
       {
         children: taskInstanceRoutes,
-        element: <TaskInstance />,
+        lazy: loadTaskInstance,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
       },
       {
         children: [
-          { element: <TaskOverview />, index: true },
-          { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
-          { element: <Events />, path: "events" },
+          { index: true, lazy: loadTaskOverview },
+          { lazy: loadTaskInstances, path: "task_instances" },
+          { lazy: loadHITLTaskInstances, path: "required_actions" },
+          { lazy: loadEvents, path: "events" },
           pluginRoute,
         ],
-        element: <Task />,
+        lazy: loadTask,
         path: "dags/:dagId/tasks/:taskId",
       },
       {
