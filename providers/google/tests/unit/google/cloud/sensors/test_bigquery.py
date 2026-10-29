@@ -37,6 +37,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTablePartitionExistenceTrigger,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 TEST_PROJECT_ID = "test_project"
 TEST_DATASET_ID = "test_dataset"
 TEST_TABLE_ID = "test_table"
@@ -423,6 +425,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert sensor.poke(mock.MagicMock()) is False  # empty again, count restarts at 1
         assert sensor.poke(mock.MagicMock()) is True  # 2nd consecutive empty
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="get_first_reschedule_date is Airflow 3 only")
     @pytest.mark.parametrize(
         ("elapsed", "expected_timeout"),
         [
@@ -471,6 +474,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert exc.value.timeout == timedelta(seconds=100)
         ti.get_first_reschedule_date.assert_not_called()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="get_first_reschedule_date is Airflow 3 only")
     @mock.patch(
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor.defer",
         autospec=True,

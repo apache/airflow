@@ -346,7 +346,8 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         ``empty_confirmations``), but this may delay success by up to one
         ``poke_interval`` compared to earlier releases. ``mode="reschedule"`` with
         ``empty_confirmations > 1`` needs a running triggerer once an empty reading is seen;
-        ``empty_confirmations=1`` keeps the worker-only behaviour.
+        ``empty_confirmations=1`` keeps the worker-only behaviour. On Airflow 2.x the deferred
+        phase gets the full ``timeout``, so the total wait can exceed it.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -463,7 +464,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             return True
         if self.reschedule and not self.deferrable:
             # A reschedule rebuilds the operator and Airflow 3 clears XComs on each run start, so the
-            # confirmation count cannot survive it; the trigger counts the remaining confirmations instead.
+            # confirmation count cannot survive it; the trigger repeats the full confirmation count instead.
             elapsed = 0.0
             # shortcut: Airflow 2.x has no get_first_reschedule_date, so the trigger gets the full timeout.
             if AIRFLOW_V_3_0_PLUS:
