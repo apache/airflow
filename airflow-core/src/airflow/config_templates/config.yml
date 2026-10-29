@@ -398,8 +398,7 @@ core:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
         be passed into timedelta as seconds. If not specified, then the value is considered as None,
-        meaning that the operators are never timed out by default. Python tasks read it on the worker
-        and tasks run by a language SDK read it on the Dag processor, so set the same value on both.
+        meaning that the operators are never timed out by default.
       version_added: 2.3.0
       type: integer
       example: ~
