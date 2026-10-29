@@ -365,7 +365,7 @@ class TestS3DagBundle:
 
         # the bundle staged by the previous refresh is left untouched
         assert (bundle.path / "dag_01.py").is_file()
-        assert not list(bundle.path.parent.glob(".s3-archive-*"))
+        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
 
     def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
@@ -399,4 +399,22 @@ class TestS3DagBundle:
         # the previous bundle was moved back into place, and neither the backup nor the
         # staging directory was left behind
         assert (bundle.path / "dag_01.py").read_text() == "old"
-        assert not list(bundle.path.parent.glob(".s3-archive-*"))
+        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))
+
+    def test_refresh_removes_only_this_bundles_stale_staging_dir(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        storage_root = bundle.path.parent
+        stale = storage_root / f".{bundle.name}-archive-staging-dead"
+        stale.mkdir()
+        (stale / "orphan.txt").write_text("left by a killed process")
+        other = storage_root / ".other-bundle-archive-staging-dead"
+        other.mkdir()
+
+        bundle.refresh()
+
+        assert not stale.exists()
+        assert other.is_dir()
