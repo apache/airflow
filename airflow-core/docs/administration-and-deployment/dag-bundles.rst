@@ -262,9 +262,17 @@ Some caveats:
   If the refresh may have changed files, parsing pauses until a refresh succeeds. The processor
   logs the affected bundle and reports the total number of deferred files through
   ``dag_processing.files_awaiting_source``. On metrics backends that support tags,
-  ``dag_processing.files_awaiting_source_by_bundle`` provides counts tagged with ``bundle_name``.
+  ``dag_processing.files_awaiting_source_by_bundle`` provides counts tagged with ``bundle_name``, and
+  with ``team_name`` in multi-team mode.
   A provider that reports an unchanged source after failure lets ordinary parsing continue against
-  the previous source while refresh retries continue. Explicit reparse requests wait for a successful refresh.
+  the previous source while refresh retries continue. Currently only ``GitDagBundle`` reports this,
+  for credential and fetch failures, in git provider releases that support it; the S3, GCS and
+  Azure Blob Storage bundles pause on any refresh failure. Explicit reparse requests wait for a
+  successful refresh. A Dag processor started with ``--num-runs`` does not exit while files wait for
+  a paused bundle, so it finishes only after that bundle refreshes successfully.
+  If listing the bundle's Dag files or recording the refresh fails after a successful refresh, the
+  processor keeps parsing the files it listed before, from the refreshed source, and retries the
+  refresh no later than the bundle's :ref:`config:dag_processor__refresh_interval`.
 * A new version does not mean the new Dags are running, because bundles are refreshed before their
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
@@ -442,7 +450,7 @@ The following methods are abstract and must be implemented in your custom bundle
     When the installed Airflow core exposes
     ``airflow.dag_processing.bundles.base.DagBundleRefreshError``, a provider can raise it with
     ``source_unchanged=True`` when it guarantees that the previous source remains intact and usable.
-    The processor can then continue ordinary parsing of that source. Automatic refresh retries wait for the bundle's
+    The processor can then continue ordinary parsing of that source. In that case, automatic refresh retries wait for the bundle's
     :ref:`config:dag_processor__refresh_interval` after each failed attempt, with eligibility checked
     every :ref:`config:dag_processor__bundle_refresh_check_interval`.
     A pending explicit reparse request still waits for a successful refresh and follows this retry

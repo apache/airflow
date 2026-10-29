@@ -269,7 +269,7 @@ class DagFileProcessorManager(LoggingMixin):
     _bundles_waiting_for_refresh: set[str] = attrs.field(factory=set, init=False)
     _bundles_needing_refresh: set[str] = attrs.field(factory=set, init=False)
     _bundle_refresh_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
-    """Monotonic retry deadlines for failed refreshes that retained a usable source."""
+    """Monotonic retry deadlines for bundles whose failed refresh or listing left a usable source."""
     _bundle_failed_sources: dict[str, frozenset[str]] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
@@ -899,6 +899,14 @@ class DagFileProcessorManager(LoggingMixin):
         self._bundle_refresh_generations[bundle_name] += 1
         self._bundle_parse_sources.pop(bundle_name, None)
 
+    def _delay_draining_refresh_retry(
+        self, bundle: BaseDagBundle, listed_files: Collection[DagFileInfo]
+    ) -> None:
+        # Retrying at every check would drain the bundle's active parses each time. Without listed
+        # files nothing is parsed, so a failed first listing is still retried at the next check.
+        if bundle.refresh_changes_source and listed_files:
+            self._bundle_refresh_retry_at[bundle.name] = time.monotonic() + bundle.refresh_interval
+
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
@@ -1042,6 +1050,7 @@ class DagFileProcessorManager(LoggingMixin):
                         self.update_bundle_state(bundle.name, last_refreshed=now, version=None)
                     except Exception:
                         self.log.exception("Error persisting state for bundle %s", bundle.name)
+                        self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
 
                 self.log.info("Version changed for %s, new version: %s", bundle.name, version_after_refresh)
@@ -1051,6 +1060,7 @@ class DagFileProcessorManager(LoggingMixin):
                 # Keep the bundle's known files and Dags, and leave its version unadvanced so the
                 # next refresh lists it again.
                 self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                 continue
 
             # Persistence failure must not skip file scanning (bundle is already refreshed locally).
@@ -1059,6 +1069,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.update_bundle_state(bundle.name, last_refreshed=now, version=version_after_refresh)
             except Exception:
                 self.log.exception("Error persisting state for bundle %s", bundle.name)
+                self._delay_draining_refresh_retry(bundle, discovery.files)
             else:
                 self._bundle_versions[bundle.name] = version_after_refresh
 
@@ -1066,11 +1077,11 @@ class DagFileProcessorManager(LoggingMixin):
             self._bundle_failed_sources[bundle.name] = discovery.failed_sources
             known_files[bundle.name] = found_files
 
+            # Subclass overrides may keep the original signatures, so failed sources go through instance state.
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
                 observed_filelocs=self._get_observed_filelocs(found_files),
-                failed_sources=discovery.failed_sources,
             )
 
         if any_refreshed:
@@ -1183,19 +1194,16 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def clear_orphaned_import_errors(
-        self,
-        bundle_name: str,
-        observed_filelocs: set[str],
-        *,
-        failed_sources: Collection[str] = (),
-        session: Session = NEW_SESSION,
+        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
     ):
         """
         Clear import errors for files that no longer exist.
 
-        :param failed_sources: bundle-relative sources whose discovery failed, preserving descendant errors
+        Errors under a source whose discovery failed in the bundle's latest listing are kept.
+
         :param session: session for ORM operations
         """
+        failed_sources = self._bundle_failed_sources.get(bundle_name, frozenset())
         self.log.debug("Removing old import errors")
         try:
             errors = session.scalars(
@@ -1603,12 +1611,10 @@ class DagFileProcessorManager(LoggingMixin):
         return client
 
     def _create_process(
-        self, dag_file: DagFileInfo, *, source: DagParseSource | None = None
+        self, dag_file: DagFileInfo, *, source: DagParseSource
     ) -> BaseDagFileProcessorProcess:
         id = uuid7()
 
-        if source is None:
-            source = self._get_dispatch_source(dag_file) or DagParseSource()
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
@@ -1723,11 +1729,18 @@ class DagFileProcessorManager(LoggingMixin):
     def _record_files_awaiting_source(self) -> None:
         stats.gauge("dag_processing.files_awaiting_source", len(self._files_awaiting_source))
         counts = Counter(file.bundle_name for file in self._files_awaiting_source)
-        for bundle_name in counts.keys() | self._reported_waiting_bundles:
+        bundle_names = counts.keys() | self._reported_waiting_bundles
+        bundle_to_team = self._get_team_names(bundle_names)
+        for bundle_name in bundle_names:
             stats.gauge(
                 "dag_processing.files_awaiting_source_by_bundle",
                 counts[bundle_name],
-                tags={"bundle_name": normalize_name_for_stats(bundle_name)},
+                tags=prune_dict(
+                    {
+                        "bundle_name": normalize_name_for_stats(bundle_name),
+                        "team_name": bundle_to_team.get(bundle_name),
+                    }
+                ),
             )
         self._reported_waiting_bundles = set(counts)
 

@@ -588,7 +588,8 @@ metrics:
 
   - name: "dag_processing.files_awaiting_source_by_bundle"
     description: "Number of Dag files deferred in each bundle until a refresh completes
-    or a usable source becomes available. Requires a metrics backend that supports bundle_name tagging."
+    or a usable source becomes available. Metric with bundle_name tagging, and team_name tagging
+    in multi-team mode. Requires a metrics backend that supports tagging."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
