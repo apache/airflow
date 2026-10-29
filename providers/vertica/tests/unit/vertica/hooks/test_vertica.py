@@ -324,3 +324,34 @@ class TestVerticaHookResultSetDrain:
         self.db_hook.run("SELECT 1; SELECT 2;", split_statements=True)
         assert self.cur.execute.call_count == 2
         assert self.cur.nextset.call_count == 2
+
+    @pytest.mark.parametrize(
+        "handler",
+        [fetch_all_handler, fetch_one_handler, lambda cur: cur.fetchone()],
+        ids=["fetch_all", "fetch_one", "custom"],
+    )
+    def test_description_of_consumed_result_set_is_kept(self, handler):
+        first_description = [("a", None, None, None, None, None, None)]
+        last_description = [
+            ("b", None, None, None, None, None, None),
+            ("c", None, None, None, None, None, None),
+        ]
+        self.cur.description = first_description
+        self.cur.fetchone.return_value = (1,)
+        self.cur.fetchall.return_value = [(1,)]
+
+        def nextset():
+            if self.cur.description is first_description:
+                self.cur.description = last_description
+                return True
+            return False
+
+        self.cur.nextset.side_effect = nextset
+        self.db_hook.run("SELECT 1 AS a; SELECT 2 AS b, 3 AS c;", handler=handler)
+        assert self.db_hook.descriptions == [first_description]
+
+    def test_no_descriptions_without_handler(self):
+        self.cur.description = [("a", None, None, None, None, None, None)]
+        self.cur.nextset.side_effect = [False]
+        self.db_hook.run("SELECT 1 AS a;")
+        assert self.db_hook.descriptions == []

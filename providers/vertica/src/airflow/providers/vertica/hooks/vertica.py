@@ -39,11 +39,17 @@ def _drain_result_sets(cursor) -> None:
     discards the remaining rows of the current set (without loading them in memory) and raises
     the server error if the next set is an error.
 
+    ``nextset()`` also overwrites ``cursor.description`` with the columns of each next result set,
+    while ``DbApiHook.run`` reads it after the handler returns. The description of the result set
+    the handler consumed is restored, so that ``hook.descriptions`` matches the returned rows.
+
     See https://github.com/apache/airflow/issues/32993 and
     https://github.com/vertica/vertica-python/issues/197.
     """
+    description = cursor.description
     while cursor.nextset():
         pass
+    cursor.description = description
 
 
 def _with_result_set_drain(handler: Callable[[Any], Any]) -> Callable[[Any], Any]:
@@ -237,6 +243,8 @@ class VerticaHook(DbApiHook):
             DbApiHook.run(
                 self, sql, autocommit, parameters, _drain_result_sets, split_statements, return_last
             )
+            # Without a handler, DbApiHook.run does not collect descriptions; keep that behaviour.
+            self.descriptions = []
             return None
         if handler is fetch_all_handler:
             handler = vertica_fetch_all_handler
