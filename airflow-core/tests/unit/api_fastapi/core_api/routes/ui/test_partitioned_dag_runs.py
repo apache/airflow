@@ -59,6 +59,51 @@ class TestGetPartitionedDagRuns:
         response = unauthorized_test_client.get("/partitioned_dag_runs?dag_id=any")
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/visible", name="visible")
+        secret = Asset(uri="s3://bucket/secret", name="secret")
+        with dag_maker(
+            dag_id="redacted_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & secret),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id="redacted_dag", partition_key="2024-06-01", created_dag_run_id=None
+            )
+        )
+        session.commit()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        resp = test_client.get("/partitioned_dag_runs")
+
+        assert resp.status_code == 200
+        assert resp.json()["asset_expressions"]["redacted_dag"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+
     def test_should_response_404(self, test_client):
         assert test_client.get("/partitioned_dag_runs?dag_id=no_such_dag").status_code == 404
 
@@ -68,7 +113,7 @@ class TestGetPartitionedDagRuns:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             resp = test_client.get("/partitioned_dag_runs?dag_id=normal&has_created_dag_run_id=false")
         assert resp.status_code == 200
         assert resp.json() == {"partitioned_dag_runs": [], "total": 0, "asset_expressions": None}
@@ -155,17 +200,18 @@ class TestGetPartitionedDagRuns:
             )
         session.commit()
 
-        # Six batch queries, each independent of len(rows) / num_assets:
+        # Seven batch queries, each independent of len(rows) / num_assets:
         # 1. SELECT COUNT of matching AssetPartitionDagRun rows
         # 2. outer SELECT of paginated AssetPartitionDagRun rows
         # 3. SELECT DagModel WHERE dag_id IN (unique_dag_ids)
         # 4. _fetch_active_assets_per_dag — joined SELECT on AssetModel + DagScheduleAssetReference
         # 5. SELECT PartitionedAssetKeyLog WHERE asset_partition_dag_run_id IN (apdr_ids)
         # 6. SELECT timetable for asset_expressions (cached per response)
+        # 7. SELECT AssetModel.id for the assets the caller may read
         # The count does not scale with num_assets or len(rows), so the bump
-        # from main's baseline of 3 (3 → 4 → 5 → 6 across this branch) is constant
+        # from main's baseline of 3 (3 → 4 → 5 → 6 → 7 across this branch) is constant
         # per request, not per row.
-        with assert_queries_count(6):
+        with assert_queries_count(7):
             resp = test_client.get(
                 f"/partitioned_dag_runs?dag_id=list_dag"
                 f"&has_created_dag_run_id={str(has_created_dag_run_id).lower()}"
@@ -739,6 +785,74 @@ class TestGetPendingPartitionedDagRun:
 
         received_uris = {a["asset_uri"] for a in body["assets"] if a["received"]}
         assert received_uris == set(uris[:received_count])
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/visible", name="visible")
+        secret = Asset(uri="s3://bucket/secret", name="secret")
+        with dag_maker(
+            dag_id="redacted_detail_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & secret),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id="redacted_detail_dag", partition_key="2024-07-01", created_dag_run_id=None
+            )
+        )
+        session.commit()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        resp = test_client.get("/pending_partitioned_dag_run/redacted_detail_dag?partition_key=2024-07-01")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        # Rows come back ordered by the asset's uri, so "secret" precedes "visible".
+        assert [
+            {k: a[k] for k in ("asset_id", "asset_name", "asset_uri", "hidden", "required_count")}
+            for a in body["assets"]
+        ] == [
+            {
+                "asset_id": None,
+                "asset_name": None,
+                "asset_uri": None,
+                "hidden": True,
+                "required_count": 1,
+            },
+            {
+                "asset_id": visible_id,
+                "asset_name": "visible",
+                "asset_uri": "s3://bucket/visible",
+                "hidden": False,
+                "required_count": 1,
+            },
+        ]
+        # Progress stays readable: a blanked asset still counts toward the run's totals.
+        assert body["total_required"] == 2
+        assert body["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
 
     def test_is_rollup_false_for_non_rollup_asset(self, test_client, dag_maker, session):
         """is_rollup is False for every asset when the schedule uses identity (non-rollup) mappers."""

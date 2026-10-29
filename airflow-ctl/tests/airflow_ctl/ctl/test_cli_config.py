@@ -786,6 +786,27 @@ class TestCliConfigMethods:
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
 
+    def test_merge_commands_replaces_duplicate_subcommand(self, no_op_method):
+        generated = GroupCommand(
+            name="providers",
+            help="Generated providers commands",
+            subcommands=(
+                ActionCommand(name="get", help="Generated get", func=no_op_method, args=()),
+                ActionCommand(name="list", help="Generated list", func=no_op_method, args=()),
+            ),
+        )
+        custom = GroupCommand(
+            name="providers",
+            help="Custom providers commands",
+            subcommands=(ActionCommand(name="get", help="Custom get", func=no_op_method, args=()),),
+        )
+
+        merged = merge_commands(base_commands=[generated], commands_will_be_merged=[custom])
+
+        subcommands = list(merged[0].subcommands)
+        assert [command.name for command in subcommands] == ["list", "get"]
+        assert subcommands[-1].help == "Custom get"
+
     def test_add_auth_token_to_all_commands(self, no_op_method):
         """Test the add_auth_token_to_all_commands method."""
         ARG_1 = Arg(
@@ -1139,6 +1160,19 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
+    def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
+        """An operation that returns nothing is reported as a successful operation row."""
+        mocked_create_defaults.return_value = None
+        args = cli_parser.get_parser().parse_args(["connections", "create-defaults"])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"operation": "create_defaults", "status": "success"}
+        ]
 
     @pytest.mark.parametrize(
         ("output", "parse", "expected"),

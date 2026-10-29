@@ -39,7 +39,10 @@
                         "region_index": null,
                         "dag_version_id": null,
                         "dag_bundle_name": null,
-                        "dag_bundle_version": null
+                        "dag_bundle_version": null,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "retries": 1,
@@ -90,7 +93,10 @@
                         "region_index": null,
                         "dag_version_id": null,
                         "dag_bundle_name": null,
-                        "dag_bundle_version": null
+                        "dag_bundle_version": null,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
                     },
                     "task": {
                         "retries": 1,
@@ -141,7 +147,10 @@
                         "region_index": null,
                         "dag_version_id": null,
                         "dag_bundle_name": null,
-                        "dag_bundle_version": null
+                        "dag_bundle_version": null,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "task": {
                         "retries": 1,
@@ -192,7 +201,10 @@
                         "region_index": null,
                         "dag_version_id": null,
                         "dag_bundle_name": null,
-                        "dag_bundle_version": null
+                        "dag_bundle_version": null,
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
                     },
                     "task": {
                         "retries": 1,

@@ -277,8 +277,8 @@ carries three tags:
      - The toolset class, such as ``SQLToolset`` or ``ObjectStorageToolset``.
    * - ``framework``
      - ``pydantic_ai`` for ``AgentOperator`` and your own Pydantic AI agents;
-       ``strands``, ``adk``, ``langchain``, ``anthropic`` or ``openai_agents`` for a call
-       through that framework's adapter;
+       ``strands``, ``adk``, ``langchain``, ``anthropic``, ``openai_agents`` or ``claude_agent_sdk``
+       for a call through that framework's adapter;
        ``none`` for a call to a toolset's ``airflow_tools()`` made without an adapter.
    * - ``outcome``
      - ``executed`` when the call returned, ``failed`` when it raised (including a

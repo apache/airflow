@@ -16,6 +16,11 @@
 # under the License.
 
 # Fork CI gate (AIP-120). See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md
+#
+# This file is part of the gate. A pull request whose CI runs in the contributor's fork may only
+# add, change or remove its author's own [pilot] entry here; the fork CI monitor closes it if it
+# changes anything else, because that change would decide where its own CI runs. See
+# "Gate protection" in the document above.
 
 # Master switch. When false the gate job lets every pull request run project CI, except
 # pull requests labelled `use fork ci` and pull requests of [pilot] participants. Push

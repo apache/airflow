@@ -14,18 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import os
-
-from pydantic import BaseModel
-
-from airflow.sdk.api.datamodels._generated import TaskInstance
-
-
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""

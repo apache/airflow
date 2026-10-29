@@ -238,7 +238,7 @@ The triage workflow uses the following labels and states:
 | Label / State | Meaning |
 |---|---|
 | `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
-| `need workflow approval` | The PR's CI workflow runs wait for a maintainer, because the `Auto approve workflow runs` workflow did not approve them: a PR to a branch other than `main`, a change to CI definition files, a full-tests or dependency change, a change whose CI jobs are estimated at more than 310 job-minutes, or a change of more than 100 lines of source code (see [Pull Requests](05_pull_requests.rst)). For a PR whose CI runs in the contributor's fork, only a change to CI definition files keeps its runs waiting, and the workflow comments on the PR to say so. The workflow also tries to add the label when processing the PR failed; its run then fails too. Approve the runs after looking at the diff. The workflow removes the label when a later commit is approved automatically. |
+| `need workflow approval` | The PR's CI workflow runs wait for a maintainer, because the `Auto approve workflow runs` workflow did not approve them: a PR to a branch other than `main`, a change to CI definition files, a full-tests or dependency change, a change whose CI jobs are estimated at more than 310 job-minutes, or a change of more than 100 lines of source code (see [Pull Requests](05_pull_requests.rst)). For a PR whose CI runs in the contributor's fork, only a change to CI definition files keeps its runs waiting, and the workflow comments on the PR to say so. The workflow also tries to add the label when processing the PR failed; its run then fails too. The PR's head commit gets a pending `Workflow approval` commit status giving the reason, which the author sees in the checks without a notification. Approve the runs after looking at the diff. When the runs start, the `Mark workflow runs approved` workflow removes the label and turns the status green, whether a maintainer or the workflow approved them. |
 | `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
 | `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
@@ -250,7 +250,7 @@ The triage workflow uses the following labels and states:
 ## Pull requests gated to fork CI
 
 Pull requests labelled `fork ci required` run their CI in the contributor's fork. The scheduled
-fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns four things
+fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns five things
 for them, and the triage skill must treat those pull requests as out of scope for each:
 
 - **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
@@ -261,6 +261,10 @@ for them, and the triage skill must treat those pull requests as out of scope fo
 - **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
   changes CI-defining files, and removes it once the state is anything else. These pull requests
   stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
+- **Closing for changing the gate.** The reconciler closes a pull request that changes the fork
+  CI gate (its code, configuration other than the author's own `[pilot]` entry, the `gate` job
+  of `ci-amd.yml` or the monitor), and reports it on Slack. Add `use project ci` to accept such
+  a change.
 - **Closing after inactivity.** The reconciler closes a pull request whose fork CI has not run for
   `close_after_days`.
 

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createInstance, type Resource } from "i18next";
+import { createInstance, type i18n, type Resource } from "i18next";
 import { describe, expect, it } from "vitest";
 
 import { i18nBaseOptions } from "./config";
@@ -51,6 +51,64 @@ const UNFORMATTED_COUNTER = /\{\{\s*(?:count|current|missedCount|total|upcomingC
 const localeStrings = Object.entries(resources).flatMap(([lng, namespaces]) =>
   flattenStrings(namespaces, lng),
 );
+
+// Every static key the UI passes to `translate(...)` has to exist in the en bundles, otherwise
+// i18next falls back to rendering the key itself and the user sees something like
+// "pools.form.nameMaxLength" where a sentence belongs.
+const sourceFiles: Record<string, string> = import.meta.glob("../**/*.{ts,tsx}", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+});
+
+// The namespaces a file loads, in the order i18next searches them.
+const USE_TRANSLATION = /useTranslation\(\s*(?<names>\[[^\]]*\]|"[^"]+"|'[^']+')/gu;
+// Only literal keys; anything interpolated is resolved at runtime and cannot be checked here.
+const TRANSLATE_CALL = /\b(?:translate|t)\(\s*"(?<key>[^"{}`$]+)"/gu;
+const QUOTED = /["'](?<name>[^"']+)["']/gu;
+// The glob is relative to this file, so each key arrives with one leading "../" to strip.
+const SOURCE_PREFIX = /^\.\.\//u;
+
+const namespacesOf = (source: string): Array<string> =>
+  [...source.matchAll(USE_TRANSLATION)].flatMap((match) =>
+    [...(match.groups?.names ?? "").matchAll(QUOTED)].map((quoted) => quoted.groups?.name ?? ""),
+  );
+
+const findUnresolvedKeys = (file: string, source: string, instance: i18n): Array<string> => {
+  const namespaces = namespacesOf(source);
+
+  if (namespaces.length === 0) {
+    return [];
+  }
+
+  // i18next falls back to defaultNS, so it is always a candidate.
+  const candidates = [...new Set([...namespaces, i18nBaseOptions.defaultNS])];
+
+  const unresolved = [...source.matchAll(TRANSLATE_CALL)]
+    .map((match) => match.groups?.key ?? "")
+    .filter((key) => {
+      const prefixed = key.includes(":") ? [key] : candidates.map((ns) => `${ns}:${key}`);
+
+      // `count` lets i18next resolve plural-only keys such as `foo_one` / `foo_other`.
+      return !prefixed.some((candidate) => instance.exists(candidate, { count: 1 }));
+    });
+
+  return unresolved.map((key) => `${file.replace(SOURCE_PREFIX, "")}: ${key}`);
+};
+
+describe("translation keys used in the UI", () => {
+  it("every static key resolves in the en locale", async () => {
+    const instance = createInstance();
+
+    await instance.init({ ...i18nBaseOptions, lng: "en", resources });
+
+    const missing = Object.entries(sourceFiles)
+      .filter(([file]) => !file.includes(".test."))
+      .flatMap(([file, source]) => findUnresolvedKeys(file, source, instance));
+
+    expect(missing).toEqual([]);
+  });
+});
 
 describe("locale counter placeholders", () => {
   it("formats every counter placeholder as a number", () => {

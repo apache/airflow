@@ -150,10 +150,26 @@ maintainer, since it still runs the selection it started with; the next push is 
 For a PR whose CI runs in the fork neither the selection nor the labels a run started with matter:
 the gate reads the current labels when the run starts and fails when it cannot, so a run started
 before `use fork ci` or `use project ci` was added or removed is approved too. Other PRs get the
-`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
-a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
-failure stays visible even if the label could not be added. The label is removed when a later commit
-of the PR is approved automatically.
+`need workflow approval` label and wait for a maintainer. Their head commit also gets a pending
+`Workflow approval` commit status whose description gives the reason (cut to GitHub's 140
+characters), so the author sees why in the PR's checks without a notifying comment. The status is
+not a required check and does not block merging. When processing a PR fails (for example on a
+GitHub API error), the workflow tries to add the label and a pending status with a generic reason,
+and the workflow run fails, so the failure stays visible even if the label could not be added.
+
+The label is removed when a later commit of the PR is approved automatically. GitHub has no event
+for approving runs, but a run waiting for approval never starts, so the `mark-workflow-runs-approved.yml`
+workflow follows the `Tests (AMD)` runs of fork PRs instead: when one reaches `in_progress`, a
+`ubuntu-slim` job makes a few `gh api` calls that turn the commit's pending status green and remove
+the label of the open PRs whose head is that commit. This covers runs a maintainer approves by hand
+as well as automatic approvals, without listing the waiting runs. A PR pushed again after the run
+started keeps its label, because its newer runs may wait. The job checks out nothing, and the
+contributor-chosen head branch reaches its script only through the environment. A maintainer can
+approve the runs after the approval workflow listed them and before it writes the label and status,
+so after writing either it checks the runs again and clears both if none still waits. Only a
+started `Tests (AMD)` run clears them, so a PR that removes or renames that workflow keeps its
+label and pending status after its other runs are approved; such a PR changes CI definition files
+and is reviewed by a maintainer anyway, and the status does not block merging.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must

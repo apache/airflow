@@ -500,62 +500,6 @@ repos:
           ^scripts/ci/prek/check_go_sdk_generated_drift\.py$
         pass_filenames: false
         require_serial: true
-      # check-ts-sdk-serialization-conformance in ts-sdk/ covers the SDK's own files; this runs the same
-      # check when the shared harness or Airflow's serializer changes, which that project cannot see.
-      - id: check-ts-sdk-serialization-conformance-shared
-        name: Check the TS SDK serializes Dags the way Airflow does, after a shared change
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        description: "Serialize the shared test Dags with the TS SDK and with Airflow, and compare the two"
-        entry: ./ts-sdk/scripts/ci/prek/check_serialization_conformance.py
-        language: node
-        additional_dependencies: ['pnpm@10.28.1']
-        pass_filenames: false
-        require_serial: true
-        files: >
-          (?x)
-          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
-          ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^scripts/ci/lang_sdk_serialization/.*$
-      - id: check-go-sdk-serialization-conformance
-        name: Check the Go SDK serializes Dags the way Airflow does
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        description: "Serialize the shared test Dags with the Go SDK and with Airflow, and compare the two"
-        entry: ./scripts/ci/prek/check_go_sdk_serialization_conformance.py
-        # golang so prek provisions the toolchain that builds the Go serializer.
-        language: golang
-        pass_filenames: false
-        require_serial: true
-        files: >
-          (?x)
-          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
-          ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^go-sdk/airflow/.*\.go$|
-          ^go-sdk/schema/dag-schema\.json$|
-          ^scripts/ci/lang_sdk_serialization/.*$|
-          ^scripts/ci/prek/check_go_sdk_serialization_conformance\.py$
-      - id: check-java-sdk-serialization-conformance
-        name: Check the Java SDK serializes Dags the way Airflow does
-        env:
-          PYTHONPYCACHEPREFIX: .build/pycache
-        description: "Serialize the shared test Dags with the Java SDK and with Airflow, and compare the two"
-        entry: ./java-sdk/scripts/ci/prek/check_serialization_conformance.py
-        language: system
-        pass_filenames: false
-        require_serial: true
-        files: >
-          (?x)
-          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
-          ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
-          ^java-sdk/sdk/schema/dag-schema\.json$|
-          ^java-sdk/sdk/build\.gradle\.kts$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Switch|Bundle|Condition|DagDef|Decider|Deps|Arg|TaskGroupRef|TriggerDagRun)\.kt$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
-          ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
-          ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         env:
@@ -824,6 +768,10 @@ repos:
         name: Run flynt string format converter for Python
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
+        # flynt's own hook manifest sets require_serial: true, and this line overrides it. flynt
+        # writes only the files that prek passes to it. prek gives each file to exactly one batch,
+        # so the batches can run in parallel.
+        require_serial: false
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),

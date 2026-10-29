@@ -252,9 +252,11 @@ function serializeTask(
     // matches the tuple default it is compared against. A TypeScript task has
     // no Jinja templating, so the list is empty rather than absent.
     template_fields: [],
-    // What marks a task whose arguments the API server resolves per instance
-    // and sends to a foreign runtime, as `@task.stub` does on the Python side.
-    // `get_arg_bindings` reads nothing without it.
+    // The TypeScript runtime runs every task of a TypeScript Dag, a trigger task
+    // included, so every one of them is a stub. `is_stub` marks a task whose
+    // arguments the API server resolves per instance and sends to a foreign
+    // runtime, as `@task.stub` does on the Python side. `get_arg_bindings` reads
+    // nothing without it.
     is_stub: true,
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;

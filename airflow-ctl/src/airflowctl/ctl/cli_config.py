@@ -196,13 +196,6 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
-
-
 def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     """Parse JSON object argument."""
     if isinstance(val, dict):
@@ -452,6 +445,19 @@ ARG_CONFIG_VERBOSE = Arg(
         "--verbose",
     ),
     help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
+# Provider arguments
+ARG_PROVIDER_NAME = Arg(
+    flags=("provider_name",),
+    type=str,
+    help="The package name of the provider",
+)
+ARG_PROVIDER_FULL = Arg(
+    flags=("-f", "--full"),
+    help="Show the complete provider metadata",
     default=False,
     action="store_true",
 )
@@ -945,6 +951,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
@@ -1079,7 +1088,9 @@ def merge_commands(
     base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
 ) -> list[CLICommand]:
     """
-    Merge group commands with existing commands which extends base_commands with will_be_merged commands.
+    Merge custom commands into generated commands.
+
+    Custom subcommands replace generated subcommands with the same name.
 
     Args:
         base_commands: List of base commands to be extended.
@@ -1101,8 +1112,12 @@ def merge_commands(
         if command.name in merge_command_map.keys():
             merged_command = merge_command_map[command.name]
             if isinstance(command, GroupCommand):
-                # Merge common group command with existing group command
-                current_subcommands = list(command.subcommands)
+                replacement_names = {subcommand.name for subcommand in merged_command.subcommands}
+                current_subcommands = [
+                    subcommand
+                    for subcommand in command.subcommands
+                    if subcommand.name not in replacement_names
+                ]
                 current_subcommands.extend(list(merged_command.subcommands))
                 new_commands.append(
                     GroupCommand(
@@ -1359,6 +1374,19 @@ JOB_COMMANDS = (
     ),
 )
 
+PROVIDER_COMMANDS = (
+    ActionCommand(
+        name="get",
+        help="Retrieve an installed provider by its package name",
+        func=lazy_load_command("airflowctl.ctl.commands.provider_command.get_provider"),
+        args=(
+            ARG_PROVIDER_NAME,
+            ARG_PROVIDER_FULL,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1390,6 +1418,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="providers",
+        help="Manage installed Airflow providers",
+        subcommands=PROVIDER_COMMANDS,
     ),
     GroupCommand(
         name="tasks",

@@ -62,7 +62,7 @@ jobs:
     # layer that builds Python from source, which takes 11-18 minutes for Python 3.11+ on hosted runners.
     timeout-minutes: 35
     name: Check that image builds quickly
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
