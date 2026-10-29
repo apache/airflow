@@ -200,10 +200,7 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
     def is_job_succeeded(self, status: str) -> bool:
         if status == PowerBIDatasetRefreshStatus.COMPLETED:
             return True
-        # Without wait_for_completion the task only has to start the refresh, so one in progress counts
-        # as done. The mixin then logs it as completed and counts it in resumable_job.already_succeeded,
-        # but only this path pushes the refresh id: the mixin reconnects to an active job through
-        # poll_until_complete alone, without get_job_result.
+        # Without wait_for_completion, is_job_succeeded counts an in-progress refresh as done.
         return not self.wait_for_completion and status == PowerBIDatasetRefreshStatus.IN_PROGRESS
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
