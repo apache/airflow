@@ -20,7 +20,14 @@ import shutil
 import textwrap
 
 import pytest
-from check_conn_id_templated import build_index, check_file, iter_source_files, main
+from check_conn_id_templated import (
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
+    INDEX_ROOTS,
+    build_index,
+    check_file,
+    iter_source_files,
+    main,
+)
 
 BASE = """
     class BaseOperator:
@@ -38,6 +45,10 @@ BASE = """
 
     def aws_template_fields(*fields):
         return fields
+
+
+    class DecoratedOperator(BaseOperator):
+        template_fields = ("op_args", "op_kwargs")
     """
 
 
@@ -97,6 +108,16 @@ def check(tmp_path):
                     self.extra = extra
             """,
             id="set-union-of-parent-template-fields",
+        ),
+        pytest.param(
+            """
+            class MyDecoratedOperator(DecoratedOperator, ParentOperator):
+                template_fields = (*DecoratedOperator.template_fields, *ParentOperator.template_fields)
+
+                def __init__(self, parent_conn_id="x", **kwargs):
+                    super().__init__(parent_conn_id=parent_conn_id, **kwargs)
+            """,
+            id="decorator-spreads-both-parents",
         ),
         pytest.param(
             """
@@ -206,6 +227,15 @@ def test_compliant_classes_pass(check, code):
         ),
         pytest.param(
             """
+            class MyDecoratedOperator(DecoratedOperator, ParentOperator):
+                def __init__(self, parent_conn_id="x", **kwargs):
+                    super().__init__(parent_conn_id=parent_conn_id, **kwargs)
+            """,
+            "MyDecoratedOperator: ['parent_conn_id']",
+            id="decorator-base-shadows-operator-template-fields",
+        ),
+        pytest.param(
+            """
             class MySensor(BaseOperator):
                 template_fields = ()
 
@@ -245,6 +275,12 @@ def test_iter_source_files_survives_a_directory_removed_mid_walk(tmp_path):
         shutil.rmtree(tmp_path / ("b" if path.parent.name == "a" else "a"), ignore_errors=True)
 
     assert len(found) == 1
+
+
+def test_index_roots_resolve_the_task_sdk_decorator_base():
+    """Without this root the decorator base is unknown, and its narrow template_fields never applies."""
+    assert AIRFLOW_TASK_SDK_SOURCES_PATH in INDEX_ROOTS
+    assert "DecoratedOperator" in build_index([AIRFLOW_TASK_SDK_SOURCES_PATH])
 
 
 def test_main_skips_files_without_conn_id(tmp_path):
