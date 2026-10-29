@@ -56,6 +56,24 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    def test_should_not_carry_metadata_db_credentials(self):
+        """KubernetesExecutor task pods run Dag-author code and must not hold DB credentials.
+
+        The task SDK reaches the Execution API rather than the metadata database, so the
+        task pod has no functional need for the connection string. Unlike Celery workers
+        there is no KEDA exception here: KEDA does not scale task pods.
+        """
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        metadata_db_vars = {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+        for container in docs[0]["spec"]["containers"]:
+            names = {env["name"] for env in container.get("env", [])}
+            assert not (names & metadata_db_vars), (
+                f"metadata DB env present in task-pod container {container['name']}"
+            )
+
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={
