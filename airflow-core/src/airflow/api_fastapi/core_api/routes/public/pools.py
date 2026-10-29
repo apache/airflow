@@ -141,7 +141,13 @@ def get_pools(
     )
 
     pools = session.scalars(pools_select).all()
-    pool_stats = Pool.slots_stats(session=session)
+    if not pools:
+        return PoolCollectionResponse(pools=[], total_entries=total_entries)
+
+    pool_stats = Pool.slots_stats(
+        pool_names=[cast("str", pool.pool) for pool in pools],
+        session=session,
+    )
 
     return PoolCollectionResponse(
         pools=[

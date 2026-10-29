@@ -185,6 +185,7 @@ class Pool(Base):
     def slots_stats(
         *,
         lock_rows: bool = False,
+        pool_names: Sequence[str] | None = None,
         session: Session = NEW_SESSION,
     ) -> dict[str, PoolStats]:
         """
@@ -195,6 +196,7 @@ class Pool(Base):
         OperationalError.
 
         :param lock_rows: Should we attempt to obtain a row-level lock on all the Pool rows returns
+        :param pool_names: Pool names to include. If ``None``, include all pools.
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -204,6 +206,8 @@ class Pool(Base):
 
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
         query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
+        if pool_names is not None:
+            query = query.where(Pool.pool.in_(pool_names))
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
@@ -220,11 +224,14 @@ class Pool(Base):
             TaskInstanceState.DEFERRED,
             TaskInstanceState.SCHEDULED,
         }
-        state_count_by_pool = session.execute(
+        state_count_query = (
             select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.state.in_(allowed_execution_states))
             .group_by(TaskInstance.pool, TaskInstance.state)
         )
+        if pool_names is not None:
+            state_count_query = state_count_query.filter(TaskInstance.pool.in_(pool_names))
+        state_count_by_pool = session.execute(state_count_query)
 
         # calculate queued and running metrics
         for pool_name, state, decimal_count in state_count_by_pool:
