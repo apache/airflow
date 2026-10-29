@@ -192,7 +192,10 @@ class CronMixin:
         """
         Localize ``scheduled`` when neither it nor ``naive`` is ambiguous, else return ``None``.
 
-        Without a fold or gap at either end, localizing the wall-clock tick is exact.
+        croniter yields ticks in wall-clock order, so none lies between ``naive`` and ``scheduled``;
+        a fold or gap between them holds no tick, and localizing an unambiguous wall-clock time is
+        exact. An earlier tick can only cross ``current`` through a fold at ``naive`` itself, and a
+        fold or gap at ``scheduled`` has two or no instants; those cases are left to the fold search.
         """
         if len(_localize_all_folds(naive, self._timezone)) != 1:
             return None
