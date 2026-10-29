@@ -693,9 +693,10 @@ class KiotaRequestAdapterHook(BaseHook):
         The caller handles each page before the next one is requested, so a collection of any size passes
         through in page-sized steps instead of the single list ``paginated_run`` builds. The next page is
         resolved by ``pagination_function`` (``default_pagination`` by default: ``@odata.nextLink``, or
-        ``$skip`` on counted queries) and its host is checked with ``assert_allowed_host`` before it is
-        fetched. ``pagination_function`` receives the same arguments as in ``paginated_run`` except
-        ``responses``: nothing keeps the pages already yielded.
+        ``$skip`` on counted queries) and its host is checked with ``assert_allowed_host`` before the page
+        is yielded, so a yielded page is the caller's to change: it is not read again. ``pagination_function``
+        receives the same arguments as in ``paginated_run`` except ``responses``: nothing keeps the pages
+        already yielded.
         """
         if pagination_function is None:
             pagination_function = self.default_pagination
@@ -714,8 +715,6 @@ class KiotaRequestAdapterHook(BaseHook):
             if not response:
                 return
 
-            yield response
-
             url, query_parameters = execute_callable(
                 pagination_function,
                 response=response,
@@ -728,6 +727,8 @@ class KiotaRequestAdapterHook(BaseHook):
                 data=data,
             )
             await self.assert_allowed_host(url)
+
+            yield response
 
     async def paginated_run(
         self,
@@ -752,10 +753,14 @@ class KiotaRequestAdapterHook(BaseHook):
 
         responses: list[Any] = []
 
-        def paginate(**kwargs: Any) -> tuple[str, dict[str, Any] | None]:
-            return execute_callable(pagination_function, responses=lambda: responses, **kwargs)
+        def paginate(response: Any, **kwargs: Any) -> tuple[str, dict[str, Any] | None]:
+            # Called before the page is yielded, so the page is collected here for ``responses`` to include it.
+            responses.append(response)
+            return execute_callable(
+                pagination_function, response=response, responses=lambda: responses, **kwargs
+            )
 
-        async for response in self.iter_paginated_run(
+        async for _ in self.iter_paginated_run(
             url=url,
             response_type=response_type,
             path_parameters=path_parameters,
@@ -765,7 +770,7 @@ class KiotaRequestAdapterHook(BaseHook):
             data=data,
             pagination_function=paginate,
         ):
-            responses.append(response)
+            pass
 
         return responses
 
