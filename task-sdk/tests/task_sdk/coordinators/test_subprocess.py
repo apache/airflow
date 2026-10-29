@@ -44,7 +44,7 @@ from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
-from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TaskInstanceState, TIRunContext
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     SetTaskStateStore,
     SetXCom,
+    TaskState,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, ProcessTracker
@@ -1776,24 +1777,19 @@ class TestPopenActivitySubprocessXComBackend:
         assert _RefXCom.purged == ["ref://task_1/None/summary"]
 
     @pytest.mark.parametrize(
-        ("xcom", "read_status", "event"),
+        ("xcom", "read_status", "deleted"),
         [
-            pytest.param(
-                _FailingPurgeXCom, 200, "Cannot purge the XCom from the XCom backend", id="purge-fails"
-            ),
-            pytest.param(
-                _RefXCom,
-                500,
-                "Cannot read the XCom, so it is not purged from the XCom backend",
-                id="read-fails",
-            ),
+            pytest.param(_FailingPurgeXCom, 200, True, id="purge-fails"),
+            pytest.param(_RefXCom, 500, False, id="read-fails"),
         ],
     )
     # The patch turns off the API client's retry policy, so the read that fails fails at once.
     @patch.object(Client, "_request_with_retry", Client._request_without_retry)
-    def test_clearing_runs_the_task_when_an_xcom_cannot_be_purged(
-        self, make_proc, make_ti_context, captured_logs, xcom, read_status, event
+    def test_clearing_fails_the_task_when_an_xcom_cannot_be_purged(
+        self, make_proc, make_ti_context, captured_logs, xcom, read_status, deleted
     ):
+        # A Python task fails here: XCom.delete guards neither the read nor the purge, and the task
+        # runner clears its XComs inside the block that fails the task.
         api = _FakeApi(
             {("GET", _XCOM_PATH): (read_status, {"key": "summary", "value": "ref://task_1/None/summary"})}
         )
@@ -1802,19 +1798,35 @@ class TestPopenActivitySubprocessXComBackend:
 
         prepared = proc._prepare_ti_context(proc.ti, ti_context)
 
-        assert prepared is not None
-        assert prepared.xcom_keys_to_clear == []
-        assert ("DELETE", _XCOM_PATH, None) in api.requests
+        assert prepared is None
+        assert (("DELETE", _XCOM_PATH, None) in api.requests) is deleted
         assert _RefXCom.purged == []
+        assert isinstance(proc._pending_terminal_state_msg, TaskState)
+        assert proc._pending_terminal_state_msg.state == TaskInstanceState.FAILED
+        assert "Failed to clear XCom 'summary'" in (proc._pending_terminal_state_msg.retry_reason or "")
         assert {
-            "event": event,
+            "event": "Failed to clear XCom; not running the task",
             "key": "summary",
-            "level": "warning",
+            "level": "error",
             "logger": "task",
             "timestamp": ANY,
             "exc_info": ANY,
             "loc": ANY,
         } in captured_logs
+
+    def test_delete_request_fails_when_the_xcom_cannot_be_purged(self, make_proc):
+        # Same reason: a Python task that calls XCom.delete fails when purge raises.
+        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        proc = make_proc(_FailingPurgeXCom, api)
+
+        proc._handle_request(
+            DeleteXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        assert ("DELETE", _XCOM_PATH, None) in api.requests
+        error = _sent_error(proc)
+        assert error["error"] == ErrorType.XCOM_BACKEND_ERROR.value
+        assert "purge refused" in error["detail"]["message"]
 
     @patch.object(XComBackendProcess, "start", autospec=True)
     def test_starts_one_backend_process_for_the_task(self, mock_start, make_proc):

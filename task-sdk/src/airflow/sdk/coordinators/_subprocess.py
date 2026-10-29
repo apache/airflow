@@ -601,10 +601,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
-        Like ``XCom.delete``, this method also purges each XCom from the XCom backend. A purge that fails
-        leaves the stored data behind, but does not keep the task from running.
-
-        If an XCom cannot be deleted, this try fails and the task does not run.
+        Like ``XCom.delete``, this method reads each XCom, deletes it, then purges it from the XCom
+        backend. A failure in any of the three fails this try and the task does not run, which is what
+        a Python task does: ``XCom.delete`` guards none of the three, and the task runner clears its
+        XComs inside the block that fails the task.
         """
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
@@ -619,12 +619,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     )
                 )
                 if purge is not None:
-                    try:
-                        self._run_xcom_backend_call(purge)
-                    except Exception:
-                        self.process_log.warning(
-                            "Cannot purge the XCom from the XCom backend", key=key, exc_info=True
-                        )
+                    self._run_xcom_backend_call(purge)
             except Exception as e:
                 self.process_log.exception("Failed to clear XCom; not running the task", key=key)
                 end_date = datetime.now(tz=UTC)
@@ -696,26 +691,20 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         call: XComBackendCall,
         then: Callable[[XComBackendResult], RequestResult],
         req_id: int,
-        *,
-        on_error: Callable[[str], RequestResult] | None = None,
     ) -> ResponseSent:
         """
         Answer request ``req_id`` with ``then(result)`` once the XCom backend has run ``call``.
 
         The request loop goes on servicing the task and the backend process while the call runs, so it
-        keeps heartbeating and stops the task when it reaches its ``execution_timeout``.
-
-        ``on_error`` answers a failed call instead; without it, a failed call fails the request.
+        keeps heartbeating and stops the task when it reaches its ``execution_timeout``. A call that
+        fails fails the request, so the runtime fails the task.
         """
 
         def finish(result: XComBackendResult) -> None:
             try:
-                if result.error is None:
-                    resp, dump_opts = then(result)
-                elif on_error is not None:
-                    resp, dump_opts = on_error(result.error)
-                else:
+                if result.error is not None:
                     raise XComBackendError(result.error)
+                resp, dump_opts = then(result)
             except Exception as e:
                 self.process_log.exception("Failed to handle the XCom backend result", request_id=req_id)
                 self.send_msg(None, request_id=req_id, error=_build_request_error(e))
@@ -813,34 +802,29 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         result, purge = self._delete_xcom(msg)
         if purge is None:
             return result
-
-        def not_purged(error: str) -> RequestResult:
-            # The XCom itself is deleted, so a failed purge only leaves the stored data behind.
-            self.process_log.warning("Cannot purge the XCom from the XCom backend", key=msg.key, error=error)
-            return result
-
-        return self._call_xcom_backend(purge, lambda _: result, req_id, on_error=not_purged)
+        # A failed purge fails the request, as it fails a Python task that calls XCom.delete.
+        return self._call_xcom_backend(purge, lambda _: result, req_id)
 
     def _delete_xcom(self, msg: DeleteXCom) -> tuple[RequestResult, XComBackendCall | None]:
-        """Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does."""
+        """
+        Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does.
+
+        The read is not guarded, for the same reason ``XCom.delete`` does not guard it: a row the
+        supervisor cannot read is a row it cannot purge, and silently skipping the purge would leave
+        the stored data behind without anything saying so.
+        """
         if not runs_in_helper(_get_xcom_backend()):
             return handle_delete_xcom(self.client, msg), None
-        row = None
-        try:
-            row, _ = handle_get_xcom(
-                self.client,
-                GetXCom(
-                    key=msg.key,
-                    dag_id=msg.dag_id,
-                    run_id=msg.run_id,
-                    task_id=msg.task_id,
-                    map_index=msg.map_index,
-                ),
-            )
-        except Exception:
-            self.process_log.warning(
-                "Cannot read the XCom, so it is not purged from the XCom backend", key=msg.key, exc_info=True
-            )
+        row, _ = handle_get_xcom(
+            self.client,
+            GetXCom(
+                key=msg.key,
+                dag_id=msg.dag_id,
+                run_id=msg.run_id,
+                task_id=msg.task_id,
+                map_index=msg.map_index,
+            ),
+        )
         result = handle_delete_xcom(self.client, msg)
         if isinstance(row, XComResult) and row.value is not None:
             return result, XComBackendCall(hook="purge", key=msg.key, value=row.value)
