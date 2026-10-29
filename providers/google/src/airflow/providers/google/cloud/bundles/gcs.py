@@ -160,8 +160,24 @@ class GCSDagBundle(BaseDagBundle):
                 delete_stale=True,
             )
 
+    def _archive_staging_prefix(self) -> str:
+        # The storage root is shared by every bundle. The lock is per bundle name, so
+        # leftover cleanup must not match another bundle's in-progress staging directory.
+        return f".{self.name}-archive-staging-"
+
+    def _remove_stale_archive_staging_dirs(self) -> None:
+        storage_root = self.gcs_dags_dir.parent
+        if not storage_root.is_dir():
+            return
+        prefix = self._archive_staging_prefix()
+        for leftover in storage_root.iterdir():
+            if leftover.is_dir() and leftover.name.startswith(prefix):
+                shutil.rmtree(leftover, ignore_errors=True)
+
     def _refresh_from_archive(self, archive_object: str) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive object."""
+        # A killed process never reaches the finally that removes its staging directory.
+        self._remove_stale_archive_staging_dirs()
         blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(archive_object)
         try:
             blob.reload()
@@ -179,7 +195,9 @@ class GCSDagBundle(BaseDagBundle):
             )
             return
 
-        staging_dir = Path(tempfile.mkdtemp(dir=self.gcs_dags_dir.parent, prefix=".gcs-archive-staging-"))
+        staging_dir = Path(
+            tempfile.mkdtemp(dir=self.gcs_dags_dir.parent, prefix=self._archive_staging_prefix())
+        )
         try:
             archive_path = staging_dir / "_bundle_archive"
             # Pin the bytes to the generation just read. An overwrite between reload()
