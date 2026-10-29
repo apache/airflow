@@ -60,7 +60,7 @@ def test_build_pkce_pair():
 
 
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
-def test_get_authorization_code(mock_open):
+def test_get_authorization_code(mock_open, capsys):
     seen_params = {}
 
     def build_callback_query(params):
@@ -76,6 +76,9 @@ def test_get_authorization_code(mock_open):
         timeout=10,
     )
 
+    printed = capsys.readouterr()
+    assert printed.out == ""
+    assert printed.err == f"Log in from your browser: {mock_open.call_args.args[0]}\n"
     login_url = urlsplit(mock_open.call_args.args[0])
     assert (login_url.netloc, login_url.path) == ("airflow.example.com", "/prefix/auth/login/cli")
     assert seen_params["code_challenge_method"] == "S256"
