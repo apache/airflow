@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, call
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 import airflow.version
@@ -418,3 +419,46 @@ class TestS3DagBundle:
 
         assert not stale.exists()
         assert other.is_dir()
+
+    def test_refresh_get_object_uses_head_etag(self, s3_bucket, s3_client):
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        marker = bundle.path / bundle.archive_etag_marker
+        etag = marker.read_text()
+        marker.unlink()
+
+        recorded: list[dict] = []
+        client = bundle.s3_hook.get_conn()
+        original = client.get_object
+
+        def record_get_object(**kwargs):
+            recorded.append(kwargs)
+            return original(**kwargs)
+
+        with mock.patch.object(client, "get_object", record_get_object):
+            bundle.refresh()
+
+        assert recorded[0]["IfMatch"] == etag
+        assert (bundle.path / "dag_01.py").is_file()
+
+    def test_refresh_keeps_bundle_when_archive_etag_no_longer_matches(self, s3_bucket, s3_client):
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        (bundle.path / bundle.archive_etag_marker).unlink()
+
+        error = ClientError(
+            {"Error": {"Code": "PreconditionFailed", "Message": "precondition failed"}},
+            "GetObject",
+        )
+        client = bundle.s3_hook.get_conn()
+        with mock.patch.object(client, "get_object", side_effect=error), pytest.raises(ClientError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").is_file()
+        assert not list(bundle.path.parent.glob(f".{bundle.name}-archive-staging-*"))

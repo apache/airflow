@@ -184,6 +184,23 @@ class S3DagBundle(BaseDagBundle):
             if leftover.is_dir() and leftover.name.startswith(prefix):
                 shutil.rmtree(leftover, ignore_errors=True)
 
+    def _download_archive(self, client, archive_path: Path, etag: str) -> str:
+        """Download the archive object named by ``etag``."""
+        # download_file HEADs again and GETs whatever is current, so a replace in between
+        # can store an ETag for a different object than the one unpacked.
+        request = {"Bucket": self.bucket_name, "Key": self.archive_key}
+        if etag:
+            request["IfMatch"] = etag
+        response = client.get_object(**request)
+        body = response["Body"]
+        try:
+            with archive_path.open("wb") as handle:
+                for chunk in body.iter_chunks():
+                    handle.write(chunk)
+        finally:
+            body.close()
+        return response.get("ETag", "")
+
     def _refresh_from_archive(self) -> None:
         """Stage the Dag bundle by downloading and unpacking the single archive object."""
         # A killed process never reaches the finally that removes its staging directory.
@@ -207,7 +224,7 @@ class S3DagBundle(BaseDagBundle):
         )
         try:
             archive_path = staging_dir / "_bundle_archive"
-            client.download_file(self.bucket_name, self.archive_key, os.fspath(archive_path))
+            downloaded_etag = self._download_archive(client, archive_path, etag)
 
             unpack_dir = staging_dir / "unpacked"
             unpack_dir.mkdir()
@@ -215,8 +232,9 @@ class S3DagBundle(BaseDagBundle):
                 tar.extractall(unpack_dir, filter="data")
             archive_path.unlink()
 
-            if etag:
-                (unpack_dir / self.archive_etag_marker).write_text(etag)
+            marker_etag = downloaded_etag or etag
+            if marker_etag:
+                (unpack_dir / self.archive_etag_marker).write_text(marker_etag)
 
             # Swap the freshly unpacked tree into place so a partially staged bundle is
             # never observable at self.s3_dags_dir. The previous tree is kept inside the
