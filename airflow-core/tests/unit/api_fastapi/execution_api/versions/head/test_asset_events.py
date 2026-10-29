@@ -28,7 +28,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.dagrun import DagRun
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.client import Client as ExecutionAPIClient
-from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
+from airflow.triggers.base import AssetTriggerEvent
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -117,11 +117,7 @@ class TestGetAssetEventByAsset:
         test_asset.add_trigger(trigger, "partition_watcher")
         session.flush()
         payload = {"partition_key": "payload-only", "changed": True}
-        event = (
-            TriggerEvent(payload)
-            if partition_key is None
-            else AssetTriggerEvent(payload, partition_key=partition_key)
-        )
+        event = AssetTriggerEvent(payload, partition_key=partition_key)
         Trigger.submit_event(trigger.id, event, session=session)
         session.commit()
         session.expire_all()
