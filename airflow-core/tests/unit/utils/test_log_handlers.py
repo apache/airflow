@@ -566,7 +566,6 @@ class TestFileTaskLogHandler:
             log_handler_output_stream, metadata = fth._read(ti=ti, try_number=1)
 
             accumulated = not expected_metadata["end_of_log"]
-            # An unfinished read drains the source up front to count lines; a finished read stays lazy.
             assert len(pulled) == (3 if accumulated else 0)
             assert accumulator.called is accumulated
             assert extract_events(log_handler_output_stream) == ["line 1", "line 2", "line 3"]
