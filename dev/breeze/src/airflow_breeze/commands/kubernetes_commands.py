@@ -2577,6 +2577,9 @@ LANG_SDK_AIRFLOWIGNORE_ALL = LANG_SDK_PATH / "airflowignore_all"
 LANG_SDK_TS_EXAMPLE_PATH = AIRFLOW_ROOT_PATH / "ts-sdk" / "example"
 LANG_SDK_TS_BUILDER_IMAGE = os.environ.get("NODE_BUILDER_IMAGE", "node:22-alpine")
 LANG_SDK_TS_BUNDLE_NAME = "bundle.min.mjs"
+# ts-sdk/example also holds the handlers of the Python-declared typescript_example Dag, so it
+# goes into ts-task-handlers as well, under a name that does not clash with the bundle there.
+LANG_SDK_TS_NATIVE_HANDLER_NAME = "native_bundle.min.mjs"
 LANG_SDK_AWS_CONN_URI = (
     "aws://test:test@/?region_name=us-east-1&"
     "endpoint_url=http%3A%2F%2Flocalstack.airflow.svc.cluster.local%3A4566"
@@ -3092,6 +3095,10 @@ def _lang_sdk_upload_artifacts(
     parse the packed Go bundle or the Java/TypeScript handler-only bundles as Dags -- a
     coordinator's own artifact lookup does not read ``.airflowignore``, so stub tasks still
     find their handlers there. The three ``lang-sdk-native-*`` buckets carry no such file.
+
+    ``ts-task-handlers`` holds two bundles: the mixed-language one and ``ts-sdk/example``, which
+    carries the handlers of ``typescript_example``. The coordinator picks between them by the
+    dag_ids each declares, so the native Dag's ``trigger_downstream`` has a run that can succeed.
     """
     pod = run_command_with_k8s_env(
         [
@@ -3163,6 +3170,7 @@ def _lang_sdk_upload_artifacts(
         ("/tmp/typescript_example.py", "s3://dags/typescript_example.py"),
         ("/tmp/native_app.jar", f"s3://lang-sdk-native-java/{native_java_jar.name}"),
         ("/tmp/native_bundle.min.mjs", f"s3://lang-sdk-native-ts/{LANG_SDK_TS_BUNDLE_NAME}"),
+        ("/tmp/native_bundle.min.mjs", f"s3://ts-task-handlers/{LANG_SDK_TS_NATIVE_HANDLER_NAME}"),
         ("/tmp/native_go_bundle", f"s3://lang-sdk-native-go/{LANG_SDK_GO_NATIVE_BUNDLE_NAME}"),
     ]
 

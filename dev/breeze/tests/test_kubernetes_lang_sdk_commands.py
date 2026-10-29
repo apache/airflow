@@ -414,6 +414,23 @@ class TestLangSdkDryRun:
         assert str(tmp_path / "lang-sdk-native-java" / "app.jar") in cp_sources
 
 
+class TestLangSdkUploadArtifacts:
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env")
+    def test_native_ts_bundle_also_serves_the_typescript_example_handlers(self, mock_run, dry_run, tmp_path):
+        """typescript_example's stub tasks look in ts-task-handlers, so the bundle has to be there too."""
+        mock_run.return_value = mock.Mock(stdout="")
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.11", "v1.35.0", None)
+
+        uploads = [
+            tuple(argv[-2:]) for call in mock_run.call_args_list if "awslocal" in (argv := call.args[0])
+        ]
+        assert ("/tmp/native_bundle.min.mjs", "s3://lang-sdk-native-ts/bundle.min.mjs") in uploads
+        assert ("/tmp/native_bundle.min.mjs", "s3://ts-task-handlers/native_bundle.min.mjs") in uploads
+        # The mixed-language handlers keep their own name, so the two do not overwrite each other.
+        assert ("/tmp/handler_bundle.min.mjs", "s3://ts-task-handlers/bundle.min.mjs") in uploads
+
+
 class TestSetupLangSdkTestNativeSelection:
     @pytest.mark.parametrize(
         ("env_value", "expected_native"),

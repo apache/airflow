@@ -90,7 +90,9 @@ halves of that example: the handlers for the Python-declared `typescript_example
 natively declared `typescript_native_example`. `typescript_example.py` is uploaded to the `dags`
 bucket too, because the native Dag's trigger task starts a run of it and waits for that run,
 deferring to `DagStateTrigger` in the Python triggerer. The test un-pauses `typescript_example`
-for that reason. The native Java Dag reuses `airflow-e2e-tests/java-native-bundle` and the native
+for that reason, and the same bundle is uploaded to `ts-task-handlers` under a second name, since
+that is where `typescript_example`'s own stub tasks look for their handlers. The coordinator picks
+between the two bundles in that bucket by the dag_ids each declares. The native Java Dag reuses `airflow-e2e-tests/java-native-bundle` and the native
 Go Dags reuse `go-sdk/example/native`, the same fixtures the compose e2e builds.
 
 ## Which SDK sources get built
