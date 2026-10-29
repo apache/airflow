@@ -110,6 +110,11 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         ),
     )
 
+    retry_at: datetime | None = Field(
+        default=None,
+        description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
+    )
+
     @field_validator("state_reason", mode="after")
     @classmethod
     def redact_state_reason(cls, v: str | None) -> str | None:

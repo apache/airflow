@@ -6792,3 +6792,23 @@ def test_lock_dag_runs_locks_again_after_a_savepoint_rolls_back(session, two_run
     lock_dag_runs(session, [first])
 
     assert locked_dag_run_keys == [[first], [first]]
+
+
+@mock.patch.object(TI, "are_dependencies_met", autospec=True)
+def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_met, dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="retrying", retries=2, retry_delay=datetime.timedelta(minutes=10))
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.try_number = 1
+    ti.end_date = timezone.utcnow()
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    successor = ti.prepare_db_for_next_try(session)
+    successor.retry_at = None
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert decision.schedulable_tis == []
+    mock_deps_met.assert_not_called()
+    assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)
