@@ -564,6 +564,49 @@ class TestWasbDagBundleArchive:
         assert not stale.exists()
         assert other.is_dir()
 
+    @pytest.mark.parametrize("drop_data_filter", [False, True])
+    @patch(
+        "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
+    )
+    def test_refresh_rejects_archive_member_that_escapes_bundle(
+        self, mock_wasb_hook_property, drop_data_filter, monkeypatch
+    ):
+        if drop_data_filter:
+            monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"kept"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+        bundle = WasbDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        store[ARCHIVE_BLOB] = (_make_archive({"../escape.py": b"nope"}), "etag-2")
+
+        with pytest.raises(tarfile.TarError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
+        assert not (bundle.path.parent / "escape.py").exists()
+
+    @patch(
+        "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
+    )
+    def test_refresh_from_archive_without_data_filter(self, mock_wasb_hook_property, monkeypatch):
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        archive = _make_archive({"dag_01.py": b"print(1)\n", "nested/a.py": b"nested"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+        bundle = WasbDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert (bundle.path / "nested" / "a.py").read_bytes() == b"nested"
+
     @patch(
         "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
     )
