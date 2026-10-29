@@ -2153,6 +2153,7 @@ class TestTIRunState:
             dag_id=str(uuid4()),
         )
         ti.queued_dttm = queued_at
+        ti.is_stub = True
         session.commit()
 
         with mock.patch(
