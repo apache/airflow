@@ -157,8 +157,8 @@ exchange its current CLI token for one with fresh Keycloak tokens:
         -H 'Content-Type: application/json' \
         -d '{"grant_type": "refresh_token", "token": "<current CLI token>"}'
 
-The new token expires at the same time as the current one, so refreshing never extends a CLI session. Expired and
-revoked tokens cannot be refreshed. A Keycloak client with "Use Refresh Tokens" turned off issues no refresh token,
+The new token expires at the same time as the current one, so refreshing never extends a CLI session. The current
+token is revoked once the new one is issued. Expired and revoked tokens cannot be refreshed. A Keycloak client with "Use Refresh Tokens" turned off issues no refresh token,
 so its CLI tokens cannot be refreshed either; refreshing one answers ``400`` and the user has to log in again.
 
 **Browser login.** With ``[keycloak_auth_manager] cli_authorization_code_enabled = True``, users log in through

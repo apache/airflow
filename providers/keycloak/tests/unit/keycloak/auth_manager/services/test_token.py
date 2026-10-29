@@ -520,6 +520,7 @@ class TestCliTokenService:
         user = mock_auth_manager.generate_api_jwt.call_args.args[0]
         assert (user.access_token, user.refresh_token) == ("new_access", "new_refresh")
         mock_auth_manager.generate_api_jwt.assert_called_once_with(user, expiration_time_in_seconds=600)
+        mock_auth_manager.revoke_token.assert_called_once_with(old_token)
 
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
@@ -564,6 +565,7 @@ class TestCliTokenService:
 
         assert exc_info.value.status_code == 403
         mock_get_keycloak_client.assert_not_called()
+        mock_get_auth_manager.return_value.revoke_token.assert_not_called()
 
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")

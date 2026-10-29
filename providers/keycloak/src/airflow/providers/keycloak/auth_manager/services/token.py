@@ -275,8 +275,8 @@ def refresh_cli_token(token: str) -> str:
     """
     Create a CLI token with fresh Keycloak tokens from a CLI token that is still valid.
 
-    The new token expires with the old one, so refreshing never extends a CLI session.
-    Expired and revoked tokens are refused by ``get_user_from_token``.
+    The new token expires with the old one, so refreshing never extends a CLI session, and the old
+    token is revoked. Expired and revoked tokens are refused by ``get_user_from_token``.
     """
     auth_manager = get_auth_manager()
     try:
@@ -309,4 +309,7 @@ def refresh_cli_token(token: str) -> str:
     user.access_token = tokens["access_token"]
     # RFC 6749 section 6: a refresh response may omit a new refresh token, and the old one stays valid.
     user.refresh_token = tokens.get("refresh_token", user.refresh_token)
-    return auth_manager.generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+    new_token = auth_manager.generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+    # Otherwise logging out with the new token would leave the old one usable, and refreshable, until it expires.
+    auth_manager.revoke_token(token)
+    return new_token
