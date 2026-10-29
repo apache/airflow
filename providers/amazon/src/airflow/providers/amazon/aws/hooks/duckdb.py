@@ -20,7 +20,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
+from botocore.config import Config
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -138,6 +141,7 @@ class AwsDuckDBHook(DuckDBHook):
         self._credential_chain = credential_chain
         self._s3_endpoint_url = s3_endpoint_url
         self._secret_name = secret_name
+        self._aws_identity_looked_up = False
 
     @property
     def aws_conn_id(self) -> str | None:
@@ -195,6 +199,25 @@ class AwsDuckDBHook(DuckDBHook):
         if explicit:
             return explicit
         return self.connection_extra.get("endpoint_url") or self.aws_hook.conn_config.endpoint_url
+
+    def get_conn(self) -> DuckDBPyConnection:
+        """Return a DuckDB connection, and log the AWS identity once to help debug S3 ``HTTP 403`` errors."""
+        conn = super().get_conn()
+        if self._aws_identity_looked_up:
+            return conn
+        self._aws_identity_looked_up = True
+        try:
+            if self.credential_strategy != "none" and not self.get_s3_endpoint_url():
+                # Keeps an unreachable STS endpoint from delaying the task by more than a few seconds.
+                bounded = Config(connect_timeout=2, read_timeout=2, retries={"total_max_attempts": 1})
+                config = self.aws_hook.config.merge(bounded)
+                sts_hook = StsHook(
+                    aws_conn_id=self.aws_conn_id, region_name=self.get_region_name(), config=config
+                )
+                self.log.info("AWS identity: %s", sts_hook.get_conn().get_caller_identity()["Arn"])
+        except Exception as error:  # Not BaseException: a task timeout must still stop the task.
+            self.log.debug("Could not look up the AWS identity: %s", error)
+        return conn
 
     def configure_secrets(self, conn: DuckDBPyConnection) -> None:
         """Create the DuckDB S3 secret for this connection."""

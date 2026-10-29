@@ -21,6 +21,7 @@ from unittest import mock
 
 import duckdb
 import pytest
+from botocore.exceptions import EndpointConnectionError
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook
@@ -29,6 +30,7 @@ from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 
 GET_CONNECTION = "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook.get_connection"
 AWS_BASE_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.AwsBaseHook"
+STS_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.StsHook"
 
 try:
     from airflow.sdk.exceptions import AirflowNotFoundException
@@ -305,3 +307,20 @@ class TestAwsDuckDBHookConnectionOverrides:
         with mock.patch(GET_CONNECTION, return_value=self.duckdb_connection(secret_name="from_extra")):
             statement = secret_statement(AwsDuckDBHook(secret_name="explicit"))
         assert statement.startswith("CREATE OR REPLACE SECRET explicit (")
+
+
+class TestAwsDuckDBHookIdentityLookup:
+    @pytest.mark.usefixtures("aws_base_hook", "no_duckdb_connection")
+    @mock.patch.object(AwsDuckDBHook, "configure_secrets", autospec=True)
+    @mock.patch.object(AwsDuckDBHook, "load_extensions", autospec=True)
+    @mock.patch(STS_HOOK, autospec=True)
+    def test_lookup_is_tried_once_and_its_failure_is_ignored(self, mock_sts_hook, *_):
+        get_caller_identity = mock_sts_hook.return_value.get_conn.return_value.get_caller_identity
+        get_caller_identity.side_effect = EndpointConnectionError(endpoint_url="https://sts.amazonaws.com")
+        hook = AwsDuckDBHook()
+
+        conn = hook.get_conn()
+        hook.get_conn()
+
+        assert conn.execute("SELECT 42").fetchone() == (42,)
+        get_caller_identity.assert_called_once_with()
