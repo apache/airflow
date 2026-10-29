@@ -982,9 +982,8 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        _E2ETestState.compose_instance.exec_in_container(
-            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-        )
+        # No forced `dags reserialize`: it races the live dag-processor on the same dag_id INSERT
+        # (dag_pkey crash). The processor serializes Dags itself and tests poll via wait_for_dag.
 
         if E2E_TEST_MODE == "event_driven":
             console.print("[yellow]Creating Kafka topics...")
