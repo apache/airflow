@@ -31,6 +31,13 @@ from airflow.providers.keycloak.auth_manager.services.token import (
 )
 
 
+def default_to_password_grant(data: Any) -> Any:
+    """Add the default ``password`` grant_type, leaving a malformed body to the union."""
+    if isinstance(data, dict) and "grant_type" not in data:
+        return {**data, "grant_type": "password"}
+    return data
+
+
 class TokenResponse(BaseModel):
     """Token serializer for responses."""
 
@@ -126,10 +133,7 @@ class TokenBody(RootModel[TokenUnion]):
     @model_validator(mode="before")
     @classmethod
     def default_grant_type(cls, data: Any) -> Any:
-        """Add default grant_type for discrimination, leaving a malformed body to the union."""
-        if isinstance(data, dict) and "grant_type" not in data:
-            return {**data, "grant_type": "password"}
-        return data
+        return default_to_password_grant(data)
 
 
 TokenCliUnion = Annotated[
@@ -144,7 +148,4 @@ class TokenCliBody(RootModel[TokenCliUnion]):
     @model_validator(mode="before")
     @classmethod
     def default_grant_type(cls, data: Any) -> Any:
-        """Add default grant_type for discrimination, leaving a malformed body to the union."""
-        if isinstance(data, dict) and "grant_type" not in data:
-            return {**data, "grant_type": "password"}
-        return data
+        return default_to_password_grant(data)

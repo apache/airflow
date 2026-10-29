@@ -32,24 +32,22 @@ from keycloak import KeycloakAuthenticationError, KeycloakError, KeycloakOpenID
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.constants import (
-    CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY,
     CONF_CLIENT_ID_KEY,
     CONF_JWT_FEDERATED_CLIENT_IDS_KEY,
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
-from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
+    KeycloakAuthManager,
+    is_cli_authorization_code_enabled,
+)
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 # RFC 8252 section 7.3 loopback redirects. ``localhost`` is left out because it can resolve
 # to a non-loopback interface.
 CLI_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1"})
 CLI_CALLBACK_PATH = "/callback"
-
-
-def is_cli_authorization_code_enabled() -> bool:
-    return conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False)
 
 
 def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
@@ -63,8 +61,7 @@ def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
         parts.scheme == "http"
         and parts.hostname in CLI_LOOPBACK_HOSTS
         and port is not None
-        # Userinfo is rejected outright: an authority such as ``:x@127.0.0.1:1`` keeps a loopback
-        # ``hostname`` while smuggling arbitrary characters into the rest of the URI.
+        # Reject userinfo: ``:x@127.0.0.1:1`` still has a loopback hostname.
         and "@" not in parts.netloc
         and parts.path == CLI_CALLBACK_PATH
         and not parts.query
@@ -75,15 +72,13 @@ def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
 def _build_user_from_userinfo(client: KeycloakOpenID, tokens: dict) -> KeycloakAuthManagerUser:
     """Build the Airflow user that Keycloak's UserInfo endpoint describes for ``tokens``."""
     userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
-    # Decode bytes to dict if necessary
     userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
 
     return KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo.get("preferred_username", userinfo.get("clientId", "service-account")),
         access_token=tokens["access_token"],
-        # A client_credentials grant returns no refresh token (RFC 6749 section 4.4.3), and neither
-        # does a client with "Use Refresh Tokens" turned off.
+        # Absent for client_credentials and clients with "Use Refresh Tokens" off.
         refresh_token=tokens.get("refresh_token"),
     )
 
@@ -176,8 +171,7 @@ def create_jwt_federated_token(
         )
 
     # Confirm the assertion is still live (not revoked) rather than trusting the JWT's
-    # own claims alone. The assertion was obtained outside Airflow, so it comes with no
-    # refresh token of ours.
+    # own claims alone.
     client = KeycloakAuthManager.get_keycloak_client()
     try:
         user = _build_user_from_userinfo(client, {"access_token": assertion})
@@ -232,7 +226,6 @@ def create_client_credentials_token(
             detail="Client credentials authentication failed",
         )
 
-    # The token represents the service account associated with the client
     return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
 
 
@@ -240,7 +233,7 @@ def create_token_from_authorization_code(
     code: str,
     code_verifier: str,
     redirect_uri: str,
-    expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_cli_expiration_time"),
+    expiration_time_in_seconds: int,
 ) -> str:
     """
     Create a CLI token from an authorization code obtained through ``/login/cli``.
@@ -286,15 +279,12 @@ def refresh_cli_token(token: str) -> str:
     if not user:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
     if not user.refresh_token:
-        # Separate from the rejections above so that a deployment whose Keycloak client issues no
-        # refresh token gets an answer it can act on instead of a token that merely looks invalid.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This token cannot be refreshed because Keycloak issued it without a refresh token",
         )
 
-    # The signature and expiry were verified by get_user_from_token above, but it allows
-    # [api_auth] jwt_leeway, so a token that just expired would refresh into a negative lifetime.
+    # get_user_from_token allows [api_auth] jwt_leeway past exp.
     expires_at = jwt.decode(token, options={"verify_signature": False})["exp"]
     expiration_time_in_seconds = int(expires_at - time.time())
     if expiration_time_in_seconds <= 0:
@@ -310,6 +300,6 @@ def refresh_cli_token(token: str) -> str:
     # RFC 6749 section 6: a refresh response may omit a new refresh token, and the old one stays valid.
     user.refresh_token = tokens.get("refresh_token", user.refresh_token)
     new_token = auth_manager.generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
-    # Otherwise logging out with the new token would leave the old one usable, and refreshable, until it expires.
+    # Otherwise the old token stays usable and refreshable until it expires.
     auth_manager.revoke_token(token)
     return new_token

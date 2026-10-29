@@ -479,7 +479,9 @@ class TestCliTokenService:
     ):
         with conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): enabled}):
             with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-                create_token_from_authorization_code("code", self.code_verifier, redirect_uri)
+                create_token_from_authorization_code(
+                    "code", self.code_verifier, redirect_uri, expiration_time_in_seconds=10
+                )
 
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail == expected_detail
@@ -492,7 +494,9 @@ class TestCliTokenService:
         mock_get_keycloak_client.return_value.token.side_effect = KeycloakPostError("invalid_grant")
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            create_token_from_authorization_code("code", self.code_verifier, self.redirect_uri)
+            create_token_from_authorization_code(
+                "code", self.code_verifier, self.redirect_uri, expiration_time_in_seconds=10
+            )
 
         assert exc_info.value.status_code == 403
 
