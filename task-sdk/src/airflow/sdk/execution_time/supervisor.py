@@ -2177,10 +2177,12 @@ class ActivitySubprocess(WatchedSubprocess):
         return None, {}
 
     def _arm_execution_timeout(self) -> None:
-        if self._execution_timeout_seconds is None:
+        # Zero means no timeout, as a zero timedelta does for a Python task.
+        if not self._execution_timeout_seconds:
             return
+        # A negative timeout has already elapsed, so the task gets only the grace period.
         self._execution_timeout_enforce_at = (
-            time.monotonic() + self._execution_timeout_seconds + KILLED_TASK_CLEANUP_TIME
+            time.monotonic() + max(self._execution_timeout_seconds, 0.0) + KILLED_TASK_CLEANUP_TIME
         )
 
     def _handle_set_rendered_fields(
