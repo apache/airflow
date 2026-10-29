@@ -2035,7 +2035,7 @@ class TestAssetEventCleanup:
         if dry_run:
             output = capsys.readouterr().out
             assert f"Restricting cleanup to asset IDs {selected_assets!r}." in output
-            assert f"Found {len(matching)} rows meeting deletion criteria." in output
+            assert f"Found {len(matching)} rows in table asset_event meeting deletion criteria." in output
 
     @pytest.mark.parametrize("empty_selection", [False, True])
     def test_asset_filter_is_request_local(self, asset_events, session, empty_selection):
