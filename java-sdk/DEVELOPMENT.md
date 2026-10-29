@@ -55,7 +55,7 @@ Gradle only appends to the file, so the script empties the component list before
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
-Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, the JDK auto-provisioned by the foojay resolver, and the Supervisor Schema fetched by `:sdk:syncSupervisorSchema`.
+Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, the JDK auto-provisioned by the foojay resolver, and the Supervisor Schema that `:sdk:syncSupervisorSchema` downloads when built outside the monorepo.
 
 ## Building documentation
 
