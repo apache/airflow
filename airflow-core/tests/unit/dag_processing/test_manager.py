@@ -82,6 +82,7 @@ from airflow.dag_processing.manager import (
     DagFileStat,
     PendingBundleInventory,
     PendingDagPublication,
+    _compute_retry_delay,
 )
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
@@ -2433,6 +2434,26 @@ class TestDagFileProcessorManager:
         assert not manager.max_runs_reached()
 
         manager._processors.clear()
+        assert manager.max_runs_reached()
+
+    @pytest.mark.parametrize("pending", ["publication", "inventory"])
+    def test_max_runs_waits_for_pending_api_work_after_counts_reach_the_limit(self, pending):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        manager._num_run = 1
+        file = _get_file_infos(["dag.py"])[0]
+        manager._file_stats[file] = DagFileStat(run_count=1)
+        if pending == "publication":
+            manager._pending_publications[file] = mock.create_autospec(PendingDagPublication, instance=True)
+        else:
+            manager._pending_inventories[file.bundle_name] = mock.create_autospec(
+                PendingBundleInventory, instance=True
+            )
+
+        assert not manager.max_runs_reached()
+
+        manager._pending_publications.clear()
+        manager._pending_inventories.clear()
         assert manager.max_runs_reached()
 
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
@@ -6260,16 +6281,17 @@ class TestDagFileProcessorManager:
             f"({SWEEP_CALLS} x {fixed} fixed + {SWEEP_FILES} x {per_dag} per Dag)."
         )
 
-    @pytest.mark.parametrize("publication_fails", [False, True])
+    @pytest.mark.parametrize(("publication_fails", "expected_num_dags"), [(False, 0), (True, 2)])
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
     def test_api_publication_uses_dispatch_identity_without_local_persistence(
-        self, create, persist, session, publication_fails
+        self, create, persist, session, publication_fails, expected_num_dags
     ):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
         manager = DagFileProcessorManager(max_runs=1, api_client=client)
         manager._bundle_parse_sources["testing"] = DagParseSource(bundle_version="v1")
         file = _get_file_infos(["dag.py"])[0]
+        manager._file_stats[file] = DagFileStat(num_dags=2)
         manager._file_queue[file] = None
         proc, read_end = self.mock_processor()
         proc.had_callbacks = False
@@ -6291,6 +6313,7 @@ class TestDagFileProcessorManager:
             assert body.relative_fileloc == "dag.py"
             assert body.serialized_dags == []
             assert manager._file_stats[file].run_count == 1
+            assert manager._file_stats[file].num_dags == expected_num_dags
             persist.assert_not_called()
         finally:
             read_end.close()
@@ -7041,6 +7064,12 @@ class TestDagFileProcessorManagerWithAPIClient:
             manager.after_run()
 
     @pytest.fixture(autouse=True)
+    def restore_process_context(self):
+        # Starting an API-mode manager sets _AIRFLOW_PROCESS_CONTEXT for the whole process.
+        with mock.patch.dict(os.environ):
+            yield
+
+    @pytest.fixture(autouse=True)
     def configured_bundles(self):
         with conf_vars(
             {
@@ -7700,6 +7729,21 @@ def test_rejected_result_with_unrepresentable_diagnostic_does_not_stop_other_fil
     ]
 
 
+@pytest.mark.parametrize(
+    ("attempts", "expected_delay"),
+    [
+        pytest.param(1, 3, id="minimum"),
+        pytest.param(3, 4, id="exponential"),
+        pytest.param(5, 10, id="maximum"),
+    ],
+)
+@conf_vars(
+    {("workers", "execution_api_retry_wait_min"): "3", ("workers", "execution_api_retry_wait_max"): "10"}
+)
+def test_retry_delay_doubles_within_the_configured_bounds(attempts, expected_delay):
+    assert _compute_retry_delay(attempts) == expected_delay
+
+
 @pytest.mark.parametrize("status_code", [408, 429])
 @pytest.mark.parametrize("recovers", [False, True])
 @conf_vars(
@@ -7883,11 +7927,12 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
 @pytest.mark.parametrize("method", ["claim_priority_files", "fetch_callbacks"])
 def test_internal_api_manager_leaves_requested_work_for_activation(method, mocker):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
     database_method = (
         "_claim_priority_files" if method == "claim_priority_files" else "_fetch_callbacks_from_db"
     )
-    read_database = mocker.patch.object(manager, database_method, autospec=True)
+    # The default work source binds these methods when the manager is built.
+    read_database = mocker.patch.object(DagFileProcessorManager, database_method, autospec=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
 
     assert getattr(manager, method)() == []
     read_database.assert_not_called()
