@@ -370,7 +370,7 @@ class MSGraphAsyncOperator(BaseOperator):
         """
         if self.method.upper() != "GET":
             task_state_store.set(_COMPLETED_KEY, {"result": results})
-        self.remove_pages(task_state_store, self.get_cursor(task_state_store))
+        self._remove_pages(task_state_store, self.get_cursor(task_state_store))
 
     @staticmethod
     def remove_pages(task_state_store: TaskStateStoreAccessor, cursor: _PaginationCursor | None) -> None:
