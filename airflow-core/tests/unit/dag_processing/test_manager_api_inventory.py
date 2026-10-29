@@ -31,7 +31,7 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagBundleStateResponse,
 )
 from airflow.dag_processing.api_client import DagProcessorAPIClient
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.manager import (
     DagBundleDiscoveryResult,
     DagFileInfo,
@@ -322,6 +322,44 @@ def test_missing_catalog_bundle_warns_once_until_it_reappears(
         assert bundle.name not in manager._bundle_refresh_retry_at
 
     find_files.assert_called_once_with(manager, bundle)
+
+
+@mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+@mock.patch.object(
+    DagFileProcessorManager,
+    "_find_files_in_bundle",
+    autospec=True,
+    return_value=DagBundleDiscoveryResult(files=set()),
+)
+def test_unchanged_versioned_bundle_refresh_publishes_an_inventory(find_files, update_bundle_state, tmp_path):
+    bundle = _create_bundle(tmp_path, "testing")
+    bundle.supports_versioning = True
+    bundle.get_current_version.return_value = BundleVersion(version="v1")
+    client = _create_client([bundle])
+    state = client.get_bundles.return_value[0]
+    state.version = "v1"
+    receipt_revision = uuid7()
+    client.publish_inventory.side_effect = lambda bundle_name, body: DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=receipt_revision
+    )
+    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager._dag_bundles = [bundle]
+    manager._bundle_versions[bundle.name] = "v1"
+    manager._bundle_parse_sources[bundle.name] = DagParseSource(
+        bundle_version="v1", bundle_revision=state.revision
+    )
+    manager.request_bundle_refresh(bundle.name)
+
+    manager._refresh_dag_bundles({})
+
+    bundle.refresh.assert_called_once_with()
+    update_bundle_state.assert_not_called()
+    body = client.publish_inventory.call_args.args[1]
+    assert body.version == "v1"
+    assert body.expected_revision == state.revision
+    source = manager._bundle_parse_sources[bundle.name]
+    assert source.bundle_version == "v1"
+    assert source.bundle_revision == receipt_revision
 
 
 @pytest.mark.parametrize("blocked_by", ["inventory_cooldown", "pending_inventory", "failed_catalog_read"])

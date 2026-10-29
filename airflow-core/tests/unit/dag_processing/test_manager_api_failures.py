@@ -198,12 +198,12 @@ def test_timeout_does_not_publish_for_callbacks_or_obsolete_sources(clock, sessi
     manager._bundle_refresh_generations[file.bundle_name] = 1 if outcome == "refreshed" else 0
 
     manager._kill_timed_out_processors()
-    manager._publish_pending_results()
 
+    assert not manager._pending_publications
+    manager._publish_pending_results()
     processor.kill.assert_called_once_with(signal.SIGKILL)
     processor.close.assert_called_once_with()
     assert not manager._processors
-    assert not manager._pending_publications
     client.publish_parse_result.assert_not_called()
     session_factory.assert_not_called()
     assert list(manager._file_queue) == ([file] if outcome == "refreshed" else [])
