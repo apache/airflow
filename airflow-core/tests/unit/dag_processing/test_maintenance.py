@@ -365,11 +365,10 @@ def test_cleanup_drains_stale_dag_warnings_in_committed_batches(mock_session, se
     assert [warning.dag_id for warning in session.scalars(select(DagWarning))] == ["dag_3"]
 
 
+@pytest.mark.backend("sqlite")
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "120"})
 def test_default_cleanup_respects_sqlite_variable_limit_and_retires_jobs(session, time_machine):
     engine = session.get_bind()
-    if engine.dialect.name != "sqlite":
-        pytest.skip("Exercises SQLite's host parameter limit")
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     session.add(DagBundleModel(name="live"))
     session.flush()

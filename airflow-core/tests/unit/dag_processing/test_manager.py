@@ -30,6 +30,7 @@ import textwrap
 import time
 import zipfile
 from collections import Counter, OrderedDict, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -71,9 +72,11 @@ from airflow.dag_processing.processor import (
     DagParseSource,
     _parse_file,
 )
+from airflow.jobs.job import Job, JobState
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -92,8 +95,10 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
     clear_db_dag_bundles,
+    clear_db_dag_parsing_requests,
     clear_db_dags,
     clear_db_import_errors,
+    clear_db_jobs,
     clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
@@ -1703,12 +1708,12 @@ class TestDagFileProcessorManager:
         """Dags deactivation should gracefully handle database lock timeouts."""
         from sqlalchemy.exc import OperationalError
 
-        session.add(DagBundleModel(name="gone-bundle"))
+        session.add(DagBundleModel(name="dag-bundle"))
         session.flush()
         session.add(
             DagModel(
-                dag_id="dag_in_inactive_bundle",
-                bundle_name="gone-bundle",
+                dag_id="stale_dag",
+                bundle_name="dag-bundle",
                 relative_fileloc="some_file.py",
                 last_parsed_time=timezone.utcnow(),
                 is_stale=False,
@@ -1731,12 +1736,18 @@ class TestDagFileProcessorManager:
         with mock.patch.object(session, "execute", side_effect=mock_execute):
             manager.deactivate_stale_dags(
                 last_parsed={
-                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="gone-bundle"): timezone.utcnow()
+                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="dag-bundle"): timezone.utcnow()
                     + timedelta(hours=1)
                 }
             )
 
-        assert "Lock not available when deactivating stale DAGs" in caplog.text
+        assert {
+            "event": (
+                "Lock not available when deactivating stale DAGs. "
+                "Skipping this iteration to prevent processor hang."
+            ),
+            "log_level": "warning",
+        } in caplog
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @mock.patch("airflow.models.dag.DagModel.deactivate_deleted_dags")
@@ -4352,6 +4363,63 @@ class TestDagFileProcessorManager:
             entry["event"].startswith("Skipping callback fetch for uninitialized bundles:")
             for entry in caplog.entries
         )
+
+    @pytest.fixture
+    def api_job(self, session):
+        job = Job(job_type="DagProcessorJob", state=JobState.RUNNING, session_id=uuid7())
+        session.add_all([job, DagBundleModel(name="bundle")])
+        session.commit()
+        yield job
+        clear_db_dag_parsing_requests()
+        clear_db_jobs()
+
+    @pytest.mark.parametrize("kind", ["callbacks", "priority"])
+    @pytest.mark.parametrize("retired", [False, True])
+    def test_direct_mode_recovers_retired_api_claims_only(self, session, api_job, tmp_path, kind, retired):
+        if kind == "callbacks":
+            work = DbCallbackRequest(
+                priority_weight=1,
+                callback=DagCallbackRequest(
+                    filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
+                ),
+            )
+        else:
+            work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+        work.processor_job_id = api_job.id
+        work.processor_claim_id = uuid7()
+        if retired:
+            api_job.end_date = timezone.utcnow()
+        session.add(work)
+        session.commit()
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [LocalDagBundle(name="bundle", path=tmp_path)]
+        result = manager.fetch_callbacks() if kind == "callbacks" else manager.claim_priority_files()
+        assert len(result) == int(retired)
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_direct_priority_claim_skips_request_locked_by_api(self, session, api_job, tmp_path):
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+        session.add(work)
+        session.commit()
+        key, job_id = work.id, api_job.id
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [LocalDagBundle(name="bundle", path=tmp_path)]
+
+        with create_session() as claim_session, ThreadPoolExecutor(max_workers=1) as pool:
+            claimed = claim_session.scalar(
+                select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.id == key).with_for_update()
+            )
+            claimed.processor_job_id = job_id
+            claimed.processor_claim_id = uuid7()
+            claim_session.flush()
+            direct_claim = pool.submit(manager.claim_priority_files)
+            try:
+                assert direct_claim.result(timeout=10) == []
+            finally:
+                claim_session.commit()
+
+        session.expire_all()
+        assert session.get(DagPriorityParsingRequest, key).processor_job_id == job_id
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):

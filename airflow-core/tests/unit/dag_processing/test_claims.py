@@ -27,12 +27,10 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.backend("sqlite")
 @pytest.mark.parametrize("model", [DagProcessorCallback, DagPriorityParsingRequest])
 def test_available_work_looks_up_owner_without_scanning_job_history(session, model):
     dialect = session.get_bind().dialect
-    if dialect.name != "sqlite":
-        pytest.skip("Reads the SQLite query plan")
-
     query = select(model.id).where(get_available_work_filter(model.processor_job_id)).limit(100)
     sql = query.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
     plans = [row[-1] for row in session.execute(text(f"EXPLAIN QUERY PLAN {sql}"))]
