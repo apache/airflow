@@ -28,7 +28,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapability
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
@@ -60,6 +60,7 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -93,14 +94,13 @@ try:
     # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
     # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
-    from airflow.sdk.serde import (
-        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
-        iter_pydantic_models,
-    )
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     import jinja2
     from pydantic_ai import Agent
     from pydantic_ai.capabilities import AgentCapability
@@ -241,26 +241,6 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
-def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
-    """Return *value* with each model whose class is not in *registered* dumped to a JSON-compatible dict."""
-    if isinstance(value, BaseModel):
-        if type(value) in registered:
-            return value
-        # A python-mode model_dump() leaves values such as plain Enum members, HttpUrl and Path in the
-        # dict, and the default XCom serializer raises TypeError for those values.
-        return value.model_dump(mode="json")
-    # The default XCom serializer already pushes a subclass of list, tuple or dict, such as a NamedTuple
-    # or an OrderedDict, as the plain type. Building the plain type here does not change what a
-    # downstream task receives.
-    if isinstance(value, list):
-        return [_dump_unregistered_models(item, registered) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_dump_unregistered_models(item, registered) for item in value)
-    if isinstance(value, dict):
-        return {key: _dump_unregistered_models(item, registered) for key, item in value.items()}
-    return value
-
-
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -296,10 +276,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
-        directly. The class must be defined at module scope -- nested classes
+        directly, except inside a list of types, where it is returned as a ``dict``
+        because the worker registers only the classes it finds in a single type or a union.
+        The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``). The connection IDs of
@@ -490,11 +474,16 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape.
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+        ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their
+        types. A model inside a list, tuple, set or dict is left for the XCom serializer when the
+        worker registers its class. A model whose class the worker cannot register from
+        ``output_type`` (for example ``[MyModel, int]``, an output marker or function, a
+        ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible values with
+        ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the output
+        itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
+        whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows
+        through XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -526,7 +515,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
+        output_type: type | UnionType | Sequence[type] = str,
         toolsets: list[AbstractToolset] | None = None,
         capabilities: list[AgentCapability[Any]] | None = None,
         enable_tool_logging: bool = True,
@@ -1148,20 +1137,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """Return the XCom value, with dicts in place of models that a downstream task could not load."""
         if not self.do_xcom_push:
             return output
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            return output.model_dump()
-        if not _CORE_WALKER:
-            # iter_pydantic_models could not be imported, so the worker registers no class.
-            # _serialize_model_output is always True when that import fails, so a model at the top level was
-            # already dumped above. The class of a model inside a list, tuple or dict is not registered
-            # either, so this call passes an empty set of registered classes to dump that model too.
-            return _dump_unregistered_models(output, set())
-        # A downstream task can load a model from XCom only if the worker registered the model's class.
-        # The worker registers the classes that iter_pydantic_models finds in output_type.
-        # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-        # function, a TypeAliasType or a NewType. For these output types the operator pushes each model
-        # as a dict, including models inside a list, tuple or dict.
-        return _dump_unregistered_models(output, set(iter_pydantic_models(self.output_type)))
+        return dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
         """

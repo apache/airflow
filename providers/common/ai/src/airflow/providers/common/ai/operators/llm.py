@@ -23,7 +23,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import BaseModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -56,7 +55,11 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
-from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import (
+    dump_output_for_xcom,
+    dump_output_to_json,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.ai.utils.usage_budget import copy_run_usage, subtract_run_usage
@@ -100,6 +103,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
     the model instance is returned to XCom unchanged so downstream tasks can
     type-hint it directly (e.g. ``def downstream(result: MyModel) -> None``).
+    Inside a list of types (``[MyModel, int]``) the model is returned as a ``dict`` instead.
     The class is auto-registered for deserialization in each process that parses
     the DAG, so no edit to ``[core] allowed_deserialization_classes`` is required.
     The Pydantic class must be defined at module scope: classes nested inside
@@ -139,9 +143,12 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     :param system_prompt: System-level instructions for the LLM agent.
     :param output_type: Expected output type. Default ``str``. A single type
         (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
-        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
-        directly. The class must be defined at module scope -- nested classes
+        directly, except inside a list of types, where it is returned as a ``dict``
+        because the worker registers only the classes it finds in a single type or a union.
+        The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param model_settings: Pydantic AI :class:`~pydantic_ai.settings.ModelSettings`
         for the model call, such as ``temperature`` or ``max_tokens``, including
@@ -215,12 +222,16 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
         like ``require_approval``. Default ``None``: no gate, behaviour unchanged.
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape (e.g. sending to an
-        external system that expects JSON-style payloads).
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+        ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their
+        types. A model inside a list, tuple, set or dict is left for the XCom serializer when the
+        worker registers its class. A model whose class the worker cannot register from
+        ``output_type`` (for example ``[MyModel, int]``, an output marker or function, a
+        ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible values with
+        ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the output
+        itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
+        whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows
+        through XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -247,7 +258,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type | UnionType = str,
+        output_type: type | UnionType | Sequence[type] = str,
         model_settings: ModelSettings | None = None,
         output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
@@ -445,11 +456,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True``, or an ``apache-airflow-task-sdk`` version without the worker-side
-            # deserialization-class walk: dump to a dict so XCom carries a plain
-            # JSON payload that deserializes without an allow-list entry.
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         self._clear_usage_budget(context)
         return output

@@ -21,10 +21,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel
-
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
+from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
@@ -173,12 +172,7 @@ class LLMFileAnalysisOperator(LLMOperator):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            # Honour ``serialize_output=True`` and the older-Airflow fallback,
-            # matching ``LLMOperator.execute``. ``LLMFileAnalysisOperator``
-            # overrides ``execute`` rather than calling ``super().execute()``,
-            # so the dump step has to be repeated here.
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         self._clear_usage_budget(context)
         return output

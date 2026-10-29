@@ -46,12 +46,16 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - ``@task.llm`` and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - Sends the prompt to the model from ``llm_conn_id`` and returns the output as the
        task's return value: a string by default, or an instance of ``output_type``,
-       dumped to a dict when ``serialize_output=True``. Before Airflow 3.3 an instance is
-       always dumped to a dict. ``decision_policy`` is experimental; see below.
+       dumped to a dict when ``serialize_output=True``. Before Airflow 3.3 an instance that is
+       itself the output is always dumped to a dict, while a ``list[MyModel]`` is pushed as
+       instances (before Airflow 3.3 only). An instance of a class the worker cannot register, such as
+       ``output_type=[MyModel, int]``, is dumped to dicts whatever ``serialize_output`` says,
+       also inside a list, tuple, set or dict. ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
-       returns its output under the same rules as ``@task.llm``. Code mode is
-       experimental; see below.
+       returns its output as the task's return value. A model whose class the worker cannot
+       register is dumped to a dict, also inside a list, tuple, set or dict, as for the LLM
+       operators; see :doc:`structured_output`. Code mode is experimental; see below.
    * - Per-tool approval on ``AgentOperator`` (:doc:`tool_approval`)
      - On Airflow 3.3 and later, a call to a tool marked with Pydantic AI's approval API
        (``approval_required(...)`` on a toolset, or ``requires_approval=True`` on a
@@ -141,7 +145,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :doc:`connections/pydantic_ai_azure` keep their meaning, so an existing connection
        keeps producing the same model.
    * - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`
-     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``. Read-only
+     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``, each named
+       ``<tool_prefix>_<name>`` when ``tool_prefix`` is set. Read-only
        unless ``allow_writes=True``. When ``allowed_tables`` is set, other tables are
        refused. ``query`` returns at most ``max_rows`` rows, and keeps the rows and column
        names within ``max_result_bytes`` bytes. When ``query`` fails or refuses a
