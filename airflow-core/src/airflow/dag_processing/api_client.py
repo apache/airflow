@@ -90,6 +90,13 @@ def get_error_reason(error: httpx2.HTTPStatusError) -> str | None:
     return detail.get("reason") if isinstance(detail, dict) else None
 
 
+def _is_retryable_at_once(error: BaseException) -> bool:
+    """Whether the Task SDK would retry the failure, unless it timed out, which a resend at once would repeat."""
+    if isinstance(error, httpx2.HTTPStatusError):
+        return error.response.status_code >= 500
+    return isinstance(error, httpx2.RequestError) and not isinstance(error, httpx2.TimeoutException)
+
+
 class DagProcessorAPIClient(Client):
     """
     Register one processor process and use its Job token for subsequent API requests.
@@ -139,6 +146,7 @@ class DagProcessorAPIClient(Client):
         self._restart_required = False
         self._bundle_context: ContextVar[str | None] = ContextVar("dag_processor_bundle", default=None)
         self._parse_context: ContextVar[DagParseContext | None] = ContextVar("dag_parse", default=None)
+        self._retry_without_waiting: ContextVar[bool] = ContextVar("dag_processor_retry", default=False)
         self._job_id: int | None = None
         self._completion_state: TerminalJobState | None = None
         self._completed = False
@@ -175,6 +183,19 @@ class DagProcessorAPIClient(Client):
             yield self
         finally:
             self._parse_context.reset(selected)
+
+    @contextmanager
+    def use_immediate_retries(self) -> Iterator[DagProcessorAPIClient]:
+        """
+        Replace the Task SDK's waiting retries for manager requests with one immediate retry.
+
+        A timed-out request is not retried, so a hanging API holds the caller for one timeout.
+        """
+        selected = self._retry_without_waiting.set(True)
+        try:
+            yield self
+        finally:
+            self._retry_without_waiting.reset(selected)
 
     def _get_parse_token(self, context: DagParseContext, *, retry: bool, timeout: httpx2.Timeout) -> str:
         if context.token is not None and monotonic() < context.expires_at:
@@ -316,8 +337,8 @@ class DagProcessorAPIClient(Client):
             }
         )
 
-    def _get_write_timeout(self) -> httpx2.Timeout:
-        """Fail fast while the API is unreachable, but let a slow write commit and acknowledge."""
+    def _get_response_timeout(self) -> httpx2.Timeout:
+        """Fail fast while the API is unreachable, but let a slow read or write complete."""
         bounded = self._get_bounded_timeout()
         return httpx2.Timeout(
             connect=bounded.connect, read=self.timeout.read, write=self.timeout.write, pool=bounded.pool
@@ -349,11 +370,13 @@ class DagProcessorAPIClient(Client):
     def request(self, *args, retry: bool = True, **kwargs) -> httpx2.Response:
         """Use a parsing credential for subprocess requests, and the Job credential for manager work."""
         self._check_can_run()
+        retry_at_once = retry and self._retry_without_waiting.get()
+        retry = retry and not retry_at_once
         try:
             headers = httpx2.Headers(kwargs.get("headers"))
             if context := self._parse_context.get():
                 # Avoid retry sleeps on the manager loop; required credentials use the runtime request's timeout.
-                retry = False
+                retry = retry_at_once = False
                 timeout = kwargs.get("timeout", httpx2.USE_CLIENT_DEFAULT)
                 timeout = self.timeout if timeout is httpx2.USE_CLIENT_DEFAULT else httpx2.Timeout(timeout)
                 kwargs["auth"] = BearerAuth(self._get_parse_token(context, retry=retry, timeout=timeout))
@@ -365,7 +388,15 @@ class DagProcessorAPIClient(Client):
             if kwargs.get("content") is not None:
                 headers.setdefault("Content-Type", "application/json")
             kwargs["headers"] = headers
-            return super().request(*args, retry=retry, **kwargs)
+            if not retry_at_once:
+                return super().request(*args, retry=retry, **kwargs)
+            try:
+                return super().request(*args, retry=False, **kwargs)
+            except httpx2.HTTPError as error:
+                if not _is_retryable_at_once(error):
+                    raise
+                log.warning("Retrying a failed Execution API request", error_type=type(error).__name__)
+            return super().request(*args, retry=False, **kwargs)
         except httpx2.HTTPStatusError as error:
             if error.response.status_code == 403 and get_error_reason(error) == "job_closed":
                 self._restart_required = True
@@ -388,17 +419,18 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_write_timeout(),
+            timeout=self._get_response_timeout(),
         )
         return DagParseResultResponse.model_validate_json(response.content)
 
-    def get_bundles(self) -> list[DagBundleStateResponse]:
+    def get_bundles(self, *, retry: bool = False) -> list[DagBundleStateResponse]:
+        """Read the bundle catalog once, or with the Task SDK's retries where waiting is acceptable."""
         response = self.request(
             "GET",
             f"jobs/{self._require_job_id()}/bundles",
             headers=_JOB_API_HEADERS,
-            retry=False,
-            timeout=self._get_bounded_timeout(),
+            retry=retry,
+            timeout=self._get_response_timeout(),
         )
         return [DagBundleStateResponse.model_validate(item) for item in response.json()]
 
@@ -409,7 +441,7 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_write_timeout(),
+            timeout=self._get_response_timeout(),
         )
         return DagBundleInventoryResponse.model_validate_json(response.content)
 
@@ -468,3 +500,7 @@ class DagProcessorSecretsComms:
             # mask_secret has already masked the value in this process.
             return None
         raise TypeError(f"{type(msg).__name__} is not answered in the Dag processor manager process")
+
+    async def asend(self, msg: Any, **kwargs: Any) -> Any:
+        # The manager runs no other coroutines, so a blocking lookup delays nothing else.
+        return self.send(msg, **kwargs)

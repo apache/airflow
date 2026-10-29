@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, c
 from uuid import UUID
 
 import attrs
+import httpx2
 from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow._shared.observability.metrics import stats
@@ -632,6 +633,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     bundle_name: str
     dag_file_rel_path: str
     _api_parse_context: DagParseContext | None = attrs.field(init=False, default=None)
+    api_request_error: str | None = attrs.field(init=False, default=None)
+    """The Execution API request that failed while parsing; Dag code may then have used a fallback value."""
 
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         base = super()._get_target_loggers()
@@ -727,7 +730,16 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
                 )
             )
         with self.client.use_parse(self._api_parse_context):
-            super()._handle_request(msg, log, req_id)
+            try:
+                super()._handle_request(msg, log, req_id)
+            except Exception as error:
+                failure = (
+                    f"HTTP {error.response.status_code}"
+                    if isinstance(error, httpx2.HTTPStatusError)
+                    else type(error).__name__
+                )
+                self.api_request_error = f"{type(msg).__name__} ({failure})"
+                raise
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)

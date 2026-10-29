@@ -256,6 +256,14 @@ def test_invalid_inventory_paths_do_not_pause_valid_sources(
         "bundle_name": bundle.name,
         "relative_fileloc": invalid_location,
     } in caplog
+    assert (
+        {
+            "event": "Not parsing a source with an unrepresentable member; keeping its earlier Dags",
+            "bundle_name": bundle.name,
+            "relative_fileloc": "archive.zip",
+        }
+        in caplog
+    ) is container
 
     clock.monotonic.return_value = 105.0
     manager._refresh_dag_bundles(known_files)
@@ -314,3 +322,38 @@ def test_missing_catalog_bundle_warns_once_until_it_reappears(
         assert bundle.name not in manager._bundle_refresh_retry_at
 
     find_files.assert_called_once_with(manager, bundle)
+
+
+@pytest.mark.parametrize("blocked_by", ["inventory_cooldown", "pending_inventory", "failed_catalog_read"])
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+def test_requested_refresh_of_a_blocked_bundle_waits_for_the_periodic_catalog_read(
+    clock, blocked_by, tmp_path
+):
+    clock.monotonic.return_value = 100.0
+    bundle = _create_bundle(tmp_path, "testing")
+    client = _create_client([bundle])
+    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager._dag_bundles = [bundle]
+    if blocked_by == "inventory_cooldown":
+        manager._bundle_inventory_retry_times[bundle.name] = 1000.0
+    elif blocked_by == "pending_inventory":
+        body = DagBundleInventoryBody(
+            attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[]
+        )
+        manager._pending_inventories[bundle.name] = PendingBundleInventory(
+            body, set(), DagParseSource(), next_attempt_time=1000.0
+        )
+    else:
+        client.get_bundles.side_effect = httpx2.ConnectError("API unavailable")
+    manager._refresh_dag_bundles({})
+    manager.request_bundle_refresh(bundle.name)
+
+    for now in (101.0, 102.0, 104.0):
+        clock.monotonic.return_value = now
+        manager._refresh_dag_bundles({})
+
+    assert client.get_bundles.call_count == 1
+    clock.monotonic.return_value = 105.0
+    manager._refresh_dag_bundles({})
+    assert client.get_bundles.call_count == 2
+    bundle.refresh.assert_not_called()

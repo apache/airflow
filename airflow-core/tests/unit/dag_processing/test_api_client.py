@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import runpy
 from contextvars import Context
@@ -41,7 +42,9 @@ from airflow.dag_processing.api_client import (
 )
 from airflow.sdk.api.client import API_RETRIES, Client
 from airflow.sdk.api.datamodels import _generated
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
+from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 
 @pytest.fixture
@@ -717,6 +720,72 @@ def test_secrets_comms_ignores_masking_and_rejects_other_messages(make_client):
     assert requests == []
 
 
+def test_secrets_comms_answers_async_lookups(make_client, make_registration_response, monkeypatch):
+    client, _ = make_client(
+        make_registration_response(), httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
+    )
+    client.register_job()
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", DagProcessorSecretsComms(client), raising=False)
+
+    with client.use_bundle("bundle-a"):
+        value = asyncio.run(ExecutionAPISecretsBackend().aget_variable("my_key"))
+
+    assert value == "my_value"
+
+
+@pytest.mark.parametrize(
+    ("failures", "recovers"),
+    [
+        pytest.param([httpx2.ReadError("Connection reset")], True, id="reset"),
+        pytest.param([httpx2.Response(503)], True, id="unavailable"),
+        pytest.param([httpx2.Response(503), httpx2.Response(503)], False, id="still-unavailable"),
+        pytest.param([httpx2.ReadTimeout("No response")], False, id="timeout"),
+        pytest.param([httpx2.Response(429)], False, id="throttled"),
+        pytest.param([httpx2.Response(400, json={"detail": "Bad request"})], False, id="rejected"),
+    ],
+)
+def test_immediate_retries_replace_waiting_retries(
+    make_client, failures, recovers, make_registration_response
+):
+    client, requests = make_client(
+        make_registration_response(),
+        *failures,
+        httpx2.Response(200, json={"key": "my_key", "value": "my_value"}),
+    )
+    client.register_job()
+
+    with client.use_immediate_retries():
+        if recovers:
+            assert client.get("variables/my_key").json()["value"] == "my_value"
+        else:
+            with pytest.raises(httpx2.HTTPError):
+                client.get("variables/my_key")
+
+    retried = recovers or len(failures) > 1
+    assert len(requests) == (3 if retried else 2)
+
+
+def test_parse_requests_keep_one_attempt_with_immediate_retries(
+    make_client, make_registration_response, make_parse_token_response
+):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx2.Response(503),
+        httpx2.Response(200, json={"key": "key", "value": "value"}),
+    )
+    client.register_job()
+
+    with (
+        client.use_immediate_retries(),
+        client.use_parse(make_parse_context()),
+        pytest.raises(httpx2.HTTPStatusError),
+    ):
+        client.get("variables/key")
+
+    assert len(requests) == 3
+
+
 def make_parse_context(**kwargs):
     return DagParseContext(
         request=DagParseTokenBody(
@@ -1101,4 +1170,29 @@ def test_inventory_waits_for_a_slow_write_but_connects_quickly(make_client, make
 
     timeout = requests[-1].extensions["timeout"]
     assert timeout["connect"] <= 1
+    assert timeout["read"] == client.timeout.read > 1
+
+
+@pytest.mark.parametrize("retry", [False, True])
+def test_catalog_read_waits_for_a_slow_response_and_retries_only_when_asked(
+    make_client, retry, make_registration_response
+):
+    catalog = [
+        {"name": "bundle-a", "version": None, "last_refreshed": None, "revision": None, "team_name": None}
+    ]
+    client, requests = make_client(
+        make_registration_response(), httpx2.Response(503), httpx2.Response(200, json=catalog)
+    )
+    client.register_job()
+
+    if retry:
+        assert [bundle.name for bundle in client.get_bundles(retry=True)] == ["bundle-a"]
+    else:
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.get_bundles()
+
+    assert len(requests) == (3 if retry else 2)
+    timeout = requests[-1].extensions["timeout"]
+    assert timeout["connect"] <= 1
+    assert timeout["pool"] <= 1
     assert timeout["read"] == client.timeout.read > 1

@@ -35,7 +35,7 @@ from unittest.mock import ANY, MagicMock, PropertyMock, patch
 import httpx2
 import pytest
 import structlog
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
@@ -2576,6 +2576,65 @@ class TestDagFileProcessorProcess:
             error=None,
             exclude_unset=True,
         )
+
+    @pytest.mark.parametrize(
+        ("variable_response", "expected_error"),
+        [
+            pytest.param(
+                httpx2.ReadError("Connection reset"), "GetVariable (ReadError)", id="transport-error"
+            ),
+            pytest.param(httpx2.Response(503), "GetVariable (HTTP 503)", id="unavailable"),
+            pytest.param(
+                httpx2.Response(400, json={"detail": "Bad request"}), "GetVariable (HTTP 400)", id="bad"
+            ),
+            pytest.param(httpx2.Response(200, text="<html>"), "GetVariable (ValidationError)", id="not-json"),
+            pytest.param(httpx2.Response(404, json={"detail": {"reason": "not_found"}}), None, id="missing"),
+            pytest.param(httpx2.Response(403, json={"detail": {"reason": "denied"}}), None, id="denied"),
+        ],
+    )
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_unanswered_api_requests_mark_the_parse(
+        self,
+        send_msg,
+        proc,
+        tmp_path,
+        make_registration_response,
+        make_parse_token_response,
+        variable_response,
+        expected_error,
+    ):
+        token_file = tmp_path / "processor.jwt"
+        token_file.write_text("session-token")
+        parse_response = make_parse_token_response(
+            sub=str(proc.id), dag_bundles=[proc.bundle_name], relative_fileloc=proc.dag_file_rel_path
+        )
+
+        def handle(request):
+            if request.url.path.endswith("/jobs"):
+                return make_registration_response()
+            if request.url.path.endswith("/parse-token"):
+                return parse_response
+            if isinstance(variable_response, Exception):
+                raise variable_response
+            return variable_response
+
+        with DagProcessorAPIClient(
+            base_url="http://api/execution/",
+            token_file=token_file,
+            hostname="processor-1",
+            transport=httpx2.MockTransport(handle),
+        ) as client:
+            client.register_job()
+            proc.client = client
+            if expected_error:
+                with pytest.raises((httpx2.HTTPError, ValidationError)):
+                    proc._handle_request(GetVariable(key="my_key"), structlog.get_logger(), req_id=42)
+                send_msg.assert_not_called()
+            else:
+                proc._handle_request(GetVariable(key="my_key"), structlog.get_logger(), req_id=42)
+                send_msg.assert_called_once()
+
+        assert proc.api_request_error == expected_error
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
     def test_local_parse_messages_do_not_require_a_token_exchange(self, send_msg, proc, tmp_path):

@@ -340,8 +340,10 @@ class DagFileProcessorManager(LoggingMixin):
     _pending_inventories: dict[str, PendingBundleInventory] = attrs.field(factory=dict, init=False)
     _bundle_inventory_retry_times: dict[str, float] = attrs.field(factory=dict, init=False)
     _bundles_missing_from_catalog: set[str] = attrs.field(factory=set, init=False)
+    _catalog_retry_at: float = attrs.field(default=0.0, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
+    _started_at: datetime = attrs.field(factory=timezone.utcnow, init=False)
     _num_run: int = attrs.field(default=0, init=False)
 
     _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
@@ -441,7 +443,7 @@ class DagFileProcessorManager(LoggingMixin):
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
         if self.api_client is not None:
-            provisioned = {bundle.name for bundle in self.api_client.get_bundles()}
+            provisioned = {bundle.name for bundle in self.api_client.get_bundles(retry=True)}
             configured = set(
                 self.bundle_names_to_parse or self._create_bundle_manager().get_all_bundle_names()
             )
@@ -474,7 +476,9 @@ class DagFileProcessorManager(LoggingMixin):
         """
         try:
             self.before_run()
-            return self._run_parsing_loop()
+            # Startup may wait for the API to come back; the parsing loop must not sleep between retries.
+            with nullcontext() if self.api_client is None else self.api_client.use_immediate_retries():
+                return self._run_parsing_loop()
         finally:
             self.after_run()
 
@@ -1048,6 +1052,8 @@ class DagFileProcessorManager(LoggingMixin):
             elif status_code == 413:
                 self._defer_unusable_bundle_inventory(bundle_name)
             else:
+                # The Job, its bundle grants or the API contract no longer match this processor, so a
+                # resend cannot succeed; restarting registers again and reads the catalog again.
                 raise
             self.log.warning(
                 "Inventory publication was rejected for %s", bundle_name, status_code=status_code
@@ -1122,7 +1128,14 @@ class DagFileProcessorManager(LoggingMixin):
             for name, pending in self._pending_inventories.items()
             if now_seconds >= pending.next_attempt_time
         }
-        urgent_bundles = self._force_refresh_bundles | self._bundles_waiting_for_refresh | due_inventories
+        requested_bundles = self._force_refresh_bundles | self._bundles_waiting_for_refresh
+        if now_seconds < self._catalog_retry_at:
+            # A requested refresh needs the catalog; wait for the next periodic read instead of every loop.
+            requested_bundles = set()
+        unrefreshable_bundles = self._pending_inventories.keys() | {
+            name for name, retry_at in self._bundle_inventory_retry_times.items() if now_seconds < retry_at
+        }
+        urgent_bundles = (requested_bundles - unrefreshable_bundles) | due_inventories
         if not periodic_check_due and not urgent_bundles:
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
@@ -1148,8 +1161,10 @@ class DagFileProcessorManager(LoggingMixin):
                         "Bundle missing from API catalog; parsing paused", bundle_name=bundle_name
                     )
                 self._bundles_missing_from_catalog = missing_bundles
+                self._catalog_retry_at = 0.0
             except httpx2.HTTPError:
                 self.log.warning("Unable to read the bundle catalog; retrying on a later refresh")
+                self._catalog_retry_at = now_seconds + self.bundle_refresh_check_interval
 
         any_refreshed = False
         active_bundles = {
@@ -1449,6 +1464,11 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
             if file.definition_locs & invalid_paths:
                 # Omitting a container's members means deletion; retain its earlier valid definitions.
+                self.log.warning(
+                    "Not parsing a source with an unrepresentable member; keeping its earlier Dags",
+                    bundle_name=bundle_name,
+                    relative_fileloc=str(file.rel_path),
+                )
                 failed_sources.add(str(file.rel_path))
             else:
                 files.add(file)
@@ -1780,17 +1800,17 @@ class DagFileProcessorManager(LoggingMixin):
 
         try:
             if self.api_client is not None and not is_callback_only:
-                if proc.parsing_result is None:
+                if proc.parsing_result is not None and proc.api_request_error is None:
+                    self._pending_publications[file] = self._build_pending_publication(
+                        file, proc, run_duration, next_stat
+                    )
+                else:
                     self._queue_failed_parse_result(
                         file,
                         proc,
                         run_duration,
                         next_stat,
                         reason="the parsing process exited without a result",
-                    )
-                else:
-                    self._pending_publications[file] = self._build_pending_publication(
-                        file, proc, run_duration, next_stat
                     )
                 return
             if proc.parsing_result is not None:
@@ -1834,6 +1854,20 @@ class DagFileProcessorManager(LoggingMixin):
         if source.refresh_generation != self._bundle_refresh_generations.get(file.bundle_name, 0):
             self._add_files_to_queue([file], mode="front")
             return
+        if proc.api_request_error is not None:
+            # The Task SDK answers a failed request as a missing value, so the Dags may hold a fallback.
+            reason = f"an Execution API request failed while parsing: {proc.api_request_error}"
+        # A restarted manager cannot see when the file's Dags were last parsed, so it waits from its start.
+        last_published = self._file_stats[file].last_finish_time or self._started_at
+        if timezone.utcnow() - last_published <= timedelta(seconds=self.stale_dag_threshold):
+            # The API deactivates a file's Dags on its import error; DB mode waits for stale_dag_threshold.
+            self.log.warning(
+                "Not reporting the failed parse of %s before it outlasts stale_dag_threshold: %s",
+                file.rel_path,
+                reason,
+            )
+            self._record_failed_publication(file, stat)
+            return
         try:
             self._pending_publications[file] = self._build_rejection_report(
                 file,
@@ -1862,7 +1896,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Publish queued results until the deadline, stopping early while the API is unavailable."""
         if self.api_client is None:
             return
-        from airflow.dag_processing.api_client import get_error_reason
+        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired, get_error_reason
 
         if deadline is None:
             deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
@@ -1879,6 +1913,9 @@ class DagFileProcessorManager(LoggingMixin):
             pending.attempts += 1
             try:
                 self.api_client.publish_parse_result(pending.body)
+            except DagProcessorRegistrationRetired:
+                # Every later send would be refused too; the results stay pending until the manager stops.
+                raise
             except Exception as error:
                 status_error = error if isinstance(error, httpx2.HTTPStatusError) else None
                 reason = get_error_reason(status_error) if status_error is not None else None
