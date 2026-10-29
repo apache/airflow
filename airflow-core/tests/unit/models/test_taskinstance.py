@@ -21,7 +21,6 @@ import contextlib
 import datetime
 import json
 import operator
-import os
 import pathlib
 import re
 from typing import TYPE_CHECKING, cast
@@ -2818,17 +2817,6 @@ class TestTaskInstance:
             run_task_instance(ti, task)
         assert ti.state == State.UP_FOR_RETRY
 
-    def _env_var_check_callback(self):
-        assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
-        assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
-        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert (
-            DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
-            )
-            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
-        )
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -4282,32 +4270,6 @@ class TestMappedTaskInstanceReceiveValue:
         assert isinstance(result, LazyXComSelectSequence), (
             f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
         )
-
-
-def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
-    backend = os.environ.get("BACKEND")
-    if backend == "mysql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
-        ]
-    if backend == "postgres":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
-        ]
-    if backend == "sqlite":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
-        ]
-    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):

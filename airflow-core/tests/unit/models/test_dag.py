@@ -400,20 +400,6 @@ class TestDag:
         clear_db_dags()
         clear_db_assets()
 
-    @staticmethod
-    def _occur_before(a, b, list_):
-        """
-        Assert that a occurs before b in the list.
-        """
-        a_index = -1
-        b_index = -1
-        for i, e in enumerate(list_):
-            if e.task_id == a:
-                a_index = i
-            if e.task_id == b:
-                b_index = i
-        return 0 <= a_index < b_index
-
     def test_dag_naive_default_args_start_date(self):
         dag = DAG("DAG", schedule=None, default_args={"start_date": datetime.datetime(2018, 1, 1)})
         assert dag.timezone == settings.TIMEZONE

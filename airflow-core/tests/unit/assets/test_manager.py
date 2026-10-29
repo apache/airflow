@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import itertools
 import logging
 import threading
 from collections import Counter
@@ -46,7 +45,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
@@ -95,13 +94,6 @@ def clear_teams():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
-
-
-def create_mock_dag():
-    for dag_id in itertools.count(1):
-        mock_dag = mock.Mock(spec=DAG)
-        mock_dag.dag_id = dag_id
-        yield mock_dag
 
 
 def _clear_partition_db() -> None:
