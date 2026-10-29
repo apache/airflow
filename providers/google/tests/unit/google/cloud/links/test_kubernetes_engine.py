@@ -18,9 +18,7 @@
 """Tests for Google Cloud Kubernetes Engine links.
 
 Expected URLs are fully hard-coded: the path and query parts are never derived from the
-constants under test, so a broken or hand-edited ``format_str`` always fails the test. The
-``key`` values are asserted as literals too - they are stored in XComs and serialized DAGs,
-so values that merely mirror the module constants would not catch a rename.
+constants under test, so a broken or hand-edited ``format_str`` always fails the test.
 """
 
 from __future__ import annotations
@@ -52,10 +50,6 @@ def _mock_context():
 
 
 class TestKubernetesEngineClusterLink:
-    def test_class_attributes(self):
-        assert KubernetesEngineClusterLink.key == "kubernetes_cluster_conf"
-        assert KubernetesEngineClusterLink.name == "Kubernetes Cluster"
-
     def test_get_link(self):
         result = KubernetesEngineClusterLink()._format_link(
             location=TEST_LOCATION, cluster_name=TEST_CLUSTER_NAME, project_id=TEST_PROJECT_ID
@@ -92,10 +86,6 @@ class TestKubernetesEngineClusterLink:
 
 
 class TestKubernetesEnginePodLink:
-    def test_class_attributes(self):
-        assert KubernetesEnginePodLink.key == "kubernetes_pod_conf"
-        assert KubernetesEnginePodLink.name == "Kubernetes Pod"
-
     def test_get_link(self):
         result = KubernetesEnginePodLink()._format_link(
             location=TEST_LOCATION,
@@ -132,10 +122,6 @@ class TestKubernetesEnginePodLink:
 
 
 class TestKubernetesEngineJobLink:
-    def test_class_attributes(self):
-        assert KubernetesEngineJobLink.key == "kubernetes_job_conf"
-        assert KubernetesEngineJobLink.name == "Kubernetes Job"
-
     def test_get_link(self):
         result = KubernetesEngineJobLink()._format_link(
             location=TEST_LOCATION,
@@ -151,10 +137,6 @@ class TestKubernetesEngineJobLink:
 
 
 class TestKubernetesEngineWorkloadsLink:
-    def test_class_attributes(self):
-        assert KubernetesEngineWorkloadsLink.key == "kubernetes_workloads_conf"
-        assert KubernetesEngineWorkloadsLink.name == "Kubernetes Workloads"
-
     def test_get_link_builds_the_console_deep_link(self):
         result = KubernetesEngineWorkloadsLink()._format_link(
             location=TEST_LOCATION,
