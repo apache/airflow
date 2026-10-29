@@ -120,14 +120,14 @@ def _identity():
     _register_uris(
         QuietHook(),
         inputs=[
-            "s3://ol-exclude-bucket/staging/part_1.csv",
-            "s3://ol-exclude-bucket/final/part_1.csv",
+            "file://host2/staging/part_1.csv",
+            "file://host2/final/part_1.csv",
             "file://host1/slash_in.txt",
             "file://host1/keep_in.txt",
         ],
         outputs=[
-            "s3://ol-exclude-bucket/staging/part_1_out.csv",
-            "s3://ol-exclude-bucket/final/part_1_out.csv",
+            "file://host2/staging/part_1_out.csv",
+            "file://host2/final/part_1_out.csv",
             "file://host1/slash_out.txt",
             "file://host1/keep_out.txt",
         ],
@@ -224,12 +224,12 @@ with DAG(
             ".*/authored_full_.*",
         ],
     )
-    # The authored patterns match <namespace>/<name>: COMPLETE drops the s3 staging files and
-    # file://host1/slash_* (no doubled slash before a name starting with /), and keeps the s3 final files and
-    # keep.
+    # The authored patterns match <namespace>/<name>: COMPLETE drops the file://host2 staging files and
+    # file://host1/slash_* (no doubled slash before a name starting with /), and keeps the file://host2 final files
+    # and keep.
     t_identity = extend_global_openlineage_emission_policy(
         PythonOperator(task_id="t_identity", python_callable=_identity),
-        exclude_datasets=["s3://ol-exclude-bucket/staging/part_.*", "file://host1/slash_.*"],
+        exclude_datasets=["file://host2/staging/part_.*", "file://host1/slash_.*"],
     )
     # Conf: a locked Dag + task rule (locked_excluded) and an unlocked Dag + task + AuthHook rule
     # (specific_excluded), which wins for AuthHook. The authored list is ignored with a warning: COMPLETE

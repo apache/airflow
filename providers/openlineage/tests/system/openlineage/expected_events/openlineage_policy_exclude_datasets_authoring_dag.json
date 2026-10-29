@@ -333,8 +333,8 @@
         "eventType": "COMPLETE",
         "inputs": [
             {
-                "namespace": "s3://ol-exclude-bucket",
-                "name": "final/part_1.csv"
+                "namespace": "file://host2",
+                "name": "/final/part_1.csv"
             },
             {
                 "namespace": "file://host1",
@@ -343,8 +343,8 @@
         ],
         "outputs": [
             {
-                "namespace": "s3://ol-exclude-bucket",
-                "name": "final/part_1_out.csv"
+                "namespace": "file://host2",
+                "name": "/final/part_1_out.csv"
             },
             {
                 "namespace": "file://host1",
