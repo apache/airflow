@@ -46,9 +46,6 @@ if TYPE_CHECKING:
 # Lightweight wrapper for XCom values
 _XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
 
-# The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
-_EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
-
 log = structlog.get_logger(logger_name="task")
 
 
@@ -890,7 +887,5 @@ def is_stored_through_backend(key: str) -> bool:
     skip mapped or cleared downstream tasks. It must bypass any custom XCom backend, which could
     externalize it into a pointer the scheduler cannot interpret, silently leaving those tasks
     unskipped (#50491).
-
-    Operator extra links bypass it too, because the UI reads them from the XCom row as it is.
     """
-    return key != XCOM_SKIPMIXIN_KEY and not key.startswith(_EXTRA_LINK_XCOM_KEY_PREFIX)
+    return key != XCOM_SKIPMIXIN_KEY

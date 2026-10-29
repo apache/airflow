@@ -39,7 +39,6 @@ import socket
 import stat
 import subprocess
 import time
-from collections import deque
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, TypeVar, cast
@@ -65,7 +64,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendCall,
     XComBackendError,
     XComBackendProcess,
-    is_hook_overridden,
+    runs_in_helper,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
@@ -125,6 +124,8 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subpr
 
 # How long the supervisor waits for an XCom backend call it cannot service from its request loop.
 _XCOM_BACKEND_CALL_TIMEOUT = 60.0
+# The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
+_EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
 
 
 # The tail of each stream is kept: a runtime that fails to start reports why at the end.
@@ -595,8 +596,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self._arm_execution_timeout()
 
     _xcom_backend: XComBackendProcess | None = attrs.field(default=None, init=False)
-    _pending_xcom_calls: deque[Callable[[XComBackendResult], None]] = attrs.field(factory=deque, init=False)
-    """The callbacks of the calls the XCom backend process has not answered yet, in the order it runs them."""
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
@@ -668,29 +667,29 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         try:
             super()._monitor_subprocess()
         finally:
-            if self._xcom_backend is not None:
-                self._xcom_backend.stop()
+            self._stop_xcom_backend()
 
     def _start_xcom_backend_call(
         self, call: XComBackendCall, finish: Callable[[XComBackendResult], None]
     ) -> None:
         """Send ``call`` to the XCom backend process, which starts on the first call it handles."""
+        if self._xcom_backend is not None and not self._xcom_backend.can_run_a_call:
+            # The process has exited, so a call sent to it would wait for an answer that never comes.
+            self._stop_xcom_backend()
         if self._xcom_backend is None:
             self._xcom_backend = XComBackendProcess.start(
                 id=self.id,
                 client=self.client,
                 logger=self.process_log,
                 selector=self.selector,
-                on_result=self._finish_xcom_backend_call,
             )
-        self._pending_xcom_calls.append(finish)
-        self._xcom_backend.send_call(call)
+        self._xcom_backend.send_call(call, finish)
 
-    def _finish_xcom_backend_call(self, result: XComBackendResult) -> None:
-        """Finish the oldest call the XCom backend process has not answered yet."""
-        if not self._pending_xcom_calls:
-            return
-        self._pending_xcom_calls.popleft()(result)
+    def _stop_xcom_backend(self) -> None:
+        """Stop the XCom backend process, so that the next call starts one that can answer it."""
+        if (backend := self._xcom_backend) is not None:
+            self._xcom_backend = None
+            backend.stop()
 
     def _call_xcom_backend(
         self,
@@ -738,8 +737,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # The task process has not been told to start, so servicing it here reads no request of its own.
         while not answer and (now := time.monotonic()) < deadline:
             self._service_subprocess(max_wait_time=deadline - now)
-        self._pending_xcom_calls.clear()
         if not answer:
+            # The process is still running the call, and what it does next is unknown, so it is replaced.
+            self._stop_xcom_backend()
             raise XComBackendError("The XCom backend did not answer in time")
         if (error := answer[0].error) is not None:
             raise XComBackendError(error)
@@ -748,9 +748,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: SetXCom, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult | ResponseSent:
         xcom = _get_xcom_backend()
-        if not (
-            is_stored_through_backend(msg.key) and is_hook_overridden(xcom, "store_value", "serialize_value")
-        ):
+        if not (is_stored_through_backend(msg.key) and not _is_extra_link(msg.key) and runs_in_helper(xcom)):
             return handle_set_xcom(self.client, msg)
         ti = cast("_OwnTaskInstance", self.ti)
         if is_own_xcom(ti, msg.dag_id, msg.run_id, msg.task_id, msg.resolved_map_index):
@@ -764,9 +762,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             raise build_loop_error(xcom, f"Task {msg.task_id!r}")
         return self._call_xcom_backend(
             XComBackendCall.store(coordinate, msg.resolved_map_index, msg.key, msg.value),
-            lambda stored: handle_set_xcom(
-                self.client, msg if stored.unchanged else msg.model_copy(update={"value": stored.value})
-            ),
+            lambda stored: handle_set_xcom(self.client, msg.model_copy(update={"value": stored.value})),
             req_id,
         )
 
@@ -825,7 +821,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
     def _delete_xcom(self, msg: DeleteXCom) -> tuple[RequestResult, XComBackendCall | None]:
         """Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does."""
-        if not is_hook_overridden(_get_xcom_backend(), "purge"):
+        if not runs_in_helper(_get_xcom_backend()):
             return handle_delete_xcom(self.client, msg), None
         row = None
         try:
@@ -878,7 +874,17 @@ def _get_xcom_backend() -> type[BaseXCom]:
 
 
 def _is_loaded_through_backend() -> bool:
-    return is_hook_overridden(_get_xcom_backend(), "load_value", "deserialize_value")
+    return runs_in_helper(_get_xcom_backend())
+
+
+def _is_extra_link(key: str) -> bool:
+    """
+    Whether ``key`` holds an operator extra link, which the UI reads from the XCom row as it is.
+
+    A runtime does not say that a key holds a link, so this goes by the default
+    ``BaseOperatorLink.xcom_key``, which is the only key a runtime writes a link under today.
+    """
+    return key.startswith(_EXTRA_LINK_XCOM_KEY_PREFIX)
 
 
 def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:

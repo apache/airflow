@@ -61,6 +61,7 @@ from airflow.sdk.coordinators._subprocess import (
 )
 from airflow.sdk.coordinators._xcom_backend import (
     XComBackendCall,
+    XComBackendError,
     XComBackendProcess,
     XComBackendResult,
     _HookRunner,
@@ -1428,12 +1429,12 @@ class _InProcessXComBackend:
     """Runs XCom backend calls in the test process, the way the helper process runs them."""
 
     xcom: type[BaseXCom]
-    on_result: Callable[[XComBackendResult], None]
     calls: list[XComBackendCall] = attrs.field(factory=list)
+    can_run_a_call: bool = True
 
-    def send_call(self, call):
+    def send_call(self, call, finish):
         self.calls.append(call)
-        self.on_result(_HookRunner(self.xcom).run(call))
+        finish(_HookRunner(self.xcom).run(call))
 
     def stop(self):
         pass
@@ -1444,15 +1445,16 @@ class _DeferredXComBackend:
     """Holds every call until the test answers it, the way the helper process runs one call at a time."""
 
     xcom: type[BaseXCom]
-    on_result: Callable[[XComBackendResult], None]
-    calls: list[XComBackendCall] = attrs.field(factory=list)
+    calls: list[tuple[XComBackendCall, Callable[[XComBackendResult], None]]] = attrs.field(factory=list)
+    can_run_a_call: bool = True
 
-    def send_call(self, call):
-        self.calls.append(call)
+    def send_call(self, call, finish):
+        self.calls.append((call, finish))
 
     def answer_next(self) -> None:
         """Answer the oldest call that is still waiting."""
-        self.on_result(_HookRunner(self.xcom).run(self.calls.pop(0)))
+        call, finish = self.calls.pop(0)
+        finish(_HookRunner(self.xcom).run(call))
 
     def stop(self):
         pass
@@ -1478,6 +1480,12 @@ class _FakeApi:
 def _sent_body(proc: _PopenActivitySubprocess) -> Any:
     frame = cast("MagicMock", proc.stdin).sendall.call_args.args[0]
     return msgspec.msgpack.decode(frame[4:])[1]
+
+
+def _sent_error(proc: _PopenActivitySubprocess) -> Any:
+    """The error of the frame most recently sent to the runtime."""
+    frame = cast("MagicMock", proc.stdin).sendall.call_args.args[0]
+    return msgspec.msgpack.decode(frame[4:])[2]
 
 
 _XCOM_PATH = "/xcoms/tutorial_dag/run_1/task_1/summary"
@@ -1512,7 +1520,7 @@ class TestPopenActivitySubprocessXComBackend:
                 logs_server=MagicMock(spec=socket.socket),
             )
             proc.ti = ti  # type: ignore[assignment]
-            proc._xcom_backend = _InProcessXComBackend(xcom, proc._finish_xcom_backend_call)  # type: ignore[assignment]
+            proc._xcom_backend = _InProcessXComBackend(xcom)  # type: ignore[assignment]
             procs.append(proc)
             return proc
 
@@ -1550,7 +1558,6 @@ class TestPopenActivitySubprocessXComBackend:
         ("xcom", "key"),
         [
             pytest.param(BaseXCom, "summary", id="default-backend"),
-            pytest.param(_PurgeOnlyXCom, "summary", id="backend-that-does-not-store"),
             pytest.param(_RefXCom, "skipmixin_key", id="skipmixin-key"),
             pytest.param(_RefXCom, "_link_TriggerDagRunLink", id="extra-link-key"),
         ],
@@ -1567,7 +1574,8 @@ class TestPopenActivitySubprocessXComBackend:
         assert api.requests == [("POST", f"/xcoms/tutorial_dag/run_1/task_1/{key}", value)]
         assert proc._xcom_backend.calls == []
 
-    def test_set_xcom_sends_a_value_it_cannot_decode_as_it_is(self, make_proc, captured_logs):
+    def test_set_xcom_fails_when_the_backend_cannot_be_given_the_value(self, make_proc):
+        """Sending it to the API server instead would put the payload in the database."""
         api = _FakeApi()
         proc = make_proc(_RefXCom, api)
         value = {"__classname__": "not.importable.Thing", "__version__": 1, "__data__": {}}
@@ -1578,17 +1586,9 @@ class TestPopenActivitySubprocessXComBackend:
             1,
         )
 
-        assert api.requests == [("POST", _XCOM_PATH, value)]
+        assert api.requests == []
         assert _RefXCom.stored == {}
-        assert {
-            "event": "Cannot decode the XCom value; storing it without the XCom backend",
-            "key": "summary",
-            "error": ANY,
-            "level": "warning",
-            "logger": "xcom_backend",
-            "timestamp": ANY,
-            "loc": ANY,
-        } in captured_logs
+        assert "not.importable.Thing" in _sent_error(proc)["detail"]["message"]
 
     def test_set_xcom_rejects_a_loop_task_when_the_backend_cannot_tell_iterations_apart(self, make_proc):
         api = _FakeApi()
@@ -1692,7 +1692,7 @@ class TestPopenActivitySubprocessXComBackend:
                 }
             ),
         )
-        backend = _DeferredXComBackend(_RefXCom, proc._finish_xcom_backend_call)
+        backend = _DeferredXComBackend(_RefXCom)
         proc._xcom_backend = backend  # type: ignore[assignment]
 
         for req_id, key in enumerate(("summary", "other")):
@@ -1701,7 +1701,7 @@ class TestPopenActivitySubprocessXComBackend:
             )
 
         # Both requests wait on the backend, and neither has been answered.
-        assert [call.key for call in backend.calls] == ["summary", "other"]
+        assert [call.key for call, _ in backend.calls] == ["summary", "other"]
         assert cast("MagicMock", proc.stdin).sendall.call_count == 0
 
         backend.answer_next()
@@ -1827,8 +1827,35 @@ class TestPopenActivitySubprocessXComBackend:
             "client": proc.client,
             "logger": proc.process_log,
             "selector": proc.selector,
-            "on_result": proc._finish_xcom_backend_call,
         }
+
+    @patch.object(XComBackendProcess, "start", autospec=True)
+    def test_replaces_a_backend_process_that_cannot_answer(self, mock_start, make_proc):
+        """A call queued on a process that has exited would wait for an answer that never comes."""
+        proc = make_proc(_RefXCom, _FakeApi())
+        dead = proc._xcom_backend = MagicMock(spec=XComBackendProcess)
+        dead.can_run_a_call = False
+
+        proc._call_xcom_backend(
+            XComBackendCall(hook="load", key="summary", value=1), lambda result: (result, {}), req_id=1
+        )
+
+        dead.stop.assert_called_once_with()
+        assert mock_start.call_count == 1
+        assert proc._xcom_backend is not dead
+
+    def test_stops_a_backend_process_that_does_not_answer_a_waited_call(self, make_proc, monkeypatch):
+        """The process is still running the call, so what it does next is unknown."""
+        monkeypatch.setattr("airflow.sdk.coordinators._subprocess._XCOM_BACKEND_CALL_TIMEOUT", 0.0)
+        proc = make_proc(_RefXCom, _FakeApi())
+        backend = proc._xcom_backend = MagicMock(spec=XComBackendProcess)
+        backend.can_run_a_call = True
+
+        with pytest.raises(XComBackendError, match="did not answer in time"):
+            proc._run_xcom_backend_call(XComBackendCall(hook="purge", key="summary", value=1))
+
+        backend.stop.assert_called_once_with()
+        assert proc._xcom_backend is None
 
     @patch.object(ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=RuntimeError("boom"))
     def test_stops_the_backend_process_when_the_task_process_is_done(self, mock_monitor, make_proc):

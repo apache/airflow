@@ -117,14 +117,9 @@ class XComBackendCall(BaseModel):
 
 
 class XComBackendResult(BaseModel):
-    """
-    The outcome of an XCom backend call, sent by the helper process.
-
-    ``unchanged`` means the backend did not store the value, which then goes to the API server as it is.
-    """
+    """The outcome of an XCom backend call, sent by the helper process."""
 
     value: JsonValue = None
-    unchanged: bool = False
     error: str | None = None
     type: Literal["XComBackendResult"] = "XComBackendResult"
 
@@ -145,11 +140,12 @@ _FromXComBackendProcess = Annotated[
 ]
 
 
-def is_hook_overridden(xcom: type[BaseXCom], *hooks: str) -> bool:
-    """Whether ``xcom`` overrides any of ``hooks``, and so may do more than the default backend."""
-    return xcom is not BaseXCom and any(
-        next(k for k in xcom.__mro__ if hook in vars(k)) is not BaseXCom for hook in hooks
-    )
+def runs_in_helper(xcom: type[BaseXCom]) -> bool:
+    """Whether task XComs go through the helper process, which runs every backend but the default one."""
+    return xcom is not BaseXCom
+
+
+_PendingCall = tuple[XComBackendCall, Callable[[XComBackendResult], None]]
 
 
 @attrs.define(kw_only=True)
@@ -158,18 +154,17 @@ class XComBackendProcess(WatchedSubprocess):
     The helper process that runs XCom backend calls for the task of a language SDK runtime.
 
     The process asks for a call, runs it, and answers with its result, which is also how it asks for the
-    next call. Each result reaches the supervisor through ``on_result``. Connection and Variable lookups of
-    the backend reach the API server through ``client``.
+    next call. Each call carries the callback that takes its result, so a caller never has to match an
+    answer to its own call. Connection and Variable lookups of the backend reach the API server through
+    ``client``.
     """
 
     client: Client
-    on_result: Callable[[XComBackendResult], None] = attrs.field(repr=False)
-    """Called with the result of a call, and with an error when the process exits without answering one."""
     decoder: ClassVar[TypeAdapter[_FromXComBackendProcess]] = TypeAdapter(_FromXComBackendProcess)
 
     _call_request_id: int | None = attrs.field(default=None, init=False)
-    _queued_calls: deque[XComBackendCall] = attrs.field(factory=deque, init=False)
-    _unanswered_calls: int = attrs.field(default=0, init=False)
+    _queued_calls: deque[_PendingCall] = attrs.field(factory=deque, init=False)
+    _running_call: Callable[[XComBackendResult], None] | None = attrs.field(default=None, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -179,12 +174,10 @@ class XComBackendProcess(WatchedSubprocess):
         client: Client,
         logger: FilteringBoundLogger,
         selector: selectors.BaseSelector,
-        on_result: Callable[[XComBackendResult], None],
     ) -> Self:
         return super().start(
             id=id,
             client=client,
-            on_result=on_result,
             # The selector of the task this process serves, so that the task's request loop services both.
             selector=selector,
             logger=logger,
@@ -192,29 +185,43 @@ class XComBackendProcess(WatchedSubprocess):
             use_exec=task_process_uses_exec(),
         )
 
-    def send_call(self, call: XComBackendCall) -> None:
-        """
-        Send ``call`` to the process, which answers it through ``on_result``.
+    @property
+    def can_run_a_call(self) -> bool:
+        """Whether the process can still be sent a call, which a process that has exited cannot."""
+        return self.stdin in self._open_sockets
 
-        The process runs one call at a time, so a call waits its turn and is answered in the order it
-        was sent. That is also how the first call of a task waits for the process to start.
+    def send_call(self, call: XComBackendCall, finish: Callable[[XComBackendResult], None]) -> None:
         """
-        self._queued_calls.append(call)
-        self._unanswered_calls += 1
+        Send ``call`` to the process, which answers it by calling ``finish`` with its result.
+
+        The process runs one call at a time, so a call waits its turn. ``finish`` also takes the error of
+        a call the process never answers, such as when it exits while the call is waiting.
+        """
+        self._queued_calls.append((call, finish))
         self._send_next_call()
 
     def _send_next_call(self) -> None:
-        """Hand the oldest waiting call to the process, if it has asked for one."""
-        if self._call_request_id is None or not self._queued_calls:
+        """Hand the oldest waiting call to the process, if it has asked for one and runs none."""
+        if self._call_request_id is None or self._running_call is not None or not self._queued_calls:
             return
+        call, self._running_call = self._queued_calls.popleft()
         request_id, self._call_request_id = self._call_request_id, None
-        self.send_msg(self._queued_calls.popleft(), request_id=request_id)
+        self.send_msg(call, request_id=request_id)
+
+    def _fail_waiting_calls(self, error: str) -> None:
+        """Answer every call the process has not answered with ``error``."""
+        running, self._running_call = self._running_call, None
+        waiting = [running] if running is not None else []
+        waiting += [finish for _, finish in self._queued_calls]
+        self._queued_calls.clear()
+        for finish in waiting:
+            finish(XComBackendResult(error=error))
 
     def stop(self) -> None:
         """Let the helper process exit, and kill it if it does not exit in time."""
-        # The task this process serves is over, so nothing waits for the calls it has not answered.
+        # The caller gives up on the calls it has not answered, so they are dropped rather than failed.
         self._queued_calls.clear()
-        self._unanswered_calls = 0
+        self._running_call = None
         if self._exit_code is None and self._call_request_id is not None:
             # The process may be dead already, such as when the task it serves was killed.
             with contextlib.suppress(OSError):
@@ -237,9 +244,7 @@ class XComBackendProcess(WatchedSubprocess):
         super()._on_socket_closed(sock)
         if sock is self.stdin:
             # The process has exited, or is exiting, so it answers none of the calls it was still to run.
-            unanswered, self._unanswered_calls = self._unanswered_calls, 0
-            for _ in range(unanswered):
-                self.on_result(XComBackendResult(error="The XCom backend process exited before it answered"))
+            self._fail_waiting_calls("The XCom backend process exited before it answered")
 
     def _handle_await_call(
         self, msg: AwaitXComBackendCall, log: FilteringBoundLogger, req_id: int
@@ -250,9 +255,10 @@ class XComBackendProcess(WatchedSubprocess):
 
     def _handle_result(self, msg: XComBackendResult, log: FilteringBoundLogger, req_id: int) -> ResponseSent:
         self._call_request_id = req_id
-        self._unanswered_calls -= 1
+        finish, self._running_call = self._running_call, None
         self._send_next_call()
-        self.on_result(msg)
+        if finish is not None:
+            finish(msg)
         return ResponseSent.ALREADY_SENT
 
     _request_handlers = {
@@ -305,14 +311,9 @@ class _HookRunner:
 
         if call.coordinate is None:
             raise ValueError("A store call needs the coordinate of the XCom")
-        try:
-            value = deserialize(call.value)  # type: ignore[type-var]
-        except (ImportError, TypeError, AttributeError, ValueError) as e:
-            # The default backend would keep such a value in the XCom row as it is.
-            log.warning(
-                "Cannot decode the XCom value; storing it without the XCom backend", key=call.key, error=e
-            )
-            return XComBackendResult(unchanged=True)
+        # A value the backend cannot be given fails the push. Keeping it in the XCom row instead would
+        # put the payload in the database, which is what the backend is configured to avoid.
+        value = deserialize(call.value)  # type: ignore[type-var]
         coordinate = XComCoordinate(**call.coordinate.model_dump())
         return XComBackendResult(value=self.xcom._store(coordinate, call.map_index, call.key, value))
 
@@ -331,15 +332,6 @@ class _HookRunner:
         """Return what the runtime receives for ``row``: what the default backend would keep in the row."""
         from airflow.sdk.serde import serialize
 
-        # Rows can hold classes that this process cannot import or decode, such as a newer serde version, or
-        # cannot encode. The runtime then gets the row as it is, as it would without the XCom backend.
-        try:
-            value = self.xcom._load(XComResult(key=key, value=row))
-        except (ImportError, TypeError, AttributeError, ValueError) as e:
-            log.warning("Cannot load the XCom value; sending the XCom row as it is", key=key, error=e)
-            return row
-        try:
-            return serialize(value)  # type: ignore[return-value]
-        except (TypeError, AttributeError, RecursionError) as e:
-            log.warning("Cannot encode the XCom value; sending the XCom row as it is", key=key, error=e)
-            return row
+        # A row the backend cannot load, or a value this process cannot encode, fails the read rather
+        # than reaching the runtime as the raw row, which would hide the backend being unusable.
+        return serialize(self.xcom._load(XComResult(key=key, value=row)))  # type: ignore[return-value]
