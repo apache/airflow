@@ -365,10 +365,8 @@ class MSGraphAsyncOperator(BaseOperator):
     def clean_up(self, task_state_store: TaskStateStoreAccessor, results: Any) -> None:
         """
         Remove the pages and the cursor from the task state store once the result is returned.
-
-        The result of a request that is not a GET stays, so a retry returns it instead of sending the
-        request again. It goes in before the pages are removed, so a crash in between does not send the
-        request again either.
+        
+        A non GET result is written before the pages go, so a crash in between does not resend the request.
         """
         if self.method.upper() != "GET":
             task_state_store.set(_COMPLETED_KEY, {"result": results})
