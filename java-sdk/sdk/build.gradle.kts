@@ -40,6 +40,10 @@ plugins {
 
 val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
+val schemaSource =
+    rootProject.layout.projectDirectory.file(
+        "../task-sdk/src/airflow/sdk/execution_time/schema/schema.json",
+    )
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
 val schemaModelsDir = layout.buildDirectory.dir("generate-resources/main/src/main/java")
@@ -170,6 +174,10 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Internal
     abstract val schemaFile: RegularFileProperty
 
+    /** The Task SDK schema; absent in a source distribution. */
+    @get:Internal
+    abstract val sourceFile: RegularFileProperty
+
     private fun apiVersionOf(file: File): String =
         if (file.exists()) {
             com.fasterxml.jackson.databind
@@ -185,6 +193,18 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     fun sync() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
+        // Prefer the in-repo schema, compared by content: the remote only serves released versions.
+        val source = sourceFile.asFile.orNull
+        if (source != null && apiVersionOf(source) == version) {
+            if (file.exists() && file.readBytes().contentEquals(source.readBytes())) {
+                logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+                return
+            }
+            logger.lifecycle("Refreshing Supervisor Schema from $source")
+            file.parentFile.mkdirs()
+            Files.copy(source.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            return
+        }
         if (apiVersionOf(file) == version) {
             logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
             return
@@ -818,6 +838,7 @@ val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     schemaVersion = airflowSupervisorSchemaVersion
     baseUrl = schemaBaseUrl
     schemaFile = schemaInput
+    sourceFile = schemaSource
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
