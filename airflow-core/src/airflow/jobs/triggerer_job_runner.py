@@ -24,14 +24,17 @@ import logging
 import math
 import os
 import selectors
+import shutil
 import signal
 import sys
 import threading
 import time
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Hashable, Iterable, Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import datetime
+from pathlib import Path
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, NamedTuple, TextIO, TypedDict
@@ -138,9 +141,18 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import prune_dict
+from airflow.utils.helpers import chunks, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
+from airflow.utils.log.trigger_log import (
+    TRIGGER_LOG_FILE_NAME,
+    TRIGGER_LOG_ROOT,
+    TRIGGER_LOG_ROTATED_DIR,
+    trigger_log_files,
+    trigger_log_part_path,
+    trigger_log_relative_path,
+    trigger_log_rotated_path,
+)
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 
@@ -317,6 +329,8 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # to force-kill here. trigger_runner may be None if start() raised.
             if self.trigger_runner is not None:
                 self.trigger_runner.kill(escalation_delay=10, force=True)
+                # After kill(): the runner's last lines have been drained into the files by now.
+                self.trigger_runner.close_trigger_log_files()
             self.log.info("Exited trigger loop")
             if _prev_ctx is None:
                 os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
@@ -539,29 +553,51 @@ class TriggerLoggingFactory:
 
     # Callback triggers have no task instance; ``upload_to_remote`` accepts ``ti=None``.
     ti: RuntimeTI | None = attrs.field(default=None, repr=False)
+    trigger_id: int | None = None
+    # Told when the file can't be opened or written (a full or read-only disk, no file descriptors left);
+    # the lines then go to the triggerer's output.
+    on_error: Callable[[int | None, OSError], None] | None = attrs.field(default=None, repr=False)
+    # Also send the lines to the triggerer's output.
+    to_stdout: bool = False
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
     _filehandle: TextIO | BinaryIO = attrs.field(init=False, repr=False)
 
-    def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
-        if hasattr(self, "bound_logger"):
-            return self.bound_logger
+    def __call__(self, processors: Iterable[structlog.typing.Processor]) -> TriggerLoggingFactory:
+        try:
+            self._open(processors)
+        except OSError as e:
+            self._report_error(e)
+        return self
 
-        from airflow.sdk.log import init_log_file
+    def _open(self, processors: Iterable[structlog.typing.Processor]) -> None:
+        if not hasattr(self, "bound_logger"):
+            from airflow.sdk.log import init_log_file
 
-        log_file = init_log_file(self.log_path)
-
-        pretty_logs = False
-        if pretty_logs:
-            self._filehandle = log_file.open("w", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
-        else:
-            self._filehandle = log_file.open("wb")
+            self._filehandle = init_log_file(self.log_path).open("wb")
             underlying_logger = structlog.BytesLogger(self._filehandle)
-        logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
-        self.bound_logger = logger
-        return logger
+            self.bound_logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
+
+    def log(self, level: int, event: str | None, **kwargs: Any) -> None:
+        """Write a line to the file and, with ``to_stdout`` or if the file can't take it, to the output."""
+        if not self.log_to_file(level, event, **kwargs) or self.to_stdout:
+            log.log(level, event, trigger_id=self.trigger_id, **kwargs)  # type: ignore[arg-type]
+
+    def log_to_file(self, level: int, event: str | None, **kwargs: Any) -> bool:
+        """Write the line to the file only; return whether it could."""
+        if not hasattr(self, "bound_logger"):
+            return False
+        try:
+            self.bound_logger.log(level, event, **kwargs)
+        except OSError as e:
+            self._report_error(e)
+            return False
+        return True
+
+    def _report_error(self, error: OSError) -> None:
+        if self.on_error is not None:
+            self.on_error(self.trigger_id, error)
 
     def close(self):
         # Explicitly close the file descriptor.
@@ -576,6 +612,145 @@ class TriggerLoggingFactory:
             return
 
         upload_to_remote(self.bound_logger, self.ti)
+
+
+class _CappedBytesLogger(structlog.BytesLogger):
+    """
+    ``BytesLogger`` appending to ``path``, moved to the rotated directory once it reaches ``max_bytes``.
+
+    ``may_rotate`` can hold a rotation off, ``on_rotate`` is called after one; ``max_bytes <= 0`` is no
+    cap. A closed file, or one whose directory was removed (a log cleaner, ``delete_local_logs``), is reopened
+    by the next line.
+    """
+
+    __slots__ = ("_max_bytes", "_may_rotate", "_on_rotate", "_path", "_size")
+
+    def __init__(
+        self,
+        path: Path,
+        max_bytes: int,
+        may_rotate: Callable[[], bool] | None = None,
+        on_rotate: Callable[[], None] | None = None,
+    ):
+        self._path, self._max_bytes = path, max_bytes
+        self._may_rotate, self._on_rotate = may_rotate, on_rotate
+        super().__init__(path.open("ab"))
+        self._size = self._file.tell()
+
+    @property
+    def rotated_path(self) -> Path:
+        return self._path.parent / TRIGGER_LOG_ROTATED_DIR / self._path.name
+
+    def ensure_open(self) -> None:
+        if self._file.closed:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._file = self._path.open("ab")
+            self._write = self._file.write
+            self._flush = self._file.flush
+            self._size = self._file.tell()
+
+    def msg(self, message: bytes) -> None:
+        with self._lock:
+            try:
+                self.ensure_open()
+                self._write(message + b"\n")
+                self._flush()
+                self._size += len(message) + 1
+                if 0 < self._max_bytes <= self._size and (self._may_rotate is None or self._may_rotate()):
+                    self._file.close()
+                    self.rotated_path.parent.mkdir(parents=True, exist_ok=True)
+                    with suppress(FileNotFoundError):
+                        os.replace(self._path, self.rotated_path)
+                    self.ensure_open()
+                    if self._on_rotate is not None:
+                        self._on_rotate()
+            except OSError:
+                # Reopened by the next line: a file removed meanwhile (to free a full disk) frees its space.
+                with suppress(OSError):
+                    self._file.close()
+                raise
+
+    def close(self) -> None:
+        # Closing flushes; on a full disk those lines are lost either way.
+        with suppress(OSError):
+            self._file.close()
+
+    log = debug = info = warn = warning = msg
+    fatal = failure = err = error = critical = exception = msg
+
+
+@attrs.define(kw_only=True)
+class WatcherLoggingFactory(TriggerLoggingFactory):
+    """
+    An asset watcher's own log file on this triggerer, as its owner has no log.
+
+    It is kept while the trigger is assigned here, across restarts of the watcher (SQS-style ones restart
+    after every event), so it is appended to, and capped on local disk. It is uploaded with the remote log
+    handler task logs use, and every line keeps its ``trigger_id``.
+    """
+
+    max_bytes: int = 0
+    to_stdout: bool = True
+    # Told about every line, to cap how many of these files are open at once.
+    on_write: Callable[[int], None] | None = attrs.field(default=None, repr=False)
+    may_rotate: Callable[[], bool] | None = attrs.field(default=None, repr=False)
+    on_rotate: Callable[[], None] | None = attrs.field(default=None, repr=False)
+
+    def _open(self, processors: Iterable[structlog.typing.Processor]) -> None:
+        if hasattr(self, "bound_logger"):
+            # Before the processors run: a handler streaming each line (CloudWatch) names its stream after the
+            # open file, and would drop the line of a file the open-files cap closed.
+            self.bound_logger._logger.ensure_open()
+        else:
+            from airflow.sdk.log import init_log_file  # noqa: SDK001
+
+            underlying_logger = _CappedBytesLogger(
+                init_log_file(self.log_path), self.max_bytes, self.may_rotate, self.on_rotate
+            )
+            self.bound_logger = structlog.wrap_logger(underlying_logger, processors=processors).bind(
+                trigger_id=self.trigger_id
+            )
+        if self.on_write is not None and self.trigger_id is not None:
+            self.on_write(self.trigger_id)
+
+    def close(self):
+        if hasattr(self, "bound_logger"):
+            self.bound_logger._logger.close()
+
+    def upload_to_remote(self):
+        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+        if not hasattr(self, "bound_logger") or (handler := load_remote_log_handler()) is None:
+            return
+        # Never upload an open file: remote handlers empty or delete it afterwards. The rotated files first, as
+        # remote handlers append in upload order. Nor an empty one to a handler that stores files: it would
+        # download and upload the remote copy again for nothing.
+        self.close()
+        live = self.bound_logger._logger._path
+        for path in trigger_log_files(live.parent):
+            if _handler_keeps_no_copy(handler) or (path.is_file() and path.stat().st_size):
+                handler.upload((Path(self.log_path).parent / path.relative_to(live.parent)).as_posix(), None)
+
+
+# Marks a dead triggerer's log directory that one triggerer is uploading (see handle_orphaned_trigger_logs).
+_ORPHAN_UPLOAD_CLAIM = ".uploading"
+_ORPHAN_UPLOAD_CLAIM_MAX_AGE = 600.0
+_TRIGGER_ID_QUERY_CHUNK_SIZE = 500
+# Remote log handlers that take only task logs: a watcher's file is left as it was however often it is sent.
+_TASK_LOGS_ONLY_HANDLERS = frozenset({"ElasticsearchRemoteLogIO", "OpensearchRemoteLogIO"})
+
+
+def _handler_keeps_no_copy(handler) -> bool:
+    """
+    Whether a file the handler leaves as it was after ``upload`` is no sign of a failed upload.
+
+    True for a handler that streams each line as it is written (it has processors, like CloudWatch) or that takes
+    only task logs (Elasticsearch, OpenSearch; by class name, as nothing else tells them apart). Any other handler
+    that leaves the file as it was failed to upload it (S3, GCS and WASB report that only in their log).
+    """
+    if getattr(handler, "processors", None):
+        return True
+    return any(cls.__name__ in _TASK_LOGS_ONLY_HANDLERS for cls in type(handler).__mro__)
 
 
 @attrs.define(kw_only=True)
@@ -619,6 +794,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     running_triggers: set[int] = attrs.field(factory=set, init=False)
 
     logger_cache: dict[int, TriggerLoggingFactory] = attrs.field(factory=dict, init=False)
+    # Asset watcher files with an open descriptor, least recently written first
+    _open_watcher_logs: dict[int, None] = attrs.field(factory=dict, init=False)
+    watcher_log_max_open_files: int = attrs.field(
+        factory=lambda: TriggerRunnerSupervisor.get_watcher_log_max_open_files(), init=False
+    )
+    # When to look for watcher files left by triggerers that died, and the thread doing it
+    _orphan_scans_at: list[float] | None = attrs.field(default=None, init=False)
+    _orphan_scan_thread: threading.Thread | None = attrs.field(default=None, init=False)
+    # Uploads of released watchers' files, and of rotated files in their own pool: release uploads wait
+    # for them
+    _upload_pool: ThreadPoolExecutor | None = attrs.field(default=None, init=False)
+    _pending_uploads: dict[int, Future] = attrs.field(factory=dict, init=False)
+    # The released watchers' factories while their upload is pending: one back before it starts keeps it
+    _released_factories: dict[int, WatcherLoggingFactory] = attrs.field(factory=dict, init=False)
+    _rotated_pool: ThreadPoolExecutor | None = attrs.field(default=None, init=False)
+    _pending_rotated_uploads: dict[int, Future] = attrs.field(factory=dict, init=False)
+    # The last number given to each watcher's rotated files here (see _upload_rotated)
+    _rotated_parts: dict[int, int] = attrs.field(factory=dict, init=False)
+    # When each trigger's log file last failed, to warn at most once a minute
+    _trigger_log_errors_at: dict[int, float] = attrs.field(factory=dict, init=False)
 
     # A list of triggers that we have told the async process to cancel. We keep them here until we receive the
     # FinishedTriggers message
@@ -738,15 +933,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
-                if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                # A watcher's file outlives its instances: update_triggers closes it once the trigger leaves,
+                # after the instance's last lines arrived on the log socket.
+                if not isinstance(self.logger_cache.get(id), WatcherLoggingFactory):
+                    self._close_trigger_logger(id)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -835,6 +1025,269 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
+    @staticmethod
+    def get_watcher_log_max_open_files() -> int:
+        """
+        Return ``[triggerer] trigger_log_max_open_files`` (0: no limit), at most a quarter of ``ulimit -n``.
+
+        The task and callback trigger logs, the database and the sockets need descriptors too.
+        """
+        setting = conf.getint("triggerer", "trigger_log_max_open_files")
+        try:
+            import resource  # Unix only
+
+            soft, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+        except (ImportError, OSError, ValueError):
+            return setting
+        if soft == resource.RLIM_INFINITY:
+            return setting
+        limit = max(1, soft // 4)
+        return limit if setting <= 0 else min(setting, limit)
+
+    def _note_watcher_log_write(self, trigger_id: int) -> None:
+        """Keep at most ``watcher_log_max_open_files`` watcher files open, closing the least recent."""
+        self._open_watcher_logs.pop(trigger_id, None)
+        self._open_watcher_logs[trigger_id] = None
+        while 0 < self.watcher_log_max_open_files < len(self._open_watcher_logs):
+            idle = next(iter(self._open_watcher_logs))
+            del self._open_watcher_logs[idle]
+            if (factory := self.logger_cache.get(idle)) is not None:
+                factory.close()
+
+    def _close_trigger_logger(self, trigger_id: int) -> None:
+        self._open_watcher_logs.pop(trigger_id, None)
+        if not (factory := self.logger_cache.pop(trigger_id, None)):
+            return
+        if not isinstance(factory, WatcherLoggingFactory) or self.stop:
+            self._upload_and_close(trigger_id, factory)
+            return
+        # In the background: a triggerer that lost its watchers (a DB partition) releases them all at once.
+        if self._upload_pool is None:
+            self._upload_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="trigger-log-release")
+        upload = self._upload_pool.submit(self._upload_and_close, trigger_id, factory)
+        self._pending_uploads[trigger_id] = upload
+        self._released_factories[trigger_id] = factory
+
+        def forget(done: Future) -> None:
+            if self._pending_uploads.get(trigger_id) is done:
+                self._pending_uploads.pop(trigger_id, None)
+                self._released_factories.pop(trigger_id, None)
+
+        upload.add_done_callback(forget)
+
+    def _rotated_upload_done(self, trigger_id: int) -> bool:
+        upload = self._pending_rotated_uploads.get(trigger_id)
+        return upload is None or upload.done()
+
+    def _upload_rotated(self, trigger_id: int, log_path: str) -> None:
+        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+        if (handler := load_remote_log_handler()) is None:
+            return
+        if self._rotated_pool is None:
+            self._rotated_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="trigger-log-rotated")
+        path = rotated = trigger_log_rotated_path(log_path)
+        base = Path(conf.get("logging", "base_log_folder"))
+        if not _handler_keeps_no_copy(handler):
+            # A handler that stores files gets each rotated file as its own object (see trigger_log_part_path),
+            # numbered by this triggerer, the only one writing to the directory. Counted here, not from the disk:
+            # a watcher that comes back gets a new file, and the parts it uploaded before are gone locally.
+            for done in (base / rotated).parent.glob("*.log"):
+                if done.name != TRIGGER_LOG_FILE_NAME:
+                    with suppress(OSError):
+                        done.unlink()  # the previous one, its upload done: one rotated file at a time
+            self._rotated_parts[trigger_id] = part = self._rotated_parts.get(trigger_id, 0) + 1
+            path = trigger_log_part_path(log_path, part)
+
+        def upload() -> None:
+            try:
+                if path != rotated:
+                    # Named only now: until then the triggerer's log server serves it as the rotated file.
+                    os.replace(base / rotated, base / path)
+                handler.upload(path, None)
+            except Exception:
+                log.exception("Failed to upload a rotated trigger log", trigger_id=trigger_id, path=path)
+
+        self._pending_rotated_uploads[trigger_id] = self._rotated_pool.submit(upload)
+
+    def _upload_and_close(self, trigger_id: int, factory: TriggerLoggingFactory) -> None:
+        if (rotated_upload := self._pending_rotated_uploads.pop(trigger_id, None)) is not None:
+            rotated_upload.result()  # else the rotated file could be read again before it is emptied
+        try:
+            factory.upload_to_remote()
+        except Exception:
+            log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+        finally:
+            # Close even if the upload failed, not to leak the descriptor. Closing flushes, which can fail.
+            try:
+                factory.close()
+            except OSError as e:
+                self._warn_trigger_log_error(trigger_id, e)
+
+    def _warn_trigger_log_error(self, trigger_id: int | None, error: OSError) -> None:
+        now = time.monotonic()
+        if now - self._trigger_log_errors_at.get(trigger_id or 0, -math.inf) >= 60:
+            self._trigger_log_errors_at[trigger_id or 0] = now
+            log.warning(
+                "Could not write a trigger's log file; its lines go to the triggerer's output meanwhile",
+                trigger_id=trigger_id,
+                error=str(error),
+            )
+
+    def handle_orphaned_trigger_logs(self) -> None:
+        """
+        Upload, or remove, the asset watcher files left on this disk by triggerers that are no longer alive.
+
+        A killed triggerer uploads nothing, so its files are uploaded now. Files remote logging doesn't take
+        (it is off, or the handler keeps no copy, like Elasticsearch) are removed instead: all but the most
+        recently written for each watcher, and all for triggers that no longer exist. Files of live
+        triggerers, this one included, of triggerers without a job (no job id directory), and those a failed
+        upload left stay.
+        """
+        from airflow.jobs.job import Job
+        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+        handler = load_remote_log_handler()
+        base = Path(conf.get("logging", "base_log_folder"))
+        own = str(self.job.id) if self.job is not None else None
+        dirs_by_job: dict[int, list[Path]] = {}
+        for producer_dir in base.glob(f"{TRIGGER_LOG_ROOT}/*/*"):
+            if producer_dir.name.isdigit() and producer_dir.name != own and producer_dir.is_dir():
+                dirs_by_job.setdefault(int(producer_dir.name), []).append(producer_dir)
+        if not dirs_by_job:
+            return
+        trigger_ids = sorted(
+            {int(d.parent.name) for ds in dirs_by_job.values() for d in ds if d.parent.name.isdigit()}
+        )
+        with create_session() as session:
+            jobs = session.scalars(select(Job).where(Job.id.in_(dirs_by_job)))
+            dead = dirs_by_job.keys() - {job.id for job in jobs if job.is_alive()}
+            # A watcher whose kwargs changed got a new trigger; the old id's files have nothing left to keep.
+            existing = {
+                trigger_id
+                for ids in chunks(trigger_ids, _TRIGGER_ID_QUERY_CHUNK_SIZE)
+                for trigger_id in session.scalars(select(Trigger.id).where(Trigger.id.in_(ids)))
+            }
+        dead_dirs = {job_id: dirs_by_job[job_id] for job_id in dead}
+        if handler is not None:
+            # What the handler left as it was is then removed as without remote logging.
+            dead_dirs = {
+                job_id: [d for d in dirs if self._upload_orphaned_trigger_log_dir(handler, base, d, job_id)]
+                for job_id, dirs in dead_dirs.items()
+            }
+        gone = {str(trigger_id) for trigger_id in trigger_ids if trigger_id not in existing}
+        self._remove_old_trigger_log_dirs(dead_dirs, gone=gone)
+
+    @staticmethod
+    def _upload_orphaned_trigger_log_dir(handler, base: Path, producer_dir: Path, job_id: int) -> bool:
+        """Upload a dead triggerer's files unless another triggerer is; True if the handler left any."""
+        # Claimed first: triggerers starting together on a shared log folder see the same files, and remote
+        # handlers append, so a file uploaded twice would be in the remote copy twice.
+        claim = producer_dir / _ORPHAN_UPLOAD_CLAIM
+        with suppress(OSError):
+            if time.time() - claim.stat().st_mtime >= _ORPHAN_UPLOAD_CLAIM_MAX_AGE:
+                claim.unlink()  # left by a triggerer that died while uploading
+        try:
+            os.close(os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        except OSError:
+            return False
+        kept = False
+        try:
+            # The rotated files first: remote handlers append in upload order.
+            for path in trigger_log_files(producer_dir):
+                # Remote handlers empty a file they uploaded unless they delete it; skip those.
+                if not path.is_file() or not path.stat().st_size:
+                    continue
+                relative_path = path.relative_to(base).as_posix()
+                try:
+                    handler.upload(relative_path, None)
+                except Exception:
+                    log.exception("Failed to upload an orphaned trigger log", path=relative_path)
+                    continue
+                if path.is_file() and path.stat().st_size:
+                    # Neither emptied nor deleted: a handler that keeps no copy of it, or a failed upload, whose
+                    # files stay for a later start.
+                    kept = kept or _handler_keeps_no_copy(handler)
+                else:
+                    log.info(
+                        "Uploaded a trigger log left behind by a triggerer that is not alive",
+                        path=relative_path,
+                        triggerer_job_id=job_id,
+                    )
+        finally:
+            claim.unlink(missing_ok=True)
+        return kept
+
+    @staticmethod
+    def _remove_old_trigger_log_dirs(dead_dirs: dict[int, list[Path]], *, gone: set[str]) -> None:
+        """Remove dead triggerers' files, keeping the most recently written of each trigger not ``gone``."""
+
+        def last_written(producer_dir: Path) -> float:
+            # Not the highest job id: on a shared log folder, a watcher taken over by an older triggerer has
+            # its newest lines there.
+            return max((f.stat().st_mtime for f in producer_dir.rglob("*") if f.is_file()), default=0.0)
+
+        dead_dirs_by_trigger: dict[Path, list[tuple[float, int, Path]]] = {}
+        for job_id, dirs in dead_dirs.items():
+            for producer_dir in dirs:
+                dead_dirs_by_trigger.setdefault(producer_dir.parent, []).append(
+                    (last_written(producer_dir), job_id, producer_dir)
+                )
+        for trigger_dir, dirs_of_trigger in dead_dirs_by_trigger.items():
+            is_gone = trigger_dir.name in gone
+            for _, job_id, producer_dir in sorted(dirs_of_trigger)[: None if is_gone else -1]:
+                shutil.rmtree(producer_dir, ignore_errors=True)
+                log.info(
+                    "Removed a trigger log left behind by a triggerer that is not alive",
+                    path=producer_dir.as_posix(),
+                    triggerer_job_id=job_id,
+                )
+            if is_gone:
+                with suppress(OSError):
+                    trigger_dir.rmdir()  # not while a live triggerer still has a directory in it
+
+    def _maybe_handle_orphaned_trigger_logs(self) -> None:
+        # At start, and once more when a triggerer that died just before this one started stops counting as
+        # alive (a container restarted in place). In a thread: thousands of uploads, each a timeout while the
+        # store is unreachable, must not stop this triggerer heartbeating and handling events.
+        now = time.monotonic()
+        if self._orphan_scans_at is None:
+            self._orphan_scans_at = [
+                now,
+                now + conf.getfloat("triggerer", "triggerer_health_check_threshold"),
+            ]
+        if not self._orphan_scans_at or now < self._orphan_scans_at[0]:
+            return
+        if self._orphan_scan_thread is not None and self._orphan_scan_thread.is_alive():
+            return  # still uploading what the previous scan found
+        self._orphan_scans_at.pop(0)
+        self._orphan_scan_thread = threading.Thread(
+            target=self._handle_orphaned_trigger_logs_logged, name="orphaned-trigger-logs", daemon=True
+        )
+        self._orphan_scan_thread.start()
+
+    def _handle_orphaned_trigger_logs_logged(self) -> None:
+        try:
+            self.handle_orphaned_trigger_logs()
+        except Exception:
+            log.exception("Failed to look for orphaned trigger logs")
+
+    def close_trigger_log_files(self) -> None:
+        """
+        Upload and close every trigger log still open here; called once the runner has exited.
+
+        Also the task and callback logs of triggers still running, else uploaded only when the trigger ends.
+        """
+        factories = [
+            (trigger_id, self.logger_cache.pop(trigger_id)) for trigger_id in list(self.logger_cache)
+        ]
+        self._open_watcher_logs.clear()
+        # Side by side: one after the other, thousands of files take longer than a container's stop timeout.
+        with ThreadPoolExecutor(max_workers=16, thread_name_prefix="trigger-log-upload") as pool:
+            list(pool.map(lambda item: self._upload_and_close(*item), factories))
+        if self._upload_pool is not None:
+            self._upload_pool.shutdown(wait=True)
+
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
         with self.run_context():
@@ -865,6 +1318,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.handle_failed_triggers()
         self.clean_unused()
         self.heartbeat()
+        self._maybe_handle_orphaned_trigger_logs()
 
         self.emit_metrics()
 
@@ -1078,7 +1532,32 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # log file's parent directory after upload, which must not hold other callbacks' logs.
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
                     log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
+                    trigger_id=trigger.id,
+                    on_error=self._warn_trigger_log_error,
                 )
+            elif trigger.id not in self.logger_cache:
+                if (upload := self._pending_uploads.get(trigger.id)) is not None and not upload.done():
+                    released = self._released_factories.get(trigger.id)
+                    if released is None or not upload.cancel():
+                        # Back while its file uploads: the handler empties or removes it once uploaded, which
+                        # would lose the new lines. Tried again next loop, not to stop the main loop.
+                        return None
+                    # Its upload had not started (queued behind others, minutes each with an unreachable
+                    # store): keep the same file, uploaded when the watcher leaves again or the triggerer stops.
+                    self.logger_cache[trigger.id] = released
+                else:
+                    # No owner with a log: one file for every instance of the watcher.
+                    log_path = trigger_log_relative_path(trigger.id, self.job.id if self.job else self.id)
+                    self.logger_cache[trigger.id] = WatcherLoggingFactory(
+                        log_path=log_path,
+                        trigger_id=trigger.id,
+                        max_bytes=conf.getint("triggerer", "trigger_log_max_bytes"),
+                        to_stdout=conf.getboolean("triggerer", "watcher_logs_to_stdout"),
+                        on_write=self._note_watcher_log_write,
+                        on_error=self._warn_trigger_log_error,
+                        may_rotate=functools.partial(self._rotated_upload_done, trigger.id),
+                        on_rotate=functools.partial(self._upload_rotated, trigger.id, log_path),
+                    )
 
             return workloads.RunTrigger(
                 id=trigger.id,
@@ -1115,6 +1594,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.logger_cache[trigger.id] = TriggerLoggingFactory(
             log_path=f"{log_path}.trigger.{log_id}.log",
             ti=ser_ti,  # type: ignore
+            trigger_id=trigger.id,
+            on_error=self._warn_trigger_log_error,
         )
 
         dag_run = trigger.task_instance.get_dagrun(session=session)
@@ -1287,6 +1768,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 self.releasing_triggers.update(assignments)
             self.cancelling_triggers.update(cancel_trigger_ids - assignments.keys())
+
+        # A watcher's own file is closed, and uploaded, once its trigger is no longer assigned here.
+        for trigger_id in [t for t, f in self.logger_cache.items() if isinstance(f, WatcherLoggingFactory)]:
+            if trigger_id not in requested_trigger_ids and trigger_id not in known_trigger_ids:
+                self._close_trigger_logger(trigger_id)
+                self._trigger_log_errors_at.pop(trigger_id, None)
 
     def _register_pipe_readers(
         self,

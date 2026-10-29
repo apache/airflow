@@ -493,6 +493,32 @@ If subscribers repeatedly overflow, there are two ways to address this:
 
 Both reduce the mismatch between producer throughput and per-subscriber consume rate.
 
+.. _asset-watcher-logs:
+
+Watcher logs
+~~~~~~~~~~~~
+
+A deferred task's trigger logs to that task try's log, and a callback's trigger to the callback's log. An asset
+watcher has no such log, so its lines go to a file of its own on the triggerer that runs it,
+``triggers/<trigger id>/<triggerer job id>/trigger.log`` under ``[logging] base_log_folder``. The file lasts as
+long as the trigger stays on that triggerer, across every restart of the watcher, and each line keeps the
+watcher's ``trigger_id``. With ``[logging] remote_logging`` on, the remote log handler that uploads task and
+callback logs also uploads the file when the trigger leaves the triggerer or the triggerer stops, and a triggerer
+that starts uploads the files left on its disk by triggerers that died. A triggerer that stops also uploads the
+task and callback logs of the triggers it was still running.
+
+``[triggerer] trigger_log_max_bytes`` caps the file, with one rotated file in a ``rotated`` directory next to
+it (with remote logging on, each rotated file is uploaded before it is replaced, as its own
+``rotated/trigger.<n>.log`` with a handler that stores files, such as S3),
+``[triggerer] trigger_log_max_open_files`` caps how many such files are open at once, and
+``[triggerer] watcher_logs_to_stdout`` keeps the watcher's lines in the triggerer's output too, for platforms
+that collect it. The files of triggerers that are gone are uploaded by the next triggerer on the same disk with
+remote logging on. Without it, or with a handler that keeps no copy of them (Elasticsearch, OpenSearch), only the
+most recently written of them is kept for each watcher, and none for a trigger that no longer exists, so a watcher
+uses at most four times ``trigger_log_max_bytes`` of one disk. A full or read-only log disk doesn't stop the triggerer:
+the lines a trigger's log file can't take go to the triggerer's output, with a warning at most once a minute per
+trigger.
+
 Avoid infinite scheduling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
