@@ -112,9 +112,9 @@ Optional config options:
 -  CHECK_HEALTH_ON_STARTUP - Whether or not to check the ECS Executor
    health on startup
 -  RUN_TASK_CONCURRENCY - The maximum number of ECS ``run_task`` calls
-   the ECS Executor makes in parallel, in background threads; 0 means no
-   limit. Defaults to 1: tasks are launched one at a time, and the
-   scheduler loop waits for each call.
+   the ECS Executor makes in parallel, in background threads. Defaults
+   to 1: tasks are launched one at a time, and the scheduler loop waits
+   for each call.
 
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon

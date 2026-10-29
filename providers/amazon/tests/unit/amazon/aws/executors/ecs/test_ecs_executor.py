@@ -1417,7 +1417,8 @@ def concurrent_executor(set_env_vars):
     executor.IS_BOTO_CONNECTION_HEALTHY = True
     executor.ecs = mock.Mock(spec=executor.ecs)
     yield executor
-    executor._run_task_pool.shutdown(wait=True, cancel_futures=True)
+    if executor._run_task_pool is not None:
+        executor._run_task_pool.shutdown(wait=True, cancel_futures=True)
 
 
 class TestRunTaskConcurrency:
@@ -1460,6 +1461,28 @@ class TestRunTaskConcurrency:
         assert not concurrent_executor._run_task_futures
         assert set(concurrent_executor.active_workers.get_all_task_keys()) == set(keys)
         assert set(concurrent_executor.active_workers.get_all_arns()) == {f"{ARN1}-{i}" for i in range(3)}
+
+    def test_credentials_error_is_raised_once_for_all_finished_calls(self, concurrent_executor):
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            release.wait(timeout=10)
+            raise ClientError({"Error": {"Code": "ExpiredTokenException", "Message": "expired"}}, "RunTask")
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        for i in range(2):
+            concurrent_executor.execute_async(
+                TaskInstanceKey("dag", f"task_{i}", "run", 1, -1), ["airflow", "tasks", str(i)]
+            )
+        concurrent_executor.attempt_workload_runs()
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+
+        with pytest.raises(ClientError, match="ExpiredTokenException"):
+            concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert len(concurrent_executor.pending_workloads) == 2
 
     def test_end_waits_for_in_flight_run_task_calls(self, concurrent_executor):
         in_flight = Future()
@@ -1512,35 +1535,61 @@ class TestRunTaskConcurrency:
         stopped = {call.kwargs["task"] for call in concurrent_executor.ecs.stop_task.call_args_list}
         assert stopped == {f"{ARN1}-0", f"{ARN1}-1"}
 
-    def test_zero_run_task_concurrency_has_no_limit(self, set_env_vars):
-        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): "0"}):
-            executor = AwsEcsExecutor(parallelism=8)
-        executor.ecs = mock.Mock(spec=executor.ecs)
-        # Each call waits until all 8 are in flight: one at a time, the first one times out.
-        all_in_flight = threading.Barrier(8, timeout=5)
-        passed = []
+    def test_terminate_stops_the_tasks_started_when_another_response_fails(self, concurrent_executor):
+        task = {
+            "taskArn": ARN1,
+            "lastStatus": "",
+            "desiredStatus": "",
+            "containers": [{"name": "some-ecs-container"}],
+        }
+        release = threading.Event()
 
         def run_task(**kwargs):
-            all_in_flight.wait()
-            passed.append(kwargs["overrides"]["containerOverrides"][0]["command"][-1])
-            return {"tasks": [], "failures": [{"arn": ARN1, "reason": "test"}]}
+            release.wait(timeout=10)
+            if kwargs["overrides"]["containerOverrides"][0]["command"][-1] == "0":
+                # Neither tasks nor failures: handling this response raises an EcsExecutorException.
+                return {"tasks": [], "failures": []}
+            return {"tasks": [task], "failures": []}
 
-        executor.ecs.run_task.side_effect = run_task
-        for i in range(8):
-            executor.execute_async(
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        for i in range(2):
+            concurrent_executor.execute_async(
                 TaskInstanceKey("dag", f"task_{i}", "run", 1, -1), ["airflow", "tasks", str(i)]
             )
+        concurrent_executor.attempt_workload_runs()
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
 
-        executor.attempt_workload_runs()
-        wait(list(executor._run_task_futures), timeout=10)
+        with mock.patch.object(concurrent_executor, "end"):
+            concurrent_executor.terminate()
 
-        assert sorted(passed) == [str(i) for i in range(8)]
-        executor._run_task_pool.shutdown(wait=True)
+        concurrent_executor.ecs.stop_task.assert_called_once_with(
+            cluster=concurrent_executor.cluster, task=ARN1, reason="Airflow Executor received a SIGTERM"
+        )
 
-    def test_negative_run_task_concurrency_is_rejected(self, set_env_vars):
-        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): "-1"}):
+    def test_run_task_calls_are_made_in_the_scheduler_loop_after_terminate(self, concurrent_executor):
+        task = {
+            "taskArn": ARN1,
+            "lastStatus": "",
+            "desiredStatus": "",
+            "containers": [{"name": "some-ecs-container"}],
+        }
+        concurrent_executor.ecs.run_task.return_value = {"tasks": [task], "failures": []}
+        with mock.patch.object(concurrent_executor, "end"):
+            concurrent_executor.terminate()
+        key = TaskInstanceKey("dag", "task", "run", 1, -1)
+        concurrent_executor.execute_async(key, ["airflow", "tasks", "run"])
+
+        concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert concurrent_executor.active_workers.get_all_task_keys() == [key]
+
+    @pytest.mark.parametrize("concurrency", ["0", "-1"])
+    def test_run_task_concurrency_below_one_is_rejected(self, set_env_vars, concurrency):
+        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): concurrency}):
             with pytest.raises(
-                ValueError, match="run_task_concurrency must be 0 \\(no limit\\) or more, got -1"
+                ValueError, match=f"run_task_concurrency must be 1 or more, got {concurrency}"
             ):
                 AwsEcsExecutor()
 
@@ -1548,7 +1597,6 @@ class TestRunTaskConcurrency:
         ("concurrency", "connection_config", "expected_pool_size"),
         [
             pytest.param("16", {}, 17, id="one-per-thread-and-for-the-scheduler-thread"),
-            pytest.param("0", {}, 33, id="no-limit-sized-by-parallelism"),
             pytest.param("16", {"max_pool_connections": 50}, 50, id="larger-connection-setting-kept"),
         ],
     )
@@ -1589,8 +1637,25 @@ class TestRunTaskThrottling:
         assert executor.ecs.run_task.call_count == 1
         [ecs_task] = executor.pending_workloads
         assert ecs_task.attempt_number == 1
-        assert ecs_task.next_attempt_time == timezone.utcnow() + ecs_executor.THROTTLED_RUN_TASK_RETRY_DELAY
+        assert ecs_task.throttled_attempts == 1
+        assert ecs_task.next_attempt_time == timezone.utcnow() + dt.timedelta(seconds=2)
         assert key not in executor.event_buffer
+
+    @time_machine.travel("2026-10-27 12:00:00", tick=False)
+    def test_throttled_run_task_retries_back_off_then_use_attempts(self, mock_executor):
+        mock_executor.ecs.run_task.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "RunTask"
+        )
+        key = TaskInstanceKey("dag", "task", "run", 1, -1)
+        mock_executor.execute_async(key, ["airflow", "tasks", "run"])
+        delays = []
+        for _ in range(ecs_executor.MAX_THROTTLED_RUN_TASK_RETRIES + 1):
+            mock_executor.pending_workloads[0].next_attempt_time = timezone.utcnow()
+            mock_executor.attempt_workload_runs()
+            delays.append((mock_executor.pending_workloads[0].next_attempt_time - timezone.utcnow()).seconds)
+
+        assert delays == [2, 4, 8, 16, 32, 4]
+        assert mock_executor.pending_workloads[0].attempt_number == 2
 
     @mock.patch.object(ecs_executor, "Stats")
     def test_run_task_duration_is_timed(self, stats_mock, mock_executor):

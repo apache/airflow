@@ -1514,8 +1514,8 @@ config:
       run_task_concurrency:
         description: |
           The maximum number of ECS RunTask calls the ECS Executor makes in parallel. With 1, tasks are
-          launched one at a time and the scheduler loop waits for each call. With more, or with 0 for no
-          limit, the calls run in background threads and the scheduler loop does not wait for them.
+          launched one at a time and the scheduler loop waits for each call. With more, the calls run in
+          background threads and the scheduler loop does not wait for them.
         version_added: "9.40.0"
         type: integer
         example: "16"

@@ -75,6 +75,7 @@ class EcsQueuedTask:
     executor_config: ExecutorConfigType
     attempt_number: int
     next_attempt_time: datetime.datetime
+    throttled_attempts: int = 0
 
 
 @dataclass

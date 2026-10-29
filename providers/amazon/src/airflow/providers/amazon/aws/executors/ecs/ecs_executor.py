@@ -29,7 +29,6 @@ from collections import deque
 from collections.abc import Callable, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
-from datetime import timedelta
 from functools import partial
 from typing import TYPE_CHECKING, TypeAlias
 
@@ -88,7 +87,9 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
     "UnrecognizedClientException",
 ]
 THROTTLING_EXCEPTIONS = ["ThrottlingException"]
-THROTTLED_RUN_TASK_RETRY_DELAY = timedelta(seconds=2)
+# Retries on top of botocore's own. Past this number, a throttled RunTask call uses one of the workload's
+# ``max_run_task_attempts``, so a workload cannot stay pending for as long as the throttling lasts.
+MAX_THROTTLED_RUN_TASK_RETRIES = 5
 
 
 class AwsEcsExecutor(BaseExecutor):
@@ -157,18 +158,15 @@ class AwsEcsExecutor(BaseExecutor):
                 fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.RUN_TASK_CONCURRENCY],
             )
         )
-        if self.run_task_concurrency < 0:
+        if self.run_task_concurrency < 1:
             raise ValueError(
-                f"{AllEcsConfigKeys.RUN_TASK_CONCURRENCY} must be 0 (no limit) or more, "
-                f"got {self.run_task_concurrency}"
+                f"{AllEcsConfigKeys.RUN_TASK_CONCURRENCY} must be 1 or more, got {self.run_task_concurrency}"
             )
-        # With a concurrency of 1, RunTask calls are made one by one in the scheduler loop. With 0, there is
-        # no limit: the executor never has more than ``parallelism`` workloads to launch at once, and the
-        # pool only starts the threads that the calls in flight need.
+        # With a concurrency of 1, RunTask calls are made one by one in the scheduler loop.
         self._run_task_threads = 0
         self._run_task_pool: ThreadPoolExecutor | None = None
-        if self.run_task_concurrency != 1:
-            self._run_task_threads = self.run_task_concurrency or self.parallelism
+        if self.run_task_concurrency > 1:
+            self._run_task_threads = self.run_task_concurrency
             self._run_task_pool = ThreadPoolExecutor(
                 max_workers=self._run_task_threads, thread_name_prefix="ecs-run-task"
             )
@@ -464,9 +462,9 @@ class AwsEcsExecutor(BaseExecutor):
 
         If the launch type is FARGATE, this will run the tasks on new AWS Fargate instances.
 
-        With ``run_task_concurrency`` other than 1, the RunTask calls are made in background threads, at
-        most that many at a time (0: no limit), and the scheduler loop does not wait for them: each call is
-        handled by the first sync that finds it finished.
+        With ``run_task_concurrency`` above 1, the RunTask calls are made in background threads, at most
+        that many at a time, and the scheduler loop does not wait for them: each call is handled by the
+        first sync that finds it finished.
         """
         for _ in range(len(self.pending_workloads)):
             ecs_task = self.pending_workloads.popleft()
@@ -480,8 +478,16 @@ class AwsEcsExecutor(BaseExecutor):
                 self._handle_run_task_response(ecs_task, run_task)
             else:
                 self._run_task_futures[self._run_task_pool.submit(run_task)] = ecs_task
+        # All the calls made with expired credentials fail together: raising on the first one would leave
+        # the others to fail one sync at a time, each forcing its own reconnection.
+        credentials_error: ClientError | NoCredentialsError | None = None
         for future in [future for future in self._run_task_futures if future.done()]:
-            self._handle_run_task_response(self._run_task_futures.pop(future), future.result)
+            try:
+                self._handle_run_task_response(self._run_task_futures.pop(future), future.result)
+            except (ClientError, NoCredentialsError) as error:
+                credentials_error = credentials_error or error
+        if credentials_error is not None:
+            raise credentials_error
 
     def _handle_run_task_response(self, ecs_task: EcsQueuedTask, get_response: Callable[[], dict]) -> None:
         """Get the RunTask response for ``ecs_task``, then track the ECS task, or retry or fail the workload."""
@@ -501,9 +507,21 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.pending_workloads.append(ecs_task)
                 raise
-            if error_code in THROTTLING_EXCEPTIONS:
+            if (
+                error_code in THROTTLING_EXCEPTIONS
+                and ecs_task.throttled_attempts < MAX_THROTTLED_RUN_TASK_RETRIES
+            ):
                 # ECS is asking to slow down; that says nothing about the workload, so keep its attempts.
-                ecs_task.next_attempt_time = timezone.utcnow() + THROTTLED_RUN_TASK_RETRY_DELAY
+                ecs_task.throttled_attempts += 1
+                delay = calculate_next_attempt_delay(ecs_task.throttled_attempts, exponent_base=2)
+                self.log.info(
+                    "ECS throttled the RunTask call for %s, retrying in %s (retry %s of %s)",
+                    task_key,
+                    delay,
+                    ecs_task.throttled_attempts,
+                    MAX_THROTTLED_RUN_TASK_RETRIES,
+                )
+                ecs_task.next_attempt_time = timezone.utcnow() + delay
                 self.pending_workloads.append(ecs_task)
                 return
             failure_reasons.append(str(e))
@@ -644,10 +662,17 @@ class AwsEcsExecutor(BaseExecutor):
                 # A RunTask call still in flight may start an ECS task after the StopTask calls below:
                 # wait for the calls already started, and drop the ones not started yet.
                 self._run_task_pool.shutdown(wait=True, cancel_futures=True)
+                # The pool no longer takes calls: ``end()`` below makes them in the scheduler loop.
+                self._run_task_pool = None
                 for future, ecs_task in list(self._run_task_futures.items()):
                     del self._run_task_futures[future]
-                    if not future.cancelled():
+                    if future.cancelled():
+                        continue
+                    # One failure must not keep the other ECS tasks from being tracked, then stopped.
+                    try:
                         self._handle_run_task_response(ecs_task, future.result)
+                    except Exception:
+                        self.log.exception("Failed to handle the RunTask response for %s", ecs_task.key)
             for arn in self.active_workers.get_all_arns():
                 self.ecs.stop_task(
                     cluster=self.cluster, task=arn, reason="Airflow Executor received a SIGTERM"
