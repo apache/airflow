@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, call
 
 import boto3
@@ -175,15 +174,6 @@ class TestS3DagBundle:
         bundle.initialize()
         assert bundle.s3_hook.region_name == AWS_CONN_ID_REGION
 
-    def _upload_fixtures(self, bucket: str, fixtures_dir: str) -> None:
-        client = boto3.client("s3")
-        fixtures_paths = [
-            os.path.join(path, filename) for path, _, files in os.walk(fixtures_dir) for filename in files
-        ]
-        for path in fixtures_paths:
-            key = os.path.relpath(path, fixtures_dir)
-            client.upload_file(Filename=path, Bucket=bucket, Key=key)
-
     def test_refresh(self, s3_bucket, s3_client):
         bundle = S3DagBundle(
             name="test",
@@ -221,6 +211,24 @@ class TestS3DagBundle:
         bundle.refresh()
         assert bundle._log.debug.call_count == 2
         assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
+
+    def test_refresh_skips_key_mapping_to_bundle_root(self, s3_client):
+        s3_client.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key="dags/old.py", Body=b"old content")
+        bundle = S3DagBundle(name="test", bucket_name=S3_BUCKET_NAME, prefix="dags")
+        bundle.initialize()
+        assert (bundle.path / "old.py").read_bytes() == b"old content"
+
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key="dags/old.py")
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key="dags/.", Body=b"directory key")
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key="dags/new.py", Body=b"new content")
+
+        bundle.refresh()
+        bundle.refresh()
+
+        assert bundle.path.is_dir()
+        assert not (bundle.path / "old.py").exists()
+        assert (bundle.path / "new.py").read_bytes() == b"new content"
 
     @pytest.mark.parametrize("prefix", ["dags", "dags/", "project/dags", "project/dags/"])
     @pytest.mark.parametrize("extra_suffix", ["_archive/other.py", pytest.param("", id="key_equals_prefix")])

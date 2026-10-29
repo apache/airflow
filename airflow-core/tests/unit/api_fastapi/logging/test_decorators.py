@@ -23,8 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Request
-from fastapi.dependencies.utils import get_flat_dependant
-from fastapi.routing import APIRoute
+from fastapi.dependencies.models import Dependant
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -42,6 +41,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_connections,
@@ -561,27 +561,31 @@ class TestActionLoggingUnparsableBody:
         assert logged.event == "test_event"
 
 
+def _has_body_params(dependant: Dependant) -> bool:
+    """Return True if the dependant or any of its sub-dependencies declares a body parameter."""
+    return bool(dependant.body_params) or any(_has_body_params(dep) for dep in dependant.dependencies)
+
+
 def _bodyless_action_logging_routes(app) -> list[tuple[str, str]]:
     """Every ``action_logging`` route that declares no request body of its own."""
     found = set()
 
     def _collect(route):
-        if not isinstance(route, APIRoute):
-            return
         uses_logging = any(
             getattr(dep.call, "__qualname__", "").startswith("action_logging")
             for dep in route.dependant.dependencies
         )
         if not uses_logging:
             return
-        if get_flat_dependant(route.dependant, skip_repeats=True).body_params:
+        if _has_body_params(route.dependant):
             return
         for method in route.methods or []:
             found.add((method, route.path))
 
-    for route in app.routes:
+    for route in iter_api_routes(app.routes):
         _collect(route)
-        for sub in getattr(getattr(route, "app", None), "routes", []) or []:
+    for mount in app.routes:
+        for sub in iter_api_routes(getattr(getattr(mount, "app", None), "routes", []) or []):
             _collect(sub)
     return sorted(found)
 

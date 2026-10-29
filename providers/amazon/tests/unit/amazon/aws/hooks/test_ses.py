@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from unittest import mock
 
 import boto3
 import pytest
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.ses import SesHook
+from airflow.providers.amazon.aws.hooks.ses import SesHook, _build_mime_message
 
 boto3.setup_default_session()
 
@@ -135,3 +138,64 @@ class TestAsyncSesHook:
         assert response["MessageId"] == "test_message_id"
 
         mock_async_client.send_raw_email.assert_called_once()
+
+
+class TestBuildMimeMessage:
+    def test_message_and_recipients(self, tmp_path):
+        attachment = tmp_path / "report.txt"
+        attachment.write_bytes(b"data")
+
+        msg, recipients = _build_mime_message(
+            mail_from=TEST_FROM_ADDRESS,
+            to="to1@domain.com; to2@domain.com",
+            subject=TEST_SUBJECT,
+            html_content=TEST_HTML_CONTENT,
+            files=[os.fspath(attachment)],
+            cc=["cc@domain.com"],
+            bcc="bcc@domain.com",
+            custom_headers={"Reply-To": TEST_REPLY_TO},
+        )
+
+        assert recipients == ["to1@domain.com", "to2@domain.com", "cc@domain.com", "bcc@domain.com"]
+        assert msg["From"] == TEST_FROM_ADDRESS
+        assert msg["To"] == "to1@domain.com, to2@domain.com"
+        assert msg["CC"] == "cc@domain.com"
+        assert "Bcc" not in msg
+        assert msg["Subject"] == TEST_SUBJECT
+        assert msg["Reply-To"] == TEST_REPLY_TO
+        assert "Date" in msg
+        html_part, attachment_part = msg.get_payload()
+        assert html_part.get_payload(decode=True) == TEST_HTML_CONTENT.encode()
+        assert attachment_part.get_filename() == "report.txt"
+        assert attachment_part["Content-ID"] == "<report.txt>"
+        assert attachment_part.get_payload(decode=True) == b"data"
+
+    def test_without_sender_omits_from_header(self):
+        msg, _ = _build_mime_message(
+            mail_from=None, to="to@domain.com", subject=TEST_SUBJECT, html_content=TEST_HTML_CONTENT
+        )
+
+        assert "From" not in msg
+
+    @pytest.mark.parametrize(
+        ("to", "match"),
+        [
+            pytest.param(1, "Unexpected argument type: Received 'int'", id="not_iterable"),
+            pytest.param(["to@domain.com", 2], "The items in your iterable must be strings", id="not_string"),
+        ],
+    )
+    def test_rejects_non_string_addresses(self, to, match):
+        with pytest.raises(TypeError, match=match):
+            _build_mime_message(
+                mail_from=TEST_FROM_ADDRESS, to=to, subject=TEST_SUBJECT, html_content=TEST_HTML_CONTENT
+            )
+
+
+def test_hook_imports_without_core_email_utils():
+    """``airflow.utils.email`` is moving to the SMTP provider, so the hook must not import it."""
+    script = (
+        "import sys\n"
+        "sys.modules['airflow.utils.email'] = None\n"
+        "import airflow.providers.amazon.aws.hooks.ses\n"
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)

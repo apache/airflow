@@ -18,10 +18,13 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 
+import { MOCK_DAG } from "src/mocks/handlers/dag";
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -172,6 +175,49 @@ describe("TriggerDAGForm", () => {
 
     expect(screen.queryByText("pausedDag.drain")).not.toBeInTheDocument();
   });
+
+  it.each([
+    {
+      dates: { end_date: null, start_date: "2000-01-01T00:00:00Z" },
+      scenario: "within the Dag's dates",
+      text: "components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: null, start_date: "2999-01-01T00:00:00Z" },
+      scenario: "before the Dag's start date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.start",
+    },
+    {
+      dates: { end_date: "2000-01-01T00:00:00Z", start_date: "1999-01-01T00:00:00Z" },
+      scenario: "after the Dag's end date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.both",
+    },
+  ])(
+    "shows the Dag start and end dates when the default logical date is $scenario",
+    async ({ dates, text }) => {
+      server.use(
+        http.get("/api/v2/dags/dated_dag/details", () =>
+          HttpResponse.json({ ...MOCK_DAG, ...dates, dag_id: "dated_dag" }),
+        ),
+      );
+
+      render(
+        <TriggerDAGForm
+          dagId="dated_dag"
+          error={undefined}
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused={false}
+          isPending={false}
+          onSubmitTrigger={vi.fn()}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      expect(await screen.findByText(text)).toBeInTheDocument();
+    },
+  );
 
   it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
     useDagParamsMock.mockReturnValue({ paramsDict: {} });

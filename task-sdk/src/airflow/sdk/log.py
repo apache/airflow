@@ -235,7 +235,11 @@ def relative_path_from_logger(logger) -> Path | None:
     from airflow.sdk.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")
-    return Path(fname).relative_to(base_log_folder)
+    path = Path(fname)
+    if not path.is_relative_to(base_log_folder):
+        # Files outside base_log_folder (or non-file names like '<stderr>') are kept local, not uploaded.
+        return None
+    return path.relative_to(base_log_folder)
 
 
 def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):

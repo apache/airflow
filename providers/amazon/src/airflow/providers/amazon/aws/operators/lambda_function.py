@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -58,8 +59,10 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
     :param waiter_max_attempts: Maximum number of attempts to poll the creation.
     :param waiter_delay: Number of seconds between polling the state of the creation.
     :param deferrable: If True, the operator will wait asynchronously for the creation to complete.
-        This implies waiting for creation complete. This mode requires aiobotocore module to be installed.
+        This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The AWS connection ID to use
     """
 
@@ -119,7 +122,7 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
         )
         self.log.info("Lambda response: %r", response)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=LambdaCreateFunctionCompleteTrigger(
                     function_name=self.function_name,

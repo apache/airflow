@@ -352,6 +352,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--airflow-constraints-mode",
                 "--allow-pre-releases",
+                "--fail-on-pending-provider-candidates",
                 "--github-repository",
                 "--python",
                 "--use-uv",

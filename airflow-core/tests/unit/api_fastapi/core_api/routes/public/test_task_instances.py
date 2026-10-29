@@ -1361,6 +1361,25 @@ class TestGetMappedTaskInstances:
         assert body["total_entries"] == 0
         assert body["task_instances"] == []
 
+    def test_start_date_lower_bound_excludes_finished_tis_with_null_start_date(
+        self, test_client, one_task_with_mapped_tis, session
+    ):
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.task_id == "task_2", TaskInstance.map_index == 0)
+            .values(start_date=None, end_date=DEFAULT_DATETIME_2, state=TaskInstanceState.FAILED)
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"start_date_gte": DEFAULT_DATETIME_1},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [ti["map_index"] for ti in body["task_instances"]] == [1, 2]
+
     def test_with_logical_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
             "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
@@ -1701,6 +1720,15 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 1,
                 8,
                 id="test start_date coalesce with null",
+            ),
+            pytest.param(
+                [{"start_date": None, "end_date": DEFAULT_DATETIME_1}],
+                True,
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
+                {"start_date_gte": DEFAULT_DATETIME_STR_1},
+                0,
+                7,
+                id="test start_date lower bound excludes finished with null start_date",
             ),
             pytest.param(
                 [
@@ -6803,15 +6831,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-    def test_should_raise_404_not_found_task(self, test_client):
-        response = test_client.patch(
-            self.ENDPOINT_URL,
-            json={
-                "new_state": self.NEW_STATE,
-            },
-        )
-        assert response.status_code == 404
-
     @pytest.mark.parametrize(
         ("payload", "expected"),
         [
@@ -7702,15 +7721,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):
-        response = test_client.patch(
-            f"{self.ENDPOINT_URL}/dry_run",
-            json={
-                "new_state": self.NEW_STATE,
-            },
-        )
-        assert response.status_code == 404
-
-    def test_should_raise_404_not_found_task(self, test_client):
         response = test_client.patch(
             f"{self.ENDPOINT_URL}/dry_run",
             json={

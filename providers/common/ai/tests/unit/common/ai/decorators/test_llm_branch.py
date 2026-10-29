@@ -25,8 +25,6 @@ from pydantic_ai.messages import ImageUrl
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
 
 class TestLLMBranchDecoratedOperator:
     def test_custom_operator_name(self):
@@ -38,7 +36,7 @@ class TestLLMBranchDecoratedOperator:
         """The callable's return value becomes the LLM prompt, LLM output goes through do_branch."""
         downstream_enum = Enum("DownstreamTasks", {"positive": "positive", "negative": "negative"})
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.positive)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "positive"
@@ -58,7 +56,7 @@ class TestLLMBranchDecoratedOperator:
         assert result == "positive"
         assert op.prompt == "Route this review"
         mock_agent.run_sync.assert_called_once_with(
-            "Route this review", usage_limits=None, cancellation_token=ANY
+            "Route this review", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
         mock_do_branch.assert_called_once()
 
@@ -77,33 +75,13 @@ class TestLLMBranchDecoratedOperator:
         with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
-        """Sequence prompt + require_approval=True fails before the agent runs."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
-        op = _LLMBranchDecoratedOperator(
-            task_id="test",
-            python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
-            llm_conn_id="my_llm",
-            require_approval=True,
-        )
-        op.downstream_task_ids = {"positive"}
-
-        with pytest.raises(TypeError, match="require_approval=True"):
-            op.execute(context={})
-
-        mock_agent.run_sync.assert_not_called()
-
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_accepts_sequence_prompt(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
         downstream_enum = Enum("DownstreamTasks", {"positive": "positive"})
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.positive)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "positive"
@@ -123,7 +101,9 @@ class TestLLMBranchDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
+        mock_agent.run_sync.assert_called_once_with(
+            prompt, usage=ANY, usage_limits=None, cancellation_token=ANY
+        )
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -133,7 +113,7 @@ class TestLLMBranchDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 

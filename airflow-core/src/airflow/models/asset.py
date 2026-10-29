@@ -33,11 +33,12 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    UniqueConstraint,
     delete,
     select,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf as airflow_conf
@@ -54,28 +55,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.trigger import Trigger
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
-
-
-def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
-    return {
-        asset_model.name: asset_model.to_serialized()
-        for asset_model in session.scalars(
-            select(AssetModel)
-            .join(AssetActive, AssetActive.name == AssetModel.name)
-            .where(AssetActive.name.in_(names))
-        )
-    }
-
-
-def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
-    return {
-        asset_model.uri: asset_model.to_serialized()
-        for asset_model in session.scalars(
-            select(AssetModel)
-            .join(AssetActive, AssetActive.uri == AssetModel.uri)
-            .where(AssetActive.uri.in_(uris))
-        )
-    }
 
 
 def expand_alias_to_assets(alias_name: str, *, session: Session) -> Iterable[AssetModel]:
@@ -950,16 +929,26 @@ class AssetPartitionDagRun(Base):
     gets created leaves its APDR record behind.
 
     Where created_dag_run_id is null, the Dag run has not yet been created.
-    With event batching enabled, `_lock_asset_model` protects reuse of the
-    latest pending row for a target_dag_id / partition_key pair. With batching
-    disabled, each event creates its own row, so multiple pending rows for
-    the same pair are expected.
+    With batching disabled, each event creates its own row, so multiple pending
+    rows for the same pair are expected. With event batching enabled, events
+    accumulate on one pending row per target_dag_id / partition_key, and a
+    unique constraint on (target_dag_id, pending_partition_key) keeps
+    concurrent writers from creating a second one.
+
+    pending_partition_key mirrors partition_key on a pending row created with
+    batching enabled, and is null otherwise; the `_sync_pending_partition_key`
+    validator clears it once the Dag run is created. A unique index treats null
+    as distinct from every value on all three supported backends, so it only
+    compares batched pending rows. It stands in for a partial unique index on
+    (target_dag_id, partition_key) WHERE created_dag_run_id IS NULL, which
+    MySQL does not support.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    pending_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Serialized snapshot of the rollup definition (mapper + window for every
     # partitioned asset in the timetable) at the time this APDR was created.
@@ -984,7 +973,19 @@ class AssetPartitionDagRun(Base):
             name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
+        UniqueConstraint(
+            "target_dag_id",
+            "pending_partition_key",
+            name="apdr_target_dag_id_pending_partition_key_uq",
+        ),
     )
+
+    @validates("created_dag_run_id")
+    def _sync_pending_partition_key(self, key: str, value: int | None) -> int | None:
+        """Clear pending_partition_key once a Dag run is created for this row."""
+        if value is not None:
+            self.pending_partition_key = None
+        return value
 
 
 class PartitionedAssetKeyLog(Base):

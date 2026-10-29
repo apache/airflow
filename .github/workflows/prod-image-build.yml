@@ -119,7 +119,7 @@ jobs:
   build-prod-packages:
     name: "Build Airflow and provider distributions"
     timeout-minutes: 10
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -165,7 +165,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-distributions
           --distributions-list-file ./prod_image_installed_providers.txt
-          --distribution-format wheel --include-not-ready-providers
+          --distribution-format wheel --include-not-ready-providers --github-repository apache/airflow
         if: >
           inputs.upload-package-artifact == 'true' && inputs.branch != 'main'
       - name: "Prepare airflow package"
@@ -199,7 +199,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
     timeout-minutes: 80
     name: "Build PROD ${{ inputs.build-type }} image ${{ matrix.python-version }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     needs:
       - build-prod-packages
     env:
@@ -289,7 +289,7 @@ jobs:
           breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+        uses: ./.github/actions/stash-save
         with:
           key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
