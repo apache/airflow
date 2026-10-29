@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pytest
+import time_machine
 from google.api_core.exceptions import NotFound
 from google.cloud.bigquery import TableReference
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryRoutineExistenceSensor,
     BigQueryStreamingBufferEmptySensor,
@@ -421,19 +423,55 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert sensor.poke(mock.MagicMock()) is False  # empty again, count restarts at 1
         assert sensor.poke(mock.MagicMock()) is True  # 2nd consecutive empty
 
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.time.sleep")
+    @pytest.mark.parametrize(
+        ("elapsed", "expected_timeout"),
+        [
+            pytest.param(None, 100, id="first_try"),
+            pytest.param(30, 70, id="after_reschedules"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    def test_poke_confirms_empty_in_reschedule_mode(self, mock_hook, mock_sleep):
-        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10)
-        get_table = mock_hook.return_value.get_client.return_value.get_table
-        get_table.return_value = mock.MagicMock(streaming_buffer=None)
+    def test_execute_defers_remaining_confirmations_in_reschedule_mode(
+        self, mock_hook, elapsed, expected_timeout
+    ):
+        now = datetime(2026, 1, 1, tzinfo=UTC)
+        sensor = _make_streaming_sensor(
+            mode="reschedule", poke_interval=10, timeout=100, empty_confirmations=3
+        )
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+        ti = mock.MagicMock()
+        ti.get_first_reschedule_date.return_value = (
+            None if elapsed is None else now - timedelta(seconds=elapsed)
+        )
 
-        # Reschedule mode finishes confirmations inside poke() so the operator is
-        # not rebuilt between empty readings. Do not go through execute(): Airflow
-        # 2.11's BaseSensorOperator.execute reads ti.max_tries and hits the DB.
-        assert sensor.poke(mock.MagicMock()) is True
-        assert get_table.call_count == 2
-        mock_sleep.assert_called_once_with(10)
+        with time_machine.travel(now, tick=False), pytest.raises(TaskDeferred) as exc:
+            sensor.execute({"ti": ti})
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, BigQueryStreamingBufferEmptyTrigger)
+        assert trigger.empty_confirmations == 2
+        assert trigger.poll_interval == 10
+        assert exc.value.timeout == timedelta(seconds=expected_timeout)
+        assert exc.value.method_name == "execute_complete"
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor.defer")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_times_out_instead_of_deferring_when_reschedule_timeout_elapsed(
+        self, mock_hook, mock_defer
+    ):
+        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10, timeout=100)
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+        ti = mock.MagicMock()
+        ti.get_first_reschedule_date.return_value = datetime.now(UTC) - timedelta(seconds=500)
+
+        with pytest.raises(AirflowSensorTimeout):
+            sensor.execute({"ti": ti})
+
+        mock_defer.assert_not_called()
 
     def test_init_rejects_non_positive_empty_confirmations(self):
         with pytest.raises(ValueError, match="empty_confirmations must be at least 1"):
@@ -489,6 +527,18 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert trigger.dataset_id == TEST_DATASET_ID
         assert trigger.table_id == TEST_TABLE_ID
         assert trigger.empty_confirmations == 3
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_defers_only_remaining_confirmations_after_empty_first_poke(self, mock_hook):
+        sensor = _make_streaming_sensor(deferrable=True, empty_confirmations=3)
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(mock.MagicMock())
+
+        assert exc.value.trigger.empty_confirmations == 2
 
     def test_execute_complete_returns_message_on_success(self):
         sensor = _make_streaming_sensor(deferrable=True)

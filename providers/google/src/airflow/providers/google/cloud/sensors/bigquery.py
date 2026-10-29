@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import time
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
@@ -29,7 +28,7 @@ from google.api_core.exceptions import NotFound
 from google.cloud.bigquery import DatasetReference, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf, timezone
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryStreamingBufferEmptyTrigger,
@@ -344,7 +343,8 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         The sensor mitigates this by requiring multiple consecutive empty
         observations before reporting the buffer empty (configurable via
         ``empty_confirmations``), but this may delay success by up to one
-        ``poke_interval`` compared to earlier releases.
+        ``poke_interval`` compared to earlier releases. In ``mode="reschedule"``,
+        the confirmations after the first empty reading run in the triggerer.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -404,8 +404,11 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             return
         if self.poke(context=context):
             return
+        self._defer_to_trigger(timeout=self.timeout)
+
+    def _defer_to_trigger(self, timeout: float) -> None:
         self.defer(
-            timeout=timedelta(seconds=self.timeout),
+            timeout=timedelta(seconds=timeout),
             trigger=BigQueryStreamingBufferEmptyTrigger(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
@@ -413,7 +416,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
                 poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
-                empty_confirmations=self.empty_confirmations,
+                empty_confirmations=max(self.empty_confirmations - self._consecutive_empty, 1),
             ),
             method_name="execute_complete",
         )
@@ -438,28 +441,31 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         )
 
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        client = hook.get_client(project_id=self.project_id)
-        while True:
-            try:
-                table = client.get_table(table_ref)
-            except NotFound as err:
-                raise ValueError(f"Table {table_uri} not found") from err
+        try:
+            table = hook.get_client(project_id=self.project_id).get_table(table_ref)
+        except NotFound as err:
+            raise ValueError(f"Table {table_uri} not found") from err
 
-            if table.streaming_buffer is not None:
-                self._consecutive_empty = 0
-                return False
+        if table.streaming_buffer is not None:
+            self._consecutive_empty = 0
+            return False
 
-            self._consecutive_empty += 1
-            self.log.info(
-                "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
-                self._consecutive_empty,
-                self.empty_confirmations,
-                table_uri,
+        self._consecutive_empty += 1
+        self.log.info(
+            "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
+            self._consecutive_empty,
+            self.empty_confirmations,
+            table_uri,
+        )
+        if self._consecutive_empty >= self.empty_confirmations:
+            return True
+        if self.reschedule and not self.deferrable:
+            # A reschedule rebuilds the operator and Airflow 3 clears XComs on each run start, so the
+            # confirmation count cannot survive it; the trigger counts the remaining confirmations instead.
+            first_reschedule_date = context["ti"].get_first_reschedule_date(context)
+            elapsed = (
+                (timezone.utcnow() - first_reschedule_date).total_seconds() if first_reschedule_date else 0
             )
-            if self._consecutive_empty >= self.empty_confirmations:
-                return True
-            if not self.reschedule:
-                return False
-
-            # Rescheduling rebuilds the operator, so finish the confirmation sequence in this process.
-            time.sleep(self.poke_interval)
+            if self.timeout - elapsed > 0:
+                self._defer_to_trigger(timeout=self.timeout - elapsed)
+        return False

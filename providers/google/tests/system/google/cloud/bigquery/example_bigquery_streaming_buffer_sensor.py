@@ -110,6 +110,8 @@ with DAG(
         )
 
     streaming_insert_task = streaming_insert()
+    # A fresh insert right before the deferrable sensor, so it also sees the just-inserted state.
+    streaming_insert_def_task = streaming_insert.override(task_id="streaming_insert_def")()
 
     # [START howto_sensor_bigquery_streaming_buffer_empty]
     check_streaming_buffer_empty = BigQueryStreamingBufferEmptySensor(
@@ -167,6 +169,7 @@ with DAG(
         >> streaming_insert_task
         >> check_streaming_buffer_empty
         >> stream_update
+        >> streaming_insert_def_task
         >> check_streaming_buffer_empty_def
         >> stream_delete
         >> delete_dataset
