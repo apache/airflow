@@ -174,15 +174,33 @@ class GitDagBundle(BaseDagBundle):
             if repo is not None:
                 repo.close()
 
+    def _clean_interrupted_versioned_repo(self) -> None:
+        previous_path = self.versions_dir / f".{self.version}.previous"
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+
+    def _publish_versioned_repo(self, temporary_path: Path) -> None:
+        previous_path = self.versions_dir / f".{self.version}.previous"
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+        if self.repo_path.exists():
+            os.replace(self.repo_path, previous_path)
+        try:
+            os.replace(temporary_path, self.repo_path)
+        except OSError:
+            if previous_path.exists() and not self.repo_path.exists():
+                os.replace(previous_path, self.repo_path)
+            raise
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+
     def _initialize_versioned_repo(self) -> None:
         temporary_path = self.versions_dir / f".{self.version}.{uuid4().hex}.tmp"
         repo = None
         try:
             self._clone_repo_if_required(temporary_path)
             repo = self.repo
-            repo.remotes.origin.fetch(
-                ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
-            )
+            repo.remotes.origin.fetch(["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"])
             repo.git.checkout(self.tracking_ref)
             if not self._has_version(repo, self.version):
                 repo.remotes.origin.fetch()
@@ -206,9 +224,7 @@ class GitDagBundle(BaseDagBundle):
             repo.close()
             repo = None
             self.repo = None
-            if self.repo_path.exists():
-                shutil.rmtree(self.repo_path)
-            os.replace(temporary_path, self.repo_path)
+            self._publish_versioned_repo(temporary_path)
 
             if self.prune_dotgit_folder:
                 shutil.rmtree(self.repo_path / ".git")
@@ -222,6 +238,8 @@ class GitDagBundle(BaseDagBundle):
 
     def _initialize(self):
         with self.lock():
+            if self.version:
+                self._clean_interrupted_versioned_repo()
             # Avoids re-cloning on every task run when:
             # 1. A versioned worktree already exists on disk without a .git directory
             # 2. The local repo already has the expected version

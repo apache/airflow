@@ -787,6 +787,58 @@ class TestGitDagBundle:
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.os.replace")
+    def test_versioned_repo_publication_restores_previous_checkout_on_failure(
+        self, mock_replace, mock_githook
+    ):
+        mock_githook.return_value.repo_url = "/some/repo"
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref="main",
+            version="version",
+        )
+        bundle.repo_path.mkdir(parents=True)
+        (bundle.repo_path / "old_test.py").write_text("old")
+        temporary_path = bundle.versions_dir / ".version.tmp"
+        temporary_path.mkdir(parents=True)
+        (temporary_path / "new_test.py").write_text("new")
+
+        replace_calls = 0
+
+        def replace(source, destination):
+            nonlocal replace_calls
+            replace_calls += 1
+            if replace_calls == 2:
+                raise OSError("publish failed")
+            Path(source).rename(destination)
+
+        mock_replace.side_effect = replace
+
+        with pytest.raises(OSError, match="publish failed"):
+            bundle._publish_versioned_repo(temporary_path)
+
+        assert (bundle.repo_path / "old_test.py").read_text() == "old"
+        assert not (bundle.versions_dir / ".version.previous").exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_versioned_repo_publication_discards_interrupted_swap(self, mock_githook):
+        mock_githook.return_value.repo_url = "/some/repo"
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref="main",
+            version="version",
+        )
+        previous_path = bundle.versions_dir / ".version.previous"
+        previous_path.mkdir(parents=True)
+        (previous_path / "old_test.py").write_text("old")
+
+        bundle._clean_interrupted_versioned_repo()
+
+        assert not previous_path.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_tracking_ref_commit_sha_promote_succeeds_with_fresh_storage(self, mock_githook, git_repo):
         """Promoting a SHA-pinned tracking_ref to a new commit succeeds once local storage
         is cleared (e.g. a fresh pod), since that re-clones from the updated bare mirror.
