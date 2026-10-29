@@ -126,6 +126,10 @@ class TestTokenRouter:
             {"grant_type": "client_credentials", "username": "username", "client_secret": "client_secret"},
             {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer"},
             {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "username": "username"},
+            # A body that is valid JSON but not an object reaches the grant_type default
+            "username",
+            ["username"],
+            1,
         ],
     )
     @conf_vars(
@@ -205,6 +209,10 @@ class TestTokenRouter:
                 },
                 id="short-code-verifier",
             ),
+            # A body that is valid JSON but not an object reaches the grant_type default
+            pytest.param("token", id="json-string"),
+            pytest.param(["token"], id="json-list"),
+            pytest.param(1, id="json-number"),
         ],
     )
     def test_create_token_cli_rejects_body(self, client, body):

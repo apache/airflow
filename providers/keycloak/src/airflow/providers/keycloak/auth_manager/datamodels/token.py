@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, RootModel, model_validator
 
@@ -125,10 +125,10 @@ class TokenBody(RootModel[TokenUnion]):
 
     @model_validator(mode="before")
     @classmethod
-    def default_grant_type(cls, data):
-        """Add default grant_type for discrimination."""
-        if "grant_type" not in data:
-            data["grant_type"] = "password"
+    def default_grant_type(cls, data: Any) -> Any:
+        """Add default grant_type for discrimination, leaving a malformed body to the union."""
+        if isinstance(data, dict) and "grant_type" not in data:
+            return {**data, "grant_type": "password"}
         return data
 
 
@@ -143,8 +143,8 @@ class TokenCliBody(RootModel[TokenCliUnion]):
 
     @model_validator(mode="before")
     @classmethod
-    def default_grant_type(cls, data):
-        """Add default grant_type for discrimination."""
-        if "grant_type" not in data:
-            data["grant_type"] = "password"
+    def default_grant_type(cls, data: Any) -> Any:
+        """Add default grant_type for discrimination, leaving a malformed body to the union."""
+        if isinstance(data, dict) and "grant_type" not in data:
+            return {**data, "grant_type": "password"}
         return data

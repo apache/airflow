@@ -46,7 +46,8 @@ class TestLoginRouter:
         assert response.status_code == 307
         assert response.headers["location"] == "https://keycloak/auth"
         mock_get_keycloak_client.return_value.auth_url.assert_called_once_with(
-            redirect_uri="http://127.0.0.1:53682/callback",
+            # auth_url does not encode its parameters, so the route has to
+            redirect_uri="http%3A%2F%2F127.0.0.1%3A53682%2Fcallback",
             scope="openid",
             state="state",
             code_challenge="c" * 43,

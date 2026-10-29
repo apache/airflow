@@ -134,7 +134,7 @@ def login_cli(
 
     client = KeycloakAuthManager.get_keycloak_client()
     auth_url = client.auth_url(
-        redirect_uri=redirect_uri,
+        redirect_uri=quote(redirect_uri, safe=""),
         scope="openid",
         state=quote(state, safe=""),
         code_challenge=code_challenge,
