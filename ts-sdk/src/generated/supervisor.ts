@@ -231,6 +231,7 @@ export type TaskInstanceState =
   | "skipped"
   | "deferred"
   | "awaiting_input";
+export type SerializedDagRunConf = string | null;
 export type NodeId = string;
 export type Index = number;
 export type MaxIterations = number;
@@ -1055,6 +1056,7 @@ export interface TaskCallbackRequest {
  */
 export interface TIRunContext {
   dag_run: DagRun;
+  serialized_dag_run_conf?: SerializedDagRunConf;
   loop?: LoopContext | null;
   expanded_ti_count?: ExpandedTiCount;
   task_reschedule_count?: TaskRescheduleCount;

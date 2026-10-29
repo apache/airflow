@@ -1731,6 +1731,10 @@ type TIRunContext struct {
 	// NextMethod corresponds to the JSON schema field "next_method".
 	NextMethod interface{} `msgpack:"next_method,omitempty"`
 
+	// SerializedDagRunConf corresponds to the JSON schema field
+	// "serialized_dag_run_conf".
+	SerializedDagRunConf interface{} `msgpack:"serialized_dag_run_conf,omitempty"`
+
 	// ShouldRetry corresponds to the JSON schema field "should_retry".
 	ShouldRetry bool `msgpack:"should_retry,omitempty"`
 
@@ -1944,9 +1948,9 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type TriggerKwargs map[string]interface{}
-
 type Warnings []interface{}
+
+type TriggerKwargs map[string]interface{}
 
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
@@ -1956,6 +1960,8 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
+
+type VersionData map[string]interface{}
 
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
@@ -1967,8 +1973,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
