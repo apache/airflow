@@ -55,6 +55,7 @@ def _build_pool_response(pool: Pool, stats: PoolStats) -> PoolResponse:
     occupied_slots = stats["running"] + stats["queued"]
     if pool.include_deferred:
         occupied_slots += stats["deferred"]
+    open_slots = -1 if pool.slots == -1 else pool.slots - occupied_slots
     return PoolResponse.model_validate(
         {
             "pool": pool.pool,
@@ -66,7 +67,7 @@ def _build_pool_response(pool: Pool, stats: PoolStats) -> PoolResponse:
             "running_slots": stats["running"],
             "queued_slots": stats["queued"],
             "scheduled_slots": stats["scheduled"],
-            "open_slots": stats["open"],
+            "open_slots": open_slots,
             "deferred_slots": stats["deferred"],
         }
     )

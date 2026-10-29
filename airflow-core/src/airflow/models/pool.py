@@ -225,12 +225,13 @@ class Pool(Base):
             TaskInstanceState.SCHEDULED,
         }
         state_count_query = (
-            select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+            select(Pool.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+            .join(TaskInstance, TaskInstance.pool == Pool.pool)
             .filter(TaskInstance.state.in_(allowed_execution_states))
-            .group_by(TaskInstance.pool, TaskInstance.state)
+            .group_by(Pool.pool, TaskInstance.state)
         )
         if pool_names is not None:
-            state_count_query = state_count_query.filter(TaskInstance.pool.in_(pool_names))
+            state_count_query = state_count_query.filter(Pool.pool.in_(pool_names))
         state_count_by_pool = session.execute(state_count_query)
 
         # calculate queued and running metrics
