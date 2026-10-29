@@ -44,6 +44,12 @@ Features
 * ``Make the PowerBI refresh and MSGraph operators durable (#74675)``
 * ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
+* ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
+
 Misc
 ~~~~
 
@@ -52,6 +58,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-20 (#75209)``
 
 15.2.1
 ......
