@@ -1125,6 +1125,32 @@ class TestSparkSubmitHook:
 
         assert hook._driver_status == "RUNNING"
 
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_standalone_status_tracking_resets_failures_after_success(self, mock_popen, mock_sleep):
+        """Intermittent polling failures must not exhaust the consecutive retry limit."""
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        hook._driver_id = "driver-123"
+        hook._driver_status = "RUNNING"
+
+        returncodes = [code for _ in range(11) for code in (1, 0)] + [0]
+        processes = []
+
+        for index, returncode in enumerate(returncodes):
+            process = MagicMock()
+            state = "FINISHED" if index == len(returncodes) - 1 else "RUNNING"
+            process.stdout = StringIO('"driverState" : "' + state + '"\n')
+            process.wait.return_value = returncode
+            processes.append(process)
+
+        mock_popen.side_effect = processes
+
+        with patch.object(hook, "_build_track_driver_status_command", return_value=["status"]):
+            hook._start_driver_status_tracking()
+
+        assert hook._driver_status == "FINISHED"
+        assert mock_popen.call_count == len(returncodes)
+
     def test_process_spark_driver_status_log_bad_response(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
