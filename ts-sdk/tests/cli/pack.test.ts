@@ -62,7 +62,7 @@ const GOLDEN_CODE = Buffer.from(
 // followed by a backslash. The Python reader is then validated against real encoder output.
 const GOLDEN_SOURCE = [
   "/** Handlers for the test Dag. */",
-  'import { Bundle, Dag } from "apache-airflow-ts-sdk";',
+  'import { Bundle, Dag } from "@apache-airflow/ts-sdk";',
   "",
   "const TERMINATOR = /\\*\\//;",
   'const dag = new Dag("test_dag");',

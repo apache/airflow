@@ -57,7 +57,7 @@ in [`airflow-core/adr/lang-sdk/0007`](../../airflow-core/adr/lang-sdk/0007-taskf
 ## Example
 
 ```ts
-import { Bundle, TaskHandler, getClient, getContext } from "apache-airflow-ts-sdk";
+import { Bundle, TaskHandler, getClient, getContext } from "@apache-airflow/ts-sdk";
 
 interface TransformArgs {
   regionCode: string;

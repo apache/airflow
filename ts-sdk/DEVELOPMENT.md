@@ -19,7 +19,7 @@
 
 # Developing the Airflow TypeScript SDK
 
-Contributor and release-manager reference for `apache-airflow-ts-sdk`. See
+Contributor and release-manager reference for `@apache-airflow/ts-sdk`. See
 [`README.md`](README.md) for the user-facing package documentation.
 
 ## Building and testing
@@ -122,7 +122,7 @@ so both release paths share a single configuration pinned to a single GitHub
 environment:
 
 ```bash
-npm trust github apache-airflow-ts-sdk \
+npm trust github @apache-airflow/ts-sdk \
   --repo apache/airflow \
   --file ts-sdk-release.yml \
   --environment ts-sdk-npm-release \
@@ -130,7 +130,7 @@ npm trust github apache-airflow-ts-sdk \
   --allow-publish
 ```
 
-Confirm it with `npm trust list apache-airflow-ts-sdk`. A second `npm trust
+Confirm it with `npm trust list @apache-airflow/ts-sdk`. A second `npm trust
 github` for the same package is rejected, so replace an outdated configuration
 with `npm trust revoke` first.
 
@@ -172,7 +172,7 @@ until a maintainer reviews and approves it with 2FA. The following commands
 require npm 11.15 or later:
 
 ```bash
-npm stage list apache-airflow-ts-sdk
+npm stage list @apache-airflow/ts-sdk
 npm stage view <stage-id>
 npm stage download <stage-id>
 npm stage approve <stage-id>

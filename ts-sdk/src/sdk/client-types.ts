@@ -58,7 +58,7 @@ export interface SetXComOpts {
  * accident (a division by zero, for example) is rejected instead of silently
  * storing a key forever.
  */
-export const NEVER_EXPIRE: unique symbol = Symbol("apache-airflow-ts-sdk/NEVER_EXPIRE");
+export const NEVER_EXPIRE: unique symbol = Symbol("@apache-airflow/ts-sdk/NEVER_EXPIRE");
 
 /** Options for a task state store write. */
 export interface TaskStateStoreSetOpts {

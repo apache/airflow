@@ -32,7 +32,7 @@
 // `main.ts` registers this Dag on the same bundle as the mixed-language
 // handlers, so one artifact covers both authoring modes.
 
-import { Dag, getClient, triggerDagRun } from "apache-airflow-ts-sdk";
+import { Dag, getClient, triggerDagRun } from "@apache-airflow/ts-sdk";
 
 /** The regions this example works over. */
 const REGIONS = ["north", "south"] as const;
