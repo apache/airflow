@@ -333,6 +333,9 @@ def test_rejects_unauthorized_publication(client, session, job, body, failure, s
         "relative_fileloc",
         "fileloc",
         "long_path",
+        "timetable",
+        "deadline",
+        "stored_deadline",
     ],
 )
 def test_invalid_result_is_rejected_without_writes(client, session, job, body, failure):
@@ -353,6 +356,10 @@ def test_invalid_result_is_rejected_without_writes(client, session, job, body, f
         body["serialized_dags"].append(deepcopy(dag))
     elif failure == "long_path":
         body["parsed_definitions"] = ["a.py/" + "x" * 2000]
+    elif failure == "deadline":
+        dag["dag"]["deadline"] = [{}]
+    elif failure == "stored_deadline":
+        dag["dag"]["deadline"] = [str(uuid7())]
     else:
         dag["dag"].pop(failure)
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
