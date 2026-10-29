@@ -101,6 +101,9 @@ class ErrorType(enum.Enum):
     PERMISSION_DENIED = "PERMISSION_DENIED"
     GENERIC_ERROR = "GENERIC_ERROR"
     API_SERVER_ERROR = "API_SERVER_ERROR"
+    # The configured XCom backend could not run, or refused, an XCom of a language SDK task. Distinct
+    # from API_SERVER_ERROR, which would point a user at the API server rather than their own backend.
+    XCOM_BACKEND_ERROR = "XCOM_BACKEND_ERROR"
 
 
 class XComForMappingNotPushed(TypeError):

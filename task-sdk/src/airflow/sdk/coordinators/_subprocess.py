@@ -759,7 +759,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # caught here because the supervisor does not parse the Dag, while Python rejects such a Dag
         # when it is parsed.
         if coordinate.region_id is not None and msg.resolved_map_index == -1 and is_legacy_xcom_backend(xcom):
-            raise build_loop_error(xcom, f"Task {msg.task_id!r}")
+            error = _build_request_error(build_loop_error(xcom, f"Task {msg.task_id!r}"))
+            self.send_msg(None, request_id=req_id, error=error)
+            return ResponseSent.ALREADY_SENT
         return self._call_xcom_backend(
             XComBackendCall.store(coordinate, msg.resolved_map_index, msg.key, msg.value),
             lambda stored: handle_set_xcom(self.client, msg.model_copy(update={"value": stored.value})),
@@ -859,9 +861,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
 
 def _build_request_error(exc: Exception) -> ErrorResponse:
-    """Report ``exc`` to the runtime the way the request loop reports one raised in a request handler."""
+    """Report ``exc`` to the runtime as an XCom backend failure rather than an API server one."""
     return ErrorResponse(
-        error=ErrorType.API_SERVER_ERROR,
+        error=ErrorType.XCOM_BACKEND_ERROR,
         detail={"status_code": None, "message": str(exc), "exception_type": type(exc).__name__},
     )
 

@@ -66,6 +66,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendResult,
     _HookRunner,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -1588,7 +1589,9 @@ class TestPopenActivitySubprocessXComBackend:
 
         assert api.requests == []
         assert _RefXCom.stored == {}
-        assert "not.importable.Thing" in _sent_error(proc)["detail"]["message"]
+        error = _sent_error(proc)
+        assert error["error"] == ErrorType.XCOM_BACKEND_ERROR.value
+        assert "not.importable.Thing" in error["detail"]["message"]
 
     def test_set_xcom_rejects_a_loop_task_when_the_backend_cannot_tell_iterations_apart(self, make_proc):
         api = _FakeApi()
@@ -1596,13 +1599,14 @@ class TestPopenActivitySubprocessXComBackend:
             _LegacyXCom, api, ti=_make_ti().model_copy(update={"region_id": uuid7(), "region_index": 0})
         )
 
-        with pytest.raises(TypeError, match="uses a loop"):
-            proc._handle_request(
-                SetXCom(key="summary", value=1, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"),
-                log,
-                1,
-            )
+        proc._handle_request(
+            SetXCom(key="summary", value=1, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
         assert api.requests == []
+        error = _sent_error(proc)
+        assert error["error"] == ErrorType.XCOM_BACKEND_ERROR.value
+        assert "uses a loop" in error["detail"]["message"]
 
     def test_set_xcom_stores_a_mapped_task_through_a_backend_that_cannot_tell_iterations_apart(
         self, make_proc
