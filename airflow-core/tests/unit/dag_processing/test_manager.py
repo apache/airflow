@@ -2642,6 +2642,7 @@ class TestDagFileProcessorManager:
         for processor in processors:
             processor.id = uuid7()
             processor.had_callbacks = False
+            processor.api_request_error = None
             processor.start_time = 0
             processor.is_ready = False
             processor.parsing_result = DagFileParsingResult(fileloc="file.py", serialized_dags=[])
@@ -7861,6 +7862,7 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
     proc.id = uuid7()
     proc.start_time = time.monotonic()
     proc.had_callbacks = False
+    proc.api_request_error = None
     proc.dispatch_sequence = 1
     proc.parse_source = DagParseSource()
     proc.parsing_result = DagFileParsingResult(
