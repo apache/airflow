@@ -247,7 +247,7 @@ describe("Links written before draining moved into the pill", () => {
     await waitFor(() => expect(screen.queryByText("draining_dag")).not.toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
 
-    fireEvent.click(within(screen.getByTestId("paused-pill")).getByRole("button"));
+    fireEvent.click(screen.getByTestId("paused-pill-remove"));
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("draining_dag")).toBeInTheDocument();
   });
