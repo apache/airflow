@@ -1043,7 +1043,7 @@ class Client(httpx.Client):
         return DagsOperations(self)
 
 
-def _has_json_body(response: httpx2.Response) -> bool:
+def _has_json_body(response: httpx.Response) -> bool:
     """Check whether a response declares a JSON body."""
     # Kept in sync with airflowctl.api.operations._has_json_body.
     # Media types are case-insensitive and may carry parameters (RFC 9110).
