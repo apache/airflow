@@ -119,6 +119,10 @@ jobs:
     timeout-minutes: 20
     name: "Commit and push constraints"
     needs: [build-info, generate-constraints]
+    # Shared with the other constraints publishers, so they never push to one branch at once.
+    concurrency:
+      group: constraints-publish-${{ needs.build-info.outputs.default-constraints-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read
