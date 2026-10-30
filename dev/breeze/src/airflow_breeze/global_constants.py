@@ -968,6 +968,42 @@ NUMBER_OF_LOW_DEP_SLICES = 5
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
 
+# Slice counts on the self-hosted RunsOn runners. Jobs using `--run-in-parallel` run one serial pytest per
+# test type, so a job never uses more CPUs than it has test types. The core jobs are bound by their slowest
+# test type and the Non-DB xdist collection gets enough memory on RunsOn, so one slice only removes jobs.
+# Low dep providers run on 32-CPU runners and the heaviest test types start first, so about 40 test types per
+# job keep those CPUs busy while the short ones fill in around the long ones.
+NUMBER_OF_CORE_SLICES_ON_RUNS_ON = 1
+LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON = 40
+
+# On RunsOn the longest-running providers are split further in the individually listed provider test types,
+# so every part runs in its own pytest process: `Providers[<id>:<part>]` runs the listed paths (relative to the
+# provider's `tests` folder), and `Providers[<id>:other]` runs the rest of the provider's tests.
+PROVIDER_TEST_SPLITS: dict[str, dict[str, list[str]]] = {
+    "amazon": {
+        "hooks": ["unit/amazon/aws/hooks"],
+        "operators": ["unit/amazon/aws/operators"],
+    },
+    "google": {
+        "cloud-hooks": ["unit/google/cloud/hooks"],
+        "cloud-operators": ["unit/google/cloud/operators"],
+    },
+    "standard": {
+        "decorators": ["unit/standard/decorators"],
+        "python": ["unit/standard/operators/test_python.py"],
+    },
+}
+PROVIDER_TEST_SPLIT_OTHER_PART = "other"
+
+
+def get_provider_split_test_types(provider_id: str) -> list[str]:
+    """Test types running the tests of a split provider, or the provider's single test type."""
+    parts = PROVIDER_TEST_SPLITS.get(provider_id)
+    if not parts:
+        return [f"Providers[{provider_id}]"]
+    return [f"Providers[{provider_id}:{part}]" for part in [*parts, PROVIDER_TEST_SPLIT_OTHER_PART]]
+
+
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone
 MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})

@@ -283,6 +283,12 @@ jobs:
     needs: [prepare, backfill]
     runs-on: ubuntu-latest
     name: "Publish versions.json"
+    # Shares registry-build.yml's group, so it never runs alongside a registry publish to the same
+    # bucket. Only this job: the backfill matrix writes per-version paths of its own, and putting
+    # a matrix in one group would cancel all but two of its entries.
+    concurrency:
+      group: registry-publish-${{ inputs.destination }}
+      cancel-in-progress: false
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
