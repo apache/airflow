@@ -75,7 +75,9 @@ describe("LogChannel", () => {
   it.each([
     [undefined, ["info", "warning", "error"]],
     ["", ["info", "warning", "error"]],
-    ["VERBOSE", ["info", "warning", "error"]],
+    // Invalid values fall back to INFO and report themselves as the first record.
+    ["VERBOSE", ["error", "info", "warning", "error"]],
+    ["FATAL", ["error", "info", "warning", "error"]],
     ["INFO", ["info", "warning", "error"]],
     [" debug ", ["debug", "info", "warning", "error"]],
     ["WARNING", ["warning", "error"]],
@@ -83,7 +85,6 @@ describe("LogChannel", () => {
     ["ERROR", ["error"]],
     ["EXCEPTION", ["error"]],
     ["CRITICAL", []],
-    ["FATAL", []],
     ["NOTSET", ["debug", "info", "warning", "error"]],
   ] as const)("filters socket records with logging_level=%s", async (level, expected) => {
     vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", level);
@@ -176,6 +177,66 @@ describe("LogChannel", () => {
     } finally {
       write.mockRestore();
     }
+  });
+
+  it("reports an invalid logging_level once", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "TRACE");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.debug("filtered at INFO");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      {
+        level: "error",
+        event: "[ts-sdk] Ignoring invalid logging_level; using INFO",
+        logging_level: "TRACE",
+      },
+    ]);
+  });
+
+  it("keeps the method's level when args carry a level field", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "WARNING");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.info("numeric level", { level: 3 });
+    root.debug("level escalation", { level: "error" });
+    root.error("level demotion", { level: "debug" });
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      { event: "[ts-sdk] level demotion", level: "error" },
+    ]);
+  });
+
+  it("treats a level outside LogLevel as INFO instead of bypassing the filter", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "WARNING");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.send({ event: "unknown", level: "trace" as never });
+    root.send({ event: "non-string", level: 7 as never });
+    root.warning("kept");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received).map((record) => record["event"])).toEqual(["[ts-sdk] kept"]);
+  });
+
+  it("filters by the channel name even when the record overrides logger", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "ts-sdk.client=DEBUG");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.child("comm").debug("override does not unlock DEBUG", { logger: "ts-sdk.client" });
+    root.child("comm").info("non-string logger", { logger: 123 });
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      { event: "[ts-sdk.comm] non-string logger", logger: 123 },
+    ]);
+  });
+
+  it("applies namespace overrides to the invalid-entry report itself", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "broken ts-sdk=CRITICAL");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.error("filtered at CRITICAL");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toEqual([]);
   });
 
   it("defaults logger name to 'ts-sdk' and auto-stamps timestamp", async () => {
