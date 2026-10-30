@@ -407,7 +407,7 @@ class TestVariableFromSecrets:
         """Tests getting a variable from environment variable."""
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
-        mock_env_get.assert_called_once_with(key="fake_var_key")
+        mock_env_get.assert_called_once_with(key="fake_var_key", team_name=None)
 
     @conf_vars(
         {
