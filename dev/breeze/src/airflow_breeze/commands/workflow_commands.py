@@ -43,6 +43,7 @@ from airflow_breeze.utils.packages import (
     get_long_package_name,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
 WORKFLOW_NAME_MAPS = {
@@ -512,9 +513,10 @@ def workflow_run_mirror_base_images(trigger_upgrade_check: bool):
 
 @workflow_run_group.command(
     name="upgrade-check",
-    help="Run the 'Upgrade important CI environment' check for a branch and wait until it completes. "
-    "The check mirrors the latest hardened base images first, and opens an upgrade PR against the "
-    "branch when anything moved.",
+    help="Upgrade the important CI environment of a branch before a release, mirroring the latest "
+    "hardened base images first. For main (before a beta) it runs the upgrade check workflow, which opens "
+    "an upgrade PR, and waits for it. For a vX-Y-test branch (before its test-to-stable PR) it runs the "
+    "upgrade locally and pushes it to the branch, which needs committer rights.",
 )
 @click.option(
     "--branch",
@@ -524,13 +526,23 @@ def workflow_run_mirror_base_images(trigger_upgrade_check: bool):
     show_default=True,
 )
 def workflow_run_upgrade_check(branch: str):
-    console_print(f"[blue]Running the upgrade check for {branch}[/blue]")
-    # The scheduled workflow lives on main and checks the branch out itself.
-    trigger_workflow_and_monitor(
-        workflow_name=f"{UPGRADE_CHECK_WORKFLOW_PREFIX}{branch}.yml",
-        repo=APACHE_AIRFLOW_REPO,
-        branch="main",
+    if branch == "main":
+        console_print("[blue]Running the upgrade check for main[/blue]")
+        # The scheduled workflow lives on main and checks the branch out itself.
+        trigger_workflow_and_monitor(
+            workflow_name=f"{UPGRADE_CHECK_WORKFLOW_PREFIX}{branch}.yml",
+            repo=APACHE_AIRFLOW_REPO,
+            branch="main",
+        )
+        return
+    # The release branch rules let only committers push without CI having passed, and the workflow's
+    # token is not one, so the upgrade that goes straight onto the branch runs here.
+    console_print(f"[blue]Upgrading {branch} locally and pushing the upgrade to it[/blue]")
+    result = run_command(
+        ["breeze", "ci", "upgrade", "--target-branch", branch, "--push-to-target-branch"], check=False
     )
+    if result.returncode != 0:
+        sys.exit(result.returncode)
 
 
 @workflow_run_group.command(

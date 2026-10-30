@@ -132,28 +132,38 @@ running the full CI on every push.
 ### Before cutting a beta or an RC: refresh the base images and the important CI versions
 
 The images are built on hardened Python base images pinned to digests, and the legacy images compile
-a pinned Python patch release. Only the "Upgrade important CI environment" check moves those pins,
+a pinned Python patch release. Only the "Upgrade important CI environment" upgrade moves those pins,
 so a release ships with the latest base images, Python patch releases and their security fixes only
-when the check ran right before it. Run it at these two points:
+when the upgrade ran right before it. It is one command, which first mirrors the latest hardened base
+images (a workflow run on `main`, as the mirror is shared by all branches) and waits for it. It needs
+`gh` credentials that may dispatch `apache/airflow` workflows, and checks that first.
 
-- **Beta**: for `main`, before you fast-forward `vX-Y-test` to `main` for the beta (see
-  [Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)) - during the beta phase
-  `vX-Y-test` takes its changes only from `main`.
-- **RC**: for `vX-Y-test`, before you open the PR syncing `vX-Y-test` into `vX-Y-stable`, and before
-  the full-run check in the next section, because merging the upgrade PR moves the branch HEAD.
+- **Beta** - before you fast-forward `vX-Y-test` to `main` for the beta (see
+  [Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)), as during the beta phase
+  `vX-Y-test` takes its changes only from `main`:
 
-```shell script
-breeze workflow-run upgrade-check --branch main        # beta
-breeze workflow-run upgrade-check --branch vX-Y-test   # RC
-```
+  ```shell script
+  breeze workflow-run upgrade-check --branch main
+  ```
 
-The upgrade check first runs the "Mirror hardened base images" workflow on `main` (the mirror is
-shared by all branches), so it pins the images Docker published last. The command waits until both
-workflow runs complete and fails when either does not succeed. It needs `gh` credentials that may
-dispatch `apache/airflow` workflows. When anything moved, it opens a
-`[<branch>] Upgrade important CI environment` PR, and no PR when nothing did. The PR is opened as a
-draft, and its CI starts only when you mark it ready for review. Merge it once its CI has passed,
-before you go on with the release.
+  It runs the upgrade check workflow for `main` and waits for it. When anything moved, the workflow
+  opens (or updates) the `[main] Upgrade important CI environment` PR as a draft. Mark it ready for
+  review, which starts its CI, and merge it once the CI has passed.
+
+- **RC** - before you open the PR syncing `vX-Y-test` into `vX-Y-stable`, and before the full-run
+  check in the next section:
+
+  ```shell script
+  git switch vX-Y-test
+  git pull --ff-only upstream vX-Y-test
+  breeze workflow-run upgrade-check --branch vX-Y-test
+  ```
+
+  It runs the upgrade in your checkout and pushes the `[vX-Y-test] CI: Upgrade important CI
+  environment` commit straight to `vX-Y-test`, the head of the test-to-stable PR, so the PR's CI tests
+  it. This runs locally because the release branch rules let only committers push to `vX-Y-test`
+  without CI having passed. It never switches, resets or cleans your checkout: it fails and tells you
+  what to do when you are not on `vX-Y-test` at the tip of `apache/airflow`, or have local changes.
 
 ### Before cutting an RC: check the full run of the branch HEAD
 
@@ -667,7 +677,8 @@ still works but is no longer recommended.
 
 - PR from the 'test' branch to the 'stable' branch
 
-  Before you open it, run the upgrade check for `vX-Y-test` and merge its PR, as described in
+  Before you open it, run `breeze workflow-run upgrade-check --branch vX-Y-test`, which pushes the
+  upgrade onto `vX-Y-test`, as described in
   [Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions),
   so the release is built on the latest base images.
 

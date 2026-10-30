@@ -81,6 +81,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--push-to-target-branch",
                 "--draft",
                 "--switch-to-base",
                 "--airflow-site",

@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import os
+from subprocess import CompletedProcess
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import (
     UPGRADE_COMMANDS,
@@ -27,9 +29,11 @@ from airflow_breeze.commands.ci_commands import (
     build_upgrade_pr_body,
     get_step_enabled,
     mirror_base_images_before_upgrade,
+    push_upgrade_to_target_branch,
     read_floors_report,
     upgrade,
 )
+from airflow_breeze.utils.git_remotes import Remote
 
 STEP_NAMES = [name for name, _ in UPGRADE_COMMANDS]
 
@@ -158,3 +162,66 @@ def test_upgrade_mirrors_the_base_images_with_its_token(
         hint="Or skip it with --no-mirror-base-images.",
         trigger_upgrade_check=trigger_upgrade_check,
     )
+
+
+APACHE_REMOTE = Remote(name="upstream", url="https://github.com/apache/airflow.git", repo="apache/airflow")
+
+
+class FakeGit:
+    """Answers the git calls of the upgrade for a checkout on a branch, with or without local changes."""
+
+    def __init__(self, branch: str, head: str, upstream_head: str, porcelain: str):
+        self.answers = {
+            ("rev-parse", "--abbrev-ref"): branch,
+            ("rev-parse", "HEAD"): head,
+            ("status", "--porcelain"): porcelain,
+        }
+        self.upstream_head = upstream_head
+        self.calls: list[list[str]] = []
+
+    def __call__(self, cmd, **kwargs):
+        self.calls.append(cmd)
+        if cmd[:2] == ["git", "rev-parse"] and cmd[-1].startswith("upstream/"):
+            return CompletedProcess(cmd, 0, stdout=self.upstream_head)
+        return CompletedProcess(cmd, 0, stdout=self.answers.get(tuple(cmd[1:3]), ""))
+
+
+@pytest.mark.parametrize(
+    ("branch", "head", "porcelain"),
+    [
+        pytest.param("v3-4-test", "abc", " M Dockerfile\n", id="uncommitted-changes"),
+        pytest.param("v3-4-test", "abc", "?? notes.txt\n", id="untracked-files"),
+        pytest.param("my-feature", "abc", "", id="other-branch"),
+        pytest.param("v3-4-test", "old", "", id="behind-the-tip"),
+    ],
+)
+@mock.patch("airflow_breeze.commands.ci_commands.get_remotes", autospec=True, return_value=[APACHE_REMOTE])
+def test_push_to_target_branch_fails_instead_of_touching_the_checkout(mock_remotes, branch, head, porcelain):
+    git = FakeGit(branch=branch, head=head, upstream_head="abc", porcelain=porcelain)
+    with mock.patch("airflow_breeze.commands.ci_commands.run_command", autospec=True, side_effect=git):
+        result = CliRunner().invoke(
+            upgrade, ["--target-branch", "v3-4-test", "--push-to-target-branch", "--switch-to-base"]
+        )
+
+    assert result.exit_code == 1
+    assert "git pull --ff-only upstream" in result.output
+    assert not [
+        call for call in git.calls if call[:2] in (["git", "checkout"], ["git", "reset"], ["git", "clean"])
+    ]
+
+
+def test_push_to_target_branch_refuses_main():
+    result = CliRunner().invoke(upgrade, ["--target-branch", "main", "--push-to-target-branch"])
+
+    assert result.exit_code == 1
+
+
+@mock.patch("airflow_breeze.commands.ci_commands.run_command", autospec=True)
+def test_push_upgrade_to_target_branch_pushes_the_commit_onto_the_branch(mock_run_command):
+    mock_run_command.return_value = CompletedProcess([], 0, stdout="", stderr="")
+
+    push_upgrade_to_target_branch("upstream", "v3-4-test", floors_report=None)
+
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert commands[-1] == ["git", "push", "upstream", "HEAD:refs/heads/v3-4-test"]
+    assert ["git", "commit", "--message", "[v3-4-test] CI: Upgrade important CI environment"] in commands

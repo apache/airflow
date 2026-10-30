@@ -718,6 +718,45 @@ def build_upgrade_pr_body(floors_report: str | None) -> str:
     return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
 
 
+def commit_upgrade_changes(target_branch: str) -> None:
+    run_command(["git", "add", "."])
+    try:
+        run_command(["git", "commit", "--message", f"[{target_branch}] CI: Upgrade important CI environment"])
+    except subprocess.CalledProcessError:
+        console_print("[info]Commit failed, assume some auto-fixes might have been made...[/]")
+        run_command(["git", "add", "."])
+        run_command(
+            [
+                "git",
+                "commit",
+                # postpone pre-commit checks to CI, not to fail in automation if e.g. mypy changes force code checks
+                "--no-verify",
+                "--message",
+                f"[{target_branch}] CI: Upgrade important CI environment",
+            ]
+        )
+
+
+def push_upgrade_to_target_branch(remote: str | None, target_branch: str, floors_report: str | None) -> None:
+    if not remote:
+        console_print("[error]Pushing to the target branch needs a remote pointing to apache/airflow.[/]")
+        sys.exit(1)
+    commit_upgrade_changes(target_branch)
+    console_print(f"[info]Pushing the upgrade to {remote}/{target_branch}...[/]")
+    push_result = run_command(
+        ["git", "push", remote, f"HEAD:refs/heads/{target_branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if push_result.returncode != 0:
+        console_print(f"[error]Failed to push:\n{push_result.stdout}\n{push_result.stderr}[/]")
+        sys.exit(1)
+    console_print(f"[success]The upgrade is pushed to {target_branch}.[/]")
+    if floors_report:
+        console_print(floors_report)
+
+
 def mirror_base_images_before_upgrade(target_branch: str, github_token: str | None) -> None:
     if github_token:
         # The mirror's gh calls read the token from the process environment, not the upgrade's env.
@@ -775,6 +814,14 @@ def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
     default=None,
     help="Automatically create a PR with the upgrade changes (if not specified, will ask)",
     is_flag=True,
+)
+@click.option(
+    "--push-to-target-branch",
+    is_flag=True,
+    default=False,
+    help="Commit the upgrade onto the target release branch and push it there instead of opening a PR - "
+    "what the release manager does before the test-to-stable PR, whose head is that branch. Needs "
+    "committer rights, as the release branch rules let only committers push without CI having passed",
 )
 @click.option(
     "--draft/--no-draft",
@@ -860,6 +907,7 @@ def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
 def upgrade(
     target_branch: str,
     create_pr: bool | None,
+    push_to_target_branch: bool,
     draft: bool,
     switch_to_base: bool | None,
     airflow_site: Path,
@@ -881,6 +929,9 @@ def upgrade(
             f"[error]Invalid target branch: '{target_branch}'. "
             "Must be 'main' or follow pattern 'vX-Y-test' where X and Y are numbers (e.g., 'v2-10-test').[/]"
         )
+        sys.exit(1)
+    if push_to_target_branch and target_branch == "main":
+        console_print("[error]main takes changes only through PRs - drop --push-to-target-branch.[/]")
         sys.exit(1)
 
     # Check if we're on the main branch
@@ -949,6 +1000,25 @@ def upgrade(
             "Airflow uses `upstream` for this remote by convention — "
             "run `git remote add upstream https://github.com/apache/airflow.git` to add it.[/]"
         )
+
+    # Pushing to the branch must neither take local work along nor wipe it, so it never switches,
+    # resets or cleans the checkout.
+    if push_to_target_branch and (not at_apache_branch or not is_clean):
+        remote = apache_remote_name or "upstream"
+        console_print(
+            f"[error]--push-to-target-branch pushes the upgrade straight onto {target_branch}, so it runs "
+            f"only on a clean checkout of {target_branch} at the tip of apache/airflow {target_branch}, "
+            "and it never switches, resets or cleans your checkout for you.[/]\n"
+            f"Current branch: {current_branch}"
+            f"{'' if is_clean else ', with uncommitted or untracked changes'}.\n"
+            "Commit or stash your changes, then bring the branch to the tip and run the command again:\n\n"
+            f"    git switch {target_branch}\n"
+            f"    git pull --ff-only {remote} {target_branch}\n\n"
+            f"If the pull refuses, your local {target_branch} has commits apache/airflow does not - push "
+            "them through a PR or move them to another branch first. Or run the command from a separate "
+            f"worktree: git worktree add ../airflow-{target_branch} {target_branch}"
+        )
+        sys.exit(1)
 
     # Track whether user chose to reset to target branch
     user_switched_to_target = False
@@ -1053,6 +1123,10 @@ def upgrade(
         console_print("[success]No changes were made during the upgrade. Exiting[/]")
         sys.exit(0)
 
+    if push_to_target_branch:
+        push_upgrade_to_target_branch(apache_remote_name, target_branch, floors_report)
+        return
+
     # Determine whether to create a PR
     should_create_pr = create_pr
     if should_create_pr is None:
@@ -1072,24 +1146,7 @@ def upgrade(
             run_command(["git", "branch", "-D", branch_name])
 
         run_command(["git", "checkout", "-b", branch_name])
-        run_command(["git", "add", "."])
-        try:
-            run_command(
-                ["git", "commit", "--message", f"[{target_branch}] CI: Upgrade important CI environment"]
-            )
-        except subprocess.CalledProcessError:
-            console_print("[info]Commit failed, assume some auto-fixes might have been made...[/]")
-            run_command(["git", "add", "."])
-            run_command(
-                [
-                    "git",
-                    "commit",
-                    # postpone pre-commit checks to CI, not to fail in automation if e.g. mypy changes force code checks
-                    "--no-verify",
-                    "--message",
-                    f"[{target_branch}] CI: Upgrade important CI environment",
-                ]
-            )
+        commit_upgrade_changes(target_branch)
 
         # Push the branch to origin (use detected origin or fallback to 'origin')
         push_remote = origin_remote_name if origin_remote_name else "origin"
