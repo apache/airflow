@@ -224,4 +224,5 @@ def test_push_upgrade_to_target_branch_pushes_the_commit_onto_the_branch(mock_ru
 
     commands = [call.args[0] for call in mock_run_command.call_args_list]
     assert commands[-1] == ["git", "push", "upstream", "HEAD:refs/heads/v3-4-test"]
+    assert ["git", "add", "--all"] in commands
     assert ["git", "commit", "--message", "[v3-4-test] CI: Upgrade important CI environment"] in commands

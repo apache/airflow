@@ -539,7 +539,9 @@ def workflow_run_upgrade_check(branch: str):
     # token is not one, so the upgrade that goes straight onto the branch runs here.
     console_print(f"[blue]Upgrading {branch} locally and pushing the upgrade to it[/blue]")
     result = run_command(
-        ["breeze", "ci", "upgrade", "--target-branch", branch, "--push-to-target-branch"], check=False
+        ["breeze", "ci", "upgrade", "--target-branch", branch, "--push-to-target-branch"],
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
     )
     if result.returncode != 0:
         sys.exit(result.returncode)

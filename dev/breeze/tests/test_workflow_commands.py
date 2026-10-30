@@ -34,6 +34,7 @@ from airflow_breeze.commands.workflow_commands import (
     workflow_run_upgrade_check,
 )
 from airflow_breeze.utils.confirm import Answer
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 
 def _make_gh_response(ref: str | None) -> CompletedProcess:
@@ -432,7 +433,9 @@ def test_upgrade_check_for_a_release_branch_pushes_the_upgrade_from_here(
 
     assert result.exit_code == returncode
     mock_run_command.assert_called_once_with(
-        ["breeze", "ci", "upgrade", "--target-branch", "v3-4-test", "--push-to-target-branch"], check=False
+        ["breeze", "ci", "upgrade", "--target-branch", "v3-4-test", "--push-to-target-branch"],
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
     )
     mock_trigger.assert_not_called()
 

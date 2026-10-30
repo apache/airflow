@@ -719,12 +719,12 @@ def build_upgrade_pr_body(floors_report: str | None) -> str:
 
 
 def commit_upgrade_changes(target_branch: str) -> None:
-    run_command(["git", "add", "."])
+    run_command(["git", "add", "--all"])
     try:
         run_command(["git", "commit", "--message", f"[{target_branch}] CI: Upgrade important CI environment"])
     except subprocess.CalledProcessError:
         console_print("[info]Commit failed, assume some auto-fixes might have been made...[/]")
-        run_command(["git", "add", "."])
+        run_command(["git", "add", "--all"])
         run_command(
             [
                 "git",
