@@ -316,15 +316,15 @@ function prefer_hardened_apt_repository() {
     # image ships (docker-hardened-images/catalog#610). Ranking dhi.io above the default priority of
     # 500 makes apt take Docker's build whenever dhi.io publishes the package, and fall back to Debian
     # only when it does not.
-    # The priority is above 1000 so that dhi.io's version also wins over one already installed when it
-    # sorts lower: Docker renumbers its builds - "1.0.8-6+dhi2" became "1.0.8-6+deb13u0+dhi2", which
-    # sorts lower - and its repository moves to the new numbers before its images do. Packages that
-    # depend on the renumbered build cannot be installed until apt may "downgrade" the image's copy
-    # to it (docker-hardened-images/catalog#689). The image's packages all come from dhi.io, so its
-    # repository is the authority on their versions.
+    # The priority stays below 1000 so the preference never forces a downgrade: apt still favours
+    # dhi.io's build of a package it publishes, but may take a newer version from another repository
+    # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
+    # ">= 18.6" and dhi.io does not carry. Pinning the base image to a digest CI has passed on keeps
+    # dhi.io and the image consistent, so the renumbering that once needed a forced "downgrade" of the
+    # image's copy (docker-hardened-images/catalog#689) no longer arises within a build.
     # The preference covers every apt run - this build's and those of images extending it.
     mkdir -p /etc/apt/preferences.d
-    printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 1001\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+    printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
 }
 
 function refresh_ldconfig_after_dpkg() {
