@@ -80,7 +80,10 @@ COMMENT_AUTHOR = "github-actions[bot]"
 # A job cancelled while its run was not, e.g. by its timeout, is a failure too.
 FAILED_CONCLUSIONS = ("failure", "cancelled", "timed_out")
 # GitHub answers with a server error while overloaded, and the same request often succeeds later.
-TRANSIENT_ERROR = re.compile(r"\(HTTP 5\d\d\)")
+# Server errors, and connections GitHub dropped mid-request (an HTTP/2 stream reset, for one).
+TRANSIENT_ERROR = re.compile(
+    r"\(HTTP 5\d\d\)|stream error|connection reset by peer|unexpected EOF|TLS handshake timeout|i/o timeout"
+)
 GH_API_ATTEMPTS = 3
 GH_API_RETRY_DELAY_SECONDS = 5
 
