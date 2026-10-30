@@ -21,6 +21,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { FieldAdvancedArray } from "./FieldAdvancedArray";
+import { FieldArray } from "./FieldArray";
 import { FieldBool } from "./FieldBool";
 import { FieldDateTime } from "./FieldDateTime";
 import { FieldDropdown } from "./FieldDropdown";
@@ -32,7 +33,6 @@ import { FieldNumber } from "./FieldNumber";
 import { FieldObject } from "./FieldObject";
 import { FieldPassword } from "./FieldPassword";
 import { FieldString } from "./FieldString";
-import { FieldStringArray } from "./FieldStringArray";
 
 const inferType = (param: ParamSpec) => {
   if (Boolean(param.schema.type)) {
@@ -52,8 +52,14 @@ const inferType = (param: ParamSpec) => {
   return param.value === null ? "null" : typeof param.value;
 };
 
+const simpleArrayItemTypes: Array<unknown> = ["string", "number", "integer", "boolean"];
+
+const isFieldArray = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "array" &&
+  (fieldSchema.items?.type === undefined || simpleArrayItemTypes.includes(fieldSchema.items.type));
+
 const isFieldAdvancedArray = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" && fieldSchema.items?.type !== "string";
+  fieldType === "array" && !isFieldArray(fieldType, fieldSchema);
 
 const isFieldBool = (fieldType: string) => fieldType === "boolean";
 
@@ -87,9 +93,6 @@ const isFieldObject = (fieldType: string) => fieldType === "object";
 
 const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "password";
-
-const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
 
 const isFieldMultiType = (fieldSchema: ParamSchema) =>
   Array.isArray(fieldSchema.type) &&
@@ -134,8 +137,8 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     return <FieldDropdown name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldMultiSelect(fieldType, param.schema)) {
     return <FieldMultiSelect name={name} namespace={namespace} onUpdate={onUpdate} />;
-  } else if (isFieldStringArray(fieldType, param.schema)) {
-    return <FieldStringArray name={name} namespace={namespace} onUpdate={onUpdate} />;
+  } else if (isFieldArray(fieldType, param.schema)) {
+    return <FieldArray name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldAdvancedArray(fieldType, param.schema)) {
     return <FieldAdvancedArray name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldObject(fieldType)) {
