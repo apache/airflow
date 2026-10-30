@@ -36,7 +36,9 @@ RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 # "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
 # source on top of a plain debian-slim base.
 AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
+# Empty by default: the hardened flavor takes Python from the base image, and the legacy flavor
+# needs it named (MAJOR.MINOR builds the latest release of that line).
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
@@ -44,6 +46,13 @@ if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
     # Read before apt runs: a package depending on python3 can pull another Python version in.
     BASE_PYTHON_MAJOR_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+    if [[ -n "${AIRFLOW_PYTHON_VERSION}" && "${AIRFLOW_PYTHON_VERSION}." != "${BASE_PYTHON_MAJOR_MINOR}."* ]]; then
+        echo
+        echo "ERROR! AIRFLOW_PYTHON_VERSION is ${AIRFLOW_PYTHON_VERSION}, but the base image has Python ${BASE_PYTHON_MAJOR_MINOR}."
+        echo "The hardened flavor takes Python from BASE_IMAGE: leave AIRFLOW_PYTHON_VERSION empty or pick a BASE_IMAGE with that Python."
+        echo
+        exit 1
+    fi
 elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-/usr/python}
 else
@@ -478,8 +487,39 @@ function install_cosign() {
     chmod +x /tmp/cosign
 }
 
+function resolve_python_version() {
+    if [[ -z "${AIRFLOW_PYTHON_VERSION}" ]]; then
+        echo
+        echo "ERROR! The legacy flavor compiles Python from sources, so AIRFLOW_PYTHON_VERSION has to name it:"
+        echo "MAJOR.MINOR for the latest release of that line, or MAJOR.MINOR.PATCH."
+        echo
+        exit 1
+    fi
+    if [[ ! "${AIRFLOW_PYTHON_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        return
+    fi
+    # A release directory appears on python.org with its first pre-release, so take the newest one
+    # that already holds the final tarball.
+    local candidate
+    for candidate in $(wget --tries=3 --waitretry=5 -qO- https://www.python.org/ftp/python/ \
+            | grep -oE "href=\"${AIRFLOW_PYTHON_VERSION//./\\.}\.[0-9]+/\"" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -V -r); do
+        if wget --tries=3 --waitretry=5 -q --spider \
+                "https://www.python.org/ftp/python/${candidate}/Python-${candidate}.tar.xz"; then
+            echo "Python ${AIRFLOW_PYTHON_VERSION} resolved to its latest release ${candidate}"
+            AIRFLOW_PYTHON_VERSION="${candidate}"
+            return
+        fi
+    done
+    echo
+    echo "ERROR! No release of Python ${AIRFLOW_PYTHON_VERSION} found on python.org."
+    echo
+    exit 1
+}
+
 function install_python() {
     # Only the legacy image flavor compiles Python - the hardened flavor gets it from the base image.
+    resolve_python_version
     wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"

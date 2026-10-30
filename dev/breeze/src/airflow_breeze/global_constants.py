@@ -987,6 +987,15 @@ def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> s
     return f"debian:{debian_version}-slim"
 
 
+# The legacy flavor compiles Python from python.org sources, which get a patch release days before the
+# hardened images do, so it has patchlevels of its own. "breeze ci upgrade" moves them, which changes
+# the AIRFLOW_PYTHON_VERSION build arg and so rebuilds the legacy images on the new patch release.
+LEGACY_PYTHON_VERSIONS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "files" / "legacy_python_versions.json"
+)
+LEGACY_PYTHON_VERSIONS: dict[str, str] = json.loads(LEGACY_PYTHON_VERSIONS_PATH.read_text())
+
+
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
 

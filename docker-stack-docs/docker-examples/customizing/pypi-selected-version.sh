@@ -31,7 +31,6 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev}" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.13.18" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --tag "my-pypi-selected-version:0.0.1"
 # [END build]

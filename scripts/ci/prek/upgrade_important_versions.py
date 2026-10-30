@@ -496,14 +496,51 @@ def fetch_python_image_digests(latest_python_versions: dict[str, str]) -> dict[s
     }
 
 
-def write_python_image_digests(python_image_digests: dict[str, str]) -> bool:
-    """Write the digests to pin to, returning whether they changed."""
-    new_content = json.dumps(python_image_digests, indent=2) + "\n"
-    if PYTHON_IMAGE_DIGESTS_PATH.read_text() == new_content:
+def write_pins_file(path: Path, pins: dict[str, str]) -> bool:
+    """Write one of the JSON files breeze reads its pins from, returning whether they changed."""
+    new_content = json.dumps(pins, indent=2) + "\n"
+    if path.read_text() == new_content:
         return False
-    PYTHON_IMAGE_DIGESTS_PATH.write_text(new_content)
-    console.print(f"[bright_blue]Updated {PYTHON_IMAGE_DIGESTS_PATH}")
+    path.write_text(new_content)
+    console.print(f"[bright_blue]Updated {path}")
     return True
+
+
+PYTHON_ORG_FTP_URL = "https://www.python.org/ftp/python/"
+# The patchlevels the legacy flavor compiles from python.org sources - breeze reads them from this file.
+# They follow python.org rather than the hardened images, which publish a patch release days later.
+LEGACY_PYTHON_VERSIONS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "files" / "legacy_python_versions.json"
+)
+
+
+def get_latest_released_python_version(python_major_minor: str, ftp_listing: str) -> str:
+    """Return the newest python.org release of a major.minor, given the python.org FTP listing."""
+    pattern = rf'href="({re.escape(python_major_minor)}\.\d+)/"'
+    for candidate in sorted((Version(v) for v in re.findall(pattern, ftp_listing)), reverse=True):
+        # A release directory appears with the first pre-release, before the final tarball is in it.
+        response = requests.head(
+            f"{PYTHON_ORG_FTP_URL}{candidate}/Python-{candidate}.tar.xz",
+            headers={"User-Agent": "Python requests"},
+            allow_redirects=True,
+            timeout=30,
+        )
+        if response.status_code == 200:
+            return str(candidate)
+    console.print(f"[bright_red]No released Python {python_major_minor} found on {PYTHON_ORG_FTP_URL}")
+    sys.exit(1)
+
+
+def fetch_legacy_python_versions() -> dict[str, str]:
+    """Fetch the latest python.org release of every supported major.minor for the legacy flavor."""
+    if not UPGRADE_PYTHON:
+        return {}
+    response = requests.get(PYTHON_ORG_FTP_URL, headers={"User-Agent": "Python requests"}, timeout=30)
+    response.raise_for_status()
+    return {
+        python_major_minor: get_latest_released_python_version(python_major_minor, response.text)
+        for python_major_minor in ALL_PYTHON_MAJOR_MINOR_VERSIONS
+    }
 
 
 def update_python_image_digests(content: str, python_image_digests: dict[str, str]) -> str:
@@ -736,16 +773,11 @@ GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
 ]
 
+# AIRFLOW_PYTHON_VERSION is not here: the builds derive it from the base image, or breeze passes it.
 AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
-    # Base image tags pin the same Python patchlevel as AIRFLOW_PYTHON_VERSION and have to move with it
     (
         re.compile(r"((?:dhi\.io|ghcr\.io/apache/airflow/base)/python:)([0-9]+\.[0-9]+\.[0-9.abrc]+)"),
         Quoting.UNQUOTED,
-    ),
-    (
-        re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
-        Quoting.REVERSE_DOUBLE_QUOTED,
     ),
 ]
 
@@ -1338,9 +1370,13 @@ def main() -> None:
     latest_python_versions = fetch_python_versions()
     python_image_digests = fetch_python_image_digests(latest_python_versions)
 
+    legacy_python_versions = fetch_legacy_python_versions()
+
     changed = process_all_files(versions, latest_python_versions, python_image_digests)
     if python_image_digests:
-        changed = write_python_image_digests(python_image_digests) or changed
+        changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
+    if legacy_python_versions:
+        changed = write_pins_file(LEGACY_PYTHON_VERSIONS_PATH, legacy_python_versions) or changed
 
     # Resolve hatchling transitive dependencies and update all pyproject.toml build-system sections
     if UPGRADE_HATCHLING or UPGRADE_FLIT_CORE:

@@ -1000,7 +1000,11 @@ They are deprecated and will be removed in Airflow 3.5.0. You can build one with
     docker build . \
       --build-arg AIRFLOW_IMAGE_FLAVOR="legacy" \
       --build-arg BASE_IMAGE="debian:bookworm-slim" \
+      --build-arg AIRFLOW_PYTHON_VERSION="3.13" \
       --tag my-image:my-tag
+
+A ``MAJOR.MINOR`` ``AIRFLOW_PYTHON_VERSION`` builds the latest python.org release of that Python line;
+pass ``MAJOR.MINOR.PATCH`` to build a specific one.
 
 The flavor an image was built with is recorded in its ``org.apache.airflow.image.flavor`` label.
 

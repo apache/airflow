@@ -384,16 +384,49 @@ def test_python_image_digests_are_written_to_the_pins_file(monkeypatch, tmp_path
 
     pins_file = tmp_path / "hardened_python_image_digests.json"
     pins_file.write_text(json.dumps(existing, indent=2) + "\n")
-    monkeypatch.setattr(uiv, "PYTHON_IMAGE_DIGESTS_PATH", pins_file)
 
-    assert uiv.write_python_image_digests({"3.13.17-debian13-dev": NEW_DIGEST}) is expected_changed
+    assert uiv.write_pins_file(pins_file, {"3.13.17-debian13-dev": NEW_DIGEST}) is expected_changed
     assert json.loads(pins_file.read_text()) == {"3.13.17-debian13-dev": NEW_DIGEST}
 
 
-def test_pins_file_is_the_one_breeze_reads():
+@pytest.mark.parametrize("path_name", ["PYTHON_IMAGE_DIGESTS_PATH", "LEGACY_PYTHON_VERSIONS_PATH"])
+def test_pins_file_is_the_one_breeze_reads(path_name):
     from ci.prek import upgrade_important_versions as uiv
 
-    assert uiv.PYTHON_IMAGE_DIGESTS_PATH.is_file()
+    assert getattr(uiv, path_name).is_file()
+
+
+FTP_LISTING = (
+    '<a href="3.13.9/">3.13.9/</a>\n<a href="3.13.10/">3.13.10/</a>\n'
+    '<a href="3.13.11/">3.13.11/</a>\n<a href="3.14.2/">3.14.2/</a>\n'
+)
+
+
+@pytest.mark.parametrize(
+    ("released", "expected"),
+    [
+        pytest.param({"3.13.9", "3.13.10", "3.13.11"}, "3.13.11", id="newest-release"),
+        pytest.param({"3.13.9", "3.13.10"}, "3.13.10", id="skips-pre-release-only-directory"),
+    ],
+)
+def test_legacy_python_version_is_the_newest_python_org_release(released, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    def head(url, **kwargs):
+        response = mock.MagicMock(spec=uiv.requests.Response)
+        version = url.split("/")[-2]
+        response.status_code = 200 if version in released else 404
+        return response
+
+    with mock.patch.object(uiv.requests, "head", autospec=True, side_effect=head):
+        assert uiv.get_latest_released_python_version("3.13", FTP_LISTING) == expected
+
+
+def test_legacy_python_version_exits_without_a_release():
+    from ci.prek import upgrade_important_versions as uiv
+
+    with pytest.raises(SystemExit):
+        uiv.get_latest_released_python_version("3.15", FTP_LISTING)
 
 
 def test_python_patchlevel_upgrade_also_repins_the_base_image(monkeypatch):
@@ -402,7 +435,10 @@ def test_python_patchlevel_upgrade_also_repins_the_base_image(monkeypatch):
     monkeypatch.setattr(uiv, "UPGRADE_PYTHON", True)
     monkeypatch.setattr(uiv, "ALL_PYTHON_MAJOR_MINOR_VERSIONS", ["3.13"])
     monkeypatch.setattr(uiv, "DEFAULT_PROD_IMAGE_PYTHON_VERSION", "3.13")
-    content = f'ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev@{OLD_DIGEST}"\n'
+    content = (
+        f'ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev@{OLD_DIGEST}"\n'
+        'ARG AIRFLOW_PYTHON_VERSION="3.13"\n'
+    )
 
     new_content = uiv.update_file_with_versions(
         content,
@@ -412,9 +448,9 @@ def test_python_patchlevel_upgrade_also_repins_the_base_image(monkeypatch):
         python_image_digests={"3.13.17-debian13-dev": NEW_DIGEST},
     )
 
-    assert (
-        new_content
-        == f'ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.17-debian13-dev@{NEW_DIGEST}"\n'
+    assert new_content == (
+        f'ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.17-debian13-dev@{NEW_DIGEST}"\n'
+        'ARG AIRFLOW_PYTHON_VERSION="3.13"\n'
     )
 
 

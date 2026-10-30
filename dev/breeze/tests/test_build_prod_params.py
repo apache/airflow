@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     HARDENED_PYTHON_IMAGE_DIGESTS,
+    LEGACY_PYTHON_VERSIONS,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -64,7 +67,20 @@ def test_prod_image_base_image_follows_flavor_and_debian_version(
 
     assert build_args["BASE_IMAGE"] == expected_base_image
     assert build_args["AIRFLOW_IMAGE_FLAVOR"] == image_flavor
-    assert build_args["AIRFLOW_PYTHON_VERSION"] == ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION["3.12"]
+
+
+@pytest.mark.parametrize(
+    ("image_flavor", "expected_python_version"),
+    [
+        pytest.param("hardened", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION["3.12"], id="hardened"),
+        pytest.param("legacy", "3.12.99", id="legacy"),
+    ],
+)
+@mock.patch.dict(LEGACY_PYTHON_VERSIONS, {"3.12": "3.12.99"})
+def test_prod_image_python_version_follows_flavor(image_flavor, expected_python_version):
+    build_args = _build_args(BuildProdParams(python="3.12", image_flavor=image_flavor))
+
+    assert build_args["AIRFLOW_PYTHON_VERSION"] == expected_python_version
 
 
 @pytest.mark.parametrize("image_flavor", ["hardened", "legacy"])
