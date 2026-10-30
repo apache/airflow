@@ -7720,52 +7720,46 @@ class TestSchedulerJob:
         assert all(adrq.target_dag_id == "consumer" for adrq in adrqs)
 
     @pytest.mark.need_serialized_dag
-    def test_no_create_dag_runs_when_asset_event_already_consumed(self, session: Session, dag_maker, caplog):
-        asset = Asset(name="test_asset")
-        with dag_maker(dag_id="consumer", schedule=asset, session=session):
+    @pytest.mark.parametrize("and_condition", [False, True], ids=["single-asset", "and-condition"])
+    def test_no_create_dag_runs_when_asset_event_already_consumed(
+        self, session: Session, dag_maker, and_condition
+    ):
+        assets = [Asset(name="asset_a"), Asset(name="asset_b")] if and_condition else [Asset(name="asset_a")]
+        with dag_maker(dag_id="consumer", schedule=assets, session=session):
             pass
         dag_model = dag_maker.dag_model
-        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-
-        # An event that has already been consumed by an earlier DagRun of this dag.
-        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
-        session.add(event)
+        events = [
+            AssetEvent(
+                asset_id=session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri)),
+                timestamp=timezone.utcnow(),
+            )
+            for asset in assets
+        ]
+        session.add_all(events)
         session.flush()
         prior_run = dag_maker.create_dagrun(
             run_id="prior-consuming-run",
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
-        prior_run.consumed_asset_events.append(event)
-        session.flush()
-
-        # A stale ADRQ that still references the already-consumed event. It should be cleaned up
-        # even when no new DagRun is created, to prevent stale ADRQ rows from accumulating and
-        # causing infinite scheduler loops.
-        session.add(
-            AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        # The first event was already consumed by an earlier run, but is still queued.
+        prior_run.consumed_asset_events.append(events[0])
+        session.add_all(
+            AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+            for event in events
         )
         session.flush()
 
-        with caplog.at_level("INFO"):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
-            self.job_runner._create_dag_runs_asset_triggered(
-                dag_models=[dag_model],
-                session=session,
-            )
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        self.job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
 
-        assert "No DagRun created" in caplog.text
-        # No *new* DagRun is created; only the pre-existing consuming run remains.
         runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
         assert [r.run_id for r in runs] == ["prior-consuming-run"]
-        _adrq = session.scalars(
-            select(AssetDagRunQueue).where(
-                AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == dag_model.dag_id
-            )
-        ).one_or_none()
-        # ADRQ is deleted even when no DagRun is created, to prevent stale rows accumulating.
-        assert _adrq is None
+        # The stale row is dequeued even though no run is created; a fresh one stays.
+        queued = session.scalars(
+            select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        ).all()
+        assert queued == [event.id for event in events[1:]]
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -13242,52 +13236,68 @@ def test_create_dagruns_asset_gated_many_queued_events_no_literal_in(
 
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
-def test_create_dagruns_asset_gated_dequeues_already_consumed_events(session: Session, dag_maker):
-    asset = Asset(uri="test://asset-gated-consumed", name="asset-gated-consumed")
+@pytest.mark.parametrize("and_condition", [False, True], ids=["single-asset", "and-condition"])
+def test_create_dagruns_asset_gated_dequeues_already_consumed_events(
+    session: Session, dag_maker, and_condition
+):
+    assets = [
+        Asset(uri=f"test://asset-gated-consumed-{suffix}", name=f"asset-gated-consumed-{suffix}")
+        for suffix in (("a", "b") if and_condition else ("a",))
+    ]
     logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
     with dag_maker(
         dag_id="asset-gated-consumed",
         schedule=AssetAndTimeSchedule(
             timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
-            assets=[asset],
+            assets=assets,
         ),
         session=session,
     ):
         EmptyOperator(task_id="dummy_task")
     dag_model = dag_maker.dag_model
-
-    # An event already consumed by an earlier run of this Dag...
-    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-    event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
-    session.add(event)
+    events = [
+        AssetEvent(
+            asset_id=session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri)),
+            timestamp=logical_date,
+        )
+        for asset in assets
+    ]
+    session.add_all(events)
     session.flush()
     prior_run = dag_maker.create_dagrun(
         run_id="prior-consuming-run",
         logical_date=logical_date - timedelta(hours=1),
         data_interval=(logical_date - timedelta(hours=1), logical_date - timedelta(hours=1)),
     )
-    prior_run.consumed_asset_events.append(event)
-    # ... but still queued. This makes the asset condition look satisfied.
-    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id))
+    # The first event was already consumed by an earlier run, but is still queued.
+    prior_run.consumed_asset_events.append(events[0])
+    session.add_all(
+        AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        for event in events
+    )
     dag_model.next_dagrun = logical_date
     dag_model.next_dagrun_data_interval = (logical_date, logical_date)
     dag_model.next_dagrun_create_after = logical_date
     session.flush()
 
-    SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
-        cast("CommitProhibitorGuard", session), session
-    )
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
     session.flush()
 
-    # No run is created, the schedule slot is kept, and the stale row is dequeued.
+    # No run is created and the schedule slot is kept. The stale row does not
+    # make the Dag ready, so it stays queued...
     runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
     assert [run.run_id for run in runs] == ["prior-consuming-run"]
     session.refresh(dag_model)
     assert dag_model.next_dagrun == logical_date
-    assert (
-        session.scalar(select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id))
-        is None
-    )
+    query = select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+    assert set(session.scalars(query)) == {event.id for event in events}
+
+    # ... until the Dag is processed. A fresh row stays.
+    serdag = runner._get_current_dag(dag_id=dag_model.dag_id, session=session)
+    assert serdag is not None
+    assert runner._collect_gated_asset_events(dag=serdag, session=session) is None
+    assert set(session.scalars(query)) == {event.id for event in events[1:]}
 
 
 @time_machine.travel("2026-03-29 19:00:00+00:00")
@@ -14411,6 +14421,9 @@ def test_unbatched_asset_runs_drain_backlog_within_limits(
         )
         session.flush()
         runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+        # Every queued row points at an event not consumed yet.
+        consumed_ids = {event.id for run in runs for event in run.consumed_asset_events}
+        assert consumed_ids.isdisjoint(session.scalars(select(AssetDagRunQueue.asset_event_id)))
 
     assert [run.consumed_asset_events for run in runs] == [[event] for event in events]
     assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0

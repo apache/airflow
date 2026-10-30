@@ -62,7 +62,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.models.asset import AssetDagRunQueue
+from airflow.models.asset import AssetDagRunQueue, consumed_by_dag
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -737,8 +737,11 @@ class DagModel(Base):
 
         # this loads all the ADRQ records.... may need to limit num dags
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
-        for adrq in session.scalars(
-            select(AssetDagRunQueue).options(
+        for adrq, consumed in session.execute(
+            select(
+                AssetDagRunQueue,
+                consumed_by_dag(AssetDagRunQueue.target_dag_id, AssetDagRunQueue.asset_event_id),
+            ).options(
                 joinedload(AssetDagRunQueue.dag_model),
                 joinedload(AssetDagRunQueue.asset),
             )
@@ -748,7 +751,9 @@ class DagModel(Base):
                 # could happen if the dag DID depend on an asset at some point,
                 # but no longer does. Delete the stale adrq.
                 session.delete(adrq)
-            else:
+            elif not consumed:
+                # A row whose event the Dag already consumed is cleaned up when
+                # the Dag is next processed. It must not count towards readiness.
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
         if adrq_by_dag:
