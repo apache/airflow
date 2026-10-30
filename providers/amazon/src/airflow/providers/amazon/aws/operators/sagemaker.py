@@ -46,11 +46,14 @@ from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowFailException,
     BaseBranchOperator,
+    ResumableJobMixin,
     conf,
 )
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.sdk import Context
@@ -1184,7 +1187,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         return {"Model": serialize(self.hook.describe_model(self.config["ModelName"]))}
 
 
-class SageMakerTrainingOperator(SageMakerBaseOperator):
+class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
     """
     Starts a model training job.
 
@@ -1223,8 +1226,14 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         This is only relevant if check_if_job_exists is True.
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
+    :param durable: If True (the default), the training job name is persisted to the task state store
+        before polling, and a retry reconnects to that job instead of submitting a new one. Only applies
+        to the synchronous path; a deferrable run is unaffected. Needs Airflow 3.3 or later, below it the
+        operator behaves as with ``durable=False``.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
+
+    external_id_key = "sagemaker_training_job_name"
 
     def __init__(
         self,
@@ -1274,6 +1283,17 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
 
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        if self.deferrable and self.wait_for_completion:
+            return self._execute_deferrable(context)
+
+        return self.execute_resumable(context)
+
+    def submit_job(self, context: Context) -> str:
         if self.check_if_job_exists:
             self.config["TrainingJobName"] = self._get_unique_job_name(
                 self.config["TrainingJobName"],
@@ -1281,82 +1301,115 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 self.hook.describe_training_job,
             )
 
-        self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
-
-        if self.deferrable and not self.wait_for_completion:
-            self.log.warning(
-                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
-            )
-
-        wait_for_completion = self.wait_for_completion
-        if self.deferrable and self.wait_for_completion:
-            # Set wait_for_completion to False so that it waits for the status in the deferred task.
-            wait_for_completion = False
+        job_name = self.config["TrainingJobName"]
+        self.log.info("Creating SageMaker training job %s.", job_name)
 
         response = self.hook.create_training_job(
             self.config,
-            wait_for_completion=wait_for_completion,
-            print_log=self.print_log,
+            wait_for_completion=False,
+            print_log=False,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Training Job creation failed: {response}")
 
-        if self.deferrable and self.wait_for_completion:
-            description = self.hook.describe_training_job(self.config["TrainingJobName"])
-            status = description["TrainingJobStatus"]
+        return job_name
 
-            if self.print_log:
-                instance_count = description["ResourceConfig"]["InstanceCount"]
-                last_describe_job_call = time.monotonic()
-                job_already_completed = status not in self.hook.non_terminal_states
-                _, description, last_describe_job_call = self.hook.describe_training_job_with_log(
-                    self.config["TrainingJobName"],
-                    {},
-                    [],
-                    instance_count,
-                    LogState.COMPLETE if job_already_completed else LogState.TAILING,
-                    description,
-                    last_describe_job_call,
-                )
-                self.log.info(secondary_training_status_message(description, None))
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        return self.hook.describe_training_job(str(external_id))["TrainingJobStatus"]
 
-            if status in self.hook.failed_states:
-                reason = description.get("FailureReason", "(No reason provided)")
-                raise AirflowException(f"SageMaker job failed because {reason}")
-            if status == "Completed":
-                log_message = f"{self.task_id} completed successfully."
-                if self.print_log:
-                    billable_seconds = SageMakerHook.count_billable_seconds(
-                        training_start_time=description["TrainingStartTime"],
-                        training_end_time=description["TrainingEndTime"],
-                        instance_count=instance_count,
-                    )
-                    log_message = f"Billable seconds: {billable_seconds}\n{log_message}"
-                self.log.info(log_message)
-                return {"Training": serialize(description)}
+    def is_job_active(self, status: str) -> bool:
+        return status in self.hook.non_terminal_states
 
-            timeout = self.execution_timeout
-            if self.max_ingestion_time:
-                timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "Completed"
 
-            self.defer(
-                timeout=timeout,
-                trigger=SageMakerTrigger(
-                    job_name=self.config["TrainingJobName"],
-                    job_type="Training",
-                    waiter_delay=self.check_interval,
-                    waiter_max_attempts=self.max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                    region_name=self.region_name,
-                    verify=self.verify,
-                    botocore_config=self.botocore_config,
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        job_name = str(external_id)
+
+        if self.print_log:
+            self.hook.check_training_status_with_log(
+                job_name,
+                self.hook.non_terminal_states,
+                self.hook.training_failed_states,
+                self.wait_for_completion,
+                self.check_interval,
+                self.max_ingestion_time,
+            )
+        elif self.wait_for_completion:
+            description = self.hook.check_status(
+                job_name,
+                "TrainingJobStatus",
+                self.hook.describe_training_job,
+                self.check_interval,
+                self.max_ingestion_time,
+            )
+            self.log.info(
+                "Billable seconds: %d",
+                SageMakerHook.count_billable_seconds(
+                    training_start_time=description["TrainingStartTime"],
+                    training_end_time=description["TrainingEndTime"],
+                    instance_count=description["ResourceConfig"]["InstanceCount"],
                 ),
-                method_name="execute_complete",
             )
 
-        return self.serialize_result(self.config["TrainingJobName"])
+    def get_job_result(self, external_id: JsonValue, context: Context) -> dict[str, dict]:
+        return self.serialize_result(str(external_id))
+
+    def _execute_deferrable(self, context: Context) -> dict:
+        job_name = self.submit_job(context)
+        description = self.hook.describe_training_job(job_name)
+        status = description["TrainingJobStatus"]
+
+        if self.print_log:
+            instance_count = description["ResourceConfig"]["InstanceCount"]
+            last_describe_job_call = time.monotonic()
+            job_already_completed = status not in self.hook.non_terminal_states
+            _, description, last_describe_job_call = self.hook.describe_training_job_with_log(
+                job_name,
+                {},
+                [],
+                instance_count,
+                LogState.COMPLETE if job_already_completed else LogState.TAILING,
+                description,
+                last_describe_job_call,
+            )
+            self.log.info(secondary_training_status_message(description, None))
+
+        if status in self.hook.failed_states:
+            reason = description.get("FailureReason", "(No reason provided)")
+            raise AirflowException(f"SageMaker job failed because {reason}")
+        if status == "Completed":
+            log_message = f"{self.task_id} completed successfully."
+            if self.print_log:
+                billable_seconds = SageMakerHook.count_billable_seconds(
+                    training_start_time=description["TrainingStartTime"],
+                    training_end_time=description["TrainingEndTime"],
+                    instance_count=instance_count,
+                )
+                log_message = f"Billable seconds: {billable_seconds}\n{log_message}"
+            self.log.info(log_message)
+            return {"Training": serialize(description)}
+
+        timeout = self.execution_timeout
+        if self.max_ingestion_time:
+            timeout = datetime.timedelta(seconds=self.max_ingestion_time)
+
+        self.defer(
+            timeout=timeout,
+            trigger=SageMakerTrigger(
+                job_name=job_name,
+                job_type="Training",
+                waiter_delay=self.check_interval,
+                waiter_max_attempts=self.max_attempts,
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                botocore_config=self.botocore_config,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
