@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -67,7 +68,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
+from airflow.serialization.serialized_objects import BaseSerialization, DagSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name, with_row_locks
@@ -693,6 +694,24 @@ def _reject_dags_with_unloadable_timetables(
     return accepted
 
 
+def _reject_invalid_serialized_dags(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+) -> list[LazyDeserializedDAG]:
+    """Drop Dags that ``validate_serialized_dag`` refuses, recording an import error for each."""
+    accepted: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        try:
+            DagSerialization.validate_serialized_dag(dag.data)
+        except (DeserializationError, ValueError, TypeError, KeyError) as error:
+            log.warning("Refusing Dag that cannot be stored", dag_id=dag.dag_id, error=str(error))
+            import_errors[(bundle_name, dag.relative_fileloc)] = str(error)
+            continue
+        accepted.append(dag)
+    return accepted
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -714,6 +733,7 @@ def update_dag_parsing_results_in_db(
     ),
     files_parsed: set[tuple[str, str]] | None = None,
     dag_source_codes: dict[str, DagSourceCode] | None = None,
+    validate_serialized_dags: bool = False,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -743,9 +763,14 @@ def update_dag_parsing_results_in_db(
     :param resolve_bundle_paths: Construct bundles to give import error listeners absolute paths. The
         API server passes False: it does not host the processor's bundles, so listeners receive
         bundle-relative paths instead.
+    :param validate_serialized_dags: Drop Dags that could not be stored and loaded, recording an import
+        error for each. The API server passes True: a Dag processor can publish documents the SDK did
+        not build.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
     accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
+    if validate_serialized_dags:
+        accepted = _reject_invalid_serialized_dags(bundle_name, accepted, import_errors)
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}

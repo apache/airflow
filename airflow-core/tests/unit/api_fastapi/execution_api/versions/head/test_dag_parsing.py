@@ -323,8 +323,6 @@ def test_rejects_unauthorized_publication(client, session, job, body, failure, s
 @pytest.mark.parametrize(
     "failure",
     [
-        "schema",
-        "version",
         "source",
         "path",
         "error_path",
@@ -334,18 +332,11 @@ def test_rejects_unauthorized_publication(client, session, job, body, failure, s
         "relative_fileloc",
         "fileloc",
         "long_path",
-        "timetable",
-        "deadline",
-        "stored_deadline",
     ],
 )
 def test_invalid_result_is_rejected_without_writes(client, session, job, body, failure):
     dag = body["serialized_dags"][0]
-    if failure == "schema":
-        dag["dag"]["tasks"] = "invalid"
-    elif failure == "version":
-        dag["__version"] = 999
-    elif failure == "source":
+    if failure == "source":
         body["source_codes"] = []
     elif failure == "path":
         dag["dag"]["relative_fileloc"] = "../other.py"
@@ -357,16 +348,65 @@ def test_invalid_result_is_rejected_without_writes(client, session, job, body, f
         body["serialized_dags"].append(deepcopy(dag))
     elif failure == "long_path":
         body["parsed_definitions"] = ["a.py/" + "x" * 2000]
-    elif failure == "deadline":
-        dag["dag"]["deadline"] = [{}]
-    elif failure == "stored_deadline":
-        dag["dag"]["deadline"] = [str(uuid7())]
     else:
         dag["dag"].pop(failure)
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
     assert response.status_code == 422, response.json()
     assert session.get(DagModel, "published") is None
     assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        ("schema", "does not match the schema"),
+        ("version", "Unsure how to deserialize version 999"),
+        ("timetable", "Failed to load the timetable of Dag 'invalid'"),
+        ("unloadable_timetable", "Failed to load the timetable of Dag 'invalid'"),
+        ("deadline", "cannot be deserialized"),
+        ("stored_deadline", "must list its deadline alert definitions"),
+        ("plugin", "provided by a plugin belonging to team_b"),
+    ],
+)
+@mock.patch(
+    "airflow.dag_processing.collection.get_scheduling_class_teams",
+    autospec=True,
+    return_value={"airflow.timetables.simple.OnceTimetable": {"team_b"}},
+)
+def test_invalid_dag_is_dropped_without_failing_its_container(
+    get_teams, client, session, job, body, failure, message
+):
+    invalid = DAG("invalid", schedule="@once")
+    invalid.fileloc = "/worker-only/dags/bundle.zip/b.py"
+    invalid.relative_fileloc = "bundle.zip/b.py"
+    document = LazyDeserializedDAG.from_dag(invalid).data
+    body["relative_fileloc"] = "bundle.zip"
+    body["serialized_dags"][0]["dag"]["relative_fileloc"] = "bundle.zip/a.py"
+    body["serialized_dags"].append(document)
+    body["dag_source_indexes"]["invalid"] = 0
+    if failure == "schema":
+        document["dag"]["tasks"] = "invalid"
+    elif failure == "version":
+        document["__version"] = 999
+    elif failure == "timetable":
+        document["dag"].pop("timetable")
+    elif failure == "unloadable_timetable":
+        document["dag"]["timetable"]["__type"] = "unregistered.Timetable"
+    elif failure == "deadline":
+        document["dag"]["deadline"] = [{}]
+    elif failure == "stored_deadline":
+        document["dag"]["deadline"] = [str(uuid7())]
+
+    with conf_vars({("core", "multi_team"): str(failure == "plugin")}):
+        response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    assert session.get(DagModel, "published").is_stale is False
+    assert session.get(DagModel, "invalid") is None
+    (error,) = session.scalars(select(ParseImportError)).all()
+    assert error.filename == "bundle.zip/b.py"
+    assert message in error.stacktrace
+    assert session.scalar(select(DagProcessorPublicationReceipt)) is not None
 
 
 @mock.patch("airflow.api_fastapi.execution_api.routes.dag_parsing.MAX_PUBLICATION_BYTES", 10)
@@ -522,19 +562,19 @@ def test_failed_container_stales_members_after_the_threshold(
 
 
 @mock.patch(
-    "airflow.api_fastapi.execution_api.routes.dag_parsing.DagSerialization.validate_serialized_dag",
+    "airflow.dag_processing.collection.DagSerialization.validate_serialized_dag",
     autospec=True,
 )
 @mock.patch(
-    "airflow.api_fastapi.execution_api.routes.dag_parsing._reject_other_teams_plugin_classes",
+    "airflow.dag_processing.collection._reject_other_teams_plugin_classes",
     autospec=True,
     return_value=[],
 )
-def test_plugin_authorization_precedes_deserialization(reject, deserialize, client, session, job, body):
+def test_plugin_refusal_precedes_deserialization(reject, deserialize, client, session, job, body):
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
-    assert response.status_code == 403
+    assert response.status_code == 200, response.json()
     deserialize.assert_not_called()
-    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+    assert session.get(DagModel, "published") is None
 
 
 @pytest.mark.parametrize(
@@ -1445,19 +1485,15 @@ def test_publication_bounds_definition_paths(client, session, job, body, field, 
 
 
 @mock.patch(
-    "airflow.api_fastapi.execution_api.routes.dag_parsing.DagSerialization.validate_serialized_dag",
+    "airflow.dag_processing.collection.DagSerialization.validate_serialized_dag",
     autospec=True,
     side_effect=ValueError("Dag published contains a cycle"),
 )
-def test_publication_preserves_serialization_failure_reason(validate, client, session, job, body):
+def test_publication_records_the_validation_failure_reason(validate, client, session, job, body):
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
 
-    assert response.status_code == 422, response.json()
-    assert response.json()["detail"] == {
-        "reason": "invalid_dag",
-        "message": "Dag published contains a cycle",
-    }
-    assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+    assert response.status_code == 200, response.json()
+    assert session.scalar(select(ParseImportError.stacktrace)) == "Dag published contains a cycle"
     assert session.get(DagModel, "published") is None
 
 
