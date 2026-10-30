@@ -22,7 +22,7 @@ import gc
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
-from multiprocessing import Process
+from multiprocessing import Process, get_start_method
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
@@ -44,14 +44,13 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
     if skip_serve_logs is False:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
         sub_proc = Process(target=partial(serve_logs, port=port))
-        # Freeze the GC before forking so a later full GC can't split the COW-shared pages
-        # into private copies (a memory jump with no new allocation). Same pattern as the
-        # executors / Dag processor manager; only affects the ``fork`` start method.
-        gc.freeze()
-        try:
-            sub_proc.start()
-        finally:
-            gc.unfreeze()
+        if get_start_method() == "fork":
+            # Freeze and stay frozen: unfreezing would let this process's next full GC split the
+            # pages the forked child shares copy-on-write (a memory jump with no new allocation).
+            # The triggerer forks its children once, like the Dag processor manager. No effect
+            # under forkserver/spawn, where the child re-imports instead of sharing.
+            gc.freeze()
+        sub_proc.start()
     try:
         yield
     finally:
