@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import cast
 
 from fastapi import HTTPException, status
@@ -24,6 +25,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -38,6 +40,24 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.variable import Variable
+
+
+def _restore_redacted_value(new_value: str, old_value: str | None, key: str) -> str:
+    """
+    Put the stored secret back wherever ``new_value`` still holds the mask ``VariableResponse`` sent out.
+
+    The UI edit form is filled from the redacted response, so saving it unchanged would otherwise
+    write ``***`` over every sensitive field.
+    """
+    if old_value is None:
+        return new_value
+    try:
+        new_obj, old_obj = json.loads(new_value), json.loads(old_value)
+    except json.JSONDecodeError:
+        return merge(new_value, old_value, key)
+    merged = merge(new_obj, old_obj, key)
+    # Keep the caller's formatting when there was nothing to restore.
+    return new_value if merged == new_obj else json.dumps(merged)
 
 
 def update_orm_from_pydantic(
@@ -64,6 +84,15 @@ def update_orm_from_pydantic(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
+
+    if (
+        "value" in patch_body.model_fields_set
+        and (not update_mask or "value" in update_mask)
+        and isinstance(patch_body.value, str)
+    ):
+        patch_body = patch_body.model_copy(
+            update={"value": _restore_redacted_value(patch_body.value, old_variable.val, old_variable.key)}
+        )
 
     # Apply patch via utility
     return cast(
