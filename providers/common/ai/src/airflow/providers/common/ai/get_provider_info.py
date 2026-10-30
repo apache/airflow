@@ -201,7 +201,7 @@ def get_provider_info():
                     },
                     "model_provider": {
                         "label": "Default Model Provider",
-                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat)",
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat). The suggestions are common choices, not a full list: any provider the installed pydantic-ai recognizes works.\n",
                         "schema": {
                             "type": ["string", "null"],
                             "examples": [

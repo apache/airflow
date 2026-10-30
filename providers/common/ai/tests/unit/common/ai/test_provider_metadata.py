@@ -278,6 +278,24 @@ class TestConnectionTypeExternalServices:
             )
 
 
+# Default Model Provider suggestions that are a model prefix rather than a provider module.
+# `openai-chat` is pydantic-ai's Chat Completions prefix, served by the `openai` module.
+SUGGESTION_MODULES = {"openai-chat": "openai"}
+
+
+class TestModelProviderSuggestions:
+    def test_every_suggestion_is_a_declared_external_service(self):
+        """The form must not suggest a vendor the docs and registry don't list for this connection."""
+        connection_types = get_provider_info()["connection-types"]
+        (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
+        suggestions = pydanticai["conn-fields"]["model_provider"]["schema"]["examples"]
+        declared = set(_find_pydanticai_external_services())
+
+        undeclared = [s for s in suggestions if LABELS.get(SUGGESTION_MODULES.get(s, s)) not in declared]
+
+        assert not undeclared, f"suggested providers missing from external-services: {undeclared}"
+
+
 class TestPydanticAIExternalServicesDrift:
     def test_every_installed_vendor_is_declared(self):
         """

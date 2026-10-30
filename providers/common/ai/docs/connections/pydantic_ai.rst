@@ -91,6 +91,11 @@ Default Model Provider
     ``@task.llm_batch`` applies it the same way, and sends ``openai-chat`` models
     to its OpenAI adapter.
 
+    The form suggests common providers as you type (``openai-chat``, ``openai``,
+    ``anthropic``, ``ollama``, ``litellm`` and others). The suggestions are not a
+    full list: any provider the installed pydantic-ai recognizes is accepted, so a
+    newer pydantic-ai can add providers the suggestions don't show.
+
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is
     unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
