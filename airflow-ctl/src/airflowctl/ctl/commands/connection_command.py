@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import rich
+from pydantic import ValidationError
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -29,6 +31,30 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     ConnectionBody,
 )
+from airflowctl.ctl.utils.validation import split_validation_errors
+
+
+def _build_connection_body(connection_id: str, details: dict[str, Any], filename: str) -> ConnectionBody:
+    """Build a ``ConnectionBody``, exiting with a readable message naming the connection if it is invalid."""
+    try:
+        return ConnectionBody(
+            connection_id=connection_id,
+            conn_type=details.get("conn_type"),  # type: ignore[arg-type]
+            host=details.get("host"),
+            login=details.get("login"),
+            password=details.get("password"),
+            port=details.get("port"),
+            extra=details.get("extra"),
+            description=details.get("description", ""),
+            **({"schema": details["schema"]} if "schema" in details else {}),
+        )
+    except ValidationError as e:
+        missing, invalid = split_validation_errors(ConnectionBody, e, str)
+        messages = []
+        if missing:
+            messages.append(f"missing required field(s): {', '.join(missing)}")
+        messages.extend(invalid)
+        raise SystemExit(f"Invalid connection {connection_id!r} in {filename}: " + "; ".join(messages))
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -56,21 +82,8 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
                 f"Invalid connection {connection_id!r} in {args.file}: expected a JSON object "
                 f"of connection details, got {type(connection_details).__name__}"
             )
+    connections_data = {k: _build_connection_body(k, v, args.file) for k, v in connections_json.items()}
     try:
-        connections_data = {
-            k: ConnectionBody(
-                connection_id=k,
-                conn_type=v.get("conn_type"),
-                host=v.get("host"),
-                login=v.get("login"),
-                password=v.get("password"),
-                port=v.get("port"),
-                extra=v.get("extra"),
-                description=v.get("description", ""),
-                **({"schema": v["schema"]} if "schema" in v else {}),
-            )
-            for k, v in connections_json.items()
-        }
         connection_create_action = BulkCreateActionConnectionBody(
             action="create",
             entities=list(connections_data.values()),
