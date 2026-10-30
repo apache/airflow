@@ -53,6 +53,7 @@ import {
   NEVER_EXPIRE,
   SUPERVISOR_API_VERSION,
   TaskHandler,
+  TaskTimeoutError,
   VariableNotFoundError,
   withArgNames,
 } from "../src/index.js";
@@ -289,6 +290,11 @@ describe("public API", () => {
     expect(connErr).toBeInstanceOf(Error);
     expect(connErr.name).toBe("ConnectionNotFoundError");
     expect(connErr.connId).toBe("missing_conn");
+
+    const timeoutErr = new TaskTimeoutError(30);
+    expect(timeoutErr).toBeInstanceOf(Error);
+    expect(timeoutErr.name).toBe("TaskTimeoutError");
+    expect(timeoutErr.timeoutSeconds).toBe(30);
   });
 
   it("reaches the runtime only through bundle.serve(), which takes nothing", () => {
