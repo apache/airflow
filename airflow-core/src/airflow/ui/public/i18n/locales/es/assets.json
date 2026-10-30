@@ -1,8 +1,10 @@
 {
   "additional_data": "Datos Adicionales",
+  "alias_many": "Alias",
   "alias_one": "Alias",
   "alias_other": "Alias",
   "aliases": "Alias",
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetStateStore": {
@@ -16,6 +18,7 @@
     "deleteWarning": "El Asset perderá esta entrada de almacenamiento de estado persistente.",
     "edit": "Editar Almacenamiento de Estado de Asset",
     "emptyState": "El almacenamiento de estado de Asset almacena valores con alcance en la identidad de un Asset, compartidos entre todas las ejecuciones del Dag. Los workers pueden escribir en el almacenamiento de estado de Asset mediante el Task SDK.",
+    "entry_many": "Entradas",
     "entry_one": "Entrada",
     "entry_other": "Entradas",
     "lastUpdatedBy": "Última Actualización Realizada Por",
@@ -49,6 +52,7 @@
   "events": "Eventos",
   "filters": {
     "groupPlaceholder": "Buscar grupo",
+    "hasEvents": "Tiene Eventos",
     "lastEventDateRange": "Fecha del Último Evento"
   },
   "group": "Grupo",
@@ -59,6 +63,7 @@
   "scheduling": "Programación",
   "searchPlaceholder": "Buscar Assets",
   "taskDependencies": "Dependencias de Tareas",
+  "watcher_many": "Watchers",
   "watcher_one": "Watcher",
   "watcher_other": "Watchers",
   "watchers": "Watchers"

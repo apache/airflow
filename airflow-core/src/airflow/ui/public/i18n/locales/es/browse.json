@@ -10,12 +10,45 @@
       "eventType": "Tipo de Evento"
     }
   },
+  "dagBundles": {
+    "active": "Activo",
+    "columns": {
+      "active": "Activo",
+      "importErrors": "Errores de Importación",
+      "lastRefreshed": "Última Actualización",
+      "name": "Nombre",
+      "version": "Versión"
+    },
+    "detail": {
+      "status": "Estado"
+    },
+    "files": {
+      "columns": {
+        "file": "Archivo",
+        "lastParsed": "Último Análisis",
+        "parseDuration": "Duración del Análisis"
+      },
+      "file_many": "Archivos",
+      "file_one": "Archivo",
+      "file_other": "Archivos",
+      "importErrorGone": "Este error de importación ya no está registrado. Probablemente se corrigió con un nuevo análisis.",
+      "neverParsed": "Nunca",
+      "showImportError_many": "Ver {{count, number}} errores",
+      "showImportError_one": "Ver error",
+      "showImportError_other": "Ver {{count, number}} errores"
+    },
+    "inactive": "Inactivo",
+    "neverRefreshed": "Nunca",
+    "notRefreshedYet": "Aún no actualizado",
+    "notVersioned": "Sin versionar"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Nombre de Alerta",
       "deadlineTime": "Hora del Plazo",
       "status": "Estado"
     },
+    "deadline_many": "Plazos",
     "deadline_one": "Plazo",
     "deadline_other": "Plazos",
     "filters": {
@@ -39,6 +72,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clave",
+      "timestamp": "Timestamp",
       "value": "Valor"
     },
     "delete": {
@@ -56,6 +90,7 @@
       "successTitle": "XCom Actualizado",
       "title": "Editar XCom"
     },
+    "entry_many": "Entradas de XCom",
     "entry_one": "Entrada de XCom",
     "entry_other": "Entradas de XCom",
     "key": "Clave",

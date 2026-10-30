@@ -10,6 +10,7 @@
     "columns": {
       "section": "Sección"
     },
+    "config_many": "Configuraciones",
     "config_one": "Configuración",
     "config_other": "Configuraciones"
   },
@@ -21,22 +22,28 @@
       "host": "Host",
       "port": "Puerto"
     },
+    "connection_many": "Conexiones",
     "connection_one": "Conexión",
     "connection_other": "Conexiones",
     "delete": {
+      "deleteConnection_many": "Eliminar {{count, number}} conexiones",
       "deleteConnection_one": "Eliminar 1 conexión",
       "deleteConnection_other": "Eliminar {{count, number}} conexiones",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes conexiones:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
       "title": "Eliminar Conexión"
     },
+    "duplicate": "Duplicar $t(connections.connection_one)",
     "edit": "Editar Conexión",
     "form": {
       "connectionIdRequired": "El ID de la conexión es requerido",
       "connectionIdRequirement": "El ID de la conexión no puede contener solo espacios",
+      "connectionTypeFields": "Campos de {{connectionType}}",
       "connectionTypeRequired": "El Tipo de Conexión es requerido",
       "extraFieldsJson": "Campos Extra (tipo JSON)",
       "helperText": "¿Falta el Tipo de conexión? Asegúrate de haber instalado el paquete de proveedores de Airflow correspondiente.",
+      "helperTextForDuplicatedRedactedFields": "Los campos redactados ('***') no se copian. Complétalos para la nueva conexión.",
       "helperTextForRedactedFields": "Los campos redactados ('***') permanecerán sin cambios si no se modifican.",
       "selectConnectionType": "Seleccionar Tipo de Conexión",
       "standardFields": "Campos Estándar"
@@ -97,6 +104,7 @@
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
     },
+    "job_many": "Jobs",
     "job_one": "Job",
     "job_other": "Jobs"
   },
@@ -104,8 +112,10 @@
     "columns": {
       "source": "Origen"
     },
+    "importError_many": "Errores de Importación de Plugins",
     "importError_one": "Error de Importación de Plugin",
     "importError_other": "Errores de Importación de Plugins",
+    "plugin_many": "Plugins",
     "plugin_one": "Plugin",
     "plugin_other": "Plugins",
     "searchPlaceholder": "Buscar por archivo"
@@ -128,6 +138,7 @@
       "slotsHelperText": "Use -1 para slots ilimitados."
     },
     "noPoolsFound": "No se encontraron pools",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Buscar Pools",
@@ -142,6 +153,7 @@
       "packageName": "Nombre del Paquete",
       "version": "Versión"
     },
+    "provider_many": "Providers",
     "provider_one": "Provider",
     "provider_other": "Providers"
   },
@@ -151,8 +163,10 @@
       "isEncrypted": "Está Encriptada"
     },
     "delete": {
+      "deleteVariable_many": "Eliminar {{count, number}} Variables",
       "deleteVariable_one": "Eliminar 1 Variable",
       "deleteVariable_other": "Eliminar {{count, number}} Variables",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes variables:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
       "title": "Eliminar Variable",
@@ -190,6 +204,7 @@
     },
     "noRowsMessage": "No se encontraron variables",
     "searchPlaceholder": "Buscar Claves",
+    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }

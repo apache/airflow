@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Todos los Map Index",
   "allRuns": "Todas las Ejecuciones",
   "blockingDeps": {
     "dependency": "Dependencia",
@@ -6,6 +7,7 @@
     "title": "Dependencias que bloquean la tarea de ser programada"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Diario",
     "hourly": "Cada hora",
     "legend": {
@@ -34,6 +36,22 @@
       "wednesday": "Mié"
     }
   },
+  "callbacks": {
+    "callback_many": "Callbacks",
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Alerta de Plazo",
+      "callback": "Callback",
+      "deadlineTime": "Hora del Plazo",
+      "missedBy": "Incumplido por",
+      "type": "Tipo"
+    },
+    "types": {
+      "executor": "Síncrono",
+      "triggerer": "Asíncrono"
+    }
+  },
   "code": {
     "bundleUrl": "URL del Bundle",
     "noCode": "No se encontró código",
@@ -43,6 +61,7 @@
   "deadlineAlerts": {
     "completionRule": "Debe completarse dentro de {{interval}} de {{reference}}",
     "completionRuleDynamic": "Debe completarse dentro de un intervalo variable medido desde {{reference}}",
+    "count_many": "{{count, number}} plazos",
     "count_one": "{{count, number}} plazo",
     "count_other": "{{count, number}} plazos",
     "referenceType": {
@@ -59,11 +78,13 @@
     "label": "Plazo",
     "met": "Cumplido",
     "missed": "Incumplido",
+    "missedCount_many": "{{count, number}} Plazos Incumplidos",
     "missedCount_one": "{{count, number}} Plazo Incumplido",
     "missedCount_other": "{{count, number}} Plazos Incumplidos",
     "mixedCount": "{{missedCount, number}} Incumplidos, {{upcomingCount, number}} Próximos",
     "stillRunning": "Aún en ejecución",
     "upcoming": "Próximos",
+    "upcomingCount_many": "{{count, number}} Plazos Próximos",
     "upcomingCount_one": "{{count, number}} Plazo Próximo",
     "upcomingCount_other": "{{count, number}} Plazos Próximos"
   },
@@ -100,8 +121,43 @@
       "placeholder": "Buscar en logs..."
     },
     "settings": "Configuración de Logs",
+    "tryNotStarted": "Este intento aún no ha comenzado.",
+    "viewFailedTry": "Ver los logs del intento fallido {{tryNumber}}",
     "viewInExternal": "Ver logs en {{name}} (intento {{attempt}})",
+    "viewPreviousTry": "Ver los logs del intento anterior {{tryNumber}}",
+    "waitingToRetry": "El intento {{tryNumber}} está esperando para reintentarse.",
     "warning": "ADVERTENCIA"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Límite: {{max}}",
+      "iterationsAxis": "Iteraciones",
+      "stats": {
+        "capHits": "Alcanzaron el límite",
+        "medianIterations": "Mediana de iteraciones"
+      },
+      "title": "Iteraciones por ejecución"
+    },
+    "iterationLabel": "Iteración {{index}}",
+    "iterations": "Iteraciones",
+    "outcome": "Resultado",
+    "reason": {
+      "cap_reached": "Alcanzó el límite de iteraciones ({{max}})",
+      "failed": "Falló en la iteración {{index}}",
+      "iteration_failed": "La iteración {{index}} falló en {{taskId}}",
+      "ran_to_cap": "Ejecutó las {{max}} iteraciones permitidas",
+      "removed": "Removido",
+      "running": "En Ejecución",
+      "skipped": "Omitido",
+      "stopped_early": "Se detuvo antes en la iteración {{index}}"
+    },
+    "rules": {
+      "behaviour": "Comportamiento",
+      "boundedFor": "Ejecuta un número fijo de iteraciones",
+      "exitCriteria": "Criterio de salida",
+      "maxIterations": "Máximo de iteraciones",
+      "whileUntil": "Se repite hasta {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Volver",
@@ -111,14 +167,18 @@
   },
   "overview": {
     "buttons": {
+      "failedRun_many": "Ejecuciones Fallidas",
       "failedRun_one": "Ejecución Fallida",
       "failedRun_other": "Ejecuciones Fallidas",
+      "failedTask_many": "Tareas Fallidas",
       "failedTask_one": "Tarea Fallida",
       "failedTask_other": "Tareas Fallidas",
+      "failedTaskInstance_many": "Instancias de Tarea Fallidas",
       "failedTaskInstance_one": "Instancia de Tarea Fallida",
       "failedTaskInstance_other": "Instancias de Tarea Fallidas"
     },
     "charts": {
+      "assetEvent_many": "Eventos de Asset Creados",
       "assetEvent_one": "Evento de Asset Creado",
       "assetEvent_other": "Eventos de Asset Creados"
     },
@@ -207,9 +267,11 @@
     "auditLog": "Log de Auditoría",
     "backfills": "Backfills",
     "calendar": "Calendario",
+    "callbacks": "Callbacks",
     "code": "Código",
     "details": "Detalles",
     "logs": "Logs",
+    "mappedTaskInstances_many": "Instancias de Tarea [{{count, number}}]",
     "mappedTaskInstances_one": "Instancia de Tarea [{{count, number}}]",
     "mappedTaskInstances_other": "Instancias de Tarea [{{count, number}}]",
     "overview": "Resumen",
@@ -219,6 +281,7 @@
     "taskInstances": "Instancias de Tarea",
     "taskStateStore": "Almacenamiento de Estado de Tarea",
     "tasks": "Tareas",
+    "versions": "Versiones",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -236,6 +299,7 @@
     "deleteWarning": "La tarea perderá esta memoria persistente. Si la tarea usa esta clave para hacer seguimiento de trabajo externo (p. ej., un ID de trabajo externo), no podrá reanudarlo.",
     "edit": "Editar Almacenamiento de Estado de Tarea",
     "emptyStore": "El almacenamiento de estado de tarea almacena valores que persisten entre reintentos. Los workers pueden escribir en el almacenamiento de estado de tarea mediante el Task SDK.",
+    "entry_many": "Entradas",
     "entry_one": "Entrada",
     "entry_other": "Entradas",
     "expiresAt": {
@@ -246,5 +310,75 @@
       "never": "Nunca"
     },
     "title": "Almacenamiento de Estado de Tarea"
+  },
+  "versions": {
+    "base": "Comparar desde",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorización",
+      "callback": "Callback",
+      "deadline": "Plazo",
+      "dependency": "Dependencia",
+      "metadata": "Metadata",
+      "param": "Parámetro",
+      "provenance": "Procedencia",
+      "schedule": "Programación",
+      "task": "Tarea",
+      "unknown": "Desconocido"
+    },
+    "codeAccess": "Los valores requieren acceso al código del Dag",
+    "columns": {
+      "after": "Después",
+      "before": "Antes",
+      "category": "Categoría",
+      "impact": "Impacto",
+      "operation": "Operación",
+      "path": "Ruta"
+    },
+    "heading": "Versión {{base}} → Versión {{target}}",
+    "impacts": {
+      "authorization": "Autorización",
+      "execution": "Ejecución",
+      "metadata": "Metadata",
+      "provenance": "Procedencia",
+      "unknown": "Desconocido"
+    },
+    "limitReached": {
+      "description": "Hay más cambios de los que permite el límite de Máximo de cambios. Aumenta el límite para ver el resto.",
+      "descriptionDefault": "Hay más cambios de los que permite el límite predeterminado. Aumenta el Máximo de cambios para ver el resto.",
+      "title": "Mostrando solo los primeros {{limit, number}} cambios"
+    },
+    "maxChanges": "Máximo de cambios",
+    "maxChangesDefault": "Predeterminado",
+    "noChanges": "Estas versiones tienen el mismo estado.",
+    "operations": {
+      "added": "Agregado",
+      "changed": "Modificado",
+      "removed": "Eliminado"
+    },
+    "pathOccurrences_many": "{{count, number}} cambios comparten esta ruta",
+    "pathOccurrences_one": "{{count, number}} cambio comparte esta ruta",
+    "pathOccurrences_other": "{{count, number}} cambios comparten esta ruta",
+    "pathOccurrencesAtLeast_many": "Al menos {{count, number}} cambios comparten esta ruta",
+    "pathOccurrencesAtLeast_one": "Al menos {{count, number}} cambio comparte esta ruta",
+    "pathOccurrencesAtLeast_other": "Al menos {{count, number}} cambios comparten esta ruta",
+    "record_many": "Registros",
+    "record_one": "Registro",
+    "record_other": "Registros",
+    "schemaChange": "Schema serializado {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Selecciona dos versiones para ver qué cambió entre ellas.",
+    "summary_many": "{{count, number}} cambios",
+    "summary_one": "{{count, number}} cambio",
+    "summary_other": "{{count, number}} cambios",
+    "summaryAtLeast_many": "Al menos {{count, number}} cambios",
+    "summaryAtLeast_one": "Al menos {{count, number}} cambio",
+    "summaryAtLeast_other": "Al menos {{count, number}} cambios",
+    "target": "Comparar con",
+    "unavailable": {
+      "description": "No se pudieron comparar estas versiones. Motivo:",
+      "title": "Comparación no disponible",
+      "withoutReason": "No se pudieron comparar estas versiones."
+    },
+    "valuesHidden": "Valores ocultos"
   }
 }
