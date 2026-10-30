@@ -25,11 +25,14 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from click.testing import CliRunner
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.workflow_commands import (
     find_providers_missing_from_site_index,
     get_lines_added_to_site_index,
+    workflow_run_mirror_base_images,
     workflow_run_publish,
     workflow_run_sync_staging_to_main,
+    workflow_run_upgrade_check,
 )
 from airflow_breeze.utils.confirm import Answer
 
@@ -389,3 +392,38 @@ class TestSyncStagingToMain:
         assert "Could not compare staging to main in apache/airflow-site" in result.output
         assert "commit(s)" not in mock_confirm.call_args.args[0]
         assert mock_trigger.call_count == 2
+
+
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_mirror_base_images_always_runs_on_main(mock_trigger):
+    result = CliRunner().invoke(workflow_run_mirror_base_images, [], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    mock_trigger.assert_called_once_with(
+        workflow_name="mirror-hardened-base-images.yml", repo="apache/airflow", branch="main"
+    )
+
+
+@pytest.mark.parametrize(
+    ("args", "expected_workflow"),
+    [
+        pytest.param([], f"scheduled-upgrade-check-{AIRFLOW_BRANCH}.yml", id="current-branch"),
+        pytest.param(["--branch", "v3-4-test"], "scheduled-upgrade-check-v3-4-test.yml", id="release-branch"),
+    ],
+)
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_upgrade_check_runs_the_branch_workflow_from_main(mock_trigger, args, expected_workflow):
+    result = CliRunner().invoke(workflow_run_upgrade_check, args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    mock_trigger.assert_called_once_with(
+        workflow_name=expected_workflow, repo="apache/airflow", branch="main"
+    )
+
+
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_upgrade_check_offers_only_branches_with_an_upgrade_workflow(mock_trigger):
+    result = CliRunner().invoke(workflow_run_upgrade_check, ["--branch", "v3-4-stable"])
+
+    assert result.exit_code == 2
+    mock_trigger.assert_not_called()

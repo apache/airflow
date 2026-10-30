@@ -1159,6 +1159,35 @@ These are all available flags of ``workflow-run release-constraints`` command:
   :width: 100%
   :alt: Breeze workflow-run release-constraints
 
+Refreshing the base images before a release
+"""""""""""""""""""""""""""""""""""""""""""
+
+The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
+Python patch releases. Only the "Upgrade important CI environment" check moves those pins, to images the
+mirror already has. Before cutting a release, mirror the latest base images and then run the upgrade check
+for the release branch. Both commands wait until their workflow run completes and fail when it does not
+succeed.
+
+``breeze workflow-run mirror-base-images`` always runs the mirror on ``main``. The mirror is shared by all
+branches, and ``main`` mirrors every Python version an active release branch still builds on.
+
+These are all available flags of ``workflow-run mirror-base-images`` command:
+
+.. image:: ./images/output_workflow-run_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze workflow-run mirror-base-images
+
+``breeze workflow-run upgrade-check`` runs the upgrade check for a branch, by default the branch breeze
+comes from. When anything moved, it opens an upgrade PR against the branch.
+
+These are all available flags of ``workflow-run upgrade-check`` command:
+
+.. image:: ./images/output_workflow-run_upgrade-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_upgrade-check.svg
+  :width: 100%
+  :alt: Breeze workflow-run upgrade-check
+
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
 

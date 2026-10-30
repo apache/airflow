@@ -24,6 +24,7 @@ import sys
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.common_options import argument_doc_packages, option_answer
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -37,6 +38,7 @@ from airflow_breeze.utils.packages import (
     get_available_distributions,
     get_long_package_name,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
 WORKFLOW_NAME_MAPS = {
@@ -45,7 +47,20 @@ WORKFLOW_NAME_MAPS = {
     "sync-s3-to-github": "s3-to-github.yml",
     "release-constraints": "release-constraints.yml",
     "reset-staging": "reset-staging.yml",
+    "mirror-base-images": "mirror-hardened-base-images.yml",
 }
+
+# Every branch the upgrade check runs for has a scheduled workflow of its own on main.
+UPGRADE_CHECK_WORKFLOW_PREFIX = "scheduled-upgrade-check-"
+UPGRADE_CHECK_BRANCHES = sorted(
+    {AIRFLOW_BRANCH}
+    | {
+        path.stem.removeprefix(UPGRADE_CHECK_WORKFLOW_PREFIX)
+        for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob(
+            f"{UPGRADE_CHECK_WORKFLOW_PREFIX}*.yml"
+        )
+    }
+)
 
 # X.Y.Z or X.Y.ZrcN - the workflow derives the release stage from which of the two it is given,
 # so there is no separate switch that could disagree with the version.
@@ -474,6 +489,43 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
         branch=workflow_branch,
         version=version,
         ref=ref,
+    )
+
+
+@workflow_run_group.command(
+    name="mirror-base-images",
+    help="Mirror the latest hardened base images and wait until they are mirrored.",
+)
+def workflow_run_mirror_base_images():
+    console_print("[blue]Mirroring the latest hardened base images[/blue]")
+    # Every branch builds on the same Python lines, and a mirror run from main copies the latest patch
+    # release of each, so there is no need to mirror per branch.
+    trigger_workflow_and_monitor(
+        workflow_name=WORKFLOW_NAME_MAPS["mirror-base-images"],
+        repo=APACHE_AIRFLOW_REPO,
+        branch="main",
+    )
+
+
+@workflow_run_group.command(
+    name="upgrade-check",
+    help="Run the 'Upgrade important CI environment' check for a branch and wait until it completes. "
+    "It opens an upgrade PR against the branch when anything moved - run 'mirror-base-images' first.",
+)
+@click.option(
+    "--branch",
+    help="Branch to upgrade.",
+    type=BetterChoice(UPGRADE_CHECK_BRANCHES),
+    default=AIRFLOW_BRANCH,
+    show_default=True,
+)
+def workflow_run_upgrade_check(branch: str):
+    console_print(f"[blue]Running the upgrade check for {branch}[/blue]")
+    # The scheduled workflow lives on main and checks the branch out itself.
+    trigger_workflow_and_monitor(
+        workflow_name=f"{UPGRADE_CHECK_WORKFLOW_PREFIX}{branch}.yml",
+        repo=APACHE_AIRFLOW_REPO,
+        branch="main",
     )
 
 

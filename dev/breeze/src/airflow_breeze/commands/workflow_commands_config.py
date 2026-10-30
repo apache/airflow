@@ -18,7 +18,13 @@ from __future__ import annotations
 
 WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
     "name": "Airflow github actions workflow commands",
-    "commands": ["publish-docs", "sync-staging-to-main", "release-constraints"],
+    "commands": [
+        "publish-docs",
+        "sync-staging-to-main",
+        "release-constraints",
+        "mirror-base-images",
+        "upgrade-check",
+    ],
 }
 
 WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -74,3 +80,12 @@ WORKFLOW_RUN_PARAMETERS["breeze workflow-run sync-staging-to-main"] = [
         ],
     },
 ]
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run upgrade-check"] = [
+    {
+        "name": "Branch to upgrade",
+        "options": [
+            "--branch",
+        ],
+    },
+]
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run mirror-base-images"] = []

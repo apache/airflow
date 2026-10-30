@@ -133,34 +133,26 @@ running the full CI on every push.
 
 The images are built on hardened Python base images pinned to digests, and the legacy images compile
 a pinned Python patch release. Only the "Upgrade important CI environment" check moves those pins,
-and it moves them only to images the mirror already has. Run both workflows below before you start
-a release (an RC, a beta, or the final release when it needs a new RC), so the release ships with the
-latest base images, Python patch releases and security fixes. Do it before the full-run check in the
-next section, because merging the upgrade PR moves the branch HEAD.
+and it moves them only to images the mirror already has. Run both commands below before you cut an
+RC or a beta, so the release ships with the latest base images, Python patch releases and their
+security fixes. Do it before the full-run check in the next section, because merging the upgrade PR
+moves the branch HEAD.
 
-1. Mirror the latest hardened base images, and wait for the run to finish:
+Both commands wait until their workflow run completes and fail when it does not succeed:
 
-   ```shell script
-   gh workflow run mirror-hardened-base-images.yml --repo apache/airflow --ref vX-Y-test
-   gh run watch --repo apache/airflow \
-       "$(gh run list --repo apache/airflow --workflow mirror-hardened-base-images.yml \
-           --branch vX-Y-test --limit 1 --json databaseId --jq '.[0].databaseId')"
-   ```
+```shell script
+breeze workflow-run mirror-base-images
+breeze workflow-run upgrade-check --branch vX-Y-test
+```
 
-2. Run the upgrade check for the branch. The workflow file lives on `main` and checks out
-   `vX-Y-test` itself:
-
-   ```shell script
-   gh workflow run scheduled-upgrade-check-vX-Y-test.yml --repo apache/airflow --ref main
-   ```
-
-   When anything moved, it opens a `[vX-Y-test] Upgrade important CI environment` PR. Merge it once
-   its CI has passed. When nothing moved, it opens no PR.
+The first mirrors the latest hardened base images. The mirror is shared by all branches, so it
+always runs on `main`. The second runs the upgrade check for the branch (by default the branch your
+breeze comes from), which opens a `[vX-Y-test] Upgrade important CI environment` PR when anything
+moved, and no PR when nothing did. Merge that PR once its CI has passed.
 
 During the beta phase `vX-Y-test` only takes changes from `main` (see
-[Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)). Run both workflows for `main`
-instead (`--ref main`, and `scheduled-upgrade-check-main.yml`), merge the upgrade PR there, and only
-then fast-forward `vX-Y-test`.
+[Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)). Run the upgrade check with
+`--branch main` instead, merge the upgrade PR there, and only then fast-forward `vX-Y-test`.
 
 ### Before cutting an RC: check the full run of the branch HEAD
 
