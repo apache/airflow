@@ -548,6 +548,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
   are left to `canary` runs. Like the other
   deployed e2e suites, enabling them forces `PROD Image building`.
+* `YAML Dag E2E tests` (the `yaml_dag` mode of the deployed-stack tests, exposed as the
+  `run-yaml-dag-e2e-tests` output) run when the YAML Dag fixture or its suite change
+  (`airflow-e2e-tests/yaml-dags/`, `airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/`,
+  `airflow-e2e-tests/docker/yaml-dag.yml`), when the Go example bundle's handler for that Dag changes
+  (`go-sdk/example/bundle/yamldag/`, `go-sdk/example/bundle/main.go` — the mode runs the Dag's one
+  code task on that bundle, so the rest of the Go SDK is left to the Go SDK E2E tests), when the
+  executable coordinator changes (`task-sdk/src/airflow/sdk/coordinators/executable/`,
+  `_subprocess.py`), or when the native Lang-SDK Dag parsing sources listed above change — the YAML
+  importer itself lives in `task-sdk/src/airflow/sdk/importers/`. Like the other deployed e2e
+  suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -733,6 +743,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-yaml-dag-e2e-tests                                  | Whether YAML Dag e2e tests should be run — on YAML Dag fixture/suite, its Go handler, executable coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
 | runner-type                                             | Runner labels for the CI jobs on this platform: public, or a RunsOn template jobs fill with cpu/ram     | \["ubuntu-22.04"\]                       |      |

@@ -76,6 +76,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run TypeScript SDK e2e tests (true/false)"
         required: true
         type: string
+      run-yaml-dag-e2e-tests:
+        description: "Whether to run YAML Dag e2e tests (true/false)"
+        required: true
+        type: string
       providers-compatibility-tests-matrix:
         description: "JSON matrix of released Airflow versions for the OpenLineage e2e compat tests."
         required: true
@@ -381,6 +385,20 @@ jobs:
     if: >-
       (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
       inputs.run-ts-sdk-e2e-tests == 'true'
+
+  test-e2e-integration-tests-yaml-dag:
+    name: "YAML Dag e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "YAML Dag e2e test"
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "yaml_dag"
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-yaml-dag-e2e-tests == 'true'
 
   test-e2e-integration-tests-openlineage:
     name: "OpenLineage e2e tests with PROD image"

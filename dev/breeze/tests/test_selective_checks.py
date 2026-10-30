@@ -1787,6 +1787,46 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go e2e tests when ExecutableCoordinator changes",
         ),
         pytest.param(
+            ("airflow-e2e-tests/yaml-dags/yaml_s3_roundtrip.yaml",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only the YAML Dag e2e tests when the YAML Dag fixture changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/test_yaml_dag.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+            },
+            id="Run only the YAML Dag e2e tests when its suite changes",
+        ),
+        pytest.param(
+            ("go-sdk/example/bundle/yamldag/handlers.go",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests alongside go's when the Dag's Go handler changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/importers/yaml_importer/builder.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests when the YAML importer changes",
+        ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {
+                "run-yaml-dag-e2e-tests": "false",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Skip the YAML Dag e2e tests for a go-sdk change outside the Dag's handler",
+        ),
+        pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
                 "run-openlineage-e2e-tests": "true",
