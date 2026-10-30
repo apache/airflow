@@ -80,7 +80,7 @@ class LLMSQLQueryOperator(LLMOperator):
     :param db_conn_id: Connection ID for database schema introspection.
         The connection must resolve to a ``DbApiHook``.
     :param table_names: Tables to include in the LLM's schema context.
-        Used with ``db_conn_id`` for automatic introspection.
+        Requires ``db_conn_id``, whose hook introspects them.
     :param schema_context: Manual schema context string. When provided,
         this is used instead of ``db_conn_id`` introspection.
     :param validate_sql: Whether to validate generated SQL via AST parsing.
@@ -132,6 +132,8 @@ class LLMSQLQueryOperator(LLMOperator):
             raise TypeError(
                 "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
             )
+        if table_names and not db_conn_id:
+            raise ValueError("'db_conn_id' is required when using 'table_names'.")
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
