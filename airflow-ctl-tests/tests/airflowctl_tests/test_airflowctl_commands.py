@@ -163,11 +163,7 @@ TEST_COMMANDS = [
 
 # The first Airflow version whose API serves each command, keyed by `_get_command_id`.
 MIN_AIRFLOW_VERSIONS = {
-    "assets set-state-store": Version("3.3.0"),
-    "assets get-state-store": Version("3.3.0"),
-    "assets list-state-store": Version("3.3.0"),
-    "assets delete-state-store": Version("3.3.0"),
-    "assets clear-state-store": Version("3.3.0"),
+    "assets state-store": Version("3.3.0"),
     "taskinstances state-store": Version("3.3.0"),
 }
 
