@@ -23,15 +23,19 @@ from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
+    TypedDict,
+    cast,
 )
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowException, BaseOperator, TaskDeferred
+from airflow.providers.microsoft.azure.exceptions import MSGraphPageNotInTaskStateStoreError
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -39,6 +43,24 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+
+# Keys in the task state store of a durable MSGraphAsyncOperator.
+_CURSOR_KEY = "msgraph_cursor"
+_PAGE_KEY_PREFIX = "msgraph_page_"
+_COMPLETED_KEY = "msgraph_completed"
+# The version of the kept pages and their cursor. 15.3.0rc1 kept the pages unwrapped, under a cursor without
+# a version; a cursor of another version is not read back, its pages go and the pagination starts again.
+_CURSOR_VERSION = 1
+
+
+class _PaginationCursor(TypedDict):
+    """Where a durable MSGraphAsyncOperator continues: the next link and the number of pages kept."""
+
+    version: int
+    url: str
+    query_parameters: dict[str, Any] | None
+    pages: int
 
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
@@ -106,6 +128,14 @@ class MSGraphAsyncOperator(BaseOperator):
         the message from the event, otherwise the response from the event payload is returned.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    :param durable: Keep progress in the task state store, so that a retry, for instance after a worker
+        crash, resumes instead of starting over (default is False). Every processed page is kept with the
+        link to the next one, so the retry continues at the page it stopped at. The result of a request
+        that is not a GET is kept too, so the retry returns it instead of sending the request again. A
+        crash between a response and its write to the store still repeats that one request. The pages
+        are removed from the store once the result is returned. Pages are stored as they are, so pages
+        larger than the store's ``max_value_storage_bytes`` need a state store backend that offloads
+        large values. Needs Airflow 3.3 or later.
     """
 
     template_fields: Sequence[str] = (
@@ -140,9 +170,13 @@ class MSGraphAsyncOperator(BaseOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
+        durable: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
+        if durable and not AIRFLOW_V_3_3_PLUS:
+            warnings.warn("`durable` has no effect on Airflow versions below 3.3.", UserWarning, stacklevel=2)
+            durable = False
         self.url = url
         self.response_type = response_type
         self.path_parameters = path_parameters
@@ -161,8 +195,32 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
+        self.durable = durable
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> Any:
+        if task_state_store := self.get_task_state_store(context):
+            if completed := task_state_store.get(_COMPLETED_KEY):
+                self.log.info("Returning the result of the request completed by an earlier try.")
+                return cast("dict[str, Any]", completed)["result"]
+            if cursor := self.get_cursor(task_state_store):
+                if cursor.get("version") != _CURSOR_VERSION:
+                    self.log.info(
+                        "Removing the pages kept by an earlier version of the provider, "
+                        "starting again from the first page."
+                    )
+                    self._remove_pages(task_state_store, cursor)
+                else:
+                    self.log.info("Resuming at page %s: %s", cursor["pages"] + 1, cursor["url"])
+                    self.defer_to_next_link(
+                        url=cursor["url"],
+                        query_parameters=cursor["query_parameters"],
+                        method_name=self.execute_complete.__name__,
+                    )
+        elif self.durable:
+            self.log.warning(
+                "task_state_store not available in context, crash recovery is disabled for this run"
+            )
+
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -187,13 +245,21 @@ class MSGraphAsyncOperator(BaseOperator):
         self,
         context: Context,
         event: dict[Any, Any] | None = None,
+        query_parameters: dict[str, Any] | None = None,
     ) -> Any:
         """
         Execute callback when MSGraphTrigger finishes execution.
 
         This method gets executed automatically when MSGraphTrigger completes its execution.
+
+        :param query_parameters: The query parameters the completed page was requested with, passed
+            back by :meth:`trigger_next_link`.  The operator is rebuilt from the serialized Dag on
+            every page, so without them ``self.query_parameters`` would still describe the first page.
         """
         self.log.debug("context: %s", context)
+
+        if query_parameters is not None:
+            self.query_parameters = query_parameters
 
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
@@ -207,7 +273,10 @@ class MSGraphAsyncOperator(BaseOperator):
 
             self.log.debug("response: %s", response)
 
-            results = self.pull_xcom(context=context)
+            task_state_store = self.get_task_state_store(context)
+            # A durable task reads its kept pages only once no next page defers: an intermediate
+            # page only adds itself to the store, see push_page.
+            results = [] if task_state_store else self.pull_xcom(context=context)
 
             if response:
                 response = self.serializer.deserialize(response)
@@ -228,20 +297,124 @@ class MSGraphAsyncOperator(BaseOperator):
                         response=response, method_name=self.execute_complete.__name__, context=context
                     )
                 except TaskDeferred as exception:
-                    self.append_result(
-                        results=results,
-                        result=result,
-                        append_result_as_list_if_absent=True,
-                    )
-                    self.push_xcom(context=context, value=results)
+                    if task_state_store:
+                        self.push_page(task_state_store, result=result, deferred=exception)
+                    else:
+                        self.append_result(
+                            results=results,
+                            result=result,
+                            append_result_as_list_if_absent=True,
+                        )
+                        self.push_xcom(context=context, value=results)
                     raise exception
 
-                if not results:
-                    return result
-
-                self.append_result(results=results, result=result)
+                if task_state_store:
+                    results = self.pull_pages(task_state_store)
+                if results:
+                    self.append_result(results=results, result=result)
+                else:
+                    results = result
+            elif task_state_store:
+                results = self.pull_pages(task_state_store)
+            if task_state_store:
+                self._clean_up(task_state_store, results=results)
             return results
         return None
+
+    def get_task_state_store(self, context: Context) -> TaskStateStoreAccessor | None:
+        """Return the task state store when this task is durable and the store is available."""
+        return context.get("task_state_store") if self.durable else None
+
+    @staticmethod
+    def get_cursor(task_state_store: TaskStateStoreAccessor) -> _PaginationCursor | None:
+        return cast("_PaginationCursor | None", task_state_store.get(_CURSOR_KEY))
+
+    def _get_cursor_of_this_version(
+        self, task_state_store: TaskStateStoreAccessor
+    ) -> _PaginationCursor | None:
+        """
+        Return the cursor the kept pages can be read back with, or none when no page is kept.
+
+        The pages kept by an earlier version of the provider are not read back: an unwrapped page of
+        15.3.0rc1 that happens to be a dict with a ``result`` key would pass for a wrapped one. They go,
+        with their cursor, so the next try starts again from the first page.
+        """
+        cursor = self.get_cursor(task_state_store)
+        if cursor is None or cursor.get("version") == _CURSOR_VERSION:
+            return cursor
+        self._remove_pages(task_state_store, cursor)
+        raise MSGraphPageNotInTaskStateStoreError(
+            "The pages were kept by an earlier version of the provider, so the next try starts again from "
+            "the first page."
+        )
+
+    def pull_pages(self, task_state_store: TaskStateStoreAccessor) -> list[Any]:
+        """
+        Return the results of the pages processed so far, kept in the task state store.
+
+        A page is kept wrapped in a dict, so a page whose result is ``None`` is told apart from a page
+        that is gone, for instance because it expired under ``[state_store] default_retention_days``.
+        A missing page removes the pages and the cursor, so the next try starts again from the first page
+        instead of returning results with a hole in them.
+        """
+        results: list[Any] = []
+        cursor = self._get_cursor_of_this_version(task_state_store)
+        for page in range(cursor["pages"] if cursor else 0):
+            kept = task_state_store.get(f"{_PAGE_KEY_PREFIX}{page}")
+            if not isinstance(kept, dict) or "result" not in kept:
+                self._remove_pages(task_state_store, cursor)
+                raise MSGraphPageNotInTaskStateStoreError(
+                    f"Page {page + 1} is no longer in the task state store, so the next try starts again from "
+                    "the first page."
+                )
+            self.append_result(results=results, result=cast("dict[str, Any]", kept)["result"])
+        return results
+
+    def push_page(
+        self, task_state_store: TaskStateStoreAccessor, result: Any, deferred: TaskDeferred
+    ) -> None:
+        """
+        Keep the result of a processed page and the link to the next one in the task state store.
+
+        The page goes in before the cursor that counts it, so a crash in between only fetches that page
+        again.
+        """
+        cursor = self._get_cursor_of_this_version(task_state_store)
+        page = cursor["pages"] if cursor else 0
+        task_state_store.set(f"{_PAGE_KEY_PREFIX}{page}", {"result": result})
+        task_state_store.set(
+            _CURSOR_KEY,
+            {
+                "version": _CURSOR_VERSION,
+                "url": deferred.trigger.url,
+                "query_parameters": (deferred.kwargs or {}).get("query_parameters"),
+                "pages": page + 1,
+            },
+        )
+
+    def _clean_up(self, task_state_store: TaskStateStoreAccessor, results: Any) -> None:
+        """
+        Remove the pages and the cursor from the task state store once the result is returned.
+
+        A non GET result is written before the pages go, so a crash in between does not resend the request.
+        """
+        if self.method.upper() != "GET":
+            task_state_store.set(_COMPLETED_KEY, {"result": results})
+        self._remove_pages(task_state_store, self.get_cursor(task_state_store))
+
+    @staticmethod
+    def _remove_pages(task_state_store: TaskStateStoreAccessor, cursor: _PaginationCursor | None) -> None:
+        """
+        Delete the pages and the cursor by their keys.
+
+        ``task_state_store.clear()`` would delete every key of the task instance, including keys a
+        ``result_processor`` or a subclass wrote.
+        """
+        if cursor is None:
+            return
+        for page in range(cursor["pages"]):
+            task_state_store.delete(f"{_PAGE_KEY_PREFIX}{page}")
+        task_state_store.delete(_CURSOR_KEY)
 
     @classmethod
     def append_result(
@@ -315,7 +488,6 @@ class MSGraphAsyncOperator(BaseOperator):
             response=response,
             url=operator.url,
             query_parameters=operator.query_parameters,
-            responses=lambda: operator.pull_xcom(context),
         )
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
@@ -337,22 +509,26 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.debug("query_parameters: %s", query_parameters)
 
             if url:
-                self.defer(
-                    trigger=MSGraphTrigger(
-                        url=url,
-                        method=self.method,
-                        path_parameters=self.path_parameters,
-                        query_parameters=query_parameters,
-                        headers=self.headers,
-                        data=self.data,
-                        response_type=self.response_type,
-                        conn_id=self.conn_id,
-                        timeout=self.timeout,
-                        proxies=self.proxies,
-                        scopes=self.scopes,
-                        api_version=self.api_version,
-                        serializer=type(self.serializer),
-                        pagination_link=True,
-                    ),
-                    method_name=method_name,
-                )
+                self.defer_to_next_link(url=url, query_parameters=query_parameters, method_name=method_name)
+
+    def defer_to_next_link(self, url: str, query_parameters: dict[str, Any] | None, method_name: str) -> None:
+        self.defer(
+            trigger=MSGraphTrigger(
+                url=url,
+                method=self.method,
+                path_parameters=self.path_parameters,
+                query_parameters=query_parameters,
+                headers=self.headers,
+                data=self.data,
+                response_type=self.response_type,
+                conn_id=self.conn_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                scopes=self.scopes,
+                api_version=self.api_version,
+                serializer=type(self.serializer),
+                pagination_link=True,
+            ),
+            method_name=method_name,
+            kwargs={"query_parameters": query_parameters},
+        )

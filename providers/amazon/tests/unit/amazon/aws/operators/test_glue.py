@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -36,16 +35,15 @@ from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJob
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
-    _DURABLE_UNSET,
     GlueDataQualityOperator,
     GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -184,6 +182,57 @@ class TestGlueJobOperator:
         assert defer.value.trigger.attempts == 75
         assert defer.value.trigger.aws_conn_id == "aws_default"
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_wait_combinations(self, _, mock_initialize_job, wait_for_completion):
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            wait_for_completion=wait_for_completion,
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred),
+        ):
+            glue.execute(mock.MagicMock())
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_hook_config_to_trigger(self, _, mock_initialize_job):
+        """The deferred half must reach AWS with the same hook settings as the synchronous half."""
+        botocore_config = {"read_timeout": 42}
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            verify=False,
+            botocore_config=botocore_config,
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        # assert on the serialized payload: that is what actually reaches the triggerer
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["region_name"] == "us-west-2"
+        assert serialized["verify"] is False
+        assert serialized["botocore_config"] == botocore_config
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -248,6 +297,113 @@ class TestGlueJobOperator:
             glue.execute({"ti": mock_ti})
 
         assert defer.value.trigger.run_id == JOB_RUN_ID
+
+    def test_task_uuid_scan_paginates_until_match(self):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        task_uuid = "test-task-uuid"
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = [
+            {"JobRuns": [], "NextToken": "next-page"},
+            {
+                "JobRuns": [
+                    {
+                        "Id": JOB_RUN_ID,
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                        "JobRunState": "RUNNING",
+                    }
+                ]
+            },
+        ]
+
+        assert glue._find_job_run_id_by_task_uuid(task_uuid) == (JOB_RUN_ID, "RUNNING")
+        assert glue.hook.conn.get_job_runs.call_args_list == [
+            mock.call(JobName=JOB_NAME, MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE),
+            mock.call(
+                JobName=JOB_NAME,
+                MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE,
+                NextToken="next-page",
+            ),
+        ]
+
+    def test_task_uuid_scan_stops_after_page_limit(self):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {"JobRuns": [], "NextToken": "next-page"}
+
+        with mock.patch.object(glue.log, "warning") as mock_log_warning:
+            assert glue._find_job_run_id_by_task_uuid("missing-task-uuid") is None
+
+        assert glue.hook.conn.get_job_runs.call_count == GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES
+        mock_log_warning.assert_called_once_with(
+            "Stopped scanning Glue job runs for task UUID after %s pages without a match",
+            GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES,
+        )
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_submits_fresh_when_task_uuid_scan_client_error(
+        self, mock_get_conn, mock_initialize_job
+    ):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        mock_initialize_job.return_value = {"JobRunId": JOB_RUN_ID}
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "slow down"}}, "GetJobRuns"
+        )
+
+        with mock.patch.object(glue.log, "exception") as mock_log_exception:
+            with pytest.raises(TaskDeferred) as defer:
+                glue.execute({"ti": mock_ti})
+
+        assert defer.value.trigger.run_id == JOB_RUN_ID
+        mock_initialize_job.assert_called_once()
+        mock_log_exception.assert_called_once_with(
+            "Failed to find previous Glue job run by task UUID; submitting a fresh Glue job run"
+        )
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_does_not_swallow_task_uuid_scan_bug(self, mock_get_conn, mock_initialize_job):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = RuntimeError("scan bug")
+
+        with pytest.raises(RuntimeError, match="scan bug"):
+            glue.execute({"ti": mock_ti})
+
+        mock_initialize_job.assert_not_called()
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
@@ -899,21 +1055,6 @@ class TestGlueJobOperatorOpenLineageInjection:
         assert GlueJobOperator.TASK_UUID_ARG in call_args
 
 
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
-
-
 class TestGlueJobOperatorDeprecation:
     @pytest.mark.parametrize("resume_value", [True, False])
     def test_warns_and_maps_to_durable_old_flag(self, resume_value):
@@ -1555,7 +1696,8 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
@@ -1566,10 +1708,11 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.RUN_ID
-        assert glue_data_quality_hook.get_waiter.call_count == wait_for_completion
+        assert glue_data_quality_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
@@ -1688,7 +1831,8 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
@@ -1698,10 +1842,11 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.RUN_ID
-        assert glue_data_quality_hook.get_waiter.call_count == wait_for_completion
+        assert glue_data_quality_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):

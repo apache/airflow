@@ -64,11 +64,8 @@ export const useFilteredNodesAndEdges = ({
         if (edge.source === node.id) {
           return [edge.target];
         }
-        if (edge.target === node.id) {
-          return [edge.source];
-        }
 
-        return [];
+        return edge.target === node.id ? [edge.source] : [];
       });
 
       const connectedTaskIds = connectedIds.filter((id) => nodeTypeMap.get(id) === "task");

@@ -31,6 +31,27 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
 
+# How far the fold search looks back for a fold twin: tzdata 2020-2030 has no DST shift above 2 hours
+# (Antarctica/Troll); Casey's 3 hours was a change of standard time, not DST.
+_MAX_DST_SHIFT = datetime.timedelta(hours=2)
+
+
+def _localize_all_folds(naive: datetime.datetime, timezone: Timezone | FixedTimezone) -> list[DateTime]:
+    """
+    Return every UTC instant a naive wall-clock time maps to, earliest first.
+
+    A wall-clock time inside a fall-back fold occurs twice, but ``make_aware`` only returns the later one.
+    A time skipped by a spring-forward gap never occurs, so it maps to nothing.
+    """
+    first = timezone.convert(naive.replace(fold=0))
+    second = timezone.convert(naive.replace(fold=1))
+    if first.replace(tzinfo=None) != naive:
+        return []
+    if first.utcoffset() != second.utcoffset():
+        return [convert_to_utc(first), convert_to_utc(second)]
+    return [convert_to_utc(first)]
+
+
 def _covers_every_hour(cron: croniter) -> bool:
     """
     Check whether the given cron runs at least once an hour.
@@ -131,7 +152,7 @@ class CronMixin:
         return self._expression == other._expression and self._timezone == other._timezone
 
     def __hash__(self):
-        return hash((self._expression, self._timezone))
+        return hash((self._expression, str(self._timezone)))
 
     @property
     def summary(self) -> str:
@@ -153,6 +174,34 @@ class CronMixin:
         """
         return convert_to_utc(make_aware(dt.replace(tzinfo=None), self._timezone))
 
+    def _localized_ticks_within_limit(self, naive: datetime.datetime, *, before: bool) -> list[DateTime]:
+        """Localize every cron tick within ``_MAX_DST_SHIFT`` on one side of ``naive``, ``naive`` included."""
+        nudge = datetime.timedelta(microseconds=1)
+        cron = croniter(self._expression, start_time=naive + nudge if before else naive - nudge)
+        step = cron.get_prev if before else cron.get_next
+        localized: list[DateTime] = []
+        tick = step(datetime.datetime)
+        while abs(tick - naive) <= _MAX_DST_SHIFT:
+            localized += _localize_all_folds(tick, self._timezone)
+            tick = step(datetime.datetime)
+        return localized
+
+    def _localize_if_unambiguous(
+        self, naive: datetime.datetime, scheduled: datetime.datetime
+    ) -> DateTime | None:
+        """
+        Localize ``scheduled`` when neither it nor ``naive`` is ambiguous, else return ``None``.
+
+        croniter yields ticks in wall-clock order, so none lies between ``naive`` and ``scheduled``;
+        a fold or gap between them holds no tick, and localizing an unambiguous wall-clock time is
+        exact. An earlier tick can only cross ``current`` through a fold at ``naive`` itself, and a
+        fold or gap at ``scheduled`` has two or no instants; those cases are left to the fold search.
+        """
+        if len(_localize_all_folds(naive, self._timezone)) != 1:
+            return None
+        localized = _localize_all_folds(scheduled, self._timezone)
+        return localized[0] if len(localized) == 1 else None
+
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
@@ -162,8 +211,16 @@ class CronMixin:
             assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta)
+
+        if (exact := self._localize_if_unambiguous(naive, scheduled)) is not None:
+            return exact
+        # Ticks within ``_MAX_DST_SHIFT`` before ``naive`` may have a later fold occurrence after ``current``.
+        candidates = [c for c in self._localized_ticks_within_limit(naive, before=True) if c > current]
+        # croniter is strictly increasing on naive wall clock and DST gaps are finite, so a
+        # candidate strictly after ``current`` is reached in finitely many steps.
+        while not (forward := [c for c in _localize_all_folds(scheduled, self._timezone) if c > current]):
+            scheduled = cron.get_next(datetime.datetime)
+        return min(candidates + forward)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule strictly before specified time, with DST fixed."""
@@ -181,8 +238,12 @@ class CronMixin:
                 scheduled = cron.get_prev(datetime.datetime)
                 prev = convert_to_utc(make_aware(scheduled, self._timezone))
             return prev
-        delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta)
+        if (exact := self._localize_if_unambiguous(naive, scheduled)) is not None:
+            return exact
+        candidates = [c for c in self._localized_ticks_within_limit(naive, before=False) if c < current]
+        while not (backward := [c for c in _localize_all_folds(scheduled, self._timezone) if c < current]):
+            scheduled = cron.get_prev(datetime.datetime)
+        return max(candidates + backward)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """

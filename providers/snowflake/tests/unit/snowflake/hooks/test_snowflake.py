@@ -27,14 +27,16 @@ from unittest import mock
 from unittest.mock import Mock, PropertyMock
 
 import pytest
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from requests.exceptions import ConnectionError, HTTPError
+from snowflake.connector.cursor import SnowflakeCursor
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _is_connector_5_or_later
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -73,6 +75,40 @@ CONN_PARAMS_OAUTH = CONN_PARAMS_OAUTH_BASE | {"refresh_token": "secrettoken"}
 
 
 @pytest.fixture
+def connector_5():
+    with mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake._is_connector_5_or_later",
+        autospec=True,
+        return_value=True,
+    ):
+        yield
+
+
+@pytest.fixture
+def connector_before_5():
+    with mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake._is_connector_5_or_later",
+        autospec=True,
+        return_value=False,
+    ):
+        yield
+
+
+def _get_conn_connect_kwargs(extra: dict[str, Any]) -> dict[str, Any]:
+    """Return the kwargs ``SnowflakeHook.get_conn`` passes to ``snowflake.connector.connect``."""
+    connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+    connection_kwargs["extra"].update(extra)
+
+    with (
+        mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+        mock.patch("snowflake.connector.connect") as mock_connect,
+    ):
+        SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
+    return dict(mock_connect.call_args.kwargs)
+
+
+@pytest.fixture
 def unencrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
@@ -104,6 +140,20 @@ def encrypted_temporary_private_key(tmp_path: Path) -> Path:
 @pytest.fixture
 def base64_encoded_encrypted_private_key(encrypted_temporary_private_key: Path) -> str:
     return base64.b64encode(encrypted_temporary_private_key.read_bytes()).decode("utf-8")
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [
+        pytest.param((3, 17, 0, None), False, id="3.17"),
+        pytest.param((4, 8, 0, None), False, id="4.8"),
+        pytest.param((5, 0, 0, None), True, id="5.0"),
+        pytest.param((5, 1, 0, None), True, id="5.1"),
+    ],
+)
+def test_is_connector_5_or_later(version, expected):
+    with mock.patch("snowflake.connector.version.VERSION", version):
+        assert _is_connector_5_or_later() is expected
 
 
 class TestPytestSnowflakeHook:
@@ -836,6 +886,7 @@ class TestPytestSnowflakeHook:
                 == "PARTNER_NAME"
             )
 
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_conn_should_call_connect(self):
         with (
             mock.patch.dict(
@@ -848,6 +899,108 @@ class TestPytestSnowflakeHook:
             mock_connect.assert_called_once_with(**hook._get_conn_params())
             assert mock_connect.return_value == conn
 
+    @pytest.mark.parametrize(
+        ("extra", "expected_account", "expected_host"),
+        [
+            pytest.param({"region": ""}, "airflow", None, id="no-region"),
+            pytest.param(
+                {"region": "us-east-2.aws"},
+                "airflow",
+                "airflow.us-east-2.aws.snowflakecomputing.com",
+                id="region",
+            ),
+            pytest.param(
+                {"region": "cn-north-1.aws"},
+                "airflow",
+                "airflow.cn-north-1.aws.snowflakecomputing.cn",
+                id="china-region",
+            ),
+            pytest.param(
+                {"account": "airflow.eu-west-1", "region": "us-east-2.aws"},
+                "airflow",
+                "airflow.us-east-2.aws.snowflakecomputing.com",
+                id="region-replaces-account-region",
+            ),
+            pytest.param({"region": "us-west-2"}, "airflow", None, id="default-region"),
+            pytest.param(
+                {"region": "us-east-2.aws", "host": "localhost"},
+                "airflow",
+                "localhost",
+                id="explicit-host-ignores-region",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("connector_5")
+    def test_get_conn_on_connector_5_builds_host_from_region(self, extra, expected_account, expected_host):
+        connect_kwargs = _get_conn_connect_kwargs(extra)
+
+        assert "region" not in connect_kwargs
+        assert connect_kwargs["account"] == expected_account
+        assert connect_kwargs.get("host") == expected_host
+
+    @pytest.mark.usefixtures("connector_5")
+    def test_get_conn_on_connector_5_rejects_region_that_changes_host(self):
+        with pytest.raises(ValueError, match="Invalid Snowflake region"):
+            _get_conn_connect_kwargs({"region": "evil.example/x"})
+
+    @pytest.mark.parametrize(
+        ("extra", "expected"),
+        [
+            pytest.param({}, True, id="unset-keeps-earlier-behaviour"),
+            pytest.param({"enable_server_session_keep_alive_auto_detection": False}, False, id="false"),
+            pytest.param({"enable_server_session_keep_alive_auto_detection": "false"}, False, id="false-str"),
+            pytest.param({"enable_server_session_keep_alive_auto_detection": True}, True, id="true"),
+        ],
+    )
+    @pytest.mark.usefixtures("connector_5")
+    def test_get_conn_on_connector_5_sets_logout_auto_detection(self, extra, expected):
+        connect_kwargs = _get_conn_connect_kwargs(extra)
+
+        assert connect_kwargs["enable_server_session_keep_alive_auto_detection"] is expected
+
+    @pytest.mark.usefixtures("connector_before_5")
+    def test_get_conn_before_connector_5_drops_logout_auto_detection(self):
+        connect_kwargs = _get_conn_connect_kwargs({"enable_server_session_keep_alive_auto_detection": False})
+
+        assert "enable_server_session_keep_alive_auto_detection" not in connect_kwargs
+
+    @pytest.mark.parametrize(
+        ("extra", "engine_kwargs", "expected"),
+        [
+            pytest.param({}, None, True, id="unset"),
+            pytest.param(
+                {"enable_server_session_keep_alive_auto_detection": False}, None, False, id="connection-false"
+            ),
+            pytest.param(
+                {},
+                {"connect_args": {"enable_server_session_keep_alive_auto_detection": False}},
+                False,
+                id="caller-false",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("connector_5")
+    def test_get_sqlalchemy_engine_on_connector_5_passes_logout_auto_detection(
+        self, extra, engine_kwargs, expected
+    ):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"].update(extra)
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch(
+                "airflow.providers.snowflake.hooks.snowflake.create_engine", autospec=True
+            ) as mock_create_engine,
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
+
+        mock_create_engine.assert_called_once_with(
+            "snowflake://user:pw@airflow.af_region/db/public"
+            "?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh",
+            connect_args={"enable_server_session_keep_alive_auto_detection": expected},
+        )
+
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
         with (
             mock.patch.dict(
@@ -863,6 +1016,7 @@ class TestPytestSnowflakeHook:
             )
             assert mock_create_engine.return_value == conn
 
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_sqlalchemy_engine_should_support_insecure_mode(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["extra__snowflake__insecure_mode"] = "True"
@@ -880,6 +1034,7 @@ class TestPytestSnowflakeHook:
             )
             assert mock_create_engine.return_value == conn
 
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_sqlalchemy_engine_should_support_json_result_force_utf8_decoding(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["extra__snowflake__json_result_force_utf8_decoding"] = "True"
@@ -897,6 +1052,7 @@ class TestPytestSnowflakeHook:
             )
             assert mock_create_engine.return_value == conn
 
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_sqlalchemy_engine_should_support_session_parameters(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["session_parameters"] = {"TEST_PARAM": "AA", "TEST_PARAM_B": 123}
@@ -928,6 +1084,7 @@ class TestPytestSnowflakeHook:
             assert "private_key" in mock_create_engine.call_args.kwargs["connect_args"]
             assert mock_create_engine.return_value == conn
 
+    @pytest.mark.usefixtures("connector_before_5")
     def test_get_sqlalchemy_engine_should_support_ocsp_fail_open(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["ocsp_fail_open"] = "False"
@@ -1179,6 +1336,40 @@ class TestPytestSnowflakeHook:
 
         conn.autocommit.assert_called_once_with(False)
 
+    @pytest.mark.parametrize(
+        ("hook_kwargs", "extra"),
+        [
+            pytest.param({"session_parameters": {"QUERY_TAG": "airflow"}}, {}, id="hook"),
+            pytest.param({}, {"session_parameters": {"QUERY_TAG": "airflow"}}, id="connection"),
+        ],
+    )
+    @mock.patch("snowflake.connector.SnowflakeConnection", autospec=True)
+    def test_run_keeps_transaction_when_connect_merges_session_parameters(
+        self, mock_connection_class, hook_kwargs, extra
+    ):
+        """The connector merges the server's AUTOCOMMIT into the session_parameters dict it receives."""
+        conn = mock_connection_class.return_value
+        cur = mock.MagicMock(spec=SnowflakeCursor, rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+        def connect(**kwargs):
+            kwargs["session_parameters"].update({"AUTOCOMMIT": True})
+            return conn
+
+        mock_connection_class.side_effect = connect
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"].update(extra)
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook(**hook_kwargs)
+            hook.run("DELETE FROM t; INSERT INTO t VALUES (1);", autocommit=False)
+
+        conn.autocommit.assert_called_once_with(False)
+        conn.commit.assert_called_once_with()
+
     def test_get_openlineage_default_schema_with_no_schema_set(self):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,
@@ -1218,7 +1409,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1230,6 +1424,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result == OperatorLineage(
@@ -1243,7 +1439,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1255,6 +1454,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result is None
@@ -1265,15 +1466,17 @@ class TestPytestSnowflakeHook:
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
         hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.16.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
         with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
             hook.get_openlineage_database_specific_lineage(mock.MagicMock())
 
     @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
+    @pytest.mark.usefixtures("connector_5")
     @mock.patch("snowflake.snowpark.Session.builder")
     def test_get_snowpark_session(self, mock_session_builder):
         from airflow import __version__ as airflow_version
@@ -1289,7 +1492,22 @@ class TestPytestSnowflakeHook:
             session = hook.get_snowpark_session()
             assert session == mock_session
 
-            mock_session_builder.configs.assert_called_once_with(hook._get_conn_params())
+            mock_session_builder.configs.assert_called_once_with(
+                {
+                    "account": "airflow",
+                    "application": "AIRFLOW",
+                    "authenticator": "snowflake",
+                    "database": "db",
+                    "enable_server_session_keep_alive_auto_detection": True,
+                    "host": "airflow.af_region.snowflakecomputing.com",
+                    "password": "pw",
+                    "role": "af_role",
+                    "schema": "public",
+                    "session_parameters": None,
+                    "user": "user",
+                    "warehouse": "af_wh",
+                }
+            )
 
             # Verify that update_query_tag was called with the expected tag dictionary
             mock_session.update_query_tag.assert_called_once_with(
@@ -1555,6 +1773,131 @@ class TestPytestSnowflakeHook:
 
         assert called_data["scope"] == "default"
         assert called_data["grant_type"] == "client_credentials"
+
+    @mock.patch("requests.post")
+    def test_get_oauth_token_with_password_grant_type(self, mock_requests_post):
+        """
+        Verify that `get_oauth_token` returns an access token and includes the
+        provided required parameters for password type of grant in the outgoing OAuth request payload.
+        """
+
+        mock_requests_post.return_value = Mock(
+            spec=requests.Response,
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "token_endpoint": "https://localhost",
+                "oauth_username": "user1",
+                "oauth_password": "password1",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token(grant_type="password")
+
+        assert token == "dummy_token"
+
+        called_data = mock_requests_post.call_args.kwargs["data"]
+
+        assert called_data["grant_type"] == "password"
+        assert called_data["username"] == "user1"
+        assert called_data["password"] == "password1"
+
+    @mock.patch("requests.post")
+    def test_get_conn_params_removes_oauth_credentials_for_password_grant(self, mock_requests_post):
+        """
+        Verify that `_get_conn_params` strips oauth_username and oauth_password
+        after obtaining the OAuth token (they must not leak into the connector params).
+        """
+        mock_requests_post.return_value = Mock(
+            spec=requests.Response,
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "token_endpoint": "https://localhost",
+                "oauth_username": "user1",
+                "oauth_password": "password1",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params()
+
+        assert "oauth_username" not in conn_params
+        assert "oauth_password" not in conn_params
+        assert conn_params.get("token") == "dummy_token"
+
+    @pytest.mark.parametrize(
+        ("missing_extra", "expected_message"),
+        [
+            (
+                "oauth_password",
+                "Resource owner user password must be provided for password grant type",
+            ),
+            (
+                "oauth_username",
+                "Resource owner user name must be provided for password grant type",
+            ),
+            (
+                "token_endpoint",
+                "Token endpoint must be provided for password grant type",
+            ),
+        ],
+    )
+    def test_get_conn_params_should_fail_on_missing_oauth_credential__or_endpoint_for_password_grant(
+        self, missing_extra, expected_message
+    ):
+        extra = {
+            "database": "db",
+            "account": "airflow",
+            "warehouse": "af_wh",
+            "region": "af_region",
+            "role": "af_role",
+            "authenticator": "oauth",
+            "grant_type": "password",
+            "token_endpoint": "https://localhost",
+            "oauth_username": "test1",
+            "oauth_password": "pass1",
+        }
+        extra.pop(missing_extra)
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": extra,
+        }
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            pytest.raises(ValueError, match=expected_message),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
     @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):
@@ -1915,3 +2258,110 @@ class TestPytestSnowflakeHook:
 
         assert "token" not in conn_params
         assert "token_file_path" not in conn_params
+
+    def test_get_conn_params_pat_authenticator_passes_password_as_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = "pat-value"
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["token"] == "pat-value"
+        assert conn_params["password"] == "pat-value"
+
+    def test_get_conn_params_default_authenticator_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["password"] == "pw"
+        assert "token" not in conn_params
+
+    def test_get_conn_params_pat_authenticator_without_password_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = ""
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "token" not in conn_params
+
+
+class TestAccountIdentifierValidation:
+    """``account`` and ``region`` are interpolated into the Snowflake REST URLs.
+
+    Both are therefore restricted to the characters a Snowflake account or region
+    identifier is actually made of, so neither can carry URL-significant punctuation
+    into the address the request is sent to.
+    """
+
+    @staticmethod
+    def _identifier(account: str, region: str = "") -> str:
+        with mock.patch.object(
+            SnowflakeHook, "_get_conn_params", return_value={"account": account, "region": region}
+        ):
+            return SnowflakeHook(snowflake_conn_id="test_conn").account_identifier
+
+    @pytest.mark.parametrize(
+        ("account", "region", "expected"),
+        [
+            ("airflow", "", "https://airflow"),
+            ("airflow", "us-east-1", "https://airflow.us-east-1"),
+            ("my_org-my_account", "", "https://my_org-my_account"),
+            ("acct.us-east-1.aws", "", "https://acct.us-east-1.aws"),
+        ],
+    )
+    def test_identifiers_are_passed_through(self, account, region, expected):
+        assert self._identifier(account, region) == expected
+
+    @pytest.mark.parametrize(
+        "account",
+        [
+            "acct.example.com/x",
+            "acct/../other",
+            "acct?x=1",
+            "acct#fragment",
+            "acct:8080",
+            "acct@elsewhere",
+            "acct\\x",
+            "acct x",
+        ],
+    )
+    def test_account_outside_identifier_charset_is_rejected(self, account):
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            self._identifier(account)
+
+    @pytest.mark.parametrize("region", ["us-east-1/x", "r?x", "r@h", "r:1"])
+    def test_region_outside_identifier_charset_is_rejected(self, region):
+        with pytest.raises(ValueError, match="Invalid Snowflake region"):
+            self._identifier("airflow", region)
+
+    def test_empty_account_is_rejected(self):
+        """An empty account produced a meaningless host rather than an error."""
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            self._identifier("")
+
+    @mock.patch("requests.post")
+    def test_oauth_token_url_rejects_account_outside_charset(self, requests_post):
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            hook.get_oauth_token(conn_config=conn_config)
+
+        requests_post.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    def test_oauth_token_endpoint_bypasses_account_validation(self, requests_post, mock_auth):
+        """An explicit ``token_endpoint`` replaces the account-derived URL entirely."""
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        requests_post.return_value.status_code = 200
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        hook.get_oauth_token(conn_config=conn_config, token_endpoint="https://example.com/oauth/token")
+
+        assert requests_post.call_args.args[0] == "https://example.com/oauth/token"

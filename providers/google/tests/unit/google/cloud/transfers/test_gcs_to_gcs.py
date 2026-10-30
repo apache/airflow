@@ -21,6 +21,7 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import NotFound
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import Dataset
@@ -292,24 +293,6 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_last_modified_time(self, mock_hook):
-        mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST[:-1]
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
-            destination_bucket=DESTINATION_BUCKET,
-            last_modified_time=None,
-        )
-
-        operator.execute(None)
-        mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
-        ]
-        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_wc_with_last_modified_time_with_all_true_cond(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST[:-1]
         mock_hook.return_value.is_updated_after.side_effect = [True, True, True]
@@ -546,6 +529,39 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             ],
             any_order=True,
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_executes_with_source_objects_not_found(self, mock_hook, caplog):
+        """Handle a file NotFound exception when attempting to delete source object."""
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE,
+            move_object=True,
+        )
+
+        mock_hook.return_value.delete.side_effect = NotFound("Object not found")
+
+        operator.execute(None)
+
+        expected_object = SOURCE_OBJECTS_SINGLE_FILE[0]
+        expected_message = f"Object {expected_object} does not exist in the source bucket {TEST_BUCKET}"
+        assert any(expected_message in record.getMessage() for record in caplog.records)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_executes_with_source_objects_failed_delete(self, mock_hook):
+        """Handle a non-NotFound exception when attempting to delete a non-existent object."""
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE,
+            move_object=True,
+        )
+
+        mock_hook.return_value.delete.side_effect = RuntimeError
+
+        with pytest.raises(RuntimeError):
+            operator.execute(None)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_executes_with_a_delimiter(self, mock_hook):

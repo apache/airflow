@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import copy
+import json
+from dataclasses import dataclass
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -50,21 +52,45 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
     XComCreateBody,
+    XComResponse,
     XComResponseNative,
     XComResponseString,
     XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskScopeDep, resolve_task_scope
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
 from airflow.models.dag import DagModel
-from airflow.models.xcom import XComModel
+from airflow.models.dynamic_region import LOOP_XCOM_PREFIX
+from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XComModel, build_xcom_read_query, select_producers, xcom_entity
+from airflow.serialization.stringify import stringify as stringify_xcom
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
 )
+
+
+@dataclass(frozen=True)
+class XComEntryOptions:
+    """Query options of ``get_xcom_entry``, declared after the scope so their spec order follows the scope's."""
+
+    deserialize: bool
+    stringify: bool
+
+
+def _get_xcom_entry_options(
+    deserialize: Annotated[bool, Query()] = False,
+    stringify: Annotated[bool, Query()] = False,
+) -> XComEntryOptions:
+    return XComEntryOptions(deserialize=deserialize, stringify=stringify)
+
+
+XComEntryOptionsDep = Annotated[XComEntryOptions, Depends(_get_xcom_entry_options)]
 
 
 @xcom_router.get(
@@ -73,6 +99,7 @@ xcom_router = AirflowRouter(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.XCOM))],
@@ -83,66 +110,59 @@ def get_xcom_entry(
     dag_run_id: str,
     xcom_key: str,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
-    deserialize: Annotated[bool, Query()] = False,
-    stringify: Annotated[bool, Query()] = False,
+    scope: TaskScopeDep,
+    options: XComEntryOptionsDep,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
-    xcom_query = XComModel.get_many(
+    deserialize = options.deserialize
+    stringify = options.stringify
+    xcom_read = XComModel.get_many(
         run_id=dag_run_id,
         key=xcom_key,
         task_ids=task_id,
         dag_ids=dag_id,
-        map_indexes=map_index,
-        limit=1,
-    ).options(
-        joinedload(XComModel.task),
-        joinedload(XComModel.dag_run).joinedload(DR.dag_model),
-        *eager_load_teams(XComModel.dag_run, DR.dag_model),
+        map_indexes=scope.region_index,
+        region_id=scope.region_id,
+    )
+    entity = xcom_entity(xcom_read)
+    xcom_query = xcom_read.options(
+        joinedload(entity.task),
+        joinedload(entity.dag_run).joinedload(DR.dag_model),
+        *eager_load_teams(entity.dag_run, DR.dag_model),
     )
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    raw_result: tuple[XComModel] | None = session.scalars(xcom_query).first()
+    raw_result = session.execute(xcom_query.add_columns(public_map_index_expression(entity)).limit(1)).first()
 
     if raw_result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
-    result = raw_result[0] if isinstance(raw_result, tuple) else raw_result
+    result, public_map_index = raw_result
 
-    item = copy.copy(result)
+    value = result.value
 
     if deserialize:
-        # Custom XCom backends may store references (eg: object storage paths) in the database.
-        # The custom XCom backend's deserialize_value() resolves these to actual values, but that is only
-        # used on workers during task execution. The API reads directly from the database and uses
-        # stringify() to convert DB values (references or serialized data) to human readable
-        # format for UI display or for API users.
-        import json
-
-        from airflow.serialization.stringify import (
-            StringifyNotSupportedError,
-            stringify as stringify_xcom,
-        )
-
+        # The value is rendered from what is stored in the database: no XCom backend is involved and no
+        # object is reconstructed from it. A custom backend may store a reference (eg: an object
+        # storage path) there; only workers resolve it into the actual value.
         try:
             parsed_value = json.loads(result.value)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
             parsed_value = result.value
-
-        try:
-            item.value = stringify_xcom(parsed_value)
-        except StringifyNotSupportedError:
-            item.value = XComModel.deserialize_value(result)
+        value = stringify_xcom(parsed_value)
     else:
         # For native format, return the raw serialized value from the database
         # This preserves the JSON string format that the API expects
-        item.value = result.value
+        value = result.value
 
+    data = XComResponseNative.model_validate(result).model_dump()
+    data["value"] = value
+    data["map_index"] = public_map_index
     if stringify:
-        return XComResponseString.model_validate(item)
-    return XComResponseNative.model_validate(item)
+        return XComResponseString.model_validate(data)
+    return XComResponseNative.model_validate(data)
 
 
 @xcom_router.get(
@@ -173,50 +193,96 @@ def get_xcom_entries(
     task_id_prefix_pattern: QueryXComTaskIdPrefixPatternSearch,
     map_index_filter: Annotated[
         FilterParam[int | None],
-        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index_filter")),
+        Depends(
+            filter_param_factory(
+                XComModel.map_index,  # xcom-model-column: allow
+                int | None,
+                filter_name="map_index_filter",
+            )
+        ),
     ],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
-    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(XComModel.dag_id))],
+    teams: Annotated[
+        _DagIdTeamsFilter,
+        Depends(teams_filter_factory(XComModel.dag_id)),  # xcom-model-column: allow
+    ],
     order_by: Annotated[
         SortParam,
         Depends(
             SortParam(
-                ["key", "dag_id", "run_id", "task_id", "map_index", "timestamp"],
+                ["key", "dag_id", "run_id", "task_id", "map_index", "region_id", "region_index", "timestamp"],
                 XComModel,
                 to_replace={"run_after": DR.run_after},
-            ).dynamic_depends(default=("dag_id", "task_id", "run_id", "map_index", "key"))
+            ).dynamic_depends(default=("dag_id", "task_id", "run_id", "region_id", "region_index", "key"))
         ),
     ],
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
+    exclude_internal_keys: Annotated[
+        bool,
+        Query(
+            description="Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons."
+        ),
+    ] = False,
 ) -> XComCollectionResponse:
     """
     Get all XCom entries.
 
     This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
     """
-    query = select(XComModel)
+    if region_index is not None and region_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
+    xcom_read = build_xcom_read_query(
+        producer_ids=select_producers(
+            dag_ids=None if dag_id == "~" else dag_id,
+            run_id=None if dag_run_id == "~" else dag_run_id,
+            task_ids=None if task_id == "~" else task_id,
+            map_indexes=region_index,
+            region_id=region_id,
+        ),
+        key=xcom_key,
+    )
+    query, entity = xcom_read, xcom_entity(xcom_read)
+    public_map_index = public_map_index_expression(entity)
+    readable_xcom_filter.entity = entity
+    for parameter, name in (
+        (xcom_key_pattern, "key"),
+        (xcom_key_prefix_pattern, "key"),
+        (run_id_pattern, "run_id"),
+        (run_id_prefix_pattern, "run_id"),
+        (task_id_pattern, "task_id"),
+        (task_id_prefix_pattern, "task_id"),
+    ):
+        parameter.attribute = getattr(entity, name)
+    map_index_filter.attribute = public_map_index  # type: ignore[assignment]
+    teams.dag_id_attribute = entity.dag_id
+    order_by.model = entity
+    order_by.to_replace = {**(order_by.to_replace or {}), "map_index": public_map_index}
     if dag_id != "~":
-        query = query.where(XComModel.dag_id == dag_id)
+        query = query.where(entity.dag_id == dag_id)
     query = (
-        query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
+        query.join(DR, and_(entity.dag_id == DR.dag_id, entity.run_id == DR.run_id))
         .join(DagModel, DR.dag_id == DagModel.dag_id)
         .options(
-            joinedload(XComModel.task),
-            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
-            *eager_load_teams(XComModel.dag_run, DR.dag_model),
+            joinedload(entity.task),
+            joinedload(entity.dag_run).joinedload(DR.dag_model),
+            *eager_load_teams(entity.dag_run, DR.dag_model),
         )
     )
 
     if task_id != "~":
-        query = query.where(XComModel.task_id == task_id)
+        query = query.where(entity.task_id == task_id)
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
     if map_index is not None:
-        query = query.where(XComModel.map_index == map_index)
+        query = query.where(public_map_index == map_index)
     if xcom_key is not None:
-        query = query.where(XComModel.key == xcom_key)
+        query = query.where(entity.key == xcom_key)
+    if exclude_internal_keys:
+        query = query.where(~entity.key.startswith(LOOP_XCOM_PREFIX, autoescape=True))
 
     query, total_entries = paginated_select(
         statement=query,
@@ -240,7 +306,18 @@ def get_xcom_entries(
         limit=limit,
         session=session,
     )
-    return XComCollectionResponse(xcom_entries=session.scalars(query), total_entries=total_entries)
+    entries = []
+    for row, row_map_index in session.execute(query.add_columns(public_map_index)):
+        response = XComResponse.model_validate(row)
+        response.map_index = row_map_index
+        entries.append(response)
+    return XComCollectionResponse(xcom_entries=entries, total_entries=total_entries)
+
+
+def _reject_reserved_loop_key(key: str) -> None:
+    # Loop gates write these keys through the Execution API, which validates their values.
+    if key.startswith(LOOP_XCOM_PREFIX):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
 
 
 @xcom_router.post(
@@ -269,6 +346,8 @@ def create_xcom_entry(
     """Create an XCom entry."""
     from airflow.models.dagrun import DagRun
 
+    _reject_reserved_loop_key(request_body.key)
+
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate Dag ID
     dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
@@ -287,15 +366,26 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
         )
 
+    scope = resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        resolver=TaskCoordinateResolver(dag_bag, session),
+        map_index=request_body.map_index,
+        region_id=request_body.region_id,
+        region_index=request_body.region_index,
+    )
+
     # Check existing XCom
-    already_existing_query = XComModel.get_many(
+    xcom_read = XComModel.get_many(
         key=request_body.key,
         task_ids=task_id,
         dag_ids=dag_id,
         run_id=dag_run_id,
-        map_indexes=request_body.map_index,
+        map_indexes=scope.region_index,
+        region_id=scope.region_id,
     )
-    result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
+    result = session.execute(xcom_read.with_only_columns(xcom_entity(xcom_read).value).limit(1)).first()
     if result:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -309,7 +399,8 @@ def create_xcom_entry(
             dag_id=dag_id,
             task_id=task_id,
             run_id=dag_run_id,
-            map_index=request_body.map_index,
+            map_index=scope.region_index,
+            region_id=scope.region_id,
             serialize=False,
             session=session,
         )
@@ -318,24 +409,20 @@ def create_xcom_entry(
             status.HTTP_400_BAD_REQUEST, f"Couldn't serialise the XCom with key: `{request_body.key}`"
         ) from e
 
-    xcom = session.scalar(
-        select(XComModel)
-        .where(
-            XComModel.dag_id == dag_id,
-            XComModel.task_id == task_id,
-            XComModel.run_id == dag_run_id,
-            XComModel.key == request_body.key,
-            XComModel.map_index == request_body.map_index,
-        )
+    entity = xcom_entity(xcom_read)
+    xcom, public_map_index = session.execute(
+        xcom_read.add_columns(public_map_index_expression(entity))
         .limit(1)
         .options(
-            joinedload(XComModel.task),
-            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
-            *eager_load_teams(XComModel.dag_run, DR.dag_model),
+            joinedload(entity.task),
+            joinedload(entity.dag_run).joinedload(DR.dag_model),
+            *eager_load_teams(entity.dag_run, DR.dag_model),
         )
-    )
+    ).one()
 
-    return XComResponseNative.model_validate(xcom)
+    response = XComResponseNative.model_validate(xcom)
+    response.map_index = public_map_index
+    return response
 
 
 @xcom_router.patch(
@@ -345,6 +432,7 @@ def create_xcom_entry(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ]
     ),
     dependencies=[
@@ -360,24 +448,32 @@ def update_xcom_entry(
     patch_body: XComUpdateBody,
     *,
     session: SessionDep,
+    dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
-    # Check if XCom entry exists
-    xcom_query = (
-        select(XComModel)
-        .where(
-            XComModel.dag_id == dag_id,
-            XComModel.task_id == task_id,
-            XComModel.run_id == dag_run_id,
-            XComModel.key == xcom_key,
-            XComModel.map_index == patch_body.map_index,
-        )
-        .limit(1)
-        .options(
-            joinedload(XComModel.task),
-            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
-            *eager_load_teams(XComModel.dag_run, DR.dag_model),
-        )
+    _reject_reserved_loop_key(xcom_key)
+    scope = resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        resolver=TaskCoordinateResolver(dag_bag, session),
+        map_index=patch_body.map_index,
+        region_id=patch_body.region_id,
+        region_index=patch_body.region_index,
+    )
+    xcom_read = XComModel.get_many(
+        dag_ids=dag_id,
+        task_ids=task_id,
+        run_id=dag_run_id,
+        key=xcom_key,
+        map_indexes=scope.region_index,
+        region_id=scope.region_id,
+    )
+    entity = xcom_entity(xcom_read)
+    xcom_query = xcom_read.options(
+        joinedload(entity.task),
+        joinedload(entity.dag_run).joinedload(DR.dag_model),
+        *eager_load_teams(entity.dag_run, DR.dag_model),
     )
     xcom_entry = session.scalar(xcom_query)
 
@@ -388,14 +484,13 @@ def update_xcom_entry(
         )
 
     try:
-        XComModel.set(
+        XComModel.set_for_attempt(
             key=xcom_key,
             value=patch_body.value,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=dag_run_id,
-            map_index=patch_body.map_index,
+            task_instance_id=xcom_entry.task_instance_id,
             serialize=False,
+            # Not recomputed from the new value: a custom XCom backend stores only a reference.
+            mapped_length=xcom_entry.mapped_length,
             session=session,
         )
     except (ValueError, TypeError) as e:
@@ -404,8 +499,12 @@ def update_xcom_entry(
         ) from e
 
     # Fetch after setting, to get fresh object for response
-    xcom_entry = session.scalar(xcom_query)
-    return XComResponseNative.model_validate(xcom_entry)
+    xcom_entry, public_map_index = session.execute(
+        xcom_query.add_columns(public_map_index_expression(entity))
+    ).one()
+    response = XComResponseNative.model_validate(xcom_entry)
+    response.map_index = public_map_index
+    return response
 
 
 @xcom_router.delete(
@@ -415,6 +514,7 @@ def update_xcom_entry(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ]
     ),
     dependencies=[
@@ -428,22 +528,25 @@ def delete_xcom_entry(
     dag_run_id: str,
     xcom_key: str,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
+    scope: TaskScopeDep,
 ):
     """Delete an XCom entry."""
-    # Delete XCom entry
-    result = session.execute(
-        delete(XComModel).where(
-            XComModel.dag_id == dag_id,
-            XComModel.task_id == task_id,
-            XComModel.run_id == dag_run_id,
-            XComModel.key == xcom_key,
-            XComModel.map_index == map_index,
-        )
+    read = XComModel.get_many(
+        dag_ids=dag_id,
+        task_ids=task_id,
+        run_id=dag_run_id,
+        key=xcom_key,
+        map_indexes=scope.region_index,
+        region_id=scope.region_id,
     )
-
-    if getattr(result, "rowcount", 0) == 0:
+    owner = session.scalar(read.with_only_columns(xcom_entity(read).task_instance_id))
+    if owner is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
+    XComModel.delete_for_attempts(
+        producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
+        key=xcom_key,
+        session=session,
+    )

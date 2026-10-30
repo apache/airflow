@@ -29,13 +29,13 @@ on:  # yamllint disable-line rule:truthy
         default: false
       limitPythonVersions:
         type: string
-        description: 'Force python versions (e.g. "3.10 3.11")'
+        description: 'Force python versions (e.g. "3.11 3.12")'
         default: ''
 permissions:
   contents: read
   packages: read
 concurrency:
-  group: ${{ github.event.inputs.airflowVersion }}
+  group: release-dockerhub-image-${{ github.event.inputs.airflowVersion }}
   cancel-in-progress: true
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ["ubuntu-24.04"]
+    runs-on: ["ubuntu-slim"]
     outputs:
       pythonVersions: ${{ steps.determine-python-versions.outputs.python-versions }}
       platformMatrix: ${{ steps.determine-matrix.outputs.platformMatrix }}
@@ -81,17 +81,14 @@ jobs:
           echo "Airflow version: '${AIRFLOW_VERSION}'"
           echo "AMD only: '${AMD_ONLY}'"
           echo "Limit python versions: '${LIMIT_PYTHON_VERSIONS}'"
-      - name: "Cleanup repo"
-        shell: bash
-        run: >
-          sudo rm -rf ${GITHUB_WORKSPACE}/*
-
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
       - name: "Save github context to file"
         # See ci-amd.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
         # github context to a file, and the single-quoted heredoc makes the zizmor

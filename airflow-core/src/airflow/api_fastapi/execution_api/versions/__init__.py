@@ -44,6 +44,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddAssetsByAliasEndpoint,
     AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
+    AddConsumedAssetEventPartitionKeyField,
     AddPartitionDateField,
     AddRetryPolicyFields,
     AddTaskAndAssetStateStoreEndpoints,
@@ -54,11 +55,43 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
+    AddDagRunNoteUpdateEndpoint,
+    AddExecutionTimeoutToTIRunContext,
+    AddExpandedTICountToTIRunContext,
+    AddFirstTaskRescheduleStartDateField,
+    AddLoopContext,
+    AddLoopDecisionField,
+    AddMultiTeamToTIRunContext,
+    AddStoppedTaskReport,
+    AddTaskInstanceRegionCoordinates,
+    AddTerminalStateRetryReasonField,
+    IdentifyArchivedTaskStateUpdates,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
+    AddPreviousIterationToXComFilterParams,
+)
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddDagProcessorJobEndpoints
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2026-10-30", AddArgBindingsToTIRunContext, AddCallbackRunEndpoint),
+    Version("2027-02-28", AddDagProcessorJobEndpoints),
+    Version(
+        "2026-10-30",
+        AddArgBindingsToTIRunContext,
+        AddCallbackRunEndpoint,
+        AddDagRunNoteUpdateEndpoint,
+        AddExecutionTimeoutToTIRunContext,
+        AddExpandedTICountToTIRunContext,
+        AddLoopContext,
+        AddLoopDecisionField,
+        AddTerminalStateRetryReasonField,
+        AddMultiTeamToTIRunContext,
+        AddPreviousIterationToXComFilterParams,
+        AddStoppedTaskReport,
+        AddTaskInstanceRegionCoordinates,
+        IdentifyArchivedTaskStateUpdates,
+        AddFirstTaskRescheduleStartDateField,
+    ),
     Version(
         "2026-06-30",
         AddVariableKeysEndpoint,
@@ -70,6 +103,7 @@ bundle = VersionBundle(
         AddTaskAndAssetStateStoreEndpoints,
         AddAssetsByAliasEndpoint,
         AddPartitionDateField,
+        AddConsumedAssetEventPartitionKeyField,
     ),
     Version(
         "2026-04-06",

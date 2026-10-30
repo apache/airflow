@@ -1,36 +1,59 @@
 {
-  "assetSchedule": "{{count}} von {{total}} Datensets (Assets) aktualisiert",
+  "assetSchedule": "{{count, number}} von {{total, number}} Datensets (Assets) aktualisiert",
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     }
   },
+  "draining": {
+    "badgeTooltip": "Dieses Dag pausiert sobald alle Läufe komplett sind.",
+    "label": "Auslaufend",
+    "tooltip": "Auslaufen {{dagDisplayName}} — pausiert wenn Dag Läufe komplett sind. Klicken zum Forstsetzen."
+  },
   "favoriteDag": "Dag als Favorit hinzufügen",
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
-    "anyRunState": "Beliebiger Lauf",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
-    "lastRunState": "Letzter Lauf",
+    "favoriteState": "Favorisierter Zustand",
+    "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
     "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     },
+    "pausedPlaceholder": "Pausierten Zustand auswählen…",
+    "pausedState": "Pausierter Zustand",
+    "requiresHitlAction": "Erfordert HITL-Aktion",
     "runIdPatternFilter": "Dag Läufe suchen",
+    "runState": "Lauf status",
+    "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
   },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Keine Ordner",
+    "hide": "Ordner ausblenden",
+    "show": "Ordner anzeigen",
+    "title": "Ordner"
+  },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Aufgabenstatus von allen Dag Läufen oder, wenn keines läuft, von dem letzten Lauf. Man kann dies in den Einstellungen abstellen.",
+    "label": "Letzte Aufgaben",
+    "loading": "Lade letzte Aufgabenstatuszähler",
+    "tooltip": "{{state}}: {{formattedCount}} — Klicken um Aufgaben zu filtern"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Keine Tasks gefunden.",
-      "title": "Betroffene Tasks: {{count}}"
+      "title": "Betroffene Tasks: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} zurücksetzen",
@@ -66,18 +89,23 @@
         "failed": "Umschalttaste+F tippen um als fehlgeschlagen zu markieren",
         "success": "Umschalttaste+S tippen um als erfolgreich zu markieren"
       },
+      "skippedInfo": "Eine Aufgabe als übersprungen zu markieren, zeigt, dass die Aufgabe absichtlich nicht ausgeführt wurde. Nachgeschaltete Aufgaben werden geprüft nach der Auslöseregel: mit der Standard-Regel \"alle_erfolgreich\" werden nachgeschaltete Aufgaben auch übersprungen. Nur Aufgaben die noch nicht gestartet wurden können übersprungen werden, nur diese Aufgaben sind betroffen.",
       "title": "{{type}} auf den Status {{state}} setzen"
     },
     "options": {
       "downstream": "Nachfolgende",
       "existingTasks": "Bestehende Tasks bereinigen",
       "future": "Zukünftige",
+      "keepTaskState": "Aufgabenstatus beim Neuversuch beibehalten",
+      "laterIterations": "Spätere Iterationen",
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
       "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
       "queueNew": "Neue Tasks einplanen",
       "runOnLatestVersion": "Mit neuester Bündel-Version ausführen",
-      "upstream": "Vorangegangene"
+      "runOnLatestVersionForced": "Verwendet immer die neueste Version — es gibt keine frühere Version, zu der zurückgekehrt werden kann",
+      "upstream": "Vorangegangene",
+      "wholeExpansion": "Komplette Erweiterungen"
     }
   },
   "runStateCounts": {
@@ -85,11 +113,23 @@
     "loading": "Laufstatuszahlen werden geladen",
     "tooltip": "{{state}}: {{formattedCount}} – klicken, um Läufe zu filtern"
   },
+  "schedulingActions": {
+    "cancelDrain": "Abbrechen auslaufen lassen",
+    "drain": "Auslaufen dann pausieren",
+    "drainPrompt": "Dieses Dag hat Läufe aktiv. Auslaufen lässt diese beenden bevor das Dag pausiert. Pausieren stoppt Planung sofort ohne auf Ergebnisse zu warten.",
+    "pauseNow": "Jetzt pausieren",
+    "pauseSelected": "Pausieren / Auslaufen"
+  },
+  "schedulingBanner": {
+    "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
+  },
   "search": {
     "advanced": "Erweiterte Suche",
     "clear": "Suche zurücksetzen",
+    "dagRuns": "Suche $t(common:dagRun_other)",
     "dags": "Dags suchen",
     "hotkey": "+K",
+    "mapIndexes": "Nach $t(common:mapIndex) suchen",
     "tasks": "Tasks suchen"
   },
   "sort": {

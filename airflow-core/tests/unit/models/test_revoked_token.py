@@ -16,17 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow.models.revoked_token import RevokedToken
 
 
 class TestRevokedTokenModel:
+    def test_jti_column_fits_external_issuer_identifiers(self):
+        """The ``jti`` column must hold identifiers longer than Airflow's own 32-char ``uuid4().hex``.
+
+        External identity providers (accepted via ``[api_auth] trusted_jwks_url``) mint ``jti``
+        claims such as 36-char RFC 4122 UUIDs; a 32-char column silently drops them on databases
+        that enforce length, so revocation never records them.
+        """
+        assert RevokedToken.__table__.c.jti.type.length == 255
+        assert len(str(uuid.uuid4())) <= RevokedToken.__table__.c.jti.type.length
+
     def test_revoke_inserts_row(self):
         """Test that revoke calls session.merge with a RevokedToken instance."""
         mock_session = MagicMock()
-        exp = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+        exp = datetime.now(tz=UTC) + timedelta(hours=1)
         RevokedToken.revoke("test-jti-123", exp, session=mock_session)
         mock_session.merge.assert_called_once()
         arg = mock_session.merge.call_args[0][0]

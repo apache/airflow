@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 def build_xoauth2_string(username: str, token: str) -> str:
-    """Local fallback for older Airflow cores (≤2.11)."""
+    """Local fallback for older Airflow versions (≤2.11)."""
     return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
@@ -82,11 +82,17 @@ class SmtpHook(BaseHook):
         return await self.aget_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._smtp_client.close()
+        try:
+            self._smtp_client.close()
+        finally:
+            self._smtp_client = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._smtp_client:
-            await self._smtp_client.quit()
+            try:
+                await self._smtp_client.quit()
+            finally:
+                self._smtp_client = None
 
     def _setup_oauth2(self) -> tuple[str, str]:
         """
@@ -171,10 +177,6 @@ class SmtpHook(BaseHook):
                     if attempt == self.smtp_retry_limit:
                         raise AirflowException("Unable to connect to smtp server")
                 else:
-                    if self.smtp_starttls:
-                        await async_client.starttls(tls_context=self._build_ssl_context())
-                        await async_client.ehlo()
-
                     # choose auth
                     if self.auth_type == "oauth2":
                         if not self._access_token:
@@ -220,6 +222,8 @@ class SmtpHook(BaseHook):
         if is_async:
             kwargs["hostname"] = self.host
             kwargs["use_tls"] = self.use_ssl
+            # aiosmtplib's connect() performs the STARTTLS upgrade with tls_context, so aget_conn
+            # must not call starttls() again: a second upgrade fails with "Connection already using TLS".
             kwargs["start_tls"] = self.smtp_starttls if not self.use_ssl else None
             kwargs["tls_context"] = self._build_ssl_context()
         else:

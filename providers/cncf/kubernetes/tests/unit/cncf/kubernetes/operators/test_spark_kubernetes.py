@@ -222,7 +222,14 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
 
 
-def test_init_spark_kubernetes_operator(data_file):
+@pytest.mark.parametrize(
+    ("container_logs", "expected_container_logs"),
+    [
+        pytest.param(None, "spark-kubernetes-driver", id="default"),
+        pytest.param(["sidecar"], ["spark-kubernetes-driver"], id="requested"),
+    ],
+)
+def test_init_spark_kubernetes_operator(data_file, container_logs, expected_container_logs):
     operator = SparkKubernetesOperator(
         task_id="task_id",
         application_file=data_file("spark/application_test.yaml").as_posix(),
@@ -231,10 +238,11 @@ def test_init_spark_kubernetes_operator(data_file):
         cluster_context="cluster_context",
         config_file="config_file",
         base_container_name="base",
+        container_logs=container_logs,
         get_logs=True,
     )
     assert operator.base_container_name == "spark-kubernetes-driver"
-    assert operator.container_logs == ["spark-kubernetes-driver"]
+    assert operator.container_logs == expected_container_logs
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
@@ -1333,7 +1341,9 @@ class TestSparkKubernetesOperator:
         context = create_context(op)
 
         mock_file = mock_open(read_data='{"a": "b"}')
-        mocker.patch("builtins.open", mock_file)
+        # Patch only the module that reads the kube config: a builtins.open patch would also feed this
+        # data to any module first imported during execute(), such as the metrics registry.
+        mocker.patch("airflow.providers.cncf.kubernetes.operators.pod.open", mock_file, create=True)
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context)

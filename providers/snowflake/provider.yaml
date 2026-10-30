@@ -23,12 +23,16 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1787011200
+source-date-epoch: 1792489528
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.20.0
+  - 6.19.0
+  - 6.18.0
+  - 6.17.0
   - 6.16.1
   - 6.16.0
   - 6.15.0
@@ -122,7 +126,7 @@ integrations:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst
-      - /docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst
+      - /docs/apache-airflow-providers-snowflake/operators/cortex_agent.rst
     logo: /docs/integration-logos/Snowflake.png
     tags: [service]
 
@@ -132,7 +136,7 @@ operators:
       - airflow.providers.snowflake.operators.snowflake
       - airflow.providers.snowflake.operators.snowpark
       - airflow.providers.snowflake.operators.snowpark_containers
-      - airflow.providers.snowflake.operators.snowflake_cortex_agent
+      - airflow.providers.snowflake.operators.cortex_agent
 
 task-decorators:
   - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
@@ -155,9 +159,10 @@ dataset-uris:
 hooks:
   - integration-name: Snowflake
     python-modules:
+      - airflow.providers.snowflake.hooks.cortex_model
       - airflow.providers.snowflake.hooks.snowflake
-      - airflow.providers.snowflake.hooks.snowflake_sql_api
-      - airflow.providers.snowflake.hooks.snowflake_cortex_agent
+      - airflow.providers.snowflake.hooks.sql_api
+      - airflow.providers.snowflake.hooks.cortex_agent
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
@@ -192,6 +197,8 @@ connection-types:
             "token_endpoint": "token endpoint",
             "refresh_token": "refresh token",
             "scope": "scope",
+            "oauth_username": "IdP resource owner user name (password grant type)",
+            "oauth_password": "IdP resource owner user password (password grant type)",
             "proxy_host": "proxy.example.com",
             "proxy_port": "8080",
             "proxy_user": "proxy_username",
@@ -270,6 +277,14 @@ connection-types:
             - boolean
             - 'null'
         description: Turns off OCSP certificate checks
+      enable_server_session_keep_alive_auto_detection:
+        label: Keep session while async queries run
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: true
+        description: Skip logout on close while async queries are running (snowflake-connector-python 5.0+)
       proxy_host:
         label: Proxy Host
         schema:
@@ -295,11 +310,51 @@ connection-types:
             - string
             - 'null'
           format: password
+  - hook-class-name: airflow.providers.snowflake.hooks.cortex_model.PydanticAISnowflakeHook
+    hook-name: "Pydantic AI (Snowflake Cortex)"
+    connection-type: pydanticai_snowflake
+    external-services:
+      - Snowflake Cortex
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - host
+        - password
+      relabeling: {}
+      placeholders:
+        extra: '{"model": "snowflake:claude-4-sonnet", "snowflake_conn_id": "snowflake_default"}'
+    conn-fields:
+      model:
+        label: Model
+        description: "Cortex model identifier (e.g. snowflake:claude-4-sonnet)"
+        schema:
+          type:
+            - string
+            - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+      snowflake_conn_id:
+        label: Snowflake Connection ID
+        description: "Connection ID of an existing Snowflake connection to source credentials from."
+        schema:
+          type:
+            - string
+            - 'null'
 
 triggers:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.triggers.snowflake_trigger
+      - airflow.providers.snowflake.triggers.snowpark_containers
 
 config:
   snowflake:

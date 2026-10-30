@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.callback import DEADLINE_CALLBACK_TYPES, AsyncCallback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -47,7 +47,8 @@ class BaseDeadlineReference(ABC):
     The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).  A custom
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body). Its
+    keyword-only ``dagrun`` parameter receives the DagRun being evaluated. A custom
     reference must be decorated with ``@deadline_reference`` and listed in the ``deadline_references``
     attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
@@ -151,16 +152,42 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta | VariableInterval,
-        callback: Callback,
+        callback: AsyncCallback | SyncCallback,
         name: str | None = None,
     ):
+        if isinstance(interval, (int, float)) and not isinstance(interval, bool):
+            # A bare number was never documented or type-hinted, but it parses today because this
+            # check did not exist, and the decoder still reads legacy rows stored as total_seconds().
+            # Normalize so Dags that parse today keep parsing, and warn so the accident does not
+            # become contract.  bool is excluded: it is an int subclass, so True would mean 1 second.
+            warnings.warn(
+                f"Passing a number as a deadline interval is deprecated and will be removed in a "
+                f"future release. Pass timedelta(seconds={interval}) instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            interval = timedelta(seconds=interval)
+        elif isinstance(interval, timedelta):
+            # serde dispatches on qualified class name and registers only datetime.timedelta, so a
+            # subclass such as pendulum.duration() would pass the check below and then fail there.
+            # Rebuilding timedelta subclasses into a timedelta keeps this to one path.
+            interval = timedelta(seconds=interval.total_seconds())
+
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
+            )
+
+        # Serializing blocks subclasses for security reasons, so isinstance is too loose.
+        if type(callback) not in DEADLINE_CALLBACK_TYPES:
+            raise ValueError(
+                f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
+            )
+
+        self.callback = callback
         self.reference = reference
         self.interval = interval
         self.name = name
-
-        if not isinstance(callback, (AsyncCallback, SyncCallback)):
-            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
-        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
@@ -186,8 +213,8 @@ class DeadlineReference:
     The public interface class for all DeadlineReference options.
 
     This class provides a unified interface for working with Deadlines, supporting both
-    calculated deadlines (which fetch values from the database) and fixed deadlines
-    (which return a predefined datetime).
+    calculated deadlines, including references to the DagRun being evaluated and
+    historical runtime data, and fixed deadlines (which return a predefined datetime).
 
     ------
     Usage:
@@ -214,17 +241,15 @@ class DeadlineReference:
            ),
        )
 
-    3. Evaluating deadlines will ignore unexpected parameters:
+    3. Custom references receive the DagRun being evaluated:
 
     .. code-block:: python
 
-       # For deadlines requiring parameters:
-       deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
-       deadline.evaluate_with(dag_id=dag.dag_id)
-
-       # For deadlines with no required parameters:
-       deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
-       deadline.evaluate_with()
+       class MyDeadlineReference(BaseDeadlineReference):
+           def _evaluate_with(self, *, session, dagrun):
+               # Add your business logic here; dagrun.logical_date is available to use.
+               my_datetime = my_business_logic(dagrun.logical_date)
+               return my_datetime
     """
 
     class TYPES:
@@ -369,11 +394,10 @@ def deadline_reference(deadline_reference_type=None):
         @deadline_reference()
         class MyCustomReference(BaseDeadlineReference):
             # By default, evaluate_with will be called when a new dagrun is created.
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                # Put your business logic here (use deferred imports for Core types)
-                from airflow.models import DagRun
-
-                return some_datetime
+            def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+                # Add your business logic here; dagrun.logical_date is available to use.
+                my_datetime = my_business_logic(dagrun.logical_date)
+                return my_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
@@ -382,9 +406,10 @@ def deadline_reference(deadline_reference_type=None):
         # Optionally, specify when it is calculated by providing a DeadlineReference.TYPES value.
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                # Put your business logic here
-                return some_datetime
+            def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+                # Add your business logic here; dagrun.queued_at is available to use.
+                my_datetime = my_business_logic(dagrun.queued_at)
+                return my_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
@@ -442,7 +467,7 @@ class VariableInterval:
         warnings.warn(
             "VariableInterval.resolve() is deprecated and will be removed in a future release. "
             "Deadline interval resolution is handled internally during deadline evaluation.",
-            DeprecationWarning,
+            RemovedInAirflow4Warning,
             stacklevel=2,
         )
 

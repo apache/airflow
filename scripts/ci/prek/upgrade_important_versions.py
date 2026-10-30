@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "packaging>=25",
 #   "pyyaml>=6.0.2",
@@ -33,11 +33,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -46,6 +47,7 @@ from common_prek_utils import (
     AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     console,
+    read_allowed_python_major_minor_versions,
     read_default_python_major_minor_version_for_images,
     retrieve_gh_token,
 )
@@ -77,6 +79,16 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "airflow_breeze"
         / "commands"
         / "release_management_commands.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "templates"
+        / "pyproject_TEMPLATE.toml.jinja2",
         False,
     ),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
@@ -266,7 +278,7 @@ def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: fl
         return False
     upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
     effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=effective_hours)
     return upload_time > cutoff
 
 
@@ -290,10 +302,11 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     # narrows or widens the cooldown for this specific package — honour it so the
     # script picks the same version `uv lock` would resolve against the override.
     cooldown_hours = _MANUAL_COOLDOWN_OVERRIDES.get(package_name.lower())
+    bypass_cooldown = LATEST_PACKAGE_MANAGERS and package_name.lower() in ("pip", "uv")
     # Skip versions released within the cooldown period
     latest_version = ""
     for version in reversed(sorted_versions):
-        if not _is_version_within_cooldown(releases, str(version), cooldown_hours):
+        if bypass_cooldown or not _is_version_within_cooldown(releases, str(version), cooldown_hours):
             latest_version = str(version)
             break
     if not latest_version:
@@ -390,56 +403,154 @@ def prune_obsolete_cooldown_overrides() -> bool:
     return True
 
 
-def get_all_python_versions() -> list[Version]:
+HARDENED_PYTHON_CATALOG_URL = (
+    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/debian-{debian}/"
+    "{python_major_minor}-dev.yaml"
+)
+# One patchlevel pin serves the images of every Debian release Airflow builds on (trixie is the
+# default, bookworm is still available for PROD images).
+HARDENED_PYTHON_DEBIAN_RELEASES = ["13", "12"]
+
+
+def get_latest_python_version(python_major_minor: str) -> str:
     """
-    Fetch all released Python versions by parsing the Python FTP directory listing.
-    This provides static information about all available Python releases.
+    Return the newest Python patchlevel published as a Docker Hardened Image for a major.minor.
+
+    The images are built on those hardened images, so the pinned patchlevel has to be one Docker has
+    published - a newer python.org release is of no use until Docker builds it. The image definitions
+    in the public catalog list the patchlevel tag each image is currently built from.
     """
-    if VERBOSE:
-        console.print("[bright_blue]Fetching all released Python versions from python.org FTP")
-    url = "https://www.python.org/ftp/python/"
-    headers = {"User-Agent": "Python requests"}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-
-    # Parse the HTML directory listing to extract version numbers
-    # The FTP directory listing has links like: <a href="3.12.1/">3.12.1/</a>
-    versions = []
-    # Match version patterns like "3.12.1/" in href attributes
-    version_pattern = re.compile(r'href="(\d+\.\d+\.\d+)/"')
-
-    for match in version_pattern.finditer(response.text):
-        version_str = match.group(1)
-        try:
-            # Parse as version to validate it's a proper version number
-            version_obj = Version(version_str)
-            # Only include Python 3.x versions
-            if version_obj.major == 3:
-                versions.append(version_obj)
-        except Exception:
-            # Skip invalid version strings
-            continue
-
-    return versions
-
-
-def get_latest_python_version(python_major_minor: str, all_versions: list[Version]) -> str:
-    """
-    Fetch the latest released Python version for a given major.minor (e.g. '3.12') from FTP directory listing.
-    Uses static directory information rather than API calls.
-    """
-    # Only consider releases matching the major.minor.patch pattern
-    matching = [
-        version for version in all_versions if python_major_minor == f"{version.major}.{version.minor}"
-    ]
-    if not matching:
-        console.print(f"[bright_red]No released Python versions found for {python_major_minor}")
-        sys.exit(1)
-    # Sort and return the latest version
-    latest_version = sorted(matching)[-1]
+    latest_per_release = []
+    for debian in HARDENED_PYTHON_DEBIAN_RELEASES:
+        url = HARDENED_PYTHON_CATALOG_URL.format(debian=debian, python_major_minor=python_major_minor)
+        if VERBOSE:
+            console.print(
+                f"[bright_blue]Fetching the hardened Python {python_major_minor} definition from {url}"
+            )
+        response = requests.get(url, headers={"User-Agent": "Python requests"})
+        response.raise_for_status()
+        pattern = rf"^\s*-\s*(\d+\.\d+\.\d+)-debian{debian}-dev\s*$"
+        versions = [Version(tag) for tag in re.findall(pattern, response.text, re.MULTILINE)]
+        if not versions:
+            console.print(f"[bright_red]No hardened Python {python_major_minor} image tags found in {url}")
+            sys.exit(1)
+        latest_per_release.append(max(versions))
+    # Docker does not always publish a patchlevel for every Debian release on the same day - pinning
+    # one that a release lacks would point its builds at a tag that does not exist.
+    latest_version = min(latest_per_release)
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {python_major_minor}: {latest_version}")
     return str(latest_version)
+
+
+HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY = "apache/airflow/base/python"
+MANIFEST_LIST_MEDIA_TYPES = (
+    "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
+)
+# The digests the images built on the mirror are pinned to - breeze reads them from this file.
+PYTHON_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_python_image_digests.json"
+)
+# Only references that already carry a digest are re-pinned - documentation that shows the tag alone
+# stays readable.
+PINNED_BASE_IMAGE_PATTERN = re.compile(
+    r"(ghcr\.io/apache/airflow/base/python:)([0-9]+\.[0-9]+\.[0-9]+-debian[0-9]+-dev)@sha256:[0-9a-f]{64}"
+)
+
+
+def get_mirrored_python_image_digest(tag: str) -> str:
+    """Return the digest the mirror's moving tag currently points at - the image the pin moves to."""
+    token = requests.get(
+        "https://ghcr.io/token",
+        params={"scope": f"repository:{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}:pull"},
+        timeout=30,
+    ).json()["token"]
+    response = requests.head(
+        f"https://ghcr.io/v2/{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}/manifests/{tag}",
+        headers={"Authorization": f"Bearer {token}", "Accept": MANIFEST_LIST_MEDIA_TYPES},
+        timeout=30,
+    )
+    if response.status_code == 404:
+        console.print(
+            f"[bright_red]ghcr.io/{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}:{tag} is not mirrored yet. "
+            "Run the 'Mirror hardened base images' workflow and try again."
+        )
+        sys.exit(1)
+    response.raise_for_status()
+    return response.headers["Docker-Content-Digest"]
+
+
+def fetch_python_image_digests(latest_python_versions: dict[str, str]) -> dict[str, str]:
+    """Fetch the digest to pin for every hardened base image tag the images are built on."""
+    return {
+        tag: get_mirrored_python_image_digest(tag)
+        for python_version in latest_python_versions.values()
+        for debian in HARDENED_PYTHON_DEBIAN_RELEASES
+        for tag in [f"{python_version}-debian{debian}-dev"]
+    }
+
+
+def write_pins_file(path: Path, pins: dict[str, str]) -> bool:
+    """Write one of the JSON files breeze reads its pins from, returning whether they changed."""
+    new_content = json.dumps(pins, indent=2) + "\n"
+    if path.read_text() == new_content:
+        return False
+    path.write_text(new_content)
+    console.print(f"[bright_blue]Updated {path}")
+    return True
+
+
+PYTHON_ORG_FTP_URL = "https://www.python.org/ftp/python/"
+# The patchlevels the legacy flavor compiles from python.org sources - breeze reads them from this file.
+# They follow python.org rather than the hardened images, which publish a patch release days later.
+LEGACY_PYTHON_VERSIONS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "files" / "legacy_python_versions.json"
+)
+
+
+def get_latest_released_python_version(python_major_minor: str, ftp_listing: str) -> str:
+    """Return the newest python.org release of a major.minor, given the python.org FTP listing."""
+    pattern = rf'href="({re.escape(python_major_minor)}\.\d+)/"'
+    for candidate in sorted((Version(v) for v in re.findall(pattern, ftp_listing)), reverse=True):
+        # A release directory appears with the first pre-release, before the final tarball is in it.
+        response = requests.head(
+            f"{PYTHON_ORG_FTP_URL}{candidate}/Python-{candidate}.tar.xz",
+            headers={"User-Agent": "Python requests"},
+            allow_redirects=True,
+            timeout=30,
+        )
+        # Any other error must not fall through to an older release, which would downgrade the pin.
+        if response.status_code != 404:
+            response.raise_for_status()
+            return str(candidate)
+    console.print(f"[bright_red]No released Python {python_major_minor} found on {PYTHON_ORG_FTP_URL}")
+    sys.exit(1)
+
+
+def fetch_legacy_python_versions() -> dict[str, str]:
+    """Fetch the latest python.org release of every supported major.minor for the legacy flavor."""
+    if not UPGRADE_PYTHON:
+        return {}
+    response = requests.get(PYTHON_ORG_FTP_URL, headers={"User-Agent": "Python requests"}, timeout=30)
+    response.raise_for_status()
+    return {
+        python_major_minor: get_latest_released_python_version(python_major_minor, response.text)
+        for python_major_minor in ALL_PYTHON_MAJOR_MINOR_VERSIONS
+    }
+
+
+def update_python_image_digests(content: str, python_image_digests: dict[str, str]) -> str:
+    def repin(match: re.Match[str]) -> str:
+        digest = python_image_digests.get(match.group(2))
+        return f"{match.group(1)}{match.group(2)}@{digest}" if digest else match.group(0)
+
+    return PINNED_BASE_IMAGE_PATTERN.sub(repin, content)
 
 
 def get_latest_golang_version() -> str:
@@ -664,11 +775,11 @@ GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
 ]
 
+# AIRFLOW_PYTHON_VERSION is not here: the builds derive it from the base image, or breeze passes it.
 AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
     (
-        re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
-        Quoting.REVERSE_DOUBLE_QUOTED,
+        re.compile(r"((?:dhi\.io|ghcr\.io/apache/airflow/base)/python:)([0-9]+\.[0-9]+\.[0-9.abrc]+)"),
+        Quoting.UNQUOTED,
     ),
 ]
 
@@ -768,8 +879,15 @@ UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
+LATEST_PACKAGE_MANAGERS: bool = (
+    os.environ.get("LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+    or os.environ.get("UPGRADE_LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+)
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+# Read from global_constants.py rather than repeating the list here. A hard-coded copy silently
+# stops upgrading the versions it does not know about: 3.14 was added to Airflow in March 2026 and
+# its pinned patchlevel was never bumped afterwards, because this list still ended at 3.13.
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = read_allowed_python_major_minor_versions()
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
 
 
@@ -928,7 +1046,7 @@ def fetch_all_package_versions() -> dict[str, str]:
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
         "alpine": get_latest_image_version("alpine") if UPGRADE_ALPINE else "",
         "busybox": get_latest_image_version("busybox") if UPGRADE_BUSYBOX else "",
-        "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
+        "mprocs": get_latest_github_release_version("pvolok/dekit") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
         "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
         if UPGRADE_SPHINX_AIRFLOW_THEME
@@ -950,10 +1068,9 @@ def fetch_python_versions() -> dict[str, str]:
     if not UPGRADE_PYTHON:
         return latest_python_versions
 
-    all_python_versions = get_all_python_versions()
     for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
         latest_python_versions[python_major_minor_version] = get_latest_python_version(
-            python_major_minor_version, all_python_versions
+            python_major_minor_version
         )
         if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
             console.print(
@@ -968,6 +1085,7 @@ def update_file_with_versions(
     keep_length: bool,
     versions: dict[str, str],
     latest_python_versions: dict[str, str],
+    python_image_digests: dict[str, str] | None = None,
 ) -> str:
     """Update file content with all version replacements."""
     new_content = file_content
@@ -994,6 +1112,9 @@ def update_file_with_versions(
                 new_content = apply_pattern_replacements(
                     new_content, latest_python_version, AIRFLOW_IMAGE_PYTHON_PATTERNS, keep_length
                 )
+        # After the patchlevel replacements above, so the references name the tags the digests are for.
+        if python_image_digests:
+            new_content = update_python_image_digests(new_content, python_image_digests)
 
     return _apply_simple_regexp_replacements(new_content, versions)
 
@@ -1008,7 +1129,11 @@ def _apply_simple_regexp_replacements(new_content: str, versions: dict[str, str]
     return new_content
 
 
-def process_all_files(versions: dict[str, str], latest_python_versions: dict[str, str]) -> bool:
+def process_all_files(
+    versions: dict[str, str],
+    latest_python_versions: dict[str, str],
+    python_image_digests: dict[str, str] | None = None,
+) -> bool:
     """
     Process all files and apply version updates.
 
@@ -1019,7 +1144,9 @@ def process_all_files(versions: dict[str, str], latest_python_versions: dict[str
     for file_to_update, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file_to_update}")
         file_content = file_to_update.read_text()
-        new_content = update_file_with_versions(file_content, keep_length, versions, latest_python_versions)
+        new_content = update_file_with_versions(
+            file_content, keep_length, versions, latest_python_versions, python_image_digests
+        )
 
         if new_content != file_content:
             file_to_update.write_text(new_content)
@@ -1046,14 +1173,14 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
     Resolve the full transitive dependency list for hatchling using uv pip compile.
 
     When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
-    Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
+    Returns a sorted list of pinned requirement strings.
     """
     packages = ["hatchling"]
     if with_gitpython:
         packages.append("gitpython")
 
     result = subprocess.run(
-        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.10"],
+        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.11"],
         input="\n".join(packages) + "\n",
         capture_output=True,
         text=True,
@@ -1083,7 +1210,6 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "pathspec": "pathspec",
             "pluggy": "pluggy",
             "trove_classifiers": "trove-classifiers",
-            "tomli": "tomli",
             "virtualenv": "virtualenv",
             "distlib": "distlib",
             "filelock": "filelock",
@@ -1091,13 +1217,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "typing_extensions": "typing-extensions",
         }
         canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
-        if pkg_name_lower == "tomli":
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        elif pkg_name_lower == "typing_extensions":
-            # typing_extensions is built-in from Python 3.11+
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        else:
-            requires.append(f"{canonical}=={pkg_version}")
+        requires.append(f"{canonical}=={pkg_version}")
 
     return sorted(requires, key=lambda r: r.split("==")[0].lower())
 
@@ -1250,8 +1370,15 @@ def main() -> None:
     versions = fetch_all_package_versions()
     log_special_versions(versions)
     latest_python_versions = fetch_python_versions()
+    python_image_digests = fetch_python_image_digests(latest_python_versions)
 
-    changed = process_all_files(versions, latest_python_versions)
+    legacy_python_versions = fetch_legacy_python_versions()
+
+    changed = process_all_files(versions, latest_python_versions, python_image_digests)
+    if python_image_digests:
+        changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
+    if legacy_python_versions:
+        changed = write_pins_file(LEGACY_PYTHON_VERSIONS_PATH, legacy_python_versions) or changed
 
     # Resolve hatchling transitive dependencies and update all pyproject.toml build-system sections
     if UPGRADE_HATCHLING or UPGRADE_FLIT_CORE:

@@ -32,7 +32,6 @@ import { Tooltip } from "src/system-components";
 
 import { Logo } from "src/components/Logo";
 
-import { DagIcon } from "src/assets/DagIcon";
 import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
@@ -40,6 +39,7 @@ import type { NavItemResponse } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
+import { DagsButton } from "./DagsButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
@@ -180,20 +180,13 @@ export const Nav = () => {
           title={translate("nav.dashboard")}
           to="/home"
         />
-        <NavButton
-          data-testid="nav-dags-link"
-          disabled={!authLinks?.authorized_menu_items.includes("Dags")}
-          icon={DagIcon}
-          matchPaths={["dag_runs", "task_instances"]}
-          title={translate("nav.dags")}
-          to="dags"
-        />
+        <DagsButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <NavButton
           data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
           icon={FiDatabase}
           title={translate("nav.assets")}
-          to="assets"
+          to="/assets"
         />
         <BrowseButton
           authorizedMenuItems={authLinks?.authorized_menu_items ?? []}

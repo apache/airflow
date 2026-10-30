@@ -16,23 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import AliasPath, Field, field_validator
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
 
-class XComResponse(BaseModel):
+class XComResponse(OmitsMissingRegion, BaseModel):
     """Serializer for a xcom item."""
 
     key: str
     timestamp: datetime
     logical_date: datetime | None
     map_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     task_id: str
     dag_id: str
     run_id: str
@@ -87,36 +91,15 @@ class XComCollectionResponse(BaseModel):
 
 def _check_forbidden_xcom_keys(value: Any) -> Any:
     """Recursively reject forbidden deserialization keys in user-provided XCom data."""
-    from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
-
-    def _walk(obj: Any, path: str = "value") -> None:
-        if isinstance(obj, str):
-            # A value submitted as a JSON string literal (e.g. ``json.dumps({...})``)
-            # is stored verbatim and re-parsed into a dict/list on a
-            # ``deserialize=true`` read, which would otherwise smuggle reserved keys
-            # past the dict/list checks below. Re-parse and inspect the decoded
-            # structure the same way the read path does.
-            try:
-                decoded = json.loads(obj)
-            except (ValueError, TypeError):
-                return
-            if isinstance(decoded, (dict, list)):
-                _walk(decoded, path)
-            return
-        if isinstance(obj, dict):
-            found = FORBIDDEN_XCOM_KEYS & obj.keys()
-            if found:
-                raise ValueError(
-                    f"XCom {path} contains reserved serialization keys: {', '.join(sorted(found))}. "
-                    f"These keys are reserved for internal use."
-                )
-            for k, v in obj.items():
-                _walk(v, f"{path}.{k}")
-        elif isinstance(obj, (list, tuple)):
-            for i, item in enumerate(obj):
-                _walk(item, f"{path}[{i}]")
-
-    _walk(value)
+    # A value sent as a JSON string literal is stored as-is and parsed back into a dict or list on
+    # a ``deserialize=true`` read, so the decoded structure needs checking too.
+    found = find_reserved_keys(value, decode_json_strings=True)
+    if found is not None:
+        path, keys = found
+        raise ValueError(
+            f"XCom {path} contains reserved serialization keys: {', '.join(keys)}. "
+            f"These keys are reserved for internal use."
+        )
     return value
 
 
@@ -126,6 +109,8 @@ class XComCreateBody(StrictBaseModel):
     key: str
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod
@@ -138,6 +123,8 @@ class XComUpdateBody(StrictBaseModel):
 
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod

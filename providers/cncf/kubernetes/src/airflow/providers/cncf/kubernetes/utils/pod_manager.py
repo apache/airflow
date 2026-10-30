@@ -444,16 +444,25 @@ class PodManager(LoggingMixin):
         return self.run_pod_async(pod)
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: float = 10) -> None:
-        """Read pod events and write into log."""
+        """
+        Read pod events and write into log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         resource_version = None
         seen_events: set[str] = set()
         while not self.stop_watching_events:
-            events = self.read_pod_events(pod, resource_version)
-            if events.metadata and events.metadata.resource_version:
-                resource_version = events.metadata.resource_version
-            for event in events.items:
-                log_pod_event(self, event, seen_events)
-                resource_version = event.metadata.resource_version
+            try:
+                events = self.read_pod_events(pod, resource_version)
+                if events.metadata and events.metadata.resource_version:
+                    resource_version = events.metadata.resource_version
+                for event in events.items:
+                    log_pod_event(self, event, seen_events)
+                    resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
             await asyncio.sleep(check_interval)
 
     async def await_pod_start(
@@ -974,8 +983,17 @@ class PodManager(LoggingMixin):
                 )
             time.sleep(1)
 
-    def extract_xcom(self, pod: V1Pod) -> str:
-        """Retrieve XCom value and kill xcom sidecar container."""
+    def extract_xcom(self, pod: V1Pod, *, ignore_kill_failure: bool = True) -> str:
+        """
+        Retrieve XCom value and kill xcom sidecar container.
+
+        :param pod: the pod to read the XCom result from.
+        :param ignore_kill_failure: when True (the default), a failure to kill the sidecar
+            container is logged as a warning and the successfully read XCom value is still
+            returned. Set it to False when the caller cannot tolerate a sidecar that keeps
+            running, for example ``KubernetesJobOperator``, whose Job can never reach a
+            terminal state while the sidecar is alive.
+        """
         # make sure that xcom sidecar container is still running
         if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
             raise XComRetrievalError(
@@ -986,7 +1004,16 @@ class PodManager(LoggingMixin):
             result = self.extract_xcom_json(pod)
             return result
         finally:
-            self.extract_xcom_kill(pod)
+            try:
+                self.extract_xcom_kill(pod)
+            except (PodCommandException, ApiException) as e:
+                if not ignore_kill_failure:
+                    raise
+                self.log.warning(
+                    "Failed to kill xcom sidecar container in pod %s, leaving it running: %s",
+                    pod.metadata.name,
+                    e,
+                )
 
     @generic_api_retry
     def extract_xcom_json(self, pod: V1Pod) -> str:
@@ -1174,19 +1201,28 @@ class AsyncPodManager(LoggingMixin):
         )
 
     async def watch_pod_events(self, pod: V1Pod, startup_check_interval: float = 30) -> None:
-        """Watch pod events and write to log."""
+        """
+        Watch pod events and write to log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         seen_events: set[str] = set()
         resource_version = None
         while not self.stop_watching_events:
-            async for event in self._hook.watch_pod_events(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                resource_version=resource_version,
-                timeout_seconds=startup_check_interval,
-            ):
-                if event:
-                    log_pod_event(self, event, seen_events)
-                    resource_version = event.metadata.resource_version
+            try:
+                async for event in self._hook.watch_pod_events(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=resource_version,
+                    timeout_seconds=startup_check_interval,
+                ):
+                    if event:
+                        log_pod_event(self, event, seen_events)
+                        resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1

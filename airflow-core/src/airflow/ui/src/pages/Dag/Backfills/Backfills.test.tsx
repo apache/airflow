@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import {
   fireEvent,
   render,
@@ -30,21 +30,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
 
+import { TimezoneProvider } from "src/context/timezone";
 import type * as Utils from "src/utils";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Backfills } from "./Backfills";
 
 const mocks = vi.hoisted(() => ({
+  cancelMutate: vi.fn(),
   getBackfill: vi.fn(),
   listBackfillDagRuns: vi.fn(),
   listBackfills: vi.fn(),
+  listTeams: vi.fn(),
+  pauseMutate: vi.fn(),
+  unpauseMutate: vi.fn(),
 }));
 
 vi.mock("openapi/queries", () => ({
+  useBackfillServiceCancelBackfill: () => ({ isPending: false, mutate: mocks.cancelMutate }),
   useBackfillServiceGetBackfill: mocks.getBackfill,
   useBackfillServiceListBackfillDagRuns: mocks.listBackfillDagRuns,
   useBackfillServiceListBackfillsUi: mocks.listBackfills,
+  useBackfillServiceListBackfillsUiKey: "listBackfillsUi",
+  useBackfillServicePauseBackfill: () => ({ isPending: false, mutate: mocks.pauseMutate }),
+  useBackfillServiceUnpauseBackfill: () => ({ isPending: false, mutate: mocks.unpauseMutate }),
+  useTeamsServiceListTeams: mocks.listTeams,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -128,10 +138,12 @@ const renderBackfills = (initialEntry = "/dags/example_dag/backfills") =>
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <Routes>
-          <Route element={<Backfills />} path="/dags/:dagId/backfills" />
-          <Route element={<Backfills />} path="/dags/:dagId/backfills/:backfillId" />
-        </Routes>
+        <TimezoneProvider>
+          <Routes>
+            <Route element={<Backfills />} path="/dags/:dagId/backfills" />
+            <Route element={<Backfills />} path="/dags/:dagId/backfills/:backfillId" />
+          </Routes>
+        </TimezoneProvider>
       </MemoryRouter>
     </BaseWrapper>,
   );
@@ -174,11 +186,74 @@ const expectDagRunsQuery = (backfillId: number) => {
   return options.refetchInterval;
 };
 
-describe("Backfills", () => {
+describe("Backfills filters", () => {
   beforeEach(() => {
     mocks.getBackfill.mockReset();
     mocks.listBackfillDagRuns.mockReset();
     mocks.listBackfills.mockReset();
+    mocks.listTeams.mockReset();
+    mocks.cancelMutate.mockReset();
+    mocks.pauseMutate.mockReset();
+    mocks.unpauseMutate.mockReset();
+    // Benign defaults; tests that care override them.
+    mocks.getBackfill.mockReturnValue({ data: undefined, error: undefined, isLoading: false });
+    mocks.listBackfillDagRuns.mockReturnValue({ data: undefined, error: undefined, isLoading: false });
+    mocks.listTeams.mockReturnValue({
+      data: { teams: [], total_entries: 0 },
+      error: undefined,
+      isLoading: false,
+    });
+  });
+
+  it.each([
+    [false, "components:banner.pause", "pauseMutate"],
+    [true, "components:banner.unpause", "unpauseMutate"],
+  ] as const)("an in-progress backfill toggles pause (is_paused=%s)", async (isPaused, label, mutateKey) => {
+    mocks.listBackfills.mockReturnValue({
+      data: { backfills: [makeBackfill({ is_paused: isPaused })], total_entries: 1 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills();
+
+    fireEvent.click(await screen.findByRole("button", { name: label }));
+
+    expect(mocks[mutateKey]).toHaveBeenCalledWith({ backfillId: 7 });
+  });
+
+  it("an in-progress backfill can be cancelled", async () => {
+    mocks.listBackfills.mockReturnValue({
+      data: { backfills: [makeBackfill()], total_entries: 1 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills();
+
+    fireEvent.click(await screen.findByRole("button", { name: "components:banner.cancel" }));
+
+    expect(mocks.cancelMutate).toHaveBeenCalledWith({ backfillId: 7 });
+  });
+
+  it("reports progress in place of a completion time, and hides the actions once complete", async () => {
+    mocks.listBackfills.mockReturnValue({
+      data: {
+        backfills: [makeBackfill(), makeBackfill({ completed_at: "2026-07-06T00:00:00Z", id: 8 })],
+        total_entries: 2,
+      },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills();
+
+    // Exactly one row is still running, so only it gets a progress badge and actions.
+    expect(await screen.findByText("components:banner.backfillInProgress")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "components:banner.cancel" })).toHaveLength(1);
   });
 
   it("opens a backfill's associated slots in a dialog", async () => {

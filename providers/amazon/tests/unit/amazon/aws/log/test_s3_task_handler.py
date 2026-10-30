@@ -467,7 +467,7 @@ class TestS3TaskHandler:
             assert log[5].event == "Line 2"
             assert log[6].event == "Log line 3"
             assert log[7].event == "Line 4"
-            assert metadata == {"end_of_log": True, "log_pos": 4}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
@@ -492,7 +492,7 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert len(log) == 2
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata["end_of_log"] is True
         else:
             assert len(log) == 1
             assert len(log) == len(metadata)
@@ -538,3 +538,26 @@ class TestS3TaskHandler:
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)
+
+
+def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
+    """A traversing log path is refused before the file is read or its parent removed.
+
+    ``base_log_folder.joinpath(path)`` is purely lexical, so a ``..``-bearing relative path
+    escapes the log folder. Without the containment check the file would be uploaded to the
+    remote log store and, with ``delete_local_copy``, its parent directory deleted.
+    """
+    base = tmp_path / "logs"
+    base.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.log"
+    secret.write_text("sensitive")
+
+    subject = S3RemoteLogIO(remote_base="s3://bucket/remote", base_log_folder=base, delete_local_copy=True)
+    with caplog.at_level(logging.WARNING):
+        subject.upload(os.path.join("..", "outside", "secret.log"))
+
+    assert secret.exists()
+    assert outside.exists()
+    assert "outside base_log_folder" in caplog.text

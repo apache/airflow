@@ -22,6 +22,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "create-minor-branch",
         "prepare-airflow-distributions",
         "prepare-tarball",
+        "start-beta-process",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -89,6 +90,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "publish-schemas-to-s3",
         "verify-rc-by-pmc",
         "check-release-files",
+        "mirror-base-images",
     ],
 }
 
@@ -100,6 +102,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management mirror-base-images": [
+        {
+            "name": "Mirror flags",
+            "options": [
+                "--python",
             ],
         }
     ],
@@ -293,6 +303,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--release-date",
                 "--incremental-update",
+                "--mark-doc-only",
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--non-interactive",
@@ -341,6 +352,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--airflow-constraints-mode",
                 "--allow-pre-releases",
+                "--fail-on-pending-provider-candidates",
                 "--github-repository",
                 "--python",
                 "--use-uv",
@@ -499,6 +511,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": ["--provider-id", "--provider-version"],
         },
     ],
+    "breeze release-management start-beta-process": [
+        {
+            "name": "Start beta process flags",
+            "options": [
+                "--version",
+                "--task-sdk-version",
+                "--remote-name",
+            ],
+        }
+    ],
     "breeze release-management start-rc-process": [
         {
             "name": "Start RC process flags",
@@ -563,6 +585,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--stable-versions",
                 "--publish-all-docs",
                 "--skip-write-to-stable-folder",
+                "--skip-packages-metadata",
+                "--packages-metadata-only",
             ],
         }
     ],
@@ -572,6 +596,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--execution-api",
                 "--supervisor",
+                "--dag",
                 "--destination-location",
                 "--overwrite",
                 "--dry-run",

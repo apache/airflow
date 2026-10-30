@@ -44,7 +44,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.10}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.11}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -200,8 +200,9 @@ SSH_CONFIG
 
         sudo service ssh restart >/dev/null 2>&1
 
-        # Sometimes the server is not quick enough to load the keys!
-        while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        # Sometimes the server is not quick enough to load the keys! OpenSSH 10 also prints a
+        # "# localhost:22 SSH-2.0-..." comment line per connection to stdout, so count only the keys.
+        while [[ $(ssh-keyscan -H localhost 2>/dev/null | grep -cv '^#') != "3" ]] ; do
             echo "Not all keys yet loaded by the server"
             sleep 0.05
         done
@@ -298,9 +299,13 @@ function determine_airflow_to_use() {
         # Generate constraints from uv.lock and use them to install development dependencies
         # via the Python script. --no-cache is needed - otherwise there is possibility of
         # overriding temporary environments by multiple parallel processes
+        # --all-packages: without it the export only covers the root project's dependencies.
+        # Anything that only a workspace member's dependency group pulls in, such
+        # as mcp through common.ai's pydantic-ai-slim[mcp], stays unpinned and resolves fresh
+        # from PyPI instead of following uv.lock.
         local constraint_file="/tmp/constraints-from-lock.txt"
         uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
-            --no-annotate > "${constraint_file}" 2>/dev/null || true
+            --no-annotate --all-packages > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
@@ -342,16 +347,13 @@ function check_boto_upgrade() {
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
-    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
-    # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
-        --no-python-downloads --no-managed-python
+    uv sync --all-packages --resolution highest --no-python-downloads --no-managed-python
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
@@ -428,7 +430,7 @@ function reinstall_shared_distributions() {
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
 # review every addition to this list as a privileged change. See
 # contributing-docs/12_provider_distributions.rst.
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"
@@ -464,6 +466,8 @@ function check_force_lowest_dependencies() {
         local provider_id
         # shellcheck disable=SC2001
         provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
+        # A split provider's test type names one part of its tests: Providers[<id>:<part>]
+        provider_id=${provider_id%%:*}
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo

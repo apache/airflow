@@ -29,6 +29,7 @@ import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
 
+import { GridSelectionProvider } from "src/context/gridSelection";
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
 
@@ -54,6 +55,9 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       }
     };
 
+    // On mount too: i18next's initial `languageChanged` fires before this listener attaches, so a
+    // page loaded directly in an RTL language would otherwise stay ltr until the next change.
+    updateHtml(i18n.resolvedLanguage ?? i18n.language);
     i18n.on("languageChanged", updateHtml);
 
     return () => {
@@ -123,7 +127,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
             {baseReactPlugins.map((plugin) => (
               <ReactPlugin key={plugin.name} reactApp={plugin} />
             ))}
-            {children ?? <Outlet />}
+            <GridSelectionProvider>{children ?? <Outlet />}</GridSelectionProvider>
           </Box>
         </Box>
       </DocumentTitleProvider>

@@ -20,6 +20,7 @@ import multiprocessing as mp
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
@@ -36,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_github_repository,
     option_include_success_outputs,
     option_parallelism,
     option_python,
@@ -274,8 +276,9 @@ option_skip_compile_ui_assets = click.option(
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 option_lang_sdk_test = click.option(
     "--lang-sdk-test/--no-lang-sdk-test",
-    help="Provision the lang-SDK (Go + Java) coordinator env and run its system test as part of the "
-    "run (KubernetesExecutor only). Off by default so the regular k8s suites skip the test.",
+    help="Provision the lang-SDK (Go + Java + TypeScript) coordinator env and run its system tests "
+    "as part of the run (KubernetesExecutor only). Off by default so the regular k8s suites skip "
+    "the test.",
     default=False,
     show_default=True,
     envvar="RUN_LANG_SDK_K8S_TESTS",
@@ -644,9 +647,10 @@ def _rebuild_k8s_image(
     rebuild_base_image: bool,
     copy_local_sources: bool,
     use_uv: bool,
+    github_repository: str,
     output: Output | None,
 ) -> tuple[int, str]:
-    params = BuildProdParams(python=python, use_uv=use_uv)
+    params = BuildProdParams(python=python, use_uv=use_uv, github_repository=github_repository)
     if rebuild_base_image:
         run_build_production_image(
             prod_image_params=params,
@@ -697,8 +701,10 @@ ENV GUNICORN_CMD_ARGS='--preload'
     return docker_build_result.returncode, f"K8S image for Python {python}"
 
 
-def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | None) -> tuple[int, str]:
-    params = BuildProdParams(python=python)
+def _upload_k8s_image(
+    python: str, kubernetes_version: str, github_repository: str, output: Output | None
+) -> tuple[int, str]:
+    params = BuildProdParams(python=python, github_repository=github_repository)
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(
         f"[info]Uploading Airflow image {params.airflow_image_kubernetes} to cluster {cluster_name}"
@@ -734,7 +740,7 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # manifest; add to this list only if the image is also useful to the non-overlay
 # K8S tests.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
-    "alpine:3.24.1",  # xcom_sidecar default in providers/cncf/kubernetes
+    "alpine:3.24.2",  # xcom_sidecar default in providers/cncf/kubernetes
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
     "busybox:1.38.0",  # busybox-based system tests in kubernetes-tests/
     "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
@@ -826,6 +832,7 @@ def _preload_test_images_to_kind(
 @option_copy_local_sources
 @option_debug_resources
 @option_dry_run
+@option_github_repository
 @option_include_success_outputs
 @option_parallelism
 @option_python
@@ -838,6 +845,7 @@ def _preload_test_images_to_kind(
 def build_k8s_image(
     copy_local_sources: bool,
     debug_resources: bool,
+    github_repository: str,
     include_success_outputs: bool,
     parallelism: int,
     python: str,
@@ -866,8 +874,9 @@ def build_k8s_image(
                         kwds={
                             "python": _python,
                             "rebuild_base_image": rebuild_base_image,
-                            "copy local sources": copy_local_sources,
+                            "copy_local_sources": copy_local_sources,
                             "use_uv": use_uv,
+                            "github_repository": github_repository,
                             "output": outputs[index],
                         },
                     )
@@ -886,6 +895,7 @@ def build_k8s_image(
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,
             use_uv=use_uv,
+            github_repository=github_repository,
             output=None,
         )
         if return_code == 0:
@@ -907,11 +917,13 @@ def build_k8s_image(
 @option_include_success_outputs
 @option_python_versions
 @option_kubernetes_versions
+@option_github_repository
 @option_verbose
 @option_dry_run
 def upload_k8s_image(
     python: str,
     kubernetes_version: str,
+    github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
@@ -945,6 +957,7 @@ def upload_k8s_image(
                         kwds={
                             "python": combo.python_version,
                             "kubernetes_version": combo.kubernetes_version,
+                            "github_repository": github_repository,
                             "output": outputs[index],
                         },
                     )
@@ -961,6 +974,7 @@ def upload_k8s_image(
         return_code, _ = _upload_k8s_image(
             python=python,
             kubernetes_version=kubernetes_version,
+            github_repository=github_repository,
             output=None,
         )
         if return_code == 0:
@@ -989,10 +1003,11 @@ def _build_skaffold_config(
     dags_relative_path: str,
     dags_dest: str,
     log_level: str,
+    github_repository: str,
 ) -> dict[str, Any]:
     from packaging.version import Version
 
-    params = BuildProdParams(python=python)
+    params = BuildProdParams(python=python, github_repository=github_repository)
     use_flask_appbuilder = Version(python) < Version("3.13")
     auth_manager = (
         "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
@@ -1337,6 +1352,7 @@ def _deploy_helm_chart(
     output: Output | None,
     executor: str,
     use_standard_naming: bool,
+    github_repository: str,
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
@@ -1351,7 +1367,7 @@ def _deploy_helm_chart(
         shutil.copytree(CHART_PATH, os.fspath(tmp_chart_path), ignore_dangling_symlinks=True)
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-        params = BuildProdParams(python=python)
+        params = BuildProdParams(python=python, github_repository=github_repository)
         # TODO (potiuk): we can also run on matrix of auth managers if we make SimpleAuthManager prod-ready ?
         use_flask_appbuilder = Version(python) < Version("3.13")
         if use_flask_appbuilder:
@@ -1444,6 +1460,7 @@ def _deploy_airflow(
     upgrade: bool,
     wait_time_in_seconds: int,
     use_standard_naming: bool,
+    github_repository: str,
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
     num_tries: int = 1,
@@ -1460,6 +1477,7 @@ def _deploy_airflow(
             upgrade=upgrade,
             executor=executor,
             use_standard_naming=use_standard_naming,
+            github_repository=github_repository,
             extra_options=extra_options,
             multi_namespace_mode=multi_namespace_mode,
         )
@@ -1569,6 +1587,7 @@ def _deploy_airflow(
 @option_multi_namespace_mode
 @option_python_versions
 @option_kubernetes_versions
+@option_github_repository
 @option_verbose
 @option_dry_run
 @click.argument("extra_options", nargs=-1, type=click.UNPROCESSED)
@@ -1586,6 +1605,7 @@ def deploy_airflow(
     use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
+    github_repository: str,
     extra_options: tuple[str, ...],
     multi_namespace_mode: bool = False,
 ):
@@ -1614,6 +1634,7 @@ def deploy_airflow(
                             "upgrade": upgrade,
                             "use_standard_naming": use_standard_naming,
                             "wait_time_in_seconds": wait_time_in_seconds,
+                            "github_repository": github_repository,
                             "extra_options": extra_options,
                             "output": outputs[index],
                             "multi_namespace_mode": multi_namespace_mode,
@@ -1637,6 +1658,7 @@ def deploy_airflow(
             upgrade=upgrade,
             use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
+            github_repository=github_repository,
             extra_options=extra_options,
             multi_namespace_mode=multi_namespace_mode,
         )
@@ -1670,6 +1692,7 @@ def deploy_airflow(
 @option_dags_path
 @option_dags_dest
 @option_skaffold_deploy
+@option_github_repository
 @option_verbose
 @option_dry_run
 @click.argument("skaffold_args", nargs=-1, type=click.UNPROCESSED)
@@ -1683,6 +1706,7 @@ def dev(
     dags_path: Path,
     dags_dest: str,
     deploy: bool,
+    github_repository: str,
     skaffold_args: tuple[str, ...],
 ):
     result = sync_virtualenv(force_venv_setup=False)
@@ -1737,6 +1761,7 @@ def dev(
         dags_relative_path=dags_relative_path,
         dags_dest=dags_dest,
         log_level=log_level,
+        github_repository=github_repository,
     )
     if not deploy:
         console_print(
@@ -2010,7 +2035,7 @@ def _run_tests(
             f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
         )
         return 1, f"Tests {kubectl_cluster_name}"
-    pytest_cmd = ["uv", "run", "pytest"]
+    pytest_cmd = ["uv", "run", "--frozen", "pytest"]
     the_tests: list[str] = ["tests"]
     ordered_unique_args = dict.fromkeys(chain(pytest_cmd, the_tests, test_args))
     command_to_run = " ".join(quote(arg) for arg in ordered_unique_args)
@@ -2124,6 +2149,7 @@ def _run_complete_tests(
     use_standard_naming: bool,
     lang_sdk_test: bool,
     num_tries: int,
+    github_repository: str,
     extra_options: tuple[str, ...] | None,
     test_args: list[str],
     output: Output | None,
@@ -2135,6 +2161,7 @@ def _run_complete_tests(
         use_uv=use_uv,
         rebuild_base_image=rebuild_base_image,
         copy_local_sources=copy_local_sources,
+        github_repository=github_repository,
     )
     if returncode != 0:
         return returncode, message
@@ -2167,7 +2194,10 @@ def _run_complete_tests(
             f"\n[info]Uploading k8s images for Python {python}, Kubernetes {kubernetes_version}\n"
         )
         returncode, message = _upload_k8s_image(
-            python=python, kubernetes_version=kubernetes_version, output=output
+            python=python,
+            kubernetes_version=kubernetes_version,
+            github_repository=github_repository,
+            output=output,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -2193,6 +2223,7 @@ def _run_complete_tests(
             upgrade=False,
             use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
+            github_repository=github_repository,
             extra_options=extra_options,
             multi_namespace_mode=True,
             num_tries=3,
@@ -2205,7 +2236,21 @@ def _run_complete_tests(
                 f"\n[info]Provisioning lang-SDK test env for Python {python}, "
                 f"Kubernetes {kubernetes_version}\n"
             )
-            _setup_lang_sdk_test(python=python, kubernetes_version=kubernetes_version, output=output)
+            try:
+                _setup_lang_sdk_test(
+                    python=python,
+                    kubernetes_version=kubernetes_version,
+                    github_repository=github_repository,
+                    output=output,
+                )
+            except subprocess.CalledProcessError as e:
+                # The cluster is deleted when this returns, so the pod logs have to be exported now
+                # for the failing release to be diagnosable at all.
+                _logs(python=python, kubernetes_version=kubernetes_version)
+                return (
+                    e.returncode,
+                    f"Lang-SDK test setup failed for Python {python}, Kubernetes {kubernetes_version}",
+                )
         get_console(output=output).print(
             f"\n[info]Running tests Python {python}, Kubernetes {kubernetes_version}\n"
         )
@@ -2233,6 +2278,7 @@ def _run_complete_tests(
                 upgrade=True,
                 use_standard_naming=use_standard_naming,
                 wait_time_in_seconds=wait_time_in_seconds,
+                github_repository=github_repository,
                 extra_options=extra_options,
                 multi_namespace_mode=True,
                 num_tries=3,
@@ -2273,6 +2319,7 @@ def _run_complete_tests(
 @option_executor
 @option_force_recreate_cluster
 @option_force_venv_setup
+@option_github_repository
 @option_include_success_outputs
 @option_kubernetes_version
 @option_kubernetes_versions
@@ -2295,6 +2342,7 @@ def run_complete_tests(
     executor: str,
     force_recreate_cluster: bool,
     force_venv_setup: bool,
+    github_repository: str,
     include_success_outputs: bool,
     kubernetes_version: str,
     kubernetes_versions: str,
@@ -2349,6 +2397,7 @@ def run_complete_tests(
                         kwds={
                             "python": combo.python_version,
                             "kubernetes_version": combo.kubernetes_version,
+                            "include_success_outputs": include_success_outputs,
                             "executor": executor,
                             "rebuild_base_image": rebuild_base_image,
                             "copy_local_sources": copy_local_sources,
@@ -2359,6 +2408,7 @@ def run_complete_tests(
                             "use_standard_naming": use_standard_naming,
                             "lang_sdk_test": lang_sdk_test,
                             "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
+                            "github_repository": github_repository,
                             "extra_options": None,
                             "test_args": pytest_args,
                             "output": outputs[index],
@@ -2390,6 +2440,7 @@ def run_complete_tests(
             use_standard_naming=use_standard_naming,
             lang_sdk_test=lang_sdk_test,
             num_tries=1,
+            github_repository=github_repository,
             extra_options=None,
             test_args=pytest_args,
             output=None,
@@ -2413,6 +2464,7 @@ def run_complete_tests(
 @option_use_uv
 @option_skip_image_build
 @option_skip_compile_ui_assets
+@option_github_repository
 def deploy_cluster(
     force_venv_setup: bool,
     force_recreate_cluster: bool,
@@ -2422,6 +2474,7 @@ def deploy_cluster(
     use_uv: bool,
     skip_image_build: bool,
     skip_compile_ui_assets: bool,
+    github_repository: str,
 ):
     console_print("[info]Syncing Virtual Environment[/]")
     result = sync_virtualenv(force_venv_setup=force_venv_setup)
@@ -2468,6 +2521,7 @@ def deploy_cluster(
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=True,
             use_uv=use_uv,
+            github_repository=github_repository,
             output=None,
         )
         if return_code != 0:
@@ -2476,6 +2530,7 @@ def deploy_cluster(
     return_code, _ = _upload_k8s_image(
         python=python,
         kubernetes_version=kubernetes_version,
+        github_repository=github_repository,
         output=None,
     )
     if return_code != 0:
@@ -2483,28 +2538,48 @@ def deploy_cluster(
 
 
 # ---------------------------------------------------------------------------
-# lang-SDK (Go + Java) coordinator system test on KubernetesExecutor.
+# lang-SDK (Go + Java + TypeScript) coordinator system test on KubernetesExecutor.
 # Assets live under kubernetes-tests/lang_sdk/. See that directory's README.md.
 # ---------------------------------------------------------------------------
 LANG_SDK_PATH = AIRFLOW_ROOT_PATH / "kubernetes-tests" / "lang_sdk"
-# The Go/Java example sources live under the test dir (not in go-sdk/java-sdk). go_example is its
-# own Go module (replace-directive onto the in-repo go-sdk); java_example is a standalone Gradle
-# build that resolves the SDK from mavenLocal.
+# The Go/Java/TypeScript example sources live under the test dir (not in go-sdk/java-sdk/
+# ts-sdk). go_example is its own Go module (replace-directive onto the in-repo go-sdk);
+# java_example is a standalone Gradle build that resolves the SDK from mavenLocal;
+# ts_example is a standalone pnpm project that resolves the SDK through a file: dependency.
 LANG_SDK_GO_EXAMPLE_PATH = LANG_SDK_PATH / "go_example"
-LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_combined"
+LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_mixed_language"
+# The native Go Dag fixture the compose e2e also packs; a package of the go-sdk module itself.
+LANG_SDK_GO_NATIVE_BUNDLE_PKG = "./example/native"
+LANG_SDK_GO_NATIVE_BUNDLE_NAME = "go_native_dags"
 LANG_SDK_JAVA_EXAMPLE_PATH = LANG_SDK_PATH / "java_example"
+# The reusable native Java Dag fixture the compose e2e also builds.
+LANG_SDK_JAVA_NATIVE_BUNDLE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-native-bundle"
+LANG_SDK_K8S_TS_EXAMPLE_PATH = LANG_SDK_PATH / "ts_example"
 # Build the artifacts inside ephemeral toolchain containers so the host needs
 # neither Go nor a JDK installed (mirrors the airflow-e2e-tests conftest).
 LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 LANG_SDK_JAVA_BUILDER_IMAGE = "eclipse-temurin:17-jdk"
 LANG_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 LANG_SDK_GRADLE_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "gradle"
-# The Java queue needs a JRE the JavaCoordinator can exec; the Go queue runs on
-# the plain prod image. Building the Java worker image as a separate tag (prod +
-# JRE, see Dockerfile.java) lets each coordinator route its queue to a distinct
-# pod_template_file base image.
-LANG_SDK_JAVA_WORKER_IMAGE = "lang-sdk-java-worker:latest"
-LANG_SDK_JAVA_DOCKERFILE = LANG_SDK_PATH / "Dockerfile.java"
+# Every coordinator queue (golang, java, java-native, typescript) shares one worker pod
+# template and one runtime image: the prod image plus a headless JRE (JavaCoordinator execs
+# `java`) and Node.js (NodeCoordinator execs `node`). The Dag processor needs the same image,
+# since it parses native Java and TypeScript Dags with those runtimes too.
+LANG_SDK_RUNTIME_IMAGE = "lang-sdk-runtimes:latest"
+LANG_SDK_RUNTIME_DOCKERFILE = LANG_SDK_PATH / "Dockerfile.runtimes"
+LANG_SDK_WORKER_POD_TEMPLATE = LANG_SDK_PATH / "pod_templates" / "lang_sdk_worker.yaml"
+# A coordinator's own artifact lookup never reads .airflowignore, so uploading this file
+# alongside a task-handler bundle keeps the Dag processor from parsing it as a Dag while
+# leaving the coordinator free to find its artifact there.
+LANG_SDK_AIRFLOWIGNORE_ALL = LANG_SDK_PATH / "airflowignore_all"
+# The packed bundle is `ts-sdk/example`, already built by that workspace, so there is no
+# example dir of its own here for the native Dag; ts_example above is the mixed-language half.
+LANG_SDK_TS_EXAMPLE_PATH = AIRFLOW_ROOT_PATH / "ts-sdk" / "example"
+LANG_SDK_TS_BUILDER_IMAGE = os.environ.get("NODE_BUILDER_IMAGE", "node:22-alpine")
+LANG_SDK_TS_BUNDLE_NAME = "bundle.min.mjs"
+# ts-sdk/example also holds the handlers of the Python-declared typescript_example Dag, so it
+# goes into ts-task-handlers as well, under a name that does not clash with the bundle there.
+LANG_SDK_TS_NATIVE_HANDLER_NAME = "native_bundle.min.mjs"
 LANG_SDK_AWS_CONN_URI = (
     "aws://test:test@/?region_name=us-east-1&"
     "endpoint_url=http%3A%2F%2Flocalstack.airflow.svc.cluster.local%3A4566"
@@ -2610,7 +2685,12 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
 def _lang_sdk_build_go_bundle(
     staging: Path, go_sdk_source: Path, output: Output | None, *, native: bool = False
 ) -> None:
-    """Build the Go bundle into ``staging/go-artifacts`` and copy the result into the staging dir.
+    """Pack the mixed-language Go bundle and the native Go Dag bundle into their staging dirs.
+
+    ``go_example`` holds the handlers of the mixed-language Dag's stub tasks
+    (``staging/go-task-handlers``). ``go-sdk/example/native`` declares the ``go_native_*`` Dags with
+    no Python file, and is packed into ``staging/lang-sdk-native-go``, where the Dag processor
+    parses it.
 
     By default the build runs in an ephemeral Go toolchain container so the host needs no Go install,
     writing its caches into a gitignored dir under the repo. In ``native`` mode (used in CI, where the
@@ -2623,19 +2703,24 @@ def _lang_sdk_build_go_bundle(
     so its go.sum reconciles to that go-sdk, which differs from the in-repo one its committed go.sum
     was tidied against whenever the source is the upstream-main fallback.
     """
-    go_dir = staging / "go-artifacts"
+    go_dir = staging / "go-task-handlers"
     go_dir.mkdir(parents=True, exist_ok=True)
+    native_go_dir = staging / "lang-sdk-native-go"
+    native_go_dir.mkdir(parents=True, exist_ok=True)
     example_rel = LANG_SDK_GO_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH)
     workspace = staging / "go_workspace"
     example_path = workspace / example_rel
+    go_sdk_path = workspace / "go-sdk"
     example_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(LANG_SDK_GO_EXAMPLE_PATH, example_path, ignore=shutil.ignore_patterns(".home"))
     # In dry-run the fetch/extract commands are skipped, so the extracted copy and build outputs
     # never materialize -- skip the filesystem work that depends on them.
     if not get_dry_run():
-        shutil.copytree(go_sdk_source, workspace / "go-sdk")
+        shutil.copytree(go_sdk_source, go_sdk_path)
     output_bin = example_path / "bin" / LANG_SDK_GO_BUNDLE_NAME
     output_bin.parent.mkdir(parents=True, exist_ok=True)
+    native_output_bin = go_sdk_path / "bin" / LANG_SDK_GO_NATIVE_BUNDLE_NAME
+    native_output_bin.parent.mkdir(parents=True, exist_ok=True)
 
     # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker. The package built is
     # the current dir (".") because go_example is its own module.
@@ -2656,6 +2741,20 @@ def _lang_sdk_build_go_bundle(
             output=output,
             check=True,
         )
+        run_command(
+            [
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                str(native_output_bin),
+                LANG_SDK_GO_NATIVE_BUNDLE_PKG,
+            ],
+            cwd=go_sdk_path,
+            env=go_env,
+            output=output,
+            check=True,
+        )
     else:
         uid_gid = f"{os.getuid()}:{os.getgid()}"
         go_example_ctr = f"/repo/{example_rel.as_posix()}"
@@ -2664,30 +2763,33 @@ def _lang_sdk_build_go_bundle(
         # the real go_example's gitignored cache dir so the caches persist across scratch workspaces.
         (LANG_SDK_GO_EXAMPLE_PATH / ".home").mkdir(parents=True, exist_ok=True)
         get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
-        docker_base = [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            uid_gid,
-            "-e",
-            f"HOME={go_example_ctr}/.home",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            "-v",
-            f"{workspace}:/repo",
-            "-v",
-            f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
-            "-w",
-            go_example_ctr,
-            LANG_SDK_GO_BUILDER_IMAGE,
-        ]
-        run_command([*docker_base, "go", "mod", "tidy"], output=output, check=True)
+
+        def docker_base(workdir: str) -> list[str]:
+            return [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                uid_gid,
+                "-e",
+                f"HOME={go_example_ctr}/.home",
+                "-e",
+                "USER=airflow",
+                "-e",
+                "CGO_ENABLED=0",
+                "-v",
+                f"{workspace}:/repo",
+                "-v",
+                f"{LANG_SDK_GO_EXAMPLE_PATH / '.home'}:{go_example_ctr}/.home",
+                "-w",
+                workdir,
+                LANG_SDK_GO_BUILDER_IMAGE,
+            ]
+
+        run_command([*docker_base(go_example_ctr), "go", "mod", "tidy"], output=output, check=True)
         run_command(
             [
-                *docker_base,
+                *docker_base(go_example_ctr),
                 "go",
                 "tool",
                 "airflow-go-pack",
@@ -2698,29 +2800,166 @@ def _lang_sdk_build_go_bundle(
             output=output,
             check=True,
         )
+        run_command(
+            [
+                *docker_base("/repo/go-sdk"),
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                f"/repo/go-sdk/bin/{LANG_SDK_GO_NATIVE_BUNDLE_NAME}",
+                LANG_SDK_GO_NATIVE_BUNDLE_PKG,
+            ],
+            output=output,
+            check=True,
+        )
     if not get_dry_run():
         shutil.copy(output_bin, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+        shutil.copy(native_output_bin, native_go_dir / LANG_SDK_GO_NATIVE_BUNDLE_NAME)
 
 
-def _lang_sdk_build_java_jar(
+def _lang_sdk_build_ts_bundles(staging: Path, output: Output | None, *, native: bool = False) -> None:
+    """Pack ``ts-sdk/example`` and ``ts_example`` into their staging dirs.
+
+    ``ts-sdk/example`` provides the native TypeScript Dag (``lang-sdk-native-ts``) and, through the
+    same bundle, the handlers for the Python-declared ``typescript_example`` Dag that the native
+    Dag's ``trigger_downstream`` task starts. ``ts_example`` provides only the handlers for the
+    mixed-language Dag's ``ts_extract``/``ts_transform`` stub tasks (``ts-task-handlers``). Both
+    depend on the in-repo ts-sdk by a link -- ``ts-sdk/example`` through the pnpm workspace,
+    ``ts_example`` through its own ``file:`` dependency and lockfile -- so each pack runs against the
+    checkout rather than a scratch copy: a copied tree would lose the link. The SDK is built first
+    because both examples' ``airflow-ts-pack`` bin points at the SDK's ``dist/``.
+
+    By default the build runs in an ephemeral Node toolchain container so the host needs no Node
+    install. In ``native`` mode it invokes the host ``node`` and ``pnpm`` directly; CI provisions
+    Node for this test (unlike the Go/Java toolchains, TypeScript is never optional).
+    """
+    native_ts_dir = staging / "lang-sdk-native-ts"
+    native_ts_dir.mkdir(parents=True, exist_ok=True)
+    handler_ts_dir = staging / "ts-task-handlers"
+    handler_ts_dir.mkdir(parents=True, exist_ok=True)
+
+    ts_sdk_path = AIRFLOW_ROOT_PATH / "ts-sdk"
+    build = (
+        "pnpm install --frozen-lockfile && pnpm run build "
+        "&& cd example && pnpm install && pnpm run build && cd .. "
+        "&& cd ../kubernetes-tests/lang_sdk/ts_example && pnpm install --frozen-lockfile && pnpm run build"
+    )
+    if native:
+        get_console(output=output).print("[info]Packing the TypeScript bundles with the host Node toolchain")
+        run_command(["sh", "-c", build], cwd=ts_sdk_path, output=output, check=True)
+    else:
+        uid_gid = f"{os.getuid()}:{os.getgid()}"
+        # The container user cannot write to the image's HOME or /usr/local/bin, so HOME is a
+        # gitignored dir that also keeps the pnpm and corepack caches between runs.
+        home = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
+        home.mkdir(parents=True, exist_ok=True)
+        script = (
+            'export PATH="$HOME/bin:$PATH" && mkdir -p "$HOME/bin"'
+            ' && corepack enable --install-directory "$HOME/bin"'
+            f" && {build}"
+        )
+        get_console(output=output).print(
+            f"[info]Packing the TypeScript bundles in {LANG_SDK_TS_BUILDER_IMAGE}"
+        )
+        run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-u",
+                uid_gid,
+                "-v",
+                f"{AIRFLOW_ROOT_PATH}:{AIRFLOW_ROOT_PATH}",
+                "-w",
+                str(ts_sdk_path),
+                "-e",
+                f"HOME={home}",
+                "-e",
+                "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
+                "-e",
+                "CI=true",
+                LANG_SDK_TS_BUILDER_IMAGE,
+                "sh",
+                "-c",
+                script,
+            ],
+            output=output,
+            check=True,
+        )
+    if get_dry_run():
+        return
+    native_built = LANG_SDK_TS_EXAMPLE_PATH / "dist" / LANG_SDK_TS_BUNDLE_NAME
+    if not native_built.is_file():
+        raise SystemExit(f"{native_built} was not produced; check the pack output above")
+    shutil.copyfile(native_built, native_ts_dir / LANG_SDK_TS_BUNDLE_NAME)
+    handler_built = LANG_SDK_K8S_TS_EXAMPLE_PATH / "dist" / LANG_SDK_TS_BUNDLE_NAME
+    if not handler_built.is_file():
+        raise SystemExit(f"{handler_built} was not produced; check the pack output above")
+    shutil.copyfile(handler_built, handler_ts_dir / LANG_SDK_TS_BUNDLE_NAME)
+
+
+def _lang_sdk_build_runtime_image(
+    base_image: str, python: str, kubernetes_version: str, output: Output | None
+) -> str:
+    """Build the prod+JRE+Node runtime image shared by every lang-SDK coordinator, and load it into kind."""
+    get_console(output=output).print(
+        f"[info]Building lang-SDK runtime image {LANG_SDK_RUNTIME_IMAGE} (JRE + Node on top of {base_image})"
+    )
+    run_command(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"BASE_IMAGE={base_image}",
+            "-t",
+            LANG_SDK_RUNTIME_IMAGE,
+            "-f",
+            str(LANG_SDK_RUNTIME_DOCKERFILE),
+            str(LANG_SDK_PATH),
+        ],
+        output=output,
+        check=True,
+    )
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    get_console(output=output).print(f"[info]Loading {LANG_SDK_RUNTIME_IMAGE} into {cluster_name}")
+    run_command_with_k8s_env(
+        ["kind", "load", "docker-image", "--name", cluster_name, LANG_SDK_RUNTIME_IMAGE],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        check=True,
+    )
+    return LANG_SDK_RUNTIME_IMAGE
+
+
+def _lang_sdk_build_java_jars(
     staging: Path, java_sdk_source: Path, output: Output | None, *, native: bool = False
 ) -> None:
-    """Publish the Java SDK to mavenLocal then build the java_example jar into ``staging/java-artifacts``.
+    """Publish the Java SDK to mavenLocal, then build the java_example and java-native-bundle jars.
 
-    By default the build runs in an ephemeral JDK container so the host needs no JDK, persisting the
+    By default each build runs in an ephemeral JDK container so the host needs no JDK, persisting the
     Gradle distribution/dependency and Maven caches via mounted dirs. In ``native`` mode (used in CI,
     where the host already has a cached JDK + Gradle cache via ``actions/setup-java``) it invokes the
     host ``./gradlew`` directly, skipping the container image pull and reusing the runner's ``~/.gradle``
-    cache. ``java_example`` resolves the SDK from ``mavenLocal()``, so the SDK is published first, then
-    the bundle is built with java-sdk's gradle wrapper pointed at the example project (``-p``).
+    cache. Both ``java_example`` and ``java-native-bundle`` resolve the SDK from ``mavenLocal()``, so the
+    SDK is published once, then each bundle is built with java-sdk's gradle wrapper pointed at the
+    project (``-p``) -- sequentially, since both share one Maven/Gradle cache and a concurrent
+    publishToMavenLocal would race it.
 
-    Both gradle invocations run against ``java_sdk_source``; only ``-p`` stays pointed at the local
-    ``java_example``, which is test-harness code that keeps tracking the checked-out branch. The two
+    All three gradle invocations run against ``java_sdk_source``; only ``-p`` stays pointed at the
+    local project, which is test-harness code that keeps tracking the checked-out branch. They
     therefore only agree when the source is the local ``java-sdk/`` -- on the upstream-main fallback
-    the example is compiled against upstream's SDK, so it must stay compatible with it.
+    the examples are compiled against upstream's SDK, so they must stay compatible with it.
     """
-    java_dir = staging / "java-artifacts"
-    java_dir.mkdir(parents=True, exist_ok=True)
+    java_task_handlers_dir = staging / "java-task-handlers"
+    java_task_handlers_dir.mkdir(parents=True, exist_ok=True)
+    native_java_dir = staging / "lang-sdk-native-java"
+    native_java_dir.mkdir(parents=True, exist_ok=True)
+    projects = (
+        ("java_example", LANG_SDK_JAVA_EXAMPLE_PATH),
+        ("java-native-bundle", LANG_SDK_JAVA_NATIVE_BUNDLE_PATH),
+    )
 
     if native:
         get_console(output=output).print(
@@ -2732,16 +2971,16 @@ def _lang_sdk_build_java_jar(
             output=output,
             check=True,
         )
-        get_console(output=output).print("[info]Building Java jar with the host Gradle toolchain")
-        run_command(
-            ["./gradlew", "-p", str(LANG_SDK_JAVA_EXAMPLE_PATH), "bundle", "--no-daemon", "--console=plain"],
-            cwd=java_sdk_source,
-            output=output,
-            check=True,
-        )
+        for label, project_path in projects:
+            get_console(output=output).print(f"[info]Building {label} jar with the host Gradle toolchain")
+            run_command(
+                ["./gradlew", "-p", str(project_path), "bundle", "--no-daemon", "--console=plain"],
+                cwd=java_sdk_source,
+                output=output,
+                check=True,
+            )
     else:
         uid_gid = f"{os.getuid()}:{os.getgid()}"
-        java_example_ctr = f"/repo/{LANG_SDK_JAVA_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
         # --user keeps build outputs owned by the host user; HOME is set explicitly because that UID has
         # no /etc/passwd entry. GRADLE_USER_HOME and the mounted ~/.m2 persist the Gradle distribution
         # and dependency caches between runs -- outside /repo/java-sdk, which is remounted to the
@@ -2783,30 +3022,38 @@ def _lang_sdk_build_java_jar(
             output=output,
             check=True,
         )
-        get_console(output=output).print(f"[info]Building Java jar in {LANG_SDK_JAVA_BUILDER_IMAGE}")
-        run_command(
-            [
-                *java_docker_prefix,
-                "-w",
-                "/repo/java-sdk",
-                LANG_SDK_JAVA_BUILDER_IMAGE,
-                "./gradlew",
-                "-p",
-                java_example_ctr,
-                "bundle",
-                "--no-daemon",
-                "--console=plain",
-            ],
-            output=output,
-            check=True,
-        )
+        for label, project_path in projects:
+            project_ctr = f"/repo/{project_path.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
+            get_console(output=output).print(f"[info]Building {label} jar in {LANG_SDK_JAVA_BUILDER_IMAGE}")
+            run_command(
+                [
+                    *java_docker_prefix,
+                    "-w",
+                    "/repo/java-sdk",
+                    LANG_SDK_JAVA_BUILDER_IMAGE,
+                    "./gradlew",
+                    "-p",
+                    project_ctr,
+                    "bundle",
+                    "--no-daemon",
+                    "--console=plain",
+                ],
+                output=output,
+                check=True,
+            )
     if get_dry_run():
         return
-    jars = list((LANG_SDK_JAVA_EXAMPLE_PATH / "build" / "bundle").glob("*.jar"))
-    if not jars:
-        get_console(output=output).print("[error]No jar produced by the Java bundle build")
+    example_jars = list((LANG_SDK_JAVA_EXAMPLE_PATH / "build" / "bundle").glob("*.jar"))
+    if not example_jars:
+        get_console(output=output).print("[error]No jar produced by the java_example bundle build")
         sys.exit(1)
-    shutil.copy(jars[0], java_dir / jars[0].name)
+    shutil.copy(example_jars[0], java_task_handlers_dir / "app.jar")
+
+    native_jars = list((LANG_SDK_JAVA_NATIVE_BUNDLE_PATH / "build" / "bundle").glob("*.jar"))
+    if not native_jars:
+        get_console(output=output).print("[error]No jar produced by the java-native-bundle build")
+        sys.exit(1)
+    shutil.copy(native_jars[0], native_java_dir / native_jars[0].name)
 
 
 def _lang_sdk_kubectl(
@@ -2840,7 +3087,19 @@ def _lang_sdk_deploy_localstack(python: str, kubernetes_version: str, output: Ou
 def _lang_sdk_upload_artifacts(
     staging: Path, python: str, kubernetes_version: str, output: Output | None
 ) -> None:
-    """Copy artifacts + stub Dag into the localstack pod and create/fill S3 buckets via awslocal."""
+    """
+    Copy artifacts + Dag files into the localstack pod and create/fill S3 buckets via awslocal.
+
+    Every coordinator's task-handler bucket (go/java/ts-task-handlers) also gets an
+    ``.airflowignore`` that excludes everything in it, so the Dag processor never tries to
+    parse the packed Go bundle or the Java/TypeScript handler-only bundles as Dags -- a
+    coordinator's own artifact lookup does not read ``.airflowignore``, so stub tasks still
+    find their handlers there. The three ``lang-sdk-native-*`` buckets carry no such file.
+
+    ``ts-task-handlers`` holds two bundles: the mixed-language one and ``ts-sdk/example``, which
+    carries the handlers of ``typescript_example``. The coordinator picks between them by the
+    dag_ids each declares, so the native Dag's ``trigger_downstream`` has a run that can succeed.
+    """
     pod = run_command_with_k8s_env(
         [
             "kubectl",
@@ -2861,24 +3120,66 @@ def _lang_sdk_upload_artifacts(
         check=True,
     ).stdout.strip()
 
-    go_bundle = staging / "go-artifacts" / "lang_sdk_combined"
+    go_bundle = staging / "go-task-handlers" / LANG_SDK_GO_BUNDLE_NAME
+    native_go_bundle = staging / "lang-sdk-native-go" / LANG_SDK_GO_NATIVE_BUNDLE_NAME
+    native_ts_bundle = staging / "lang-sdk-native-ts" / LANG_SDK_TS_BUNDLE_NAME
+    handler_ts_bundle = staging / "ts-task-handlers" / LANG_SDK_TS_BUNDLE_NAME
     if get_dry_run():
         # The dry-run build steps produce no jar; use the placeholder name so the commands still print.
-        java_jar = staging / "java-artifacts" / "app.jar"
+        java_jar = staging / "java-task-handlers" / "app.jar"
+        native_java_jar = staging / "lang-sdk-native-java" / "app.jar"
     else:
-        java_jar = next((staging / "java-artifacts").glob("*.jar"))
-    stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_combined.py"
+        java_jar = next((staging / "java-task-handlers").glob("*.jar"))
+        native_java_jar = next((staging / "lang-sdk-native-java").glob("*.jar"))
+    stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_mixed_language.py"
+    # The native TypeScript Dag triggers typescript_example, so it has to be in the cluster
+    # for its trigger task to have a target. It is the same Python Dag the mixed-language
+    # half of `ts-sdk/example` is written against.
+    downstream_dag = LANG_SDK_TS_EXAMPLE_PATH / "dags" / "typescript_example.py"
 
-    for src, dest in (
+    copies = [
         (go_bundle, "/tmp/go_bundle"),
+        (LANG_SDK_AIRFLOWIGNORE_ALL, "/tmp/go_airflowignore"),
         (java_jar, "/tmp/app.jar"),
-        (stub_dag, "/tmp/lang_sdk_combined.py"),
-    ):
+        (LANG_SDK_AIRFLOWIGNORE_ALL, "/tmp/java_airflowignore"),
+        (handler_ts_bundle, "/tmp/handler_bundle.min.mjs"),
+        (LANG_SDK_AIRFLOWIGNORE_ALL, "/tmp/ts_airflowignore"),
+        (stub_dag, "/tmp/lang_sdk_mixed_language.py"),
+        (downstream_dag, "/tmp/typescript_example.py"),
+        (native_java_jar, "/tmp/native_app.jar"),
+        (native_ts_bundle, "/tmp/native_bundle.min.mjs"),
+        (native_go_bundle, "/tmp/native_go_bundle"),
+    ]
+    buckets = [
+        "go-task-handlers",
+        "java-task-handlers",
+        "ts-task-handlers",
+        "dags",
+        "lang-sdk-native-go",
+        "lang-sdk-native-java",
+        "lang-sdk-native-ts",
+    ]
+    uploads = [
+        ("/tmp/go_bundle", f"s3://go-task-handlers/{LANG_SDK_GO_BUNDLE_NAME}"),
+        ("/tmp/go_airflowignore", "s3://go-task-handlers/.airflowignore"),
+        ("/tmp/app.jar", "s3://java-task-handlers/app.jar"),
+        ("/tmp/java_airflowignore", "s3://java-task-handlers/.airflowignore"),
+        ("/tmp/handler_bundle.min.mjs", f"s3://ts-task-handlers/{LANG_SDK_TS_BUNDLE_NAME}"),
+        ("/tmp/ts_airflowignore", "s3://ts-task-handlers/.airflowignore"),
+        ("/tmp/lang_sdk_mixed_language.py", "s3://dags/lang_sdk_mixed_language.py"),
+        ("/tmp/typescript_example.py", "s3://dags/typescript_example.py"),
+        ("/tmp/native_app.jar", f"s3://lang-sdk-native-java/{native_java_jar.name}"),
+        ("/tmp/native_bundle.min.mjs", f"s3://lang-sdk-native-ts/{LANG_SDK_TS_BUNDLE_NAME}"),
+        ("/tmp/native_bundle.min.mjs", f"s3://ts-task-handlers/{LANG_SDK_TS_NATIVE_HANDLER_NAME}"),
+        ("/tmp/native_go_bundle", f"s3://lang-sdk-native-go/{LANG_SDK_GO_NATIVE_BUNDLE_NAME}"),
+    ]
+
+    for src, dest in copies:
         _lang_sdk_kubectl(
             ["cp", str(src), f"{HELM_AIRFLOW_NAMESPACE}/{pod}:{dest}"], python, kubernetes_version, output
         )
 
-    for bucket in ("go-artifacts", "java-artifacts", "dags"):
+    for bucket in buckets:
         _lang_sdk_kubectl(
             ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "mb", f"s3://{bucket}"],
             python,
@@ -2886,11 +3187,6 @@ def _lang_sdk_upload_artifacts(
             output,
             check=False,
         )
-    uploads = (
-        ("/tmp/go_bundle", "s3://go-artifacts/lang_sdk_combined"),
-        ("/tmp/app.jar", "s3://java-artifacts/app.jar"),
-        ("/tmp/lang_sdk_combined.py", "s3://dags/lang_sdk_combined.py"),
-    )
     for src, dest in uploads:
         _lang_sdk_kubectl(
             ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "cp", src, dest],
@@ -2901,91 +3197,47 @@ def _lang_sdk_upload_artifacts(
 
 
 def _lang_sdk_apply_configmaps_and_secret(
-    python: str, kubernetes_version: str, go_image: str, java_image: str, output: Output | None
+    python: str, kubernetes_version: str, output: Output | None
 ) -> None:
-    with tempfile.TemporaryDirectory(prefix="lang_sdk_pt_") as tmp:
-        rendered = Path(tmp)
-        for name in ("lang_sdk_golang.yaml", "lang_sdk_java.yaml"):
-            text = (LANG_SDK_PATH / "pod_templates" / name).read_text()
-            text = text.replace("__LANG_SDK_GO_IMAGE__", go_image).replace(
-                "__LANG_SDK_JAVA_IMAGE__", java_image
-            )
-            (rendered / name).write_text(text)
-        # Idempotent configmap/secret application via `--dry-run | apply`.
-        for cm_args in (
-            ["create", "configmap", "lang-sdk-pod-templates", f"--from-file={rendered}"],
-            [
-                "create",
-                "configmap",
-                "lang-sdk-scripts",
-                f"--from-file={LANG_SDK_PATH / 'stage_artifacts.py'}",
-            ],
-            [
-                "create",
-                "secret",
-                "generic",
-                "lang-sdk-aws-conn",
-                f"--from-literal=uri={LANG_SDK_AWS_CONN_URI}",
-            ],
-        ):
-            manifest = run_command_with_k8s_env(
-                ["kubectl", *cm_args, "-n", HELM_AIRFLOW_NAMESPACE, "--dry-run=client", "-o", "yaml"],
-                python=python,
-                kubernetes_version=kubernetes_version,
-                output=output,
-                capture_output=True,
-                check=True,
-            ).stdout
-            run_command_with_k8s_env(
-                ["kubectl", "apply", "-n", HELM_AIRFLOW_NAMESPACE, "-f", "-"],
-                python=python,
-                kubernetes_version=kubernetes_version,
-                output=output,
-                input=manifest,
-                check=True,
-            )
-
-
-def _lang_sdk_build_java_worker_image(
-    base_image: str, python: str, kubernetes_version: str, output: Output | None
-) -> str:
-    """Build the prod+JRE Java worker image and load it into the kind cluster.
-
-    Returns the local image tag the Java pod template should reference.
-    """
-    get_console(output=output).print(
-        f"[info]Building Java worker image {LANG_SDK_JAVA_WORKER_IMAGE} (JRE on top of {base_image})"
-    )
-    run_command(
+    """Idempotently apply the shared worker pod template and the localstack AWS connection secret."""
+    for cm_args in (
         [
-            "docker",
-            "build",
-            "--build-arg",
-            f"BASE_IMAGE={base_image}",
-            "-t",
-            LANG_SDK_JAVA_WORKER_IMAGE,
-            "-f",
-            str(LANG_SDK_JAVA_DOCKERFILE),
-            str(LANG_SDK_PATH),
+            "create",
+            "configmap",
+            "lang-sdk-pod-templates",
+            f"--from-file={LANG_SDK_WORKER_POD_TEMPLATE}",
         ],
-        output=output,
-        check=True,
-    )
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]Loading {LANG_SDK_JAVA_WORKER_IMAGE} into {cluster_name}")
-    run_command_with_k8s_env(
-        ["kind", "load", "docker-image", "--name", cluster_name, LANG_SDK_JAVA_WORKER_IMAGE],
-        python=python,
-        kubernetes_version=kubernetes_version,
-        output=output,
-        check=True,
-    )
-    return LANG_SDK_JAVA_WORKER_IMAGE
+        [
+            "create",
+            "secret",
+            "generic",
+            "lang-sdk-aws-conn",
+            f"--from-literal=uri={LANG_SDK_AWS_CONN_URI}",
+        ],
+    ):
+        manifest = run_command_with_k8s_env(
+            ["kubectl", *cm_args, "-n", HELM_AIRFLOW_NAMESPACE, "--dry-run=client", "-o", "yaml"],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            capture_output=True,
+            check=True,
+        ).stdout
+        run_command_with_k8s_env(
+            ["kubectl", "apply", "-n", HELM_AIRFLOW_NAMESPACE, "-f", "-"],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            input=manifest,
+            check=True,
+        )
 
 
-def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Output | None) -> None:
-    params = BuildProdParams(python=python)
-    image = params.airflow_image_kubernetes
+def _lang_sdk_deploy_airflow(
+    python: str, kubernetes_version: str, github_repository: str, output: Output | None
+) -> None:
+    params = BuildProdParams(python=python, github_repository=github_repository)
+    base_image = params.airflow_image_kubernetes
     get_console(output=output).print("[info]Upgrading airflow Helm release with lang-SDK values")
     run_command_with_k8s_env(
         [
@@ -3004,10 +3256,20 @@ def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Outpu
             # reverting the api-server to the chart-default FabAuthManager so it never writes
             # simple_auth_manager_passwords.json.generated and the API-login tests error out.
             "--reuse-values",
+            # The Dag processor (and every other component using the shared `airflow_image`
+            # template) switches to the lang-SDK runtime image so it can parse native Java and
+            # TypeScript Dags. Each coordinator's own worker_container_repository/tag (set in
+            # lang_sdk/config/values.yaml) already points its queue's pods at the same image, so
+            # only the default KubernetesExecutor worker pods (plain Python tasks, routed through
+            # no coordinator) need pinning back to the plain k8s image below.
             "--set",
-            f"defaultAirflowRepository={image}",
+            f"images.airflow.repository={LANG_SDK_RUNTIME_IMAGE.split(':')[0]}",
             "--set",
-            "defaultAirflowTag=latest",
+            f"images.airflow.tag={LANG_SDK_RUNTIME_IMAGE.split(':')[1]}",
+            "--set",
+            f"config.kubernetes_executor.worker_container_repository={base_image}",
+            "--set",
+            "config.kubernetes_executor.worker_container_tag=latest",
             "-f",
             str(LANG_SDK_PATH / "config" / "values.yaml"),
             "--timeout",
@@ -3027,7 +3289,7 @@ def _run_lang_sdk_parallel(
 ) -> dict[str, Any]:
     """Run mutually-independent lang-SDK build/deploy steps concurrently.
 
-    The Go build, Java jar build, Java worker image build and localstack deploy share no inputs, so
+    The Go build, Java jars build, runtime image build and localstack deploy share no inputs, so
     running them together turns provisioning time into roughly the slowest single step. Each step
     captures its own output; the captured logs are streamed in a stable order once all steps finish
     (so parallel docker/kubectl output does not interleave), and the first failure is re-raised.
@@ -3065,24 +3327,26 @@ def _run_lang_sdk_parallel(
 def _setup_lang_sdk_test(
     python: str,
     kubernetes_version: str,
-    go_image: str | None = None,
-    java_image: str | None = None,
+    github_repository: str,
+    runtime_image: str | None = None,
     output: Output | None = None,
 ) -> None:
     """Provision the lang-SDK coordinator env on an already-deployed KubernetesExecutor cluster.
 
-    Resolves the go-sdk/java-sdk sources, then builds the Go/Java artifacts, the Java worker
-    image and deploys localstack in parallel, then serially uploads the artifacts, applies the
-    config + secret, and helm-upgrades Airflow with the lang-SDK values.
+    Resolves the go-sdk/java-sdk sources, then builds the Go bundle, the two Java jars, the two
+    TypeScript bundles, the shared runtime image and deploys localstack in parallel, then serially
+    uploads the artifacts, applies the pod template + secret, and helm-upgrades Airflow with the
+    lang-SDK values.
     """
-    go_image = go_image or f"{BuildProdParams(python=python).airflow_image_kubernetes}:latest"
-    build_java_image = java_image is None
-    if java_image is None:
-        # The worker-image build below produces this fixed tag; resolve it up-front so the config
+    base_image = f"{BuildProdParams(python=python, github_repository=github_repository).airflow_image_kubernetes}:latest"
+    build_runtime_image = runtime_image is None
+    if runtime_image is None:
+        # The runtime-image build below produces this fixed tag; resolve it up-front so the config
         # rendering (which needs the tag, not the build result) does not depend on the parallel run.
-        java_image = LANG_SDK_JAVA_WORKER_IMAGE
-    # In CI the Go/Java toolchains are provisioned + cached on the host (actions/setup-go, setup-java),
-    # so building the artifacts natively skips the toolchain-image pulls and reuses the runner caches.
+        runtime_image = LANG_SDK_RUNTIME_IMAGE
+    # In CI the Go/Java/Node toolchains are provisioned + cached on the host (actions/setup-go,
+    # setup-java, setup-node), so building the artifacts natively skips the toolchain-image pulls
+    # and reuses the runner caches.
     native = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
     with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
         staging = Path(tmp)
@@ -3093,46 +3357,57 @@ def _setup_lang_sdk_test(
                 lambda o: _lang_sdk_build_go_bundle(staging, go_sdk_source, o, native=native),
             ),
             (
-                "Build Java jar",
-                lambda o: _lang_sdk_build_java_jar(staging, java_sdk_source, o, native=native),
+                "Build Java jars",
+                lambda o: _lang_sdk_build_java_jars(staging, java_sdk_source, o, native=native),
             ),
-            ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o)),
+            (
+                "Build TypeScript bundles",
+                lambda o: _lang_sdk_build_ts_bundles(staging, o, native=native),
+            ),
+            (
+                "Deploy localstack",
+                lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o),
+            ),
         ]
-        if build_java_image:
+        if build_runtime_image:
             steps.append(
                 (
-                    "Build Java worker image",
-                    lambda o: _lang_sdk_build_java_worker_image(go_image, python, kubernetes_version, o),
+                    "Build runtime image",
+                    lambda o: _lang_sdk_build_runtime_image(base_image, python, kubernetes_version, o),
                 )
             )
         _run_lang_sdk_parallel(steps, output=output)
         _lang_sdk_upload_artifacts(staging, python, kubernetes_version, output)
-    _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, output)
-    _lang_sdk_deploy_airflow(python, kubernetes_version, output)
+    _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, output)
+    _lang_sdk_deploy_airflow(python, kubernetes_version, github_repository, output)
 
 
 @kubernetes_group.command(
     name="setup-lang-sdk-test",
-    help="Provision the lang-SDK (Go + Java) coordinator system test on an already-deployed "
-    "KubernetesExecutor cluster: build artifacts, build + load the Java worker image, deploy "
-    "localstack S3, upload artifacts + stub Dag, create config, and upgrade the Helm release. "
-    "Run the test afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
-    "--executor KubernetesExecutor -- -k test_lang_sdk_combined_dag_succeeds`.",
+    help="Provision the lang-SDK (Go + Java + TypeScript) coordinator system tests on an "
+    "already-deployed KubernetesExecutor cluster: build the Go bundle, the Java and TypeScript "
+    "jars/bundles (mixed-language and native), build + load the shared runtime image, deploy "
+    "localstack S3, upload artifacts + Dag files, create the pod template + secret, and upgrade "
+    "the Helm release. Run the tests afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
+    "--executor KubernetesExecutor -- -k TestLangSdk`.",
 )
 @option_python
 @option_kubernetes_version
 @click.option(
-    "--go-image",
-    help="Image for the Go (ExecutableCoordinator) worker pod. Defaults to the k8s image.",
+    "--runtime-image",
+    help="Image for every coordinator's worker pod and for the Dag processor. Must include a JRE "
+    "and Node. Defaults to building the prod image plus both (Dockerfile.runtimes) and loading it "
+    "into the kind cluster.",
 )
-@click.option(
-    "--java-image",
-    help="Image for the Java (JavaCoordinator) worker pod. Must include a JRE. Defaults to building "
-    "the prod image plus a headless JRE (Dockerfile.java) and loading it into the kind cluster.",
-)
+@option_github_repository
 @option_verbose
 @option_dry_run
-def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | None, java_image: str | None):
+def setup_lang_sdk_test(
+    python: str,
+    kubernetes_version: str,
+    runtime_image: str | None,
+    github_repository: str,
+):
     result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -3140,13 +3415,13 @@ def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | No
     _setup_lang_sdk_test(
         python=python,
         kubernetes_version=kubernetes_version,
-        go_image=go_image,
-        java_image=java_image,
+        github_repository=github_repository,
+        runtime_image=runtime_image,
         output=None,
     )
     console_print(
         "\n[success]lang-SDK test environment is ready.[/]\n"
-        "[info]Run the test with (the test is gated on RUN_LANG_SDK_K8S_TESTS):\n"
+        "[info]Run the tests with (gated on RUN_LANG_SDK_K8S_TESTS):\n"
         "  RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor "
-        "-- -k test_lang_sdk_combined_dag_succeeds\n"
+        "-- -k TestLangSdk\n"
     )

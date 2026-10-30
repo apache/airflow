@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
@@ -36,6 +37,8 @@ class OSSCreateBucketOperator(BaseOperator):
     :param bucket_name: This is bucket name you want to create
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
+
+    template_fields: Sequence[str] = ("oss_conn_id",)
 
     def __init__(
         self,
@@ -62,6 +65,8 @@ class OSSDeleteBucketOperator(BaseOperator):
     :param bucket_name: This is bucket name you want to delete
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
+
+    template_fields: Sequence[str] = ("oss_conn_id",)
 
     def __init__(
         self,
@@ -90,6 +95,8 @@ class OSSUploadObjectOperator(BaseOperator):
     :param bucket_name: This is bucket name you want to create
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
+
+    template_fields: Sequence[str] = ("oss_conn_id",)
 
     def __init__(
         self,
@@ -123,6 +130,8 @@ class OSSDownloadObjectOperator(BaseOperator):
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
 
+    template_fields: Sequence[str] = ("oss_conn_id",)
+
     def __init__(
         self,
         key: str,
@@ -154,6 +163,8 @@ class OSSDeleteBatchObjectOperator(BaseOperator):
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
 
+    template_fields: Sequence[str] = ("oss_conn_id",)
+
     def __init__(
         self,
         keys: list,
@@ -182,6 +193,8 @@ class OSSDeleteObjectOperator(BaseOperator):
     :param bucket_name: OSS bucket name
     :param oss_conn_id: The Airflow connection used for OSS credentials.
     """
+
+    template_fields: Sequence[str] = ("oss_conn_id",)
 
     def __init__(
         self,

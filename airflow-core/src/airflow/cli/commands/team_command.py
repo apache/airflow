@@ -44,8 +44,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-NO_TEAMS_LIST_MSG = "No teams found."
-
 
 def _show_teams(teams, output):
     """Display teams in the specified output format."""
@@ -206,10 +204,7 @@ def team_delete(args, *, session=NEW_SESSION):
 def team_list(args, *, session=NEW_SESSION):
     """List all teams."""
     teams = session.scalars(select(Team).order_by(Team.name)).all()
-    if not teams:
-        print(NO_TEAMS_LIST_MSG)
-    else:
-        _show_teams(teams=teams, output=args.output)
+    _show_teams(teams=teams, output=args.output)
 
 
 @cli_utils.action_cli
@@ -239,23 +234,44 @@ def team_sync(args, *, session=NEW_SESSION):
             "Names already stored must be corrected before syncing."
         )
 
-    teams_added = 0
+    teams_to_add = sorted(dag_bundle_teams - existing_teams)
+    pools_to_add = []
+
+    for team_name in dag_bundle_teams:
+        pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team_name),
+                Pool.team_name == team_name,
+            )
+        )
+
+        if pool is None:
+            pools_to_add.append(Pool.get_default_team_pool_name(team_name))
+
+    if args.dry_run:
+        if not teams_to_add and not pools_to_add:
+            print("No changes to sync.")
+            return
+
+        if teams_to_add:
+            print("Teams to add:")
+            for team_name in teams_to_add:
+                print(f"  - {team_name}")
+
+        if pools_to_add:
+            print("Default team pools to add:")
+            for pool_name in sorted(pools_to_add):
+                print(f"  - {pool_name}")
+
+        return
 
     try:
         for team_name in dag_bundle_teams:
-            if team_name not in existing_teams:
+            if team_name in teams_to_add:
                 session.add(Team(name=team_name))
                 session.flush()
-                teams_added += 1
 
-            pool = session.scalar(
-                select(Pool).where(
-                    Pool.pool == Pool.get_default_team_pool_name(team_name),
-                    Pool.team_name == team_name,
-                )
-            )
-
-            if pool is None:
+            if Pool.get_default_team_pool_name(team_name) in pools_to_add:
                 _create_default_team_pool(team_name=team_name, session=session)
 
         session.commit()
@@ -263,8 +279,8 @@ def team_sync(args, *, session=NEW_SESSION):
         session.rollback()
         raise SystemExit(f"Failed to sync teams: {e}")
 
-    if teams_added > 0:
-        print(f"{teams_added} teams added.")
+    if teams_to_add:
+        print(f"{len(teams_to_add)} teams added.")
 
 
 @cli_utils.action_cli
@@ -308,3 +324,50 @@ def team_verify(args, *, session=NEW_SESSION):
         raise SystemExit(1)
 
     print("Verification succeeded.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_inspect(args, *, session=NEW_SESSION):
+    """Inspect resources belonging to a team."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
+    team_name = _extract_team_name(args)
+
+    team = session.scalar(select(Team).where(Team.name == team_name))
+    if team is None:
+        raise SystemExit(f"Team '{team_name}' does not exist")
+
+    bundle_names = session.scalars(
+        select(dag_bundle_team_association_table.c.dag_bundle_name)
+        .where(dag_bundle_team_association_table.c.team_name == team_name)
+        .order_by(dag_bundle_team_association_table.c.dag_bundle_name)
+    ).all()
+
+    pool_names = session.scalars(
+        select(Pool.pool).where(Pool.team_name == team_name).order_by(Pool.pool)
+    ).all()
+
+    connection_ids = session.scalars(
+        select(Connection.conn_id).where(Connection.team_name == team_name).order_by(Connection.conn_id)
+    ).all()
+
+    variable_keys = session.scalars(
+        select(Variable.key).where(Variable.team_name == team_name).order_by(Variable.key)
+    ).all()
+
+    AirflowConsole().print_as(
+        data=[
+            {
+                "name": team.name,
+                "dag_bundles": bundle_names,
+                "pools": pool_names,
+                "connections": connection_ids,
+                "variables": variable_keys,
+            }
+        ],
+        output=args.output,
+    )

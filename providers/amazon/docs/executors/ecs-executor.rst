@@ -111,6 +111,10 @@ Optional config options:
    fails to start (i.e. ECS API failures, container failures etc.)
 -  CHECK_HEALTH_ON_STARTUP - Whether or not to check the ECS Executor
    health on startup
+-  RUN_TASK_CONCURRENCY - The maximum number of ECS ``run_task`` calls
+   the ECS Executor makes in parallel, in background threads. Defaults
+   to 1: tasks are launched one at a time, and the scheduler loop waits
+   for each call.
 
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
@@ -330,9 +334,9 @@ Create Task Definition
 
 - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``, with the value being the PostgreSQL connection string in the following format using the values set during the `Database section <#create-the-rds-db-instance>`_ above:
 
-.. code-block:: bash
-
-   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
+.. include:: general.rst
+  :start-after: .. BEGIN SQL_ALCHEMY_CONN
+  :end-before: .. END SQL_ALCHEMY_CONN
 
 
 - ``AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
@@ -389,3 +393,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
   :end-before: .. END INIT_DB
+
+.. include:: general.rst
+  :start-after: .. BEGIN TASK_INSTANCE_IDENTITY
+  :end-before: .. END TASK_INSTANCE_IDENTITY

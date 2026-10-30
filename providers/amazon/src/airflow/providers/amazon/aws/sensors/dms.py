@@ -39,7 +39,8 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
     :param target_statuses: the target statuses, sensor waits until
         the task reaches any of these states
     :param termination_statuses: the termination statuses, sensor fails when
-        the task reaches any of these states
+        the task reaches any of these states. The error includes the task's
+        ``StopReason`` and ``LastFailureMessage`` when DMS reports them.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -68,7 +69,8 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
         self.termination_statuses: Iterable[str] = termination_statuses or []
 
     def poke(self, context: Context):
-        if not (status := self.hook.get_task_status(self.replication_task_arn)):
+        task = self.hook.get_task_description(self.replication_task_arn) or {}
+        if not (status := task.get("Status")):
             raise AirflowException(
                 f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
             )
@@ -79,7 +81,10 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
             return True
 
         if status in self.termination_statuses:
-            raise AirflowException(f"Unexpected status: {status}")
+            details = ", ".join(
+                f"{field}: {task[field]}" for field in ("StopReason", "LastFailureMessage") if task.get(field)
+            )
+            raise AirflowException(f"Unexpected status: {status}" + (f" ({details})" if details else ""))
 
         return False
 

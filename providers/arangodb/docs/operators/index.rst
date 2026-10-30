@@ -30,7 +30,7 @@ You can further process your result using :class:`~airflow.providers.arangodb.op
 further process the result using :class:`result_processor <airflow.providers.arangodb.operators.arangodb.AQLOperator>`
 Callable as you like.
 
-An example of Listing all Documents in **students** collection can be implemented as following:
+An example of listing all documents in the **students** collection can be implemented as follows:
 
 .. exampleinclude:: /../../arangodb/src/airflow/providers/arangodb/example_dags/example_arangodb.py
     :language: python
@@ -51,7 +51,7 @@ Sensors
 Use the :class:`~airflow.providers.arangodb.sensors.arangodb.AQLSensor` to wait for a document or collection using
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
 
-An example for waiting a document in **students** collection with student name **judy** can be implemented as following:
+An example of waiting for a document in the **students** collection whose student name is **Judy** can be implemented as follows:
 
 .. exampleinclude:: /../../arangodb/src/airflow/providers/arangodb/example_dags/example_arangodb.py
     :language: python

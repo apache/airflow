@@ -18,33 +18,47 @@
 from __future__ import annotations
 
 import argparse
+import datetime
+import json
 from argparse import BooleanOptionalAction
+from datetime import UTC
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 from unittest import mock
 
 import httpx
 import pytest
 
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import DagRunOperations, ServerResponseError
+from airflowctl.api.client import Client
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
+from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
+    ARG_OUTPUT,
     ActionCommand,
     Arg,
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    is_iso_date_type,
+    is_iso_datetime_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
 )
+from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
 )
+
+UUID_A = "0199f0a8-0000-7000-8000-000000000001"
+UUID_B = "0199f0a8-0000-7000-8000-000000000002"
 
 
 @pytest.fixture
@@ -295,6 +309,44 @@ class TestCommandFactory:
                         assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
+    def test_command_factory_builds_nested_subgroup(self, tmp_path):
+        """Methods matching a declared suffix collapse into a nested GroupCommand."""
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class TaskInstancesOperations(BaseOperations):
+                    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse:
+                        ...
+                    def list_state_store(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskStateStoreCollectionResponse:
+                        ...
+                    def get_state_store(self, dag_id: str, dag_run_id: str, task_id: str, key: str) -> TaskStateStoreResponse:
+                        ...
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        taskinstances = next(g for g in command_factory.group_commands if g.name == "taskinstances")
+        subcommand_by_name = {c.name: c for c in taskinstances.subcommands}
+
+        assert isinstance(subcommand_by_name["list"], ActionCommand)
+
+        state_store = subcommand_by_name["state-store"]
+        assert isinstance(state_store, GroupCommand)
+        assert state_store.help == "Manage the state store of a task instance"
+        assert sorted(c.name for c in state_store.subcommands) == ["get", "list"]
+        assert all(isinstance(c, ActionCommand) for c in state_store.subcommands)
+
+    def test_find_subgroup_suffix(self):
+        """Suffix match is scoped to the declaring operations class."""
+        command_factory = CommandFactory()
+
+        assert (
+            command_factory._find_subgroup_suffix("TaskInstancesOperations", "list_state_store")
+            == "state_store"
+        )
+        assert command_factory._find_subgroup_suffix("TaskInstancesOperations", "list") is None
+        assert command_factory._find_subgroup_suffix("DagsOperations", "list_state_store") is None
+
     def test_command_factory_optional_bool_uses_boolean_optional_action(self, tmp_path):
         """Optional bool parameters should support --flag and --no-flag forms."""
         temp_file = self._save_temp_operations_py(
@@ -341,6 +393,27 @@ class TestCommandFactory:
 
         assert parsed_conf == {"my-key": "my-value"}
 
+    def test_group_commands_is_stable_across_repeated_access(self):
+        """Reading ``group_commands`` twice must not duplicate groups or subcommands."""
+        command_factory = CommandFactory()
+
+        # Snapshot the names and sizes rather than the list itself: both accesses
+        # hand back the same object, so only values captured before the second
+        # access can witness it mutating them.
+        first = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+        second = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+
+        assert second == first
+        assert len(second) == len({name for name, _ in second})
+
+    def test_command_factory_parses_comma_separated_list_fields(self):
+        """List fields should parse comma-separated CLI values as whole items."""
+        command_factory = CommandFactory()
+
+        list_type = command_factory._python_type_from_string("list")
+
+        assert list_type("dag1, dag2") == ["dag1", "dag2"]
+
     def test_json_dict_type_returns_dict_input_unchanged(self):
         """A dict input is returned as-is without re-parsing."""
         value = {"my-key": "my-value"}
@@ -364,6 +437,51 @@ class TestCommandFactory:
         """Valid JSON that is not an object raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
+
+    def test_is_iso_datetime_type_returns_datetime_input_unchanged(self):
+        """A datetime.datetime input is returned as-is without re-parsing."""
+
+        value = datetime.datetime(2026, 7, 1, tzinfo=UTC)
+
+        assert is_iso_datetime_type(value) is value
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("2026-07-01", "2026-07-01T00:00:00"),
+            ("2026-07-01T00:00:00", "2026-07-01T00:00:00"),
+            ("2026-07-01T12:34:56+00:00", "2026-07-01T12:34:56+00:00"),
+            ("2026-07-01T12:34:56Z", "2026-07-01T12:34:56+00:00"),
+        ],
+    )
+    def test_is_iso_datetime_type_parses_iso_string(self, value, expected):
+        """An ISO-8601 datetime string (date-only or full) is parsed into a datetime."""
+        assert is_iso_datetime_type(value).isoformat() == expected
+
+    def test_is_iso_datetime_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid datetime value"):
+            is_iso_datetime_type("not-a-date")
+
+    def test_is_iso_datetime_type_accepts_trailing_z(self):
+        """A trailing Z (as emitted by the API) parses on all supported Python versions."""
+        assert is_iso_datetime_type("2026-07-01T12:00:00Z") == datetime.datetime(
+            2026, 7, 1, 12, 0, 0, tzinfo=UTC
+        )
+
+    def test_is_iso_date_type_parses_iso_date(self):
+        """An ISO-8601 date string is parsed into a datetime.date."""
+        assert is_iso_date_type("2026-07-01") == datetime.date(2026, 7, 1)
+
+    def test_is_iso_date_type_returns_date_input_unchanged(self):
+        """A datetime.date input is returned as-is without re-parsing."""
+        d = datetime.date(2026, 7, 1)
+        assert is_iso_date_type(d) is d
+
+    def test_is_iso_date_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="Invalid ISO-8601 date"):
+            is_iso_date_type("not-a-date")
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
@@ -456,6 +574,30 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    def test_every_generated_command_accepts_the_output_flag(self):
+        """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
+        command_factory = CommandFactory()
+
+        def iter_action_commands(commands, prefix):
+            """Yield (qualified_name, ActionCommand) for leaves, descending into nested subgroups."""
+            for command in commands:
+                name = f"{prefix}{command.name}"
+                if isinstance(command, GroupCommand):
+                    yield from iter_action_commands(command.subcommands, prefix=f"{name} ")
+                else:
+                    yield name, command
+
+        missing = [
+            name
+            for group_command in command_factory.group_commands
+            for name, sub_command in iter_action_commands(
+                group_command.subcommands, prefix=f"{group_command.name} "
+            )
+            if ARG_OUTPUT not in sub_command.args
+        ]
+
+        assert missing == []
+
 
 class TestCliConfigMethods:
     @pytest.mark.parametrize(
@@ -514,6 +656,43 @@ class TestCliConfigMethods:
             safe_call_command(raise_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
+
+    @pytest.mark.parametrize(
+        ("response", "hint_expected"),
+        [
+            pytest.param(
+                httpx.Response(302, headers={"location": "https://sso.example.com/login"}),
+                True,
+                id="redirect",
+            ),
+            pytest.param(
+                httpx.Response(502, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-server-error",
+            ),
+            pytest.param(
+                httpx.Response(401, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-client-error",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_bare_http_status_error(
+        self, response, hint_expected, capsys
+    ):
+        response.request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+
+        def raise_error(_args):
+            response.raise_for_status()
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        # Rich hard-wraps at the console width, so normalise before matching on a phrase.
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server response error:" in out
+        assert ("does not follow" in out) is hint_expected
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
@@ -607,6 +786,27 @@ class TestCliConfigMethods:
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
 
+    def test_merge_commands_replaces_duplicate_subcommand(self, no_op_method):
+        generated = GroupCommand(
+            name="providers",
+            help="Generated providers commands",
+            subcommands=(
+                ActionCommand(name="get", help="Generated get", func=no_op_method, args=()),
+                ActionCommand(name="list", help="Generated list", func=no_op_method, args=()),
+            ),
+        )
+        custom = GroupCommand(
+            name="providers",
+            help="Custom providers commands",
+            subcommands=(ActionCommand(name="get", help="Custom get", func=no_op_method, args=()),),
+        )
+
+        merged = merge_commands(base_commands=[generated], commands_will_be_merged=[custom])
+
+        subcommands = list(merged[0].subcommands)
+        assert [command.name for command in subcommands] == ["list", "get"]
+        assert subcommands[-1].help == "Custom get"
+
     def test_add_auth_token_to_all_commands(self, no_op_method):
         """Test the add_auth_token_to_all_commands method."""
         ARG_1 = Arg(
@@ -671,7 +871,7 @@ class TestCliConfigMethods:
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -701,7 +901,7 @@ class TestCliConfigMethods:
             and "logical_date" in method_params[datamodel_param_name]
             and method_params[datamodel_param_name]["logical_date"] is None
         ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
 
         # Step 3: Create the Pydantic model (what happens in the actual code)
         trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
@@ -711,7 +911,7 @@ class TestCliConfigMethods:
         assert isinstance(trigger_body.logical_date, datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Also verify timezone is UTC
@@ -719,7 +919,7 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -733,7 +933,7 @@ class TestCliConfigMethods:
         assert isinstance(result["logical_date"], datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        time_diff = abs((datetime.now(UTC) - result["logical_date"]).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Verify timezone is UTC
@@ -741,14 +941,14 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
         """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
         command_factory = CommandFactory()
 
         # Test with an existing logical_date value
-        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
         params = {"logical_date": specific_date, "conf": {}}
         result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
 
@@ -803,30 +1003,59 @@ class TestCliConfigMethods:
         assert "--output" in args_by_flag
 
     @pytest.mark.parametrize(
-        ("raw_task_ids", "expected_task_ids"),
+        ("field", "raw_value", "expected_value"),
         [
-            ("task_1", ["task_1"]),
-            ("task_1,task_2", ["task_1", "task_2"]),
-            (" task_1 , task_2 ,", ["task_1", "task_2"]),
-            ('["task_1", ["mapped_task", 0]]', ["task_1", ["mapped_task", 0]]),
-            (None, None),
+            ("task_ids", "task_1", ["task_1"]),
+            ("task_ids", "task_1,task_2", ["task_1", "task_2"]),
+            ("task_ids", " task_1 , task_2 ,", ["task_1", "task_2"]),
+            ("task_ids", '["task_1", ["mapped_task", 0]]', ["task_1", ["mapped_task", 0]]),
+            ("task_ids", None, None),
+            ("task_instance_ids", f"{UUID_A},{UUID_B}", [UUID_A, UUID_B]),
+            ("task_instance_ids", f'["{UUID_A}"]', [UUID_A]),
+            ("task_instance_ids", None, None),
+            ("whole_expansion_ids", f" {UUID_A} , {UUID_B} ,", [UUID_A, UUID_B]),
+            ("whole_expansion_ids", f'["{UUID_A}"]', [UUID_A]),
+            ("whole_expansion_ids", None, None),
         ],
     )
-    def test_apply_datamodel_defaults_clear_task_instances_task_ids(self, raw_task_ids, expected_task_ids):
-        """Test _apply_datamodel_defaults parses --task-ids strings for ClearTaskInstancesBody."""
+    def test_apply_datamodel_defaults_clear_task_instances_list_fields(
+        self, field, raw_value, expected_value
+    ):
+        """Test _apply_datamodel_defaults parses list option strings for ClearTaskInstancesBody."""
         command_factory = CommandFactory()
         result = command_factory._apply_datamodel_defaults(
-            ClearTaskInstancesBody, {"task_ids": raw_task_ids, "dry_run": True}
+            ClearTaskInstancesBody, {field: raw_value, "dry_run": True}
         )
 
-        assert result["task_ids"] == expected_task_ids
+        assert result[field] == expected_value
         assert result["dry_run"] is True
 
-    def test_apply_datamodel_defaults_clear_task_instances_invalid_json_task_ids(self):
-        """Test _apply_datamodel_defaults rejects malformed JSON lists passed to --task-ids."""
+    @pytest.mark.parametrize(
+        ("field", "flag"),
+        [
+            ("task_ids", "--task-ids"),
+            ("task_instance_ids", "--task-instance-ids"),
+            ("whole_expansion_ids", "--whole-expansion-ids"),
+        ],
+    )
+    def test_apply_datamodel_defaults_clear_task_instances_invalid_json_list_fields(self, field, flag):
+        """Test _apply_datamodel_defaults rejects malformed JSON lists passed to list options."""
         command_factory = CommandFactory()
-        with pytest.raises(SystemExit, match="Invalid JSON list for --task-ids"):
-            command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {"task_ids": '["oops'})
+        with pytest.raises(SystemExit, match=f"Invalid JSON list for {flag}"):
+            command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {field: '["oops'})
+
+    def test_clear_task_instances_body_accepts_parsed_list_fields(self):
+        """Test the parsed --task-instance-ids and --whole-expansion-ids values validate."""
+        command_factory = CommandFactory()
+        params = command_factory._apply_datamodel_defaults(
+            ClearTaskInstancesBody,
+            {"task_instance_ids": f"{UUID_A},{UUID_B}", "whole_expansion_ids": UUID_A},
+        )
+
+        body = ClearTaskInstancesBody.model_validate(params)
+
+        assert [str(ti_id) for ti_id in body.task_instance_ids.root] == [UUID_A, UUID_B]
+        assert [str(ti_id) for ti_id in body.whole_expansion_ids] == [UUID_A]
 
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
@@ -836,6 +1065,7 @@ class TestCliConfigMethods:
             ("taskinstances", "list", "List all task instances for a given Dag run"),
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
+            ("taskinstances", "state-store", "Manage the state store of a task instance"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
@@ -851,6 +1081,24 @@ class TestCliConfigMethods:
                         )
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
+
+    def test_command_factory_wires_iso_parser_to_datetime_params(self):
+        """A generated datetime CLI arg parses an ISO date end to end."""
+        command_factory = CommandFactory()
+        dagrun_list_args = []
+
+        for group in command_factory.group_commands:
+            if group.name != "dagrun":
+                continue
+
+            for sub in group.subcommands:
+                if sub.name == "list":
+                    dagrun_list_args = list(sub.args)
+                    break
+
+        start_date_arg = next(a for a in dagrun_list_args if a.flags == ("--start-date",))
+
+        assert start_date_arg.kwargs["type"]("2026-07-01") == datetime.datetime(2026, 7, 1)
 
     @staticmethod
     def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
@@ -899,3 +1147,132 @@ class TestCliConfigMethods:
         call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
         assert call_kwargs["state"] is None
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_connections_test_reaches_the_printer(self, mocked_test, mocked_print_as):
+        """``connections test`` has no CRUD-verb prefix, so argparse used to leave ``args.output`` undefined."""
+        mocked_test.return_value = ConnectionTestResponse(status=True, message="ok")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
+    def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
+        """An operation that returns nothing is reported as a successful operation row."""
+        mocked_create_defaults.return_value = None
+        args = cli_parser.get_parser().parse_args(["connections", "create-defaults"])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"operation": "create_defaults", "status": "success"}
+        ]
+
+    @pytest.mark.parametrize(
+        ("output", "parse", "expected"),
+        [
+            pytest.param("json", json.loads, [{"tags": "etl"}, {"tags": "nightly"}], id="json"),
+            pytest.param("yaml", safe_load, [{"tags": "etl"}, {"tags": "nightly"}], id="yaml"),
+            pytest.param("table", str.split, ["tags", "=======", "etl", "nightly"], id="table"),
+            pytest.param("plain", str.split, ["tags", "etl", "nightly"], id="plain"),
+        ],
+    )
+    def test_collection_of_plain_values_prints_one_row_per_value(
+        self, api_client_maker, capsys, output, parse, expected
+    ):
+        """``dags get-tags`` receives plain strings, and the printer only renders records."""
+        api_client = api_client_maker(
+            path="/api/v2/dagTags",
+            response_json={"tags": ["etl", "nightly"], "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["dags", "get-tags", "--output", output])
+
+        args.func(args, api_client=api_client)
+
+        assert parse(capsys.readouterr().out) == expected
+
+    def test_list_of_records_prints_records_unwrapped(self, api_client_maker, capsys):
+        pools: list[dict[str, Any]] = [
+            {
+                "name": name,
+                "slots": 128,
+                "description": None,
+                "include_deferred": False,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "scheduled_slots": 0,
+                "open_slots": 128,
+                "deferred_slots": 0,
+                "team_name": None,
+            }
+            for name in ("default_pool", "etl")
+        ]
+        api_client = api_client_maker(
+            path="/api/v2/pools",
+            response_json={"pools": pools, "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["pools", "list", "--output", "json"])
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["name"] for row in rows] == ["default_pool", "etl"]
+        assert all(row.keys() == pools[0].keys() for row in rows)
+
+    def test_nested_single_key_list_is_not_split_into_rows(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path="/api/v2/dags/example/dagRuns/manual_run",
+            response_json={
+                "dag_run_id": "manual_run",
+                "dag_id": "example",
+                "logical_date": None,
+                "queued_at": None,
+                "start_date": None,
+                "end_date": None,
+                "duration": None,
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "run_after": "2025-01-01T00:00:00Z",
+                "last_scheduling_decision": None,
+                "run_type": "manual",
+                "state": "success",
+                "triggered_by": None,
+                "triggering_user_name": None,
+                "conf": {"ids": ["a", "b"]},
+                "note": None,
+                "dag_versions": [],
+                "bundle_version": None,
+                "dag_display_name": "example",
+                "partition_key": None,
+                "partition_date": None,
+            },
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(
+            ["dagrun", "get", "example", "manual_run", "--output", "json"]
+        )
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["dag_run_id"] for row in rows] == ["manual_run"]
+        assert rows[0]["conf"] == ["a", "b"]
+
+    def test_parser_resolves_nested_subcommand(self):
+        """The parser descends into the state-store subgroup, binds the func, and keeps the auth token."""
+        args = cli_parser.get_parser().parse_args(
+            ["taskinstances", "state-store", "list", "my_dag", "my_run", "my_task"]
+        )
+
+        assert callable(args.func)
+        assert args.dag_id == "my_dag"
+        assert hasattr(args, "api_token")

@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 
 from airflow_breeze import global_constants
 from airflow_breeze.commands import release_management_commands
@@ -34,8 +37,11 @@ from airflow_breeze.commands.release_management_commands import (
     get_prs_from_git_log_for_new_provider,
     get_suffix_from_package_in_dist,
     is_package_in_dist,
+    publish_docs_to_s3,
 )
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.utils import shared_options
+from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
 
 
 @pytest.mark.parametrize(
@@ -220,7 +226,7 @@ def test_ensure_default_python_for_reproducible_client_passes_on_default(monkeyp
     _ensure_default_python_for_reproducible_client()
 
 
-@pytest.mark.parametrize("wrong_version", ["3.11", "3.13", "3.9"])
+@pytest.mark.parametrize("wrong_version", ["3.12", "3.13", "3.9"])
 def test_ensure_default_python_for_reproducible_client_exits_on_mismatch(monkeypatch, wrong_version):
     assert wrong_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     monkeypatch.setattr(
@@ -386,3 +392,95 @@ def test_prepare_provider_distributions_skip_git_fetch(
 
     assert exc_info.value.code == 0
     assert len(fetches) == expected_fetches
+
+
+def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
+    commands: list[list[str]] = []
+
+    def fake_run_command(cmd, **kwargs):
+        commands.append(cmd)
+        if cmd[:4] == ["git", "remote", "get-url", "--push"]:
+            if shared_options.get_dry_run(kwargs.get("dry_run_override")):
+                return SimpleNamespace(returncode=0, stdout="")
+            if cmd[-1] == "upstream":
+                return SimpleNamespace(returncode=0, stdout="https://github.com/apache/airflow.git\n")
+            raise subprocess.CalledProcessError(2, cmd)
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(release_management_commands, "run_command", fake_run_command)
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_DIST_PATH", tmp_path)
+    (tmp_path / "apache_airflow_providers_amazon-9.29.0-py3-none-any.whl").touch()
+
+    shared_options.set_dry_run(True)
+    try:
+        release_management_commands.tag_providers.callback(clean_tags=False, release_date="2026-08-06")
+    finally:
+        shared_options.set_dry_run(False)
+
+    assert ["git", "push", "upstream", "providers-amazon/9.29.0"] in commands
+
+
+DOCS_DESTINATION = "s3://staging-docs-airflow-apache-org/docs/"
+
+
+@mock.patch.object(S3DocsPublish, "publish_stable_version_docs", autospec=True)
+@mock.patch.object(S3DocsPublish, "generate_packages_metadata", autospec=True)
+def test_publish_docs_to_s3_packages_metadata_only(mock_generate_packages_metadata, mock_publish_stable):
+    result = CliRunner().invoke(
+        publish_docs_to_s3,
+        ["--destination-location", DOCS_DESTINATION, "--packages-metadata-only"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    mock_generate_packages_metadata.assert_called_once()
+    mock_publish_stable.assert_not_called()
+
+
+@mock.patch.object(S3DocsPublish, "publish_stable_version_docs", autospec=True)
+def test_publish_docs_to_s3_forwards_skip_packages_metadata(mock_publish_stable):
+    result = CliRunner().invoke(
+        publish_docs_to_s3,
+        [
+            "--destination-location",
+            DOCS_DESTINATION,
+            "--source-dir-path",
+            "/tmp/docs-archive",
+            "--stable-versions",
+            "--skip-packages-metadata",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    (publisher,) = mock_publish_stable.call_args.args
+    assert publisher.skip_packages_metadata is True
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["--stable-versions"], id="source_dir_path_missing"),
+        pytest.param(
+            ["--packages-metadata-only", "--stable-versions"], id="metadata_only_with_stable_versions"
+        ),
+        pytest.param(
+            ["--packages-metadata-only", "--publish-all-docs"], id="metadata_only_with_publish_all_docs"
+        ),
+        pytest.param(
+            ["--packages-metadata-only", "--skip-packages-metadata"], id="metadata_only_with_skip_metadata"
+        ),
+    ],
+)
+@mock.patch.object(S3DocsPublish, "publish_stable_version_docs", autospec=True)
+@mock.patch.object(S3DocsPublish, "publish_all_docs", autospec=True)
+@mock.patch.object(S3DocsPublish, "generate_packages_metadata", autospec=True)
+def test_publish_docs_to_s3_rejects_invalid_options(
+    mock_generate_packages_metadata, mock_publish_all, mock_publish_stable, args
+):
+    result = CliRunner().invoke(publish_docs_to_s3, ["--destination-location", DOCS_DESTINATION, *args])
+
+    assert result.exit_code == 1
+    mock_generate_packages_metadata.assert_not_called()
+    mock_publish_all.assert_not_called()
+    mock_publish_stable.assert_not_called()

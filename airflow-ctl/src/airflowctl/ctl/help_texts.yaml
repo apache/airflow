@@ -28,6 +28,11 @@ assets:
   delete-queued-events: "Delete all queued events for a given asset"
   delete-dag-queued-events: "Delete all queued asset events for a given Dag"
   delete-queued-event: "Delete a specific queued asset event for a given Dag and asset"
+  list-state-store: "List all state store entries for an asset"
+  get-state-store: "Retrieve a single asset state store entry by its ID and key"
+  set-state-store: "Set an asset state store value. Parsed as JSON if valid, otherwise stored as a string"
+  delete-state-store: "Delete a single asset state store key by its ID and key"
+  clear-state-store: "Delete all state store keys for an asset by its ID"
 
 backfill:
   create: "Create a backfill job for a given Dag ID and date range"
@@ -84,12 +89,22 @@ pools:
   update: "Update an existing pool"
 
 providers:
+  get: "Retrieve an installed provider by its package name"
   list: "List all installed Airflow providers"
 
 taskinstances:
   list: "List all task instances for a given Dag run"
   get: "Get a task instance for a given Dag run"
   get-dependencies: "Get unmet scheduler dependencies for a task instance"
+  # state-store is the nested subcommand group. The *-state-store keys stay because
+  # help is still looked up by the operation method name, not the CLI path.
+  state-store: "Manage the state store of a task instance"
+  list-state-store: "List all state store entries for a task instance"
+  get-state-store: "Retrieve a single task state store entry by its key"
+  set-state-store: "Set a task state store value. Parsed as JSON if valid, otherwise stored as a string"
+  update-state-store: "Update an existing key's value. Parsed as JSON if valid, otherwise stored as a string"
+  delete-state-store: "Delete a single task state store key by its key"
+  clear-state-store: "Delete all state store keys for a task instance"
 
 tasks:
   clear: "Clear task instances of a Dag by its ID"

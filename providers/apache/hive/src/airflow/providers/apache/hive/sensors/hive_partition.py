@@ -49,6 +49,7 @@ class HivePartitionSensor(BaseSensorOperator):
         "schema",
         "table",
         "partition",
+        "metastore_conn_id",
     )
     ui_color = "#C5CAE9"
 

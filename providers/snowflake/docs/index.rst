@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection Types <connections/snowflake>
+    Connection Types <connections/index>
     Operators <operators/index>
     Decorators <decorators/index>
 
@@ -79,7 +79,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 6.16.1
+Release: 6.20.0
 
 Provider package
 ----------------
@@ -103,7 +103,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ========================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
@@ -116,6 +116,7 @@ PIP package                                 Version required
 ``pyOpenSSL``                               ``>=22.1.0``
 ``snowflake-connector-python``              ``>=3.17.0``
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
+``sqlalchemy``                              ``>=1.4.54,<2.1``
 ``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
 ``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.14"``
 ``setuptools``                              ``>=80.0.0,<9999``
@@ -131,12 +132,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
 ======================================================================================================================  ===================
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_              ``common.ai``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -149,15 +151,16 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
-===================  ====================================================
+===================  ======================================================
 Extra                Dependencies
-===================  ====================================================
+===================  ======================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
-``openlineage``      ``apache-airflow-providers-openlineage>=2.3.0``
-===================  ====================================================
+``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
+===================  ======================================================
 
 Downloading official packages
 -----------------------------
@@ -165,5 +168,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 6.16.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 6.16.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.20.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.20.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.20.0-py3-none-any.whl.sha512>`__)

@@ -25,7 +25,7 @@ import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse, DagSchedulingState
 from airflowctl.api.operations import DagRunOperations, ServerResponseError, TasksOperations
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
@@ -82,6 +82,40 @@ class TestDagCommands:
         dag_id=dag_id,
         dag_display_name=dag_display_name,
         is_paused=True,
+        last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        fileloc="fileloc",
+        relative_fileloc="relative_fileloc",
+        description="description",
+        timetable_summary="timetable_summary",
+        timetable_description="timetable_description",
+        timetable_partitioned=False,
+        timetable_periodic=True,
+        tags=[],
+        max_active_tasks=1,
+        max_active_runs=1,
+        max_consecutive_failed_dag_runs=1,
+        has_task_concurrency_limits=True,
+        has_import_errors=True,
+        next_dagrun_logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        owners=["apache-airflow"],
+        is_backfillable=True,
+        file_token="file_token",
+        bundle_name="bundle_name",
+        is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+    )
+
+    dag_response_draining = DAGResponse(
+        dag_id=dag_id,
+        dag_display_name=dag_display_name,
+        is_paused=False,
+        scheduling_state=DagSchedulingState.DRAINING,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
         fileloc="fileloc",
@@ -220,6 +254,32 @@ class TestDagCommands:
                 api_client=api_client,
             )
 
+    def test_drain_dag(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=self.dag_response_draining.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        dag_response_dict = dag_command.drain(
+            self.parser.parse_args(["dags", "drain", self.dag_id]),
+            api_client=api_client,
+        )
+        assert dag_response_dict["scheduling_state"] == DagSchedulingState.DRAINING
+
+    def test_drain_fail(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.drain(
+                self.parser.parse_args(["dags", "drain", self.dag_id]),
+                api_client=api_client,
+            )
+
     def test_next_execution(self, api_client_maker):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",
@@ -281,7 +341,7 @@ class TestDagCommands:
 
     def test_state_by_logical_date(self, capsys):
         api_client = mock.MagicMock()
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
         api_client.dag_runs.list.return_value.dag_runs = [
             mock.MagicMock(state="failed", conf={"reason": "[red]test[/red]"})
         ]
@@ -562,7 +622,14 @@ class TestDagCommands:
             ),
         )
 
-    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self):
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            pytest.param("2025-01-01T08:00:00+08:00", "2025-01-02T17:00:00+08:00", id="aware"),
+            pytest.param("2025-01-01T00:00:00", "2025-01-02T00:00:00", id="naive"),
+        ],
+    )
+    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self, start, end):
         api_client = self._api_client_mock()
         api_client.dag_runs.list.return_value = SimpleNamespace(
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
@@ -577,42 +644,9 @@ class TestDagCommands:
                     "clear",
                     self.dag_id,
                     "--partition-date-start",
-                    "2025-01-01T08:00:00+08:00",
+                    start,
                     "--partition-date-end",
-                    "2025-01-02T17:00:00+08:00",
-                    "--yes",
-                ]
-            ),
-            api_client=api_client,
-        )
-
-        assert result == {"dag_run_count": 1, "cleared_task_instances": 1}
-        api_client.dag_runs.list.assert_called_once_with(
-            dag_id=self.dag_id,
-            offset=0,
-            order_by="partition_date",
-            partition_date_gte=datetime.date(2025, 1, 1),
-            partition_date_lte=datetime.date(2025, 1, 2),
-        )
-
-    def test_clear_by_partition_date_accepts_naive_datetime_as_calendar_date(self):
-        api_client = self._api_client_mock()
-        api_client.dag_runs.list.return_value = SimpleNamespace(
-            dag_runs=[self._dag_run("scheduled__2025-01-01")],
-            total_entries=1,
-        )
-        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
-
-        result = dag_command.clear(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "clear",
-                    self.dag_id,
-                    "--partition-date-start",
-                    "2025-01-01T00:00:00",
-                    "--partition-date-end",
-                    "2025-01-02T00:00:00",
+                    end,
                     "--yes",
                 ]
             ),

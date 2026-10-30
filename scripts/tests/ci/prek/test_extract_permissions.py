@@ -32,6 +32,7 @@ Run with (no Airflow env needed — extractor is stdlib-only):
 from __future__ import annotations
 
 import ast
+import re
 import sys
 import textwrap
 from pathlib import Path
@@ -50,14 +51,17 @@ if str(PREK_DIR) not in sys.path:
 from extract_permissions import (  # noqa: E402
     _FN_TO_RESOURCE_INFO,
     PermissionEntry,
+    RouteParseError,
     _build_resource_label,
     _extract_method_arg,
     _extract_module_string_constants,
+    _extract_route_path,
     _extract_routers,
     _resolve_string_node,
     extract_all_permissions,
     extract_from_file,
     render_rst,
+    strip_path_converters,
 )
 
 PUBLIC_ROUTES_DIR = REPO_ROOT / "airflow-core/src/airflow/api_fastapi/core_api/routes/public"
@@ -274,6 +278,9 @@ class TestBuildResourceLabel:
     def test_alias_dag_run_bulk_forces_run_entity(self):
         assert _build_resource_label("requires_access_dag_run_bulk", None) == "DAG.RUN"
 
+    def test_dag_bulk_with_no_entity_returns_base(self):
+        assert _build_resource_label("requires_access_dag_bulk", None) == "DAG"
+
     def test_alias_event_log_forces_audit_log(self):
         assert _build_resource_label("requires_access_event_log", None) == "DAG.AUDIT_LOG"
 
@@ -287,6 +294,59 @@ class TestBuildResourceLabel:
         # If a new requires_access_* is added but not yet in the map, the
         # function name is used.  Tests will catch it via the coverage test.
         assert _build_resource_label("requires_access_new_thing", None) == "requires_access_new_thing"
+
+
+# ===========================================================================
+# Unit tests: strip_path_converters
+# ===========================================================================
+
+
+class TestStripPathConverters:
+    @pytest.mark.parametrize(
+        "declared, served",
+        [
+            ("/api/v2/pools/{pool_name:path}", "/api/v2/pools/{pool_name}"),
+            ("/api/v2/variables/{variable_key:path}", "/api/v2/variables/{variable_key}"),
+            # more than one parameter, only the converted one changes
+            (
+                "/api/v2/assets/{asset_id}/state-store/{key:path}",
+                "/api/v2/assets/{asset_id}/state-store/{key}",
+            ),
+            # converters other than :path are normalised the same way
+            ("/api/v2/dags/{dag_id:str}/runs/{n:int}", "/api/v2/dags/{dag_id}/runs/{n}"),
+            # nothing to do
+            ("/api/v2/dags/{dag_id}", "/api/v2/dags/{dag_id}"),
+            ("/api/v2/backfills", "/api/v2/backfills"),
+        ],
+    )
+    def test_converter_is_dropped(self, declared, served):
+        assert strip_path_converters(declared) == served
+
+
+# ===========================================================================
+# Unit tests: _extract_route_path
+# ===========================================================================
+
+
+class TestExtractRoutePath:
+    def test_positional_path(self):
+        deco = parse_expr('router.get("/{dag_id}", dependencies=[])')
+        assert _extract_route_path(deco, {}) == "/{dag_id}"
+
+    def test_keyword_path(self):
+        """``backfills.py`` passes the path as ``path=``, which must resolve the same."""
+        deco = parse_expr('router.get(path="/{backfill_id}/pause", dependencies=[])')
+        assert _extract_route_path(deco, {}) == "/{backfill_id}/pause"
+
+    def test_keyword_path_resolves_module_constants(self):
+        deco = parse_expr('router.get(path=my_prefix + "/{id}")')
+        assert _extract_route_path(deco, {"my_prefix": "/things"}) == "/things/{id}"
+
+    def test_no_path_at_all_raises(self):
+        """Falling back to an empty suffix would collapse the route onto its router prefix."""
+        deco = parse_expr("router.get(dependencies=[])")
+        with pytest.raises(RouteParseError):
+            _extract_route_path(deco, {})
 
 
 # ===========================================================================
@@ -534,14 +594,67 @@ class TestExtractFromFile:
         assert len(entries) == 1
         assert entries[0].resource == "DAG"
 
-    def test_syntax_error_returns_empty_list(self, tmp_path, capsys):
+    def test_keyword_path_is_not_collapsed_onto_the_router_prefix(self, tmp_path):
+        """
+        Mirrors ``backfills.py``, which declares every route as ``path=``.
+
+        Reading only the positional argument left each of these resolving to the
+        bare router prefix, so eight endpoints became three wrong rows.
+        """
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
+
+            @backfills_router.get(
+                path="/{backfill_id}",
+                dependencies=[Depends(requires_access_backfill(method="GET"))],
+            )
+            def get_backfill(backfill_id: int): ...
+
+            @backfills_router.put(
+                path="/{backfill_id}/pause",
+                dependencies=[Depends(requires_access_backfill(method="PUT"))],
+            )
+            def pause_backfill(backfill_id: int): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert {(e.http_method, e.full_path) for e in entries} == {
+            ("GET", "/api/v2/backfills/{backfill_id}"),
+            ("PUT", "/api/v2/backfills/{backfill_id}/pause"),
+        }
+
+    def test_path_converter_is_stripped_from_the_documented_path(self, tmp_path):
+        """The served URL is ``/pools/{pool_name}``; the converter is matching syntax."""
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
+
+            @pools_router.get(
+                "/{pool_name:path}",
+                dependencies=[Depends(requires_access_pool(method="GET"))],
+            )
+            def get_pool(pool_name: str): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert len(entries) == 1
+        assert entries[0].full_path == "/api/v2/pools/{pool_name}"
+
+    def test_syntax_error_raises_instead_of_dropping_entries(self, tmp_path):
         f = tmp_path / "broken.py"
         f.write_text("def broken(:\n")
-        entries = extract_from_file(f)
-        assert entries == []
-        # Should print a warning, not raise
-        captured = capsys.readouterr()
-        assert "WARN" in captured.err
+        with pytest.raises(RouteParseError) as exc_info:
+            extract_from_file(f)
+        assert str(f) in str(exc_info.value)
+
+    def test_unreadable_file_raises(self, tmp_path):
+        with pytest.raises(RouteParseError):
+            extract_from_file(tmp_path / "does_not_exist.py")
 
     def test_source_file_is_basename(self, tmp_path):
         f = _make_route_file(
@@ -640,6 +753,47 @@ class TestExtractAllPermissions:
         The exact number will grow; 100 is a floor well below current 123.
         """
         assert len(all_entries) >= 100, f"Expected ≥100 entries, got {len(all_entries)}"
+
+    def test_every_declared_route_reaches_the_table(self, all_entries):
+        """
+        Each route decorator in the source must produce its own row.
+
+        This is the invariant that the ``path=`` bug broke: the eight routes in
+        ``backfills.py`` all resolved to ``/api/v2/backfills`` and deduplicated
+        down to three, without any warning.
+        """
+        verbs = {"GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"}
+        declared: dict[str, int] = {}
+        for route_file in sorted(PUBLIC_ROUTES_DIR.glob("*.py")):
+            if route_file.name == "__init__.py":
+                continue
+            count = 0
+            for node in ast.walk(ast.parse(route_file.read_text(encoding="utf-8"))):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                count += sum(
+                    1
+                    for deco in node.decorator_list
+                    if isinstance(deco, ast.Call)
+                    and isinstance(deco.func, ast.Attribute)
+                    and deco.func.attr.upper() in verbs
+                )
+            declared[route_file.name] = count
+
+        extracted: dict[str, set[tuple[str, str]]] = {}
+        for entry in all_entries:
+            extracted.setdefault(entry.source_file, set()).add((entry.full_path, entry.http_method))
+
+        for name, count in declared.items():
+            assert len(extracted.get(name, set())) == count, (
+                f"{name} declares {count} routes but the table holds "
+                f"{len(extracted.get(name, set()))} distinct operations"
+            )
+
+    def test_no_documented_path_contains_a_converter(self, all_entries):
+        """``{key:path}`` is Starlette matching syntax, not part of the URL clients call."""
+        offenders = [e.full_path for e in all_entries if re.search(r"\{[^{}]*:", e.full_path)]
+        assert offenders == []
 
     def test_output_is_sorted(self, all_entries):
         expected = sorted(
@@ -832,3 +986,39 @@ class TestCheckMode:
         monkeypatch.setattr(ep, "OUTPUT_RST", tmp_path / "does_not_exist.rst")
         result = ep.main(["--check"])
         assert result == 1
+
+
+# ===========================================================================
+# Integration test: a route file that cannot be parsed must fail the run
+# ===========================================================================
+
+
+class TestParseFailureIsFatal:
+    @staticmethod
+    def _routes_dir_with_broken_file(tmp_path):
+        routes_dir = tmp_path / "routes"
+        routes_dir.mkdir()
+        (routes_dir / "broken.py").write_text("def broken(:\n")
+        return routes_dir
+
+    def test_main_fails_and_leaves_the_doc_alone(self, tmp_path, monkeypatch, capsys):
+        import extract_permissions as ep
+
+        rst_file = tmp_path / "api_permissions_ref.rst"
+        rst_file.write_text("the full table")
+
+        monkeypatch.setattr(ep, "PUBLIC_ROUTES_DIR", self._routes_dir_with_broken_file(tmp_path))
+        monkeypatch.setattr(ep, "OUTPUT_RST", rst_file)
+
+        assert ep.main([]) == 1
+        assert "[FAIL]" in capsys.readouterr().err
+        assert rst_file.read_text() == "the full table"
+
+    def test_fab_main_fails_too(self, tmp_path, monkeypatch, capsys):
+        """``fab_permissions_doc`` shares the extractor, so it must fail the same way."""
+        import fab_permissions_doc as fab
+
+        monkeypatch.setattr(fab, "PUBLIC_ROUTES_DIR", self._routes_dir_with_broken_file(tmp_path))
+
+        assert fab.main([]) == 1
+        assert "[FAIL]" in capsys.readouterr().err

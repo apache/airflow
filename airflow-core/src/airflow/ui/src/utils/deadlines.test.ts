@@ -40,7 +40,7 @@ const REFERENCE = "deadlineAlerts.referenceType.DagRunLogicalDateDeadline";
 
 describe("translateCompletionRule", () => {
   it.each([
-    [3600, `deadlineAlerts.completionRule:an hour:${REFERENCE}`],
+    [3600, `deadlineAlerts.completionRule:1 hour:${REFERENCE}`],
     [null, `deadlineAlerts.completionRuleDynamic::${REFERENCE}`],
   ])("names the rule for an interval of %s seconds", (interval, expected) => {
     expect(translateCompletionRule(translate, { ...baseAlert, interval })).toBe(expected);

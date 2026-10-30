@@ -383,8 +383,13 @@ def stop_worker(args):
 
     # Send SIGTERM
     if pid:
-        worker_process = psutil.Process(pid)
-        worker_process.terminate()
+        try:
+            worker_process = psutil.Process(pid)
+            worker_process.terminate()
+        except psutil.NoSuchProcess:
+            log.warning(
+                "Worker process with PID %s is not running, PID file %s is stale.", pid, pid_file_path
+            )
 
     # Remove pid file
     remove_existing_pidfile(pid_file_path)

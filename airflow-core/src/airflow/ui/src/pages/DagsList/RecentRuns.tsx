@@ -27,7 +27,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 
-import { renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -37,6 +37,7 @@ type LatestRun = DAGWithLatestDagRunsResponse["latest_dag_runs"][number];
 
 const RecentRunTooltipContent = ({ run }: { readonly run: LatestRun }) => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
 
   return (
     <Box>
@@ -87,7 +88,15 @@ export const RecentRuns = ({
         placement: "bottom-start",
       }}
     >
-      <Flex alignItems="flex-end" flexDirection="row-reverse" gap={[0.5, 0.5, 0.5, 1]} pb={1}>
+      {/* Hold the full bar height even when every run is short or still pending, so the bars stay
+          anchored to the bottom of the card's chart area instead of floating at the top of it. */}
+      <Flex
+        alignItems="flex-end"
+        flexDirection="row-reverse"
+        gap={[0.5, 0.5, 0.5, 1]}
+        minHeight={`${BAR_HEIGHT}px`}
+        pb={1}
+      >
         {latestRuns.map((run) => (
           <Tooltip.Trigger asChild key={run.run_id} value={run.run_id}>
             <Link data-testid="recent-run" to={`/dags/${run.dag_id}/runs/${run.run_id}/`}>

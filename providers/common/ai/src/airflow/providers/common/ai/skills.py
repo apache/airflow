@@ -59,6 +59,11 @@ class GitSkills:
     """
     Agent Skills cloned from a Git repository when resolved.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     :param repo_url: HTTPS or SSH URL of the repository to clone.
     :param conn_id: Airflow ``git`` connection used for credentials, resolved
         through the Git provider's ``GitHook`` (HTTPS token in the connection

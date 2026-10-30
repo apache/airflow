@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from packaging.version import Version
 
 
 def date_param():
@@ -56,6 +57,12 @@ TEST_COMMANDS = [
     "assets list",
     "assets get 1",
     "assets create-event --asset-id=1",
+    "assets set-state-store 1 test_key test_value",
+    "assets get-state-store 1 test_key",
+    "assets list-state-store 1",
+    "assets delete-state-store 1 test_key",
+    "assets set-state-store 1 clear_key value",
+    "assets clear-state-store 1",
     # Backfill commands
     "backfill list example_bash_operator",
     # Config commands
@@ -78,6 +85,7 @@ TEST_COMMANDS = [
     "dags get example_bash_operator",
     "dags get-details example_bash_operator",
     "dags get-stats example_bash_operator",
+    "dags get-tags",
     "dags get-version example_bash_operator 1",
     "dags list-import-errors",
     "dags list-version example_bash_operator",
@@ -101,11 +109,20 @@ TEST_COMMANDS = [
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks state example_bash_operator runme_0 "manual__{date_param}"',
+    'tasks state example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances get-dependencies example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances list example_bash_operator "manual__{date_param}"',
+    'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 test_key test_value',
+    'taskinstances state-store get example_bash_operator "manual__{date_param}" runme_0 test_key',
+    'taskinstances state-store list example_bash_operator "manual__{date_param}" runme_0',
+    'taskinstances state-store update example_bash_operator "manual__{date_param}" runme_0 test_key new_value',
+    'taskinstances state-store delete example_bash_operator "manual__{date_param}" runme_0 test_key',
+    'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 clear_key value',
+    'taskinstances state-store clear example_bash_operator "manual__{date_param}" runme_0',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
@@ -128,6 +145,7 @@ TEST_COMMANDS = [
     "pools delete test_import_pool",
     # Providers commands
     "providers list",
+    "providers get apache-airflow-providers-standard",
     # Variables commands
     "variables create --key=test_key --value=test_value",
     "variables list",
@@ -142,6 +160,16 @@ TEST_COMMANDS = [
     "plugins list",
     "plugins list-import-errors",
 ]
+
+# The first Airflow version whose API serves each command, keyed by `_get_command_id`.
+MIN_AIRFLOW_VERSIONS = {
+    "assets set-state-store": Version("3.3.0"),
+    "assets get-state-store": Version("3.3.0"),
+    "assets list-state-store": Version("3.3.0"),
+    "assets delete-state-store": Version("3.3.0"),
+    "assets clear-state-store": Version("3.3.0"),
+    "taskinstances state-store": Version("3.3.0"),
+}
 
 NO_AUTH_TEST_COMMANDS = [
     "version --remote",
@@ -159,6 +187,22 @@ TEST_COMMANDS_DEBUG_MODE = [LOGIN_COMMAND] + [
 TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
     test.format(date_param=DATE_PARAM_2, xcom_key=_XCOM_KEY_2) for test in TEST_COMMANDS
 ]
+
+
+def _get_command_id(command: str) -> str:
+    return " ".join(command.split(" ", 2)[:2])
+
+
+def _skip_if_unsupported(command: str, airflow_version: Version) -> None:
+    min_version = MIN_AIRFLOW_VERSIONS.get(_get_command_id(command))
+    if min_version and airflow_version < min_version:
+        pytest.skip(f"needs Airflow >= {min_version}, the server runs {airflow_version}")
+
+
+def test_min_airflow_versions_match_test_commands():
+    """A renamed command must be renamed here too, or its version gate silently stops applying."""
+    stale_command_ids = set(MIN_AIRFLOW_VERSIONS) - {_get_command_id(command) for command in TEST_COMMANDS}
+    assert not stale_command_ids
 
 
 def test_hardcoded_xcom_key_would_collide():
@@ -185,20 +229,24 @@ def test_hardcoded_xcom_key_would_collide():
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_DEBUG_MODE,
-    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_DEBUG_MODE],
+    ids=[_get_command_id(command) for command in TEST_COMMANDS_DEBUG_MODE],
 )
-def test_airflowctl_commands(command: str, run_command):
+def test_airflowctl_commands(command: str, airflow_version: Version, run_command):
     """Test airflowctl commands using docker-compose environment."""
+    _skip_if_unsupported(command, airflow_version)
     run_command(command=command, env_vars={"AIRFLOW_CLI_DEBUG_MODE": "true"}, skip_login=True)
 
 
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_SKIP_KEYRING,
-    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_SKIP_KEYRING],
+    ids=[_get_command_id(command) for command in TEST_COMMANDS_SKIP_KEYRING],
 )
-def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
+def test_airflowctl_commands_skip_keyring(
+    command: str, api_token: str, airflow_version: Version, run_command
+):
     """Test airflowctl commands using docker-compose environment without using keyring."""
+    _skip_if_unsupported(command, airflow_version)
     run_command(
         command=command,
         env_vars={
