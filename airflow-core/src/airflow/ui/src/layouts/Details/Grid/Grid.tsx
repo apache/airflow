@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 import { useCallback, useMemo, useRef } from "react";
 
 import { Box, Flex } from "@chakra-ui/react";
@@ -28,6 +28,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import type { GridCell } from "src/context/gridSelection";
 import { useGroups } from "src/context/groups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -38,12 +39,14 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { GridPaginationButtons } from "./GridPaginationButtons";
+import { GridSelectionActionBar } from "./GridSelectionActionBar";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
+import { buildSelectableGroups, getCoveredCellKeys, useGridSelection } from "./useGridSelection";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -158,6 +161,7 @@ export const Grid = ({
   // and on the click handlers below, `flatNodes` and the handlers get fresh references every render, so
   // each TI-summaries stream line re-renders every column instead of only the run whose summary changed.
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const selectableGroups = useMemo(() => buildSelectableGroups(dagStructure), [dagStructure]);
 
   const taskNameColumnWidthPx = showGantt ? estimateTaskNameColumnWidthPx(flatNodes) : undefined;
 
@@ -182,8 +186,30 @@ export const Grid = ({
     tasks: flatNodes,
   });
 
+  const { clearSelection, deselectCells, handleSelectionClick, selection } = useGridSelection({
+    flatNodes,
+    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    selectableGroups,
+    summariesByRunId,
+  });
+
+  const selectedCellKeys = useMemo(
+    () => getCoveredCellKeys(selection, selectableGroups),
+    [selection, selectableGroups],
+  );
+
   const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
-  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
+  const handleCellClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => {
+      if (handleSelectionClick(event, cell)) {
+        event.preventDefault();
+
+        return;
+      }
+      setMode(NavigationModes.TI);
+    },
+    [handleSelectionClick, setMode],
+  );
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
   const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
@@ -285,6 +311,7 @@ export const Grid = ({
               nodes={flatNodes}
               onCellClick={handleCellClick}
               run={dr}
+              selectedCellKeys={selectedCellKeys}
               showVersionIndicatorMode={showVersionIndicatorMode}
               tiSummaries={summariesByRunId.get(dr.run_id)}
               virtualItems={virtualItems}
@@ -315,6 +342,13 @@ export const Grid = ({
           {gridHeaderAndBody}
         </Box>
       )}
+      <GridSelectionActionBar
+        clearSelection={clearSelection}
+        dagId={dagId}
+        deselectCells={deselectCells}
+        selectableGroups={selectableGroups}
+        selection={selection}
+      />
     </Flex>
   );
 };

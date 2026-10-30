@@ -27,6 +27,7 @@ import inspect
 import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -36,9 +37,10 @@ from typing import Any, NamedTuple
 
 import httpx
 import rich
+from pydantic import BaseModel, ValidationError
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
 from airflowctl.ctl.utils.yaml import safe_load
@@ -66,6 +68,22 @@ def lazy_load_command(import_path: str) -> Callable:
     return command
 
 
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
+    """Warn that a failed write is not retried because the server may already have applied it."""
+    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+        return
+    method = _request_method(error)
+    if method in _WRITE_METHODS:
+        rich.print(
+            f"[yellow]The {method} request failed, but it may already have been applied on the server. "
+            "Check the server state before retrying.[/yellow]",
+            file=sys.stderr,
+        )
+
+
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
@@ -91,11 +109,13 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.ReadTimeout as e:
         rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
             rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
         rich.print(f"Server response error: {e}")
@@ -105,6 +125,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
@@ -116,6 +137,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
                 "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
 
 
@@ -713,6 +735,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -721,6 +744,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -742,6 +766,11 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
 
     def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
         """Find the subgroup suffix an operation belongs to, if one exists."""
@@ -786,9 +815,16 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
-                    else None,
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
             )
         return commands
@@ -891,6 +927,33 @@ class CommandFactory:
 
         return params
 
+    def _validate_datamodel(self, datamodel: type[BaseModel], params: dict) -> Any:
+        """
+        Validate CLI input against ``datamodel`` and exit with a readable message when it is invalid.
+
+        Optional CLI flags default to ``None``, so a required datamodel field the user did not pass
+        reaches pydantic as ``None``. Report those as missing flags instead of a raw traceback.
+        """
+        try:
+            return datamodel.model_validate(params)
+        except ValidationError as e:
+            missing: list[str] = []
+            invalid: list[str] = []
+            for error in e.errors():
+                field = str(error["loc"][0]) if error["loc"] else ""
+                field_info = datamodel.model_fields.get(field)
+                flag = f"--{self._sanitize_arg_parameter_key(field)}" if field else "input"
+                if field_info is not None and field_info.is_required() and error.get("input") is None:
+                    if flag not in missing:
+                        missing.append(flag)
+                else:
+                    invalid.append(f"{flag}: {error['msg']}")
+            messages = []
+            if missing:
+                messages.append(f"the following arguments are required: {', '.join(missing)}")
+            messages.extend(invalid)
+            raise SystemExit("Invalid arguments: " + "; ".join(messages))
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -935,11 +998,11 @@ class CommandFactory:
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
                         datamodel, method_params[datamodel_param_name]
                     )
-                    method_params[datamodel_param_name] = datamodel.model_validate(
-                        method_params[datamodel_param_name]
+                    method_params[datamodel_param_name] = self._validate_datamodel(
+                        datamodel, method_params[datamodel_param_name]
                     )
                 else:
-                    method_params = datamodel.model_validate(method_params)
+                    method_params = self._validate_datamodel(datamodel, method_params)
                 method_output = operation_method_object(**method_params)
             else:
                 method_output = operation_method_object(**method_params)

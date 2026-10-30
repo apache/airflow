@@ -19,7 +19,7 @@
 # Puts the job's EC2 cost next to the GitHub-hosted price in the job summary. Used by every job
 # that can run on RunsOn: through the breeze action, or directly by jobs that do not install Breeze.
 name: 'RunsOn cost summary'
-description: 'Add the EC2 cost of a RunsOn job to its summary; a no-op elsewhere.'
+description: 'Add the EC2 cost and CPU and memory use of a RunsOn job to its summary; a no-op elsewhere.'
 runs:
   using: 'composite'
   steps:
@@ -28,3 +28,5 @@ runs:
       uses: runs-on/action@17b59092eb37ebfdbb034460892887c09100eaa3  # v2.5.0
       with:
         show_costs: summary
+        # Charts the job's CPU and memory use in its summary, to size its runner class from measurements.
+        metrics: cpu,memory

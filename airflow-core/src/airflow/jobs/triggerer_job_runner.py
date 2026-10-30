@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import functools
+import gc
 import logging
 import math
 import os
@@ -659,6 +660,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         **kwargs,
     ):
         proc_id = job.id if job is not None else uuid4()
+        if not supervisor._should_use_exec():
+            # Freeze before the bare fork and stay frozen: unfreezing would let this process's next
+            # full GC split the pages the runner child shares copy-on-write (a memory jump with no
+            # new allocation). Forked once, like the Dag processor manager. Skipped when the child
+            # execs, which discards the inherited pages.
+            gc.freeze()
         # Triggers run user code that polls APIs / watches queues / hits HTTP
         # endpoints -- almost always network calls that trigger macOS-unsafe ObjC
         # initialization. Fork+exec a clean interpreter for the runner child.

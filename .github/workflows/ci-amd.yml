@@ -165,8 +165,9 @@ jobs:
     # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
     # code come from the base branch so a pull request cannot change its own eligibility. See
     # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md. A pull request whose CI runs
-    # in the contributor's fork and changes this job, or how build-info depends on it, is closed
-    # by the fork CI monitor ("Gate protection" in that document).
+    # in the contributor's fork and changes this job, how build-info depends on it, any job that
+    # runs when it skips build-info (such as ci-passed), or the name of any job is closed by the
+    # fork CI monitor ("Gate protection" in that document).
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
@@ -263,8 +264,9 @@ jobs:
     if: >-
       needs.gate.outputs.project-ci == 'true' &&
       needs.check-run-needed.outputs.run-needed == 'true'
-    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
-    runs-on: ["ubuntu-22.04"]
+    # At build-info stage we do not yet have outputs so the runs-on is hard-coded. ubuntu-slim is enough:
+    # it only installs breeze and runs selective checks, which need neither docker nor freeing disk space.
+    runs-on: ["ubuntu-slim"]
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -320,6 +322,10 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-split-test-types-list-as-strings-in-json }}
+      providers-xdist-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -348,6 +354,7 @@ jobs:
       run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
       run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
       run-ts-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ steps.selective-checks.outputs.run-yaml-dag-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -373,9 +380,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -398,6 +402,8 @@ jobs:
             || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all tests will run"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # The github context can be very large for PRs that touch many files (e.g. Dependabot
@@ -798,7 +804,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -809,7 +815,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -857,7 +863,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -868,7 +874,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -917,7 +923,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -930,7 +936,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -991,7 +997,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -1021,6 +1027,8 @@ jobs:
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1170,6 +1178,7 @@ jobs:
       providers-compatibility-tests-matrix: >
         ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       run-ts-sdk-e2e-tests: ${{ needs.build-info.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ needs.build-info.outputs.run-yaml-dag-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -1207,7 +1216,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1292,7 +1301,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1328,7 +1337,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '32+64', '128+256') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1414,7 +1423,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1830,7 +1839,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"

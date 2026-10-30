@@ -2425,6 +2425,10 @@ export type TaskInstanceHistoryResponse = {
      * The reason this try ended, as recorded by a retry policy.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2476,6 +2480,10 @@ export type TaskInstanceResponse = {
      * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -3372,6 +3380,7 @@ export type LightGridTaskInstanceSummary = {
     loop_iterations_count?: number | null;
     latest_region_id?: string | null;
     latest_region_index?: number | null;
+    retry_at?: string | null;
 };
 
 /**
@@ -5721,6 +5730,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`

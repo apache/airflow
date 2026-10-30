@@ -970,6 +970,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "ecs_executor.run_task.duration"
+    description: "Milliseconds taken by one ECS RunTask call of the AWS ECS Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "lambda_executor.adopt_task_instances.duration"
     description: "Milliseconds taken to adopt the task instances in the AWS Lambda Executor"
     type: "timer"

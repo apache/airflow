@@ -157,3 +157,81 @@ describe("locale counter placeholders", () => {
     expect(instance.t("dag:logs.search.matchCount", { total: 5 })).toBe("{{current, number}} of 5");
   });
 });
+const PLACEHOLDER = /\{\{\s*(?<name>[A-Za-z0-9_$]+)/gu;
+const PLURAL_SUFFIX = /_(?:zero|one|two|few|many|other)$/u;
+const PLURAL_CATEGORIES = ["_other", "_one", "_many", "_few", "_two", "_zero", ""];
+
+const placeholdersOf = (value: string): Set<string> =>
+  new Set([...value.matchAll(PLACEHOLDER)].map((match) => match.groups?.name ?? ""));
+
+const stringsOf = (lng: string): Map<string, string> =>
+  new Map(
+    Object.entries((resources[lng] ?? {}) as Record<string, unknown>).flatMap(([ns, bundle]) =>
+      flattenStrings(bundle, ns),
+    ),
+  );
+
+// Plural categories differ by language, so a translated `foo_many` may have no en key of its own
+// category to compare against and has to fall back to whichever form en does define.
+const enCounterpart = (en: Map<string, string>, key: string): [string, string] | undefined => {
+  const exact = en.get(key);
+
+  if (exact !== undefined) {
+    return [key, exact];
+  }
+
+  const base = key.replace(PLURAL_SUFFIX, "");
+
+  for (const category of PLURAL_CATEGORIES) {
+    const value = en.get(`${base}${category}`);
+
+    if (value !== undefined) {
+      return [`${base}${category}`, value];
+    }
+  }
+
+  return undefined;
+};
+
+// A translation may only interpolate the variables its en original interpolates. The call site
+// passes one fixed set, so a locale that invents a variable shows the user a raw "{{...}}" — as
+// the counter test above pins — and one that drops an interpolated value loses it silently.
+const findVariableMismatch = (en: Map<string, string>, key: string, value: string): string | undefined => {
+  const counterpart = enCounterpart(en, key);
+
+  if (counterpart === undefined) {
+    return undefined;
+  }
+
+  const [enKey, original] = counterpart;
+  const expectedNames = placeholdersOf(original);
+  const actualNames = placeholdersOf(value);
+
+  // i18next only resolves a plural form when `count` was passed, so it is always available.
+  if (PLURAL_SUFFIX.test(key) || PLURAL_SUFFIX.test(enKey)) {
+    expectedNames.delete("count");
+    actualNames.delete("count");
+  }
+
+  const invented = [...actualNames].filter((name) => !expectedNames.has(name));
+  const dropped = [...expectedNames].filter((name) => !actualNames.has(name));
+
+  return invented.length > 0 || dropped.length > 0
+    ? `${key}: invented [${invented.join(", ")}], dropped [${dropped.join(", ")}]`
+    : undefined;
+};
+
+describe("locale interpolation variables", () => {
+  const en = stringsOf("en");
+  const translations = Object.keys(resources)
+    .filter((lng) => lng !== "en")
+    .sort();
+
+  it.each(translations)("interpolates only the variables en does, in %s", (lng) => {
+    const offenders = [...stringsOf(lng)]
+      .map(([key, value]) => findVariableMismatch(en, key, value))
+      .filter((offender) => offender !== undefined);
+
+    expect(offenders).toEqual([]);
+  });
+});

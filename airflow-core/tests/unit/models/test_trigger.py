@@ -955,7 +955,6 @@ def test_submit_event_task_end_failed_respects_retries(
 
     assert ti.next_method is None
     assert ti.next_kwargs is None
-    assert ti.end_date is not None
 
     tih = session.scalars(
         select(TaskInstance)
@@ -972,9 +971,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert ti.id != old_ti_id
         assert tih[0].id == old_ti_id
         assert tih[0].try_number == 1
+        assert tih[0].end_date is not None
         assert ti.try_number == 2
+        assert ti.end_date is None
     else:
         assert tih == []
+        assert ti.end_date is not None
         assert ti.id == old_ti_id
         assert ti.try_number == 1
 

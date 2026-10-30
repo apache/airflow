@@ -79,7 +79,9 @@ vi.mock("openapi/queries", async (importOriginal) => {
           },
         ],
       },
-      isLoading: false,
+      isFetchedAfterMount: true,
+      isFetching: false,
+      isSuccess: true,
     })),
   };
 });
