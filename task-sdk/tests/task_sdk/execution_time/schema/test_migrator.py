@@ -44,7 +44,7 @@ from cadwyn import (
     convert_request_to_next_version_for,
     schema,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from task_sdk.execution_time.schema._mock_version_bundle import (
     MOCK_REGISTRY,
     _LangSdkRequest,
@@ -68,8 +68,10 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     PreviousTIResult,
+    PutVariable,
     StartupDetails,
     TaskState,
+    VariableResult,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
@@ -125,6 +127,28 @@ def test_loop_selectors_follow_supervisor_version(model, extra, field):
 
     assert field not in migrator.downgrade(message, "2026-06-16").model_dump()
     assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
+
+
+def test_put_variable_null_from_older_runtime_is_stored_as_none_string():
+    body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
+
+    upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+    assert upgraded["value"] == "None"
+
+
+def test_put_variable_null_from_current_runtime_is_rejected():
+    body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
+
+    with pytest.raises(ValidationError):
+        get_schema_version_migrator().upgrade(body, PutVariable, "2027-02-28")
+
+
+@pytest.mark.parametrize("version", ["2026-10-30", "2027-02-28"])
+def test_variable_result_value_is_kept_on_downgrade(version):
+    message = VariableResult(key="key", value="value")
+
+    assert get_schema_version_migrator().downgrade(message, version).model_dump()["value"] == "value"
 
 
 class _IntroduceQueueCapacity(VersionChange):

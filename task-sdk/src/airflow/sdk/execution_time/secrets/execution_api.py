@@ -126,7 +126,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Extract value from VariableResult
             if isinstance(msg, VariableResult):
-                return msg.value  # Already a string | None
+                return msg.value
             return None
         except AirflowSecretsBackendAccessDenied:
             raise
@@ -187,7 +187,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Extract value from VariableResult
             if isinstance(msg, VariableResult):
-                return msg.value  # Already a string | None
+                return msg.value
             return None
         except AirflowSecretsBackendAccessDenied:
             raise

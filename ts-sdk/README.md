@@ -100,7 +100,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.5.0 · supervisor schema: 2027-02-28*
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|

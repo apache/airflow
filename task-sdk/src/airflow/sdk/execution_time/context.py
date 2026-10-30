@@ -22,6 +22,7 @@ import contextlib
 import functools
 import inspect
 import json
+import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
@@ -54,6 +55,7 @@ from airflow.sdk.exceptions import (
     AirflowRuntimeError,
     AirflowSecretsBackendAccessDenied,
     ErrorType,
+    RemovedInAirflow4Warning,
 )
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
@@ -484,6 +486,13 @@ async def _async_get_variable_keys(prefix: str | None = None) -> list[str]:
     return all_keys
 
 
+_SET_VARIABLE_NONE_DEPRECATION = (
+    "Setting a Variable to None is deprecated and will be an error in a future release. "
+    "It stores the string 'None'. Pass that string explicitly to keep this behavior, "
+    "or use serialize_json=True to store a JSON null."
+)
+
+
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -525,6 +534,10 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
+
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, RemovedInAirflow4Warning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
 
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
@@ -578,6 +591,10 @@ async def _async_set_variable(
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
+
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, RemovedInAirflow4Warning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
 
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
 

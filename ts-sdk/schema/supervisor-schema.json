@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-10-30",
+  "api_version": "2027-02-28",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -3567,15 +3567,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -4651,15 +4644,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4677,15 +4663,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",

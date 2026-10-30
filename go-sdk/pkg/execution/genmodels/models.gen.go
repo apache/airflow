@@ -1471,7 +1471,7 @@ type PutVariable struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 type RenderedFields map[string]JsonValue
@@ -1954,7 +1954,7 @@ type VariableResponse struct {
 	Key string `msgpack:"key"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 type UpdateDagRunNote struct {
@@ -2012,7 +2012,7 @@ type VariableResult struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 // One positional stub-task argument pulled from an upstream task's XCom.

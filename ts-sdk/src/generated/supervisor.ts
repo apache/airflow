@@ -245,7 +245,7 @@ export type TaskRescheduleCount = number;
 export type FirstTaskRescheduleStartDate = string | null;
 export type MaxTries = number;
 export type Key = string;
-export type Value = string | null;
+export type Value = string;
 export type Variables = VariableResponse[];
 export type Connections = ConnectionResponse[];
 export type NextMethod1 = string | null;
@@ -558,7 +558,7 @@ export type RegionIndex1 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
 export type Key14 = string;
-export type Value1 = string | null;
+export type Value1 = string;
 export type Description = string | null;
 export type Type61 = "PutVariable";
 export type State5 = "up_for_reschedule";
@@ -656,7 +656,7 @@ export type Keys = string[];
 export type TotalEntries = number;
 export type Type86 = "VariableKeysResult";
 export type Key19 = string;
-export type Value2 = string | null;
+export type Value2 = string;
 export type Type87 = "VariableResult";
 export type Len = number;
 export type Type88 = "XComCountResponse";
@@ -2048,4 +2048,4 @@ export interface XComSequenceSliceResult {
  *  (e.g. bundle metadata) and runs the migrator accordingly.
  *  Exposed so the SDK author / operator can confirm which schema
  *  version their build is pinned to. */
-export const SUPERVISOR_API_VERSION = "2026-10-30" as const;
+export const SUPERVISOR_API_VERSION = "2027-02-28" as const;

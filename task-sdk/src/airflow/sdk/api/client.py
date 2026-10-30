@@ -579,7 +579,7 @@ class VariableOperations:
             raise
         return VariableResponse.model_validate_json(resp.read())
 
-    def set(self, key: str, value: str | None, description: str | None = None) -> OKResponse:
+    def set(self, key: str, value: str, description: str | None = None) -> OKResponse:
         """Set an Airflow Variable via the API server."""
         body = VariablePostBody(val=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())

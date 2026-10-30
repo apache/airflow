@@ -305,7 +305,7 @@ export function createCoordinatorClient(
         "GetVariable",
         "VariableResult",
         msg,
-        (body) => (body!.value as string) ?? null,
+        (body) => body!.value as string,
         VARIABLE_ABSENT_POLICY,
       );
     },

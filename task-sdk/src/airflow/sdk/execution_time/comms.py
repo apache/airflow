@@ -1105,7 +1105,7 @@ class GetVariableKeys(BaseModel):
 
 class PutVariable(BaseModel):
     key: str
-    value: str | None
+    value: str
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
 

@@ -1,0 +1,22 @@
+Setting a Variable to ``None`` from a task is deprecated
+
+``Variable.set(key, None)`` (and ``Variable.aset``) in the Task SDK has always stored the
+string ``"None"``. It still does, but now emits a ``RemovedInAirflow4Warning`` and will be an
+error in a future release. Pass ``"None"`` explicitly to keep the current behavior, or use
+``serialize_json=True`` to store a JSON ``null``.
+
+The Execution API version ``2027-02-28`` and the supervisor schema version ``2027-02-28`` make
+the Variable value non-nullable. A successful read never carried a null value, so this only
+changes the documented type. Clients pinned to an older version can still set a Variable to
+null, which keeps storing ``"None"``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
